@@ -25,6 +25,7 @@
 #include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "common_test_utils/common_layers_params.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 
@@ -36,7 +37,7 @@ using namespace details;
 
 struct convolution_test_params {
     SizeVector input_dim;
-    conv_common_params conv_params;
+    CommonTestUtils::conv_common_params conv_params;
 };
 
 TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam) {
@@ -281,7 +282,7 @@ static void fillConvolutionIR(std::string& model, const convolution_test_params&
     auto conv_params = params.conv_params;
 
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsByteSize(input_dims, conv_params, "U8");
     size_t biasByteSize = output_dims[1] * sizeof(int32_t);
@@ -331,7 +332,7 @@ TEST_P(ConvolutionTest, fq_convolution_only_manual) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsByteSize(input_dims, conv_params, "FP32");
     size_t weightsSize = weightsByteSize / sizeof(float);
@@ -456,7 +457,7 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -522,7 +523,7 @@ TEST_P(ConvolutionTest, convolution_and_relu_u8) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -615,7 +616,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest,
 
 struct convolution_input_fill_test_params {
     SizeVector input_dim;
-    conv_common_params conv_params;
+    CommonTestUtils::conv_common_params conv_params;
     void (*fillBlob)(Blob::Ptr&, uint8_t);
     uint8_t fillSeed;
 };
@@ -648,7 +649,7 @@ TEST_P(ConvolutionTestIdent, u8_convolution_identity) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -770,8 +771,8 @@ INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionTestIdent, ::testing::ValuesIn(test
 
 struct convolution_and_pooling_test_params {
     SizeVector input_dim;
-    conv_common_params conv_params;
-    pool_common_params pool_params;
+    CommonTestUtils::conv_common_params conv_params;
+    CommonTestUtils::pool_common_params pool_params;
     bool is_positive_weights;
 };
 
@@ -781,11 +782,11 @@ static void fillConvAndPoolIR(std::string& model, const convolution_and_pooling_
     auto pool_params = params.pool_params;
 
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     SizeVector pool_input_dims = output_dims;
     SizeVector pool_output_dims;
-    getPoolOutShape(pool_input_dims, pool_params, pool_output_dims);
+    CommonTestUtils::getPoolOutShape(pool_input_dims, pool_params, pool_output_dims);
 
     fillConvolutionIR(model, {input_dims, conv_params});
 
@@ -818,11 +819,11 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
     std::string weight_precision_str = "U8";
 
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     SizeVector pool_input_dims = output_dims;
     SizeVector pool_output_dims;
-    getPoolOutShape(pool_input_dims, pool_params, pool_output_dims);
+    CommonTestUtils::getPoolOutShape(pool_input_dims, pool_params, pool_output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, weight_precision_str);
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);

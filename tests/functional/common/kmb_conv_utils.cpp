@@ -8,14 +8,16 @@
 #include <conv_ref.hpp>
 #include <vpu_layers_tests.hpp>
 
+#include "common_test_utils/common_layers_params.hpp"
+
 // Wrappers are used because IE functions getConvWeightsSize and getConvBiasesByteSize
 // support only 'FP32', 'FP16' and 'U8' precisions
-size_t getConvWeightsByteSize(
-    const std::vector<size_t>& inShape, const conv_common_params& params, const std::string& precision) {
+size_t getConvWeightsByteSize(const std::vector<size_t>& inShape, const CommonTestUtils::conv_common_params& params,
+    const std::string& precision) {
     return getConvWeightsSize(inShape, params, "U8") * precisionToBytesize(precision);
 }
 
-size_t getConvBiasesByteSize(const conv_common_params& params, const std::string& precision) {
+size_t getConvBiasesByteSize(const CommonTestUtils::conv_common_params& params, const std::string& precision) {
     return getConvBiasesSize(params, "U8") * precisionToBytesize(precision);
 }
 
@@ -24,7 +26,7 @@ std::string instantiateConvTestIR(const convolution_test_desc& convTestParam) {
     auto input_dims = convTestParam.input_dim;
     auto conv_params = convTestParam.conv_params;
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize =
         getConvWeightsByteSize(convTestParam.input_dim, convTestParam.conv_params, convTestParam.weights_precision);

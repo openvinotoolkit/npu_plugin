@@ -18,6 +18,7 @@
 #include <memory>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "common_test_utils/common_layers_params.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 
@@ -31,20 +32,20 @@ using namespace InferenceEngine;
 
 struct eltwise_test_params {
     SizeVector input_dim;
-    conv_common_params conv_params;
+    CommonTestUtils::conv_common_params conv_params;
 };
 
 class EltwiseTest : public testing::WithParamInterface<eltwise_test_params>, public kmbLayersTests_nightly {
 public:
     const SizeVector& input_dims() { return GetParam().input_dim; }
-    const conv_common_params& conv_params() { return GetParam().conv_params; }
+    const CommonTestUtils::conv_common_params& conv_params() { return GetParam().conv_params; }
 };
 
 // MCM compiler does not support multiple Input layers
 // This test throws when single input is bound to both ports of eltwise
 TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
     SizeVector output_dims;
-    getConvOutShape(input_dims(), conv_params(), output_dims);
+    CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
 
     const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
     const size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -87,7 +88,7 @@ TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
 // This test throws due to two inputs in the network
 TEST_P(EltwiseTest, TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     SizeVector output_dims;
-    getConvOutShape(input_dims(), conv_params(), output_dims);
+    CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
 
     const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
     const size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -135,7 +136,7 @@ static std::vector<eltwise_test_params> test_params = {
 // ScaleShift result is used as the second input to Eltwise
 TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     SizeVector output_dims;
-    getConvOutShape(input_dims(), conv_params(), output_dims);
+    CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
 
     const size_t weightsByteSize = getConvWeightsSize(input_dims(), conv_params(), "U8");
     const size_t weightsSize = weightsByteSize / sizeof(uint8_t);

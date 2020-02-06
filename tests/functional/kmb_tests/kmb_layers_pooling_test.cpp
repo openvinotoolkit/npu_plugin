@@ -17,6 +17,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/vpu_compiler_config.hpp>
 
+#include "common_test_utils/common_layers_params.hpp"
 #include "kmb_layers_tests.hpp"
 
 #define ERROR_BOUND (.1f)
@@ -256,7 +257,7 @@ INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPoolingParams, ::testi
 
 struct PoolingTestParams {
     SizeVector input_size;
-    pool_common_params pool_params;
+    CommonTestUtils::pool_common_params pool_params;
 };
 
 class PoolingTest : public testing::WithParamInterface<PoolingTestParams>, public kmbLayersTests_nightly {};
@@ -310,7 +311,7 @@ TEST_P(PoolingTest, DISABLED_pooling_only) {
 
     auto inputSize = GetParam().input_size;
     SizeVector outputSize;
-    getPoolOutShape(inputSize, params, outputSize);
+    CommonTestUtils::getPoolOutShape(inputSize, params, outputSize);
 
     REPLACE_WITH_NUM(model, "_INPUT_HEIGHT_", inputSize[2]);
     REPLACE_WITH_NUM(model, "_INPUT_WIDTH_", inputSize[3]);

@@ -23,6 +23,7 @@
 #include <vpu/utils/ie_helpers.hpp>
 
 #include "blob_factory.hpp"
+#include "common_test_utils/common_layers_params.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 #include "layout_tests.hpp"
@@ -167,9 +168,10 @@ TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
-    const conv_common_params conv_params = {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
+    const CommonTestUtils::conv_common_params conv_params = {
+        {1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -253,9 +255,10 @@ public:
           _biasSize(0),
           _convParams({{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""}) {
         const std::vector<size_t> input_dims = {1, 16, 16, 16};
-        const conv_common_params conv_params = {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
+        const CommonTestUtils::conv_common_params conv_params = {
+            {1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
         SizeVector output_dims;
-        getConvOutShape(input_dims, _convParams, output_dims);
+        CommonTestUtils::getConvOutShape(input_dims, _convParams, output_dims);
 
         size_t weightsByteSize = getConvWeightsSize(input_dims, _convParams, "U8");
         _weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -287,7 +290,7 @@ public:
     InferenceEngine::TBlob<uint8_t>::Ptr _weightsBuffer;
     size_t _weightsSize;
     size_t _biasSize;
-    const conv_common_params _convParams;
+    const CommonTestUtils::conv_common_params _convParams;
 };
 
 // Find details in VPUNND-2376
@@ -407,9 +410,10 @@ TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
-    const conv_common_params conv_params = {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
+    const CommonTestUtils::conv_common_params conv_params = {
+        {1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
@@ -456,9 +460,10 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
-    const conv_common_params conv_params = {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
+    const CommonTestUtils::conv_common_params conv_params = {
+        {1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 128, true, true, ""};
     SizeVector output_dims;
-    getConvOutShape(input_dims, conv_params, output_dims);
+    CommonTestUtils::getConvOutShape(input_dims, conv_params, output_dims);
 
     size_t weightsByteSize = getConvWeightsSize(input_dims, conv_params, "U8");
     size_t weightsSize = weightsByteSize / sizeof(uint8_t);
