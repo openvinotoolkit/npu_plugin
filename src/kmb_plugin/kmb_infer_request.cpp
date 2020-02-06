@@ -374,7 +374,7 @@ void KmbInferRequest::GetResult() {
         Blob::Ptr blobWithCorrectPrecision = convertPrecision(_blobWithResult, outputTensorDesc);
         // copy blob with correct precision to the output blob
         // copyBlob does layout conversion on its own
-        copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
+        if (!is2DTensor(outputTensorDesc.getDims())) copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
     }
 
     if (!_custom_outputs.empty()) {

@@ -23,6 +23,7 @@
 #include <unordered_set>
 
 namespace vpu {
+namespace KmbPlugin {
 
 class KmbConfig final : public MCMConfig {
 public:
@@ -59,4 +60,5 @@ private:
     int _SIPPLpi = 8;
 };
 
+}  // namespace KmbPlugin
 }  // namespace vpu

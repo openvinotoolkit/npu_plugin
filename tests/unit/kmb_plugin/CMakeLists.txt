@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Intel Corporation.
+# Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -22,11 +22,11 @@ file(GLOB TEST_SOURCES
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
 target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Werror)
+        PRIVATE
+            -Wall
+            -Werror)
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main kmbPlugin_test_static)
+target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmbPlugin_test_static)
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 
