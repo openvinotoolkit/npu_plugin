@@ -229,7 +229,7 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator con
                         mv::Order(mv::Order::getRowMajorID(4)),
                         weightsQuantParams);
     auto reQuantizeDepthwise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
-                        1, mv::DType("UInt8"), {{alignedZeroPoint},{alignedScale},{},{}}, concat->getName() + "Depthwise" + std::to_string(index));
+                        1, mv::DType("UInt8"), {{alignedZeroPoint},{alignedScale},{},{}}, concat->getName() + inputTensor->getName() + "Depthwise" + std::to_string(index));
     reQuantizeDepthwise->set<double>("oldScale", inputTensor->get<double>("oldScale"));
     auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
     auto weightsOp = om.getSourceOp(weights);
@@ -283,35 +283,20 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator con
 //    om.defineFlow(compensateDepthWise, nextOp, 0);
 //}
 
-//static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-//{
-//    std::vector<mv::Data::OpListIterator> sinkOperations;
-//    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-//    for(auto flowName : flowsNames)
-//    {
-//        auto df = dataModel.getDataFlow(flowName);
-//        sinkOperations.push_back(df.sink());
-//    }
-//    return sinkOperations;
-//}
-
-void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
 {
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
+}
 
-    auto concats = om.getOps("Concat");
-//    std::vector<std::string> dpuTypes = {"Conv", "MaxPool"};
-    //MaxPool does not need to compensate, I am doing that for case concat->Conv, MaxPool
-//    for(auto& concatIt : concats)
-//    {
-//        auto nextOpAfterConcat = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
-//        if (nextOpAfterConcat->getOpType() != "Conv")
-//        {
-//            concats.erase(std::remove(concats.begin(), concats.end(), concatIt), concats.end());
-//        }
-//    }
+static void markCompensatedConcats(std::vector<mv::Data::OpListIterator> &concats)
+{
     //NOTE: Mark the concats that need compensation
     for(auto& concatIt : concats)
     {
@@ -333,62 +318,103 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 continue;
         }
     }
+}
 
+static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator &concatIt)
+{
+    std::vector<double> minInputFloats, maxInputFloats = {};
+    double minimumFloat, maximumFloat;
+
+    //NOTE: Compute the min/max of every tensor that goes in the Concat
+    for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
+    {
+        auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
+        //Note: if input Tensor has min, max of infs...we need to compute them
+        if (inputQuantization.infinitelimits())
+        {
+            //Quantization equation Real = scale(Quantized - zeroPoint)
+            maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
+            minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
+            if (minimumFloat == -0)
+                minimumFloat = 0;
+            mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
+                                                        inputQuantization.getScale(),{minimumFloat},{maximumFloat});
+            concatIt->getInputTensor(i)->set<mv::QuantizationParams>("quantParams", newInputQuantization);
+        }
+        minInputFloats.push_back(minimumFloat);
+        maxInputFloats.push_back(maximumFloat);
+    }
+
+    double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
+    double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
+    double masterScale = (maxConcatScale-minConcatScale)/255;
+    int64_t zeroPoint = 0;
+    if (minConcatScale >= 0.0)
+        zeroPoint = 0;
+    else if (maxConcatScale <= 0.0)
+        zeroPoint = 255;
+    else if ((minConcatScale < 0.0) && (maxConcatScale > 0.0))
+    {
+        auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
+        zeroPoint = std::ceil(255 - max_diff);
+    }
+    return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
+}
+
+void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto concats = om.getOps("Concat");
+
+    // NOTE: For concats that go to concats the solution need to be recursive
+    // Covering 2 recursion rounds now
+    std::vector<mv::Data::OpListIterator> childConcats = {};
+    for(auto& concatIt : concats)
+    {
+        auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
+        if (nextOp->getOpType() == "Concat")
+            childConcats.push_back(nextOp);
+    }
+
+    for (auto& childConcatIt : childConcats)
+        concats.erase(std::remove(concats.begin(), concats.end(), childConcatIt), concats.end());
+
+    markCompensatedConcats(concats);
     for(auto& concatIt : concats)
     {
         if (concatIt->get<bool>("compensateNeed"))
         {
-            std::vector<double> minInputFloats, maxInputFloats = {};
-            double minimumFloat, maximumFloat;
-
-            //NOTE: Compute the min/max of every tensor that goes in the Concat
+            mv::QuantizationParams masterQuant = computeAlignedQuantParams(concatIt);
             for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
             {
-                auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
-                //Note: if input Tensor has min, max of infs...we need to compute them
-                if (inputQuantization.infinitelimits())
-                {
-                    //Quantization equation Real = scale(Quantized - zeroPoint)
-                    maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
-                    minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
-                    if (minimumFloat == -0)
-                        minimumFloat = 0;
-                    mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
-                                                                inputQuantization.getScale(),{minimumFloat},{maximumFloat});
-                    concatIt->getInputTensor(i)->set<mv::QuantizationParams>("quantParams", newInputQuantization);
-                }
-                minInputFloats.push_back(minimumFloat);
-                maxInputFloats.push_back(maximumFloat);
-            }
-            double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
-            double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
-            double masterScale = (maxConcatScale-minConcatScale)/255;
-            int64_t zeroPoint = 0;
-            if (maxConcatScale >= 0.0)
-                zeroPoint = 0;
-            else if (minConcatScale <= 0.0)
-                zeroPoint = 255;
-            else if ((minConcatScale < 0.0) && (maxConcatScale > 0.0))
-            {
-                auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
-                zeroPoint = std::ceil(255 - max_diff);
-            }
-            mv::QuantizationParams masterQuant = {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
-
-            for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
-            {
-                if (masterScale == concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0])
+                if (std::abs(masterQuant.getScale()[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterQuant.getScale()[0] <= 0.01)
                     continue;
+
                 double weightScale = 1.0f;
-                placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterScale, zeroPoint);
+                placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
             concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
             concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
-            //NOTE: Unused code but leaving it here...can be useful for other approach of the problem...
-//            auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];
-//            if (std::find(dpuTypes.begin(), dpuTypes.end(), nextOp->getOpType()) != dpuTypes.end())
-//                compensateDepthWiseAfter(om, nextOp, concatIt);
-
+        }
+    }
+    markCompensatedConcats(childConcats);
+    for(auto& concatIt : childConcats)
+    {
+        if (concatIt->get<bool>("compensateNeed"))
+        {
+            mv::QuantizationParams masterQuant = computeAlignedQuantParams(concatIt);
+            for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
+            {
+                if (masterQuant.getScale()[0] == concatIt->getInputTensor()[i]->get<mv::QuantizationParams>("quantParams").getScale()[0])
+                    continue;
+                double weightScale = 1.0f;
+                placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
+            }
+            concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
+            concatIt->set<mv::QuantizationParams>("quantParams", masterQuant);
         }
     }
 }
