@@ -82,12 +82,12 @@ void fillUniform_(const Blob::Ptr& blob, std::default_random_engine& rd, T min, 
         break;
     }
     case Precision::U8: {
-        std::uniform_int_distribution<uint8_t> dist(vpu::checked_cast<uint8_t>(max), vpu::checked_cast<uint8_t>(min));
+        std::uniform_int_distribution<uint8_t> dist(vpu::checked_cast<uint8_t>(min), vpu::checked_cast<uint8_t>(max));
         fill_<uint8_t>(blob, rd, dist);
         break;
     }
     case Precision::I8: {
-        std::uniform_int_distribution<int8_t> dist(vpu::checked_cast<int8_t>(max), vpu::checked_cast<int8_t>(min));
+        std::uniform_int_distribution<int8_t> dist(vpu::checked_cast<int8_t>(min), vpu::checked_cast<int8_t>(max));
         fill_<int8_t>(blob, rd, dist);
         break;
     }

@@ -291,10 +291,6 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     const bool isActivationScalesBroadcasted = activationScales.size() != biasCount;
     auto biasesPrecision = biasBlob->getTensorDesc().getPrecision();
 
-    //IE_ASSERT(biasBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32);
-
-    IE_ASSERT(biasBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32);
-
     if ((weightsScales.size() != 1) && isWeightsScalesBroadcasted) {
         THROW_IE_EXCEPTION << "Unexpected input low values count " << weightsScales.size() << " for " << biasCount
                            << " channels for bias quantization";

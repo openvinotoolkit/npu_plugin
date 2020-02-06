@@ -446,7 +446,6 @@ void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
         alignEltwiseScales(cnnNet);
     }
 
-    removeInputScaleShiftPattern(cnnNet);
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
 }
