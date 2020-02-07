@@ -47,126 +47,6 @@ bool strToBool(const char* varName, const char* varValue) {
     }
 }
 
-const std::string DEVICE_NAME = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
-        return var;
-    }
-
-    return "KMB";
-}();
-
-const std::string REF_DEVICE_NAME = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_REF_DEVICE_NAME")) {
-        return var;
-    }
-
-    return "CPU";
-}();
-
-const bool RUN_COMPILER = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
-        return strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
-    }
-
-    if (DEVICE_NAME == "CPU") {
-        return true;
-    }
-
-#if defined(PLATFORM_ARM) || !defined(ENABLE_MCM_COMPILER)
-    return false;
-#else
-    return true;
-#endif
-}();
-
-const bool RUN_REF_CODE = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_REF_CODE")) {
-        return strToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
-    }
-
-#ifdef PLATFORM_ARM
-    return false;
-#else
-    return true;
-#endif
-}();
-
-const bool RUN_INFER = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
-        return strToBool("IE_KMB_TESTS_RUN_INFER", var);
-    }
-
-    if (DEVICE_NAME == "CPU") {
-        return true;
-    }
-
-#ifdef PLATFORM_ARM
-    return true;
-#else
-    return false;
-#endif
-}();
-
-const std::string DUMP_PATH = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
-        return var;
-    }
-
-    return std::string();
-}();
-
-const bool EXPORT_NETWORK = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_NETWORK")) {
-        return strToBool("IE_KMB_TESTS_EXPORT_NETWORK", var);
-    }
-
-    if (DEVICE_NAME == "CPU") {
-        return false;
-    }
-
-    return RUN_COMPILER && !DUMP_PATH.empty();
-}();
-
-const bool RAW_EXPORT = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
-        return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
-    }
-
-    return false;
-}();
-
-const bool GENERATE_BLOBS = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_GENERATE_BLOBS")) {
-        return strToBool("IE_KMB_TESTS_GENERATE_BLOBS", var);
-    }
-
-    return RUN_REF_CODE;
-}();
-
-const bool EXPORT_BLOBS = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_BLOBS")) {
-        return strToBool("IE_KMB_TESTS_EXPORT_BLOBS", var);
-    }
-
-    return GENERATE_BLOBS && !DUMP_PATH.empty();
-}();
-
-const std::string LOG_LEVEL = []() -> std::string {
-    if (const auto var = std::getenv("IE_KMB_TESTS_LOG_LEVEL")) {
-        return var;
-    }
-
-    return std::string();
-}();
-
-const bool PRINT_PERF_COUNTERS = []() -> bool {
-    if (const auto var = std::getenv("IE_KMB_TESTS_PRINT_PERF_COUNTERS")) {
-        return strToBool("IE_KMB_TESTS_PRINT_PERF_COUNTERS", var);
-    }
-
-    return false;
-}();
-
 std::string cleanName(std::string name) {
     std::replace_if(
         name.begin(), name.end(),
@@ -178,6 +58,126 @@ std::string cleanName(std::string name) {
 }
 
 }  // namespace
+
+const std::string KmbTestBase::DEVICE_NAME = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_DEVICE_NAME")) {
+        return var;
+    }
+
+    return "KMB";
+}();
+
+const std::string KmbTestBase::REF_DEVICE_NAME = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_REF_DEVICE_NAME")) {
+        return var;
+    }
+
+    return "CPU";
+}();
+
+const bool KmbTestBase::RUN_COMPILER = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_COMPILER")) {
+        return strToBool("IE_KMB_TESTS_RUN_COMPILER", var);
+    }
+
+    if (KmbTestBase::DEVICE_NAME == "CPU") {
+        return true;
+    }
+
+#if defined(PLATFORM_ARM) || !defined(ENABLE_MCM_COMPILER)
+    return false;
+#else
+    return true;
+#endif
+}();
+
+const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_REF_CODE")) {
+        return strToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
+    }
+
+#ifdef PLATFORM_ARM
+    return false;
+#else
+    return true;
+#endif
+}();
+
+const bool KmbTestBase::RUN_INFER = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_RUN_INFER")) {
+        return strToBool("IE_KMB_TESTS_RUN_INFER", var);
+    }
+
+    if (KmbTestBase::DEVICE_NAME == "CPU") {
+        return true;
+    }
+
+#ifdef PLATFORM_ARM
+    return true;
+#else
+    return false;
+#endif
+}();
+
+const std::string KmbTestBase::DUMP_PATH = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_DUMP_PATH")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
+const bool KmbTestBase::EXPORT_NETWORK = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_NETWORK")) {
+        return strToBool("IE_KMB_TESTS_EXPORT_NETWORK", var);
+    }
+
+    if (KmbTestBase::DEVICE_NAME == "CPU") {
+        return false;
+    }
+
+    return KmbTestBase::RUN_COMPILER && !KmbTestBase::DUMP_PATH.empty();
+}();
+
+const bool KmbTestBase::RAW_EXPORT = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
+        return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
+    }
+
+    return false;
+}();
+
+const bool KmbTestBase::GENERATE_BLOBS = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_GENERATE_BLOBS")) {
+        return strToBool("IE_KMB_TESTS_GENERATE_BLOBS", var);
+    }
+
+    return KmbTestBase::RUN_REF_CODE;
+}();
+
+const bool KmbTestBase::EXPORT_BLOBS = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_EXPORT_BLOBS")) {
+        return strToBool("IE_KMB_TESTS_EXPORT_BLOBS", var);
+    }
+
+    return KmbTestBase::GENERATE_BLOBS && !KmbTestBase::DUMP_PATH.empty();
+}();
+
+const std::string KmbTestBase::LOG_LEVEL = []() -> std::string {
+    if (const auto var = std::getenv("IE_KMB_TESTS_LOG_LEVEL")) {
+        return var;
+    }
+
+    return std::string();
+}();
+
+const bool KmbTestBase::PRINT_PERF_COUNTERS = []() -> bool {
+    if (const auto var = std::getenv("IE_KMB_TESTS_PRINT_PERF_COUNTERS")) {
+        return strToBool("IE_KMB_TESTS_PRINT_PERF_COUNTERS", var);
+    }
+
+    return false;
+}();
 
 void KmbTestBase::SetUp() {
     ASSERT_NO_FATAL_FAILURE(TestsCommon::SetUp());
