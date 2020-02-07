@@ -813,6 +813,26 @@ std::string mv::Tensor::toString() const
     return getLogID() + Element::attrsToString_();
 }
 
+std::string mv::Tensor::subTensorInfo() const
+{
+    std::string toReturn;
+    if (hasSubTensors())
+    {
+        for (int i = 0; i < numSubTensors(); i++)
+        {
+            toReturn += subTensors_[i]->getShape().toString();
+        }
+
+        // for (int i = 0; i < numSubTensors(); i++)
+        // {
+        //     toReturn += subTensors_[i]->getClusterSize();
+        //     toReturn += ",";
+        // }
+    }
+
+    return toReturn;
+}
+
 bool mv::Tensor::elementWiseChecks_(const Tensor& other)
 {
     if (!isPopulated() || !other.isPopulated())
