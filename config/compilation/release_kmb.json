@@ -139,7 +139,7 @@
                             "name" : "MaxPool",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
-                                {"name" : "clusteringStrategies", "value" : ["HKSwitch","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH", "HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
