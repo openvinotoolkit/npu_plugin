@@ -38,6 +38,20 @@ namespace mv
     }
 }
 
+void calcZeroPointAndScale(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
+{
+    outScale = (outputMax - outputMin)/255;
+    if (outputMin >= 0.0)
+        outZp = 0;
+    else if (outputMax <= 0.0)
+        outZp = 255;
+    else if ((outputMin < 0.0) && (outputMax > 0.0))
+    {
+        auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
+        outZp = std::ceil(255 - max_diff);
+    }
+}
+
 void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor& td, mv::Element& e0, mv::Element& e1)
 {
@@ -45,7 +59,24 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
     updateOutputQuantParams(pass, model, td, e0, e1);
 }
 
-void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void updateInfMinMax(mv::Data::TensorIterator input)
+{
+    auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+    //Note: if input Tensor has min, max of infs...we need to compute them
+    if (inputQuantization.infinitelimits())
+    {
+        //Quantization equation Real = scale(Quantized - zeroPoint)
+        double maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
+        double minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
+        if (minimumFloat == -0)
+            minimumFloat = 0;
+        mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
+                                                    inputQuantization.getScale(),{minimumFloat},{maximumFloat});
+        input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
+    }
+}
+
+void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //NOTE: This pass will generate output Quantization Params when they are not defined...
     //Here we search for the minimum, maximum possible solution (better range) for the output Activation Tensor
@@ -112,19 +143,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationMod
             std::vector<double> outMin(outputChannels, inf);
             std::vector<double> outMax(outputChannels, -inf);
 
-            auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
             //Note: if input Tensor has min, max of infs...we need to compute them
-            if (inputQuantization.infinitelimits())
-            {
-                //Quantization equation Real = scale(Quantized - zeroPoint)
-                double maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
-                double minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
-                if (minimumFloat == -0)
-                    minimumFloat = 0;
-                mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
-                                                            inputQuantization.getScale(),{minimumFloat},{maximumFloat});
-                input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
-            }
+            updateInfMinMax(input);
 
             auto& newInputQuantization = input->get<mv::QuantizationParams>("quantParams");
             auto weights = opIt->getInputTensor("weights");
@@ -184,16 +204,8 @@ void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationMod
             outputMin = *std::min_element(outMin.begin(), outMin.end());
             outputMax = *std::max_element(outMax.begin(), outMax.end());
 
-            outScale[0] = (outputMax - outputMin)/255;
-            if (outputMin >= 0.0)
-                outZp[0] = 0;
-            else if (outputMax <= 0.0)
-                outZp[0] = 255;
-            else if ((outputMin < 0.0) && (outputMax > 0.0))
-            {
-                auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
-                outZp[0] = std::ceil(255 - max_diff);
-            }
+            calcZeroPointAndScale(outputMax, outputMin, outScale[0], outZp[0]);
+
             mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
             output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
             opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
@@ -323,41 +335,27 @@ static void markCompensatedConcats(std::vector<mv::Data::OpListIterator> &concat
 static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator &concatIt)
 {
     std::vector<double> minInputFloats, maxInputFloats = {};
-    double minimumFloat, maximumFloat;
 
     //NOTE: Compute the min/max of every tensor that goes in the Concat
     for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
     {
-        auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
         //Note: if input Tensor has min, max of infs...we need to compute them
-        if (inputQuantization.infinitelimits())
-        {
-            //Quantization equation Real = scale(Quantized - zeroPoint)
-            maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
-            minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
-            if (minimumFloat == -0)
-                minimumFloat = 0;
-            mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
-                                                        inputQuantization.getScale(),{minimumFloat},{maximumFloat});
-            concatIt->getInputTensor(i)->set<mv::QuantizationParams>("quantParams", newInputQuantization);
-        }
-        minInputFloats.push_back(minimumFloat);
-        maxInputFloats.push_back(maximumFloat);
+        updateInfMinMax(concatIt->getInputTensor(i));
+
+        auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
+
+        minInputFloats.push_back(inputQuantization.getMin()[0]);
+        maxInputFloats.push_back(inputQuantization.getMax()[0]);
     }
 
     double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
     double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
-    double masterScale = (maxConcatScale-minConcatScale)/255;
+
+
+    double masterScale = 1.0;
     int64_t zeroPoint = 0;
-    if (minConcatScale >= 0.0)
-        zeroPoint = 0;
-    else if (maxConcatScale <= 0.0)
-        zeroPoint = 255;
-    else if ((minConcatScale < 0.0) && (maxConcatScale > 0.0))
-    {
-        auto max_diff = (maxConcatScale/(std::abs(minConcatScale) + maxConcatScale)) * 255;
-        zeroPoint = std::ceil(255 - max_diff);
-    }
+    calcZeroPointAndScale(maxConcatScale, minConcatScale, masterScale, zeroPoint);
+
     return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 }
 
