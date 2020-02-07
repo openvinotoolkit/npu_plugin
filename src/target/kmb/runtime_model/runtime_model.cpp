@@ -373,6 +373,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto starting_address = 0;
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
+        else
+        {
+            auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+            starting_address = (*masterBuffer)->getOffset();
+        }
 
         toBuild->data->data_index = starting_address + byte_index;
 
