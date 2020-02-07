@@ -36,13 +36,10 @@ public:
     ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, ICNNNetwork& network, RemoteContext::Ptr ptr,
         const std::map<std::string, std::string>& map) override;
 
+    using InferenceEngine::InferencePluginInternal::ImportNetwork;
+
     IExecutableNetwork::Ptr ImportNetwork(
         const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
-
-    InferenceEngine::ExecutableNetwork ImportNetwork(
-        std::istream& /*networkModel*/, const std::map<std::string, std::string>& /*config*/) override {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-    }
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
