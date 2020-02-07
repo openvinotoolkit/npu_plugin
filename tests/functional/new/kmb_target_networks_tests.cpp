@@ -155,7 +155,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_uint8_int8_weights_perchannel) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "224x224/cat3.bmp",
+        TestImageDesc("224x224/cat3.bmp", false),
         1, 0.05f);
 }
 // Bad inference results. [Track number: D#2474]
@@ -212,7 +212,7 @@ TEST_F(KmbClassifyNetworkTest, resnet50_uint8_int8_weights_pertensor) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "224x224/cat3.bmp",
+        TestImageDesc("224x224/cat3.bmp", false),
         1, 0.7f);
 }
 // Hangs on infer stage [Track number: D#2293]
