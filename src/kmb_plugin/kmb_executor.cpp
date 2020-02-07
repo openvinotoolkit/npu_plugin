@@ -366,10 +366,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #endif
 }
 
-void KmbExecutor::queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes) {
-    UNUSED(result_data);
-    UNUSED(result_bytes);
-
+void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
     if (!_config.useKmbExecutor()) {
         return;
     }
