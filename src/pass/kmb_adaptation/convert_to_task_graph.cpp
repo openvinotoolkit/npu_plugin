@@ -546,41 +546,44 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
     auto FP16 = mv::DType("Float16");
 
     int32_t clamp = -2147483648;
-
-    if (outputDType == U8 || outputDType == I8)
+    std::string taskOp = opIt->get<std::string>("taskOp");
+    if (taskOp != "MaxPool")
     {
-        // Saturation clamp has to be computed in this case
-        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
-        int32_t saturationClamp = - outputQuantParams.getZeroPoint()[0];
-        if(outputDType == I8)
-            saturationClamp -= 128;
-
-        clamp = saturationClamp;
-
-        if(opIt->hasAttr("Maximum"))
+        if (outputDType == U8 || outputDType == I8)
         {
-            double clampValue = opIt->get<double>("Maximum");
-            double outputScale = outputQuantParams.getScale()[0];
-            int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
+            // Saturation clamp has to be computed in this case
+            mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+            int32_t saturationClamp = - outputQuantParams.getZeroPoint()[0];
+            if(outputDType == I8)
+                saturationClamp -= 128;
 
-            if(quantizedClampValue > clamp)
-                clamp = quantizedClampValue;
+            clamp = saturationClamp;
+
+            if(opIt->hasAttr("Maximum"))
+            {
+                double clampValue = opIt->get<double>("Maximum");
+                double outputScale = outputQuantParams.getScale()[0];
+                int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
+
+                if(quantizedClampValue > clamp)
+                    clamp = quantizedClampValue;
+            }
+
+            if(computeDType == FP16)
+                clamp <<= 16;
         }
 
-        if(computeDType == FP16)
-            clamp <<= 16;
-    }
-
-    else if (outputDType == FP16)
-    {
-        if(opIt->hasAttr("Maximum"))
+        else if (outputDType == FP16)
         {
-            double clampValue = opIt->get<double>("Maximum");
+            if(opIt->hasAttr("Maximum"))
+            {
+                double clampValue = opIt->get<double>("Maximum");
 
-            if(computeDType == U8 || computeDType == I8)
-                clamp = static_cast<int32_t>(clampValue);
-            else if (computeDType == FP16)
-                clamp = static_cast<int32_t>(clampValue * pow(2,16));
+                if(computeDType == U8 || computeDType == I8)
+                    clamp = static_cast<int32_t>(clampValue);
+                else if (computeDType == FP16)
+                    clamp = static_cast<int32_t>(clampValue * pow(2,16));
+            }
         }
     }
     return clamp;
@@ -596,43 +599,46 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
     auto FP16 = mv::DType("Float16");
 
     int32_t clamp = 2147483647;
-
-    if (outputDType == U8 || outputDType == I8)
+    std::string taskOp = opIt->get<std::string>("taskOp");
+    if (taskOp != "MaxPool")
     {
-        // Saturation clamp has to be computed in this case
-        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
-        int32_t saturationClamp = - outputQuantParams.getZeroPoint()[0];
-        if(outputDType == I8)
-            saturationClamp += 127;
-        else
-            saturationClamp += 255;
-
-        clamp = saturationClamp;
-
-        if(opIt->hasAttr("Minimum"))
+        if (outputDType == U8 || outputDType == I8)
         {
-            double clampValue = opIt->get<double>("Minimum");
-            double outputScale = outputQuantParams.getScale()[0];
-            int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
+            // Saturation clamp has to be computed in this case
+            mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+            int32_t saturationClamp = - outputQuantParams.getZeroPoint()[0];
+            if(outputDType == I8)
+                saturationClamp += 127;
+            else
+                saturationClamp += 255;
 
-            if(quantizedClampValue < clamp)
-                clamp = quantizedClampValue;
+            clamp = saturationClamp;
+
+            if(opIt->hasAttr("Minimum"))
+            {
+                double clampValue = opIt->get<double>("Minimum");
+                double outputScale = outputQuantParams.getScale()[0];
+                int32_t quantizedClampValue = static_cast<int32_t>(clampValue / outputScale);
+
+                if(quantizedClampValue < clamp)
+                    clamp = quantizedClampValue;
+            }
+
+            if(computeDType == FP16)
+                clamp <<= 16;
         }
 
-        if(computeDType == FP16)
-            clamp <<= 16;
-    }
-
-    else if (outputDType == FP16)
-    {
-        if(opIt->hasAttr("Minimum"))
+        else if (outputDType == FP16)
         {
-            double clampValue = opIt->get<double>("Minimum");
+            if(opIt->hasAttr("Minimum"))
+            {
+                double clampValue = opIt->get<double>("Minimum");
 
-            if(computeDType == U8 || computeDType == I8)
-                clamp = static_cast<int32_t>(clampValue);
-            else if (computeDType == FP16)
-                clamp = static_cast<int32_t>(clampValue * pow(2,16));
+                if(computeDType == U8 || computeDType == I8)
+                    clamp = static_cast<int32_t>(clampValue);
+                else if (computeDType == FP16)
+                    clamp = static_cast<int32_t>(clampValue * pow(2,16));
+            }
         }
     }
     return clamp;

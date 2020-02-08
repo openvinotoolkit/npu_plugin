@@ -5,13 +5,17 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
+<<<<<<< HEAD
                 "verbose": "Debug",
+=======
+                "verbose": "Error",
+>>>>>>> master
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
-                "WorkloadCost" : 0,
                 "UpaShaves": 1,
+                "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
@@ -21,7 +25,7 @@
                 "split_strategy" :
                 [
                     {
-                        "name_filter" : "name",
+                        "name_filter" : "Example",
                         "cluster_filter" : 0,
                         "strategy" : "Example"
                     }
@@ -54,7 +58,7 @@
                 "streaming_strategy" :
                 [
                     {
-                        "name_filter" : "Example_do_not_remove",
+                        "name_filter" : "Example",
                         "splits" : [
                             {"W" : 1},
                             {"H" : 1},
@@ -66,7 +70,7 @@
                 "sparsity_strategy" :
                 [
                     {
-                        "name_filter": ".*",
+                        "name_filter": "Example",
                         "inputActivationSparsity": false,
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
@@ -91,6 +95,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
@@ -129,7 +134,7 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -275,6 +280,7 @@
     },
     "serialize": {
         "Singular": [
+            "RemoveRedundantUpdateBarriers",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
@@ -289,18 +295,12 @@
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
             }
-
         ]
     },
     "root": {
         "Singular": [
             "initialize",
-            "validate",
             "adapt",
             "kmb_adapt",
             "dma",

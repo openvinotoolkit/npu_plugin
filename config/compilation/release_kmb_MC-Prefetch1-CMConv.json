@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -15,8 +15,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "enable_channel_major_conv": true,
                 "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
@@ -91,7 +90,6 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",

@@ -309,6 +309,10 @@ import_array();
         return o.softmax(input, "C", type, quantParams, name);
     }
 
+    mv::Data::TensorIterator permute(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Order& order, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
+        return o.permute(input, order, type, quantParams, name);
+    }
+
     mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name){
         return o.fullyConnected(input0, input1, type, quantParams, name);
     }
@@ -453,6 +457,7 @@ mv::Data::TensorIterator eltwiseMaximum(mv::CompositionalModel& o, mv::Data::Ten
 mv::Data::TensorIterator eltwise(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& eltWiseType, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator divide(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name);
 mv::Data::TensorIterator softmax(mv::CompositionalModel& o,mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
+mv::Data::TensorIterator permute(mv::CompositionalModel& o,mv::Data::TensorIterator input, const mv::Order& order, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator fullyConnected(mv::CompositionalModel& o,mv::Data::TensorIterator input0, mv::Data::TensorIterator input1, const std::string& type, const mv::QuantizationParams  &quantParams, const std::string &name);
 mv::Data::TensorIterator conv2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, mv::Data::TensorIterator filters,
     short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu, short unsigned padYd, short unsigned dilationFactor, short unsigned group,  const std::string& type, const mv::QuantizationParams  &quantParams, const std::string& name);
