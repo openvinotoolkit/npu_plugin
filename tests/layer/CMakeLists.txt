@@ -7,6 +7,9 @@ if (MSVC)
 
 else()
 
+    add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
+    target_link_libraries(single_conv_hde cm)
+
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
 
