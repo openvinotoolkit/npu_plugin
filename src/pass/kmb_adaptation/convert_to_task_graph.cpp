@@ -10,6 +10,11 @@
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order);
+static void correct_order_string(std::string& s, bool reverse=false);
+static void calculate_permutation_from_orders(std::vector<unsigned>& permute_order, std::string old_order, std::string new_order);
+static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<unsigned> &permute_order);
+static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
@@ -343,31 +348,66 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
 
     mv::Data::TensorIterator upaPermute = om.uPATaskPermute(inputs, order, dtype, quantParams, name);
     auto upaPermuteOp = om.getSourceOp(upaPermute);
-    // Correct order of strings if necessary
-    auto old_order_str = inputs[0]->getOrder().toString();
-    auto new_order_str = order.toString();
+    auto vpu_in_order_str = inputs[0]->getOrder().toString();
+    auto vpu_out_order_str = vpu_in_order_str;
+    auto cpu_in_order_str = std::string("NCHW");
+    auto cpu_out_order_str = order.toString();
 
-    if (old_order_str[0] != 'N')
-        old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+    // Reverse order strings if necessary
+    correct_order_string(cpu_in_order_str, true);
+    correct_order_string(cpu_out_order_str, true);
 
-    if (new_order_str[0] != 'N')
-        new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+    /**********************************************************************
+     Example: data order="0,2,3,1"
 
-    // Convert permute order to axes
-    std::vector<unsigned> permute_order(3);
-    for (auto i=0; i < 3; i++)
-    {
-        for (auto j=0; j < 3; j++)
-        {
-            if (new_order_str[i+1] == old_order_str[j+1])
-                permute_order.at(i) = j;
-        }
+        CPU_in                          <---          VPU_in
+        order: NCHW                                   order: NHWC
+        nchw_shape: (1,2,3,4)                         nhwc_shape: (1,3,4,2)
 
-    }
 
-    upaPermuteOp->set<unsigned>("permute_order_x", permute_order.at(0));
-    upaPermuteOp->set<unsigned>("permute_order_y", permute_order.at(1));
-    upaPermuteOp->set<unsigned>("permute_order_z", permute_order.at(2));
+                                                            .
+              |                                             .
+              |   P(a,b,c,d)                                .   P(x,y,z)
+             \ /  e.g., P(0,2,3,1)                         \ /  e.g., P(1,2,0)
+              `                                             `
+
+
+         CPU_out                        --->         VPU_out
+         order: NCHW_P(a,b,c,d)                      order: NHWC_P(x,y,z)
+         nchw_shape: (1,3,4,2)                       nhwc_shape: (1,4,2,3)
+
+    **********************************************************************/
+
+    std::vector<unsigned> po_VPU_in_to_CPU_in(3);
+    std::vector<unsigned> po_CPU_in_to_CPU_out(3);
+    std::vector<unsigned> po_CPU_out_to_VPU_out(3);
+    std::vector<unsigned> po_VPU_in_to_VPU_out_relative = {0,1,2};
+    std::vector<unsigned> po_VPU_in_to_VPU_out_xyz(3);
+
+    // Correct order of strings if necessary (e.g., NCHW instead of WHCN)
+    correct_order_string(vpu_in_order_str);
+    correct_order_string(cpu_in_order_str);
+    correct_order_string(cpu_out_order_str);
+    correct_order_string(vpu_out_order_str);
+
+    // Steps:
+    // 1) Calculate the permute_orders for each of the 3 order transitions:
+    //      - VPU_in --> CPU_in
+    //      - CPU_in --> CPU_out
+    //      - CPU_out (i.e., CPU_in) --> VPU_out
+    calculate_permutation_from_orders(po_VPU_in_to_CPU_in, vpu_in_order_str, cpu_in_order_str);
+    calculate_permutation_from_orders(po_CPU_in_to_CPU_out, cpu_in_order_str, cpu_out_order_str);
+    calculate_permutation_from_orders(po_CPU_out_to_VPU_out, cpu_in_order_str, vpu_out_order_str);
+
+    // 2) Calculate the functionally-equivalent permute_order for:
+    //      - VPU_in --> VPU_out
+    calculate_permutation_from_permutes(po_VPU_in_to_CPU_in, po_VPU_in_to_VPU_out_relative);
+    calculate_permutation_from_permutes(po_CPU_in_to_CPU_out, po_VPU_in_to_VPU_out_relative);
+    calculate_permutation_from_permutes(po_CPU_out_to_VPU_out, po_VPU_in_to_VPU_out_relative);
+
+    upaPermuteOp->set<unsigned>("permute_order_x", po_VPU_in_to_VPU_out_relative.at(0));
+    upaPermuteOp->set<unsigned>("permute_order_y", po_VPU_in_to_VPU_out_relative.at(1));
+    upaPermuteOp->set<unsigned>("permute_order_z", po_VPU_in_to_VPU_out_relative.at(2));
 
     return upaPermute;
 }
@@ -649,4 +689,70 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
         }
     }
     return clamp;
+}
+
+// Calculate the permute_order
+void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order)
+{
+    std::unordered_map<char, unsigned> chw_to_index = {
+        {'C',2},
+        {'H',1},
+        {'W',0},
+    };
+
+    for (auto i = 0; i < 3; i++)
+    {
+        permute_order.at(i) = chw_to_index[order[i + 1]];
+    }
+}
+
+// Reverse order string if necessary
+// e.g., reverse=false; in=CWHN; out=NHWC
+//       reverse=true; in=NCHW; out=WHCN
+void correct_order_string(std::string& s, bool reverse)
+{
+    auto N_index = (reverse) ? 3 : 0;
+    if (s[N_index] != 'N')
+        s = std::string(s.rbegin(), s.rend());
+}
+
+// Calculate P(x,y,z) from old_order & new_order
+// e.g., NCHW -> NHWC  =  P(1,2,0)
+void calculate_permutation_from_orders(std::vector<unsigned>& permute_order, std::string old_order, std::string new_order)
+{
+    for (auto i = 0; i < 3; i++)
+    {
+        for (auto j = 0; j < 3; j++)
+        {
+            if (new_order[i + 1] == old_order[j + 1])
+                permute_order.at(i) = j;
+        }
+
+    }
+}
+
+// Update the permute_order based on permutation P()
+//
+//                P()
+// permute_order ----> permute_order
+void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<unsigned> &permute_order)
+{
+    std::vector<unsigned> permute_order_copy = {permute_order.at(0), permute_order.at(1), permute_order.at(2)};
+    for (auto i = 0; i < 3; i++)
+    {
+        permute_order.at(i) = permute_order_copy.at(P.at(i));
+    }
+}
+
+// Calculates positions of X, Y, & Z from permute_order
+void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order)
+{
+    for (auto i = 0; i < 3; i++)
+    {
+        for (auto j = 0; j < 3; j++)
+        {
+            if (permute_order.at(j) == i)
+                permute_order_xyz.at(i) = j;
+        }
+    }
 }
