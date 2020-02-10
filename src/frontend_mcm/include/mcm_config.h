@@ -48,7 +48,7 @@ public:
 
     const std::string& mcmCompilationResults() const { return _mcmCompilationResults; }
 
-    bool eltwiseScalesAlignment() const { return _eltwiseScalesAlignment; }
+    bool inputsScalesAlignment() const { return _inputsScalesAlignment; }
 
     bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
 
@@ -74,7 +74,7 @@ private:
     std::string _mcmCompilationResultsPath = ".";
     std::string _mcmCompilationResults = "";
 
-    bool _eltwiseScalesAlignment = false;
+    bool _inputsScalesAlignment = false;
     bool _inputScaleShiftRemoving = true;
 };
 

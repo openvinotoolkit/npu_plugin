@@ -41,6 +41,20 @@ public:
     using CompileConfig = std::map<std::string, std::string>;
 
 public:
+    static const std::string DEVICE_NAME;
+    static const std::string REF_DEVICE_NAME;
+    static const bool RUN_COMPILER;
+    static const bool RUN_REF_CODE;
+    static const bool RUN_INFER;
+    static const std::string DUMP_PATH;
+    static const bool EXPORT_NETWORK;
+    static const bool RAW_EXPORT;
+    static const bool GENERATE_BLOBS;
+    static const bool EXPORT_BLOBS;
+    static const std::string LOG_LEVEL;
+    static const bool PRINT_PERF_COUNTERS;
+
+public:
     void registerBlobGenerator(
             const std::string& blobName,
             const TensorDesc& desc,

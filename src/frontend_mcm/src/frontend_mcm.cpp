@@ -349,7 +349,7 @@ void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
     }
 }
 
-static bool eltwiseHasSameScales(
+static bool inputsHasSameScales(
     const std::vector<InferenceEngine::CNNLayerPtr>& inputs, const size_t& maxValues, const size_t& maxValuesIdx) {
     for (size_t i = 0; i < inputs.size(); i++) {
         auto quantizationParams1 = QuantizationDetails::getDetails(*inputs[i]);
@@ -398,9 +398,9 @@ static void setFakeQuantizeScales(const InferenceEngine::CNNLayerPtr& fakeQuanti
     CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, scaledOutputHighValues);
 }
 
-void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
+void FrontEndMcm::alignInputsScales(ie::CNNNetwork& network) {
     for (auto& layer : network) {
-        if (layer->type == "Eltwise") {
+        if (layer->type == "Eltwise" || layer->type == "Concat") {
             auto inputs = CNNNetworkHelper::getParents(*layer);
             size_t maxValues = 1;
             size_t maxValuesIdx = 0;
@@ -412,7 +412,7 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
                 }
             }
 
-            if (eltwiseHasSameScales(inputs, maxValues, maxValuesIdx)) {
+            if (inputsHasSameScales(inputs, maxValues, maxValuesIdx)) {
                 continue;
             }
 
@@ -442,8 +442,8 @@ void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     if (_config.inputScaleShiftRemoving()) {
         removeInputScaleShiftPattern(cnnNet);
     }
-    if (_config.eltwiseScalesAlignment()) {
-        alignEltwiseScales(cnnNet);
+    if (_config.inputsScalesAlignment()) {
+        alignInputsScales(cnnNet);
     }
 
     parseNetworkDFS(cnnNet, _parsedNetwork);
@@ -1386,22 +1386,29 @@ void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector
 void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(!inputs.empty());
 
-    auto clampLayer = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
-    IE_ASSERT(clampLayer != nullptr);
-    IE_ASSERT(clampLayer->_axis < inputs[0]->desc().getDims().size());
+    auto concatLayer = std::dynamic_pointer_cast<ie::ConcatLayer>(layer);
+    IE_ASSERT(concatLayer != nullptr);
+    IE_ASSERT(concatLayer->_axis < inputs[0]->desc().getDims().size());
 
     logParsingStartHelper(_logger, layer, inputs);
 
     std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[clampLayer->_axis];
+    mcmAxis = mcmAxis + DIM_NAMES[concatLayer->_axis];
     std::vector<mv::Data::TensorIterator> concatInputs;
 
     for (const auto& input : inputs) {
         concatInputs.push_back(input->getMcmNode());
     }
 
-    auto mvConcat =
-        _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), initialQuantParams, clampLayer->name + ":step0");
+    mv::QuantizationParams outputQuantParams = initialQuantParams;
+    QuantizationHelpers::fillQuntizationActivationParams(concatLayer, outputQuantParams);
+
+    if (isQuantizationParamsEqual(initialQuantParams, outputQuantParams)) {
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        outputQuantParams = inputQuantParams;
+    }
+
+    auto mvConcat = _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), outputQuantParams, concatLayer->name);
     bindOutput(mvConcat, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvConcat->getName());
@@ -1431,8 +1438,16 @@ void FrontEndMcm::parseReorgYolo(const ie::CNNLayerPtr& layer, const McmNodeVect
 
     auto stride = layer->GetParamAsUInt("stride");
 
+    mv::QuantizationParams outputQuantParams = initialQuantParams;
+    QuantizationHelpers::fillQuntizationActivationParams(layer, outputQuantParams);
+
+    if (isQuantizationParamsEqual(initialQuantParams, outputQuantParams)) {
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        outputQuantParams = inputQuantParams;
+    }
+
     auto reorg =
-        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), initialQuantParams, layer->name);
+        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), outputQuantParams, layer->name);
     bindOutput(reorg, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, reorg->getName());

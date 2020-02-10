@@ -16,7 +16,12 @@
 
 #include "test_model/kmb_test_base.hpp"
 
+// CPU : SEGFAULT
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_ResNet_50) {
+    if (DEVICE_NAME == "CPU") {
+        SKIP() << "SEGFAULT on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet-50-pytorch-uint8-int8-weights-perchannel-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -28,6 +33,10 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_ResNet_50) {
 
 // CPU : Supported primitive descriptors list is empty for node: Add1_/Fused_Add_
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_MobileNet_V2) {
+    if (DEVICE_NAME == "CPU") {
+        SKIP() << "Compiler error on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet-v2-pytorch-uint8-int8-weights-perchannel-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -38,7 +47,11 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_MobileNet_V2) {
 }
 
 // KMB : Op:pool5/7x7_s1 - OpError: Invalid input data (0) - Filter kernel width (7) exceeds the padded input width (6)
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe_Inception_V1) {
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_Inception_V1) {
+    if (DEVICE_NAME == "KMB") {
+        SKIP() << "Compiler error on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1-uint8-int8-weights-perchannel-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -49,7 +62,11 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe_Inception_V1) {
 }
 
 // KMB : Power layer is not supported by kmbPlugin
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_Inception_V3) {
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_Inception_V3) {
+    if (DEVICE_NAME == "KMB") {
+        SKIP() << "Compiler error on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/googlenet-v3-pytorch-uint8-int8-weights-perchannel-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -70,7 +87,11 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_SqueezeNet_1_1) {
 }
 
 // KMB : Unsupported case, we expect only one child
-TEST_F(KmbDetectionNetworkTest, DISABLED_INT8_Dense_Caffe_SSD_512) {
+TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_SSD_512) {
+    if (DEVICE_NAME == "KMB") {
+        SKIP() << "Compiler error on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -94,7 +115,11 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_TinyYolo_V2) {
 
 // TODO: use correct network type
 // KMB : too long compilation time
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_TF_Yolo_V2) {
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_Yolo_V2) {
+    if (DEVICE_NAME == "KMB") {
+        SKIP() << "Too long compilation time on " << DEVICE_NAME;
+    }
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
