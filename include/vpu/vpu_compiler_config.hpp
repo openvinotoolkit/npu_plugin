@@ -111,7 +111,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
  * Type: "YES/NO", default is "NO".
  * Enable or disable eltwise scales alignment
  */
-DECLARE_VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
+DECLARE_VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT);
 
 /**
  * @brief [Only for vpu compiler]
