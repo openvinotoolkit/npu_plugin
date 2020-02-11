@@ -542,7 +542,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         return FAIL_VALIDATION;
 }
 
-int convertImage(std::string imagePath, std::string blobPath)
+int copyImage(std::string imagePath, std::string blobPath)
 {
     // load blob and read quantization values: scale and zeropoint
     MVCNN::GraphFileT graphFile;
@@ -633,29 +633,6 @@ int convertImage(std::string imagePath, std::string blobPath)
         
         std::string inNHWC_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
         copyFile(inNHWC, inNHWC_dest);
-
-        // this section converts the image using a python script for comparison purposes only.
-        // the output file "converted_image.dat" is not used by this utility
-        // Clean old file
-        std::cout << "Deleting old input... " << std::endl;
-        std::string outputFile = "./converted_image.dat";
-        remove(outputFile.c_str());
-        //
-        // convert image to correct shape and order
-        std::cout << "Converting image ... " << std::endl;
-        std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
-            std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
-            std::to_string(inputShape[0]) + "," + std::to_string(inputShape[1]) + "," + std::to_string(inputShape[2]) + "," + std::to_string(inputShape[3]) + sZMajor;
-        std::cout << commandline << std::endl;
-        int result = std::system(commandline.c_str());
-        
-        if (result > 0)
-        {
-            std::cout << "Error occured converting image using python script";
-            return FAIL_ERROR;
-        }
-        if (!checkFilesExist({outputFile}))
-            return FAIL_ERROR;
     }
 
     return RESULT_SUCCESS;    
@@ -748,14 +725,14 @@ int main(int argc, char *argv[])
 
     if (! FLAGS_i.empty()) 
     {
-        result = convertImage(FLAGS_i, blobPath);
+        result = copyImage(FLAGS_i, blobPath);
         if ( result > 0 ) return result;
     }
     else
     {
         // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
         std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
-        result = convertImage(binPath, blobPath);
+        result = copyImage(binPath, blobPath);
     }
 
     result = runKmbInference(FLAGS_k, blobPath);
