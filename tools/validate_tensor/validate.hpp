@@ -42,6 +42,9 @@ static const char evm_message[] = "Required. IP address of EVM board to run infe
 /// @brief message for setting quantize or not
 static const char mode_message[] = "Optional. Runs all, but can just run validation if set to validate";
 
+/// @brief message for color order
+static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -77,6 +80,10 @@ DEFINE_string(k, "", evm_message);
 
 /// It is a required parameter
 DEFINE_string(mode, "all", mode_message);
+
+/// @brief Define parameter for color <br>
+/// It is an optional parameter
+DEFINE_bool(r, false, rgb_message);
 
 /**
 * @brief This function show a help message
