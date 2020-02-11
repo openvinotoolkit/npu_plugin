@@ -520,11 +520,6 @@ void KmbLayerTestBase::runTest(
             SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH vere not provided";
         }
     }
-#ifndef ENABLE_MCM_COMPILER
-    if (DEVICE_NAME == "KMB") {
-        SKIP() << "KMB Plugin was built without mcmCompiler";
-    }
-#endif
 
     TestNetwork testNet;
     builder(testNet);
@@ -749,11 +744,6 @@ void KmbNetworkTestBase::runTest(
             SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH vere not provided";
         }
     }
-#ifndef ENABLE_MCM_COMPILER
-    if (DEVICE_NAME == "KMB") {
-        SKIP() << "KMB Plugin was built without mcmCompiler";
-    }
-#endif
 
     auto exeNet = getExecNetwork(netDesc);
 
