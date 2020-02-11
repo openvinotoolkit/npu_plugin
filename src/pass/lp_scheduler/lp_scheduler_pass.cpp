@@ -50,19 +50,42 @@ struct interval_traits<scheduled_op_t> {
 } // namespace lp_scheduler //
 } // namespace mv //
 
-void LpSchedulerAllocatorPass(mv::ComputationModel& model) {
+void LpSchedulerAllocatorPass(mv::ComputationModel& model,
+      mv::Element& passDesc) {
+  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   mv::lp_scheduler::Tensor_Allocator_Assignment alloc(model);
   mv::OpModel om(model);
+  auto global_params = model.getGlobalConfigParams();
+
+  if (global_params->hasAttr(reader_t::ddr_address_attribute())) {
+    dag_t input_dag(om);
+    typename reader_t::schedule_read_iterator_t begin, end;
+
+    mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
+        msrelations(input_dag, model);
+
+    const std::string& stringfile =
+      global_params->get<std::string>(reader_t::ddr_address_attribute());
+    assert(!stringfile.empty());
+
+    begin = reader_t::begin_read(stringfile, om);
+    end = reader_t::end_read();
+
+    mv::lp_scheduler::DDR_Address_Generator<dag_t>
+        ddr_address_generator(model, input_dag);
+    bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
+          "lp_sched_ddr_address_dump.txt");
+    assert(status);
+  }
 
   for (auto itr=om.getInput(); itr!=om.opEnd(); ++itr) {
     mv::Op &op = *itr;
     if (!op.outputSlots()) { continue; }
 
-    printf("[op=%s]\n", op.getName().c_str());
-    fflush(stdout);
     mv::Data::TensorIterator tensor_itr = op.getOutputTensor(0UL);
     alloc(tensor_itr);
   }
+
 }
 
 
@@ -80,9 +103,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
 
   if (passDesc.hasAttr("allocator_mode")) {
-    LpSchedulerAllocatorPass(model);
+    LpSchedulerAllocatorPass(model, passDesc);
     return;
   }
+
 
   mv::OpModel cm(model);
   dag_t input_dag(cm);
@@ -241,6 +265,22 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   }
 
+  ///////////////Save Schedule for DDR Address Generation///////////////////////
+  if (passDesc.hasAttr("ddr_address_generation")) {
+    typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> writer_t;
+    std::ostringstream schedule_state;
+
+    bool status = writer_t::write_to_stringstream(schedule_state,
+          scheduled_ops.begin(), scheduled_ops.end());
+    assert(status);
+    // save the schedule state in global params //
+    auto global_params = model.getGlobalConfigParams();
+    params->set<std::string>(writer_t::ddr_address_attribute(),
+          schedule_state.str());
+  }
+  //////////////////////////////////////////////////////////////////////////////
+
+  ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
   control_edge_generator_t algo;
@@ -272,6 +312,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
   }
+  ////////////////////// Control Edge Generation ///////////////////////////////
 
 
   {

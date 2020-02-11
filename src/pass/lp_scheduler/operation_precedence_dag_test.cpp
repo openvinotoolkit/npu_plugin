@@ -4,6 +4,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/op_model.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
+#include "pass/lp_scheduler/lp_scheduler_pass.hpp"
 
 typedef mv::scheduler::Operation_Dag<> op_model_dag_t;
 
@@ -226,3 +227,42 @@ TEST_F(Operation_Dag_Test, incoming_edge_iterator) {
   itr_end = dag.end_parent_nodes(op);
   EXPECT_EQ(itr, itr_end);
 }
+
+TEST_F(Operation_Dag_Test, schedule_write_and_read_test) {
+  typedef typename op_model_dag_t::operation_t operation_t;
+  mv::OpModel &om = three_layer_conv_model();
+  op_model_dag_t dag( om );
+  size_t max_memory = 2000000;
+  mv::scheduler::mv_lp_scheduler_t scheduler_begin(dag, max_memory),
+      scheduler_end;
+
+  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<op_model_dag_t>
+      writer_t;
+  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<op_model_dag_t>
+      reader_t;
+
+  const char *schedule_file = "/tmp/schedule.txt";
+  bool status = writer_t::write(schedule_file, scheduler_begin,
+        scheduler_end);
+
+  // Read back the schedule //
+  std::unordered_map<std::string, size_t> read_schedule;
+  reader_t::schedule_read_iterator_t
+      sbegin=reader_t::begin_read(schedule_file, om), send;
+
+  size_t record_count = 0UL;
+  while (sbegin != send) {
+    operation_t op = (operation_t) *sbegin;
+
+    // Make sure the read op is in the OpModel //
+    EXPECT_TRUE(om.getOp(op->getName()) != om.opEnd() );
+
+    ++sbegin;
+    ++record_count;
+    ASSERT_TRUE(record_count <= 32UL);
+  }
+  
+  EXPECT_TRUE(status);
+}
+
+
