@@ -49,7 +49,6 @@ namespace vpu {
                                                                                      \
     using VPU_COMBINE(type, PtrList) = std::list<VPU_COMBINE(type, Ptr)>;
 
-
 #define MCM_MODEL_ATTRIBUTE(type, name, defVal) \
 protected:                                      \
     type VPU_COMBINE(_, name) = defVal;         \
