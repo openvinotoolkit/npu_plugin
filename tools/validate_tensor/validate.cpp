@@ -560,14 +560,14 @@ int copyImage(std::string imagePath, std::string blobPath)
         inputStrides.push_back( graphFile.header->net_input[0]->strides[x] );
     std::cout << "Input Strides: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
 
-    std::string sZMajor("");
+    bool zMajor = false;
     if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
-        sZMajor = " --zmajor";
+        zMajor = true;
 
     if ((imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
     {
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
-        if(sZMajor == " --zmajor")
+        if(zMajor)
         {
             if(FLAGS_r){ // Use zmajor, rgb
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
