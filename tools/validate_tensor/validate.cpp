@@ -34,8 +34,10 @@ const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
 const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
 const std::string FILE_CPU_INPUT        = "input_cpu.bin";
 const std::string FILE_CPU_INPUT_FP16   = "input_cpu_fp16.bin";
-const std::string FILE_CPU_INPUT_NCHW   = "input_cpu_nchw.bin";
-const std::string FILE_CPU_INPUT_NHWC   = "input_cpu_nhwc.bin";
+const std::string FILE_CPU_INPUT_NCHW_RGB   = "input_cpu_nchw_rgb.bin";
+const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
+const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
+const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
 
@@ -274,7 +276,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     // Clean any old files
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
-    std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW, FILE_CPU_INPUT_NHWC};
+    std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW_RGB, FILE_CPU_INPUT_NHWC_RGB, FILE_CPU_INPUT_NCHW_BGR, FILE_CPU_INPUT_NHWC_BGR};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
     
@@ -312,6 +314,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
 
+    if (FLAGS_r)
+        commandline += (" -r ");
+
     std::cout << commandline << std::endl; 
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -322,10 +327,16 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
         return FAIL_CPU_PLUGIN;
     
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW} ))
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
         return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC} ))
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR} ))
+        return FAIL_CPU_PLUGIN;
+
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_RGB} ))
+        return FAIL_CPU_PLUGIN;
+
+    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
         return FAIL_CPU_PLUGIN;
 
     //
@@ -531,7 +542,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         return FAIL_VALIDATION;
 }
 
-int convertImage(std::string imagePath, std::string blobPath)
+int copyImage(std::string imagePath, std::string blobPath)
 {
     // load blob and read quantization values: scale and zeropoint
     MVCNN::GraphFileT graphFile;
@@ -549,22 +560,40 @@ int convertImage(std::string imagePath, std::string blobPath)
         inputStrides.push_back( graphFile.header->net_input[0]->strides[x] );
     std::cout << "Input Strides: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
 
-    std::string sZMajor("");
+    bool zMajor = false;
     if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
-        sZMajor = " --zmajor";
+        zMajor = true;
 
     if ((imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
     {
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
-        if(sZMajor == " --zmajor")
+        if(zMajor)
         {
-            remove((binFolder + FILE_CPU_INPUT_NCHW ).c_str());
-            rename((binFolder + FILE_CPU_INPUT_NHWC).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            if(FLAGS_r){ // Use zmajor, rgb
+                remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_BGR ).c_str());
+                rename((binFolder + FILE_CPU_INPUT_NHWC_RGB).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            }else { // Use zmajor, bgr
+                remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
+                rename((binFolder + FILE_CPU_INPUT_NHWC_BGR).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            }
         }
         else
         {
-            remove((binFolder + FILE_CPU_INPUT_NHWC ).c_str());
-            rename((binFolder + FILE_CPU_INPUT_NCHW).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            if(FLAGS_r){
+                remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_BGR ).c_str());
+                rename((binFolder + FILE_CPU_INPUT_NCHW_RGB).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            }else {
+                remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
+                remove((binFolder + FILE_CPU_INPUT_NHWC_BGR ).c_str());
+                rename((binFolder + FILE_CPU_INPUT_NCHW_BGR).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
+            }
         }
         
         MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
@@ -596,32 +625,14 @@ int convertImage(std::string imagePath, std::string blobPath)
     else
     {
         // as of compiler v2.2.2, all input must be in NHWC order
-        std::string inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC;
+        std::string inNHWC;
+        if(FLAGS_r)
+            inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB;
+        else
+            inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR;
+        
         std::string inNHWC_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
         copyFile(inNHWC, inNHWC_dest);
-
-        // this section converts the image using a python script for comparison purposes only.
-        // the output file "converted_image.dat" is not used by this utility
-        // Clean old file
-        std::cout << "Deleting old input... " << std::endl;
-        std::string outputFile = "./converted_image.dat";
-        remove(outputFile.c_str());
-        //
-        // convert image to correct shape and order
-        std::cout << "Converting image ... " << std::endl;
-        std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
-            std::string("/python/tools/convert_image.py --image ") + imagePath + " --shape " + 
-            std::to_string(inputShape[0]) + "," + std::to_string(inputShape[1]) + "," + std::to_string(inputShape[2]) + "," + std::to_string(inputShape[3]) + sZMajor;
-        std::cout << commandline << std::endl;
-        int result = std::system(commandline.c_str());
-        
-        if (result > 0)
-        {
-            std::cout << "Error occured converting image using python script";
-            return FAIL_ERROR;
-        }
-        if (!checkFilesExist({outputFile}))
-            return FAIL_ERROR;
     }
 
     return RESULT_SUCCESS;    
@@ -714,14 +725,14 @@ int main(int argc, char *argv[])
 
     if (! FLAGS_i.empty()) 
     {
-        result = convertImage(FLAGS_i, blobPath);
+        result = copyImage(FLAGS_i, blobPath);
         if ( result > 0 ) return result;
     }
     else
     {
         // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
-        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW;
-        result = convertImage(binPath, blobPath);
+        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
+        result = copyImage(binPath, blobPath);
     }
 
     result = runKmbInference(FLAGS_k, blobPath);
