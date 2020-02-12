@@ -36,8 +36,9 @@
 
 #include <graph_tools.hpp>
 #include <include/mcm/op_model.hpp>
-#include "mcm_helper.hpp"
+
 #include "mcm_config.h"
+#include "mcm_helper.hpp"
 
 namespace vpu {
 

@@ -150,8 +150,8 @@ void MCMAdapter::compileNetwork(
             file_out << result.toString() << std::endl;
             file_out.close();
         }
-    } catch (const std::runtime_error& re) {
-        VPU_THROW_EXCEPTION << "Caught std::runtime_error during unit run: " << re.what();
+    } catch (const std::exception& ex) {
+        VPU_THROW_EXCEPTION << "Caught exception during unit run: " << ex.what();
     } catch (...) {
         VPU_THROW_EXCEPTION << "Unknown exception during unit run";
     }

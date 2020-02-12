@@ -22,6 +22,10 @@ set(TARGET_NAME "kmb_utils")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE vpusmm PUBLIC IE::inference_engine_lp_transformations)
 
