@@ -124,7 +124,7 @@ protected:
         ie::TensorDesc uvDesc = {ie::Precision::U8, {1, 2, height / 2, width / 2}, ie::Layout::NHWC};
         ie::TensorDesc yDesc = {ie::Precision::U8, {1, 1, height, width}, ie::Layout::NHWC};
 
-        uint8_t* imageData = new uint8_t[height * width / 2 + 1080 * 1080];
+        uint8_t* imageData = new uint8_t[height * width / 2 + height * width];
 
         auto yPlane = ie::make_shared_blob<uint8_t>(yDesc, imageData);
         auto uvPlane = ie::make_shared_blob<uint8_t>(uvDesc, imageData + height * width);
@@ -169,7 +169,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMInputToInfer) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -189,7 +189,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMInputToInfer) {
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalVPUSMMBlobForInference) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -202,7 +202,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalVPUSMMBlobForInferen
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMNV12InputToPreprocWithSIPP) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
     std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
     bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
 

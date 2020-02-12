@@ -133,7 +133,7 @@ void KmbInferRequest::InferAsync() {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
     }
 
-    const auto deviceInputs = _executor->getNetworkInputs();
+    const auto& deviceInputs = _executor->getNetworkInputs();
     const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
     const auto input = _inputs.begin()->second;
 
@@ -151,7 +151,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     }
 }
 
-static bool isBlobPlacedInVPUMemory(const Blob::Ptr& blob) {
+static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob) {
     return getKmbAllocator()->isValidPtr(blob->buffer().as<void*>());
 }
 
@@ -175,12 +175,20 @@ void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::Bl
             Blob::Ptr& origYBlob = origNV12Blob->y();
             Blob::Ptr& origUVBlob = origNV12Blob->uv();
 
-            Blob::Ptr kmbYBlob = isBlobPlacedInVPUMemory(origYBlob) ? origYBlob : reallocateBlob(origYBlob);
-            Blob::Ptr kmbUVBlob = isBlobPlacedInVPUMemory(origUVBlob) ? origUVBlob : reallocateBlob(origUVBlob);
+            Blob::Ptr kmbYBlob = origYBlob;
+            if (!isBlobPlacedInShareableMemory(origYBlob)) {
+                kmbYBlob = reallocateBlob(origYBlob);
+            }
+            Blob::Ptr kmbUVBlob = origUVBlob;
+            if (!isBlobPlacedInShareableMemory(origUVBlob)) {
+                kmbUVBlob = reallocateBlob(origUVBlob);
+            }
 
             InferenceEngine::Blob::Ptr nv12Blob =
                 InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
             preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
+        } else {
+            THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to SIPP preprocessing.";
         }
     }
     this->execSIPPDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
@@ -195,26 +203,30 @@ void KmbInferRequest::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs
 static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {
     // TODO: is2DTensor is a workaround for NHWC -> NC case
     // remove when mcm will support different input layout
-    return ((deviceTensorDesc.getLayout() != actualInput->getTensorDesc().getLayout() &&
-                !is2DTensor(actualInput->getTensorDesc().getDims())) ||
-            !isBlobPlacedInVPUMemory(actualInput));
+    return (deviceTensorDesc.getLayout() != actualInput->getTensorDesc().getLayout() &&
+            !is2DTensor(actualInput->getTensorDesc().getDims()));
 }
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
-    ie::Blob::Ptr expectedInput;
-    if (needRepacking(actualInput, expectedDesc)) {
-        expectedInput = reallocateBlob(actualInput);
+    ie::Blob::Ptr inputForInference;
+
+    if (!isBlobPlacedInShareableMemory(actualInput)) {
+        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+        inputForInference = reallocateBlob(actualInput);
     } else {
-        expectedInput = actualInput;
+        inputForInference = actualInput;
     }
 
-    return expectedInput;
+    if (needRepacking(inputForInference, expectedDesc)) {
+        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+        inputForInference = reallocateBlob(inputForInference);
+    }
+
+    return inputForInference;
 }
 
 Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
-    _logger->warning("Additional re-layout of input required.");
-
     auto allocator = getKmbAllocator();
     Blob::Ptr kmbBlob = make_blob_with_precision(blob->getTensorDesc(), allocator);
     kmbBlob->allocate();
