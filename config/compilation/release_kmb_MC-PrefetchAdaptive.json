@@ -16,6 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
                     {
@@ -99,7 +100,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.925},
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -240,7 +241,8 @@
                 "html": true
             },
             { "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt" 
+              "output" : "output/lp_scheduler_output.txt",
+              "ddr_address_generation" : true
             },
             {
                 "name": "GenerateDot",
