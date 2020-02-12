@@ -65,6 +65,7 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT), NO}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), YES}}),
+    BEH_KMB.withConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {};
@@ -80,4 +81,5 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), "debug"}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT), "NOP"}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING), "YEP"}}),
+    BEH_KMB.withConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "NV12"}}),
 };

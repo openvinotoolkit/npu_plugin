@@ -17,7 +17,6 @@
 #pragma once
 
 #include <string>
-
 #include <vpu/kmb_plugin_config.hpp>
 
 namespace InferenceEngine {

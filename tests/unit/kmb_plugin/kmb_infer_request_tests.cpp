@@ -122,17 +122,39 @@ protected:
     }
 
     ie::NV12Blob::Ptr createNV12Blob(const std::size_t width, const std::size_t height) {
+        nv12Data = new uint8_t[height * width / 2 + height * width];
+        return createNV12BlobFromMemory(width, height, nv12Data);
+    }
+
+    ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
+        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width / 2 + height * width));
+        return createNV12BlobFromMemory(width, height, nv12Data);
+    }
+    void TearDown() override {
+        // nv12Data can be allocated in two different ways in the tests below
+        // that why we need to branches to handle removing of memory
+        if (nv12Data != nullptr) {
+            if (getKmbAllocator()->isValidPtr(nv12Data)) {
+                getKmbAllocator()->free(nv12Data);
+            } else {
+                delete[] nv12Data;
+            }
+        }
+    }
+
+private:
+    uint8_t* nv12Data = nullptr;
+    ie::NV12Blob::Ptr createNV12BlobFromMemory(const std::size_t width, const std::size_t height, uint8_t* data) {
         ie::TensorDesc uvDesc = {ie::Precision::U8, {1, 2, height / 2, width / 2}, ie::Layout::NHWC};
         ie::TensorDesc yDesc = {ie::Precision::U8, {1, 1, height, width}, ie::Layout::NHWC};
 
-        uint8_t* imageData = new uint8_t[height * width / 2 + height * width];
-
-        auto yPlane = ie::make_shared_blob<uint8_t>(yDesc, imageData);
-        auto uvPlane = ie::make_shared_blob<uint8_t>(uvDesc, imageData + height * width);
+        auto yPlane = ie::make_shared_blob<uint8_t>(yDesc, data);
+        auto uvPlane = ie::make_shared_blob<uint8_t>(uvDesc, data + height * width);
 
         return ie::make_shared_blob<ie::NV12Blob>(yPlane, uvPlane);
     }
 
+protected:
     ie::Blob::Ptr createBlob(const ie::SizeVector dims) {
         if (dims.size() != 4) {
             THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
@@ -170,7 +192,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMInputToInfer) {
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -190,7 +212,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalVPUSMMBlobForInference) {
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -203,7 +225,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInfe
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMNV12InputToPreprocWithSIPP) {
     std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
     bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
 
@@ -371,3 +393,56 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
 
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
+
+TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
+    auto nv12Input = createNV12VPUBlob(1080, 1080);
+
+    auto inputName = _inputs.begin()->first.c_str();
+    auto preProcInfo = _inputs.begin()->second->getPreProcess();
+    preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
+    preProcInfo.setColorFormat(ie::ColorFormat::NV12);
+    _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
+
+    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
+        execSIPPDataPreprocessing(_, _, _, ie::ColorFormat::BGR, _, _));
+
+    _inferRequest->InferAsync();
+}
+
+class kmbInferRequestOutColorFormatSIPPUnitTests :
+    public kmbInferRequestUseCasesUnitTests,
+    public testing::WithParamInterface<const char*> {};
+
+TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
+    KmbConfig config;
+    const auto configValue = GetParam();
+    config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
+
+    _inferRequest = std::make_shared<TestableKmbInferRequest>(
+        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
+
+    auto nv12Input = createNV12VPUBlob(1080, 1080);
+
+    auto inputName = _inputs.begin()->first.c_str();
+    auto preProcInfo = _inputs.begin()->second->getPreProcess();
+    preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
+    preProcInfo.setColorFormat(ie::ColorFormat::NV12);
+    _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
+
+    auto expectedColorFmt = [](const std::string colorFmt) {
+        if (colorFmt == "RGB") {
+            return ie::ColorFormat::RGB;
+        } else if (colorFmt == "BGR") {
+            return ie::ColorFormat::BGR;
+        }
+
+        return ie::ColorFormat::RAW;
+    };
+    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
+        execSIPPDataPreprocessing(_, _, _, expectedColorFmt(configValue), _, _));
+
+    _inferRequest->InferAsync();
+}
+
+INSTANTIATE_TEST_CASE_P(
+    SupportedColorFormats, kmbInferRequestOutColorFormatSIPPUnitTests, testing::Values("RGB", "BGR"));
