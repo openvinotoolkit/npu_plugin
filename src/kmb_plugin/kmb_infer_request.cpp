@@ -145,7 +145,7 @@ void KmbInferRequest::InferAsync() {
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
-            inputs, _networkInputs, ColorFormat::BGR, _config.numberOfSIPPShaves(), _config.SIPPLpi());
+            inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         execDataPreprocessing(inputs);
     }

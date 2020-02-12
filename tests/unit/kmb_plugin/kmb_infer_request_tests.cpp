@@ -19,6 +19,7 @@
 
 #include "kmb_allocator.h"
 #include "kmb_infer_request.h"
+#include "kmb_private_config.hpp"
 
 namespace ie = InferenceEngine;
 
