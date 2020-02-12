@@ -271,15 +271,15 @@ TEST_F(KmbClassifyNetworkTest, MobileNet_v2_tf_int8_sparse_v1) {  // 30.8% spars
         "224x224/cat3.bmp",
         1, 0.05f);
 }
-// Inference hangs.  [Track number: D#2476]
-TEST_F(KmbClassifyNetworkTest, DISABLED_squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
+
+TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_uint8_int8_weights_pertensor) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "224x224/cat3.bmp",
-        1, 0.05f);
+        TestImageDesc("224x224/cat3.bmp", false),
+        1, 1.2f);
 }
 // Inference hangs.  [Track number: D#2476]
 TEST_F(KmbClassifyNetworkTest, DISABLED_SqueezeNetv1_1_onnx_int8_sparse) {
