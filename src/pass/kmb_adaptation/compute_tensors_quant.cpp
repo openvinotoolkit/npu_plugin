@@ -244,7 +244,6 @@ void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator con
                         weightsQuantParams);
     auto reQuantizeDepthwise = om.depthwiseConv(inputTensor, weights, {1,1}, {0, 0, 0, 0},
                         1, mv::DType("UInt8"), {{alignedZeroPoint},{alignedScale},{},{}}, concat->getName() + inputTensor->getName() + "Depthwise" + std::to_string(index));
-    std::cout << "MASTER SCALE " << alignedScale << std::endl;
     reQuantizeDepthwise->set<double>("oldScale", inputTensor->get<double>("oldScale"));
     auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
     auto weightsOp = om.getSourceOp(weights);
@@ -353,8 +352,7 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
 
     double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
     double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
-    std::cout << std::to_string(minConcatScale) << std::endl;
-    std::cout << std::to_string(maxConcatScale) << std::endl;
+
     double masterScale = 1.0;
     int64_t zeroPoint = 0;
     calcZeroPointAndScale(maxConcatScale, minConcatScale, masterScale, zeroPoint);
@@ -394,7 +392,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 if (std::abs(masterQuant.getScale()[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterQuant.getScale()[0] <= 0.01)
                     continue;
                 double weightScale = 1.0f;
-                std::cout << " input with " + std::to_string(i) + " " << std::to_string(concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0]) << std::endl;
+               
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
             concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);
