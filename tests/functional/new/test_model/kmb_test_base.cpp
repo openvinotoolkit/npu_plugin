@@ -143,6 +143,10 @@ const bool KmbTestBase::RAW_EXPORT = []() -> bool {
         return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
     }
 
+    if (KmbTestBase::DEVICE_NAME != "KMB" || !KmbTestBase::EXPORT_NETWORK) {
+        return false;
+    }
+
     return false;
 }();
 
