@@ -51,7 +51,12 @@ private:
     bool _useKmbExecutor = false;
 #endif
 
+#ifdef __aarch64__
+    bool _loadNetworkAfterCompilation = true;
+#else
     bool _loadNetworkAfterCompilation = false;
+#endif
+
     int _throghputStreams = 1;
 
     std::string _platform = "VPU_2490";
