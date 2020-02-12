@@ -10,8 +10,10 @@
 // [Track number: S#27334]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues), getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues), getTestCaseName);
-
-//  Do not test anything
+// [Track number: S#27334]
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues), getOutputTestCaseName);
+    DISABLED_BehaviorTest, BehaviorPluginTestInput, ValuesIn(allInputSupportedValues), getTestCaseName);
+
+// [Track number: S#27334]
+INSTANTIATE_TEST_CASE_P(
+    DISABLED_BehaviorTest, BehaviorPluginTestOutput, ValuesIn(allOutputSupportedValues), getOutputTestCaseName);
