@@ -33,7 +33,6 @@ const std::vector<std::vector<ptrdiff_t>> padEnds = {{0, 0},
 const std::vector<InferenceEngine::SizeVector> dilations = {{1, 1},
                                                             {3, 1}};
 const std::vector<size_t> numOutCannels = {1, 5};
-const std::vector<size_t> numGroups = {1};
 const std::vector<ngraph::op::PadType> padTypes = {
         ngraph::op::PadType::EXPLICIT,
         ngraph::op::PadType::VALID
@@ -46,7 +45,6 @@ const auto conv2DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(padEnds),
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutCannels),
-        ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv2DParams_AutoPadValid = ::testing::Combine(
@@ -56,7 +54,6 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
         ::testing::ValuesIn(dilations),
         ::testing::ValuesIn(numOutCannels),
-        ::testing::ValuesIn(numGroups),
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
@@ -101,7 +98,6 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(paddings3d),
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(5),
-        ::testing::Values(1),
         ::testing::Values(ngraph::op::PadType::EXPLICIT)
 );
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
@@ -111,7 +107,6 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(5),
-        ::testing::Values(1),
         ::testing::Values(ngraph::op::PadType::VALID)
 );
 
@@ -151,7 +146,6 @@ const auto convReshape = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::Values(InferenceEngine::SizeVector({1, 1, 1})),
         ::testing::Values(5),
-        ::testing::Values(1),
         ::testing::ValuesIn(padTypes)
 );
 
