@@ -17,8 +17,9 @@
 #pragma once
 
 #include <ie_data.h>
-#include <ie_input_info.hpp>
+
 #include <ie_icnn_network.hpp>
+#include <ie_input_info.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
