@@ -22,6 +22,10 @@ set(TARGET_NAME "kmbPlugin")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
+endif()
+
 set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
 
 ie_add_plugin(NAME ${TARGET_NAME}

@@ -16,6 +16,10 @@ file(GLOB_RECURSE KMB_TEST_SOURCES *.cpp *.hpp *.h)
 list(FILTER KMB_TEST_SOURCES EXCLUDE REGEX ".*/hddl2_tests/.*")
 list(FILTER KMB_TEST_SOURCES EXCLUDE REGEX ".*/frontend_mcm/.*")
 
+if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
+    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${KMB_TEST_SOURCES})
+endif()
+
 list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph vpusmm kmb_utils)
 if(ENABLE_VPUAL AND ENABLE_VPUAL_MODEL)
     list(APPEND KMB_TEST_LIBRARIES vpualModel)
