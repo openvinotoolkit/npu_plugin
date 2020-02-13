@@ -108,14 +108,26 @@ bool mv::QuantizationParams:: isNeutral() const
 bool mv::QuantizationParams:: infinitelimits() const
 {
     bool is_infinite = false;
-    for (std::size_t vec_size = 0; vec_size < get<std::vector<double>>("min").size(); vec_size++)
+    if (hasAttr("min") && hasAttr("max"))
     {
-        if (std::isinf(get<std::vector<double>>("min")[vec_size])
-                || std::isinf(get<std::vector<double>>("max")[vec_size]))
+        for (std::size_t vec_size = 0; vec_size <= get<std::vector<double>>("min").size(); vec_size++)
         {
-            is_infinite = true;
-            break;
+            if (get<std::vector<double>>("min").size() == 0)
+            {
+                is_infinite = true;
+                break;
+            }
+            if (std::isinf(get<std::vector<double>>("min")[vec_size])
+                    || std::isinf(get<std::vector<double>>("max")[vec_size]))
+            {
+                is_infinite = true;
+                break;
+            }
         }
+    }
+    else
+    {
+        is_infinite = true;
     }
     return is_infinite;
 }
