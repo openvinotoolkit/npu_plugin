@@ -8,7 +8,7 @@ RDEPENDS_${PN} = "kernel-module-udmabuf openvino"
 
 SRC_URI = "file://${NN_BLOBS_PATH}/nn-blobs.tar.bz2"
 
-PV="nn_blobs-bcf07c7-NN_Compiler_v1.2.13"
+PV="nn_blobs-4734f4c-NN_Compiler_v1.2.13"
 
 S = "${WORKDIR}/nn-blobs"
 
