@@ -94,7 +94,7 @@ public:
 
 private:
     Logger::Ptr _logger;
-    KmbExecutorPtr _executor;
+    KmbExecutor::Ptr _executor;
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;

@@ -46,6 +46,8 @@ namespace KmbPlugin {
 
 class KmbExecutor {
 public:
+    using Ptr = std::shared_ptr<KmbExecutor>;
+
     //  FIXME: should be removed and handled via network input info
     InferenceEngine::Layout _inputNetworkLayout = InferenceEngine::Layout::NCHW;
     explicit KmbExecutor(const KmbConfig& config);
@@ -55,7 +57,7 @@ public:
 
     virtual void deallocateGraph();
 
-    virtual void queueInference(void* input_data, size_t input_bytes, void* result_data, size_t result_bytes);
+    virtual void queueInference(void* input_data, size_t input_bytes);
 
     virtual void getResult(void* result_data, unsigned int result_bytes);
 
@@ -103,8 +105,6 @@ private:
     uint32_t _outTensorAddr;
     uint32_t* _inferenceVirtAddr;
 };
-
-typedef std::shared_ptr<KmbExecutor> KmbExecutorPtr;
 
 }  // namespace KmbPlugin
 }  // namespace vpu

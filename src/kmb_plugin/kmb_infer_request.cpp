@@ -32,19 +32,7 @@
 #include "kmb_preproc.hpp"
 
 // TODO https://jira.devtools.intel.com/browse/CVS-21391
-/**
- * @brief multiply vector's values
- * @param vec - vector with values
- * @return result of multiplication
- */
-template <typename T, typename A>
-static T product(std::vector<T, A> const& vec) {
-    if (vec.empty()) return 0;
-    T ret = vec[0];
-    for (size_t i = 1; i < vec.size(); ++i) ret *= vec[i];
-    return ret;
-}
-
+// FIXME: does not work for batch != 1
 static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
     size_t ones = std::count(dims.begin(), dims.end(), 1);
     return (dims.size() - ones) == 1;
@@ -53,26 +41,24 @@ static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
-#define MEMCPY(dst, src, bytes) std::copy_n((src), (bytes), (dst))
-
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
-    const KmbConfig& kmbConfig, const KmbExecutorPtr& executor)
+    const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _blobWithResult(nullptr),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
-    _deviceLayout = InferenceEngine::Layout::NCHW;
+    if (_networkOutputs.empty() || _networkInputs.empty()) {
+        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
+    }
 
-    // allocate inputs
-    IE_ASSERT(_networkInputs.size() == 1) << "Do not support more than 1 input";
+    if (_networkInputs.size() != 1) {
+        THROW_IE_EXCEPTION << "Infer request supports only 1 input";
+    }
     for (auto& networkInput : _networkInputs) {
-        // TODO: use TensorDesc instead of deprecated methods
-        SizeVector dims = networkInput.second->getTensorDesc().getDims();
         Precision precision = networkInput.second->getTensorDesc().getPrecision();
-        Layout layout = networkInput.second->getTensorDesc().getLayout();
 
         if (precision != Precision::FP32 && precision != Precision::FP16 && precision != Precision::U8 &&
             precision != Precision::I8) {
@@ -80,20 +66,16 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                << "! Supported precisions: FP32, FP16, U8, I8";
         }
 
-        Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(precision, dims, layout), getKmbAllocator());
-        if (inputBlob == nullptr) {
-            THROW_IE_EXCEPTION << "InputBlob is nullptr.";
-        }
-
+        Blob::Ptr inputBlob = make_blob_with_precision(networkInput.second->getTensorDesc(), getKmbAllocator());
         inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
     }
-    // allocate outputs
-    IE_ASSERT(_networkOutputs.size() == 1) << "Do not support more than 1 output";
+
+    if (_networkOutputs.size() != 1) {
+        THROW_IE_EXCEPTION << "Infer request supports only 1 output";
+    }
     for (auto& networkOutput : _networkOutputs) {
-        SizeVector dims = networkOutput.second->getTensorDesc().getDims();
         Precision precision = networkOutput.second->getTensorDesc().getPrecision();
-        Layout layout = networkOutput.second->getTensorDesc().getLayout();
 
         if (precision != Precision::FP32 && precision != Precision::FP16 && precision != Precision::U8 &&
             precision != Precision::I8) {
@@ -101,40 +83,14 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                << "! Supported precisions: FP32, FP16, U8, I8";
         }
 
-        Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(precision, dims, layout), getKmbAllocator());
-
-        if (outputBlob == nullptr) {
-            THROW_IE_EXCEPTION << "InputBlob is nullptr.";
-        }
-
+        Blob::Ptr outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
-    }
-
-    if (_networkOutputs.empty() || _networkInputs.empty()) {
-        THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
 }
 void KmbInferRequest::InferImpl() {
     InferAsync();
     GetResult();
-}
-
-void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const std::string& dst) {
-    static unsigned dumpInputCounter = 0;
-    std::ostringstream inputFullPath;
-    inputFullPath << dst;
-    inputFullPath << "/input-dump";
-    inputFullPath << dumpInputCounter++;
-    inputFullPath << ".bin";
-    _logger->info("dumpInputBlobHelper: dump to file ", inputFullPath.str());
-    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
-    if (dumper.good()) {
-        dumper.write(inputBlobPtr->cbuffer().as<char*>(), inputBlobPtr->byteSize());
-    } else {
-        _logger->warning("dumpInputBlobHelper: failed to open ", inputFullPath.str());
-    }
-    dumper.close();
 }
 
 void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const std::string& dst) {
@@ -154,110 +110,20 @@ void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const
     dumper.close();
 }
 
-static Blob::Ptr reallocateBlob(const std::shared_ptr<KmbAllocator>& allocator, const Blob::Ptr& origBlob) {
-    // do nothing if the buffer has already been allocated properly
-    if (allocator->isValidPtr(origBlob->buffer())) {
-        return origBlob;
-    }
-
-    // otherwise, do reallocation
-    Blob::Ptr kmbBlob = make_blob_with_precision(origBlob->getTensorDesc(), allocator);
-    IE_ASSERT(kmbBlob != nullptr);
-
-    kmbBlob->allocate();
-    vpu::copyBlob(origBlob, kmbBlob);
-
-    return kmbBlob;
-}
-
-// TODO a lot of dublications
 void KmbInferRequest::InferAsync() {
-    if (!_custom_inputs.empty()) {
-        // execute input pre-processing
-        if (SippPreproc::useSIPP() && SippPreproc::isApplicable(_custom_inputs, _preProcData, _networkInputs)) {
-            InferenceEngine::BlobMap inputs;
-            for (auto& input : _custom_inputs) {
-                inputs[input.first] =
-                    make_blob_with_precision(_custom_inputs.begin()->second->getTensorDesc(), getKmbAllocator());
-                inputs[input.first]->allocate();
-            }
+    execPreprocessing(_inputs);
 
-            SippPreproc::execSIPPDataPreprocessing(inputs, _preProcData, _networkInputs, ColorFormat::BGR,
-                _config.numberOfSIPPShaves(), _config.SIPPLpi());
-
-            for (auto& input : inputs) {
-                auto name = input.first;
-
-                auto custom_inputBlob = input.second;
-                auto inputBlob = _inputs[name];
-
-                copyBlob(custom_inputBlob, inputBlob);
-            }
-        } else {
-            execDataPreprocessing(_custom_inputs);
-            for (auto& input : _custom_inputs) {
-                auto name = input.first;
-
-                auto custom_inputBlob = input.second;
-                auto inputBlob = _inputs[name];
-
-                copyBlob(custom_inputBlob, inputBlob);
-            }
-        }
-    } else {
-        // execute input pre-processing
-        if (SippPreproc::useSIPP() && SippPreproc::isApplicable(_inputs, _preProcData, _networkInputs)) {
-            std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
-            for (const auto& input : _inputs) {
-                const std::string& inputName = input.first;
-                auto preProcDataIter = _preProcData.find(inputName);
-                if (preProcDataIter == _preProcData.end()) {
-                    continue;
-                }
-
-                preprocDataRealloc[preProcDataIter->first] = CreatePreprocDataHelper();
-                Blob::Ptr blobData = preProcDataIter->second->getRoiBlob();
-                if (blobData->is<NV12Blob>()) {
-                    // check if planes of nv12 blob were allocated with KMB allocator
-                    NV12Blob::Ptr origNV12Blob = as<NV12Blob>(blobData);
-                    Blob::Ptr& origYBlob = origNV12Blob->y();
-                    Blob::Ptr& origUVBlob = origNV12Blob->uv();
-
-                    Blob::Ptr kmbYBlob = reallocateBlob(getKmbAllocator(), origYBlob);
-                    Blob::Ptr kmbUVBlob = reallocateBlob(getKmbAllocator(), origUVBlob);
-
-                    InferenceEngine::Blob::Ptr nv12Blob =
-                        InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
-                    preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
-                } else {
-                    // SippPreproc::isApplicable should not allow this to happen
-                    THROW_IE_EXCEPTION << "Unsupported input blob format. SIPP supports only NV12 images.";
-                }
-            }
-
-            SippPreproc::execSIPPDataPreprocessing(_inputs, preprocDataRealloc, _networkInputs, ColorFormat::BGR,
-                _config.numberOfSIPPShaves(), _config.SIPPLpi());
-        } else {
-            execDataPreprocessing(_inputs);
-        }
+    if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
+        dumpInputs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"));
     }
 
-    std::string dumpInputPath = "";
-    const char* dumpInputPathEnv = std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH");
-    if (dumpInputPathEnv != nullptr) {
-        dumpInputPath = dumpInputPathEnv;
-    }
-
+    // TODO: would be better to find a better place for such checks
     for (const auto& input : _inputs) {
         auto const inputBlobPtr = input.second;
         auto inputBlobPrecision = inputBlobPtr->getTensorDesc().getPrecision();
         if (inputBlobPrecision != Precision::FP16 && inputBlobPrecision != Precision::FP32 &&
             inputBlobPrecision != Precision::I8 && inputBlobPrecision != Precision::U8)
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported input blob precision";
-
-        if (!dumpInputPath.empty()) {
-            dumpInputBlobHelper(inputBlobPtr, dumpInputPath);
-        }
     }
     for (const auto& output : _outputs) {
         auto const outputBlobPtr = output.second;
@@ -267,41 +133,133 @@ void KmbInferRequest::InferAsync() {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
     }
 
-    auto dataName = _networkInputs.begin()->first;
+    const auto& deviceInputs = _executor->getNetworkInputs();
+    const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
+    const auto input = _inputs.begin()->second;
 
-    auto foundInputBlob = _inputs.find(dataName);
-    if (foundInputBlob == _inputs.end()) THROW_IE_EXCEPTION << "Error: input [" << dataName << "] is not provided.";
+    auto updatedInput = prepareInputForInference(input, deviceInputDesc);
 
-    // check that input layout is the same as device layout
-    const InferenceEngine::InputsDataMap& deviceInputs = _executor->getNetworkInputs();
-    IE_ASSERT(deviceInputs.size() == 1) << "Networks with " << deviceInputs.size() << " inputs are not supported. "
-                                        << "Only networks with 1 input are supported.";
+    _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
+}
 
-    size_t input_size_total =
-        std::accumulate(_inputs.begin(), _inputs.end(), 0, [](size_t sum, InferenceEngine::BlobMap::value_type& input) {
-            return sum + input.second->byteSize();
-        });
-
-    Blob::Ptr& inputBlobRef = _inputs.begin()->second;
-    InferenceEngine::TensorDesc deviceTensorDesc = deviceInputs.begin()->second->getTensorDesc();
-    deviceTensorDesc.setLayout(_executor->_inputNetworkLayout);
-
-    // is2DTensor is a workaround for NHWC -> NC case
-    // TODO: remove when mcm will support different input layout
-    if (deviceTensorDesc.getLayout() != inputBlobRef->getTensorDesc().getLayout() &&
-        !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
-        // do layout conversion with copyBlob
-        InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
-        IE_ASSERT(blobWithInput != nullptr);
-        blobWithInput->allocate();
-        copyBlob(inputBlobRef, blobWithInput);
-        void* inputPtr = blobWithInput->buffer();
-        _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+    if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+        relocationAndExecSIPPDataPreprocessing(
+            inputs, _networkInputs, ColorFormat::BGR, _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
-        // pass input as is, do not convert layout
-        void* inputPtr = inputBlobRef->buffer();
-        _executor->queueInference(inputPtr, input_size_total, nullptr, 0);
+        execDataPreprocessing(inputs);
     }
+}
+
+static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob) {
+    return getKmbAllocator()->isValidPtr(blob->buffer().as<void*>());
+}
+
+// TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
+void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+    unsigned int lpi) {
+    std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
+    for (const auto& input : inputs) {
+        const std::string& inputName = input.first;
+        auto preProcDataIter = _preProcData.find(inputName);
+        if (preProcDataIter == _preProcData.end()) {
+            continue;
+        }
+
+        preprocDataRealloc[preProcDataIter->first] = CreatePreprocDataHelper();
+        Blob::Ptr blobData = preProcDataIter->second->getRoiBlob();
+        if (blobData->is<NV12Blob>()) {
+            // check if planes of nv12 blob were allocated with KMB allocator
+            NV12Blob::Ptr origNV12Blob = as<NV12Blob>(blobData);
+            Blob::Ptr& origYBlob = origNV12Blob->y();
+            Blob::Ptr& origUVBlob = origNV12Blob->uv();
+
+            Blob::Ptr kmbYBlob = origYBlob;
+            if (!isBlobPlacedInShareableMemory(origYBlob)) {
+                kmbYBlob = reallocateBlob(origYBlob);
+            }
+            Blob::Ptr kmbUVBlob = origUVBlob;
+            if (!isBlobPlacedInShareableMemory(origUVBlob)) {
+                kmbUVBlob = reallocateBlob(origUVBlob);
+            }
+
+            InferenceEngine::Blob::Ptr nv12Blob =
+                InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
+            preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
+        } else {
+            THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to SIPP preprocessing.";
+        }
+    }
+    this->execSIPPDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
+}
+
+void KmbInferRequest::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
+    InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
+    SippPreproc::execSIPPDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi);
+}
+
+static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {
+    // TODO: is2DTensor is a workaround for NHWC -> NC case
+    // remove when mcm will support different input layout
+    return (deviceTensorDesc.getLayout() != actualInput->getTensorDesc().getLayout() &&
+            !is2DTensor(actualInput->getTensorDesc().getDims()));
+}
+
+Blob::Ptr KmbInferRequest::prepareInputForInference(
+    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
+    bool allocateNewBlob = false;
+
+    if (!isBlobPlacedInShareableMemory(actualInput)) {
+        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+        allocateNewBlob = true;
+    }
+
+    if (needRepacking(actualInput, expectedDesc)) {
+        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+        allocateNewBlob = true;
+    }
+
+    return allocateNewBlob ? reallocateBlob(actualInput) : actualInput;
+}
+
+Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
+    auto allocator = getKmbAllocator();
+    Blob::Ptr kmbBlob = make_blob_with_precision(blob->getTensorDesc(), allocator);
+    kmbBlob->allocate();
+
+    vpu::copyBlob(blob, kmbBlob);
+
+    return kmbBlob;
+}
+
+void KmbInferRequest::dumpInputs(const InferenceEngine::BlobMap& inputs, const std::string dstPath) const {
+    if (dstPath.empty()) {
+        _logger->warning(
+            "Can not dump inputs since destination path is empty. Please check IE_VPU_KMB_DUMP_INPUT_PATH.");
+        return;
+    }
+    for (const auto& input : inputs) {
+        dumpInputBlobHelper(input.second, dstPath);
+    }
+}
+
+void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const std::string& dst) const {
+    static unsigned dumpInputCounter = 0;
+    std::ostringstream inputFullPath;
+    inputFullPath << dst;
+    inputFullPath << "/input-dump";
+    inputFullPath << dumpInputCounter++;
+    inputFullPath << ".bin";
+    _logger->info("dumpInputBlobHelper: dump to file ", inputFullPath.str());
+    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
+    if (dumper.good()) {
+        dumper.write(inputBlobPtr->cbuffer().as<char*>(), inputBlobPtr->byteSize());
+    } else {
+        _logger->warning("dumpInputBlobHelper: failed to open ", inputFullPath.str());
+    }
+    dumper.close();
 }
 
 static Blob::Ptr convertPrecision(
@@ -399,127 +357,12 @@ void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngine
     THROW_IE_EXCEPTION << "KmbInferRequest::GetPerformanceCounts is not implemented\n";
 }
 
-void KmbInferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
-    IE_PROFILING_AUTO_SCOPE(SetBlob)
-    if (name == nullptr) {
-        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
-    }
-    if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
-    const bool compoundBlobPassed = data->is<CompoundBlob>();
-    if (!compoundBlobPassed && data->buffer() == nullptr)
-        THROW_IE_EXCEPTION << "Input data was not allocated. Input name: \'" << name << "\'";
-    if (data->size() == 0) {
-        THROW_IE_EXCEPTION << "Input data is empty. Input name: \'" << name << "\'";
-    }
-
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    size_t dataSize = data->size();
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                               << "Failed to set Blob with precision not corresponding to user input precision";
-        }
-
-        const bool preProcRequired = preProcessingRequired(foundInput, data);
-        if (compoundBlobPassed && !preProcRequired) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "cannot set compound blob: supported only for input pre-processing";
-        }
-
-        if (preProcRequired) {
-            // Stores the given blob as ROI blob. It will be used to fill in network input
-            // during pre-processing
-            Blob::Ptr orig_data;
-            auto found = _inputs.find(name);
-            if (found != _inputs.end()) {
-                orig_data = found->second;
-            } else {
-                orig_data = _custom_inputs[name];
-            }
-            _preProcData[name] = CreatePreprocDataHelper();
-            _preProcData[name]->isApplicable(data, orig_data);
-
-            _preProcData[name]->setRoiBlob(data);
-        } else {
-            size_t inputSize = product(foundInput->getTensorDesc().getDims());
-            if (dataSize != inputSize) {
-                THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
-                                   << "!=" << inputSize << ").";
-            }
-            if (getKmbAllocator()->isValidPtr(data->buffer())) {
-                _inputs[name] = data;
-            } else {
-                _logger->info("isValidPtr(): Input blob will be copied");
-                _custom_inputs[name] = data;
-            }
-        }
-    } else {
-        if (compoundBlobPassed) {
-            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                               << "cannot set compound blob: supported only for input pre-processing";
-        }
-        size_t outputSize = product(foundOutput->getDims());
-        if (dataSize != outputSize) {
-            THROW_IE_EXCEPTION << "Output blob size is not equal network output size (" << dataSize
-                               << "!=" << outputSize << ").";
-        }
-        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
-            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
-                               << "Failed to set Blob with precision not corresponding to user output precision";
-        }
-        if (getKmbAllocator()->isValidPtr(data->buffer())) {
-            _outputs[name] = data;
-        } else {
-            _logger->info("isValidPtr(): Output blob will be copied");
-            _custom_outputs[name] = data;
-        }
-    }
-}
-
-void KmbInferRequest::GetBlob(const char* name, Blob::Ptr& data) {
-    IE_PROFILING_AUTO_SCOPE(GetBlob)
-    InputInfo::Ptr foundInput;
-    DataPtr foundOutput;
-    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
-        // ROI blob is returned only if it was set previously. Otherwise default blob is returned.
-        auto it = _preProcData.find(name);
-        if (it != _preProcData.end()) {
-            data = it->second->getRoiBlob();
-        } else {
-            if (!_custom_inputs.empty()) {
-                data = _custom_inputs[name];
-            } else {
-                data = _inputs[name];
-            }
-            checkBlob(data, name, true, foundInput->getTensorDesc().getDims());
-        }
-    } else {
-        if (!_custom_outputs.empty()) {
-            data = _custom_outputs[name];
-        } else {
-            data = _outputs[name];
-        }
-        checkBlob(data, name, false, foundOutput->getTensorDesc().getDims());
-    }
-}
-
 void KmbInferRequest::Infer() {
     KmbInferRequest::checkBlobs();
     InferImpl();
 }
 
 void KmbInferRequest::checkBlobs() {
-    if (_custom_inputs.empty()) {
-        for (auto const& input : _inputs) {
-            checkBlob(input.second, input.first, true);
-        }
-    } else {
-        for (auto const& input : _custom_inputs) {
-            checkBlob(input.second, input.first, true);
-        }
-    }
-
     if (_custom_outputs.empty()) {
         for (auto const& output : _outputs) {
             checkBlob(output.second, output.first, false);
