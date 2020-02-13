@@ -209,21 +209,19 @@ static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& device
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
-    ie::Blob::Ptr inputForInference;
+    bool allocateNewBlob = false;
 
     if (!isBlobPlacedInShareableMemory(actualInput)) {
         _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-        inputForInference = reallocateBlob(actualInput);
-    } else {
-        inputForInference = actualInput;
+        allocateNewBlob = true;
     }
 
-    if (needRepacking(inputForInference, expectedDesc)) {
+    if (needRepacking(actualInput, expectedDesc)) {
         _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
-        inputForInference = reallocateBlob(inputForInference);
+        allocateNewBlob = true;
     }
 
-    return inputForInference;
+    return allocateNewBlob ? reallocateBlob(actualInput) : actualInput;
 }
 
 Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
