@@ -102,33 +102,6 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_SSD_512) {
         0.1f, 0.3f);
 }
 
-// TODO: use correct network type
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_TinyYolo_V2) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NCHW)
-            .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
-        3, 1e-5f);
-}
-
-// TODO: use correct network type
-// KMB : too long compilation time
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_Yolo_V2) {
-    if (DEVICE_NAME == "KMB") {
-        SKIP() << "Too long compilation time on " << DEVICE_NAME;
-    }
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NCHW)
-            .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
-        3, 1e-5f);
-}
-
 // Hangs on infer stage [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, DISABLED_ResNet_50_v1_tf_int8_sparse_v2) {  // 60.4% sparsity
     runTest(
@@ -290,4 +263,24 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_SqueezeNetv1_1_onnx_int8_sparse) {
             .setUserOutputPresision("output", Precision::FP32),
         "224x224/cat3.bmp",
         1, 0.05f);
+}
+
+TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("input", Precision::FP32),
+            "416x416/person.bmp",
+            0.6, 0.4, 0.4, false);
+}
+
+TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("input", Precision::FP32),
+            "416x416/person.bmp",
+            0.6, 0.4, 0.4, false);
 }

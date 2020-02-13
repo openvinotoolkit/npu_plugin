@@ -270,9 +270,11 @@ protected:
     };
 
     struct BBox final {
+        int idx;
         float left, right, top, bottom;
         float prob;
-        int idx;
+        BBox(int idx, float xmin, float ymin, float xmax, float ymax, float prob)
+                : idx(idx), left(xmin), right(xmax), top(ymax), bottom(ymin), prob (prob) {};
     };
 
 protected:
@@ -281,9 +283,73 @@ protected:
             size_t imgWidth, size_t imgHeight,
             float confThresh);
 
+    void checkBBoxOutputs(std::vector<BBox> &actual, std::vector<BBox> &ref,
+            int imgWidth, int imgHeight, float boxTolerance, float probTolerance);
+
 protected:
     static float overlap(float x1, float w1, float x2, float w2);
-    static float box_intersection(const Box& a, const Box& b);
-    static float box_union(const Box& a, const Box& b);
-    static float box_iou(const Box& a, const Box& b);
+    static float boxIntersection(const Box& a, const Box& b);
+    static float boxUnion(const Box& a, const Box& b);
+    static float boxIou(const Box& a, const Box& b);
+};
+
+
+class KmbYoloV2NetworkTest : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& inputFileName,
+            float confThresh,
+            float boxTolerance, float probTolerance,
+            bool isTiny);
+
+    //TODO: It can be optimized
+protected:
+    struct sortableBBox {
+        int index;
+        int cclass;
+        std::vector<std::vector<float>> probs;
+        sortableBBox(int index, float cclass, std::vector<std::vector<float>> &probs)
+                : index(index), cclass(cclass), probs(probs) {};
+    };
+
+protected:
+    static std::vector<KmbDetectionNetworkTest::BBox> parseOutput(
+            const Blob::Ptr& blob,
+            size_t imgWidth, size_t imgHeight,
+            float confThresh, bool isTiny);
+
+    static std::vector<BBox> yolov2BoxExtractor(
+            float threshold,
+            std::vector<float> &net_out,
+            int imgWidth,
+            int imgHeight,
+            int class_num,
+            bool isTiny);
+
+    static void getRegionBoxes(std::vector<float> &predictions,
+                                                int lw,
+                                                int lh,
+                                                int lcoords,
+                                                int lclasses,
+                                                int lnum,
+                                                int w,
+                                                int h,
+                                                int netw,
+                                                int neth,
+                                                float thresh,
+                                                std::vector<std::vector<float>> &probs,
+                                                std::vector<Box> &boxes,
+                                                int relative,
+                                                const std::vector<float> &anchors);
+
+    static void correctRegionBoxes(std::vector<Box> &boxes, int n, int w, int h, int netw, int neth, int relative);
+    static Box getRegionBox(float *x, const std::vector<float> &biases, int n, int index, int i, int j, int w, int h, int stride);
+    static int entryIndex(int lw, int lh, int lcoords, int lclasses, int lnum, int batch, int location, int entry);
+    static int maxIndex(std::vector<float> &a, int n);
+    static void doNMSSort(std::vector<Box> &boxes, std::vector<std::vector<float>> &probs,
+                            int total, int classes, float thresh);
+    static void getDetections(int imw, int imh, int num, float thresh,
+                               Box *boxes, std::vector<std::vector<float>> &probs,
+                               int classes, std::vector<BBox> &detect_result);
 };
