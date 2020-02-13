@@ -15,39 +15,49 @@
 //
 
 #include <gtest/gtest.h>
+#include <string>
 
 #include <blob_parser.hpp>
 #include <fstream>
+#include "models/precompiled_resnet.h"
 
-#include "frontend_mcm_core.h"
 
 using namespace vpu;
 
-TEST_F(FrontendMCM_Core_Tests, CanParseBlob) {
-    std::ifstream blobFile(resnetModel.graphPath, std::ios::binary);
+class BlobParser_Tests : public ::testing::Test {
+public:
+    InferenceEngine::InputsDataMap networkInputs;
+    InferenceEngine::OutputsDataMap networkOutputs;
+
+    std::string blobContentString;
+
+protected:
+    void SetUp() override;
+};
+
+void BlobParser_Tests::SetUp() {
+    const std::string graphPath = PrecompiledResNet_Helper::resnet.graphPath;
+
+    std::ifstream blobFile(graphPath, std::ios::binary);
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << resnetModel.graphPath;
+        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << graphPath;
     }
 
     std::ostringstream blobContentStream;
     blobContentStream << blobFile.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
+    blobContentString = blobContentStream.str();
+}
+
+
+TEST_F(BlobParser_Tests, CanParseBlob) {
     ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
     ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
 }
 
-TEST_F(FrontendMCM_Core_Tests, CanGetInputsOutputsDimensions) {
+TEST_F(BlobParser_Tests, CanGetInputsOutputsDimensions) {
     InferenceEngine::SizeVector expectedInput = {1, 3, 224, 224};
     InferenceEngine::SizeVector expectedOutput = {1, 1024, 1, 1};
 
-    std::ifstream blobFile(resnetModel.graphPath, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << resnetModel.graphPath;
-    }
-
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
     ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
     ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
 
@@ -62,18 +72,10 @@ TEST_F(FrontendMCM_Core_Tests, CanGetInputsOutputsDimensions) {
 }
 
 // TODO: cannot parse input and output name correctly
-TEST_F(FrontendMCM_Core_Tests, DISABLED_CanGetInputsOutputsNames) {
+TEST_F(BlobParser_Tests, DISABLED_CanGetInputsOutputsNames) {
     std::string expectedInputName = "input";
     std::string expectedOutputName = "output";
 
-    std::ifstream blobFile(resnetModel.graphPath, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << resnetModel.graphPath;
-    }
-
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
     ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));
     ASSERT_NO_THROW(MCMAdapter::getNetworkOutputs(blobContentString.c_str(), networkOutputs));
 

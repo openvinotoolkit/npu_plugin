@@ -14,18 +14,31 @@
 // stated in the License.
 //
 
-#pragma once
+#include <gtest/gtest.h>
+#include "models/model_pooling.h"
 
-#include "ie_core.hpp"
-#include "mcm_config.h"
+#include "mcm_adapter.hpp"
 
-namespace vpu {
-namespace MCMAdapter {
-bool isMCMCompilerAvailable();
+using namespace vpu;
 
-void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& outBlob);
+class MCMAdapter_Tests : public ::testing::Test {
+public:
+    InferenceEngine::CNNNetwork network;
+    MCMConfig mcmConfig;
 
-std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
+protected:
+    void SetUp() override;
+};
 
-}  // namespace MCMAdapter
-}  // namespace vpu
+void MCMAdapter_Tests::SetUp() {
+    ModelPooling_Helper modelPoolingHelper;
+    network = modelPoolingHelper.network;
+}
+
+using MCMAdapter_compileNetwork = MCMAdapter_Tests;
+TEST_F(MCMAdapter_compileNetwork, canCompile) {
+    std::vector<char> blobFile;
+
+    ASSERT_NO_THROW(MCMAdapter::compileNetwork(network, mcmConfig, blobFile));
+    ASSERT_GT(blobFile.size(), 0);
+}
