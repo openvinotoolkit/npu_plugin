@@ -91,13 +91,11 @@ mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vec
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
     auto kernelSize = attrs.at("kSize").get<std::array<unsigned short, 2>>();
     auto exclude_pad = attrs.at("exclude_pad").get<bool>();
-    auto auto_pad = attrs.at("auto_pad").get<std::string>();
-    auto rounding_type = attrs.at("rounding_type").get<std::string>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
 
     auto dpuPool = om.dPUTaskMaxPool(inputs, kernelSize, strides, padding,
-                       exclude_pad, auto_pad, rounding_type, outputTensorType, quantParams, mv::createDPUTaskName(name));
+                       exclude_pad, outputTensorType, quantParams, mv::createDPUTaskName(name));
 
     om.getSourceOp(dpuPool)->set<bool>("hasWeights", false);
     return dpuPool;

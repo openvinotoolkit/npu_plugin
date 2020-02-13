@@ -12,21 +12,6 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            auto auto_pad = args.at("auto_pad").get<std::string>();
-            auto rounding_type = args.at("rounding_type").get<std::string>();
-
-            if (auto_pad != "" && auto_pad != "same_upper" && auto_pad != "same_lower" && auto_pad != "valid")
-            {
-                errMsg = "Invalid argument: auto_pad=" + auto_pad;
-                return {false, 0};
-            }
-
-            if (rounding_type != "floor" && rounding_type != "ceil")
-            {
-                errMsg = "Invalid argument: rounding_type=" + rounding_type;
-                return {false, 0};
-            }
-
             if (inputs[0]->getShape().ndims() != 4)
             {
                 errMsg = "Invalid shape of the input tensor (input 0) - must have a dimensionality of 4, "
@@ -79,13 +64,6 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-
-        // TODO: make setOptionalArg accept "..." instead of std::string("...")
-        // Default values for (some of) optional arguments
-        static std::string default_auto_pad = ""; // variants: "", "same_upper", "same_lower", "valid"
-        static std::string default_rounding_type = "floor"; // variants: "floor", "ceil"
-
-
     }
 
     namespace op {
@@ -96,8 +74,6 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad", op_average_pool::default_auto_pad)      // default: ""
-        .setOptionalArg<std::string>("rounding_type", op_average_pool::default_rounding_type) // default: "floor"
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_average_pool::inputCheckFcn)

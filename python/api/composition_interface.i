@@ -252,13 +252,13 @@ import_array();
         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){
         /// Add a Max Pooling Layer to the OpModel and return the relevant iterator
         return o.maxPool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY},
-            {padXl, padXr, padYu, padYd}, false,"","floor", type, quantParams, name);
+            {padXl, padXr, padYu, padYd}, false, type, quantParams, name);
     }
 
     mv::Data::TensorIterator avgpool2D(mv::CompositionalModel& o, mv::Data::TensorIterator input, short unsigned kernelSizeX,
         short unsigned kernelSizeY, short unsigned strideX, short unsigned strideY, short unsigned padXl, short unsigned padXr,  short unsigned padYu,short unsigned padYd, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name)
     {
-        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false,"","floor", type, quantParams, name);
+        return o.averagePool(input, {kernelSizeX, kernelSizeY}, {strideX, strideY}, {padXl, padXr, padYu, padYd}, false, type, quantParams, name);
     }
 
     mv::Data::TensorIterator relu(mv::CompositionalModel& o, mv::Data::TensorIterator input, const std::string& type, const mv::QuantizationParams &quantParams, const std::string& name){

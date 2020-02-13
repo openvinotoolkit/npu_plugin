@@ -40,7 +40,7 @@ int main()
     auto biasWeights2 = om.constantInt(biasWeightsData2,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0006074953125789762},{-inf},{inf}}, "InceptionV3/InceptionV3/Conv2d_2b_3x3/Relu_bias#8");
     auto bias_c2 = om.bias(conv2, biasWeights2, {{0},{0.06411805748939514},{0.0},{16.35010528564453}});
 
-    auto pool0 = om.maxPool(bias_c2, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.06411805748939514},{0.0},{16.35010528564453}}, "InceptionV3/InceptionV3/MaxPool_3a_3x3/MaxPool#319");
+    auto pool0 = om.maxPool(bias_c2, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, {{0},{0.06411805748939514},{0.0},{16.35010528564453}}, "InceptionV3/InceptionV3/MaxPool_3a_3x3/MaxPool#319");
 
     std::vector<int64_t> weightsData3 = mv::utils::generateSequence<int64_t> (1*1*64*80);
     auto weights3 = om.constantInt(weightsData3,{1,1,64,80}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{106},{0.00860925205051899},{-0.8998916745185852},{1.2868584394454956}}, "InceptionV3/InceptionV3/Conv2d_3b_1x1/Relu_weights#11");
@@ -58,7 +58,7 @@ int main()
     auto biasWeights4 = om.constantInt(biasWeightsData4,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00033214958966709673},{-inf},{inf}}, "InceptionV3/InceptionV3/Conv2d_4a_3x3/Relu_bias#15");
     auto bias_c4 = om.bias(conv4, biasWeights4, {{0},{0.04986247420310974},{0.0},{12.714930534362793}});
 
-    auto pool1 = om.maxPool(bias_c4, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.04986247420310974},{0.0},{12.714930534362793}}, "InceptionV3/InceptionV3/MaxPool_5a_3x3/MaxPool#322");
+    auto pool1 = om.maxPool(bias_c4, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, {{0},{0.04986247420310974},{0.0},{12.714930534362793}}, "InceptionV3/InceptionV3/MaxPool_5a_3x3/MaxPool#322");
 
     std::vector<int64_t> weightsData5 = mv::utils::generateSequence<int64_t> (1*1*192*64);
     auto weights5 = om.constantInt(weightsData5,{1,1,192,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.004454410634934902},{-0.5758478045463562},{0.555572509765625}}, "InceptionV3/InceptionV3/Mixed_5b/Branch_0/Conv2d_0a_1x1/Relu_weights#19");
@@ -108,7 +108,7 @@ int main()
     auto biasWeights10 = om.constantInt(biasWeightsData10,{96}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002163733443012461},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_5b/Branch_2/Conv2d_0c_3x3/Relu_bias#35");
     auto bias_c10 = om.bias(conv10, biasWeights10, {{0},{0.055134955793619156},{0.0},{14.05941390991211}});
 
-    auto pool2 = om.averagePool(pool1, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.04986247420310974},{0.0},{12.714930534362793}}, "InceptionV3/InceptionV3/Mixed_5b/Branch_3/AvgPool_0a_3x3/AvgPool#323");
+    auto pool2 = om.averagePool(pool1, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.04986247420310974},{0.0},{12.714930534362793}}, "InceptionV3/InceptionV3/Mixed_5b/Branch_3/AvgPool_0a_3x3/AvgPool#323");
 
     std::vector<int64_t> weightsData11 = mv::utils::generateSequence<int64_t> (1*1*192*32);
     auto weights11 = om.constantInt(weightsData11,{1,1,192,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{160},{0.008971055969595909},{-1.4265706539154053},{0.8520775437355042}}, "InceptionV3/InceptionV3/Mixed_5b/Branch_3/Conv2d_0b_1x1/Relu_weights#37");
@@ -168,7 +168,7 @@ int main()
     auto biasWeights17 = om.constantInt(biasWeightsData17,{96}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002460950054228306},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_5c/Branch_2/Conv2d_0c_3x3/Relu_bias#58");
     auto bias_c17 = om.bias(conv17, biasWeights17, {{0},{0.0661386027932167},{0.0},{16.86534309387207}});
 
-    auto pool3 = om.averagePool(concat0, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.055134955793619156},{0.0},{14.05941390991211}}, "InceptionV3/InceptionV3/Mixed_5c/Branch_3/AvgPool_0a_3x3/AvgPool#332");
+    auto pool3 = om.averagePool(concat0, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.055134955793619156},{0.0},{14.05941390991211}}, "InceptionV3/InceptionV3/Mixed_5c/Branch_3/AvgPool_0a_3x3/AvgPool#332");
 
     std::vector<int64_t> weightsData18 = mv::utils::generateSequence<int64_t> (1*1*256*64);
     auto weights18 = om.constantInt(weightsData18,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{116},{0.008546429686248302},{-0.9843059182167053},{1.1864871978759766}}, "InceptionV3/InceptionV3/Mixed_5c/Branch_3/Conv2d_0b_1x1/Relu_weights#60");
@@ -228,7 +228,7 @@ int main()
     auto biasWeights24 = om.constantInt(biasWeightsData24,{96}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0001396417646901682},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_5d/Branch_2/Conv2d_0c_3x3/Relu_bias#81");
     auto bias_c24 = om.bias(conv24, biasWeights24, {{0},{0.04834429547190666},{0.0},{12.327795028686523}});
 
-    auto pool4 = om.averagePool(concat1, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.0661386027932167},{0.0},{16.86534309387207}}, "InceptionV3/InceptionV3/Mixed_5d/Branch_3/AvgPool_0a_3x3/AvgPool#341");
+    auto pool4 = om.averagePool(concat1, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.0661386027932167},{0.0},{16.86534309387207}}, "InceptionV3/InceptionV3/Mixed_5d/Branch_3/AvgPool_0a_3x3/AvgPool#341");
 
     std::vector<int64_t> weightsData25 = mv::utils::generateSequence<int64_t> (1*1*288*64);
     auto weights25 = om.constantInt(weightsData25,{1,1,288,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{103},{0.008292028680443764},{-0.8489067554473877},{1.2572684288024902}}, "InceptionV3/InceptionV3/Mixed_5d/Branch_3/Conv2d_0b_1x1/Relu_weights#83");
@@ -272,7 +272,7 @@ int main()
     auto biasWeights29 = om.constantInt(biasWeightsData29,{96}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00012988591333851218},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_6a/Branch_1/Conv2d_1a_1x1/Relu_bias#98");
     auto bias_c29 = om.bias(conv29, biasWeights29, {{0},{0.04834429547190666},{0.0},{12.327795028686523}});
 
-    auto pool5 = om.maxPool(concat2, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.04834429547190666},{0.0},{12.327795028686523}}, "InceptionV3/InceptionV3/Mixed_6a/Branch_2/MaxPool_1a_3x3/MaxPool#350");
+    auto pool5 = om.maxPool(concat2, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, {{0},{0.04834429547190666},{0.0},{12.327795028686523}}, "InceptionV3/InceptionV3/Mixed_6a/Branch_2/MaxPool_1a_3x3/MaxPool#350");
 
     auto concat3 = om.concat({bias_c26, bias_c29, pool5}, "C", {{0},{0.04834429547190666},{0.0},{12.327795028686523}}, "InceptionV3/InceptionV3/Mixed_6a/concat#355");
 
@@ -348,7 +348,7 @@ int main()
     auto biasWeights38 = om.constantInt(biasWeightsData38,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00016767204215284437},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_6b/Branch_2/Conv2d_0e_1x7/Relu_bias#127");
     auto bias_c38 = om.bias(conv38, biasWeights38, {{0},{0.07881999760866165},{0.0},{20.09910011291504}});
 
-    auto pool6 = om.averagePool(concat3, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.04834429547190666},{0.0},{12.327795028686523}}, "InceptionV3/InceptionV3/Mixed_6b/Branch_3/AvgPool_0a_3x3/AvgPool#356");
+    auto pool6 = om.averagePool(concat3, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.04834429547190666},{0.0},{12.327795028686523}}, "InceptionV3/InceptionV3/Mixed_6b/Branch_3/AvgPool_0a_3x3/AvgPool#356");
 
     std::vector<int64_t> weightsData39 = mv::utils::generateSequence<int64_t> (1*1*768*192);
     auto weights39 = om.constantInt(weightsData39,{1,1,768,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{144},{0.010166983120143414},{-1.4563055038452148},{1.1261082887649536}}, "InceptionV3/InceptionV3/Mixed_6b/Branch_3/Conv2d_0b_1x1/Relu_weights#129");
@@ -432,7 +432,7 @@ int main()
     auto biasWeights48 = om.constantInt(biasWeightsData48,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0003242198145017028},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_6c/Branch_2/Conv2d_0e_1x7/Relu_bias#159");
     auto bias_c48 = om.bias(conv48, biasWeights48, {{0},{0.08443223685026169},{0.0},{21.53022003173828}});
 
-    auto pool7 = om.averagePool(concat4, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.07881999760866165},{0.0},{20.09910011291504}}, "InceptionV3/InceptionV3/Mixed_6c/Branch_3/AvgPool_0a_3x3/AvgPool#368");
+    auto pool7 = om.averagePool(concat4, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.07881999760866165},{0.0},{20.09910011291504}}, "InceptionV3/InceptionV3/Mixed_6c/Branch_3/AvgPool_0a_3x3/AvgPool#368");
 
     std::vector<int64_t> weightsData49 = mv::utils::generateSequence<int64_t> (1*1*768*192);
     auto weights49 = om.constantInt(weightsData49,{1,1,768,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.007271741051226854},{-0.8853006362915039},{0.9617215991020203}}, "InceptionV3/InceptionV3/Mixed_6c/Branch_3/Conv2d_0b_1x1/Relu_weights#161");
@@ -516,7 +516,7 @@ int main()
     auto biasWeights58 = om.constantInt(biasWeightsData58,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00028778932755813},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_6d/Branch_2/Conv2d_0e_1x7/Relu_bias#191");
     auto bias_c58 = om.bias(conv58, biasWeights58, {{0},{0.053837697952985764},{0.0},{13.728612899780273}});
 
-    auto pool8 = om.averagePool(concat5, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.08443223685026169},{0.0},{21.53022003173828}}, "InceptionV3/InceptionV3/Mixed_6d/Branch_3/AvgPool_0a_3x3/AvgPool#380");
+    auto pool8 = om.averagePool(concat5, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.08443223685026169},{0.0},{21.53022003173828}}, "InceptionV3/InceptionV3/Mixed_6d/Branch_3/AvgPool_0a_3x3/AvgPool#380");
 
     std::vector<int64_t> weightsData59 = mv::utils::generateSequence<int64_t> (1*1*768*192);
     auto weights59 = om.constantInt(weightsData59,{1,1,768,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{154},{0.013549362309277058},{-2.0706124305725098},{1.3709255456924438}}, "InceptionV3/InceptionV3/Mixed_6d/Branch_3/Conv2d_0b_1x1/Relu_weights#193");
@@ -600,7 +600,7 @@ int main()
     auto biasWeights68 = om.constantInt(biasWeightsData68,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00010971380834234878},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_6e/Branch_2/Conv2d_0e_1x7/Relu_bias#223");
     auto bias_c68 = om.bias(conv68, biasWeights68, {{0},{0.05141126736998558},{0.0},{13.109872817993164}});
 
-    auto pool9 = om.averagePool(concat6, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.053837697952985764},{0.0},{13.728612899780273}}, "InceptionV3/InceptionV3/Mixed_6e/Branch_3/AvgPool_0a_3x3/AvgPool#392");
+    auto pool9 = om.averagePool(concat6, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.053837697952985764},{0.0},{13.728612899780273}}, "InceptionV3/InceptionV3/Mixed_6e/Branch_3/AvgPool_0a_3x3/AvgPool#392");
 
     std::vector<int64_t> weightsData69 = mv::utils::generateSequence<int64_t> (1*1*768*192);
     auto weights69 = om.constantInt(weightsData69,{1,1,768,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{126},{0.00730943726375699},{-0.9128758311271667},{0.9437211751937866}}, "InceptionV3/InceptionV3/Mixed_6e/Branch_3/Conv2d_0b_1x1/Relu_weights#225");
@@ -660,7 +660,7 @@ int main()
     auto biasWeights75 = om.constantInt(biasWeightsData75,{192}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002096634852932766},{-inf},{inf}}, "InceptionV3/InceptionV3/Mixed_7a/Branch_1/Conv2d_1a_3x3/Relu_bias#246");
     auto bias_c75 = om.bias(conv75, biasWeights75, {{0},{0.05141126736998558},{0.0},{13.109872817993164}});
 
-    auto pool10 = om.maxPool(concat7, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.05141126736998558},{0.0},{13.109872817993164}}, "InceptionV3/InceptionV3/Mixed_7a/Branch_2/MaxPool_1a_3x3/MaxPool#404");
+    auto pool10 = om.maxPool(concat7, {3, 3}, {2, 2}, {0, 0, 0, 0}, true, {{0},{0.05141126736998558},{0.0},{13.109872817993164}}, "InceptionV3/InceptionV3/Mixed_7a/Branch_2/MaxPool_1a_3x3/MaxPool#404");
 
     auto concat8 = om.concat({bias_c71, bias_c75, pool10}, "C", {{0},{0.05141126736998558},{0.0},{13.109872817993164}}, "InceptionV3/InceptionV3/Mixed_7a/concat#411");
 
@@ -732,7 +732,7 @@ int main()
 
     auto concat10 = om.concat({bias_c82, bias_c83}, "C", {{0},{0.03830382600426674},{0.0},{9.767476081848145}}, "InceptionV3/InceptionV3/Mixed_7b/Branch_2/concat#422");
 
-    auto pool11 = om.averagePool(concat8, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.05141126736998558},{0.0},{13.109872817993164}}, "InceptionV3/InceptionV3/Mixed_7b/Branch_3/AvgPool_0a_3x3/AvgPool#412");
+    auto pool11 = om.averagePool(concat8, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.05141126736998558},{0.0},{13.109872817993164}}, "InceptionV3/InceptionV3/Mixed_7b/Branch_3/AvgPool_0a_3x3/AvgPool#412");
 
     std::vector<int64_t> weightsData84 = mv::utils::generateSequence<int64_t> (1*1*1280*192);
     auto weights84 = om.constantInt(weightsData84,{1,1,1280,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{100},{0.008386661298573017},{-0.8303586840629578},{1.2998533248901367}}, "InceptionV3/InceptionV3/Mixed_7b/Branch_3/Conv2d_0b_1x1/Relu_weights#276");
@@ -812,7 +812,7 @@ int main()
 
     auto concat13 = om.concat({bias_c91, bias_c92}, "C", {{0},{0.06592372804880142},{0.0},{16.810550689697266}}, "InceptionV3/InceptionV3/Mixed_7c/Branch_2/concat#435");
 
-    auto pool12 = om.averagePool(concat11, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, "", "floor", {{0},{0.03830382600426674},{0.0},{9.767476081848145}}, "InceptionV3/InceptionV3/Mixed_7c/Branch_3/AvgPool_0a_3x3/AvgPool#425");
+    auto pool12 = om.averagePool(concat11, {3, 3}, {1, 1}, {1, 1, 1, 1}, true, {{0},{0.03830382600426674},{0.0},{9.767476081848145}}, "InceptionV3/InceptionV3/Mixed_7c/Branch_3/AvgPool_0a_3x3/AvgPool#425");
 
     std::vector<int64_t> weightsData93 = mv::utils::generateSequence<int64_t> (1*1*2048*192);
     auto weights93 = om.constantInt(weightsData93,{1,1,2048,192}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{131},{0.02265091799199581},{-2.944530487060547},{2.808802843093872}}, "InceptionV3/InceptionV3/Mixed_7c/Branch_3/Conv2d_0b_1x1/Relu_weights#307");
@@ -824,7 +824,7 @@ int main()
 
     auto concat14 = om.concat({bias_c85, concat12, concat13, bias_c93}, "C", {{0},{0.06592372804880142},{0.0},{16.810550689697266}}, "InceptionV3/InceptionV3/Mixed_7c/concat#437");
 
-    auto pool13 = om.averagePool(concat14, {8, 8}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.06592372804880142},{0.0},{16.810550689697266}}, "InceptionV3/Logits/AvgPool_1a_8x8/AvgPool#438");
+    auto pool13 = om.averagePool(concat14, {8, 8}, {2, 2}, {0, 0, 0, 0}, true, {{0},{0.06592372804880142},{0.0},{16.810550689697266}}, "InceptionV3/Logits/AvgPool_1a_8x8/AvgPool#438");
 
     om.output(pool13);
 

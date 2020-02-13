@@ -21,14 +21,14 @@ int main()
 
     // MaxPools, with different quantParams from each other
     // Note: scaling_maxPool multiplies input by 2, then succeeding de-quantize op divides by 2
-    auto identity_maxPool_in0 = om.maxPool(input0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), in_qp0, "identity_maxpool_in0");
-    auto scaling_maxPool_in1 = om.maxPool(input0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), in_qp1, "scaling_maxpool_in1");
+    auto identity_maxPool_in0 = om.maxPool(input0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), in_qp0, "identity_maxpool_in0");
+    auto scaling_maxPool_in1 = om.maxPool(input0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), in_qp1, "scaling_maxpool_in1");
 
     // Eltwise, to be replaced with SW eltwise in replacement pass
     auto eltwise0 = om.eltwise({identity_maxPool_in0, scaling_maxPool_in1}, "Add", mv::DType("Float16"), identity_qp, "eltwise0");
 
     // Identity MaxPool
-    //auto identity_maxPool_out0 = om.maxPool(eltwise0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("Default"), out_qp, "identity_maxpool_out0");
+    //auto identity_maxPool_out0 = om.maxPool(eltwise0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("Default"), out_qp, "identity_maxpool_out0");
     auto quantize_out0 = om.quantize(eltwise0, mv::DType("UInt8"), out_qp, "quantize_out0");
 
     // Output
