@@ -53,9 +53,6 @@ DEFINE_string(i, "", image_message);
 /// It is a required parameter
 DEFINE_string(m, "", model_message);
 
-/// @brief Enable plugin messages
-DEFINE_bool(p_msg, false, plugin_message);
-
 /// @brief message for scale
 DEFINE_double(s, DEFAULT_SCALE, scale_message);
 
@@ -73,7 +70,6 @@ static void showUsage() {
     std::cout << "    -h                      " << help_message << std::endl;
     std::cout << "    -i \"<path>\"           " << image_message << std::endl;
     std::cout << "    -m \"<path>\"           " << model_message << std::endl;
-    std::cout << "    -p_msg                  " << plugin_message << std::endl;
     std::cout << "    -s value                " << scale_message << std::endl;
     std::cout << "    -z zeropoint            " << zeropoint_message << std::endl;
 }
