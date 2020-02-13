@@ -31,18 +31,6 @@ The following environment variables should be set:
 * The `KMB_BOARD_HOST` environment variable to the hostname or ip addess of the KMB board.
 * The `KMB_WORK_DIR` environment variable to the working directory on the KMB board.
 
-### CPU ARM Plugin
-
-[//]: # (TODO: remove)
-
-The CPU ARM plugin build support is enabled in the following Merge Request: [DLDT MR#5873].
-Use the `master` branch in [DLDT Project], if the [DLDT MR#5873] was merged by the moment, or `vv/mkldnn-on-arm64` branch otherwise.
-
-The CPU ARM plugin tests for target networks are aligned in the following Merge Request: [KMB Plugin MR#469].
-Use the `releases/2020/kmb/alpha` branch in [KMB Plugin Project], if the [KMB Plugin MR#469] was merged by the moment, or `vv/cpu-arm-plugin` branch otherwise.
-
-[//]: # (TODO: remove)
-
 ## Manual build
 
 ### Build for X86_64
@@ -248,10 +236,3 @@ The number of shaves is `16`, maximal number of pipelines is `2`, maximal number
 [DLDT Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [VPU Wiki Accuracy Checker]: https://wiki.ith.intel.com/display/VPUWIKI/Set+up+and+Run+Accuracy+checker+on+ARM
-
-[//]: # (TODO: remove)
-
-[DLDT MR#5873]: https://gitlab-icv.inn.intel.com/inference-engine/dldt/merge_requests/5873
-[KMB Plugin MR#469]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin/merge_requests/469
-
-[//]: # (TODO: remove)
