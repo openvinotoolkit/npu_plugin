@@ -17,7 +17,7 @@
 #pragma once
 
 #include "InferGraph.h"
-#include "hddl2_helpers/models/precompiled_resnet.h"
+#include "models/precompiled_resnet.h"
 
 //------------------------------------------------------------------------------
 //      class HddlUnite_Graph_Helper

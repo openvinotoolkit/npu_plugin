@@ -17,7 +17,7 @@
 #include <InferBlob.h>
 #include <InferData.h>
 #include <Inference.h>
-#include <hddl2_helpers/models/model_pooling.h>
+#include <models/model_pooling.h>
 
 #include <ie_core.hpp>
 

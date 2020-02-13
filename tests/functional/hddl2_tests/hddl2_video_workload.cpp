@@ -17,7 +17,7 @@
 #include "RemoteMemory.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
-#include "hddl2_helpers/models/model_pooling.h"
+#include "models/model_pooling.h"
 #include "hddl2_params.hpp"
 #include "ie_core.hpp"
 
