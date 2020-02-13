@@ -24,7 +24,7 @@
 #include "RemoteMemory.h"
 #include "gtest/gtest.h"
 #include "hddl2_core_api.h"
-#include "hddl2_helpers/helper_device_emulator.h"
+#include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_hddl_unite_graph.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_workload_context.h"
@@ -153,7 +153,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
         EXPECT_NE(nullptr, workload_context);
 
         const std::string deviceName = workload_context->getDevice()->getName();
-        EXPECT_EQ(deviceName, emulatorDeviceName);
+        EXPECT_EQ(deviceName, DeviceName::getName());
     }
 
     // Destroy after finishing working with context
