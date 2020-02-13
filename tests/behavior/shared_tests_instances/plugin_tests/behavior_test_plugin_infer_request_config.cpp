@@ -5,8 +5,11 @@
 
 #include "vpu_test_data.hpp"
 
+// double free detected
+// [Track number: S#27343]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestConfig,
     ValuesIn(BehTestParams::concat(withCorrectConfValues, withCorrectConfValuesNetworkOnly)), getConfigTestCaseName);
 
+// [Track number: S#27343]
 INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestConfigExclusiveAsync,
     ValuesIn(supportedValues), getConfigTestCaseName);
