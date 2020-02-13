@@ -121,6 +121,31 @@ protected:
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
     }
 
+    ie::Blob::Ptr createBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
+        if (dims.size() != 4) {
+            THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
+        }
+        ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
+
+        auto blob = ie::make_shared_blob<uint8_t>(desc);
+        blob->allocate();
+
+        return blob;
+    }
+
+    ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
+        if (dims.size() != 4) {
+            THROW_IE_EXCEPTION << "Dims size must be 4 for createVPUBlob method";
+        }
+
+        ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
+
+        auto blob = ie::make_shared_blob<uint8_t>(desc, getKmbAllocator());
+        blob->allocate();
+
+        return blob;
+    }
+
     ie::NV12Blob::Ptr createNV12Blob(const std::size_t width, const std::size_t height) {
         nv12Data = new uint8_t[height * width / 2 + height * width];
         return createNV12BlobFromMemory(width, height, nv12Data);
@@ -153,32 +178,6 @@ private:
 
         return ie::make_shared_blob<ie::NV12Blob>(yPlane, uvPlane);
     }
-
-protected:
-    ie::Blob::Ptr createBlob(const ie::SizeVector dims) {
-        if (dims.size() != 4) {
-            THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
-        }
-        ie::TensorDesc desc = {ie::Precision::U8, dims, ie::Layout::NHWC};
-
-        auto blob = ie::make_shared_blob<uint8_t>(desc);
-        blob->allocate();
-
-        return blob;
-    }
-
-    ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims) {
-        if (dims.size() != 4) {
-            THROW_IE_EXCEPTION << "Dims size must be 4 for createVPUBlob method";
-        }
-
-        ie::TensorDesc desc = {ie::Precision::U8, dims, ie::Layout::NHWC};
-
-        auto blob = ie::make_shared_blob<uint8_t>(desc, getKmbAllocator());
-        blob->allocate();
-
-        return blob;
-    }
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
@@ -192,7 +191,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMInputToInfer) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -212,7 +211,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMInputToInfer) {
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalVPUSMMBlobForInference) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -225,7 +224,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalVPUSMMBlobForInferen
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonVPUSMMNV12InputToPreprocWithSIPP) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
     std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
     bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
 

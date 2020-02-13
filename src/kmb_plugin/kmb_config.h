@@ -42,6 +42,8 @@ public:
 
     InferenceEngine::ColorFormat outColorFmtSIPP() { return _outColorFmtSIPP; }
 
+    bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -67,6 +69,7 @@ private:
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
+    bool _forceNCHWToNHWC = false;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

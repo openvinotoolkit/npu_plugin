@@ -30,5 +30,12 @@ namespace VPUConfigParams {
  */
 DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to force conversion of input from NCHW to NHWC ignoring TensorDesc info
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
