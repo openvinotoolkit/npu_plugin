@@ -365,19 +365,16 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-    add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:metamodel>)
+    add_library(model OBJECT ${model})
 
     add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 
-    target_link_libraries(cm PUBLIC corebase metamodel)
-    target_link_libraries(model PUBLIC corebase)
+    target_link_libraries(cm PUBLIC metamodel)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-    add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
 
     if(TARGET generate-comp-api)
@@ -388,7 +385,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers)
+    target_link_libraries(cm PUBLIC model metamodel flatbuffers)
     target_link_libraries(model PUBLIC lemon)
 
     if(NOT CMAKE_CROSSCOMPILING)
