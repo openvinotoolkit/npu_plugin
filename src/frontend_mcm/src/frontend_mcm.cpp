@@ -751,21 +751,6 @@ void FrontEndMcm::parseOutputData() {
     }
 }
 
-// TODO find a better way to set output precision, now it works only when convolution is the last layer
-InferenceEngine::Precision FrontEndMcm::getDefaultLayerPrecision(
-    const ParsedNetwork& net, const ie::CNNLayerPtr& layer) {
-    bool isLastLayer = (CNNNetworkHelper::getChildren(*layer).size() == 0);
-    if (isLastLayer) {
-        InferenceEngine::Precision outputPrecision = net.networkOutputs.begin()->second->getTensorDesc().getPrecision();
-        if (outputPrecision == InferenceEngine::Precision::FP16 ||
-            outputPrecision == InferenceEngine::Precision::FP32) {
-            return InferenceEngine::Precision::FP16;
-        }
-    }
-
-    return InferenceEngine::Precision::UNSPECIFIED;
-}
-
 void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto input = inputs[0];
     bool is_quantized = false;
@@ -805,7 +790,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     mv::QuantizationParams biasQuantParams = initialQuantParams;
 
     auto layerOutput = layer->outData[0];
-    mv::DType convolutionDataType = convert_data_type(getDefaultLayerPrecision(_parsedNetwork, layer));
+    mv::DType convolutionDataType("Default");
 
     IE_ASSERT(layerOutput != nullptr);
     auto outDesc = layerOutput->getTensorDesc();
@@ -1076,7 +1061,7 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
     auto layerOutput = FClayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
 
-    mv::DType layerDataType = convert_data_type(getDefaultLayerPrecision(_parsedNetwork, layer));
+    mv::DType layerDataType("Default");
     auto mvFullyConnected =
         _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, layerDataType, outputQuantParams, FClayer->name);
 
