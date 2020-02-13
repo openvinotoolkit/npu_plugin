@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/tiling.hpp"
 
 namespace mv
 {
@@ -62,8 +63,12 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
 
-            Shape outputShape({(inputShape[mv::IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[KERNEL_WIDTH]) / stride[0] + 1,
-                (inputShape[mv::IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[KERNEL_HEIGHT]) / stride[1] + 1, inputShape[mv::IO_CHANNEL_DIMENSION], inputShape[mv::IO_BATCH_DIMENSION]});
+            auto W = Tiling::inferOutputSize(inputShape[IO_WIDTH_DIMENSION], padding[0], padding[1], kSize[0], stride[0]);
+            auto H = Tiling::inferOutputSize(inputShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], kSize[1], stride[1]);
+            auto C = inputShape[IO_CHANNEL_DIMENSION];
+            auto N = inputShape[IO_BATCH_DIMENSION];
+
+            Shape outputShape({W, H, C, N});
 
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))

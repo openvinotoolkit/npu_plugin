@@ -4,6 +4,7 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 
 
 namespace mv
