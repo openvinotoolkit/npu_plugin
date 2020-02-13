@@ -35,24 +35,21 @@ namespace vpu {
 namespace KmbPlugin {
 
 class KmbInferRequest : public InferenceEngine::InferRequestInternal {
-    KmbExecutorPtr _executor;
+    KmbExecutor::Ptr _executor;
     InferenceEngine::Layout _deviceLayout;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
 
 protected:
-    InferenceEngine::BlobMap _custom_inputs;
     InferenceEngine::BlobMap _custom_outputs;
     void checkBlobs();
-    void dumpInputBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst);
-    void dumpOutputBlobHelper(const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst);
 
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
-        const KmbConfig& kmbConfig, const KmbExecutorPtr& executor);
+        const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor);
 
     void InferImpl() override;
     void InferAsync();
@@ -61,14 +58,30 @@ public:
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
-    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
-    void GetBlob(const char* name, InferenceEngine::Blob::Ptr& data) override;
-
     void Infer() override;
+
+protected:
+    void execPreprocessing(InferenceEngine::BlobMap& inputs);
+    void relocationAndExecSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+        unsigned int lpi);
+    virtual void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+        std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
+        InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
+        unsigned int lpi);
+    virtual InferenceEngine::Blob::Ptr reallocateBlob(const InferenceEngine::Blob::Ptr& blob);
+
+    void dumpInputs(const InferenceEngine::BlobMap& inputs, const std::string dstPath) const;
+    virtual void dumpInputBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst) const;
+
+    void dumpOutputBlobHelper(const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst);
 
 private:
     InferenceEngine::Blob::Ptr _blobWithResult;
     Logger::Ptr _logger;
+
+    InferenceEngine::Blob::Ptr prepareInputForInference(
+        const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::TensorDesc& expectedDesc);
 };
 
 }  // namespace KmbPlugin
