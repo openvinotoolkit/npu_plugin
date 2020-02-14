@@ -123,6 +123,11 @@ namespace mv
                 auto weightsShape = weightTensor->getShape();
                 auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
                 kernelSize = weightsShape[kernelDin];
+
+                if (opIt->hasAttr("dilationFactor")) {
+                    auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+                    kernelSize = (kernelSize - 1) * dilationFactor + 1;
+                }
             }
             else
             {
