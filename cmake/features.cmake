@@ -17,6 +17,9 @@ else()
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
 endif()
 
+# TODO: Switch to off when CI will use real device
+ie_option(ENABLE_HDDL2_SIMULATOR "Enable XLink emulator for HDDL2 Plugin" ON)
+
 ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 ie_option(ENABLE_VPUAL_MODEL "Enable VPUAL model" OFF)
 

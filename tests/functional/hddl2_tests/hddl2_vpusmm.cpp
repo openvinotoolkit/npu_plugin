@@ -15,6 +15,7 @@
 //
 
 #include <fstream>
+#include <hddl2_helpers/helper_device_name.h>
 
 #include "gtest/gtest.h"
 
@@ -27,6 +28,10 @@ class HDDL2_Vpu_SMM_Driver_Tests : public ::testing::Test {};
 //      class HDDL2_Vpu_SMM_Driver_Tests Initiations
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_Vpu_SMM_Driver_Tests, getVpusmmDriver) {
+    if (DeviceName::isEmulator()) {
+        SKIP() << "SMM driver is not required for real device";
+    }
+
     bool isVPUSMMDriverFound = false;
     std::ifstream modulesLoaded("/proc/modules");
     std::string line;

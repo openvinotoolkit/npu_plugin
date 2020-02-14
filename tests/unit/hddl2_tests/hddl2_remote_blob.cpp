@@ -18,7 +18,7 @@
 
 #include <gtest/gtest.h>
 
-#include "hddl2_helpers/helper_device_emulator.h"
+#include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
@@ -142,7 +142,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, deallocate_AllocatedBlob_ReturnTrue) {
 TEST_F(HDDL2_RemoteBlob_UnitTests, getDeviceName_DeviceAssigned_CorrectName) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
-    ASSERT_EQ(emulatorDeviceNameInPlugin, remoteBlobPtr->getDeviceName());
+    ASSERT_EQ(DeviceName::getNameInPlugin(), remoteBlobPtr->getDeviceName());
 }
 
 //------------------------------------------------------------------------------

@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 #include <hddl2_helpers/helper_remote_memory.h>
 
-#include "hddl2_helpers/helper_device_emulator.h"
+#include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_helpers/helper_workload_context.h"
@@ -111,7 +111,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered)
 TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnEmulatorName) {
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params);
 
-    ASSERT_EQ(emulatorDeviceNameInPlugin, context->getDeviceName());
+    ASSERT_EQ(DeviceName::getNameInPlugin(), context->getDeviceName());
 }
 
 //------------------------------------------------------------------------------

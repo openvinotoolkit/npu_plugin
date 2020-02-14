@@ -15,6 +15,7 @@
 //
 
 #include <Inference.h>
+#include <WorkloadContext.h>
 #include <hddl2_exceptions.h>
 #include <hddl_unite/hddl2_unite_graph.h>
 
@@ -30,7 +31,6 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteCont
 
     if (contextPtr != nullptr) {
         HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
-
         statusCode = HddlUnite::Inference::loadGraph(
             _uniteGraphPtr, graphName, graphData.data(), graphData.size(), {*workloadContext});
     } else {
