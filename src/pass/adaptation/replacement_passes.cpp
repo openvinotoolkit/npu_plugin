@@ -770,6 +770,9 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     for (auto& opIt : ops)
     {
+        if (!opIt) {
+            continue;
+        }
         if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
             auto poolingOp = opIt;
 
