@@ -200,6 +200,14 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
                     outputMinC += real_bias;
                     outputMaxC += real_bias;
                 }
+
+                if (opIt->hasAttr("leakyAlpha"))
+                {
+                    auto alpha = opIt->get<double>("leakyAlpha");
+                    if (outputMinC < 0)
+                        outputMinC = outputMinC*alpha;
+                }
+
                 outMax[k] = outputMaxC;
                 outMin[k] = outputMinC;
             }
