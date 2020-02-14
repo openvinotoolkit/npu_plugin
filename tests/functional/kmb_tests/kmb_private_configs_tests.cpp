@@ -29,12 +29,12 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "BGR"}});
+    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-nv12.bin";
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-bgr-nv12.bin";
     const auto inputDims = network.GetInputsInfo().begin()->second->getTensorDesc().getDims();
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> allocator =
         std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
