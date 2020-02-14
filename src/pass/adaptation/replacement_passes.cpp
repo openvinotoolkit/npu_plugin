@@ -785,7 +785,6 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
                 it = linkNewOperationsRemove(parentOpIt, sourceTensor, om, it);
             }
 
-            std::cout << it->getOpType() << std::endl;
             auto ap = om.averagePool(it->getOutputTensor(0),
                     kSize,
                     op_attrs.at("stride"),
