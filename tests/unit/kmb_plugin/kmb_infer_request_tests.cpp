@@ -147,12 +147,12 @@ protected:
     }
 
     ie::NV12Blob::Ptr createNV12Blob(const std::size_t width, const std::size_t height) {
-        nv12Data = new uint8_t[height * width / 2 + height * width];
+        nv12Data = new uint8_t[height * width * 3 / 2];
         return createNV12BlobFromMemory(width, height, nv12Data);
     }
 
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
-        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width / 2 + height * width));
+        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width * 3 / 2));
         return createNV12BlobFromMemory(width, height, nv12Data);
     }
     void TearDown() override {
