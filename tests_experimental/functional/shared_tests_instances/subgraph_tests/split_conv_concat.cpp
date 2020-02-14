@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vector>
+
 #include "subgraph_tests/split_conv_concat.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
         InferenceEngine::Precision::U8,
@@ -24,9 +28,8 @@ INSTANTIATE_TEST_CASE_P(NoReshape, SplitConvConcat,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 6, 40, 40})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ), SplitConvConcat::getTestCaseName);
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SplitConvConcat::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Reshape, SplitConvConcat,
                         ::testing::Combine(
@@ -37,11 +40,9 @@ INSTANTIATE_TEST_CASE_P(Reshape, SplitConvConcat,
                                                      InferenceEngine::SizeVector({1, 6, 50, 50}),
                                                      InferenceEngine::SizeVector({2, 6, 50, 50})
                                                     }),
-                                ::testing::Values(false, true),
-                                ::testing::Values("KMB")
-                        ), SplitConvConcat::getTestCaseName);
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SplitConvConcat::getTestCaseName);
 
-
-}
+}  // namespace
 
 

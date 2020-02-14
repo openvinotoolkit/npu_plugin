@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vector>
+
 #include "single_layer_tests/concat.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -15,14 +18,15 @@ std::vector<std::vector<std::vector<size_t>>> inShapes = {
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}},
         {{10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}, {10, 10, 10, 10}}
-
 };
+
 std::vector<std::vector<std::vector<size_t>>> reshapeTargetShapes = {
         {{20, 10, 10, 10}, {20, 10, 10, 10}, {20, 10, 10, 10}},
         {{20, 20, 10, 10}, {20, 20, 10, 10}, {20, 20, 10, 10}},
         {{20, 20, 20, 10}, {20, 20, 20, 10}, {20, 20, 20, 10}},
         {{20, 20, 20, 20}, {20, 20, 20, 20}, {20, 20, 20, 20}},
 };
+
 std::vector<InferenceEngine::Precision> inputPrecisions = {InferenceEngine::Precision::FP32,
 //         InferenceEngine::Precision::U8, // TODO: Preferable primitive descriptor is not set.
 //         InferenceEngine::Precision::I8  // TODO: Preferable primitive descriptor is not set.
@@ -40,9 +44,7 @@ INSTANTIATE_TEST_CASE_P(NoReshape, ConcatLayerTest,
                                 ::testing::Values(std::vector<std::vector<size_t>>()),
                                 ::testing::ValuesIn(inputPrecisions),
                                 ::testing::ValuesIn(netPrecisions),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConcatLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Reshape, ConcatLayerTest,
@@ -54,9 +56,7 @@ INSTANTIATE_TEST_CASE_P(Reshape, ConcatLayerTest,
                                 ::testing::ValuesIn(reshapeTargetShapes),
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(InferenceEngine::Precision::FP32),
-                                ::testing::ValuesIn({false, true}),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConcatLayerTest::getTestCaseName);
 
 
@@ -71,8 +71,7 @@ INSTANTIATE_TEST_CASE_P(ReshapeNegative, ConcatNegativeReshape,
                                                                                     {10, 1,  10, 1}})),
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(InferenceEngine::Precision::FP32),
-                                ::testing::ValuesIn({false, true}),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConcatLayerTest::getTestCaseName);
-}
+
+}  // namespace
