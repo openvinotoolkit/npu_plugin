@@ -1,12 +1,14 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void removeReshapeNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void removePermuteNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void linkNewOperationsRemove(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -34,47 +36,6 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
     removePermuteNoOpFcn(pass, model);
-}
-
-mv::Data::OpListIterator linkNewOperationsRemove(mv::Data::OpListIterator parentOpIt,
-                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
-{
-    //Important: do not change the order of this ops
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-    }
-
-    auto paramOp = opIt.leftmostParent();
-    while(paramOp != om.opEnd())
-    {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-                || paramOp->getOpType() == "ConstantDataElement")
-        {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
-        }
-        else
-            ++paramOp;
-    }
-
-    om.removeOp(opIt);
-    opIt = parentOpIt;
-
-    if(sourceTensor == om.tensorEnd())
-        sourceTensor = parentOpIt->getOutputTensor(0);
-
-    for (unsigned j = 0; j < opsToLink.size(); ++j)
-    {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
-        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
-    }
-
-    return opIt;
 }
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
