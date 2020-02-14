@@ -139,11 +139,6 @@ void KmbInferRequest::InferAsync() {
 
     auto updatedInput = prepareInputForInference(input, deviceInputDesc);
 
-    if (updatedInput->getTensorDesc().getLayout() != deviceInputDesc.getLayout()) {
-        THROW_IE_EXCEPTION << "Input is passed in wrong layout. Expected: " << deviceInputDesc.getLayout()
-                           << "Actual: " << updatedInput->getTensorDesc().getLayout();
-    }
-
     _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
 }
 
@@ -234,8 +229,7 @@ static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
 static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layout) {
     auto allocator = getKmbAllocator();
 
-    auto dstTensorDesc = blob->getTensorDesc();
-    dstTensorDesc.setLayout(layout);
+    TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
     kmbBlob->allocate();
 
