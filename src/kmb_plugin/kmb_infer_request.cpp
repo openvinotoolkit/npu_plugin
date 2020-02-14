@@ -145,7 +145,7 @@ void KmbInferRequest::InferAsync() {
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
-            inputs, _networkInputs, ColorFormat::BGR, _config.numberOfSIPPShaves(), _config.SIPPLpi());
+            inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         execDataPreprocessing(inputs);
     }
@@ -207,31 +207,63 @@ static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& device
             !is2DTensor(actualInput->getTensorDesc().getDims()));
 }
 
-Blob::Ptr KmbInferRequest::prepareInputForInference(
-    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
-    bool allocateNewBlob = false;
-
-    if (!isBlobPlacedInShareableMemory(actualInput)) {
-        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-        allocateNewBlob = true;
+static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
+    const Blob::Ptr& blob, const Layout srcLayout, const Layout dstLayout) {
+    if (blob->getTensorDesc().getDims()[1] != 3) {
+        THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
 
-    if (needRepacking(actualInput, expectedDesc)) {
-        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
-        allocateNewBlob = true;
-    }
+    // it would be nicer to construct srcTensorDesc from tensorDesc of blob
+    // and then call srcTensorDesc.setLayout(srcLayout) but copyBlob does work in that case
+    TensorDesc srcTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), srcLayout};
+    Blob::Ptr srcBlob = make_blob_with_precision(srcTensorDesc, blob->buffer());
 
-    return allocateNewBlob ? reallocateBlob(actualInput) : actualInput;
+    TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
+    Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, getKmbAllocator());
+    dstBlob->allocate();
+
+    vpu::copyBlob(srcBlob, dstBlob);
+    return dstBlob;
 }
 
-Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
+static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layout) {
     auto allocator = getKmbAllocator();
-    Blob::Ptr kmbBlob = make_blob_with_precision(blob->getTensorDesc(), allocator);
+
+    TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
+    Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
     kmbBlob->allocate();
 
     vpu::copyBlob(blob, kmbBlob);
 
     return kmbBlob;
+}
+
+Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
+    return reallocateBlobToLayout(blob, blob->getTensorDesc().getLayout());
+}
+
+Blob::Ptr KmbInferRequest::prepareInputForInference(
+    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
+    // HACK: to overcome inability python API to pass a blob of NHWC layout
+    if (_config.forceNCHWToNHWC()) {
+        _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
+        return reallocateBlobToLayoutIgnoringOriginalLayout(actualInput, Layout::NCHW, Layout::NHWC);
+    } else {
+        Blob::Ptr inputForInference;
+        if (!isBlobPlacedInShareableMemory(actualInput)) {
+            _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+            inputForInference = reallocateBlob(actualInput);
+        } else {
+            inputForInference = actualInput;
+        }
+
+        if (needRepacking(actualInput, expectedDesc)) {
+            _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+            inputForInference = reallocateBlobToLayout(actualInput, expectedDesc.getLayout());
+        }
+
+        return inputForInference;
+    }
 }
 
 void KmbInferRequest::dumpInputs(const InferenceEngine::BlobMap& inputs, const std::string dstPath) const {

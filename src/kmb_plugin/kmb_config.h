@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <ie_common.h>
 #include <mcm_config.h>
 
 #include <map>
@@ -38,6 +39,10 @@ public:
     int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
 
     int SIPPLpi() const { return _SIPPLpi; }
+
+    InferenceEngine::ColorFormat outColorFmtSIPP() { return _outColorFmtSIPP; }
+
+    bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -63,6 +68,19 @@ private:
 
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
+    InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
+    bool _forceNCHWToNHWC = false;
+
+private:
+    static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
+        if (src == "RGB") {
+            return ie::ColorFormat::RGB;
+        } else if (src == "BGR") {
+            return ie::ColorFormat::BGR;
+        } else {
+            THROW_IE_EXCEPTION << "Unsupported color format is passed.";
+        }
+    }
 };
 
 }  // namespace KmbPlugin

@@ -17,6 +17,7 @@
 #include "kmb_config.h"
 
 #include <cpp_interfaces/exception2status.hpp>
+#include <kmb_private_config.hpp>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -43,6 +44,8 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
+                                                  VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
+                                                  VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
                                               });
 
     return options;
@@ -68,4 +71,8 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     IE_ASSERT(0 < _SIPPLpi && _SIPPLpi <= 16 && isPowerOfTwo(_SIPPLpi))
         << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '" << _SIPPLpi
         << "',  valid values are 1, 2, 4, 8, 16";
+
+    setOption(_outColorFmtSIPP, config, VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), parseColorFormat);
+
+    setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
 }
