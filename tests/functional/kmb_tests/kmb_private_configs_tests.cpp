@@ -25,6 +25,12 @@
 using namespace InferenceEngine;
 
 TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
+    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
+    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
+
+    if (!isSIPPEnabled) {
+        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
+    }
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     Core ie;

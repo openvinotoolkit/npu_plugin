@@ -394,6 +394,12 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
+    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
+    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
+
+    if (!isSIPPEnabled) {
+        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
+    }
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
     auto inputName = _inputs.begin()->first.c_str();
@@ -413,6 +419,12 @@ class kmbInferRequestOutColorFormatSIPPUnitTests :
     public testing::WithParamInterface<const char*> {};
 
 TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
+    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
+    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
+
+    if (!isSIPPEnabled) {
+        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
+    }
     KmbConfig config;
     const auto configValue = GetParam();
     config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
