@@ -91,23 +91,6 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     return zeroPoint;
 }
 
-void reCalculateQuantizationParamsOnActivation(
-    const CNNLayerPtr& quantizedLayer1, const CNNLayerPtr& quantizedLayer2, mv::QuantizationParams& outputQuantParams) {
-    auto quantizationParams1 = QuantizationDetails::getDetails(*quantizedLayer1);
-    auto quantizationParams2 = QuantizationDetails::getDetails(*quantizedLayer2);
-
-    IE_ASSERT(quantizationParams1.levels == quantizationParams2.levels);
-    auto levels = quantizationParams1.levels;
-    IE_ASSERT(quantizationParams1.inputLowValues.size() == quantizationParams2.inputLowValues.size());
-
-    float totalHighMax = std::max(quantizationParams1.maxOutputHigh(), quantizationParams2.maxOutputHigh());
-    float totalHighLow = std::min(quantizationParams1.minOutputLow(), quantizationParams2.minOutputLow());
-
-    int64_t zepoPoint = calculateZeroPoint(totalHighMax, totalHighLow, levels, InferenceEngine::Precision::U8);
-    double scale = static_cast<double>((totalHighMax - totalHighLow) / (levels - 1));
-    outputQuantParams = {{zepoPoint}, {scale}, {-inf}, {inf}};
-}
-
 void calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, std::vector<int64_t>& zeroPoints,
     std::vector<double>& scales, bool mergeInOne) {
     auto quantizationParams = QuantizationDetails::getDetails(*fakeQuantizeLayer);

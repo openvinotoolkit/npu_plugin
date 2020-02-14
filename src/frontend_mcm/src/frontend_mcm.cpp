@@ -535,6 +535,69 @@ void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     }
 }
 
+template <typename T>
+bool needAlignZeroPoints(std::vector<T> lowValues, std::vector<T> highValues) {
+    for (size_t i = 0; i < lowValues.size(); i++) {
+        if ((lowValues[i] != lowValues[0]) || (highValues[i] != highValues[0])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "FakeQuantize") {
+            InferenceEngine::DataPtr constDate = layer->insData[0].lock();
+            IE_ASSERT(constDate != nullptr);
+            auto constLayer = constDate->getCreatorLayer().lock();
+            if (constLayer->type != "Const") {
+                continue;
+            }
+
+            auto quantizationParams = QuantizationDetails::getDetails(*layer);
+
+            auto numberOfQuantParams = quantizationParams.outputLowValues.size();
+            if (!needAlignZeroPoints(quantizationParams.outputLowValues, quantizationParams.outputHighValues)) {
+                continue;
+            }
+
+            int64_t sumOfZeroPoints = 0;
+            auto levels = quantizationParams.levels;
+
+            for (size_t i = 0; i < numberOfQuantParams; i++) {
+                float ol = quantizationParams.outputLowValues[i];
+                float oh = quantizationParams.outputHighValues[i];
+
+                // re-calculate ZP for weights, we use U8 for weights
+                sumOfZeroPoints +=
+                    QuantizationHelpers::calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
+            }
+            auto avgZeroPoints = std::round(static_cast<double>(sumOfZeroPoints) / numberOfQuantParams);
+
+            // NOTE: ol is always negative value
+            std::vector<float> newLowValues(numberOfQuantParams);
+            std::vector<float> newHighValues(numberOfQuantParams);
+            for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+                float ol = quantizationParams.outputLowValues[i];
+                float oh = quantizationParams.outputHighValues[i];
+
+                float zpl = oh * avgZeroPoints / (avgZeroPoints - (levels - 1));
+                float zph = ol - ol * (levels - 1) / avgZeroPoints;
+
+                ol = std::min(ol, zpl);
+                oh = std::max(oh, zph);
+                newLowValues[i] = ol;
+                newHighValues[i] = oh;
+            }
+            CNNNetworkHelper::updateBlobs(*layer, 1, newLowValues);
+            CNNNetworkHelper::updateBlobs(*layer, 2, newHighValues);
+            CNNNetworkHelper::updateBlobs(*layer, 3, newLowValues);
+            CNNNetworkHelper::updateBlobs(*layer, 4, newHighValues);
+        }
+    }
+}
+
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
 
@@ -1291,6 +1354,12 @@ void FrontEndMcm::parseScaleImpl(
     logParsingStartHelper(_logger, layer, inputs);
 
     auto input = inputs[0];
+
+    size_t dimC, stub;
+    parseDims(input->desc(), stub, dimC, stub, stub);
+    int weightsSize = static_cast<int>(dimC);
+
+    auto scaleData = scaleLayer->_weights->buffer().as<float*>();
 
     std::vector<int64_t> quantizedWeightsData;
     std::vector<int64_t> zpScaleWeights = {0};
