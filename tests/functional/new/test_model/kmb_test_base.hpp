@@ -31,6 +31,27 @@
 
 using namespace InferenceEngine;
 
+// #define RUN_SKIPPED_TESTS
+
+#ifdef RUN_SKIPPED_TESTS
+#   define SKIP_ON(_device_, _reason_)
+#   define SKIP_INFER_ON(_device_, _reason_)
+#else
+#   define SKIP_ON(_device_, _reason_)                                          \
+        do {                                                                    \
+            if (DEVICE_NAME == _device_) {                                      \
+                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+            }                                                                   \
+        } while (false)
+
+#   define SKIP_INFER_ON(_device_, _reason_)                                            \
+        do {                                                                            \
+            if (KmbTestBase::RUN_INFER && DEVICE_NAME == _device_) {                    \
+                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+            }                                                                           \
+        } while (false)
+#endif
+
 //
 // KmbTestBase
 //

@@ -23,7 +23,6 @@
 
 #include <blob_factory.hpp>
 #include <plugin_cache.hpp>
-
 #include <test_model_path.hpp>
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
@@ -84,7 +83,7 @@ const bool KmbTestBase::RUN_COMPILER = []() -> bool {
         return true;
     }
 
-#if defined(PLATFORM_ARM) || !defined(ENABLE_MCM_COMPILER)
+#if defined(__aarch64__) || !defined(ENABLE_MCM_COMPILER)
     return false;
 #else
     return true;
@@ -96,7 +95,7 @@ const bool KmbTestBase::RUN_REF_CODE = []() -> bool {
         return strToBool("IE_KMB_TESTS_RUN_REF_CODE", var);
     }
 
-#ifdef PLATFORM_ARM
+#ifdef __aarch64__
     return false;
 #else
     return true;
@@ -112,7 +111,7 @@ const bool KmbTestBase::RUN_INFER = []() -> bool {
         return true;
     }
 
-#ifdef PLATFORM_ARM
+#ifdef __aarch64__
     return true;
 #else
     return false;
@@ -142,6 +141,10 @@ const bool KmbTestBase::EXPORT_NETWORK = []() -> bool {
 const bool KmbTestBase::RAW_EXPORT = []() -> bool {
     if (const auto var = std::getenv("IE_KMB_TESTS_RAW_EXPORT")) {
         return strToBool("IE_KMB_TESTS_RAW_EXPORT", var);
+    }
+
+    if (KmbTestBase::DEVICE_NAME != "KMB" || !KmbTestBase::EXPORT_NETWORK) {
+        return false;
     }
 
     return false;
@@ -520,11 +523,6 @@ void KmbLayerTestBase::runTest(
             SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH vere not provided";
         }
     }
-#ifndef ENABLE_MCM_COMPILER
-    if (DEVICE_NAME == "KMB") {
-        SKIP() << "KMB Plugin was built without mcmCompiler";
-    }
-#endif
 
     TestNetwork testNet;
     builder(testNet);
@@ -749,11 +747,6 @@ void KmbNetworkTestBase::runTest(
             SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH vere not provided";
         }
     }
-#ifndef ENABLE_MCM_COMPILER
-    if (DEVICE_NAME == "KMB") {
-        SKIP() << "KMB Plugin was built without mcmCompiler";
-    }
-#endif
 
     auto exeNet = getExecNetwork(netDesc);
 
