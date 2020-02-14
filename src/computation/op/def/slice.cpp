@@ -25,16 +25,21 @@ namespace mv
                 return {false, 0};
             }
 
-            //starting coord must be inside input tensor
-            // TODO: for variable number of dimensions, the "largest" tensor should be the input, and
-            // we will need to check if the "sliced" dimensions exist in the inputTensor.
+            // starting coord must be inside input tensor
             for(std::size_t dim = 0; dim < inputShape.ndims(); dim++)
             {
-                if(!((startCoord[dim] <= startCoord[dim] + outputSize[dim]) &&
-                    (startCoord[dim] + outputSize[dim] <= inputShape[dim])))
-                {
-                    errMsg = "Invalid configuration for dimension " + std::to_string(dim) + " Not able to slice : startCoord - outputSize - inputTensor"
-                            + startCoord.toString() + " - " + outputSize.toString() + " " + inputShape.toString();
+                auto start = startCoord[dim];
+                auto size = outputSize[dim];
+                auto input = inputShape[dim];
+
+                if (start + size > input) {
+                    std::ostringstream strm;
+                    strm
+                        << "Invalid configuration for dimension " << dim
+                        << " slice [" << start << ":" << start + size << "] is ouside the input tensor " << input;
+
+                    errMsg = strm.str();
+
                     return {false, 0};
                 }
             }
