@@ -17,10 +17,10 @@
 #include "hddl2_graph.h"
 
 #include "gtest/gtest.h"
-#include "models/model_pooling.h"
-#include "models/precompiled_resnet.h"
 #include "hddl2_plugin.h"
 #include "mcm_config.h"
+#include "models/model_pooling.h"
+#include "models/precompiled_resnet.h"
 
 using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;

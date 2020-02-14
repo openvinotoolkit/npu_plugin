@@ -15,12 +15,12 @@
 //
 
 #include <gtest/gtest.h>
-#include <string>
 
 #include <blob_parser.hpp>
 #include <fstream>
-#include "models/precompiled_resnet.h"
+#include <string>
 
+#include "models/precompiled_resnet.h"
 
 using namespace vpu;
 
@@ -47,7 +47,6 @@ void BlobParser_Tests::SetUp() {
     blobContentStream << blobFile.rdbuf();
     blobContentString = blobContentStream.str();
 }
-
 
 TEST_F(BlobParser_Tests, CanParseBlob) {
     ASSERT_NO_THROW(MCMAdapter::getNetworkInputs(blobContentString.c_str(), networkInputs));

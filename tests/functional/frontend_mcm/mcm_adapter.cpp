@@ -14,10 +14,11 @@
 // stated in the License.
 //
 
-#include <gtest/gtest.h>
-#include "models/model_pooling.h"
-
 #include "mcm_adapter.hpp"
+
+#include <gtest/gtest.h>
+
+#include "models/model_pooling.h"
 
 using namespace vpu;
 
