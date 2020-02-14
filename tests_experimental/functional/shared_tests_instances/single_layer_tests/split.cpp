@@ -2,11 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vector>
+
 #include "single_layer_tests/split.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
 namespace {
+
 // Common params
 const std::vector<InferenceEngine::Precision> inputPrecisions = {
         InferenceEngine::Precision::FP32,
@@ -27,9 +31,8 @@ INSTANTIATE_TEST_CASE_P(NumSplitsCheck, SplitLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({30, 30, 30, 30})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ), SplitLayerTest::getTestCaseName);
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SplitLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(REshape, SplitLayerTest,
                         ::testing::Combine(
@@ -39,7 +42,7 @@ INSTANTIATE_TEST_CASE_P(REshape, SplitLayerTest,
                                 ::testing::Values(InferenceEngine::Precision::FP32),
                                 ::testing::Values(InferenceEngine::SizeVector({30, 30, 30, 30})),
                                 ::testing::Values(InferenceEngine::SizeVector({40, 50, 60, 70})),
-                                ::testing::Values(false, true),
-                                ::testing::Values("KMB")
-                        ), SplitLayerTest::getTestCaseName);
-}
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+                        SplitLayerTest::getTestCaseName);
+
+}  // namespace

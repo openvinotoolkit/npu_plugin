@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <vector>
+
 #include "single_layer_tests/convolution.hpp"
+#include "common_test_utils/test_constants.hpp"
 
 using namespace LayerTestsDefinitions;
 
@@ -64,9 +67,7 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
@@ -76,10 +77,9 @@ INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConvolutionLayerTest::getTestCaseName);
+
 /* ============= 3D Convolution ============= */
 const std::vector<InferenceEngine::SizeVector> kernels3d = {{3, 3, 3},
                                                             {3, 5, 3}};
@@ -98,8 +98,8 @@ const auto conv3DParams_ExplicitPadding = ::testing::Combine(
         ::testing::ValuesIn(paddings3d),
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(5),
-        ::testing::Values(ngraph::op::PadType::EXPLICIT)
-);
+        ::testing::Values(ngraph::op::PadType::EXPLICIT));
+
 const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::ValuesIn(kernels3d),
         ::testing::ValuesIn(strides3d),
@@ -107,8 +107,7 @@ const auto conv3DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3d),
         ::testing::Values(5),
-        ::testing::Values(ngraph::op::PadType::VALID)
-);
+        ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                         ::testing::Combine(
@@ -117,9 +116,7 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
@@ -129,9 +126,7 @@ INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
                                 ::testing::ValuesIn(netPrecisions),
                                 ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
                                 ::testing::Values(InferenceEngine::SizeVector()),
-                                ::testing::Values(false),
-                                ::testing::Values("KMB")
-                        ),
+                                ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
                         ConvolutionLayerTest::getTestCaseName);
 
 const std::vector<InferenceEngine::SizeVector> targetReshapeShapes = {{2, 3, 10, 10, 10},
@@ -146,8 +141,7 @@ const auto convReshape = ::testing::Combine(
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::Values(InferenceEngine::SizeVector({1, 1, 1})),
         ::testing::Values(5),
-        ::testing::ValuesIn(padTypes)
-);
+        ::testing::ValuesIn(padTypes));
 
 const auto convReshapefullParamsProduct = ::testing::Combine(
         convReshape,
@@ -155,9 +149,7 @@ const auto convReshapefullParamsProduct = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::ValuesIn(targetReshapeShapes),
-        ::testing::Values(false, true),
-        ::testing::Values("KMB")
-);
+        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
 INSTANTIATE_TEST_CASE_P(Reshape, ConvolutionLayerTest, convReshapefullParamsProduct,
                         ConvolutionLayerTest::getTestCaseName);
@@ -168,12 +160,10 @@ const auto convReshapeNegativefullParamsProduct = ::testing::Combine(
         ::testing::Values(InferenceEngine::Precision::FP32),
         ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(InferenceEngine::SizeVector({1, 10, 10, 10, 10})),
-        ::testing::Values(false, true),
-        ::testing::Values("KMB")
-
-);
+        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
 INSTANTIATE_TEST_CASE_P(ReshapeNegative, NegativeReshapeConvolutionSingleLayerTest,
                         convReshapeNegativefullParamsProduct,
                         ConvolutionLayerTest::getTestCaseName);
-}
+
+}  // namespace
