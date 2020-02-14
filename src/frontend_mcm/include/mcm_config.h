@@ -54,6 +54,8 @@ public:
 
     bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
 
+    bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
@@ -79,6 +81,7 @@ private:
     bool _eltwiseScalesAlignment = true;
     bool _concatScalesAlignment = true;
     bool _inputScaleShiftRemoving = true;
+    bool _zeroPointsOnWeightsAlignment = true;
 };
 
 }  // namespace vpu

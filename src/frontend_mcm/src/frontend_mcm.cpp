@@ -610,6 +610,9 @@ void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     if (_config.concatScalesAlignment()) {
         alignConcatScales(cnnNet);
     }
+    if (_config.zeroPointsOnWeightsAlignment()) {
+        alignZeroPointsOnWeights(cnnNet);
+    }
 
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
