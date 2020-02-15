@@ -509,7 +509,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 
             mantissa = std::frexp(leakyAlpha, &exponent);
             ppeShift = bits - exponent;
-            ppeMult = (mantissa * pow(2, bits));
+            ppeMult = (mantissa * pow(2, bits))*.75;
         }
         ppeFixedFunction.setLReluMult(ppeMult);
         ppeFixedFunction.setLReluShift(ppeShift);
