@@ -18,7 +18,6 @@
 
 #include <ie_common.h>
 
-#include <cpp_interfaces/ie_executor_manager.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp>
 #include <fstream>
 #include <map>
@@ -26,6 +25,7 @@
 #include <queue>
 #include <sstream>
 #include <string>
+#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 #include "kmb_async_infer_request.h"
