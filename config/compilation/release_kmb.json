@@ -16,7 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": true,
+                "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
@@ -280,7 +280,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "OpControlModel",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
