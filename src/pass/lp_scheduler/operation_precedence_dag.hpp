@@ -66,13 +66,18 @@ struct model_traits<mv::OpModel> {
   }
 }; // struct model_traits<mv::OpModel> //
 
+// Forward declaration //
+namespace lp_scheduler {
+  template<typename T> class DDR_Address_Generator;
+} // namespace lp_scheduler //
 
 namespace scheduler {
 
 template<typename Model=mv::OpModel>
 class Operation_Dag {
-  public:
+  template<typename T> friend class lp_scheduler::DDR_Address_Generator;
 
+  public:
     ////////////////////////////////////////////////////////////////////////////
     typedef Model model_t;
     typedef model_traits<model_t> mtraits;
@@ -221,6 +226,10 @@ class Operation_Dag {
         const_operation_iterator_t( (itr->second).end() );
     }
 
+    bool does_this_op_use_any_resources(const operation_t& op) const {
+      return (resource_utility_map_.find(op) != resource_utility_map_.end());
+    }
+
     resource_t resource_utility(const operation_t& op) const {
       auto itr = resource_utility_map_.find(op);
       assert(itr != resource_utility_map_.end());
@@ -341,6 +350,25 @@ class Operation_Dag {
 
     static delay_t delay(const dag_t&, const operation_t&) {
       return delay_t(1UL);
+    }
+
+    //NOTE: if you want to specialize for different scheduled_op_t types
+    //then add a function call extract<T>(in) and specialize it. //
+    template<typename T>
+    static size_t scheduled_op_time(const T& in) { return (size_t) in; }
+    template<typename T>
+    static operation_t scheduled_op(const T& in) { return (operation_t) in; }
+
+    static size_t output_tensor_size(const operation_t& op) {
+      if (!op->outputSlots()) { return 0UL; }
+
+      mv::Op *op_ptr = const_cast<mv::Op *>(op);
+      mv::Data::TensorIterator out_itr = op_ptr->getOutputTensor(0UL);
+      mv::Tensor::MemoryLocation location =
+          out_itr->get<mv::Tensor::MemoryLocation>("Location");
+
+      return (location == mv::Tensor::MemoryLocation::NNCMX) ?
+        out_itr->getClusterSize() : out_itr->computeTotalSize();
     }
     ////////////////////////////////////////////////////////////////////////////
 
@@ -642,7 +670,7 @@ class Operation_Dag {
 
       op_itr_t pop_itr = model.getOp(op->getName());
       op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
-      return cop_itr->getOutputSize();
+      return output_tensor_size(*cop_itr);
     }
 
 
@@ -741,7 +769,7 @@ class Operation_Dag {
             is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
           resource_utility = 0UL;
         } else {
-          resource_utility = op->getOutputSize();
+          resource_utility = output_tensor_size(op);
         }
 
         // resource utility //
@@ -838,7 +866,10 @@ class Operation_Dag {
       op_name_table_.erase(op->getName().c_str());
     } 
 
+    void clear_resource_model() { resource_utility_map_.clear(); }
+
   public:
+    
     bool add_directed_edge(operation_t source_op, operation_t sink_op) {
 
       master_op_iterator_t itr_source = ops_.find(source_op);
@@ -900,7 +931,7 @@ class Operation_Dag {
       }
 
       // add sink_op to adj_list of source_op //
-      op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
+      op_ref_list_t *child_list_ptr = NULL; 
       {
         adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
         assert(adj_itr != adj_map_.end());

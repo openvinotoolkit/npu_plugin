@@ -538,17 +538,20 @@ class Producer_Consumer_Contiguous_Resource :
       ref_count_iterator_t ref_itr, ref_itr_end=producer_ref_count_.end();
 
       ref_itr = producer_ref_count_.find(op);
-      if ((ref_itr == producer_ref_count_.end()) || !(ref_itr->second)) {
-        // ref count for entries in producer_ref_count_ has to atleast 1 //
-        return false;
-      }
+      if (ref_itr != producer_ref_count_.end()) {
+        // if there is a producer count then the following invariant must hold//
+        if (!(ref_itr->second)) {
+          // ref count for entries in producer_ref_count_ has to atleast 1 //
+          return false;
+        }
 
-      --(ref_itr->second);
-      if (!(ref_itr->second)) {
-        // no consumers for this op hence unassign its resources //
-        producer_ref_count_.erase(ref_itr);
-        parent_t::unassign_resources(op);
-      } 
+        --(ref_itr->second);
+        if (!(ref_itr->second)) {
+          // no consumers for this op hence unassign its resources //
+          producer_ref_count_.erase(ref_itr);
+          parent_t::unassign_resources(op);
+        } 
+      }
 
       // reduce the ref_count of all the producers //
       consumer_iterator_t citr = consumer_producers_map_.find(op);
@@ -1096,6 +1099,10 @@ class Feasible_Memory_Schedule_Generator {
 
       resource_t begin_resource() const { return resource_info_.begin_; }
       resource_t end_resource() const { return resource_info_.end_; }
+
+      operator size_t() const { return time_; }
+      operator operation_t() const { return op_; }
+
 
       operation_t op_; 
       op_type_e op_type_;

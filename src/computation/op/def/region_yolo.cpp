@@ -99,7 +99,8 @@ namespace mv
 
             auto in_order = input->getOrder();
             auto out_order = in_order;
-            auto out_shape = input->getShape();
+            auto new_w = input->getShape()[IO_CHANNEL_DIMENSION] * input->getShape()[IO_HEIGHT_DIMENSION] * input->getShape()[IO_WIDTH_DIMENSION];
+            auto out_shape = mv::Shape({new_w,1,1,1});
 
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))

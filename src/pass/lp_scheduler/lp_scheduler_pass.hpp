@@ -1,8 +1,10 @@
 #ifndef LP_SCHEDULER_PASS_H
 #define LP_SCHEDULER_PASS_H
 
+#include <cerrno>
 #include <cstdio>
 #include <set>
+#include <cstring>
 #include <string>
 #include <type_traits>
 #include <unordered_set>
@@ -11,6 +13,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
+#include "scheduler/dag_address_generator.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -52,6 +55,12 @@ struct Scheduled_Op {
   }
 
   bool has_active_resource() const { return has_valid_address(); }
+
+  operator size_t() const { return schedule_time_; }
+
+  typedef mv::Op const * operation_t;
+  operator operation_t() const { return op_; }
+
 
   mv::Op const * op_;
   size_t schedule_time_;
@@ -123,14 +132,27 @@ struct Tensor_Address_Assignment {
 
 struct Tensor_Allocator_Assignment {
 
-  Tensor_Allocator_Assignment(mv::ComputationModel& model) : model_(model) {}
+  Tensor_Allocator_Assignment(mv::ComputationModel& model)
+    : model_(model), address_attributes_() {
+      address_attributes_[0UL] = "lp_scheduler_cmx_address";
+      address_attributes_[1UL] = "lp_scheduler_ddr_address";
+  }
+
+  inline bool has_lp_scheduler_address_attribute(
+      mv::Data::TensorIterator tensor_itr, const std::string& attr_name) const {
+    return (tensor_itr->hasAttr(attr_name) && tensor_itr->get<bool>(attr_name));
+  }
+
+  inline bool has_any_lp_scheduler_address_attributes(
+      mv::Data::TensorIterator tensor_itr) const {
+    return has_lp_scheduler_address_attribute(
+        tensor_itr, address_attributes_[0UL]) ||
+      has_lp_scheduler_address_attribute(
+          tensor_itr, address_attributes_[1UL]);
+  }
 
   void operator()(mv::Data::TensorIterator tensor_itr) const {
-    if (!tensor_itr->hasAttr("lp_scheduler_cmx_address") || 
-          !tensor_itr->get<bool>("lp_scheduler_cmx_address")) { return; }
-
-    if (tensor_itr->getName().find("_spilledWrite")
-          != std::string::npos) {return;}
+    if(!has_any_lp_scheduler_address_attributes(tensor_itr)) { return; }
 
     mv::DataModel dm(model_);
     auto tensor_alloc_name=
@@ -144,6 +166,7 @@ struct Tensor_Allocator_Assignment {
   }
 
   mv::ComputationModel &model_;
+  std::string address_attributes_[2UL];
 }; // struct Tensor_Allocator_Assignment //
 
 
@@ -206,7 +229,6 @@ class Control_Edge_Set {
     void add_edges_to_fresh_control_model(
         const OpDag& dag, mv::ComputationModel& model,
         ScheduledOpIterator sbegin, ScheduledOpIterator send) {
-      typedef OpDag dag_t;
 
       mv::ControlModel cm(model);
       mv::OpModel om(model);
@@ -532,7 +554,7 @@ class Dynamic_Spill_Node_Inserter {
         redundant_spill_map_() {}
 
     template<typename ScheduledOpIterator>
-    size_t add_spill_read_write_ops(
+    void add_spill_read_write_ops(
         ScheduledOpIterator sbegin, ScheduledOpIterator send) {
 
       compute_spill_subtrees(sbegin, send);
@@ -588,7 +610,7 @@ class Dynamic_Spill_Node_Inserter {
         // CASE-2: Handle a spilled read and write op in the schedule.//
         typename spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
         spilled_subtree_t &subtree = itr->second;
-        bool is_original_spilled_op_redundant = is_redundant_spill(sop.op_);
+        bool is_original_spilled_op_redundant = !(subtree.spilled_write_op_);
         
         if (sop.is_spilled_write()) {
           // spilled write //
@@ -1035,11 +1057,493 @@ struct Remove_Redundant_Spill_Writes {
 }; // class Remove_Redundant_Spill_Writes //
 
 
+//NOTE: to use this class the tensors should have "allocators" attribute. //
+template<typename OpDag> 
+class Master_Slave_Buffer_Relations {
+  public:
+
+    ////////////////////////////////////////////////////////////////////////////
+    typedef OpDag dag_t;
+    typedef scheduler_traits<dag_t> traits;
+    typedef typename dag_t::operation_t operation_t;
+    typedef typename dag_t::const_operation_iterator_t
+        const_operation_iterator_t;
+    typedef std::unordered_map<operation_t, operation_t> master_map_t;
+    typedef std::unordered_set<operation_t> slave_map_t;
+    typedef typename slave_map_t::const_iterator slave_map_iterator_t;
+    typedef typename master_map_t::iterator master_map_iterator_t;
+    typedef typename master_map_t::const_iterator const_master_map_iterator_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    Master_Slave_Buffer_Relations(const dag_t& in, mv::ComputationModel& cmodel)
+      : dag_(in), master_map_(), has_slaves_(), cmodel_ptr_(&cmodel) {
+        compute_slave_master_relations();
+    }
+
+    void print(FILE *fptr=stderr) const {
+      for (const_master_map_iterator_t itr=master_map_.cbegin();
+            itr!=master_map_.cend(); ++itr) {
+        operation_t slave = itr->first;
+        operation_t master = itr->second;
+        fprintf(fptr, "[Master_Slave_Relations] slave=%s master=%s [%c]\n",
+            (slave->getName()).c_str(), (master->getName()).c_str(),
+            (master == slave) ? '*' : ' ');
+      }
+    }
+
+    operation_t master_tensor_op(const operation_t& op) const {
+      const_master_map_iterator_t itr = master_map_.find(op);
+      return (itr == master_map_.end()) ? operation_t(NULL) : itr->second;
+    }
+
+    bool has_slaves(const operation_t& op) const {
+      slave_map_iterator_t itr = has_slaves_.find(op);
+      return !(itr == has_slaves_.end());
+    }
+
+    bool does_this_op_use_ddr_resources(const operation_t& op) const {
+      if (!op->outputSlots()) { return false; }
+      mv::Op * op_ptr = const_cast<mv::Op *>(op);
+      mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
+      return (!tensor_itr->isPopulated()) &&
+        (tensor_itr->get<mv::Tensor::MemoryLocation>("Location") ==
+          mv::Tensor::MemoryLocation::DDR);
+    }
+
+  private:
+
+    void compute_slave_master_relations() {
+      master_map_.clear();
+      const_operation_iterator_t itr=traits::operations_begin(dag_),
+                                 itr_end = traits::operations_end(dag_);
+      for (; itr != itr_end; ++itr) {
+        operation_t op = *itr;
+        if (does_this_op_use_ddr_resources(op)) {
+          operation_t mop = get_op_associated_with_master_buffer(op);
+          master_map_iterator_t mitr = master_map_.find(op);
+          assert(mitr == master_map_.end());
+          master_map_.insert(std::make_pair(op, mop));
+          if (op != mop) {
+            has_slaves_.insert(mop);
+          }
+        }
+      }
+    }
+
+
+    //Preconditon: does_this_op_use_ddr_resources(op) //
+    operation_t get_op_associated_with_master_buffer(
+          const operation_t& op) const {
+      mv::Op * op_ptr = const_cast<mv::Op *>(op);
+      mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
+
+      // check if master buffer is the same //
+      mv::DataModel dm(*cmodel_ptr_);
+      auto talloc_name =
+          tensor_itr->get<std::set<std::string>>("allocators").begin();
+      auto talloc = dm.getAllocator(*talloc_name);
+      mv::Data::BufferIterator tensor_buffer_itr = talloc.getBuffer(0UL,
+            tensor_itr);
+      mv::Data::BufferIterator master_buffer_itr =
+          talloc.getTopMasterBuffer(tensor_buffer_itr);
+      mv::Data::TensorIterator master_tensor_itr =
+          master_buffer_itr->getData();
+
+      mv::OpModel om(*cmodel_ptr_);
+      mv::Data::OpListIterator master_op_itr =
+          om.getSourceOp(master_tensor_itr);
+
+      // Unable to find an op corresopding to tensor associated with
+      // master buffer //
+      assert(master_op_itr != om.opEnd());
+
+      return &(*master_op_itr);
+    }
+
+    const dag_t& dag_;
+    master_map_t master_map_;
+    slave_map_t has_slaves_;
+    mv::ComputationModel *cmodel_ptr_;
+}; // class Master_Slave_Buffer_Relations //
+
+
+template<typename OpDag>
+class DDR_Address_Generator {
+  public:
+    ////////////////////////////////////////////////////////////////////////////
+    typedef OpDag dag_t;
+    typedef typename dag_t::operation_t operation_t;
+    typedef typename dag_t::resource_utility_map_t resource_utility_map_t;
+    typedef typename dag_t::const_operation_iterator_t
+        const_operation_iterator_t;
+
+    struct ddr_op_selector_t {
+      ddr_op_selector_t(dag_t const *dag_ptr=NULL) : input_dag_ptr_(dag_ptr) {}
+
+      bool operator()(const operation_t& op) const {
+        return input_dag_ptr_->does_this_op_use_any_resources(op);
+      }
+      dag_t const * input_dag_ptr_;
+    }; // struct ddr_op_selector_t //
+
+    struct ddr_op_utility_t {
+      ddr_op_utility_t(dag_t const *dag_ptr=NULL) : input_dag_ptr_(dag_ptr) {}
+
+      size_t operator()(const operation_t& op) const {
+        return input_dag_ptr_->resource_utility(op);
+      }
+      dag_t const * input_dag_ptr_;
+    }; // struct ddr_op_utility_t//
+
+    typedef DAG_Address_Generator<dag_t, size_t, ddr_op_selector_t,
+              ddr_op_utility_t> address_generator_t;
+    typedef typename address_generator_t::address_info_t address_info_t;
+
+    struct ddr_address_setter_t {
+      ddr_address_setter_t(FILE *fptr=NULL) : fptr_(fptr) {}
+
+      bool operator=(const address_info_t& address_info) const {
+        mv::Op * const op_ptr = const_cast<mv::Op *>(address_info.op_);
+        mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
+        assert(address_info.address_begin_ >= 1UL);
+        size_t address = address_info.address_begin_ - 1UL;
+        tensor_itr->setAddress( address );
+        tensor_itr->set<bool>("lp_scheduler_ddr_address", true);
+        if (fptr_) {
+          fprintf(fptr_, " op=%s ddr=[%lu %lu]\n", (op_ptr->getName()).c_str(),
+                address_info.address_begin_, address_info.address_end_);
+        }
+        return true;
+      }
+
+      FILE *fptr_;
+    }; // struct ddr_address_setter_t //
+
+    struct sched_op_t{
+      operation_t op_;
+      size_t time_;
+
+      operator operation_t() const { return op_; }
+      operator size_t() const { return time_; }
+
+      sched_op_t(operation_t op, size_t time) : op_(op), time_(time) {}
+    }; // struct sched_op_t //
+    typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+    DDR_Address_Generator(mv::ComputationModel& model, dag_t& dag,
+          size_t upper_bound=16777216UL) : input_dag_(dag), model_(model),
+    high_watermark_(), upper_bound_(upper_bound) {} 
+
+
+    void print(FILE *fptr=stdout) const {
+      const_operation_iterator_t citr=input_dag_.begin_nodes(),
+                               citr_end=input_dag_.end_nodes();
+      for (; citr != citr_end; ++citr) {
+        operation_t op = *citr;
+        if (!input_dag_.does_this_op_use_any_resources(op)) { continue; }
+
+        fprintf(fptr, "[DDR_Address_Generator] op=%s resource=%lu\n",
+            op->getName().c_str(), input_dag_.resource_utility(op));
+        const_operation_iterator_t child_itr=input_dag_.begin_nodes(op),
+                                 child_itr_end=input_dag_.end_nodes(op);
+        fprintf(fptr, "============<children>===============\n");
+        for (; child_itr != child_itr_end; ++child_itr) {
+          operation_t child_op = *child_itr;
+          fprintf(fptr, "%s\n", (child_op->getName()).c_str());
+        }
+        fprintf(fptr, "============</children>===============\n");
+      }
+
+    }
+
+    template<typename ScheduleIterator, typename BackInsertIterator>
+    void read_schedule(ScheduleIterator sbegin, ScheduleIterator send,
+        BackInsertIterator output) {
+      for (; sbegin != send; ++sbegin) {
+        output = sched_op_t((operation_t)(*sbegin), (size_t)(*sbegin) );
+      }
+    }
+
+    // Takes a schedule and generates address for tensors which reside in DDR.
+    // The address will //
+    template<typename ScheduleIterator>
+    bool generate_tensor_addresses(
+        ScheduleIterator sched_begin, ScheduleIterator sched_end,
+        const char *file_name=NULL) {
+
+      // STEP-0: read the schedule into memory //
+      std::list<sched_op_t> schedule;
+      read_schedule(sched_begin, sched_end, std::back_inserter(schedule));
+
+      // STEP-1: compute the master slave relationships //
+      master_slave_relations_t msrelations(input_dag_, model_);
+
+      // STEP-2: update the dag with edges between the first slave and consumers
+      // of the master buffer.
+      update_dag_with_master_slave_relations(schedule.begin(), schedule.end(),
+          msrelations);
+
+
+      FILE *fptr = file_name ?  fopen(file_name, "w") : NULL;
+      ddr_address_setter_t address_setter(fptr);
+
+
+      // STEP-3: generate addresses using new DAG and resource model //
+      address_generator_t address_generator(input_dag_, upper_bound_,
+            ddr_op_utility_t(&input_dag_), ddr_op_selector_t(&input_dag_) );
+      bool status = address_generator.generate(
+          schedule.begin(), schedule.end(), address_setter);
+
+      high_watermark_ = address_generator.get_high_watermark();
+      if (status) {
+        auto params = model_.getGlobalConfigParams();
+        params->set<int>("DDRScratch", (int)(high_watermark_));
+      }
+
+      if (fptr) {
+        fprintf(fptr, "[DDR_Address_Generator] high_watermark=%lu\n",
+              high_watermark_);
+        fclose(fptr);
+      }
+
+      return status;
+    }
+
+  private:
+
+    //Following changes are made to the DAG [ G(V,E) ]:
+    // 
+    // Let {u_1,u_2,...u_t..} be the slaves associated with the master 'm'. 
+    // and u = arg_min{schedule_time(u_i)} (i.e first slave in the schedule)
+    //
+    // Then change as follows:
+    // (1) resource[u] = resource[m]
+    //     resource[m] = 0, for other slaves resource[u_i] = 0UL
+    // 
+    // (2) W = { w | (m,w) \in E }
+    //     add edges { (u,w) | w \in W } to the set E
+    template<typename ScheduleIterator>
+    void update_dag_with_master_slave_relations(
+          ScheduleIterator sbegin, ScheduleIterator send,
+          const master_slave_relations_t& msrelations) {
+
+      resource_utility_map_t &resource_map = input_dag_.resource_utility_map_;
+      std::unordered_set<operation_t> master_op_ref;
+
+      resource_map.clear();
+
+      // locate the first slave operations in the schedule. //
+      for (; sbegin != send; ++sbegin) {
+        operation_t op = (*sbegin).op_;
+        if (!msrelations.does_this_op_use_ddr_resources(op)) { continue; }
+
+        operation_t mop = msrelations.master_tensor_op(op);
+        if (mop == NULL) { continue; }
+
+        if ((op != mop) && (master_op_ref.find(mop) == master_op_ref.end())) {
+          // this is the first slave into the master tensor in DDR//
+          resource_map[op] = dag_t::output_tensor_size(mop);
+
+          // assert that mop is not in the resource table //
+          assert(resource_map.find(mop) == resource_map.end());
+          const_operation_iterator_t citr = input_dag_.begin_nodes(mop),
+                                     citr_end = input_dag_.end_nodes(mop);
+          // add outgoing edges from the master buffer //
+          for (; citr != citr_end; ++citr) {
+            input_dag_.add_directed_edge(op, *citr);
+          }
+          master_op_ref.insert(mop);
+        } else if ((op == mop) && !msrelations.has_slaves(op)) {
+          // this op does not have slaves so it owns the full tensor in DDR //
+          resource_map[op] = dag_t::output_tensor_size(mop);
+        }
+      }
+    }
+
+    dag_t& input_dag_;
+    mv::ComputationModel& model_;
+    size_t high_watermark_;
+    size_t upper_bound_;
+}; // class DDR_Address_Generator //
+
+
+
+// Simple Schedule Record Encoding Format: <op_name, size_t>
+template<typename OpDAG>
+struct Schedule_Reader_Writer {
+
+  public:
+    ////////////////////////////////////////////////////////////////////////////
+    typedef OpDAG dag_t;
+    typedef mv::lp_scheduler::scheduler_traits<dag_t> traits;
+    typedef typename traits::operation_t operation_t;
+
+    struct scheduled_op_t {
+      operation_t op_;
+      size_t schedule_time_;
+
+      operator size_t() const { return schedule_time_; }
+      operator operation_t() const { return op_; }
+    }; // struct scheduled_op_t //
+
+
+    class Schedule_Read_Iterator {
+      public:
+
+        Schedule_Read_Iterator(FILE *fptr, mv::OpModel& model)
+          : fptr_(fptr), op_model_ptr_(&model) {
+            if (is_valid()) { next_valid_record(); }
+        }
+        Schedule_Read_Iterator() : fptr_(NULL) , op_model_ptr_(NULL) {
+        }
+
+        Schedule_Read_Iterator(const Schedule_Read_Iterator& o)
+          : fptr_(o.fptr_), op_model_ptr_(o.op_model_ptr_),
+            current_record_(o.current_record_) {}
+
+
+        const scheduled_op_t& operator*() const { return current_record_; }
+
+        bool operator==(const Schedule_Read_Iterator& o) const {
+          return (!is_valid()) && !(o.is_valid());
+        }
+        bool operator!=(const Schedule_Read_Iterator& o) const {
+          return !(*this == o);
+        }
+
+        void operator++() {
+          if (!is_valid()) { return;} 
+          next_valid_record();
+        }
+
+      private:
+        bool is_valid() const { return fptr_ && op_model_ptr_; }
+
+        //Precondition: is_valid() //
+        bool next_valid_record() {
+          assert(is_valid());
+          string_buffer_ = "";
+
+          // ignore any white spaces //
+          while ( ((stream_char_ = ::fgetc(fptr_)) != EOF) &&
+                (::isspace(stream_char_)) ) {}
+
+          if (stream_char_ != EOF) {
+            string_buffer_.push_back((char)stream_char_);
+          }
+
+          // read a sequence of non-white space chars //
+          while (((stream_char_ = ::fgetc(fptr_)) != EOF) &&
+                !::isspace(stream_char_)) {
+            string_buffer_.push_back((char)stream_char_);
+          }
+          if (stream_char_ == EOF) {
+            invalidate();
+            return false;
+          }
+
+          // lookup this operation //
+          mv::Data::OpListIterator op_itr =
+              op_model_ptr_->getOp(string_buffer_);
+
+          if (op_itr == op_model_ptr_->opEnd()) {
+            fprintf(stderr, "[Schedule_Reader_Writer] unable to locate "
+                  "the op %s in OpModel\n", string_buffer_.c_str());
+          }
+          assert(op_itr != op_model_ptr_->opEnd());
+
+          current_record_.op_ = &(*op_itr);
+
+          if (fscanf(fptr_, "%lu", &current_record_.schedule_time_) != 1UL) {
+            fprintf(stderr, "[Schedule_Reader_Writer] invalid schedule time\n");
+            return false;
+          }
+          return true;
+        }
+
+        void invalidate() {
+          if (!is_valid()) { return; }
+          fclose(fptr_);
+          op_model_ptr_ = NULL;
+        }
+
+        FILE *fptr_; // read only //
+        mv::OpModel *op_model_ptr_;
+        scheduled_op_t current_record_;
+        std::string string_buffer_;
+        int stream_char_;
+    };  // class Schedule_Read_Iterator //
+    typedef Schedule_Read_Iterator schedule_read_iterator_t;
+    ////////////////////////////////////////////////////////////////////////////
+
+
+    static const char* ddr_address_attribute() {
+      return "lp_scheduler_state_for_ddr_address_generation";
+    }
+    template<typename ScheduleIterator>
+    static bool write(const char*file_name,
+          ScheduleIterator begin, ScheduleIterator end) {
+      FILE *fptr = fopen(file_name, "w");
+      if (!fptr) {
+        fprintf(stderr, "[Schedule_Reader_Writer] %s\n", ::strerror(errno));
+        return false;
+      }
+
+      while (begin != end) {
+        operation_t op = traits::scheduled_op(*begin);
+        size_t time = traits::scheduled_op_time(*begin);
+
+        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time); 
+        ++begin;
+      }
+      fclose(fptr);
+      return true;
+    }
+
+    template<typename ScheduleIterator>
+    static bool write_to_stringstream(std::ostringstream& stream,
+          ScheduleIterator begin, ScheduleIterator end) {
+      while (begin != end) {
+        operation_t op = traits::scheduled_op(*begin);
+        size_t time = traits::scheduled_op_time(*begin);
+        stream << op->getName() << " " << time << "\n";
+        ++begin;
+      }
+      
+      return true;
+    }
+
+
+    static schedule_read_iterator_t begin_read(const char *file_name,
+        mv::OpModel& op_model) {
+      FILE *fptr = fopen(file_name, "r");
+      if (!fptr) {
+        fprintf(stderr, "[Schedule_Reader_Writer] %s\n", ::strerror(errno));
+        return schedule_read_iterator_t();
+      }
+      return schedule_read_iterator_t(fptr, op_model);
+    }
+
+    static schedule_read_iterator_t begin_read(const std::string& string_file,
+        mv::OpModel& op_model) {
+      FILE *fptr = fmemopen((void *)(string_file.c_str()),
+            string_file.length(), "r");
+      assert(fptr);
+      return schedule_read_iterator_t(fptr, op_model);
+    }
+
+    static schedule_read_iterator_t end_read() {
+      return schedule_read_iterator_t();
+    }
+
+}; // struct Schedule_Reader_Writer //
 
 
 
 
-} // namespace lp_schdeduler //
+
+} // namespace lp_scheduler//
 } // namespace mv //
 
 #endif

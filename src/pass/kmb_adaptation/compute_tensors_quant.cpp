@@ -62,6 +62,7 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
 void updateInfMinMax(mv::Data::TensorIterator input)
 {
     auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+
     //Note: if input Tensor has min, max of infs...we need to compute them
     if (inputQuantization.infinitelimits())
     {
@@ -70,6 +71,7 @@ void updateInfMinMax(mv::Data::TensorIterator input)
         double minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
         if (minimumFloat == -0)
             minimumFloat = 0;
+
         mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
                                                     inputQuantization.getScale(),{minimumFloat},{maximumFloat});
         input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
@@ -351,7 +353,6 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
     double minConcatScale = *std::min_element(minInputFloats.begin(), minInputFloats.end());
     double maxConcatScale = *std::max_element(maxInputFloats.begin(), maxInputFloats.end());
 
-
     double masterScale = 1.0;
     int64_t zeroPoint = 0;
     calcZeroPointAndScale(maxConcatScale, minConcatScale, masterScale, zeroPoint);
@@ -391,6 +392,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
                 if (std::abs(masterQuant.getScale()[0] - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/masterQuant.getScale()[0] <= 0.01)
                     continue;
                 double weightScale = 1.0f;
+               
                 placeReQuantizeDepthwiseBefore(om, concatIt, concatIt->getInputTensor(i), i, weightScale, masterQuant.getScale()[0], masterQuant.getZeroPoint()[0]);
             }
             concatIt->getOutputTensor(0)->set<mv::QuantizationParams>("quantParams", masterQuant);

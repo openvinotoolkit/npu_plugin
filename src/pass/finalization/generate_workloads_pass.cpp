@@ -155,7 +155,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 dpuModes = {{1,4}};
 
             /*Depthwise cov SOH A0 workaround*/
-            if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (opIt->get<std::string>("splitStrategy") == "SplitOverH")) {
+            if(((opIt->get<std::string>("taskOp") == "DepthwiseConv") || (opIt->get<std::string>("taskOp") == "MaxPool")) && (opIt->get<std::string>("splitStrategy") == "SplitOverH")) {
                 depthWiseSOHA0Workaround = true;
                 opIt->set<std::string>("Depthwise_SOH_A0_bug", "True");
             }
