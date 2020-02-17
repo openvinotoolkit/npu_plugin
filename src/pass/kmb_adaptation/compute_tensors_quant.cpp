@@ -187,19 +187,27 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
                 outputMaxC = maxIn[0] * sum_weight;
                 outputMinC = minIn[0] * sum_weight;
-                if (outputMinC > outputMaxC)
-                //could happen if weight is negative
-                {
-                    auto temp = outputMaxC;
-                    outputMaxC = outputMinC;
-                    outputMinC = temp;
-                }
+//                if (outputMinC > outputMaxC)
+//                //could happen if weight is negative
+//                {
+//                    auto temp = outputMaxC;
+//                    outputMaxC = outputMinC;
+//                    outputMinC = temp;
+//                }
                 if (hasBias)
                 {
                     real_bias = ((int64_t) bias->at(k)) * biasScale;
                     outputMinC += real_bias;
                     outputMaxC += real_bias;
                 }
+
+                if (opIt->hasAttr("leakyAlpha"))
+                {
+                    auto alpha = opIt->get<double>("leakyAlpha");
+                    if (outputMinC < 0)
+                        outputMinC = outputMinC*alpha;
+                }
+
                 outMax[k] = outputMaxC;
                 outMin[k] = outputMinC;
             }

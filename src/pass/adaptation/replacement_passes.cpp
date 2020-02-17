@@ -19,6 +19,7 @@ static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -212,6 +213,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     pass.log(mv::Logger::MessageType::Debug, "Replacement passes are starting");
     fullyConnectedAsConv2DFcn(pass, model);
+    replacePoolReshapePatternFcn(pass, model);
     replaceLargeAvgPoolFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
@@ -626,7 +628,7 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, unsigned short newKernel, 
+                                                 std::string name, unsigned short originalKernel, unsigned short newKernel,
                                                  std::array<unsigned short, 4> padding)
 {
     auto inputShape = sourceTensor->getShape();
@@ -643,7 +645,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> min = { 1 };
     std::vector<double> max = { 1 };
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
-    // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw, 
+    // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw,
 	// but using original kernel for scale improves observed accuracy
     double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
@@ -697,15 +699,121 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 	depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
-    
+
     return depthwise_conv;
+}
+
+bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto opIt = it;
+
+    for (auto& layer : pattern) {
+        if (opIt->getOpType() != layer) {
+            return false;
+        }
+
+        opIt = om.getSourceOp(opIt->getInputTensor(0));
+    }
+
+    return true;
+}
+
+bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListIterator second, mv::OpModel& om) {
+    auto first_attrs = first->getAttrs({"opId"});
+    auto second_attrs = second->getAttrs({"opId"});
+
+    if (!(first_attrs["quantParams"].get<mv::QuantizationParams>().getScale() == second_attrs["quantParams"].get<mv::QuantizationParams>().getScale() &&
+        first_attrs.at("stride") == second_attrs.at("stride") &&
+        first_attrs.at("padding") == first_attrs.at("padding") &&
+        first_attrs.at("exclude_pad") == second_attrs.at("exclude_pad") &&
+        first_attrs.at("auto_pad") == second_attrs.at("auto_pad") &&
+        first_attrs.at("rounding_type") == second_attrs.at("rounding_type") &&
+        first_attrs.at("dType") == second_attrs.at("dType")))
+        return false;
+
+    auto first_kernel = first_attrs["kSize"].get<std::array<unsigned short, 2>>();
+    auto second_kernel = second_attrs["kSize"].get<std::array<unsigned short, 2>>();
+
+    auto reshape_dims = om.getSourceOp(second->getInputTensor(0))->get<mv::Shape>("shape");
+
+    // This condition handles these cases
+    // nx1 -> reshape -> reshape -> nx1
+    // nx1 -> reshape -> 1xn
+    return (first_kernel[0] == second_kernel[1] && first_kernel[1] == second_kernel[0] == 1) ||
+            (first_kernel == second_kernel && first_kernel[0] == 1 && reshape_dims[0] == 1);
+}
+
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+
+    // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
+    const std::vector<std::string> pattern = {"AveragePool", "Reshape", "Reshape", "AveragePool", "Reshape"};
+    auto ops = om.getOps(*pattern.begin());
+
+    auto can_replace_pool = [&pattern, &om](mv::Data::OpListIterator opIt) -> bool {
+        std::vector<mv::Data::OpListIterator> poolOps;
+
+        auto it = opIt;
+        for (size_t i = 0; i < pattern.size(); ++i) {
+            if (it->getOpType() == "AveragePool") {
+                poolOps.push_back(opIt);
+            }
+
+            it = om.getSourceOp(it->getInputTensor(0));
+        }
+
+        assert(poolOps.size() == 2);
+
+        return canReplaceAveragePool(poolOps[1], poolOps[0], om);
+    };
+
+    for (auto& opIt : ops)
+    {
+        if (!opIt) {
+            continue;
+        }
+        if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
+            auto poolingOp = opIt;
+
+            auto kernel = std::max(poolingOp->get<std::array<unsigned short, 2>>("kSize")[0], poolingOp->get<std::array<unsigned short, 2>>("kSize")[1]);
+            std::array<unsigned short, 2> kSize = {kernel, kernel};
+            auto op_attrs =  poolingOp->getAttrs({"kSize"});
+
+            auto it = om.getSourceOp(opIt->getInputTensor(0));
+
+            for (size_t i = 0; i < pattern.size() - 1; ++i) {
+                auto parentOpIt = om.getSourceOp( it->getInputTensor(0));
+                auto sourceTensor = parentOpIt->getOutputTensor(0);
+                it = linkNewOperationsRemove(parentOpIt, sourceTensor, om, it);
+            }
+
+            auto ap = om.averagePool(it->getOutputTensor(0),
+                    kSize,
+                    op_attrs.at("stride"),
+                    op_attrs.at("padding"),
+                    op_attrs.at("exclude_pad"),
+                    op_attrs.at("auto_pad"),
+                    op_attrs.at("rounding_type"),
+                    op_attrs.at("dType"),
+                    op_attrs.at("quantParams"));
+
+            if(opIt->hasAttr("opId")) {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                ap->set<unsigned>("opId", currentOpId);
+                om.getSourceOp(ap)->set<unsigned>("opId", currentOpId);
+            }
+
+            linkNewOperationsReplacement(it, ap, om, opIt);
+        }
+    }
 }
 
 // Check for average pooling layers with kernels bigger than supported by hardware (11x11)
 // and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
 // Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
-// depthwise 2x2 kernel, stride 2, scale 1/14 
+// depthwise 2x2 kernel, stride 2, scale 1/14
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -722,7 +830,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
 
         if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
-            continue; 
+            continue;
 
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
@@ -757,7 +865,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 factors.first++;
             else
                 factors.second++;
-	    } 
+	    }
         else // Original kernel size NOT PRIME
         {
             factors = allFactors.back(); // Get the most equal factors
@@ -776,7 +884,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         unsigned short pad = paddedSize - inputShape[mv::IO_HEIGHT_DIMENSION];
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
 
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0", 
+        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
                                                                             kSize[0], factors.first, padding);
 
 	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
@@ -802,7 +910,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 	    }
 
 	    // Now generate the second depthwise conv
-        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0, 
+        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
                                                                         name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0});
 
 	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
@@ -810,5 +918,5 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
-    } // end for 
+    } // end for
 }
