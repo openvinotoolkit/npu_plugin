@@ -255,9 +255,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
 }
 
 // KMB : Bad inference results. [Track number: D#2474]
-// KMB : Compilation fails. [Track number: D#2507]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
-    SKIP_ON("KMB", "compile error");
+    SKIP_INFER_ON("KMB", "bad results");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml")
