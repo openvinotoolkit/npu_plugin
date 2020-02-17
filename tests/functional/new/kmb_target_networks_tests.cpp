@@ -88,7 +88,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_MobileNet_V2) {
     SKIP_ON("CPU", "compile error");  // TODO: create JIRA ticket
-    SKIP_ON("KMB", "compile error");  // TODO: create JIRA ticket
+    SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet-v2-caffe-IRv10.xml")
@@ -290,14 +290,14 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) 
 // KMB : Filter kernel width (14) exceeds the padded input width (13)
 // KMB : [Track number: S#25483, D#2374]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
-    SKIP_ON("KMB", "compile error");
+    SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "227x227/cat3.bmp",
+        TestImageDesc("227x227/cat3.bmp", false),
         1, 0.05f);
 }
 
@@ -362,6 +362,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
