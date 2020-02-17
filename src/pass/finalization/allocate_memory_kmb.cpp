@@ -116,6 +116,18 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
+            // New approach for SOK
+            if(tIt->isSplitOverK() && tIt->get<mv::DType>("dType") == mv::DType("UInt8")) // maybe checked for ConstantDataelement
+            {
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for(std::size_t j = 0; j < numClusters; ++j)
+                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
+                }
+                else
+                    tIt->set<unsigned>("graphFileIndex", i++);
+            }
+
             // Weights sparsity new approach: there is a separate constant for
             // each cluster
             if(tIt->isSparse())

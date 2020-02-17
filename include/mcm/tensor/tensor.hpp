@@ -244,6 +244,13 @@ namespace mv
             return false;
         }
 
+        inline bool isSplitOverK() const
+        {
+            if (hasAttr("splitStrategy") && this->get<std::string>("splitStrategy") == "SplitOverK")
+                return true;
+            return false;
+        }
+
         inline bool isBroadcasted() const
         {
             if (hasAttr("broadcasted"))

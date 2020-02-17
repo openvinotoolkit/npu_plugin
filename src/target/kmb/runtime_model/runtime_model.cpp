@@ -339,17 +339,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
-            unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
-            toBuild->locale_index = std::vector<unsigned int>(1);
-            toBuild->locale_index[0] = graphfileIndex;
+            //SOK dense weight tensors for HDE support
+            if(t->isSplitOverK() && t->get<mv::DType>("dType") == mv::DType("UInt8"))
+            {
+                unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+                toBuild->locale_index = std::vector<unsigned int>(1);
+                toBuild->locale_index[0] = graphfileIndex;
+                toBuild->data->data_index = 0;
+            }
+            else 
+            {
+                unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+                toBuild->locale_index = std::vector<unsigned int>(1);
+                toBuild->locale_index[0] = graphfileIndex;
 
-            auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-            auto index = t->getOrder().subToInd(t->getShape(), offset);
-            auto byte_index = index * t->getDType().getSizeInBits() / 8;
-
-            toBuild->data->data_index = byte_index;
+                auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+                auto index = t->getOrder().subToInd(t->getShape(), offset);
+                auto byte_index = index * t->getDType().getSizeInBits() / 8;
+                toBuild->data->data_index = byte_index;
+            }
         }
-        else
+        else //Sparse
         {
             // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
             // No data index to be provided, just have to take the graphfile index from the subtensor
@@ -2194,6 +2204,16 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             {
                 auto sparsityMapIterator = dm.getTensor(tIt->getSparsityMap()->getName());
                 toSort.push_back(&(*sparsityMapIterator));
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                {
+                    for(std::size_t i = 0; i < numClusters; ++i)
+                        toSort.push_back(&(tIt->getSubTensor(i)));
+                }
+                else
+                    toSort.push_back(&(*tIt));
+            }
+            if(tIt->isSplitOverK() && tIt->get<mv::DType>("dType") == mv::DType("UInt8")) //exclude weights table
+            {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t i = 0; i < numClusters; ++i)
