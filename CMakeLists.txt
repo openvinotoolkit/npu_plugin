@@ -8,7 +8,7 @@ set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
 # Set PROJECT_VERSION* variables by project command only.
 set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
 
-cmake_minimum_required(VERSION 3.7.2 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.13.0 FATAL_ERROR)
 
 project(InferenceEngineKMBPlugin)
 
@@ -63,3 +63,6 @@ endif()
 if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
+
+# install
+ie_cpack(kmb)

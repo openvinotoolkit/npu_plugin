@@ -63,6 +63,35 @@ target_link_libraries(${TARGET_NAME}
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
 
+# install
+ie_cpack_add_component(kmb REQUIRED)
+
+install(TARGETS ${TARGET_NAME}
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT kmb)
+
+if(ENABLE_MCM_COMPILER)
+    install(TARGETS cm metamodel model
+            DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT kmb)
+endif()
+
+if(ENABLE_VPUAL)
+    install(TARGETS NN VpualDispatcher sipp_custom XLink RemoteFlic
+            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT kmb)
+endif()
+
+if(ARM OR AARCH64)
+    install(FILES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1.0.0"
+                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1"
+                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so"
+            DESTINATION "${IE_CPACK_LIBRARY_PATH}"
+            COMPONENT kmb)
+endif()
+
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
 endif()
