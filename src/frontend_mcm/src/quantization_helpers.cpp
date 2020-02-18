@@ -70,7 +70,7 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = ceil(x);  // TODO Why not round?
+            zeroPoint = round(x);
         } else if (low > 0.f) {
             zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
@@ -79,8 +79,8 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
-            auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
+            float x = -(levels - 1) * low / (high - low);
+            zeroPoint = round(x);
         } else if (low >= 0.f) {
             zeroPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
