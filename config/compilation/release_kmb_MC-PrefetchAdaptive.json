@@ -16,6 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "DPUTasksinFloat": false,
                 "split_strategy" :
                 [
                     {
@@ -240,7 +241,8 @@
                 "html": true
             },
             { "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt" 
+              "output" : "output/lp_scheduler_output.txt",
+              "ddr_address_generation" : true
             },
             {
                 "name": "GenerateDot",

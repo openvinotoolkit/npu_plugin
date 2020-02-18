@@ -23,8 +23,16 @@ namespace mv
         {
             mv::Tensor toPush(*inputs[0]);
             outputs.push_back(std::move(toPush));
-            outputs[0].setName(":0");
+            outputs[0].setName(outputs[0].getName() + ":0");
             outputs[0].erase("flows");
+
+            if (outputs[0].hasSubTensors())
+            {
+                for (std::size_t i = 0; i < outputs[0].numSubTensors(); i++)
+                {
+                    outputs[0].getSubTensor(i).setName(outputs[0].getName() + "sub" + std::to_string(i));
+                }
+            }
 
             auto direction = args.at("direction").get<mv::DmaDirection>();
 
