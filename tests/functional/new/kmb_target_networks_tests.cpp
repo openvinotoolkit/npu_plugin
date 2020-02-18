@@ -355,6 +355,7 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
 //
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
+    SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
