@@ -787,10 +787,12 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
-                if ( childOp.getOpType() == "Conv" and childClustering == "SplitOverH"
-                    and (childOp.get<std::array<unsigned short, 2>>("kSize")[0] > 1 or
-                        childOp.get<std::array<unsigned short, 2>>("kSize")[1] > 1))
-                        childInputSparsity = true;
+                if ( childOp.getOpType() == "Conv" ) {
+                    if( childClustering == "SplitOverH" and 
+                        (childOp.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
+                         childOp.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) )
+                            childInputSparsity = true;
+                }
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
