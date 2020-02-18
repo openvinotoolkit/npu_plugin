@@ -41,6 +41,12 @@ public:
     IExecutableNetwork::Ptr ImportNetwork(
         const std::string& modelFileName, const std::map<std::string, std::string>& config) override;
 
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(
+        std::istream& networkModel, const std::map<std::string, std::string>& config) override;
+
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel, const RemoteContext::Ptr& context,
+        const std::map<std::string, std::string>& config) override;
+
     void SetConfig(const std::map<std::string, std::string>& config) override;
 
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,

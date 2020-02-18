@@ -43,6 +43,10 @@ protected:
 
     InferenceEngine::InputsDataMap _networkInputs;
     InferenceEngine::OutputsDataMap _networkOutputs;
+
+    void loadStreamToString(std::istream& model, std::string& outputString);
+    void loadFileToString(const std::string& filename, std::string& outputString);
+    std::string extractFileName(const std::string& fullPath);
 };
 
 class CompiledGraph : public Graph {
@@ -57,6 +61,7 @@ public:
     using Ptr = std::shared_ptr<ImportedGraph>;
 
     explicit ImportedGraph(const std::string& blobFilename, const MCMConfig& config);
+    explicit ImportedGraph(std::istream& networkModel, const MCMConfig& config);
 };
 
 }  // namespace HDDL2Plugin

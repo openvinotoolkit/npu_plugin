@@ -32,7 +32,6 @@ const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
         merge(MCMConfig::getCompileOptions(), {
                                                   VPU_KMB_CONFIG_KEY(PLATFORM),
                                               });
-
     return options;
 }
 

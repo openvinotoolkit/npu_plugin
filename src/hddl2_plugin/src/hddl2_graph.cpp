@@ -32,12 +32,21 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static void loadFileToString(const std::string& filename, std::string& outputString) {
+void Graph::loadFileToString(const std::string& filename, std::string& outputString) {
     std::ifstream blobFile(filename, std::ios::binary);
     if (!blobFile.is_open()) {
         THROW_IE_EXCEPTION << FILES_ERROR_str << "Could not open file: " << filename;
     }
     outputString = std::string(std::istreambuf_iterator<char>(blobFile), std::istreambuf_iterator<char>());
+}
+
+void Graph::loadStreamToString(std::istream& model, std::string& outputString) {
+    outputString = std::string(std::istreambuf_iterator<char>(model), std::istreambuf_iterator<char>());
+}
+
+std::string Graph::extractFileName(const std::string& fullPath) {
+    const size_t lastSlashIndex = fullPath.find_last_of("/\\");
+    return fullPath.substr(lastSlashIndex + 1);
 }
 
 //------------------------------------------------------------------------------
@@ -65,11 +74,6 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
 //------------------------------------------------------------------------------
 //      class ImportedGraph Implementation
 //------------------------------------------------------------------------------
-static std::string ExtractFileName(const std::string& fullPath) {
-    const size_t lastSlashIndex = fullPath.find_last_of("/\\");
-    return fullPath.substr(lastSlashIndex + 1);
-}
-
 ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
     // TODO find usage for mcmConfig in case of imported network
     UNUSED(config);
@@ -79,13 +83,20 @@ ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& c
         THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << blobFilename;
     }
 
-    std::ostringstream blobContentStream;
-    blobContentStream << blobFile.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
-
-    _graphName = ExtractFileName(blobFilename);
-    MCMAdapter::getNetworkInputs(blobContentString.c_str(), _networkInputs);
-    MCMAdapter::getNetworkOutputs(blobContentString.c_str(), _networkOutputs);
-
     loadFileToString(blobFilename, _blobContentString);
+
+    _graphName = extractFileName(blobFilename);
+    MCMAdapter::getNetworkInputs(_blobContentString.c_str(), _networkInputs);
+    MCMAdapter::getNetworkOutputs(_blobContentString.c_str(), _networkOutputs);
+}
+
+ImportedGraph::ImportedGraph(std::istream& networkModel, const MCMConfig& config) {
+    // TODO find usage for mcmConfig in case of imported network
+    UNUSED(config);
+    loadStreamToString(networkModel, _blobContentString);
+
+    // TODO: Think about where to get the name
+    _graphName = "None";
+    MCMAdapter::getNetworkInputs(_blobContentString.c_str(), _networkInputs);
+    MCMAdapter::getNetworkOutputs(_blobContentString.c_str(), _networkOutputs);
 }
