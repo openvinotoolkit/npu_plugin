@@ -224,20 +224,22 @@ namespace mv
 
                 //Additional memory footprint for sparsity
                 if(inputActivationSparsity){
+                    size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
                     //w*h*c, 1 bit per byte of tensor.
                     auto sparseInputSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
                     //storage element
                     sparseInputSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
                     sparseInputSize = mv::round_up(sparseInputSize, 16);
-                    inputSize += sparseInputSize;
+                    inputSize += (sparseInputSize / streamDivisor);
                 }
                 if(outputActivationSparsity){
+                    size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["K"];
                     //w*h*c, 1 bit per byte of tensor.
                     auto sparseOutputSize = (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]* op.getOutputTensor(0)->getShape()[2]) / 8;
                     //storage element
                     sparseOutputSize += (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]);
                     sparseOutputSize = mv::round_up(sparseOutputSize, 16);
-                    outputSize += sparseOutputSize;
+                    outputSize += (sparseOutputSize / streamDivisor);
                 }
                 if(weightsSparsity){
                     auto sparseWeightSize = (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]* op.getInputTensor(1)->getShape()[2]) / 8;
@@ -489,6 +491,19 @@ namespace mv
             // }
 
             bool requiresActivationSparsity(Op& op, string clustering){
+                // if(op.getOpType() == "Input" or op.getOpType() == "Output") 
+                //     return false;
+
+                if(requiresRealActivationSparsity(op, clustering)) 
+                    return true;
+
+                if(requiresFakeActivationSparsity(op, clustering)) 
+                    return true;
+
+                return false;
+            }
+
+            bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
                         and op.get<mv::DType>("dType") == mv::DType("Float16"))
@@ -496,13 +511,6 @@ namespace mv
                     return true;
                 }
 
-                //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
-                if( (enableChannelMajorConv and (op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
-                    or op.getOpType() == "MaxPool"
-                    or op.getOpType() == "Depthwise")
-                {
-                    return true;
-                }
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
@@ -514,6 +522,24 @@ namespace mv
                             return true;
                          }
                 }
+
+                return false;
+            }
+
+             //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
+            bool requiresFakeActivationSparsity(Op& op, string clustering){
+                if(enableChannelMajorConv and 
+                  (op.getOpType() == "Conv") and  
+                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16) )
+                {
+                    return true;
+                }
+
+                if(op.getOpType() == "MaxPool")
+                    return true;
+
+                if(op.getOpType() == "Depthwise")
+                    return true;
 
                 return false;
             }
@@ -572,7 +598,7 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,false, false,weightsSparsity,streamShape);
+                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape);
                     // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
@@ -777,7 +803,11 @@ namespace mv
                 else if (childOp.getOpType() == "Output")
                 {
                     if (parentClustering == "HKSwitch")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by final op HKSwitch");
                         return INF;
+                    }
                 }
 
                 //Note: Input clustering strategy should match first layer, if it is Z-major
@@ -786,27 +816,43 @@ namespace mv
                     and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
                 {
                     if(parentClustering != childClustering)
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by input not matching first layer");
                         return INF;
+                    }
                 }
 
 
                 //These sparsity rules apply pairwise, and effect memory size and execution time.
                 //Make a local decision to get the correct runtime and execution time, but don't persist
                 //Sparsity will not be applied where disallowed in later passes
+                bool parentOutputSparsity = parent["outputSparsity"].get<bool>();
                 bool childInputSparsity = child["inputSparsity"].get<bool>();
 
                 if(parent["spilling"].get<bool>()){
+                    parentOutputSparsity = false;
                     childInputSparsity = false;
                 }
 
-                // In cases where activation sparsity (or fake sparsity) will be required later
+                // In cases where real activation sparsity  will be required later
                 // ensure there is enough memory for them
-                if(requiresActivationSparsity(childOp, childClustering)){
-                    if(parent["spilling"].get<bool>()) return INF;
+                if(requiresRealActivationSparsity(childOp, childClustering)){
+                    if(parent["spilling"].get<bool>()) 
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before sparsity");
+                        return INF;
+                    }
 
+                    parentOutputSparsity = true;
                     childInputSparsity = true;
                 }
 
+                if(requiresFakeActivationSparsity(childOp, childClustering)){
+                    parentOutputSparsity = false;
+                    childInputSparsity = true;
+                }
 
                 //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
                 //does not exceed CMX
@@ -814,24 +860,31 @@ namespace mv
                 {
                     auto parentMem = memorySize(parentOp,
                                             parentClustering,
-                                            true,
-                                            true,
+                                            false,
+                                            parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
                                             parent["streaming"].get<Shape>());
 
                     auto childMem = memorySize(childOp,
-                                            child["clustering"],
-                                            true,
-                                            true,
+                                            childClustering,
+                                            childInputSparsity,
+                                            false,
                                             child["weightsSparsity"].get<bool>(),
                                             child["streaming"].get<Shape>());
 
 
-                    if( ((childOp.getOpType() != "Output") and (childMem.first + childMem.second) > clusterMemory) or
-                            ((parentOp.getOpType() != "Input") and (parentMem.first + parentMem.second) > clusterMemory))
+                    if( (childOp.getOpType() != "Output") and 
+                      ( (childMem.first + childMem.second) > clusterMemory) )
                     {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsityMemorySize");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
+                            return INF;
+                    }
+                    if( (parentOp.getOpType() != "Input") and 
+                      ( (parentMem.first + parentMem.second) > clusterMemory) )
+                    {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
                             return INF;
                     }
                 }
