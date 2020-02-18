@@ -1291,7 +1291,7 @@ std::vector<KmbDetectionNetworkTest::BBox> KmbYoloV2NetworkTest::parseOutput(
 
 void KmbYoloV2NetworkTest::runTest(
         const TestNetworkDesc& netDesc,
-        const std::string& inputFileName,
+        const TestImageDesc& image,
         float confThresh,
         float boxTolerance, float probTolerance,
         bool isTiny) {
@@ -1305,5 +1305,5 @@ void KmbYoloV2NetworkTest::runTest(
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
 
-    KmbNetworkTestBase::runTest(netDesc, inputFileName, check);
+    KmbNetworkTestBase::runTest(netDesc, image, check);
 }
