@@ -779,9 +779,18 @@ namespace mv
                     childInputSparsity = true;
                 }
 
-                //Channel major conv cannot have sparsity
-                if( (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
-                    childInputSparsity = false;
+                //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
+                if( (enableChannelMajorConv and (childOp.getOpType() == "Conv") and  (childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+                    or childOp.getOpType() == "MaxPool"
+                    or childOp.getOpType() == "Depthwise")
+                    childInputSparsity = true;
+
+                // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
+                // if needed, check memory constraints as for sparse tensor
+                if ( childOp.getOpType() == "Conv" and childClustering == "SplitOverH"
+                    and (childOp.get<std::array<unsigned short, 2>>("kSize")[0] > 1 or
+                        childOp.get<std::array<unsigned short, 2>>("kSize")[1] > 1))
+                        childInputSparsity = true;
 
                 if(childInputSparsity == false)
                     parentOutputSparsity = false;
