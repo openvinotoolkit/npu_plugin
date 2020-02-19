@@ -397,9 +397,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
+    // read movisim port and runtime config from env var if exist
+    std::string movisimPort = "30001";
+    if(std::getenv("MOVISIM_PORT") != NULL)
+        movisimPort = std::getenv("MOVISIM_PORT");
+
+    std::string runtimeConfig = ".config";
+    if(std::getenv("RUNTIME_CONFIG") != NULL)
+        runtimeConfig = std::getenv("RUNTIME_CONFIG");
+
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
-        "make run srvIP=" + evmIP;
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
