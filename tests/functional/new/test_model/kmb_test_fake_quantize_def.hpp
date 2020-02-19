@@ -39,6 +39,11 @@ struct FakeQuantizeLayerDef final {
         inputPort = PortInfo(layerName, index);
         return *this;
     }
+    FakeQuantizeLayerDef& input(const Blob::Ptr& blob) {
+        const auto inputLayerName = name + "_input";
+        testNet.addConst(inputLayerName, blob);
+        return input(inputLayerName);
+    }
 
     FakeQuantizeLayerDef& inputLow(const std::string& layerName, size_t index = 0) {
         inputLowPort = PortInfo(layerName, index);

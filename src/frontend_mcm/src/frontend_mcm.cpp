@@ -43,6 +43,8 @@
 
 #ifdef ENABLE_MCM_COMPILER
 
+#include <include/mcm/tensor/tiling.hpp>
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 namespace vpu {
@@ -918,12 +920,26 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     _logger->debug(FINISH_PARSING_STR, mvConv->getName());
 }
 
+namespace {
+
+void cvtPaddingsFromCeilToFloorMode(
+    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
+    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
+    IE_ASSERT(input_size_floor >= input_size_ceil);
+
+    pad_end = pad_end + (input_size_floor - input_size_ceil);
+}
+
+}  // namespace
+
 void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
 
     auto input = inputs[0];
     auto poolLayer = std::dynamic_pointer_cast<ie::PoolingLayer>(layer);
     IE_ASSERT(poolLayer != nullptr);
+
+    const auto rounding_type = layer->GetParamAsString("rounding_type", "floor");
 
     logParsingStartHelper(_logger, layer, inputs);
 
@@ -941,6 +957,18 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     auto poolType = poolLayer->_type;
 
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto outDesc = layerOutput->getTensorDesc();
+
+    if (rounding_type == "ceil") {
+        cvtPaddingsFromCeilToFloorMode(
+            input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
+        cvtPaddingsFromCeilToFloorMode(
+            input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
+    }
+
     mv::QuantizationParams outputQuantParams = initialQuantParams;
     QuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
 
@@ -956,17 +984,17 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            true, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
             {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            true, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
     }
 
-    bindOutput(mvPooling, layer->outData[0]);
+    bindOutput(mvPooling, layerOutput);
     _logger->debug(FINISH_PARSING_STR, mvPooling->getName());
 }
 

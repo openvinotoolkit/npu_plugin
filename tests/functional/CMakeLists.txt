@@ -39,21 +39,6 @@ target_compile_definitions(${TARGET_NAME}
         USE_KMB=1
         INSTANTIATE_TESTS=1)
 
-if(ARM OR AARCH64)
-    target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            PLATFORM_ARM)
-    if(AARCH64)
-        target_compile_definitions(${TARGET_NAME}
-            PRIVATE
-                PLATFORM_AARCH64)
-    endif()
-else()
-    target_compile_definitions(${TARGET_NAME}
-        PRIVATE
-            PLATFORM_X86)
-endif()
-
 target_include_directories(${TARGET_NAME}
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/new

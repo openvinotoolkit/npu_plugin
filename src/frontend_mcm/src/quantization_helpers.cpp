@@ -124,14 +124,28 @@ void calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, std
         zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
     } else {
         // NOTE: Now, this branch using only for weights. MCM expects U8 weights
+        int64_t avgZeroPoints = 0;
         for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
             float ol = quantizationParams.outputLowValues[i];
             float oh = quantizationParams.outputHighValues[i];
-            scales.push_back(static_cast<double>((oh - ol) / (levels - 1)));
 
-            // re-calculate ZP for weights, we use I8 for weights
-            int64_t zepoPoint = calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
-            zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
+            // re-calculate ZP for weights, we use U8 for weights
+            avgZeroPoints += calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
+        }
+        avgZeroPoints = std::round(static_cast<double>(avgZeroPoints) / quantizationParams.outputLowValues.size());
+
+        for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+            float ol = quantizationParams.outputLowValues[i];
+            float oh = quantizationParams.outputHighValues[i];
+
+            float zpl = oh * avgZeroPoints / (avgZeroPoints - (levels - 1));
+            float zph = ol - ol * (levels - 1) / avgZeroPoints;
+
+            ol = std::min(ol, zpl);
+            oh = std::max(oh, zph);
+
+            scales.push_back(static_cast<double>((oh - ol) / (levels - 1)));
+            zeroPoints.push_back(avgZeroPoints);
         }
     }
 }
