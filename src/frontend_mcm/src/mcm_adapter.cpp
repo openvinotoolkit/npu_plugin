@@ -18,13 +18,13 @@
 
 #ifdef ENABLE_MCM_COMPILER
 
+#include <file_utils.h>
 #include <net_pass.h>
 #include <sys/stat.h>
 
 #include <frontend_mcm.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_util_internal.hpp>
-#include <file_utils.h>
 
 #include "include/mcm/compiler/compilation_unit.hpp"
 
