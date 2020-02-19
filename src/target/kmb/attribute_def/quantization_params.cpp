@@ -1,3 +1,4 @@
+#include <sstream>
 #include "include/mcm/base/attribute_registry.hpp"
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
@@ -8,6 +9,15 @@ namespace mv
 
     namespace attr_quantization_params
     {
+
+        template <typename T>
+        static std::string toStringWithPrecision(const T val, const int precision = 15)
+        {
+            std::ostringstream outstream;
+            outstream.precision(precision);
+            outstream << std::fixed << val;
+            return outstream.str();
+        }
 
         static mv::json::Value toJSON(const Attribute& a)
         {
@@ -44,7 +54,7 @@ namespace mv
                 std::to_string(quant_param.getMax().size()) + ")";
             }
             return output;
-     }
+        }
 
         static std::string toLongString(const Attribute& a)
         {
@@ -54,32 +64,32 @@ namespace mv
             if (vec1.size() > 0)
             {
                 for (std::size_t i = 0; i < vec1.size() - 1; ++i)
-                    output += std::to_string(vec1[i]) + ", ";
-                output += std::to_string(vec1.back());
+                    output += toStringWithPrecision(vec1[i]) + ", ";
+                output += toStringWithPrecision(vec1.back());
             }
             output += "},{";
             auto vec2 = quant_param.getScale();
             if (vec2.size() > 0)
             {
                 for (std::size_t i = 0; i < vec2.size() - 1; ++i)
-                    output += std::to_string(vec2[i]) + ", ";
-                output += std::to_string(vec2.back());
+                    output += toStringWithPrecision(vec2[i]) + ", ";
+                output += toStringWithPrecision(vec2.back());
             }
             output += "},{";
             auto vec3 = quant_param.getMin();
             if (vec3.size() > 0)
             {
                 for (std::size_t i = 0; i < vec3.size() - 1; ++i)
-                    output += std::to_string(vec3[i]) + ", ";
-                output += std::to_string(vec3.back());
+                    output += toStringWithPrecision(vec3[i]) + ", ";
+                output += toStringWithPrecision(vec3.back());
             }
             output += "},{";
             auto vec4 = quant_param.getMax();
             if (vec4.size() > 0)
             {
                 for (std::size_t i = 0; i < vec4.size() - 1; ++i)
-                    output += std::to_string(vec4[i]) + ", ";
-                output += std::to_string(vec4.back());
+                    output += toStringWithPrecision(vec4[i]) + ", ";
+                output += toStringWithPrecision(vec4.back());
             }
             if (quant_param.hasAttr("mult"))
             {
@@ -88,16 +98,16 @@ namespace mv
                     if (vec5.size() > 0)
                     {
                         for (std::size_t i = 0; i < vec5.size() - 1; ++i)
-                            output += std::to_string(vec5[i]) + ", ";
-                        output += std::to_string(vec5.back());
+                            output += toStringWithPrecision(vec5[i]) + ", ";
+                        output += toStringWithPrecision(vec5.back());
                     }
                 output += "},{";
                 auto vec6 = quant_param.getMult();
                 if (vec6.size() > 0)
                 {
                     for (std::size_t i = 0; i < vec6.size() - 1; ++i)
-                        output += std::to_string(vec6[i]) + ", ";
-                    output += std::to_string(vec6.back());
+                        output += toStringWithPrecision(vec6[i]) + ", ";
+                    output += toStringWithPrecision(vec6.back());
                 }
             }
             return output + "}}";
