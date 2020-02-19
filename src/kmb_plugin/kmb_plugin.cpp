@@ -96,6 +96,17 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
     }
 
+    InferenceEngine::ExportMagic magic = {};
+    blobFile.seekg(0, blobFile.beg);
+    blobFile.read(magic.data(), magic.size());
+    auto exportedWithName = (exportMagic == magic);
+    if (exportedWithName) {
+        std::string tmp;
+        std::getline(blobFile, tmp);
+    } else {
+        blobFile.seekg(0, blobFile.beg);
+    }
+
     return ImportNetworkImpl(blobFile, config);
 }
 
