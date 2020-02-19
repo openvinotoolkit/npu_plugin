@@ -41,6 +41,7 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
+        IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
     PRIVATE
         IE::vpu_common_lib

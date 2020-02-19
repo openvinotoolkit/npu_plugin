@@ -120,5 +120,11 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

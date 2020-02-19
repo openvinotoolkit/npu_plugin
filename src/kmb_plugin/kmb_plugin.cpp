@@ -16,6 +16,7 @@
 
 #include "kmb_plugin.h"
 
+#include <cnn_network_ngraph_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <inference_engine.hpp>
@@ -120,6 +121,14 @@ InferenceEngine::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+std::shared_ptr<ICNNNetwork> Engine::ConvertAndCloneNetwork(const ICNNNetwork& network) {
+    if (const auto networkNGraph = dynamic_cast<const InferenceEngine::details::CNNNetworkNGraphImpl*>(&network)) {
+        const auto networkClone = networkNGraph->cloneNGraphImpl();
+        return std::shared_ptr<ICNNNetwork>(networkClone);
+    }
+    return CloneNetwork(network);
 }
 
 IE_SUPPRESS_DEPRECATED_START

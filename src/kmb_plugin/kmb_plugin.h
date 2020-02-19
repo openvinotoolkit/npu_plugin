@@ -58,6 +58,8 @@ public:
     InferenceEngine::Parameter GetMetric(
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
+    std::shared_ptr<ICNNNetwork> ConvertAndCloneNetwork(const ICNNNetwork& network) override;
+
 private:
     KmbConfig _parsedConfig;
     KmbMetrics _metrics;

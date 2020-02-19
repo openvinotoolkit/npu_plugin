@@ -60,13 +60,13 @@ BlobVector refConv(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
 TestNetwork& ConvolutionLayerDef::build() {
     const auto strides = ngraph::Strides {params._strides.y, params._strides.x};
     const auto dilation = ngraph::Strides {params._dilation.y, params._dilation.x};
-    const auto padBefore = ngraph::CoordinateDiff {params._pad.top, params._pad.left};
-    const auto padAfter = ngraph::CoordinateDiff {params._pad.bottom, params._pad.right};
+    const auto padsBegin = ngraph::CoordinateDiff {params._pad.top, params._pad.left};
+    const auto padsEnd = ngraph::CoordinateDiff {params._pad.bottom, params._pad.right};
 
     const auto convNode =
         std::make_shared<ngraph::op::v1::Convolution>(
             testNet.getPort(inputPort), testNet.getPort(weightsPort),
-            strides, padBefore, padAfter, dilation);
+            strides, padsBegin, padsEnd, dilation);
 
     if (biasesPort.layerName.empty()) {
         return testNet.addLayer(name, convNode, refConv);

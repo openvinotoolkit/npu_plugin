@@ -24,7 +24,7 @@
 
 #pragma once
 
-#include <vpu/vpu_plugin_config.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 //
 // KMB plugin options

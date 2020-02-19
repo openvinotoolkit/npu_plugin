@@ -25,6 +25,9 @@
 #include <kmb_executable_network.h>
 #include <net_pass.h>
 
+#include <cnn_network_ngraph_impl.hpp>
+#include "ngraph_mcm_frontend/frontend.hpp"
+
 // clang-format on
 
 using namespace InferenceEngine;
@@ -51,21 +54,47 @@ void ExecutableNetwork::LoadBlob() {
 }
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config): _config(config) {
+    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
+
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
+    if (_config.useNGraphParser()) {
+        if (const auto cnnNGraphNet = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
+            if (const auto func = cnnNGraphNet->getFunction()) {
+                InputsDataMap inputsInfo;
+                network.getInputsInfo(inputsInfo);
+
+                OutputsDataMap outputsInfo;
+                network.getOutputsInfo(outputsInfo);
+
+                _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
+            }
+        }
+    }
+
+    if (_graphBlob.empty()) {
 #ifdef ENABLE_MCM_COMPILER
-    MCMAdapter::compileNetwork(network, _config, _graphBlob);
+        // HACK: convert nGraph to old CNNNetwork to fix LP transformations
+
+        std::shared_ptr<ICNNNetwork> convertedNetwork;
+        auto actualNetwork = &network;
+
+        if (auto networkNGraph = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
+            convertedNetwork = networkNGraph->getCNNNetwork();
+            actualNetwork = convertedNetwork.get();
+        }
+
+        MCMAdapter::compileNetwork(*actualNetwork, _config, _graphBlob);
+#else
+        THROW_IE_EXCEPTION << "Network compilation is disabled";
+#endif
+    }
 
     if (_config.loadNetworkAfterCompilation()) {
         LoadBlob();
         ConfigureExecutor(network.getName());
     }
-#else
-    UNUSED(network);
-#endif
-
-    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config): _config(config) {
