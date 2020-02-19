@@ -650,14 +650,14 @@ void TestNetworkDesc::fillUserOutputInfo(OutputsDataMap& info) const {
 // KmbNetworkTestBase
 //
 
-Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image) {
+Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels) {
     std::ostringstream imageFilePath;
     imageFilePath << get_data_path() << "/" << image.imageFileName();
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);
 
-    const size_t C = 3;
+    const size_t C = channels;
     const size_t H = reader->height();
     const size_t W = reader->width();
 
@@ -764,7 +764,7 @@ void KmbNetworkTestBase::runTest(
         "input",
         inputTensorDesc,
         [&image](const TensorDesc& desc) {
-            const auto blob = loadImage(image);
+            const auto blob = loadImage(image, desc.getDims()[1]);
             IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
             return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());

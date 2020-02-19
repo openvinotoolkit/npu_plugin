@@ -30,6 +30,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
             PRIVATE
             -Wall
             -Werror
+            -Wno-error=strict-aliasing
+            -Wno-strict-aliasing
             -Wno-unused-variable)
 
     if (INTEGRATION_TESTS_ENABLE_IE)

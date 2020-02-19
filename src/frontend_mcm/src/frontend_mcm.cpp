@@ -18,6 +18,7 @@
 #include <precision_utils.h>
 
 #include <algorithm>
+#include <blob_factory.hpp>
 #include <frontend_mcm.hpp>
 #include <graph_tools.hpp>
 #include <ie_profiling.hpp>
@@ -1186,6 +1187,58 @@ void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     // stage->attrs().set<float>("beta", layer->_beta);
 }
 
+void FrontEndMcm::parseScaleImpl(
+    const ie::CNNLayerPtr& layer, const McmNodeVector& inputs, std::vector<double>& weights, ie::Blob::Ptr biases) {
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto input = inputs[0];
+
+    std::vector<int64_t> quantizedWeightsData;
+    std::vector<int64_t> zpScaleWeights = {0};
+    std::vector<double> quantizeScale;
+
+    for (size_t i = 0; i < weights.size(); i++) {
+        quantizeScale.push_back(weights[i]);
+    }
+    for (size_t i = 0; i < weights.size(); i++) {
+        quantizedWeightsData.push_back(1);
+    }
+
+    mv::Shape weightsShape = {weights.size()};
+    mv::QuantizationParams scalesQuantParams = {zpScaleWeights, quantizeScale, {-inf}, {inf}};
+    auto mvWeights = _modelMcm.constantInt(
+        quantizedWeightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
+
+    auto outputQuantParamsOverRide = initialQuantParams;
+    QuantizationHelpers::fillQuntizationActivationParams(layer, outputQuantParamsOverRide);
+    auto mvScale =
+        _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParamsOverRide, layer->name);
+
+    auto mvScaleShift = mvScale;
+    _logger->debug("'%s' layer '%s': Scale part (%s) added to mcmModel", layer->type, layer->name, mvScale->getName());
+
+    if (biases != nullptr) {
+        auto biasQuantParamsOverRide = initialQuantParams;
+        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+        auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
+            inputQuantParams.getScale(), scalesQuantParams.getScale(), biases, biasQuantParamsOverRide);
+
+        mv::Shape shiftShape {biases->size()};
+        auto shiftData = _modelMcm.constantInt(
+            quantizeBiasesData, shiftShape, mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
+
+        mvScaleShift =
+            _modelMcm.bias(mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide, layer->name + ":bias");
+
+        _logger->debug(
+            "'%s' layer '%s': Bias part (%s) added to mcmModel", layer->type, layer->name, mvScaleShift->getName());
+    }
+
+    bindOutput(mvScaleShift, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvScaleShift->getName());
+}
+
 void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
     auto scaleLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(layer);
@@ -1195,62 +1248,18 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     if (scaleLayer->_broadcast != 0) {
         VPU_THROW_EXCEPTION << "Layer " << scaleLayer->name << " doesn't support broadcast param";
     }
-
-    logParsingStartHelper(_logger, layer, inputs);
-
     auto input = inputs[0];
-
     size_t dimC, stub;
     parseDims(input->desc(), stub, dimC, stub, stub);
+
     int weightsSize = static_cast<int>(dimC);
-
-    auto scaleData = scaleLayer->_weights->buffer().as<float*>();
-
-    std::vector<int64_t> quantizedWeightsData;
-    std::vector<int64_t> zpScaleWeights = {0};
-    std::vector<double> quantizeScale;
-
-    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
-        quantizeScale.push_back(scaleData[i]);
-    }
-    for (size_t i = 0; i < scaleLayer->_weights->size(); i++) {
-        quantizedWeightsData.push_back(1);
+    auto scales = scaleLayer->_weights->buffer().as<float*>();
+    std::vector<double> scaleData;
+    for (size_t i = 0; i < dimC; i++) {
+        scaleData.push_back(scales[i]);
     }
 
-    mv::Shape weightsShape = {static_cast<size_t>(weightsSize)};
-    mv::QuantizationParams scalesQuantParams = {zpScaleWeights, quantizeScale, {-inf}, {inf}};
-    auto mvWeights = _modelMcm.constantInt(
-        quantizedWeightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
-
-    auto outputQuantParamsOverRide = initialQuantParams;
-    QuantizationHelpers::fillQuntizationActivationParams(scaleLayer, outputQuantParamsOverRide);
-    auto mvScale = _modelMcm.scale(
-        input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParamsOverRide, scaleLayer->name);
-
-    auto mvScaleShift = mvScale;
-    _logger->debug(
-        "'%s' layer '%s': Scale part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name, mvScale->getName());
-
-    if (scaleLayer->_biases != nullptr) {
-        auto biasQuantParamsOverRide = initialQuantParams;
-        auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-        auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
-            inputQuantParams.getScale(), scalesQuantParams.getScale(), scaleLayer->_biases, biasQuantParamsOverRide);
-
-        mv::Shape shiftShape {scaleLayer->_biases->size()};
-        auto shiftData = _modelMcm.constantInt(
-            quantizeBiasesData, shiftShape, mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
-
-        mvScaleShift = _modelMcm.bias(
-            mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide, scaleLayer->name + ":bias");
-
-        _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", scaleLayer->type, scaleLayer->name,
-            mvScaleShift->getName());
-    }
-
-    bindOutput(mvScaleShift, layer->outData[0]);
-
-    _logger->debug(FINISH_PARSING_STR, mvScaleShift->getName());
+    parseScaleImpl(layer, inputs, scaleData, scaleLayer->_biases);
 }
 
 void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1270,8 +1279,9 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
     auto mvPerm = _modelMcm.permute(
         inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"), initialQuantParams, layer->name);
 
-    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
-    // VPUNND-2284, VPUNND-2237,
+    // Workaround to avoid parsing stage crash:
+    // 'ArgumentError: attribute identifer quantParams - Undefined identifier'
+    // [Track number: D#2284, D#2237]
     mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams);
 
     bindOutput(mvPerm, layer->outData[0]);
@@ -1485,9 +1495,38 @@ void FrontEndMcm::parseMVN(const ie::CNNLayerPtr& layer, const McmNodeVector& in
 }
 
 void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Power layer is not supported by kmbPlugin";
+    IE_ASSERT(inputs.size() == 1);
+    auto powerLayer = std::dynamic_pointer_cast<ie::PowerLayer>(layer);
+    IE_ASSERT(powerLayer != nullptr);
+
+    if (powerLayer->power != 1) {
+        VPU_THROW_EXCEPTION << "Layer " << powerLayer->name << " supports only power = 1";
+    }
+
+    auto input = inputs[0];
+
+    size_t dimC, stub;
+    parseDims(input->desc(), stub, dimC, stub, stub);
+
+    std::vector<double> scaleData;
+    for (size_t i = 0; i < dimC; i++) {
+        scaleData.push_back(powerLayer->scale);
+    }
+
+    ie::Blob::Ptr biases;
+    if (powerLayer->offset != 0) {
+        SizeVector dims({dimC});
+        const TensorDesc biasTensor = TensorDesc(InferenceEngine::Precision::FP32, dims, ie::C);
+
+        biases = make_blob_with_precision(biasTensor);
+        biases->allocate();
+        float* raw = biases->buffer().as<float*>();
+        for (size_t i = 0; i < dimC; i++) {
+            raw[i] = powerLayer->offset;
+        }
+    }
+
+    parseScaleImpl(layer, inputs, scaleData, biases);
 }
 
 void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
