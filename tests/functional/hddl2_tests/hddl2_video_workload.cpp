@@ -74,7 +74,7 @@ bool VideoPipeline::createVideoPipeline(
         return false;
     }
 
-    _remoteMemoryPtr->syncToDevice(data.data(), data.size());
+    _remoteMemoryPtr->syncToDevice(data.data(), data.size() + 1);
 
     workloadContextID = _workloadId;
     remoteMemoryFd = _remoteMemoryPtr->getDmaBufFd();
@@ -95,6 +95,8 @@ VideoPipeline::~VideoPipeline() { HddlUnite::unregisterWorkloadContext(_workload
  */
 TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
     const std::string data_str = "Hello HDDL2 Plugin";
+    const size_t data_str_size = data_str.length() + 1;  // Null terminated symbol
+
     WorkloadID workloadContextID;
     uint64_t remoteMemoryFd;
 
@@ -113,7 +115,7 @@ TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
 
     // For this test real network will not be allocated, so we will just create memory for string
-    IE::TensorDesc tensorDesc(IE::Precision::U8, {1, 1, 1, data_str.size()}, IE::NCHW);
+    IE::TensorDesc tensorDesc(IE::Precision::U8, {1, 1, 1, data_str_size}, IE::NCHW);
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(tensorDesc, blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
