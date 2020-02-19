@@ -24,6 +24,7 @@
 #include <frontend_mcm.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_util_internal.hpp>
+#include <file_utils.h>
 
 #include "include/mcm/compiler/compilation_unit.hpp"
 
