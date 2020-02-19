@@ -397,9 +397,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
+    // read movisim port and runtime config from env var if exist
+    std::string movisimPort = "30001";
+    if(std::getenv("MOVISIM_PORT") != NULL)
+        movisimPort = std::getenv("MOVISIM_PORT");
+
+    std::string runtimeConfig = ".config";
+    if(std::getenv("RUNTIME_CONFIG") != NULL)
+        runtimeConfig = std::getenv("RUNTIME_CONFIG");
+
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
-        "make run CONFIG_FILE=" + std::getenv("RUNTIME_CONFIG") + " srvIP=" + evmIP + " srvPort=" + std::getenv("MOVISIM_PORT");
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -698,18 +707,6 @@ int main(int argc, char *argv[])
     {
         std::cout << "ERROR! Environmental variable VPUIP_HOME must be set with path to VPUIP_2 repo" << std::endl << std::endl;
         return FAIL_GENERAL;
-    }
-
-    if(std::getenv("MOVISIM_PORT") == NULL)
-    {
-        char moviPort[]="MOVISIM_PORT=30001";
-        putenv( moviPort ); 
-    }
-
-    if(std::getenv("RUNTIME_CONFIG") == NULL)
-    {
-        char rtConfig[]="RUNTIME_CONFIG=.config";
-        putenv( rtConfig ); 
     }
 
     if (!ParseAndCheckCommandLine(argc, argv)) 
