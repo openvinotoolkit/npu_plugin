@@ -198,16 +198,13 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2475]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
-    SKIP_INFER_ON("KMB", "bad results");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "224x224/cat3.bmp",
+        TestImageDesc("224x224/cat3.bmp", false),
         1, 0.05f);
 }
 
@@ -263,7 +260,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
+        TestImageDesc("299x299/lassy_googlenet_big.bmp", false),
         1, 0.05f);
 }
 
@@ -352,7 +349,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
+            TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
 
@@ -362,12 +359,12 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
-
+    
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
+            TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }

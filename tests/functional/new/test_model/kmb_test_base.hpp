@@ -320,7 +320,7 @@ class KmbYoloV2NetworkTest : public KmbDetectionNetworkTest {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
-            const std::string& inputFileName,
+            const TestImageDesc& image,
             float confThresh,
             float boxTolerance, float probTolerance,
             bool isTiny);
