@@ -188,6 +188,22 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
 }  // namespace
 #endif
 
+static std::vector<size_t> filterDimsWithSizeOne(const InferenceEngine::SizeVector& dims) {
+    std::vector<size_t> out;
+    if (dims.size() == 0) {
+        return out;
+    }
+
+    out.push_back(dims.at(0));  // always push batch size
+    for (size_t idx = 1; idx < dims.size(); idx++) {
+        if (dims.at(idx) > 1) {
+            out.push_back(dims.at(idx));
+        }
+    }
+
+    return out;
+}
+
 void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     if (!_config.useKmbExecutor()) {
         return;
@@ -293,6 +309,13 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);
+    if (_config.force2DToNC()) {
+        InferenceEngine::SizeVector nonTrivialDims = filterDimsWithSizeOne(outputDims);
+        if (nonTrivialDims.size() == 2) {
+            outputDims = nonTrivialDims;
+            outputLayout = InferenceEngine::Layout::NC;
+        }
+    }
     InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
     InferenceEngine::Data outputData("output", outputDesc);
