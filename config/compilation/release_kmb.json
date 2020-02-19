@@ -1,4 +1,16 @@
 {
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/initial_state.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            }
+        ]
+    },
     "initialize": {
         "Singular": [
             {
@@ -288,13 +300,21 @@
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
             "control_flows",
             "finalize",
             "scheduling",
-            "serialize"
+            "serialize",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            }
         ]
     }
 }
