@@ -33,8 +33,8 @@ namespace mv
                 std::to_string(quant_param.getScale().size()) + ", " +
                 std::to_string(quant_param.getMin().size()) + ", " +
                 std::to_string(quant_param.getMax().size()) + ", " +
-                std::to_string(quant_param.getMult().size()) + ", " +
-                std::to_string(quant_param.getShift().size()) + ")";
+                std::to_string(quant_param.getShift().size()) + ", " +
+                std::to_string(quant_param.getMult().size()) + ")";
             }
             else
             {
@@ -84,7 +84,7 @@ namespace mv
             if (quant_param.hasAttr("mult"))
             {
                 output += "},{";
-                auto vec5 = quant_param.getMult();
+                auto vec5 = quant_param.getShift();
                     if (vec5.size() > 0)
                     {
                         for (std::size_t i = 0; i < vec5.size() - 1; ++i)
@@ -92,7 +92,7 @@ namespace mv
                         output += std::to_string(vec5.back());
                     }
                 output += "},{";
-                auto vec6 = quant_param.getShift();
+                auto vec6 = quant_param.getMult();
                 if (vec6.size() > 0)
                 {
                     for (std::size_t i = 0; i < vec6.size() - 1; ++i)
