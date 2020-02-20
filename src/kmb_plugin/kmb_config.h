@@ -71,7 +71,7 @@ private:
     int _SIPPLpi = 8;
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
     bool _forceNCHWToNHWC = false;
-    bool _force2DToNC = false;
+    bool _force2DToNC = true;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
