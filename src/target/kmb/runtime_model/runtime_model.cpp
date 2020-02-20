@@ -1028,6 +1028,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        if (toBuild->input_data->data->data_index > toBuild->weights_data->data->data_index)
+            toBuild->odu_offset = toBuild->input_data->data->data_index - toBuild->weights_data->data->data_index;
+        else if (toBuild->input_data->data->data_index < toBuild->weights_data->data->data_index)
+            toBuild->odu_offset = toBuild->weights_data->data->data_index - toBuild->input_data->data->data_index;
+    }
+
     return toBuild;
 }
 
@@ -1158,6 +1166,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        if (toBuild->input_data->data->data_index > toBuild->weights_data->data->data_index)
+            toBuild->odu_offset = toBuild->input_data->data->data_index - toBuild->weights_data->data->data_index;
+        else if (toBuild->input_data->data->data_index < toBuild->weights_data->data->data_index)
+            toBuild->odu_offset = toBuild->weights_data->data->data_index - toBuild->input_data->data->data_index;
+    }
     return toBuild;
 }
 
