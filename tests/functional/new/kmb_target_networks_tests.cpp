@@ -234,8 +234,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
-        3, 1e-1f);
+        "299x299/n01537544_28.bmp",
+        1, 1e-1f);
 }
 
 // KMB : Power layer is not supported by kmbPlugin
@@ -247,8 +247,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
-        3, 1e-1f);
+        "299x299/n01537544_28.bmp",
+        1, 1e-1f);
 }
 
 // KMB : Bad inference results. [Track number: D#2474]
@@ -260,7 +260,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        TestImageDesc("299x299/lassy_googlenet_big.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", false),
         1, 0.05f);
 }
 
@@ -359,7 +359,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
-    
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)

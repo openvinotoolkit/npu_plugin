@@ -174,7 +174,8 @@ private:
 
     InferenceEngine::Precision getDefaultLayerPrecision(const ParsedNetwork& net, const ie::CNNLayerPtr& layer);
     void removeInputScaleShiftPattern(ie::CNNNetwork& network);
-    void alignInputsScales(ie::CNNNetwork& network);
+    void alignEltwiseScales(ie::CNNNetwork& network);
+    void alignConcatScales(ie::CNNNetwork& network);
     std::map<std::string, LayerQuantParams> _layerToQuantParams;
 
     mv::OpModel& _modelMcm;

@@ -108,10 +108,17 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(LOG_LEVEL);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
+ * Type: "YES/NO", default is "YES".
  * Enable or disable eltwise scales alignment
  */
-DECLARE_VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT);
+DECLARE_VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT);
+
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "YES".
+ * Enable or disable concat scales alignment
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT);
 
 /**
  * @brief [Only for vpu compiler]

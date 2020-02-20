@@ -85,7 +85,8 @@ void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>&
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(NO);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(NO);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(INPUTS_SCALES_ALIGNMENT)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING)] = CONFIG_VALUE(YES);
 
     const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
