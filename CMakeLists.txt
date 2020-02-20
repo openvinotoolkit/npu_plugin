@@ -65,7 +65,7 @@ if(ENABLE_TESTS)
     add_subdirectory(tests_experimental)
 endif()
 
-if(ENABLE_KMB_SAMPLES)
+if(ENABLE_KMB_SAMPLES AND ENABLE_VPUAL)
     add_subdirectory(samples)
 endif()
 

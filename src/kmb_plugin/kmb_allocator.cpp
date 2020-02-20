@@ -19,7 +19,10 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+#ifdef ENABLE_VPUAL
 #include <vpusmm.h>
+#endif
 
 #include <iostream>
 #include <string>

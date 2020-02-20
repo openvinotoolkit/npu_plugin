@@ -11,6 +11,12 @@ else()
 endif()
 
 if(ARM OR AARCH64)
+    ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
+else()
+    ie_option(ENABLE_VPUAL "Enable VPUAL" OFF)
+endif()
+
+if(ARM OR AARCH64)
     ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
 else()
     # TODO: enable by default when linker issues is fixed

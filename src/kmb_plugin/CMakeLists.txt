@@ -60,7 +60,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        vpusmm
+        ${VPUSMM_LIB}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
@@ -78,15 +78,13 @@ if(ENABLE_MCM_COMPILER)
             COMPONENT kmb)
 endif()
 
-if(ENABLE_VPUAL)
+if(ARM OR AARCH64)
     install(TARGETS NN VpualDispatcher sipp_custom XLink RemoteFlic
             RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
             ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
             LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
             COMPONENT kmb)
-endif()
 
-if(ARM OR AARCH64)
     install(FILES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1.0.0"
                   "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1"
                   "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so"
@@ -117,7 +115,7 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            vpusmm
+            ${VPUSMM_LIB}
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)
