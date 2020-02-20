@@ -43,8 +43,8 @@ target_link_libraries(${TARGET_NAME}
         IE::inference_engine
         IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
-    PRIVATE
         IE::vpu_common_lib
+    PRIVATE
         kmb_utils
         ${MCM_COMPILER_LIBRARY})
 

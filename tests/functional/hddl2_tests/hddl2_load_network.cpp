@@ -18,9 +18,9 @@
 #include <helper_remote_context.h>
 
 #include "hddl2_core_api.h"
-#include "hddl2_helpers/models/model_loader.h"
-#include "hddl2_helpers/models/model_pooling.h"
 #include "ie_core.hpp"
+#include "models/model_loader.h"
+#include "models/model_pooling.h"
 
 using namespace InferenceEngine;
 

@@ -22,6 +22,7 @@ add_executable(${TARGET_NAME} ${FRONTEND_MCM_TESTS_SOURCES})
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
+        "../../common_helpers"
         ${CMAKE_CURRENT_SOURCE_DIR}
         )
 

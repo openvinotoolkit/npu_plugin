@@ -14,32 +14,32 @@
 // stated in the License.
 //
 
-#pragma once
+#include "mcm_adapter.hpp"
 
-#include <models/precompiled_resnet.h>
-#include "hddl2_graph.h"
+#include <gtest/gtest.h>
 
-namespace vpu {
-namespace HDDL2Plugin {
+#include "models/model_pooling.h"
 
-class ImportedGraph_Helper {
+using namespace vpu;
+
+class MCMAdapter_Tests : public ::testing::Test {
 public:
-    ImportedGraph_Helper();
-    Graph::Ptr getGraph();
+    InferenceEngine::CNNNetwork network;
+    MCMConfig mcmConfig;
 
 protected:
-    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
-    Graph::Ptr _graphPtr = nullptr;
+    void SetUp() override;
 };
 
-inline ImportedGraph_Helper::ImportedGraph_Helper() {
-    MCMConfig defaultConfig;
-    _graphPtr= std::make_shared<ImportedGraph>(_modelToImport, defaultConfig);
+void MCMAdapter_Tests::SetUp() {
+    ModelPooling_Helper modelPoolingHelper;
+    network = modelPoolingHelper.network;
 }
 
-Graph::Ptr ImportedGraph_Helper::getGraph() {
-    return _graphPtr;
-}
+using MCMAdapter_compileNetwork = MCMAdapter_Tests;
+TEST_F(MCMAdapter_compileNetwork, canCompile) {
+    std::vector<char> blobFile;
 
-}
+    ASSERT_NO_THROW(MCMAdapter::compileNetwork(network, mcmConfig, blobFile));
+    ASSERT_GT(blobFile.size(), 0);
 }
