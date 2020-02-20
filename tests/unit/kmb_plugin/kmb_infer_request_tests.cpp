@@ -197,6 +197,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
+#ifdef ENABLE_VPUAL
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -214,6 +215,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) 
     _inferRequest->SetBlob(inputName, input);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
+#else
+    SKIP();
+#endif
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
@@ -335,6 +339,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) {
+#ifdef ENABLE_VPUAL
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
@@ -353,6 +358,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) 
     _inferRequest->GetBlob(inputName, input);
 
     ASSERT_EQ(vpuInput->buffer().as<void*>(), input->buffer().as<void*>());
+#else
+    SKIP();
+#endif
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMatchedNetworkInput) {

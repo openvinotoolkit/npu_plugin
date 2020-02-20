@@ -31,9 +31,9 @@ function(add_3rdparty_subdir SUBDIR_NAME)
     add_subdirectory(${SUBDIR_NAME})
 endfunction()
 
-add_subdirectory(vsi_cmodel/vpusmm)
-
 if(ENABLE_VPUAL)
+    add_subdirectory(vsi_cmodel/vpusmm)
+
     # Try to locate external vpualHost (location can be set via vpualHost_DIR).
     # If no external vpualHost provided, it will be built from thirdparty directory
     find_package(vpualHost QUIET)
@@ -67,6 +67,7 @@ if(ENABLE_VPUAL)
 
     set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+    set(VPUSMM_LIB vpusmm CACHE INTERNAL "")
 else()
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
@@ -79,6 +80,7 @@ else()
 
     set(GAPI_SIPP_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES "" CACHE INTERNAL "")
+    set(VPUSMM_LIB "" CACHE INTERNAL "")
 endif()
 
 if(ENABLE_MCM_COMPILER)

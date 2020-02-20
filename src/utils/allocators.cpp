@@ -21,9 +21,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "vpusmm.h"
-
 #include "allocators.hpp"
+#include "../kmb_plugin/kmb_allocator.h"
+
+#ifdef ENABLE_VPUAL
+#include "vpusmm.h"
+#endif
 
 namespace vpu {
 
@@ -53,6 +56,7 @@ VPUSMMAllocator::VPUSMMAllocator(int sliceIdx) : _sliceIdx(sliceIdx) {
 }
 
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
+#ifdef ENABLE_VPUAL
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
     int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, _sliceIdx);
     if (fileDesc < 0) {
@@ -72,15 +76,25 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
     _memChunks.push_back(memChunk);
 
     return virtAddr;
+#else
+    UNUSED(requestedSize);
+    return nullptr;
+#endif
 }
 
 void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+#ifdef ENABLE_VPUAL
     std::tuple<int, void*, size_t> chunk = _memChunks.at(chunkIndex);
     void* virtAddr = std::get<1>(chunk);
     return virtAddr;
+#else
+    UNUSED(chunkIndex);
+    return nullptr;
+#endif
 }
 
 VPUSMMAllocator::~VPUSMMAllocator() {
+#ifdef ENABLE_VPUAL
     for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
@@ -89,22 +103,35 @@ VPUSMMAllocator::~VPUSMMAllocator() {
         munmap(virtAddr, allocatedSize);
         close(fileDesc);
     }
+#endif
 }
 
 void* NativeAllocator::allocate(size_t requestedSize) {
+#ifdef ENABLE_VPUAL
     uint8_t* allocatedChunk = new uint8_t [requestedSize];
     _memChunks.push_back(allocatedChunk);
     return allocatedChunk;
+#else
+    UNUSED(requestedSize);
+    return nullptr;
+#endif
 }
 
 void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+#ifdef ENABLE_VPUAL
     return _memChunks.at(chunkIndex);
+#else
+    UNUSED(chunkIndex);
+    return nullptr;
+#endif
 }
 
 NativeAllocator::~NativeAllocator() {
+#ifdef ENABLE_VPUAL
     for (uint8_t* chunk : _memChunks) {
         delete [] chunk;
     }
+#endif
 }
 
 }  // namespace utils
