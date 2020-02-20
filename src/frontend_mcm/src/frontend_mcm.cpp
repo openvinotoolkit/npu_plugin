@@ -369,6 +369,28 @@ static bool inputsHasSameScales(
             return false;
         }
     }
+
+    return true;
+}
+
+static bool inputsHasSameScalesAndZeroPoints(const std::vector<InferenceEngine::CNNLayerPtr>& inputs) {
+    if (inputs.size() < 2) return true;
+
+    auto ol = QuantizationDetails::getDetails(*inputs[0]).outputLowValues[0];
+    auto oh = QuantizationDetails::getDetails(*inputs[0]).outputHighValues[0];
+    auto levels = QuantizationDetails::getDetails(*inputs[0]).levels;
+    for (size_t i = 0; i < inputs.size(); i++) {
+        auto quantizationParams = QuantizationDetails::getDetails(*inputs[i]);
+        for (size_t c = 0; c < quantizationParams.outputLowValues.size(); c++) {
+            if ((quantizationParams.outputLowValues[c] != ol) || (quantizationParams.outputHighValues[c] != oh)) {
+                return false;
+            }
+        }
+        if (quantizationParams.levels != levels) {
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -401,10 +423,51 @@ static void setFakeQuantizeScales(const InferenceEngine::CNNLayerPtr& fakeQuanti
     CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, scaledOutputHighValues);
 }
 
-void FrontEndMcm::alignInputsScales(ie::CNNNetwork& network) {
+static void setFakeQuantizeParams(const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer, const size_t& maxLevels,
+    const double& minVal, const double& maxVal) {
+    auto quantizationParams = QuantizationDetails::getDetails(*fakeQuantizeLayer);
+    std::vector<float> scaledInputLowValues(quantizationParams.inputLowValues.size());
+    std::vector<float> scaledInputHighValues(quantizationParams.inputLowValues.size());
+    std::vector<float> scaledOutputLowValues(quantizationParams.outputLowValues.size());
+    std::vector<float> scaledOutputHighValues(quantizationParams.outputLowValues.size());
+
+    for (size_t i = 0; i < quantizationParams.inputLowValues.size(); i++) {
+        scaledInputLowValues[i] = minVal;
+        scaledInputHighValues[i] = maxVal;
+    }
+
+    for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+        scaledOutputLowValues[i] = minVal;
+        scaledOutputHighValues[i] = maxVal;
+    }
+
+    fakeQuantizeLayer->params["levels"] = std::to_string(maxLevels);
+    CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 1, scaledInputLowValues);
+    CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 2, scaledInputHighValues);
+    CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 3, scaledOutputLowValues);
+    CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, scaledOutputHighValues);
+}
+
+std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
+    std::vector<CNNLayerPtr> result;
+
+    auto inputs = CNNNetworkHelper::getParents(layer);
+    for (auto& input : inputs) {
+        if ((input->type == "FakeQuantize") && (CNNNetworkHelper::getParent(*input)->type != "Const")) {
+            result.push_back(input);
+        } else {
+            auto parentInputs = getInputsFQ(*input);
+            result.insert(result.end(), parentInputs.begin(), parentInputs.end());
+        }
+    }
+
+    return result;
+}
+
+void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
     for (auto& layer : network) {
-        if (layer->type == "Eltwise" || layer->type == "Concat") {
-            auto inputs = CNNNetworkHelper::getParents(*layer);
+        if (layer->type == "Eltwise") {
+            auto inputs = getInputsFQ(*layer);
             size_t maxValues = 1;
             size_t maxValuesIdx = 0;
             for (size_t i = 0; i < inputs.size(); i++) {
@@ -439,14 +502,50 @@ void FrontEndMcm::alignInputsScales(ie::CNNNetwork& network) {
     }
 }
 
+void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "Concat") {
+            auto inputs = getInputsFQ(*layer);
+            for (auto& input : inputs) {
+                IE_ASSERT(input->type == "FakeQuantize");
+            }
+
+            if (inputsHasSameScalesAndZeroPoints(inputs)) {
+                continue;
+            }
+
+            size_t maxLevels = 0;
+            double minVal = std::numeric_limits<double>::max();
+            double maxVal = std::numeric_limits<double>::min();
+            for (const auto& input : inputs) {
+                auto quantizationParams = QuantizationDetails::getDetails(*input);
+                if (maxLevels < quantizationParams.levels) maxLevels = quantizationParams.levels;
+
+                for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+                    double ol = quantizationParams.outputLowValues[i];
+                    double oh = quantizationParams.outputHighValues[i];
+                    if (minVal > ol) minVal = ol;
+                    if (maxVal < oh) maxVal = oh;
+                }
+            }
+            for (const auto& input : inputs) {
+                setFakeQuantizeParams(input, maxLevels, minVal, maxVal);
+            }
+        }
+    }
+}
+
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
 
     if (_config.inputScaleShiftRemoving()) {
         removeInputScaleShiftPattern(cnnNet);
     }
-    if (_config.inputsScalesAlignment()) {
-        alignInputsScales(cnnNet);
+    if (_config.eltwiseScalesAlignment()) {
+        alignEltwiseScales(cnnNet);
+    }
+    if (_config.concatScalesAlignment()) {
+        alignConcatScales(cnnNet);
     }
 
     parseNetworkDFS(cnnNet, _parsedNetwork);
