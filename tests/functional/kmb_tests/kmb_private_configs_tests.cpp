@@ -129,3 +129,37 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
     const size_t NUMBER_OF_CLASSES = 5;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
+
+TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_FORCE_2D_TO_NC", CONFIG_VALUE(YES)}});
+
+    InferenceEngine::InferRequest request;
+    request = network.CreateInferRequest();
+
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin";
+    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
+    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
+    inputBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
+
+    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
+    request.SetBlob(inputName, inputBlob);
+    request.Infer();
+
+    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin";
+    Blob::Ptr outputBlob;
+    outputBlob = request.GetBlob(outputName);
+    ASSERT_EQ(outputBlob->getTensorDesc().getLayout(), InferenceEngine::Layout::NC);
+
+    Blob::Ptr referenceBlob = make_shared_blob<uint8_t>(outputBlob->getTensorDesc());
+    referenceBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
+
+    const size_t NUMBER_OF_CLASSES = 5;
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+}
