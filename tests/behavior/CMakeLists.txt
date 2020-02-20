@@ -3,12 +3,11 @@
 #
 
 function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
-    file(GLOB TEST_INCLUDE
-            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests/*.hpp)
+    file(GLOB_RECURSE TEST_INCLUDE
+            ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
 
-    file(GLOB TEST_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/cpp_wrappers/*.cpp
-            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests/*.cpp
+    file(GLOB_RECURSE TEST_SRC
+            ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
             )
 
     source_group("src" FILES ${TEST_SRC})
