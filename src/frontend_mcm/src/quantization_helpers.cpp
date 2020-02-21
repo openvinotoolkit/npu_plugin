@@ -40,7 +40,12 @@ bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
 }
 
 std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer) {
+    if (constantLayer->blobs.size() != 1) {
+        THROW_IE_EXCEPTION << "Const layer " << constantLayer->name << " has unsupported number of blobs "
+                           << constantLayer->blobs.size();
+    }
     const auto blob = constantLayer->blobs.begin()->second;
+    IE_ASSERT(blob != nullptr);
     auto buffer = CNNNetworkHelper::getFloatData(blob);
     return std::vector<float>(buffer.get(), buffer.get() + blob->size());
 }

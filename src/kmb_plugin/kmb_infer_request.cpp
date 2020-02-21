@@ -143,6 +143,7 @@ void KmbInferRequest::InferAsync() {
     }
 
     const auto& deviceInputs = _executor->getNetworkInputs();
+    if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
     const auto input = _inputs.begin()->second;
 

@@ -27,7 +27,7 @@
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>
 #include <memory>
-#include <quantization/quantization_helpers.hpp>
+#include <quantization_helpers.hpp>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -1351,7 +1351,6 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     size_t dimC, stub;
     parseDims(input->desc(), stub, dimC, stub, stub);
 
-    int weightsSize = static_cast<int>(dimC);
     auto scales = scaleLayer->_weights->buffer().as<float*>();
     std::vector<double> scaleData;
     for (size_t i = 0; i < dimC; i++) {

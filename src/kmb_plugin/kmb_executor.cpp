@@ -83,8 +83,11 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
       xlinkChannelIn(0),
       xlinkChannelOut(0),
+      _xlinkChannelInferenceInput(0),
+      _xlinkChannelInferenceOutput(0),
       _outTensorLen(0),
-      _outTensorAddr(0) {
+      _outTensorAddr(0),
+      _inferenceVirtAddr(nullptr) {
     if (!_config.useKmbExecutor()) {
         return;
     }
