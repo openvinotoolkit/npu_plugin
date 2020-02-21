@@ -37,5 +37,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to force conversion of output from 2D to NC ignoring TensorDesc info
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(FORCE_2D_TO_NC);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

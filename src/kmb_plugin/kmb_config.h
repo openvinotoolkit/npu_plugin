@@ -45,6 +45,7 @@ public:
     InferenceEngine::ColorFormat outColorFmtSIPP() { return _outColorFmtSIPP; }
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
+    bool force2DToNC() const { return _force2DToNC; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -72,6 +73,7 @@ private:
     int _SIPPLpi = 8;
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
     bool _forceNCHWToNHWC = false;
+    bool _force2DToNC = true;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

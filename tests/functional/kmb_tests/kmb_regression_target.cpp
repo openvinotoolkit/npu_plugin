@@ -640,7 +640,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
 
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = InferenceEngine::make_shared_blob<uint8_t>(
-                        {Precision::U8, outputTensorDesc.getDims(), Layout::NCHW}));
+                        {Precision::U8, outputTensorDesc.getDims(), outputTensorDesc.getLayout()}));
     outputBlob->allocate();
 
     auto outputBufferData = outputBlob->buffer().as<uint8_t*>();

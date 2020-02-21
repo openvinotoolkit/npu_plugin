@@ -198,16 +198,13 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
         1, 0.05f);
 }
 
-// KMB : Bad inference results. [Track number: D#2475]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
-    SKIP_INFER_ON("KMB", "bad results");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "224x224/cat3.bmp",
+        TestImageDesc("224x224/cat3.bmp", false),
         1, 0.05f);
 }
 
@@ -237,8 +234,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
-        3, 1e-1f);
+        "299x299/n01537544_28.bmp",
+        1, 1e-1f);
 }
 
 // KMB : Power layer is not supported by kmbPlugin
@@ -250,8 +247,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
-        3, 1e-1f);
+        "299x299/n01537544_28.bmp",
+        1, 1e-1f);
 }
 
 // KMB : Bad inference results. [Track number: D#2474]
@@ -263,7 +260,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16),
-        "299x299/lassy_googlenet_big.bmp",
+        TestImageDesc("299x299/n01537544_28.bmp", false),
         1, 0.05f);
 }
 
@@ -352,7 +349,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
+            TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
 
@@ -368,6 +365,6 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
-        "416x416/person.bmp",
+            TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }

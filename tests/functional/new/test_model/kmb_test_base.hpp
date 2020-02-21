@@ -242,7 +242,7 @@ protected:
     using CheckCallback = std::function<void(const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc)>;
 
 protected:
-    static Blob::Ptr loadImage(const TestImageDesc& image);
+    static Blob::Ptr loadImage(const TestImageDesc& image, int channels);
 
     CNNNetwork readNetwork(
             const TestNetworkDesc& netDesc,
@@ -322,7 +322,7 @@ class KmbYoloV2NetworkTest : public KmbDetectionNetworkTest {
 public:
     void runTest(
             const TestNetworkDesc& netDesc,
-            const std::string& inputFileName,
+            const TestImageDesc& image,
             float confThresh,
             float boxTolerance, float probTolerance,
             bool isTiny);

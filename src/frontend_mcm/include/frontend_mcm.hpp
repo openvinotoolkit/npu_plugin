@@ -151,6 +151,8 @@ private:
     void bindData(const McmNode& data, const ie::DataPtr& ieData);
     void bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOutput);
     void getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs);
+    void parseScaleImpl(
+        const ie::CNNLayerPtr& layer, const McmNodeVector& inputs, std::vector<double>& weights, ie::Blob::Ptr biases);
 
     struct ParsedNetwork {
         ie::InputsDataMap networkInputs;
@@ -172,7 +174,8 @@ private:
 
     InferenceEngine::Precision getDefaultLayerPrecision(const ParsedNetwork& net, const ie::CNNLayerPtr& layer);
     void removeInputScaleShiftPattern(ie::CNNNetwork& network);
-    void alignInputsScales(ie::CNNNetwork& network);
+    void alignEltwiseScales(ie::CNNNetwork& network);
+    void alignConcatScales(ie::CNNNetwork& network);
     std::map<std::string, LayerQuantParams> _layerToQuantParams;
 
     mv::OpModel& _modelMcm;
