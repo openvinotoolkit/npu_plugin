@@ -54,6 +54,9 @@ Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
 
 // [Track number: S#27240]
 TEST_P(ResnetTest, DISABLED_resnetAccuracy) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     resnet_params test_params = GetParam();
     std::string fullPathToModelXML = ModelsPath() + "/KMB_models/resnet50/" + test_params.modelPath;
     std::string fullPathToWeights = ModelsPath() + "/KMB_models/resnet50/" + test_params.weightsPath;

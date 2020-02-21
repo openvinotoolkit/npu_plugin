@@ -305,6 +305,9 @@ const std::string uint8_pooling = R"V0G0N(
 
 // [Track number: S#27192]
 TEST_P(PoolingTest, DISABLED_pooling_only) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     auto model = uint8_pooling;
 
     auto params = GetParam().pool_params;

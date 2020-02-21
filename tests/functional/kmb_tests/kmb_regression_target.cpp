@@ -182,6 +182,9 @@ INSTANTIATE_TEST_CASE_P(DISABLED_KmbParsingOnlyTest_smoke_nightly, KmbNoRegressi
 using kmbLayersTestsConvolution = kmbLayersTests_nightly;
 
 TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     std::string model = convolution_u8_only;
 
     const size_t convolutionWeightsByteSize = 36864;

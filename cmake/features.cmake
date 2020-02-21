@@ -4,29 +4,16 @@
 
 include(options)
 
-if((ARM OR AARCH64) AND (NOT DEFINED MCM_COMPILER_EXPORT_FILE OR NOT EXISTS ${MCM_COMPILER_EXPORT_FILE}))
-    ie_option(ENABLE_MCM_COMPILER "Enable MCM compiler build" OFF)
-else()
-    ie_option(ENABLE_MCM_COMPILER "Enable MCM compiler build" ON)
-endif()
+ie_dependent_option(ENABLE_MCM_COMPILER "Enable mcmCompiler" ON "NOT CMAKE_CROSSCOMPILING OR DEFINED MCM_COMPILER_EXPORT_FILE" OFF)
 
-if(ARM OR AARCH64)
-    ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
-else()
-    ie_option(ENABLE_VPUAL "Enable VPUAL" OFF)
-endif()
+ie_dependent_option (ENABLE_VPUAL "Enable VPUAL" ON "ARM OR AARCH64" OFF)
 
-if(ARM OR AARCH64)
-    ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
-else()
-    # TODO: enable by default when linker issues is fixed
-    ie_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF)
-endif()
+# TODO: enable by default when linker issues is fixed
+ie_dependent_option (ENABLE_HDDL2 "Enable HDDL2 Plugin" OFF "NOT ARM;NOT AARCH64" OFF)
 
 # TODO: Switch to off when CI will use real device
 ie_option(ENABLE_HDDL2_SIMULATOR "Enable XLink emulator for HDDL2 Plugin" ON)
 
-ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 ie_option(ENABLE_VPUAL_MODEL "Enable VPUAL model" OFF)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
