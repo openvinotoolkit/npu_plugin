@@ -14,12 +14,12 @@
 // stated in the License.
 //
 
-#include "kmb_allocator.h"
-
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <iostream>
+#include <string>
 #ifdef ENABLE_VPUAL
 #include <vpusmm.h>
 #endif
@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 
+#include "kmb_allocator.h"
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
 #include "kmb_vpusmm_allocator.h"

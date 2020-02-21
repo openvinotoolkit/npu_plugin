@@ -165,6 +165,9 @@ static void testOverflow(const Blob::Ptr& blob) {
 
 // [Track number: S#27235]
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTest_manual) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
@@ -293,6 +296,9 @@ public:
 
 // [Track number: D#2376]
 TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     auto _inputsInfo = _network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
 
@@ -346,6 +352,9 @@ TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
 
 // [Track number: S#27236]
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 1, 1, 16};

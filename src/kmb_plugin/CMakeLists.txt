@@ -78,10 +78,12 @@ if(ENABLE_MCM_COMPILER)
 endif()
 
 if(ARM OR AARCH64)
-    install(TARGETS NN VpualDispatcher sipp_custom XLink RemoteFlic
-            RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
+    install(FILES $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:VpualDispatcher,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:sipp_custom,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
+            DESTINATION ${IE_CPACK_LIBRARY_PATH}
             COMPONENT kmb)
 
     install(FILES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1.0.0"

@@ -34,14 +34,6 @@ endfunction()
 if(ENABLE_VPUAL)
     add_subdirectory(vsi_cmodel/vpusmm)
 
-    # Try to locate external vpualHost (location can be set via vpualHost_DIR).
-    # If no external vpualHost provided, it will be built from thirdparty directory
-    find_package(vpualHost QUIET)
-    if(NOT vpualHost_FOUND)
-        # Including vpualHost/host directory directly not to add vpualHost's examples to the build
-        add_3rdparty_subdir(movidius/vpualHost/host)
-    endif()
-
     # copy memory manager library to target directory when vpualHost is enabled
     get_target_property(VPUSMM_LIB_PATH vpusmm IMPORTED_LOCATION)
     set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
@@ -49,6 +41,15 @@ if(ENABLE_VPUAL)
     add_custom_target(vpusmm_copy_library ALL
         COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}*" "${VPUSMM_OUT_DIR}"
         COMMENT "[VPUSMM] Copy vpusmm library to build results")
+
+    add_custom_target(vpual_copy_library ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy  $<TARGET_PROPERTY:NN,LOCATION>
+                                                $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
+                                                $<TARGET_PROPERTY:sipp_custom,LOCATION>
+                                                $<TARGET_PROPERTY:XLink,LOCATION>
+                                                $<TARGET_PROPERTY:RemoteFlic,LOCATION>
+            $<TARGET_FILE_DIR:kmbPlugin>
+            COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
 
