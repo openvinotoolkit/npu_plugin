@@ -240,7 +240,8 @@
                 "html": true
             },
             { "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt" 
+              "output" : "output/lp_scheduler_output.txt",
+              "enable_simple_repacking" : true
             },
             {
                 "name": "GenerateDot",

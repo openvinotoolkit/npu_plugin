@@ -228,7 +228,22 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "ddr_address_generation" : true
+              "ddr_address_generation" : true,
+              "enable_simple_repacking" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_opmodel_output.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",

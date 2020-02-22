@@ -100,6 +100,23 @@ struct scheduler_traits {
   // the schedule //
   static bool unschedule_operation(const operation_t&, resource_state_t&);
   //////////////////////////////////////////////////////////////////////////////
+
+  //////////////////////////////////////////////////////////////////////////////
+  // Scheduled Operation Traits //
+  typedef size_t unit_t;
+  typedef int scheduled_op_t;
+  typedef int scheduled_op_hash_t;
+  typedef int data_op_selector_t;
+  typedef size_t schedule_time_t;
+  static resource_t begin_resource(const scheduled_op_t&);
+  static resource_t end_resource(const scheduled_op_t&);
+  static operation_t scheduled_operation(const scheduled_op_t&);
+  static schedule_time_t scheduled_time(const scheduled_op_t&);
+  static bool using_valid_resource(const scheduled_op_t&);
+  static bool is_valid_scheduled_op(const scheduled_op_t&);
+  static void set_new_schedule_time(scheduled_op_t&, const schedule_time_t&);
+  //////////////////////////////////////////////////////////////////////////////
+
 }; // struct scheduler_traits //
 
 

@@ -7,69 +7,20 @@
 #include <cstring>
 #include <string>
 #include <type_traits>
+#include <unordered_map>
 #include <unordered_set>
+
 
 #include "include/mcm/computation/model/base_op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
+#include "lp_scheduler/control_edge_generator.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
 
 namespace mv {
 namespace lp_scheduler {
-
-enum class op_type_e {ORIGINAL_OP=0, SPILLED_WRITE_OP=1, SPILLED_READ_OP=2};
-
-struct Scheduled_Op {
-
-  Scheduled_Op() : op_(NULL),
-    schedule_time_(std::numeric_limits<size_t>::max()), schedule_end_time_(),
-  cmx_address_start_(), cmx_address_end_(), op_type_() {}
-
-  Scheduled_Op(mv::Op const *op, size_t t, size_t start, size_t end,
-      op_type_e op_type=op_type_e::ORIGINAL_OP) : op_(op), schedule_time_(t),
-  schedule_end_time_(), cmx_address_start_(start), cmx_address_end_(end),
-  op_type_(op_type) {}
-
-  bool operator==(const Scheduled_Op& o) const {
-    return (op_ == o.op_) && (schedule_time_ == o.schedule_time_) &&
-      (cmx_address_start_ == o.cmx_address_start_) &&
-      (cmx_address_end_ == o.cmx_address_end_);
-  }
-
-  bool is_spilled_read() const {
-    return (op_type_ == op_type_e::SPILLED_READ_OP);
-  }
-  bool is_spilled_write() const {
-    return (op_type_ == op_type_e::SPILLED_WRITE_OP);
-  }
-  bool is_original_op() const { return (op_type_ == op_type_e::ORIGINAL_OP); }
-  const char *op_type_name() const {
-    if (op_type_ == op_type_e::SPILLED_READ_OP) { return "SPILLED READ"; }
-    if (op_type_ == op_type_e::SPILLED_WRITE_OP) { return "SPILLED WRITE"; }
-    return "ORIGINAL";
-  }
-
-  bool has_valid_address() const { 
-    return (cmx_address_start_ <= cmx_address_end_);
-  }
-
-  bool has_active_resource() const { return has_valid_address(); }
-
-  operator size_t() const { return schedule_time_; }
-
-  typedef mv::Op const * operation_t;
-  operator operation_t() const { return op_; }
-
-
-  mv::Op const * op_;
-  size_t schedule_time_;
-  size_t schedule_end_time_;
-  size_t cmx_address_start_;
-  size_t cmx_address_end_;
-  op_type_e op_type_;
-}; // struct Scheduled_Op //
-
 
 struct Control_Edge {
   Control_Edge(mv::Op const *source, mv::Op const *sink) : source_(source),
@@ -1539,7 +1490,375 @@ struct Schedule_Reader_Writer {
 
 }; // struct Schedule_Reader_Writer //
 
+// Repack input DMAs (zero-indegree) for the scheduled compute ops to improve
+// the CMX utility:
+// 
+// For each zero-indegree DMA task 'x' starting at 't=i' and having CMX
+// address [a, b] identify all other tasks:
+// 
+// Y = { y | schedule_time(y) < 'i' and (y,x) is a memory control edge between
+//           tasks 'y' and 'x' }
+// NOTE: the CMX address interval for all tasks in Y overlaps [a, b]
+// 
+//
+// Repack this DMA task to new time t_repack defined below:
+// 
+// t_repack = max { schedule_time(z) | (y,z) is an edge in between tasks 'y' and
+//             'z' in the DAG (opmodel) such that schedule_time(z) < 'i' }
+//
+// NOTE: for a successfully repacked op 't_repack < i'. Additionally with this
+// repacking we keep all the future cmx addresses intact and there is no change.
+template<typename DagType, typename Traits=scheduler_traits<DagType> >
+class Repack_Input_DMA_Tasks {
+  public:
+    ////////////////////////////////////////////////////////////////////////////
+    typedef Traits traits;
+    typedef typename traits::dag_t dag_t;
+    typedef typename traits::operation_t operation_t;
+    typedef typename traits::scheduled_op_t scheduled_op_t;
+    typedef typename traits::unit_t unit_t;
+    typedef typename traits::schedule_time_t schedule_time_t;
+    typedef typename traits::data_op_selector_t data_op_selector_t;
+    typedef typename traits::const_operation_iterator_t
+        const_operation_iterator_t;
+    typedef Control_Edge_Generator<scheduled_op_t>
+        memory_control_edge_generator_t;
 
+    struct repack_info_t {
+      typedef std::list<scheduled_op_t> overlap_op_list_t;
+
+      repack_info_t() : original_op_(), limiting_op_(), overlap_op_list_() {}
+
+      repack_info_t(const scheduled_op_t& sched_op) : limiting_op_(sched_op),
+        original_op_(sched_op), overlap_op_list_() {}
+
+      void update(const scheduled_op_t& op) {
+        if (traits::scheduled_time(op) > traits::scheduled_time(limiting_op_)) {
+          limiting_op_ = op;
+        }
+      }
+
+      void add_to_overlap_list(const scheduled_op_t& op) {
+        overlap_op_list_.push_back(op);
+      }
+
+      bool is_repackable() const {
+        return (traits::scheduled_time(original_op_) - 
+                traits::scheduled_time(limiting_op_) ) > schedule_time_t(1UL);
+      }
+
+      operation_t original_op(void) const {
+        return traits::scheduled_operation(original_op_);
+      }
+
+      operation_t limiting_op(void) const {
+        return traits::scheduled_operation(limiting_op_);
+      }
+
+      void print() const {
+
+        operation_t curr_op = traits::scheduled_operation(original_op_);
+        operation_t limit_op = traits::scheduled_operation(limiting_op_);
+        schedule_time_t curr_time = traits::scheduled_time(original_op_);
+        schedule_time_t repack_time = traits::scheduled_time(limiting_op_);
+
+        std::cout << "op=" << traits::operation_name(curr_op) <<
+          " curr_time=" << curr_time << " repack_time=" << repack_time  <<
+          " limiting_op=" << traits::operation_name(limit_op) << std::endl;
+        fflush(stdout);
+        assert(repack_time != curr_time);
+      }
+
+      scheduled_op_t limiting_op_;
+      scheduled_op_t original_op_;
+      overlap_op_list_t overlap_op_list_;
+    }; // struct repack_info_t //
+
+    typedef std::set<schedule_time_t> repack_time_slots_t;
+    typedef std::unordered_map<operation_t, repack_info_t> repack_map_t;
+    typedef typename repack_map_t::iterator repack_map_iterator_t;
+    typedef std::unordered_map<operation_t, scheduled_op_t>
+        original_schedule_info_t;
+
+    struct update_repack_map_t {
+      update_repack_map_t() : repack_ptr_(NULL), data_op_selector_ptr_(NULL){}
+      update_repack_map_t(repack_map_t& map, const data_op_selector_t& selector)
+        : repack_ptr_(&map), data_op_selector_ptr_(&selector) {}
+
+      update_repack_map_t(const update_repack_map_t& o)
+        : repack_ptr_(o.repack_ptr_),
+        data_op_selector_ptr_(o.data_op_selector_ptr_) {}
+
+      void operator() (const scheduled_op_t& a, const scheduled_op_t& b) const {
+        assert(repack_ptr_);
+        const operation_t& bop = traits::scheduled_operation(b);
+        if (!((*data_op_selector_ptr_)(bop))) { return; }
+        if (traits::scheduled_time(b) == schedule_time_t(2UL)) { return; }
+
+        repack_map_iterator_t itr = repack_ptr_->find(bop);
+        if (itr == repack_ptr_->end()) {
+          itr = (repack_ptr_->insert(std::make_pair(bop, b))).first;
+          (itr->second).limiting_op_ = a;
+        } else {
+          (itr->second).update(a);
+        }
+        (itr->second).add_to_overlap_list(a);
+      }
+
+      repack_map_t *repack_ptr_;
+      const data_op_selector_t *data_op_selector_ptr_;
+    }; // struct update_repack_map_t //
+
+    struct schedule_time_ordering_t {
+      bool operator()(const scheduled_op_t& a, const scheduled_op_t& b) {
+        return (traits::scheduled_time(a) < traits::scheduled_time(b));
+      }
+
+    };
+
+    ////////////////////////////////////////////////////////////////////////////
+
+    Repack_Input_DMA_Tasks(const dag_t &dag,
+        const data_op_selector_t& op_selector)
+      : input_dag_ptr_(&dag), repack_map_(), data_op_selector_(op_selector),
+      original_schedule_info_(), repack_time_slots_() {}
+
+    Repack_Input_DMA_Tasks(
+        const data_op_selector_t& op_selector=data_op_selector_t())
+      : input_dag_ptr_(NULL), repack_map_(), data_op_selector_(op_selector),
+      original_schedule_info_(), repack_time_slots_() {}
+
+    //Precondition: input scheduled ops are sorted on increasing time. //
+    //Precondition: should be iteratable multiple times. //
+    //returns a new sequence of scheduled ops //
+    template<typename ScheduledOpIterator, typename BackInsertIterator>
+    void repack(ScheduledOpIterator sched_begin,
+        ScheduledOpIterator sched_end, BackInsertIterator output) {
+
+      // STEP-0: for each input DMA to an op find the limiting op w.r.t to 
+      // active address range (e.g. CMX address range).
+      {
+        update_repack_map_t repack_updater(repack_map_, data_op_selector_);
+        memory_control_edge_generator_t generator;
+        generator.generate_control_edges(sched_begin, sched_end,
+              repack_updater);
+      }
+
+      // STEP-1: save the original schedule for updating the repack times //
+
+      {
+        original_schedule_info_.clear();
+        repack_time_slots_.clear();
+        for (ScheduledOpIterator sitr=sched_begin; sitr != sched_end; ++sitr) {
+          const scheduled_op_t& sched_op = *sitr;
+
+          bool new_insert = (original_schedule_info_.insert(std::make_pair(
+                  traits::scheduled_operation(sched_op), sched_op))).second;
+          assert(new_insert);
+
+          if (traits::is_valid_scheduled_op(sched_op)) {
+            repack_time_slots_.insert(traits::scheduled_time(sched_op));
+          }
+        }
+      }
+      
+      // STEP-2: now adjust limiting ops based on consumers of the limiting op//
+      adjust_repack_times();
+      remove_non_repackable_ops();
+
+      //STEP-3: generate a new schedule //
+      //TODO(vamsikku): this could be done efficiently if we keep the partially
+      //sorted non-repacked ops in a different list //
+      std::vector<scheduled_op_t> new_schedule;
+      new_schedule.reserve(original_schedule_info_.size());
+      typename repack_map_t::const_iterator ritr;
+
+      total_data_ops_ = 0UL;
+      repacked_data_ops_ = 0UL;
+      average_repack_level_ = double(0.0);
+
+      for (auto oitr=original_schedule_info_.begin();
+            oitr!=original_schedule_info_.end(); ++oitr) {
+
+        if (data_op_selector_(oitr->first)) { ++total_data_ops_; }
+
+
+        if ((ritr = repack_map_.find(oitr->first)) != repack_map_.end()) {
+          const repack_info_t& rinfo = ritr->second;
+          scheduled_op_t updated_sched_op = rinfo.original_op_;
+          if (rinfo.is_repackable()) {
+            ++repacked_data_ops_;
+            schedule_time_t new_time =
+              traits::scheduled_time(rinfo.limiting_op_) + schedule_time_t(1UL);
+            // find a time slot for this op to move the op if not there will
+            // a new time slot will be created and will cause increase in the
+            // makespan since time is ignored by the final serializer. //
+            schedule_time_t repack_time_slot = get_repack_time_slot(new_time);
+
+            average_repack_level_ += double(
+                traits::scheduled_time(updated_sched_op) - repack_time_slot);
+            traits::set_new_schedule_time(updated_sched_op, repack_time_slot);
+          }
+          new_schedule.push_back(updated_sched_op);
+        } else {
+          new_schedule.push_back(oitr->second);
+        }
+      }
+
+      std::sort(new_schedule.begin(), new_schedule.end(),
+            schedule_time_ordering_t());
+
+      for (auto nitr=new_schedule.begin(); nitr!=new_schedule.end(); ++nitr) {
+        *output = *nitr;
+      }
+    }
+
+    void print() const {
+      std::cout << "===============<Repacked Ops>====================="
+          <<std::endl;
+      typename repack_map_t::const_iterator itr;
+      for (itr=repack_map_.begin(); itr!=repack_map_.end(); ++itr) {
+        (itr->second).print();
+      }
+      std::cout << "===============</Repacked Ops>====================="
+          <<std::endl;
+    }
+
+    double average_repack_level() const {
+      // (\Sum repack_level(v)) / total_data_ops 
+      //  if not repacked repack_level(v) = 1 //
+      //  if its repacked then the repack() function updates
+      //  average_repack_level_
+      return total_data_ops_ ?
+        (double(average_repack_level_ + 
+                 double(total_data_ops_-repacked_data_ops_))/
+          double(total_data_ops_)) : double(0.0);
+    }
+
+  private:
+
+    void adjust_repack_times() {
+      assert(input_dag_ptr_);
+      typedef typename repack_info_t::overlap_op_list_t limiting_op_list_t;
+
+      for (typename repack_map_t::iterator ritr=repack_map_.begin();
+            ritr!=repack_map_.end(); ++ritr) {
+
+        repack_info_t& repack_info = ritr->second;
+        if (!repack_info.is_repackable()) { continue; }
+
+        const limiting_op_list_t &limiting_ops = repack_info.overlap_op_list_;
+        operation_t repack_op = repack_info.original_op();
+
+        assert(repack_op == ritr->first);
+
+        // Determine the smallest time which this op can be repacked by looking
+        // at all the overlapping ops in the active address space.
+        for (auto limiting_sched_op=limiting_ops.begin();
+              limiting_sched_op!=limiting_ops.end(); ++limiting_sched_op) {
+          schedule_time_t curr_time =
+              traits::scheduled_time(repack_info.original_op_);
+          schedule_time_t repack_time =
+              traits::scheduled_time(*limiting_sched_op);
+
+          operation_t limiting_op = traits::scheduled_op(*limiting_sched_op);
+
+          assert(repack_time < curr_time);
+
+          // find the largest schedule time for consumers of the limiting op in
+          // the range [repack_time, curr_time] //
+          const_operation_iterator_t citr, citr_end;
+          citr = traits::outgoing_operations_begin(*input_dag_ptr_, limiting_op);
+          citr_end = traits::outgoing_operations_end(*input_dag_ptr_,
+                limiting_op);
+
+          schedule_time_t new_repack_time = repack_time;
+          operation_t new_limiting_op = limiting_op;
+
+          for (; citr != citr_end; ++citr) { // foreach outgoing edge //
+            const operation_t& cop = *citr;
+            schedule_time_t t = get_original_schedule_time(cop);
+
+            // skip the consumers not in the time range //
+            if (!( (t > repack_time) && (t < curr_time))) { continue; }
+
+            if (t > new_repack_time) {
+              new_repack_time = t;
+              new_limiting_op = cop;
+            }
+          } // foreach outdoing edge //
+
+
+          // updated scheduled op //
+          if (new_repack_time != repack_time) {
+            printf("[RepackUpdate (%lu) (%lu) ]: original=",
+                  new_repack_time, repack_time);
+            repack_info.print();
+
+            repack_info.update(get_original_scheduled_op(new_limiting_op));
+
+            printf("[RepackUpdate]: updated=");
+            repack_info.print();
+          }
+        }
+
+      }
+
+    } // adjust_repack_time() //
+
+    schedule_time_t get_original_schedule_time(const operation_t& op) const {
+      typename original_schedule_info_t::const_iterator itr;
+
+      itr = original_schedule_info_.find(op);
+      assert(itr != original_schedule_info_.end());
+
+      const scheduled_op_t& sched_op = itr->second;
+      return traits::scheduled_time(sched_op);
+    }
+
+    scheduled_op_t get_original_scheduled_op(const operation_t& op) const {
+      typename original_schedule_info_t::const_iterator itr;
+
+      itr = original_schedule_info_.find(op);
+      assert(itr != original_schedule_info_.end());
+      return itr->second;
+    }
+
+    // If the time difference between limiting op and the repackable op is 1.
+    // Then we cannot repack this task //
+    void remove_non_repackable_ops() {
+      typename repack_map_t::iterator itr, itr_next;
+
+      while ( itr != repack_map_.end() ) {
+        const repack_info_t& repack_info = itr->second;
+        if (!repack_info.is_repackable()) {
+          itr_next = itr; ++itr_next;
+          repack_map_.erase(itr);
+          itr = itr_next;
+        } else {
+          ++itr;
+        }
+      }
+    }
+
+    schedule_time_t get_repack_time_slot(schedule_time_t new_time) const {
+      assert(!(repack_time_slots_.empty()));
+      typename repack_time_slots_t::const_iterator itr =
+          repack_time_slots_.lower_bound(new_time);
+
+      return (itr == repack_time_slots_.end()) ?
+          *(repack_time_slots_.rbegin()) : *itr;
+    }
+
+    const dag_t *input_dag_ptr_;
+    repack_map_t repack_map_;
+    const data_op_selector_t &data_op_selector_;
+    original_schedule_info_t original_schedule_info_;
+    repack_time_slots_t repack_time_slots_;
+    size_t total_data_ops_;
+    size_t repacked_data_ops_;
+    double average_repack_level_;
+}; // class Repack_Input_DMA_Tasks //
 
 
 

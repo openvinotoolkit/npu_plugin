@@ -23,6 +23,7 @@ MV_REGISTER_PASS(LpScheduler)
 
 typedef mv::scheduler::Operation_Dag<mv::ControlModel> control_dag_t;
 typedef mv::scheduler::Operation_Dag<mv::OpModel> dag_t;
+typedef typename dag_t::operation_t operation_t;
 typedef mv::lp_scheduler::Scheduled_Op scheduled_op_t;
 typedef mv::lp_scheduler::Control_Edge control_edge_t;
 typedef mv::lp_scheduler::Control_Edge_Set control_edge_set_t;
@@ -93,6 +94,8 @@ void LpSchedulerBuildTimeStamp(FILE *fptr) {
   assert(fptr);
   fprintf(fptr, "[LpScheduler: build %s %s]\n", __DATE__, __TIME__);
 }
+
+
 
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
@@ -265,6 +268,29 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   }
 
+  ///////////////////// REPACKING //////////////////////////////////////////////
+  if (passDesc.hasAttr("enable_simple_repacking"))
+  {
+    // Repack all ops are now original//
+    std::list<scheduled_op_t> new_scheduled_ops;
+    typedef mv::lp_scheduler::Repack_Input_DMA_Tasks<dag_t> repacker_t;
+    typename dag_t::data_op_selector_t repackable_op_selector(input_dag);
+
+    repacker_t repacker(input_dag, repackable_op_selector);
+
+    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(), 
+        std::back_inserter(new_scheduled_ops));
+    repacker.print();
+
+    scheduled_ops = new_scheduled_ops;
+    fprintf(fptr, "[Average Repack Level]: %0.5lf\n",
+          repacker.average_repack_level());
+  }
+  //////////////////////////////////////////////////////////////////////////////
+
+
+
+
   ///////////////Save Schedule for DDR Address Generation///////////////////////
   if (passDesc.hasAttr("ddr_address_generation")) {
     typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> writer_t;
@@ -296,6 +322,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     const scheduled_op_t& op = *itr;
     scheduled_ops_set.insert( (op.op_)->getName() );
   }
+
+
 
   fprintf(fptr, "\n\n");
   for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
