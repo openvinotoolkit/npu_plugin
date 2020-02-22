@@ -68,7 +68,75 @@ struct model_traits<mv::OpModel> {
 
 // Forward declaration //
 namespace lp_scheduler {
-  template<typename T> class DDR_Address_Generator;
+
+enum class op_type_e {ORIGINAL_OP=0, SPILLED_WRITE_OP=1, SPILLED_READ_OP=2};
+
+struct Scheduled_Op {
+
+  Scheduled_Op() : op_(NULL),
+    schedule_time_(std::numeric_limits<size_t>::max()), schedule_end_time_(),
+  cmx_address_start_(), cmx_address_end_(), op_type_() {}
+
+  Scheduled_Op(mv::Op const *op, size_t t, size_t start, size_t end,
+      op_type_e op_type=op_type_e::ORIGINAL_OP) : op_(op), schedule_time_(t),
+  schedule_end_time_(), cmx_address_start_(start), cmx_address_end_(end),
+  op_type_(op_type) {}
+
+  Scheduled_Op(const Scheduled_Op& o) : op_(o.op_),
+  schedule_time_(o.schedule_time_), schedule_end_time_(o.schedule_end_time_),
+  cmx_address_start_(o.cmx_address_start_),
+  cmx_address_end_(o.cmx_address_end_), op_type_(o.op_type_) {}
+
+  const Scheduled_Op& operator=(const Scheduled_Op& o) {
+    op_ = o.op_;
+    schedule_time_ = o.schedule_time_;
+    schedule_end_time_ = o.schedule_end_time_;
+    cmx_address_start_ = o.cmx_address_start_;
+    cmx_address_end_ = o.cmx_address_end_;
+    op_type_ = o.op_type_;
+    return *this;
+  }
+
+  bool operator==(const Scheduled_Op& o) const {
+    return (op_ == o.op_) && (schedule_time_ == o.schedule_time_) &&
+      (cmx_address_start_ == o.cmx_address_start_) &&
+      (cmx_address_end_ == o.cmx_address_end_);
+  }
+
+  bool is_spilled_read() const {
+    return (op_type_ == op_type_e::SPILLED_READ_OP);
+  }
+  bool is_spilled_write() const {
+    return (op_type_ == op_type_e::SPILLED_WRITE_OP);
+  }
+  bool is_original_op() const { return (op_type_ == op_type_e::ORIGINAL_OP); }
+  const char *op_type_name() const {
+    if (op_type_ == op_type_e::SPILLED_READ_OP) { return "SPILLED READ"; }
+    if (op_type_ == op_type_e::SPILLED_WRITE_OP) { return "SPILLED WRITE"; }
+    return "ORIGINAL";
+  }
+
+  bool has_valid_address() const { 
+    return (cmx_address_start_ <= cmx_address_end_);
+  }
+
+  bool has_active_resource() const { return has_valid_address(); }
+
+  operator size_t() const { return schedule_time_; }
+
+  typedef mv::Op const * operation_t;
+  operator operation_t() const { return op_; }
+
+
+  mv::Op const * op_;
+  size_t schedule_time_;
+  size_t schedule_end_time_;
+  size_t cmx_address_start_;
+  size_t cmx_address_end_;
+  op_type_e op_type_;
+}; // struct Scheduled_Op //
+
+template<typename T> class DDR_Address_Generator;
 } // namespace lp_scheduler //
 
 namespace scheduler {
@@ -95,6 +163,17 @@ class Operation_Dag {
       }
       std::hash<std::string> name_hash_;
     }; // struct operation_hash_t //
+
+    struct repackable_op_selector_t {
+      repackable_op_selector_t() : dag_ptr_(NULL) {}
+      repackable_op_selector_t(const dag_t& dag) : dag_ptr_(&dag) {}
+
+      bool operator()(const operation_t& op) const {
+        return dag_t::is_repackable_data_op(*dag_ptr_, op);
+      }
+
+      dag_t const *dag_ptr_;
+    }; // struct repackable_op_selector_t //
 
 
     typedef std::list<const_op_ptr_t> op_ref_list_t;
@@ -244,6 +323,12 @@ class Operation_Dag {
       return (citr == citr_end);
     }
 
+    bool op_has_zero_in_degree(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_parent_nodes(op),
+                                 citr_end = end_parent_nodes(op);
+      return (citr == citr_end);
+    }
+
     // Precondition: out degree of op >= 1 //
     operation_t get_first_child_op(const operation_t& op) const {
       const_operation_iterator_t citr = begin_nodes(op);
@@ -292,7 +377,6 @@ class Operation_Dag {
     }
 
 
-
     static const_operation_iterator_t incoming_operations_begin(const dag_t& in,
         const operation_t& op) {
       return in.begin_parent_nodes(op);
@@ -302,6 +386,11 @@ class Operation_Dag {
       return in.end_parent_nodes(op);
     }
 
+    static bool is_repackable_data_op(const dag_t& dag, const operation_t& op) {
+      return dag.is_dma_op(op) &&
+          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) && 
+          dag.op_has_zero_in_degree(op);
+    }
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
       return dag.is_dma_op(op) &&
@@ -370,6 +459,34 @@ class Operation_Dag {
       return (location == mv::Tensor::MemoryLocation::NNCMX) ?
         out_itr->getClusterSize() : out_itr->computeTotalSize();
     }
+
+    typedef mv::lp_scheduler::Scheduled_Op scheduled_op_t;
+    struct scheduled_op_hash_t {
+      size_t operator()(const scheduled_op_t& o) const {
+        return hash_(o.op_);
+      }
+      std::hash<operation_t> hash_;
+    }; // struct scheduled_op_hash_t //
+    typedef repackable_op_selector_t data_op_selector_t;
+    typedef size_t schedule_time_t;
+    typedef size_t unit_t;
+
+    static void set_new_schedule_time(scheduled_op_t& op,
+          const schedule_time_t& t) {
+      op.schedule_time_ = t;
+    }
+
+    static schedule_time_t scheduled_time(const scheduled_op_t& op) {
+      return op.schedule_time_;
+    }
+    static operation_t scheduled_operation(const scheduled_op_t& sched_op) {
+      return sched_op.op_;
+    }
+
+    static bool is_valid_scheduled_op(const scheduled_op_t& op) {
+      return op.has_valid_address();
+    }
+    
     ////////////////////////////////////////////////////////////////////////////
 
     op_itr_t get_op_iterator(operation_t op) const {

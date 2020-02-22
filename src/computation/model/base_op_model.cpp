@@ -82,7 +82,7 @@ std::string mv::BaseOpModel::varName(std::string name)
     std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
     if (!name.empty() && !std::isalpha(name[0]))
     {
-        name[0] = '_';
+        name = '_' + name;
     }
     return name;
 }
