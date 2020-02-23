@@ -331,7 +331,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(dimensions.begin(), dimensions.end());
     std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = dimensions;
+    toBuild->dimensions = dimensions; //might need to be changed for hde here?
+    //   if(t->hasAttr("CompressedSize"))
+    //         totalSize = src->get<int>("CompressedSize");
+    //     else 
+    //         totalSize *= src->getDType().getSizeInBits() / 8;
+        
+    //     std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+
     toBuild->strides = numericStrides;
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
@@ -555,6 +562,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    std::cout << t.getName() << std::endl;
 
     //Huffman compression call for Uint8 data
     if(t.getDType().toString() == "UInt8" && huffmanCompression) 
@@ -817,7 +825,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
-        checkUnstridedDMA(src, i, tmp);
+        checkUnstridedDMA(src, i, tmp); // I don't think this will work for new SOK tensors
 
         tmp->compression =  compression;
         toPush->task.value = tmp;
@@ -2300,7 +2308,7 @@ std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inp
     vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
     compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
 
-    std::cout << t.getName() << std::endl;
+    std::cout << t.getName() << " compressed" << std::endl;
     t.set<int>("CompressedSize", compressedSize);
 
     std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
