@@ -590,14 +590,14 @@ void mv::tools::GraphComparator::compare_(const MVCNN::NCEInvariantFieldsT& lhs,
     if (lhs.kernelW != rhs.kernelW)
         diff.push_back(label + "::kernelW");
 
-    if (lhs.nnshv_task.size() != rhs.nnshv_task.size())
-        diff.push_back(label + "::nnshv_task");
-    else
-    {
-        for (std::size_t i = 0; i < lhs.nnshv_task.size(); ++i)
-            compare_(lhs.nnshv_task.at(i), rhs.nnshv_task.at(i), diff, label + "::nnshv_task[" + 
-                std::to_string(i) + "]");
-    }
+    // if (lhs.nnshv_task.size() != rhs.nnshv_task.size())
+    //     diff.push_back(label + "::nnshv_task");
+    // else
+    // {
+    //     for (std::size_t i = 0; i < lhs.nnshv_task.size(); ++i)
+    //         compare_(lhs.nnshv_task.at(i), rhs.nnshv_task.at(i), diff, label + "::nnshv_task[" + 
+    //             std::to_string(i) + "]");
+    // }
     
 }
 
