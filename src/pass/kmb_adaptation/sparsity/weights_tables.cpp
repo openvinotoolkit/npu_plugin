@@ -234,7 +234,8 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     std::vector<int32_t> reluMultData(outputChannels, 0);
     if (hasPPETask)
     {
-        auto& ppeLayers = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLayers();
+        auto ppeFF = dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction();
+        auto& ppeLayers = ppeFF.getLayers();
         auto isLRelu = std::find(ppeLayers.begin(), ppeLayers.end(), mv::PPELayerTypeEnum::PPELayerType_LPRELU) != ppeLayers.end();
         if (isLRelu)
             std::fill(reluMultData.begin(), reluMultData.end(), dpuTaskOp->get<mv::PPETask>("PPETask").getFixedFunction().getLReluMult());
