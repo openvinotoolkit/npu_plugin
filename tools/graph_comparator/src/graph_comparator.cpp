@@ -272,14 +272,14 @@ void mv::tools::GraphComparator::compare_(const MVCNN::GraphFileT& lhs, const MV
                 std::to_string(i) + "]");
     }
     
-    if (lhs.binary_data.size() != rhs.binary_data.size())
-        diff.push_back(label + "binary_data");
-    else
-    {
-        for (std::size_t i = 0; i < lhs.binary_data.size(); ++i)
-            compare_(lhs.binary_data.at(i), rhs.binary_data.at(i), diff, label + "::binary_data[" +
-                std::to_string(i) + "]");
-    }
+    // if (lhs.binary_data.size() != rhs.binary_data.size())
+    //     diff.push_back(label + "binary_data");
+    // else
+    // {
+    //     for (std::size_t i = 0; i < lhs.binary_data.size(); ++i)
+    //         compare_(lhs.binary_data.at(i), rhs.binary_data.at(i), diff, label + "::binary_data[" +
+    //             std::to_string(i) + "]");
+    // }
     
     compare_(lhs.header, rhs.header, diff, label + "::header");
 
