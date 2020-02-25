@@ -309,7 +309,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
         1, 0.05f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
+// [Track number: S#27976]
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
