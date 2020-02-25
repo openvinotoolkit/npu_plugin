@@ -562,18 +562,19 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
                 continue;
             }
 
-            int64_t sumOfZeroPoints = 0;
-            auto levels = quantizationParams.levels;
+            double sumOfZeroPoints = 0;
+            float levels = quantizationParams.levels;
 
             for (size_t i = 0; i < numberOfQuantParams; i++) {
                 float ol = quantizationParams.outputLowValues[i];
                 float oh = quantizationParams.outputHighValues[i];
 
+                float x = -(levels - 1) * ol / (oh - ol);
+
                 // re-calculate ZP for weights, we use U8 for weights
-                sumOfZeroPoints +=
-                    QuantizationHelpers::calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
+                sumOfZeroPoints += x;
             }
-            auto avgZeroPoints = std::round(static_cast<double>(sumOfZeroPoints) / numberOfQuantParams);
+            auto avgZeroPoints = std::round(sumOfZeroPoints / numberOfQuantParams);
 
             // NOTE: ol is always negative value
             std::vector<float> newLowValues(numberOfQuantParams);
