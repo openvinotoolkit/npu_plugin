@@ -185,7 +185,7 @@ TEST(runtime_model, test_hkswitch_address_assignment)
 
     om.output(bias_c2);
 
-    std::string compDescPath = "/home/mvenka3/repos/movidius/mcmCompiler/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
