@@ -78,6 +78,7 @@ internalOrder_(other.internalOrder_),
 blockSize_(other.blockSize_),
 sparsityMap_(other.sparsityMap_),
 storageElement_(other.storageElement_),
+subTensors_(),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
 {
