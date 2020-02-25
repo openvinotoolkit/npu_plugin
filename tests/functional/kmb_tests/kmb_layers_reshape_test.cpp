@@ -24,6 +24,7 @@ typedef std::tuple<tensor_test_params, tensor_test_params> reshape_test_params;
 typedef kmbLayerTestBaseWithParam<reshape_test_params> kmbLayersTestsReshapeParams;
 
 #ifdef ENABLE_MCM_COMPILER
+// [Track number: S#27227]
 TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
     auto param = GetParam();
     tensor_test_params inputTensor = std::get<0>(param);
@@ -48,7 +49,8 @@ TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
     );
 }
 
-// TODO: Add more tests on compilation reshape, squeeze, unsqueeze: Jira: CVS-20409
+// TODO: Add more tests on compilation reshape, squeeze, unsqueeze:
+// [Track number: S#20409]
 static const reshape_test_params paramsTable[] = {
     std::make_tuple<tensor_test_params, tensor_test_params>({1, 1, 1, 1000},  // input tensor
         {1, 1000, 1, 1}                                                       // output tensor

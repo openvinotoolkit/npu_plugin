@@ -25,8 +25,9 @@ using namespace InferenceEngine;
 typedef kmbLayerTestBaseWithParam<tensor_test_params> kmbLayersTestsReLUParams;
 
 #ifdef ENABLE_MCM_COMPILER
+// TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault.
+// [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
-    // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">
         <layers>
@@ -141,6 +142,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
+// [Track number: S#27195]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     const std::string model = R"V0G0N(
     <net batch="1" name="RELU_TEST" version="2">

@@ -29,8 +29,9 @@ typedef std::tuple<tensor_test_params, std::string, std::string, std::string, pa
 typedef kmbLayerTestBaseWithParam<pooling_test_params> kmbLayersTestsPoolingParams;
 
 #ifdef ENABLE_MCM_COMPILER
+// TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault
+// [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
-    // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
         <layers>
@@ -144,6 +145,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
+// [Track number: S#27192]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     const std::string model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
@@ -205,7 +207,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
 }
 
-TEST_P(kmbLayersTestsPoolingParams, DISABLED_TestsPoolingNetInit) {
+TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);
     std::string sameUpper = std::get<1>(param);
@@ -300,6 +302,7 @@ const std::string uint8_pooling = R"V0G0N(
 </net>
 )V0G0N";
 
+// [Track number: S#27192]
 TEST_P(PoolingTest, DISABLED_pooling_only) {
     auto model = uint8_pooling;
 

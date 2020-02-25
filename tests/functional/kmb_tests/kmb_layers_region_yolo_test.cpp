@@ -56,8 +56,9 @@ static const std::string model_regionYolo = R"V0G0N(
 </net>
 )V0G0N";
 
-// TODO: enable test when mcmCompiler will be able to compile it
 #ifdef ENABLE_MCM_COMPILER
+// TODO: enable test when mcmCompiler will be able to compile it
+// [Track number: S#27194]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
     std::string model = model_regionYolo;
 

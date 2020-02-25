@@ -32,6 +32,7 @@ typedef std::tuple<tensor_test_params, tensor_test_params, size_t> fully_connect
 typedef kmbLayerTestBaseWithParam<fully_connected_test_params> kmbLayersTestsFullyConnectedParams;
 
 #ifdef ENABLE_MCM_COMPILER
+// [Track number: S#27231]
 TEST_P(kmbLayersTestsFullyConnectedParams, DISABLED_TestsFullyConnected) {
     auto param = GetParam();
     tensor_test_params inputTensor = std::get<0>(param);

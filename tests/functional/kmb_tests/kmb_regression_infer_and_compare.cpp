@@ -213,6 +213,7 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
 };
 
+// [Track number: S#xxxxx]
 INSTANTIATE_TEST_CASE_P(DISABLED_CompileTargetNetworksFail, VpuInferAndCompareTests,
     ::testing::ValuesIn(vpuCompileTargetNetworksFail), VpuInferAndCompareTests::getTestCaseName);
 

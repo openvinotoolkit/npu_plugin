@@ -23,6 +23,8 @@ using namespace InferenceEngine;
 class kmbLayersTestsBias_nightly : public kmbLayersTests_nightly, public testing::WithParamInterface<SizeVector> {};
 
 #ifdef ENABLE_MCM_COMPILER
+
+// [Track number: S#27224]
 TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias) {
     auto dim = GetParam();
     std::size_t biasesSize = 1;
