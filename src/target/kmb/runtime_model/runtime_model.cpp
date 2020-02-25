@@ -2124,6 +2124,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
+    if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
+        static_cast<MVCNN::UPALayerTaskT*>(toReturn[0]->task.value)->isTrailingSWLayer = true;
+
     return toReturn;
 }
 
