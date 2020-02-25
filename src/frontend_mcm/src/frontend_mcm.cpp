@@ -1358,12 +1358,6 @@ void FrontEndMcm::parseScaleImpl(
 
     auto input = inputs[0];
 
-    size_t dimC, stub;
-    parseDims(input->desc(), stub, dimC, stub, stub);
-    int weightsSize = static_cast<int>(dimC);
-
-    auto scaleData = scaleLayer->_weights->buffer().as<float*>();
-
     std::vector<int64_t> quantizedWeightsData;
     std::vector<int64_t> zpScaleWeights = {0};
     std::vector<double> quantizeScale;
