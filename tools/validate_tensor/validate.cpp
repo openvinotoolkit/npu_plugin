@@ -552,7 +552,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     // compare
     bool pass = false;
     pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
-    std::cout << "Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl; 
+    std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl; 
     if (pass)
         return RESULT_SUCCESS;
     else 
@@ -703,6 +703,51 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     return RESULT_SUCCESS;    
 }
 
+int checkInference(std::string actualResults)
+{
+    // convert blob to json
+    std::cout << "Checking inference results ..." << std::endl;
+
+    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    std::cout << commandline << std::endl;
+    int result = std::system(commandline.c_str());
+    
+    // read in expected inference results
+    std::string expectedInferencePath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + std::string("/inference_results.txt");
+    std::ifstream inExpected(expectedInferencePath);
+    std::vector<std::string> expectedInferenceResults;
+    std::string str;
+    std::cout << std::endl << "Expected top 10: ";
+    while (std::getline(inExpected, str))
+    {
+        if(str.size() > 0) {
+            expectedInferenceResults.push_back(str);
+            std::cout << str << " ";
+        }
+    }
+
+    // read in actual inference results
+    std::string actualInferencePath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/actual_inference_results.txt");
+    std::ifstream inActual(actualInferencePath);
+    std::vector<std::string> actualInferenceResults;
+    std::cout << std::endl << "Actual top 10:   ";
+    while (std::getline(inActual, str))
+    {
+        if(str.size() > 0){
+            actualInferenceResults.push_back(str);
+            std::cout << str << " ";
+        }
+    }
+    
+    // compare
+    bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
+    std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
+    if (pass)
+        return RESULT_SUCCESS;
+    else 
+        return FAIL_VALIDATION;
+}
+
 int main(int argc, char *argv[]) 
 {
     if(std::getenv("DLDT_HOME") == NULL)
@@ -727,6 +772,7 @@ int main(int argc, char *argv[])
         std::string actualPathProcessed = "./output_transposed.dat";
         postProcessActualResults(FLAGS_a, FLAGS_b);
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
+        checkInference(FLAGS_a);
         return(0);
     }
 
@@ -762,9 +808,8 @@ int main(int argc, char *argv[])
     result = postProcessActualResults(actualPath, blobPath);
     if ( result > 0 ) return result;
 
-    result = validate(blobPath, expectedPath, actualPathProcessed);
-    if ( result > 0 )
-        return result;
+    validate(blobPath, expectedPath, actualPathProcessed);
     
-    return(0);
+    // master test is if the top 1's match
+    return (checkInference(actualPath));
 }
