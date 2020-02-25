@@ -822,12 +822,6 @@ std::string mv::Tensor::subTensorInfo() const
         {
             toReturn += subTensors_[i]->getShape().toString();
         }
-
-        // for (int i = 0; i < numSubTensors(); i++)
-        // {
-        //     toReturn += subTensors_[i]->getClusterSize();
-        //     toReturn += ",";
-        // }
     }
 
     return toReturn;
