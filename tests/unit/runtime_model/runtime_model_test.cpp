@@ -159,7 +159,7 @@ TEST(runtime_model, test_soh_dma_addresses)
 }
 
 
-TEST(runtime_mode, test_hkswitch_address_assignment)
+TEST(runtime_model, test_hkswitch_address_assignment)
 {
     double inf = std::numeric_limits<double>::infinity();
 
