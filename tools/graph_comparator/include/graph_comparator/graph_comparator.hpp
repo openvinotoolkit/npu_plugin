@@ -128,6 +128,7 @@ namespace mv
             bool compare(const char* dataBuffer1, std::size_t length1, const char* dataBuffer2,  std::size_t length2);
             bool compare(const MVCNN::GraphFileT& graph1, const MVCNN::GraphFileT& graph2);
             const std::vector<std::string>& lastDiff() const;
+            MVCNN::GraphFileT loadGraphFile(const std::string& path, char* dataBuffer);
 
         };
 

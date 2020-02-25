@@ -112,6 +112,13 @@ bool mv::tools::GraphComparator::compare(const std::string& path1, const std::st
 
 }
 
+MVCNN::GraphFileT mv::tools::GraphComparator::loadGraphFile(const std::string& path, char* dataBuffer)
+{
+    MVCNN::GraphFileT graph;
+    loadGraphFile_(path, dataBuffer, graph);
+    return graph;
+}
+
 const std::vector<std::string>& mv::tools::GraphComparator::lastDiff() const
 {
     return lastDiff_;
