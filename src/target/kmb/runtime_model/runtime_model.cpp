@@ -887,11 +887,6 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
     toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
     toBuild->Lrelu_Mult = ppeFixedFunction.getLReluMult();
     toBuild->Lrelu_Shift = ppeFixedFunction.getLReluShift();
-    if (toBuild->Lrelu_Mult > 1)
-    {
-        auto alpha = toBuild->Lrelu_Mult / pow(2, toBuild->Lrelu_Shift);
-        toBuild->Clamp_Low /= alpha;
-    }
 
     return toBuild;
 }
