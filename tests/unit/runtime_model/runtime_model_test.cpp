@@ -157,3 +157,108 @@ TEST(runtime_model, test_soh_dma_addresses)
         delete [] buffer;
 
 }
+
+
+TEST(runtime_mode, test_hkswitch_address_assignment)
+{
+    double inf = std::numeric_limits<double>::infinity();
+
+    mv::CompilationUnit unit("parserModel");
+    mv::OpModel& om = unit.model();
+    auto input0 = om.input({52,52,256,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{0.07285668700933456},{0.0},{18.578454971313477}}, "model/re_lu_5/Relu#85");
+
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (1*1*256*128);
+    auto weights0 = om.constantInt(weightsData0,{1,1,256,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{139},{0.01167607493698597},{-1.6125890016555786},{1.353134036064148}}, "model/re_lu_6/Relu#21_weights#22");    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.09908168017864227},{0.0},{25.26582908630371}}, "model/re_lu_6/Relu#86");
+    std::vector<int64_t> biasWeightsData0 = mv::utils::generateSequence<int64_t> (128);
+    auto biasWeights0 = om.constantInt(biasWeightsData0,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0008506801095791161},{-inf},{inf}}, "model/re_lu_6/Relu#21_bias#23");     auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.09908168017864227},{0.0},{25.26582908630371}});
+
+    std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (3*3*128*256);
+    auto weights1 = om.constantInt(weightsData1,{3,3,128,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{114},{0.0023650287184864283},{-0.2681608498096466},{0.33255642652511597}}, "model/re_lu_7/Relu#24_weights#25");    auto conv1 = om.conv(bias_c0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}}, "model/re_lu_7/Relu#87");
+    std::vector<int64_t> biasWeightsData1 = mv::utils::generateSequence<int64_t> (256);
+    auto biasWeights1 = om.constantInt(biasWeightsData1,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.0002343310188734904},{-inf},{inf}}, "model/re_lu_7/Relu#24_bias#26");     auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}});
+
+    auto pool0 = om.maxPool(bias_c1, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.07538475096225739},{0.0},{19.223112106323242}}, "model/max_pooling2d_3/MaxPool#88");
+    std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t> (3*3*256*512);
+    auto weights2 = om.constantInt(weightsData2,{3,3,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{73},{0.0030357716605067253},{-0.21838819980621338},{0.5526977777481079}}, "model/re_lu_8/Relu#28_weights#29");    auto conv2 = om.conv(pool0, weights2, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.0771605372428894},{0.0},{19.67593765258789}}, "model/re_lu_8/Relu#89");
+    std::vector<int64_t> biasWeightsData2 = mv::utils::generateSequence<int64_t> (512);
+    auto biasWeights2 = om.constantInt(biasWeightsData2,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00022885088401380926},{-inf},{inf}}, "model/re_lu_8/Relu#28_bias#30");    auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"), {{0},{0.0771605372428894},{0.0},{19.67593765258789}});
+
+    om.output(bias_c2);
+
+    std::string compDescPath = "/home/mvenka3/repos/movidius/mcmCompiler/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
+    unit.loadCompilationDescriptor(compDescPath);
+
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    unit.initialize();
+    unit.run();
+
+
+    mv::DataModel dm(om);
+    mv::tools::GraphComparator gc;
+    std::string outputBlobFile = "./output/mcm.blob"; // generated blob file
+
+    //XXX: buffer needs to be deleted after the test, or else there will be a leak
+    char* buffer = 0;
+    const MVCNN::GraphFileT& blob = gc.loadGraphFile(outputBlobFile, buffer);
+
+    std::vector<mv::Data::OpListIterator> dpuTasks;
+    for (auto op = om.opBegin(); op != om.opEnd(); ++op)
+    {
+        if (op->getOpType() == "DPUTask" && op->get<std::string>("splitStrategy") == "HKSwitch")
+        {
+            std::cout << "found hkswitch op" << op->getName() << std::endl;
+            dpuTasks.push_back(op);
+        }
+    }
+
+    for (auto dpuTask: dpuTasks)
+    {
+        // auto inputTensor = dpuTask->getInputTensor(0);
+        // auto dmaTask = om.getSourceOp(inputTensor);
+        // auto dmaTaskSrcTensor = dmaTask->getInputTensor(0);
+        // auto dmaTaskDstTensor = inputTensor;
+
+        for (std::size_t i = 0; i < blob.task_lists.size(); ++i)
+        {
+            const std::unique_ptr<MVCNN::TaskListT>& task_list = blob.task_lists[i];
+            for (std::size_t j = 0; j < task_list->content.size(); j++)
+            {
+                const std::unique_ptr<MVCNN::TaskT>& task = task_list->content[j];
+                if (task->name == dpuTask->getName() && task->task.type == MVCNN::SpecificTask::SpecificTask_NCE2Task)
+                {
+                    MVCNN::NCE2TaskT& blobDpuTask = *task->task.AsNCE2Task();
+                    MVCNN::NCEInvariantFieldsT *blobNCEInvariantFields = blobDpuTask.invariant.get();
+                    std::string blobOutputDataName = blobNCEInvariantFields->output_data->name;
+                    std::string subTensorId = blobOutputDataName.substr(blobOutputDataName.find("sub") + 3);
+                    std::size_t clusterId = std::stoi(subTensorId);
+
+                    auto expectedTensor = dpuTask->getOutputTensor(0);
+                    auto expectedSubtensor = expectedTensor->getSubTensor(clusterId);
+                    auto tensorAllocators = expectedTensor->get<std::set<std::string>>("allocators");
+                    auto tensorAllocatorName = tensorAllocators.begin();
+                    ASSERT_EQ(*tensorAllocatorName,"VPU_CMX_NN");
+
+                    auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+                    mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, expectedTensor);
+
+                    uint64_t expectedAddress = 0;
+                    if(expectedTensor->hasAttr("address"))
+                        expectedAddress = expectedSubtensor.getAddress();
+                    else
+                        expectedAddress = tensorBufferIt->getOffset();
+
+                    auto offset = expectedSubtensor.get<std::vector<std::size_t>>("offset");
+                    auto index = expectedTensor->getOrder().subToInd(expectedTensor->getShape(), offset);
+                    auto byte_index = index * expectedTensor->getDType().getSizeInBits() / 8;
+
+                    expectedAddress += byte_index;
+                    ASSERT_EQ(blobNCEInvariantFields->output_data->data->data_index, expectedAddress);
+                }
+            }
+        }
+    }
+
+    if (buffer)
+        delete [] buffer;
+
+}
