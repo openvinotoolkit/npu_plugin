@@ -777,7 +777,7 @@ int main(int argc, char *argv[])
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
         
         bool yoloNetwork=false;
-        if (FLAGS_m.find("yolo") > 0)
+        if (FLAGS_m.find("yolo") != std::string::npos)
             yoloNetwork=true;
 
         checkInference(FLAGS_a, FLAGS_i, yoloNetwork);
@@ -820,7 +820,7 @@ int main(int argc, char *argv[])
     
     // master test is if the top 1's match
     bool yoloNetwork=false;
-    if (FLAGS_m.find("yolo") > 0)
+    if (FLAGS_m.find("yolo") != std::string::npos)
         yoloNetwork=true;
 
     return (checkInference(actualPath, FLAGS_i, yoloNetwork));
