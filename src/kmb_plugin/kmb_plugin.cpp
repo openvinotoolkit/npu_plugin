@@ -20,6 +20,7 @@
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <inference_engine.hpp>
+#include <ie_util_internal.hpp>
 #include <memory>
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
@@ -53,7 +54,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
         clonedNetwork = networkNGraph->cloneNGraphImpl();
     } else {
-        clonedNetwork = CloneNetwork(network);
+        clonedNetwork = cloneNet(network);
     }
 
     ConstTransformer transformator(clonedNetwork.get());

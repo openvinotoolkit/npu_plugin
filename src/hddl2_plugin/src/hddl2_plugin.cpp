@@ -25,6 +25,7 @@
 #include <fstream>
 #include <ie_icore.hpp>
 #include <cnn_network_ngraph_impl.hpp>
+#include <ie_util_internal.hpp>
 
 // Plugin include
 #include "hddl2_executable_network.h"
@@ -48,7 +49,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         auto nGraphNetwork = networkNGraph->cloneNGraphImpl();
         clonedNetwork = nGraphNetwork->getCNNNetwork();
     } else {
-        clonedNetwork = CloneNetwork(network);
+        clonedNetwork = cloneNet(network);
     }
 
     ConstTransformer transformator(clonedNetwork.get());
@@ -69,7 +70,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, con
         auto nGraphNetwork = networkNGraph->cloneNGraphImpl();
         clonedNetwork = nGraphNetwork->getCNNNetwork();
     } else {
-        clonedNetwork = CloneNetwork(network);
+        clonedNetwork = cloneNet(network);
     }
 
     ConstTransformer transformator(clonedNetwork.get());
