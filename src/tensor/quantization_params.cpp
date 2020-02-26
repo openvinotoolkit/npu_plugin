@@ -8,6 +8,7 @@ mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element
 mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max)
     :Element("quantParams")
 {
+    // assert(zp.size() == scale.size());
     set<std::vector<int64_t>>("zeroPoint", zp);
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
@@ -135,6 +136,22 @@ bool mv::QuantizationParams:: infinitelimits() const
         is_infinite = true;
     }
     return is_infinite;
+}
+
+bool mv::QuantizationParams::isPerTensor() const{
+    // assert(get<std::vector<double>>("scale").size() == get<std::vector<int64_t>>("zeroPoint").size());
+    return get<std::vector<double>>("scale").size() == 1;
+}
+
+//TODO: isn't it too performance consuming?
+double mv::QuantizationParams::getScale(const size_t channel) const {
+    auto scales = get<std::vector<double>>("scale");
+    if (scales.size() == 1)
+        return scales[0];
+    if (channel >= scales.size())
+        throw ArgumentError("quantParams", "channel", std::to_string(channel),
+                            "Invalid index: channel is greater than scales vector");
+    return scales[channel];
 }
 
 

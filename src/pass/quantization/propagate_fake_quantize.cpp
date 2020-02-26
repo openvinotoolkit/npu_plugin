@@ -75,16 +75,6 @@ double calculateScales(float low, float high, int levels) {
     return static_cast<double>((high - low) / (levels - 1));
 }
 
-template<typename T>
-std::vector<T> packTensorToVector(mv::Data::TensorIterator tensor) {
-    std::vector<T> result;
-    auto tensor_data = tensor->getData();
-    result.reserve(tensor_data.size());
-    for (auto& value : tensor_data) {
-        result.push_back(value);
-    }
-}
-
 mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool merge_in_one) {
     assert(fqOp->getOpType() == "FakeQuantize");
 
@@ -134,9 +124,11 @@ T clamp(const T& value, const T& min, const T& max) {
     return std::max(min, std::min(max, value));
 }
 
+//NOTE: Bias is not a const op.
 mv::Data::OpListIterator quantizeConstOp(mv::OpModel& model, mv::Data::OpListIterator operation, mv::QuantizationParams quant_params, mv::DType precision) {
+    // TODO: fp16 tensors are constInt. need to handle
     assert(operation->getOpType() == "Constant");
-    auto originalTensor = operation->getOutputTensor(0); // STOPED HERE
+    auto originalTensor = operation->getOutputTensor(0);
 
     auto shape = operation->getOutputTensor(0)->getShape();
     // TODO: check correctness
@@ -200,7 +192,7 @@ void quantize_weights(mv::OpModel& model, mv::Data::OpListIterator weights, mv::
 
     if (data_tensor->getDType() == getDType(Precision::I8) ||
         data_tensor->getDType() == getDType(Precision::U8)) {
-        // Weights whould already be quantized
+        // Weights would already be quantized
         // TODO: Recalculate quant params
         assert(false && "Not implemented");
         return;
@@ -213,14 +205,80 @@ void quantize_weights(mv::OpModel& model, mv::Data::OpListIterator weights, mv::
     quantizeConstOp(model, weights, quant_params, getDType(Precision::U8));
 }
 
+mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterator biasOp) {
+    std::cout << model.getSourceOp(biasOp->getInputTensor(1))->get<mv::DType>("dType").toString() << std::endl;
+    std::cout << model.getSourceOp(biasOp->getInputTensor(1))->getOutputTensor(0)->get<mv::DType>("dType").toString() << std::endl;
+    std::cout << biasOp->getInputTensor(1)->get<mv::DType>("dType").toString() << std::endl;
+
+    auto tensor_data = biasOp->getInputTensor(1)->getData();
+    for (size_t i = 0; i < 15; ++i) {
+        std::cout << static_cast<double>(tensor_data[i]) << " " << static_cast<int64_t>(tensor_data[i]) << std::endl;
+    }
+
+    auto activation_params = model.getSourceOp(biasOp->getInputTensor(0))->get<mv::QuantizationParams>("quantParams");
+    auto weights_params = model.getSourceOp(biasOp->getInputTensor(1))->get<mv::QuantizationParams>("quantParams");
+
+    // assert(activation_params.isPerTensor() == weights_params.isPerTensor());
+    bool is_broadcasted = activation_params.isPerTensor() && weights_params.isPerTensor();
+
+    if (!activation_params.isPerTensor() && activation_params.getScale().size() != tensor_data.size()) {
+        throw std::runtime_error("Bias and Activation quant params size mismatch");
+    }
+
+    if (!weights_params.isPerTensor() && weights_params.getScale().size() != tensor_data.size()) {
+        throw std::runtime_error("Bias and Weights quant params size mismatch");
+    }
+
+    std::vector<int64_t> newBiasData(tensor_data.size(), 0);
+    std::vector<double> biasScales;
+    std::vector<int64_t> zeroPoints;
+    auto bias_dtype = biasOp->getInputTensor(1)->getDType();
+    if (bias_dtype == getDType(Precision::FP32)) {
+        auto bias_data = biasOp->getInputTensor(1)->getDoubleData();
+
+        if (is_broadcasted) {
+            auto activation_scale = activation_params.getScale(0);
+            auto weights_scale = weights_params.getScale(0);
+
+            auto bias_scale = activation_scale * weights_scale;
+            biasScales.push_back(bias_scale);
+            zeroPoints.push_back(0);
+        } else {
+            for (size_t i = 0; i < bias_data.size(); ++i) {
+                auto activation_scale = activation_params.getScale(i);
+                auto weights_scale = weights_params.getScale(i);
+
+                auto bias_scale = activation_scale * weights_scale;
+                biasScales.push_back(bias_scale);
+                zeroPoints.push_back(0);
+                newBiasData[i] = std::round(bias_data[i] / bias_scale);
+            }
+        }
+
+        auto original_tensor = biasOp->getInputTensor(1);
+        mv::QuantizationParams quant_params{{zeroPoints}, {biasScales}, {}, {}};
+        // TODO: pass name
+        auto quantized_data = model.constantInt(newBiasData, original_tensor->getShape(), getDType(Precision::I32), original_tensor->getOrder(), quant_params);
+        auto quantize_bias_tensor = model.bias(biasOp->getInputTensor(0), quantized_data, quantized_data->getDType(), quant_params);
+
+        return mv::linkNewOperationsReplacement(model.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, model, biasOp);
+    } else if (bias_dtype == getDType(Precision::I32)) {
+        // Do nothing
+    } else {
+        std::runtime_error("Unsupported bias data type");
+    }
+
+    return biasOp;
+}
+
 void propagate(mv::OpModel& model, mv::Data::OpListIterator fqOp) {
     auto params = extractQuantParams(fqOp, false);
-    auto parent = model.getSourceOp(fqOp->getInputTensor(0));
-    std::cout << parent->getOpType() << std::endl;
-
+    auto currentOp = model.getSourceOp(fqOp->getInputTensor(0));
+    std::cout << currentOp->getOpType() << std::endl;
+    std::cout << currentOp->get<mv::DType>("dType").toString() << std::endl;
     // TODO: check if bias alse hae const type. check logic for int buffers
-    if (parent->getOpType() == "ConstantInt" || parent->getOpType() == "Constant") {
-        quantize_weights(model, parent, fqOp);
+    if (currentOp->getOpType() == "ConstantInt" || currentOp->getOpType() == "Constant") {
+        quantize_weights(model, currentOp, fqOp);
         return;
     }
 
@@ -229,16 +287,16 @@ void propagate(mv::OpModel& model, mv::Data::OpListIterator fqOp) {
         return std::find(stop_layers.begin(), stop_layers.end(), op_type) != stop_layers.end();
     };
 
-    while (!stop_propagation(parent->getOpType())) {
-        if (parent->getOpType() == "Bias") {
-            std::cout << "Bias was ignored for now\n";
-            // TODO: recalculate bias params
+    while (!stop_propagation(currentOp->getOpType())) {
+        if (currentOp->getOpType() == "Bias") {
+            std::cout << "Parse bias\n";
+            currentOp = quantizeBias(model, currentOp);
         } else {
-            std::cout << "Layer " << parent->getName() << " " << parent->getOpType() << " new quant params\n";
-            parent->set<mv::QuantizationParams>("quantParams", params);
+//            std::cout << "Layer " << currentOp->getName() << " " << currentOp->getOpType() << " new quant params\n";
+//            currentOp->set<mv::QuantizationParams>("quantParams", params);
         }
 
-        parent = model.getSourceOp(parent->getInputTensor(0));
+        currentOp = model.getSourceOp(currentOp->getInputTensor(0));
     }
 }
 

@@ -50,6 +50,9 @@ namespace mv
         void setScale(std::vector<double> scale_);
 
         int64_t getZeroPoint(const size_t channel) const;
+        double getScale(const size_t channel) const;
+        bool isPerTensor() const;
+
         virtual std::string getLogID() const override;
         virtual std::string toString() const override;
         virtual bool isEmpty() const;
