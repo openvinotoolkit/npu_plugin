@@ -39,10 +39,17 @@ DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: "YES", "NO", default is "NO"
+ * Type: "YES", "NO", default is "YES"
  * This option allows to force conversion of output from 2D to NC ignoring TensorDesc info
  */
 DECLARE_VPU_KMB_CONFIG_KEY(FORCE_2D_TO_NC);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES", "NO", default is "YES"
+ * This option allows to force conversion of output precision from FP16 to FP32
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(FORCE_FP16_TO_FP32);
 
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

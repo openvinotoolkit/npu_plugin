@@ -44,6 +44,7 @@ public:
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
     bool force2DToNC() const { return _force2DToNC; }
+    bool forceFP16ToFP32() const { return _forceFP16ToFP32; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -72,6 +73,7 @@ private:
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
     bool _forceNCHWToNHWC = false;
     bool _force2DToNC = true;
+    bool _forceFP16ToFP32 = true;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

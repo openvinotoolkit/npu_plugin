@@ -223,7 +223,7 @@ To be able to do it please follow the steps:
     $DLDT_HOME/bin/intel64/Release/KmbFunctionalTests
     ```
 
-## Miscelaneos
+## Miscellaneous
 
 `IE_VPU_KMB_DUMP_INPUT_PATH` environment variable can be used to dump input files for debugging purposes.
 The variable must contain path to any writable directory.

@@ -163,3 +163,43 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
     const size_t NUMBER_OF_CLASSES = 5;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
+
+// TODO enable when models with FP16 output become available in ModelsPath
+TEST(KmbPrivateConfigTests, DISABLED_FORCE_FP16_TO_FP32) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(YES)}});
+
+    InferenceEngine::InferRequest request;
+    request = network.CreateInferRequest();
+
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.bin";
+    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
+    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
+    inputBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
+
+    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
+    request.SetBlob(inputName, inputBlob);
+    request.Infer();
+
+    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/output.bin";
+    Blob::Ptr outputBlob = request.GetBlob(outputName);
+    ASSERT_EQ(outputBlob->getTensorDesc().getPrecision(), InferenceEngine::Precision::FP32);
+
+    Blob::Ptr fileContentBlob = make_shared_blob<uint8_t>(InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+        outputBlob->getTensorDesc().getDims(), outputBlob->getTensorDesc().getLayout()));
+    fileContentBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, fileContentBlob);
+    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
+    referenceBlob->allocate();
+    for (size_t i = 0; i < referenceBlob->size() && i < outputBlob->size(); i++) {
+        referenceBlob->buffer().as<float*>()[i] = fileContentBlob->buffer().as<uint8_t*>()[i];
+    }
+
+    const size_t NUMBER_OF_CLASSES = 1;
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+}
