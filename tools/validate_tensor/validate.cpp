@@ -703,12 +703,14 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     return RESULT_SUCCESS;    
 }
 
-int checkInference(std::string actualResults)
+int checkInference(std::string actualResults, std::string imagePath, bool yoloNetwork=true)
 {
     // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    if (yoloNetwork) 
+        commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/yolo_bbox.py ") + imagePath;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
     
@@ -740,7 +742,8 @@ int checkInference(std::string actualResults)
     }
     
     // compare
-    bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
+    // bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
+    bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
     std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
     if (pass)
         return RESULT_SUCCESS;
@@ -772,7 +775,12 @@ int main(int argc, char *argv[])
         std::string actualPathProcessed = "./output_transposed.dat";
         postProcessActualResults(FLAGS_a, FLAGS_b);
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
-        checkInference(FLAGS_a);
+        
+        bool yoloNetwork=false;
+        if (FLAGS_m.find("yolo") > 0)
+            yoloNetwork=true;
+
+        checkInference(FLAGS_a, FLAGS_i, yoloNetwork);
         return(0);
     }
 
@@ -811,5 +819,9 @@ int main(int argc, char *argv[])
     validate(blobPath, expectedPath, actualPathProcessed);
     
     // master test is if the top 1's match
-    return (checkInference(actualPath));
+    bool yoloNetwork=false;
+    if (FLAGS_m.find("yolo") > 0)
+        yoloNetwork=true;
+
+    return (checkInference(actualPath, FLAGS_i, yoloNetwork));
 }
