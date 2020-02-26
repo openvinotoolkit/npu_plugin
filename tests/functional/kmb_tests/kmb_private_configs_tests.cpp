@@ -19,6 +19,7 @@
 
 #include <allocators.hpp>
 #include <ie_core.hpp>
+#include <test_model/kmb_test_utils.hpp>
 
 #include "vpu_layers_tests.hpp"
 
@@ -31,7 +32,7 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     if (!isSIPPEnabled) {
         SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
     }
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
@@ -40,7 +41,7 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input-228x228-bgr-nv12.bin";
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-bgr-nv12.bin";
     const auto inputDims = network.GetInputsInfo().begin()->second->getTensorDesc().getDims();
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> allocator =
         std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
@@ -54,7 +55,7 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     request.Infer();
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
 
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output-228x228-nv12.bin";
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
     Blob::Ptr outputBlob;
     outputBlob = request.GetBlob(outputName);
 
@@ -96,7 +97,7 @@ static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
 }
 
 TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
@@ -105,7 +106,7 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin";
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
     const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
     Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
     inputBlob->allocate();
@@ -118,20 +119,20 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
     request.Infer();
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin";
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
     Blob::Ptr outputBlob;
     outputBlob = request.GetBlob(outputName);
 
-    Blob::Ptr referenceBlob = make_shared_blob<uint8_t>(outputBlob->getTensorDesc());
+    Blob::Ptr referenceBlob = make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
     referenceBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
 
     const size_t NUMBER_OF_CLASSES = 5;
-    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(referenceBlob), NUMBER_OF_CLASSES));
 }
 
 TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
@@ -140,7 +141,7 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/input.bin";
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
     const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
     Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
     inputBlob->allocate();
@@ -151,17 +152,17 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
     request.Infer();
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/output.bin";
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
     Blob::Ptr outputBlob;
     outputBlob = request.GetBlob(outputName);
     ASSERT_EQ(outputBlob->getTensorDesc().getLayout(), InferenceEngine::Layout::NC);
 
-    Blob::Ptr referenceBlob = make_shared_blob<uint8_t>(outputBlob->getTensorDesc());
+    Blob::Ptr referenceBlob = make_shared_blob<ie_fp16>(outputBlob->getTensorDesc());
     referenceBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
 
     const size_t NUMBER_OF_CLASSES = 5;
-    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(referenceBlob), NUMBER_OF_CLASSES));
 }
 
 // TODO enable when models with FP16 output become available in ModelsPath

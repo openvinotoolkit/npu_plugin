@@ -229,7 +229,7 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_BLOB_FILE)
     std::string blobFilePath = INTEGRATION_TESTS_BLOB_FILE;
 #else
-    std::string blobFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/conv.blob";
+    std::string blobFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 #endif
     std::string blobRawData = readFromFile(blobFilePath);
     ASSERT_NE(blobRawData, "");
@@ -237,7 +237,7 @@ TEST_P(kmbVPUALAllocTests, sendBlobToLeonViaDifferentAllocators) {
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_INPUT_FILE)
     std::string inputTensorFilePath = INTEGRATION_TESTS_INPUT_FILE;
 #else
-    std::string inputTensorFilePath = ModelsPath() + "/KMB_models/BLOBS/TwoFramesConvolution/input.dat";
+    std::string inputTensorFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
 #endif
     std::string inputTensorRawData = readFromFile(inputTensorFilePath);
     ASSERT_NE(inputTensorRawData, "");
@@ -425,7 +425,7 @@ TEST_P(kmbVPUALAllocTests, xPoolTest) {
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_BLOB_FILE)
     std::string blobFilePath = INTEGRATION_TESTS_BLOB_FILE;
 #else
-    std::string blobFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/mobilenet.blob";
+    std::string blobFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 #endif
     std::string blobRawData = readFromFile(blobFilePath);
     ASSERT_NE(blobRawData, "");
@@ -433,7 +433,7 @@ TEST_P(kmbVPUALAllocTests, xPoolTest) {
 #if (!defined INTEGRATION_TESTS_ENABLE_IE && defined INTEGRATION_TESTS_INPUT_FILE)
     std::string inputTensorFilePath = INTEGRATION_TESTS_INPUT_FILE;
 #else
-    std::string inputTensorFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet/input.dat";
+    std::string inputTensorFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
 #endif
     std::string inputTensorRawData = readFromFile(inputTensorFilePath);
     ASSERT_NE(inputTensorRawData, "");

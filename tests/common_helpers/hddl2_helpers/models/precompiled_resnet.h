@@ -34,8 +34,8 @@ namespace PrecompiledResNet_Helper {
     static const modelBlobInfo resnet =
             {
                     .graphName = "resnet",
-                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet/resnet.blob",
-                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet/input.dat",
-                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet/output.dat",
+                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
+                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin",
+                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin",
             };
 };
