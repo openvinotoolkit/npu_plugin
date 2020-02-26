@@ -13,7 +13,7 @@ add_executable(graph_comparator
     ${logger}
 )
 
-add_library(gcomparator SHARED
+add_library(gcomparator STATIC
     "src/graph_comparator.cpp"
     ${base} 
     ${logger}
