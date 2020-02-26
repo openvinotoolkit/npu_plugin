@@ -31,9 +31,9 @@ public:
     Engine();
 
     ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
-        const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
+        const ICore* core, const ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
-    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, ICNNNetwork& network, RemoteContext::Ptr ptr,
+    ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const ICore* core, const ICNNNetwork& network, RemoteContext::Ptr ptr,
         const std::map<std::string, std::string>& map) override;
 
     using InferenceEngine::InferencePluginInternal::ImportNetwork;
