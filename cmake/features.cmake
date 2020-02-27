@@ -24,3 +24,5 @@ ie_option(ENABLE_VPUAL "Enable VPUAL" ON)
 ie_option(ENABLE_VPUAL_MODEL "Enable VPUAL model" OFF)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
+
+ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
