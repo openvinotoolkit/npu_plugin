@@ -6,6 +6,7 @@
 
 #include <ie_blob.h>
 
+#include <ie_input_info.hpp>
 #include <ie_preprocess_data.hpp>
 #include <map>
 #include <string>
