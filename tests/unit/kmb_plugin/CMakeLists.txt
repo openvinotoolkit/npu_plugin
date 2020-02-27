@@ -21,6 +21,10 @@ file(GLOB TEST_SOURCES
 
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
+target_include_directories(${TARGET_NAME} PRIVATE
+        "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
+        )
+
 target_compile_options(${TARGET_NAME}
         PRIVATE
             -Wall
