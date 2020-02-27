@@ -34,7 +34,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
 }
 
 // [Track number: S#27965]
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_ResNet_50) {
+TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50) {
+    SKIP_INFER_ON("KMB", "bad result");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
