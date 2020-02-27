@@ -24,6 +24,9 @@
 #include <details/ie_irelease.hpp>
 #include <fstream>
 #include <ie_icore.hpp>
+#include <cnn_network_ngraph_impl.hpp>
+#include <cnn_network_impl.hpp>
+#include <ie_util_internal.hpp>
 
 // Plugin include
 #include "hddl2_executable_network.h"
@@ -36,21 +39,53 @@ using namespace vpu::HDDL2Plugin;
 Engine::Engine() { _pluginName = "HDDL2"; }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICore* core, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    const ICore* core, const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     UNUSED(core);
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network, parsedConfigCopy);
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+
+    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
+        auto nGraphNetwork = networkNGraph->cloneNGraphImpl();
+        clonedNetwork = nGraphNetwork->getCNNNetwork();
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
+
+    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, ICNNNetwork& network,
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, const ICNNNetwork& network,
     RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
     UNUSED(core);
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(network, parsedConfigCopy, context);
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+
+    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
+        auto nGraphNetwork = networkNGraph->cloneNGraphImpl();
+        clonedNetwork = nGraphNetwork->getCNNNetwork();
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
+
+    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, context);
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(

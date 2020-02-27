@@ -41,7 +41,7 @@ public:
     Engine();
 
     InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore* core,
-        InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
+        const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
@@ -57,8 +57,6 @@ public:
 
     InferenceEngine::Parameter GetMetric(
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
-
-    std::shared_ptr<ICNNNetwork> ConvertAndCloneNetwork(const ICNNNetwork& network) override;
 
 private:
     KmbConfig _parsedConfig;

@@ -16,9 +16,11 @@
 
 #include "kmb_plugin.h"
 
+#include <cnn_network_impl.hpp>
 #include <cnn_network_ngraph_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <ie_util_internal.hpp>
 #include <inference_engine.hpp>
 #include <memory>
 #include <vector>
@@ -28,7 +30,7 @@ using namespace InferenceEngine;
 using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICore* /*core*/, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    const ICore* /*core*/, const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
@@ -48,7 +50,22 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    return std::make_shared<ExecutableNetwork>(network, parsedConfigCopy);
+    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
+
+    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
+        clonedNetwork = networkNGraph->cloneNGraphImpl();
+    } else {
+        clonedNetwork = cloneNet(network);
+    }
+
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
+
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
@@ -132,14 +149,6 @@ InferenceEngine::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-}
-
-std::shared_ptr<ICNNNetwork> Engine::ConvertAndCloneNetwork(const ICNNNetwork& network) {
-    if (const auto networkNGraph = dynamic_cast<const InferenceEngine::details::CNNNetworkNGraphImpl*>(&network)) {
-        const auto networkClone = networkNGraph->cloneNGraphImpl();
-        return std::shared_ptr<ICNNNetwork>(networkClone);
-    }
-    return CloneNetwork(network);
 }
 
 IE_SUPPRESS_DEPRECATED_START
