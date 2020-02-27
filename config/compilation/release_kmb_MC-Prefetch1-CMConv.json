@@ -15,7 +15,6 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "LeakyReluHack": 0.75,
                 "enable_channel_major_conv": true,
                 "DPUTasksinFloat": false,
                 "split_strategy" :

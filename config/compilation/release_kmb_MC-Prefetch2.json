@@ -14,7 +14,6 @@
                 "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
-                "LeakyReluHack": 0.75,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
