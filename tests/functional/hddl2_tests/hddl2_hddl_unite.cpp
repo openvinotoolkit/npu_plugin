@@ -19,8 +19,8 @@
 #include <Inference.h>
 
 #include "RemoteMemory.h"
+#include "core_api.h"
 #include "gtest/gtest.h"
-#include "hddl2_core_api.h"
 #include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_hddl_unite_graph.h"
 #include "hddl2_helpers/helper_remote_memory.h"

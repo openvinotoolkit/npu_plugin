@@ -14,8 +14,8 @@
 // stated in the License.
 //
 
+#include "core_api.h"
 #include "gtest/gtest.h"
-#include "hddl2_core_api.h"
 #include "hddl2_helpers/helper_remote_blob.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_tensor_description.h"
@@ -27,7 +27,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      class HDDL2_Remote_Blob_Tests
 //------------------------------------------------------------------------------
-class HDDL2_Remote_Blob_Tests : public HDDL2_Core_API_Tests {
+class HDDL2_Remote_Blob_Tests : public CoreAPI_Tests {
 public:
     void SetUp() override;
     void TearDown() override;

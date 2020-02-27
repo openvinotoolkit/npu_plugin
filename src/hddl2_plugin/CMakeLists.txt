@@ -77,6 +77,7 @@ target_include_directories(${TARGET_NAME}
     PRIVATE
         "${IE_FRONTEND_MCM_INCLUDE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
 
@@ -98,6 +99,7 @@ if (ENABLE_TESTS)
         PUBLIC
             "${IE_FRONTEND_MCM_INCLUDE_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/include"
+            "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
             "${IE_MAIN_SOURCE_DIR}/include"
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
 
