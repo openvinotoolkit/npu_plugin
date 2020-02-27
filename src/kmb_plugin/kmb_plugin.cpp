@@ -21,6 +21,7 @@
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <inference_engine.hpp>
 #include <ie_util_internal.hpp>
+#include <cnn_network_impl.hpp>
 #include <memory>
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
@@ -57,8 +58,12 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         clonedNetwork = cloneNet(network);
     }
 
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
 
     return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }

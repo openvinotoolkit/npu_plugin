@@ -25,6 +25,7 @@
 #include <fstream>
 #include <ie_icore.hpp>
 #include <cnn_network_ngraph_impl.hpp>
+#include <cnn_network_impl.hpp>
 #include <ie_util_internal.hpp>
 
 // Plugin include
@@ -52,8 +53,12 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         clonedNetwork = cloneNet(network);
     }
 
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
 
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }
@@ -73,8 +78,12 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, con
         clonedNetwork = cloneNet(network);
     }
 
-    ConstTransformer transformator(clonedNetwork.get());
-    transformator.fullTrim();
+    auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
+    if (implNetwork) {
+        // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
+        ConstTransformer transformator(implNetwork.get());
+        transformator.fullTrim();
+    }
 
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, context);
 }
