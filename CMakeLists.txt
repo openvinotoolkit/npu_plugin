@@ -22,9 +22,14 @@ list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(features)
+include(compile_options)
 
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
+endif()
+
+if(ENABLE_EXPORT_SYMBOLS)
+    replace_compile_options()
 endif()
 
 add_subdirectory(thirdparty)

@@ -35,6 +35,8 @@ ie_add_plugin(NAME ${TARGET_NAME}
 
 target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
+include(compile_options)
+
 # TODO: Remove when warnings are fixed in vpualHost
 set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
                             COMPILE_FLAGS "-Wno-error")
@@ -119,4 +121,8 @@ if(ENABLE_TESTS)
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)
+endif()
+
+if(ENABLE_EXPORT_SYMBOLS)
+    replace_compile_options()
 endif()
