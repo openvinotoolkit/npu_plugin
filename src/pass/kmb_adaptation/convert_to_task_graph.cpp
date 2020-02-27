@@ -10,7 +10,7 @@
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0);
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt);
 
@@ -34,6 +34,11 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    double leakyReluHack = 1.0;
+
+    auto returnedParams = model.getGlobalConfigParams();
+    if (returnedParams->hasAttr("LeakyReluHack"))
+        leakyReluHack = returnedParams->get<double>("LeakyReluHack");
 
     auto dpuTasks = om.getOps("DPUTask");
     for(auto& dpuTask : dpuTasks)
@@ -44,7 +49,8 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         std::vector<std::string> postOps;
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
-        addPpeTask(dpuTask, postOps, leakyAlpha);
+
+        addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack);
     }
 }
 
@@ -488,7 +494,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha)
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
@@ -509,7 +515,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 
             mantissa = std::frexp(leakyAlpha, &exponent);
             ppeShift = bits - exponent;
-            ppeMult = (mantissa * pow(2, bits))*.75;
+            ppeMult = (mantissa * pow(2, bits)) * leakyReluHack;
         }
         ppeFixedFunction.setLReluMult(ppeMult);
         ppeFixedFunction.setLReluShift(ppeShift);
