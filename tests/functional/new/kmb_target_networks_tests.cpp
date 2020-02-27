@@ -36,8 +36,8 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_resnet_50_pytorch_dense_fp16_IRv10) {
 }
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
-    SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
-    SKIP_INFER_ON("CPU", "segfault on infer");  // TODO: create JIRA ticket
+     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
+     SKIP_INFER_ON("CPU", "segfault on infer");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet-50-pytorch-from-icv-bench-cache.xml")
@@ -443,6 +443,19 @@ TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10) {
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
+        "224x224/husky.bmp",
+        1, 0.7f);
+}
+
+TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_ngraph) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32)
+            .setCompileConfig({{VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER), CONFIG_VALUE(YES)}}),
         "224x224/husky.bmp",
         1, 0.7f);
 }
