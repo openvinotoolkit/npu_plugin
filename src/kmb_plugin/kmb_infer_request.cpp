@@ -46,6 +46,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
     const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
+      _deviceLayout(Layout::NHWC),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _blobWithResult(nullptr),
@@ -143,6 +144,7 @@ void KmbInferRequest::InferAsync() {
     }
 
     const auto& deviceInputs = _executor->getNetworkInputs();
+    if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
     const auto input = _inputs.begin()->second;
 
