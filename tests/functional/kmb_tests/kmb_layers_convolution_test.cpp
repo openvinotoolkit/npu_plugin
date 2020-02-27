@@ -57,8 +57,9 @@ TBlob<uint8_t>::Ptr weightsBiasBlobPrepare(convolution_test_desc& convTestParam)
     return weightsBuffer;
 }
 
+// TODO: tests fails. mcmCompiler compilation (Convolution with bias): Segmentation fault.
+// [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
-    // TODO: tests fails. mcmCompiler compilation (Convolution with bias): Segmentation fault. Jira: VPUNND-1474
     const std::string model = conv_after_scale_shift;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
@@ -90,6 +91,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
+// TODO: Test segfault, when kmb_plugin compile with MCM_COMPILER
+// [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     std::string model = conv_after_scale_shift;
     REPLACE_WITH_STR(model, "<biases offset=\"6\" size=\"6\"/>", " ");
@@ -124,8 +127,9 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
+// TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias)
+// [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift) {
-    // TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias). Jira: VPUNND-1474
     const std::string model = full_quant_model;
 
     ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
@@ -170,7 +174,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
 }
 
 //  TODO: mcmCompiler assert: 'extendToK parameters dimensions doesn't match size of output_channels or 1'
-//  JIRA Bug: VPUNND-1494
+// [Track number: D#1494]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShiftNoBias) {
     std::string model = full_quant_model;
 
@@ -272,6 +276,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 #endif
 }
 
+// [Track number: S#27178]
 INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
     ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
 
@@ -327,7 +332,8 @@ void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tol
     Compare(refBlob, outputBlobFP32, tolerance);
 }
 
-TEST_P(ConvolutionTest, fq_convolution_only_manual) {
+// [Track number: S#27226]
+TEST_P(ConvolutionTest, DISABLED_fq_convolution_only_manual) {
     // Besides weights and biases we need to store FQ blobs as well
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
@@ -453,7 +459,8 @@ TEST_P(ConvolutionTest, fq_convolution_only_manual) {
     Compare(outputBlobFP32, refBlob, 0.1f);
 }
 
-TEST_P(ConvolutionTest, u8_convolution_only_manual) {
+// [Track number: S#27226]
+TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -519,7 +526,8 @@ TEST_P(ConvolutionTest, u8_convolution_only_manual) {
     Compare(refOutputBlob, outputBlobFP32, 1.1f);
 }
 
-TEST_P(ConvolutionTest, convolution_and_relu_u8) {
+// [Track number: S#27226]
+TEST_P(ConvolutionTest, DISABLED_convolution_and_relu_u8) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -611,8 +619,8 @@ std::vector<convolution_test_params> sigsegv_due_to_low_output_channels_number_t
     {{1, 3, 16, 16}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 20, true, true, ""}},
 };
 
-INSTANTIATE_TEST_CASE_P(DISABLED_accuracy_low_OC, ConvolutionTest,
-    ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
+INSTANTIATE_TEST_CASE_P(
+    accuracy_low_OC, ConvolutionTest, ::testing::ValuesIn(sigsegv_due_to_low_output_channels_number_test_params));
 
 struct convolution_input_fill_test_params {
     SizeVector input_dim;
@@ -645,7 +653,8 @@ class ConvolutionTestIdent :
     public testing::WithParamInterface<convolution_input_fill_test_params>,
     public kmbLayersTests_nightly {};
 
-TEST_P(ConvolutionTestIdent, u8_convolution_identity) {
+// [Track number: S#27226]
+TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     SizeVector output_dims;
@@ -809,6 +818,7 @@ class ConvolutionAndPoolingTest :
     public testing::WithParamInterface<convolution_and_pooling_test_params>,
     public kmbLayersTests_nightly {};
 
+// [Track number: S#27226]
 TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
     if (!GetParam().is_positive_weights) SKIP();  // TODO
     std::string model = conv_pool_u8_test;

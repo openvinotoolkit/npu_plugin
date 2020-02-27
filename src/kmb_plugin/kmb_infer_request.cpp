@@ -83,7 +83,16 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                << "! Supported precisions: FP32, FP16, U8, I8";
         }
 
-        Blob::Ptr outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
+        Blob::Ptr outputBlob = nullptr;
+        if (_config.forceFP16ToFP32() && precision == InferenceEngine::Precision::FP16) {
+            const InferenceEngine::TensorDesc& outDesc = networkOutput.second->getTensorDesc();
+            InferenceEngine::TensorDesc fp32Desc(
+                InferenceEngine::Precision::FP32, outDesc.getDims(), outDesc.getLayout());
+            _logger->warning("VPU_KMB_FORCE_FP16_TO_FP32 is enabled. Need to convert precision.");
+            outputBlob = make_blob_with_precision(fp32Desc, getKmbAllocator());
+        } else {
+            outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
+        }
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
     }
@@ -364,7 +373,9 @@ void KmbInferRequest::GetResult() {
         Blob::Ptr blobWithCorrectPrecision = convertPrecision(_blobWithResult, outputTensorDesc);
         // copy blob with correct precision to the output blob
         // copyBlob does layout conversion on its own
-        if (!is2DTensor(outputTensorDesc.getDims())) copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
+        if (!is2DTensor(outputTensorDesc.getDims()) || devicePrecision != outputPrecision) {
+            copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
+        }
     }
 
     if (!_custom_outputs.empty()) {

@@ -164,7 +164,8 @@ static void testOverflow(const Blob::Ptr& blob) {
     }
 }
 
-TEST_P(LayoutConversionTest, layoutConversionTest_manual) {
+// [Track number: S#27235]
+TEST_P(LayoutConversionTest, DISABLED_layoutConversionTest_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
@@ -293,7 +294,7 @@ public:
     const CommonTestUtils::conv_common_params _convParams;
 };
 
-// Find details in VPUNND-2376
+// [Track number: D#2376]
 TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
     auto _inputsInfo = _network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -346,6 +347,7 @@ TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
     Compare(refOutputBlob, outputBlobFP32, 1.1f);
 }
 
+// [Track number: S#27236]
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
@@ -406,7 +408,8 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     Compare(refOutputBlob, outputBlobFP32, 1.1f);
 }
 
-TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
+// [Track number: S#27237]
+TEST_P(LayoutConversionTest, DISABLED_setLayoutAndCompareWithExeNetwork_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
@@ -456,6 +459,7 @@ TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
     ASSERT_EQ(exeNetworkOutputs.begin()->second->getTensorDesc().getLayout(), output_layout);
 }
 
+// [Track number: S#24530]
 TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
@@ -520,5 +524,7 @@ INSTANTIATE_TEST_CASE_P(accuracy, LayoutConversionTest,
 static auto params = Combine(Values(conv_p), Values(std::make_pair(Precision::FP32, 1e-5)), Values(NCHW, NHWC),
     Values(NCHW, NHWC), Values(Precision::U8, Precision::U8, Precision::U8));
 
-// PLUGING_CASE(KMB, LayoutTTTest, params); // uncomment to fix CVS-24575
+// [Track number: S#24575]
+PLUGING_CASE_WITH_PREFIX(KMB, DISABLED_, LayoutTTTest, params);
+
 #endif

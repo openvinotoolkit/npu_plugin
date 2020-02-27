@@ -31,6 +31,8 @@ struct clamp_test_params {
 typedef kmbLayerTestBaseWithParam<std::tuple<Dims, clamp_test_params>> kmbLayersTestsClampParams_nightly;
 
 #ifdef ENABLE_MCM_COMPILER
+
+// [Track number: S#27230]
 TEST_P(kmbLayersTestsClampParams_nightly, DISABLED_TestsClamp) {
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);

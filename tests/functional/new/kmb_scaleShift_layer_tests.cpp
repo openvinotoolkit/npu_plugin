@@ -43,7 +43,8 @@ std::ostream& operator<<(std::ostream& os, const ScaleShiftTestParams& p) {
 
 class KmbScaleShiftLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ScaleShiftTestParams> {};
 
-TEST_P(KmbScaleShiftLayerTests, SimpleScaleShift) {
+// [Track number: S#27239]
+TEST_P(KmbScaleShiftLayerTests, DISABLED_SimpleScaleShift) {
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;

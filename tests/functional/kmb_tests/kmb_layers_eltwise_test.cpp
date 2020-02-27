@@ -27,7 +27,6 @@
 using namespace InferenceEngine;
 
 #ifdef ENABLE_MCM_COMPILER
-
 // TODO find a way to specify several inputs to Eltwise without other layers
 
 struct eltwise_test_params {
@@ -43,7 +42,8 @@ public:
 
 // MCM compiler does not support multiple Input layers
 // This test throws when single input is bound to both ports of eltwise
-TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
+// [Track number: S#27243]
+TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
     SizeVector output_dims;
     CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
 
@@ -86,7 +86,8 @@ TEST_P(EltwiseTest, TestsEltwiseOnTheSameInputToBothPortsNegative_Test) {
 
 // MCM compiler does not support multiple Input layers
 // This test throws due to two inputs in the network
-TEST_P(EltwiseTest, TestsEltwiseOnTwoDifferentInputsNegative_Test) {
+// [Track number: S#27244]
+TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     SizeVector output_dims;
     CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
 
@@ -134,6 +135,7 @@ static std::vector<eltwise_test_params> test_params = {
 
 // MCM compiler does not support multiple Input layers
 // ScaleShift result is used as the second input to Eltwise
+// [Track number: S#27228]
 TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     SizeVector output_dims;
     CommonTestUtils::getConvOutShape(input_dims(), conv_params(), output_dims);
@@ -192,7 +194,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
 }
 
-// corresponding ticket #-23769
+// [Track number: S#23769]
 TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     const std::string model = R"V0G0N(
 <?xml version="1.0" ?>

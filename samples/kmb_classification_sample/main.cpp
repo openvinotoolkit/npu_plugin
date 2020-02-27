@@ -196,9 +196,14 @@ int main(int argc, char *argv[]) {
         slog::info << "zeroPoint: " << zeroPoint << slog::endl;
         slog::info << "scale: " << scale << slog::endl;
 
-        Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
+        Blob::Ptr classificationOut = nullptr;
+        if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+            classificationOut = deQuantize(outputBlob, scale, zeroPoint);
+        } else {
+            classificationOut = outputBlob;
+        }
 
-        ClassificationResult classificationResult(dequantOut, imageNames,
+        ClassificationResult classificationResult(classificationOut, imageNames,
                                                   batchSize, printedResultsCount,
                                                   labels);
         classificationResult.print();
@@ -206,7 +211,7 @@ int main(int argc, char *argv[]) {
         std::string outFilePath = "./output.dat";
         std::ofstream outFile(outFilePath, std::ios::binary);
         if (outFile.is_open()) {
-            outFile.write(outputBlob->buffer(), outputBlob->size());
+            outFile.write(outputBlob->buffer(), outputBlob->byteSize());
         } else {
             slog::warn << "Failed to open '" << outFilePath << "'" << slog::endl;
         }

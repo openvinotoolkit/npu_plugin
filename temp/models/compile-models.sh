@@ -19,7 +19,7 @@ then
 else
     if [ ! -z "$INTEL_OPENVINO_DIR" ];
     then
-        vpu2_compilePath="$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/lib/intel64/vpu2_compile"
+        vpu2_compilePath="$INTEL_OPENVINO_DIR/deployment_tools/inference_engine/bin/vpu2_compile"
     else
         echo "Failed! INTEL_OPENVINO_DIR is not specified. Please set either a correct path to OpenVINO package or"
         echo "pass path to vpu2_compile tool as an argument"
@@ -41,8 +41,8 @@ OIFS="$IFS"
 IFS=$'\n'
 for filenameIR in `find . -type f -name "*.xml"`
 do
-   echo "$vpu2_compilePath -m $filenameIR"
-   $vpu2_compilePath -m "$filenameIR"
+   echo "$vpu2_compilePath -m $filenameIR -op FP16"
+   $vpu2_compilePath -m "$filenameIR" -op FP16
    exitStatus=$?
    if [ "$exitStatus" -ne 0 ];
    then

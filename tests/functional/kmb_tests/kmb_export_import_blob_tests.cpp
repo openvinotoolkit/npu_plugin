@@ -88,7 +88,7 @@ void ExportImportBlobToFromFile(
 }
 
 // Disabled because LoadNetwork fails to initialize device
-// Jira ticket - CVS-21379
+// [Track number: S#21379]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_Scale_Shift) {
     extern std::string conv_after_scale_shift;
     std::string model = conv_after_scale_shift;
@@ -116,7 +116,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
 }
 
 // Disabled because LoadNetwork fails to initialize device
-// Jira ticket - CVS-21379
+// [Track number: S#21379]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragment) {
     extern std::string full_quant_model;
 
@@ -159,7 +159,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragm
 }
 
 // Disabled because LoadNetwork fails to initialize device
-// Jira ticket - CVS-21379
+// [Track number: S#21379]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
@@ -180,7 +180,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
 }
 
 // Disabled because LoadNetwork fails to initialize device
-// Jira ticket - CVS-21379
+// [Track number: S#21379]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
     extern std::string relu_test_2;
     const std::string model = relu_test_2;

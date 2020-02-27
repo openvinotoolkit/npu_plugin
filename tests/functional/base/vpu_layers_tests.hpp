@@ -70,6 +70,14 @@ struct interp_test_params {
 using namespace InferenceEngine;
 using namespace details;
 
+#ifdef ENABLE_VPUAL
+
+// this is a copy of useSipp function from kmbPlugin/kmbPreproc.hpp just because func from kmbPlugin/kmbPreproc.hpp
+// is not avaible from functional tests environment
+bool useSIPP();
+
+#endif
+
 void setCommonConfig(std::map<std::string, std::string>& config);
 size_t precisionToBytesize(const std::string& precision);
 

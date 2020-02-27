@@ -142,6 +142,7 @@ std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> buildAllocator(const char* 
     return std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
 }
 
+// [Track number: S#21513]
 TEST_P(VpuPreprocessingTestsWithParam,
     DISABLED_importWithPreprocessing) {  // To be run in manual mode when device is available
     preprocessingType preprocType = GetParam();
@@ -195,7 +196,13 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
 using VpuPreprocessingTests = vpuLayersTests;
 
+// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, correctPreprocessing) {
+#ifdef ENABLE_VPUAL
+    if (useSIPP()) {
+        SKIP();
+    }
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
@@ -244,7 +251,13 @@ TEST_F(VpuPreprocessingTests, correctPreprocessing) {
     }
 }
 
+// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, multiThreadCorrectPreprocessing) {
+#ifdef ENABLE_VPUAL
+    if (useSIPP()) {
+        SKIP();
+    }
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
@@ -302,7 +315,13 @@ TEST_F(VpuPreprocessingTests, multiThreadCorrectPreprocessing) {
     }
 }
 
+// [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
+#ifdef ENABLE_VPUAL
+    if (useSIPP()) {
+        SKIP();
+    }
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2-dpu/mobilenet-v2-dpu.blob";
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
