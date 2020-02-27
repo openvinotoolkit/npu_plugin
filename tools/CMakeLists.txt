@@ -1,2 +1,2 @@
-add_subdirectory(graph_comparator)
+#add_subdirectory(graph_comparator)
 add_subdirectory(validate_tensor)
