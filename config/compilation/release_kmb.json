@@ -17,6 +17,7 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
+                "PPEAccuracy": true,
                 "split_strategy" :
                 [
                     {
@@ -89,6 +90,7 @@
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
+            "ProvideAccuracyinPPEs",
             "FusePostOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
