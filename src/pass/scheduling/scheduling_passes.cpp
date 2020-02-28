@@ -431,9 +431,13 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         model.getOp(task)->set<unsigned>("schedulingNumber", i++);
 
     // Schedule trailing UPATasks
-    for (auto& task : upaTasks)
+    mv::OpModel om(model);
+    for (auto task = om.opBegin(); task != om.opEnd(); ++task)
+    {
         if (task->hasAttr("trailing") && task->get<bool>("trailing"))
-            task->set<unsigned>("schedulingNumber", i++);
+            if (std::find(scheduling.begin(), scheduling.end(), task->getName()) == scheduling.end())
+                task->set<unsigned>("schedulingNumber", i++);
+    }
 }
 
 void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
