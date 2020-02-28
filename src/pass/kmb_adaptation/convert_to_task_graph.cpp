@@ -516,6 +516,17 @@ mv::Data::TensorIterator convertDeconvToUPATask(mv::OpModel& om, const std::vect
     return upaDeconv;
 }
 
+mv::Data::TensorIterator convertTileToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+{
+    auto axis = attrs.at("axis").get<std::string>();
+    auto tiles = attrs.at("tiles").get<std::string>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    return om.uPATaskTile(inputs, axis, tiles, dtype, quantParams, name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -528,7 +539,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile"};
+
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -559,7 +571,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
     {"Sigmoid", convertSigmoidToUPATask},
-    {"Deconv", convertDeconvToUPATask}
+    {"Deconv", convertDeconvToUPATask},
+    {"Tile", convertTileToUPATask},
+    {"CTCDecoder", convertCTCDecoderToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)
