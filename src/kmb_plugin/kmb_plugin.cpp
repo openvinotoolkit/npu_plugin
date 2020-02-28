@@ -28,6 +28,7 @@ using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICore* /*core*/, ICNNNetwork& network, const std::map<std::string, std::string>& config) {
+    IE_PROFILING_AUTO_SCOPE(LoadExeNetworkImpl);
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
@@ -90,6 +91,7 @@ Engine::Engine(): _metrics() {
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
+    IE_PROFILING_AUTO_SCOPE(ImportNetwork);
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {
