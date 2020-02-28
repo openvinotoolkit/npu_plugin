@@ -95,14 +95,23 @@ void provideAccuracyinPPEs(const mv::pass::PassEntry&, mv::ComputationModel& mod
         return;
     auto leakyRelus = om.getOps("LeakyRelu");
     auto leakyRelu = leakyRelus.begin();
+    std::vector <std::string> opNames;
+
     while (leakyRelu != leakyRelus.end())
     {
         auto leakyReluOp = *leakyRelu;
         auto parentOp = om.getSourceOp(leakyReluOp->getInputTensor(0));
         auto leakyInputTensor = leakyReluOp->getInputTensor(0);
         auto leakyOutputTensor = leakyReluOp->getOutputTensor(0);
-        std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
         auto leakyReluQuantParams = leakyReluOp->get<mv::QuantizationParams>("quantParams");
+        uint8_t branch = 0;
+        std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
+        for (std::string opName : opNames)
+        {
+            if (opName == sinkOperators[0]->getName())
+                branch++;
+        }
+        opNames.push_back(sinkOperators[0]->getName());
 
         mv::Data::OpListIterator relu0, depthwise0, depthwise1, relu1, depthwise2;
         for (uint8_t i = 0; i < ADD_INPUT_FLOWS; i++)
@@ -127,8 +136,8 @@ void provideAccuracyinPPEs(const mv::pass::PassEntry&, mv::ComputationModel& mod
         auto backup = parentOp.leftmostOutput();
         om.undefineFlow(backup);
         om.removeOp(leakyReluOp);
-        sinkOperators[0]->setInputTensor(add0->getOutputTensor(0), 0, false);
-        om.defineFlow(add0->getOutputTensor(0), sinkOperators[0], 0);
+        sinkOperators[0]->setInputTensor(add0->getOutputTensor(0), branch, false);
+        om.defineFlow(add0->getOutputTensor(0), sinkOperators[0], branch);
         leakyRelu++;
     }
 }
