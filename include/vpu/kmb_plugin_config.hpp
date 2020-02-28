@@ -84,5 +84,11 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 0.
+ * Use this VPUSMM slice index to allocate memory
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(VPUSMM_SLICE_INDEX);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

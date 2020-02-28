@@ -29,9 +29,9 @@ void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
     long pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
 
-    auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
+    auto fd = vpurm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT, _sliceIdx);
 
-    auto physAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
+    auto physAddr = vpurm_import_dmabuf(fd, VPU_DEFAULT, _sliceIdx);
 
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
@@ -55,7 +55,7 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 
     auto memoryDesc = memoryIt->second;
 
-    vpusmm_unimport_dmabuf(memoryDesc.fd);
+    vpurm_unimport_dmabuf(memoryDesc.fd, _sliceIdx);
 
     auto out = munmap(handle, memoryDesc.size);
     if (out == -1) {
@@ -68,4 +68,6 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
     return true;
 }
 
-bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept { return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0; }
+bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
+    return ptr != nullptr && vpurm_ptr_to_vpu(ptr, _sliceIdx) != 0;
+}

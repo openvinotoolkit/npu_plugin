@@ -46,6 +46,8 @@ public:
     bool force2DToNC() const { return _force2DToNC; }
     bool forceFP16ToFP32() const { return _forceFP16ToFP32; }
 
+    int VPUSMMSliceIdx() const { return _VPUSMMSliceIdx; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -85,6 +87,7 @@ private:
             THROW_IE_EXCEPTION << "Unsupported color format is passed.";
         }
     }
+    int _VPUSMMSliceIdx = 0;
 };
 
 }  // namespace KmbPlugin

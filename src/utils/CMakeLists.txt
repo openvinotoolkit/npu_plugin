@@ -35,6 +35,7 @@ endif()
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_link_libraries(${TARGET_NAME}
     PRIVATE
+    vpusmm
     "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/${VPUSMM_ARCH}/libvpusmm.so"
     PUBLIC
     IE::inference_engine_lp_transformations)

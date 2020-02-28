@@ -68,7 +68,8 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                << "! Supported precisions: FP32, FP16, U8, I8";
         }
 
-        Blob::Ptr inputBlob = make_blob_with_precision(networkInput.second->getTensorDesc(), getKmbAllocator());
+        Blob::Ptr inputBlob =
+            make_blob_with_precision(networkInput.second->getTensorDesc(), getKmbAllocator(_config.VPUSMMSliceIdx()));
         inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
     }
@@ -91,9 +92,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
             InferenceEngine::TensorDesc fp32Desc(
                 InferenceEngine::Precision::FP32, outDesc.getDims(), outDesc.getLayout());
             _logger->warning("VPU_KMB_FORCE_FP16_TO_FP32 is enabled. Need to convert precision.");
-            outputBlob = make_blob_with_precision(fp32Desc, getKmbAllocator());
+            outputBlob = make_blob_with_precision(fp32Desc, getKmbAllocator(_config.VPUSMMSliceIdx()));
         } else {
-            outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
+            outputBlob = make_blob_with_precision(
+                networkOutput.second->getTensorDesc(), getKmbAllocator(_config.VPUSMMSliceIdx()));
         }
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
@@ -165,8 +167,8 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     }
 }
 
-static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob) {
-    return getKmbAllocator()->isValidPtr(blob->buffer().as<void*>());
+static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob, const size_t& sliceIdx) {
+    return getKmbAllocator(sliceIdx)->isValidPtr(blob->buffer().as<void*>());
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
@@ -190,11 +192,11 @@ void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::Bl
             Blob::Ptr& origUVBlob = origNV12Blob->uv();
 
             Blob::Ptr kmbYBlob = origYBlob;
-            if (!isBlobPlacedInShareableMemory(origYBlob)) {
+            if (!isBlobPlacedInShareableMemory(origYBlob, _config.VPUSMMSliceIdx())) {
                 kmbYBlob = reallocateBlob(origYBlob);
             }
             Blob::Ptr kmbUVBlob = origUVBlob;
-            if (!isBlobPlacedInShareableMemory(origUVBlob)) {
+            if (!isBlobPlacedInShareableMemory(origUVBlob, _config.VPUSMMSliceIdx())) {
                 kmbUVBlob = reallocateBlob(origUVBlob);
             }
 
@@ -222,7 +224,7 @@ static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& device
 }
 
 static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
-    const Blob::Ptr& blob, const Layout srcLayout, const Layout dstLayout) {
+    const Blob::Ptr& blob, const Layout srcLayout, const Layout dstLayout, const size_t& sliceIdx) {
     if (blob->getTensorDesc().getDims()[1] != 3) {
         THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
@@ -233,15 +235,15 @@ static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
     Blob::Ptr srcBlob = make_blob_with_precision(srcTensorDesc, blob->buffer());
 
     TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
-    Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, getKmbAllocator());
+    Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, getKmbAllocator(sliceIdx));
     dstBlob->allocate();
 
     vpu::copyBlob(srcBlob, dstBlob);
     return dstBlob;
 }
 
-static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layout) {
-    auto allocator = getKmbAllocator();
+static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layout, const size_t& sliceIdx) {
+    auto allocator = getKmbAllocator(sliceIdx);
 
     TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
@@ -254,7 +256,7 @@ static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layo
 
 Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
     IE_PROFILING_AUTO_SCOPE(reallocateBlob);
-    return reallocateBlobToLayout(blob, blob->getTensorDesc().getLayout());
+    return reallocateBlobToLayout(blob, blob->getTensorDesc().getLayout(), _config.VPUSMMSliceIdx());
 }
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
@@ -263,10 +265,11 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.forceNCHWToNHWC()) {
         _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
-        return reallocateBlobToLayoutIgnoringOriginalLayout(actualInput, Layout::NCHW, Layout::NHWC);
+        return reallocateBlobToLayoutIgnoringOriginalLayout(
+            actualInput, Layout::NCHW, Layout::NHWC, _config.VPUSMMSliceIdx());
     } else {
         Blob::Ptr inputForInference;
-        if (!isBlobPlacedInShareableMemory(actualInput)) {
+        if (!isBlobPlacedInShareableMemory(actualInput, _config.VPUSMMSliceIdx())) {
             _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
             inputForInference = reallocateBlob(actualInput);
         } else {
@@ -275,7 +278,7 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
 
         if (needRepacking(actualInput, expectedDesc)) {
             _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
-            inputForInference = reallocateBlobToLayout(actualInput, expectedDesc.getLayout());
+            inputForInference = reallocateBlobToLayout(actualInput, expectedDesc.getLayout(), _config.VPUSMMSliceIdx());
         }
 
         return inputForInference;

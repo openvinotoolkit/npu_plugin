@@ -17,10 +17,29 @@
 find_library(VPUSMM_LIBRARY
         NAMES vpusmm
         HINTS ${CMAKE_CURRENT_LIST_DIR}/${CMAKE_SYSTEM_PROCESSOR}
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
         NO_CMAKE_FIND_ROOT_PATH)
 
 if(NOT VPUSMM_LIBRARY)
     message(FATAL_ERROR "vpusmm was not found")
+endif()
+
+find_path(VPUSMM_INCLUDES
+        NAMES "vpusmm.h"
+        HINTS ${CMAKE_CURRENT_LIST_DIR}
+        NO_DEFAULT_PATH
+        NO_CMAKE_ENVIRONMENT_PATH
+        NO_CMAKE_PATH
+        NO_SYSTEM_ENVIRONMENT_PATH
+        NO_CMAKE_SYSTEM_PATH
+        NO_CMAKE_FIND_ROOT_PATH)
+
+if(NOT VPUSMM_INCLUDES)
+    message(FATAL_ERROR "vpusmm.h was not found")
 endif()
 
 add_library(vpusmm SHARED IMPORTED GLOBAL)

@@ -44,6 +44,7 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
+        ${VPUSMM_INCLUDES}
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
     PUBLIC
@@ -58,7 +59,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        vpusmm
+        ${VPUSMM_LIBRARY}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
@@ -74,6 +75,7 @@ if(ENABLE_TESTS)
 
     target_include_directories(${TARGET_NAME}_test_static
         SYSTEM PRIVATE
+            ${VPUSMM_INCLUDES}
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
             "${IE_FRONTEND_MCM_INCLUDE_DIR}"
@@ -86,7 +88,7 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            vpusmm
+            ${VPUSMM_LIBRARY}
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)
