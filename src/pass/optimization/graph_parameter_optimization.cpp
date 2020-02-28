@@ -535,9 +535,6 @@ namespace mv
                     return true;
                 }
 
-                if(op.getOpType() == "MaxPool")
-                    return true;
-
                 if(op.getOpType() == "Depthwise")
                     return true;
 
