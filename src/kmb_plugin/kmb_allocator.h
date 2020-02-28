@@ -27,6 +27,8 @@
 namespace vpu {
 namespace KmbPlugin {
 
+const int VPUSMM_SLICE_COUNT = 4;
+
 class KmbAllocator : public InferenceEngine::IAllocator {
 public:
     void * lock(void * handle, InferenceEngine::LockOp)  noexcept override;
@@ -45,16 +47,19 @@ public:
 
     virtual ~KmbAllocator() = default;
 
+    void setSliceIdx(int sliceIdx);
+
 protected:
     struct MemoryDescriptor {
         size_t size;
         int fd;
         unsigned long physAddr;
     };
-    std::unordered_map<void *, MemoryDescriptor> _allocatedMemory;
+    std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
+    int _sliceIdx = 0;
 };
 
-std::shared_ptr<KmbAllocator>& getKmbAllocator();
+std::shared_ptr<KmbAllocator>& getKmbAllocator(int sliceIdx = 0);
 
 }  // namespace KmbPlugin
 }  // namespace vpu

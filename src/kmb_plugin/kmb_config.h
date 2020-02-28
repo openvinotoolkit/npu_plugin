@@ -37,6 +37,8 @@ public:
     unsigned int numberOfSIPPShaves = 4;
     unsigned int SIPPLpi = 8;
 
+    int VPUSMMSliceIdx() const { return _VPUSMMSliceIdx; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -44,6 +46,7 @@ protected:
 
 private:
     std::map<std::string, std::string> _config;
+    int _VPUSMMSliceIdx = 0;
 };
 
 }  // namespace KmbPlugin

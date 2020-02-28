@@ -86,7 +86,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         Blob::Ptr inputBlob = make_blob_with_precision(TensorDesc(
                 precision,
                 dims,
-                layout), getKmbAllocator());
+                layout), getKmbAllocator(_config.VPUSMMSliceIdx()));
         if (inputBlob == nullptr) {
             THROW_IE_EXCEPTION << "InputBlob is nullptr.";
         }
@@ -112,7 +112,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         Blob::Ptr outputBlob = make_blob_with_precision(TensorDesc(
             precision,
             dims,
-            layout), getKmbAllocator());
+            layout), getKmbAllocator(_config.VPUSMMSliceIdx()));
 
         if (outputBlob == nullptr) {
             THROW_IE_EXCEPTION << "InputBlob is nullptr.";
@@ -174,7 +174,7 @@ void KmbInferRequest::InferAsync() {
             InferenceEngine::BlobMap inputs;
             for (auto &input : _custom_inputs) {
                 inputs[input.first] = make_blob_with_precision(_custom_inputs.begin()->second->getTensorDesc(),
-                                                               getKmbAllocator());
+                                                               getKmbAllocator(_config.VPUSMMSliceIdx()));
                 inputs[input.first]->allocate();
             }
 
@@ -218,8 +218,8 @@ void KmbInferRequest::InferAsync() {
                     Blob::Ptr& origYBlob = origNV12Blob->y();
                     Blob::Ptr& origUVBlob = origNV12Blob->uv();
 
-                    if (!getKmbAllocator()->isValidPtr(origYBlob->buffer())) {
-                        Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator());
+                    if (!getKmbAllocator(_config.VPUSMMSliceIdx())->isValidPtr(origYBlob->buffer())) {
+                        Blob::Ptr kmbYBlob = make_blob_with_precision(origYBlob->getTensorDesc(), getKmbAllocator(_config.VPUSMMSliceIdx()));
                         IE_ASSERT(kmbYBlob != nullptr);
 
                         kmbYBlob->allocate();
@@ -227,8 +227,8 @@ void KmbInferRequest::InferAsync() {
                         origNV12Blob->y() = kmbYBlob;
                     }
 
-                    if (!getKmbAllocator()->isValidPtr(origUVBlob->buffer())) {
-                        Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator());
+                    if (!getKmbAllocator(_config.VPUSMMSliceIdx())->isValidPtr(origUVBlob->buffer())) {
+                        Blob::Ptr kmbUVBlob = make_blob_with_precision(origUVBlob->getTensorDesc(), getKmbAllocator(_config.VPUSMMSliceIdx()));
                         IE_ASSERT(kmbUVBlob != nullptr);
 
                         kmbUVBlob->allocate();
@@ -305,7 +305,7 @@ void KmbInferRequest::InferAsync() {
             // TODO: remove when mcm will support different input layout
             !is2DTensor(inputBlobRef->getTensorDesc().getDims())) {
             // do layout conversion with copyBlob
-            InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator());
+            InferenceEngine::Blob::Ptr blobWithInput = make_blob_with_precision(deviceTensorDesc, getKmbAllocator(_config.VPUSMMSliceIdx()));
             IE_ASSERT(blobWithInput != nullptr);
             blobWithInput->allocate();
             copyBlob(inputBlobRef, blobWithInput);
@@ -429,7 +429,7 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size ("
                                    << dataSize << "!=" << inputSize << ").";
             }
-            if  (getKmbAllocator()->isValidPtr(data->buffer())) {
+            if  (getKmbAllocator(_config.VPUSMMSliceIdx())->isValidPtr(data->buffer())) {
                 _inputs[name] = data;
             } else {
                 _logger->info("isValidPtr(): Input blob will be copied");
@@ -450,7 +450,7 @@ void KmbInferRequest::SetBlob(const char *name, const InferenceEngine::Blob::Ptr
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
                                << "Failed to set Blob with precision not corresponding to user output precision";
         }
-        if  (getKmbAllocator()->isValidPtr(data->buffer())) {
+        if  (getKmbAllocator(_config.VPUSMMSliceIdx())->isValidPtr(data->buffer())) {
             _inputs[name] = data;
         } else {
             _logger->info("isValidPtr(): Input blob will be copied");

@@ -31,15 +31,18 @@ public:
     virtual void* getAllocatedChunkByIndex(size_t chunkIndex) = 0;
 };
 
+const int VPUSMM_SLICE_COUNT = 4;
+
 class VPUSMMAllocator : public VPUAllocator {
 public:
-    VPUSMMAllocator() {};
+    VPUSMMAllocator(int sliceIdx = 0);
     virtual ~VPUSMMAllocator();
     void* allocate(size_t requestedSize);
     void* getAllocatedChunkByIndex(size_t chunkIndex);
 private:
     std::vector< std::tuple<int, void*, size_t> > _memChunks;
     static int _pageSize;
+    int _sliceIdx;
 };
 
 class NativeAllocator : public VPUAllocator {
