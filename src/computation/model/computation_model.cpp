@@ -25,7 +25,7 @@ input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 selfRef_(*this)
 {
-    
+
 }
 
 mv::ComputationModel::ComputationModel(ComputationModel &other) :
@@ -52,12 +52,12 @@ input_(other.input_),
 output_(other.output_),
 selfRef_(other.selfRef_)
 {
-    
+
 }
 
 mv::ComputationModel::~ComputationModel()
 {
-    
+
 }
 
 void mv::ComputationModel::incrementOpsIndexCounter_(const std::string& opType)
@@ -120,7 +120,7 @@ bool mv::ComputationModel::isValid(Data::TensorIterator it) const
 
 bool mv::ComputationModel::isValid(Data::OpListIterator it) const
 {
-    
+
     if (it == *dataOpEnd_)
         return false;
     if (ops_->find(it->getName()) != ops_->end())
@@ -131,7 +131,7 @@ bool mv::ComputationModel::isValid(Data::OpListIterator it) const
 
 bool mv::ComputationModel::isValid(Control::OpListIterator it) const
 {
-    
+
     if (it == *controlOpEnd_)
         return false;
     if (ops_->find(it->getName()) != ops_->end())
@@ -149,7 +149,7 @@ bool mv::ComputationModel::isValid(Data::FlowListIterator it) const
     return false;
 }
 
-bool mv::ComputationModel::isValid(Control::FlowListIterator it) const 
+bool mv::ComputationModel::isValid(Control::FlowListIterator it) const
 {
     if (it == *controlFlowEnd_)
         return false;
@@ -181,7 +181,7 @@ mv::GroupIterator mv::ComputationModel::addGroup(const std::string &name)
 
     if (getGroup(name) == groupEnd())
     {
-        
+
         auto result = groups_->emplace(name, std::make_shared<Group>(*this, name));
         if (result.second)
         {
@@ -335,7 +335,7 @@ mv::Control::FlowListIterator mv::ComputationModel::getControlFlow(const std::st
 std::shared_ptr<mv::RuntimeBinary>  mv::ComputationModel::allocateBinaryBuffer(std::string newName, std::size_t newSize)
 {
     if (binary_->getBuffer(newName, newSize))
-    {   
+    {
         return binary_ ;
     }
     return nullptr ;
