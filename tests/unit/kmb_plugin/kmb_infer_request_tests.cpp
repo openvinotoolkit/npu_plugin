@@ -100,6 +100,11 @@ public:
     MOCK_CONST_METHOD2(dumpInputBlobHelper, void(const InferenceEngine::Blob::Ptr&, const std::string&));
 };
 
+// FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
+// can be enabled with other allocator
+// [Track number: S#28136]
+#ifdef __arm__
+
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
     InferenceEngine::InputsDataMap _inputs;
@@ -457,3 +462,5 @@ TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIs
 
 INSTANTIATE_TEST_CASE_P(
     SupportedColorFormats, kmbInferRequestOutColorFormatSIPPUnitTests, testing::Values("RGB", "BGR"));
+
+#endif  //  __arm__
