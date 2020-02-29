@@ -3,6 +3,8 @@
 
 #include <stdint.h>
 #include <utility>
+#include "include/mcm/tensor/dtype/dtype.hpp"
+
 
 namespace mv
 {
@@ -11,6 +13,8 @@ namespace mv
     unsigned count_bits(unsigned number);
     unsigned next_greater_power_of_2(unsigned number);
     std::pair<std::size_t, std::size_t> tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits);
+    uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType);
+
 
     // FP16 Conversion
     union bit_field32
