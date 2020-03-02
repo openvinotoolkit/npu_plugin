@@ -535,35 +535,47 @@ void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     }
 }
 
+namespace {
 template <typename T>
-bool needAlignZeroPoints(std::vector<T> lowValues, std::vector<T> highValues) {
-    for (size_t i = 0; i < lowValues.size(); i++) {
-        if ((lowValues[i] != lowValues[0]) || (highValues[i] != highValues[0])) {
+bool needAlignZeroPoints(std::vector<T> lowValues, std::vector<T> highValues, const float levels) {
+    auto firstZP =
+        QuantizationHelpers::calculateZeroPoint(highValues[0], lowValues[0], levels, InferenceEngine::Precision::U8);
+    for (size_t i = 1; i < lowValues.size(); i++) {
+        auto zp = QuantizationHelpers::calculateZeroPoint(
+            highValues[i], lowValues[i], levels, InferenceEngine::Precision::U8);
+        if (firstZP != zp) {
             return true;
         }
     }
     return false;
 }
 
+bool isFakeQuantizeOnWeights(const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer) {
+    InferenceEngine::DataPtr inputData = fakeQuantizeLayer->insData[0].lock();
+    IE_ASSERT(inputData != nullptr);
+    auto parentLayer = inputData->getCreatorLayer().lock();
+
+    //  Check that FQ on weights
+    return parentLayer->type == "Const" ? true : false;
+}
+}  // namespace
+
 void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
     for (auto& layer : network) {
         if (layer->type == "FakeQuantize") {
-            InferenceEngine::DataPtr constDate = layer->insData[0].lock();
-            IE_ASSERT(constDate != nullptr);
-            auto constLayer = constDate->getCreatorLayer().lock();
-            if (constLayer->type != "Const") {
+            if (!isFakeQuantizeOnWeights(layer)) {
                 continue;
             }
 
             auto quantizationParams = QuantizationDetails::getDetails(*layer);
+            float levels = quantizationParams.levels;
 
             auto numberOfQuantParams = quantizationParams.outputLowValues.size();
-            if (!needAlignZeroPoints(quantizationParams.outputLowValues, quantizationParams.outputHighValues)) {
+            if (!needAlignZeroPoints(quantizationParams.outputLowValues, quantizationParams.outputHighValues, levels)) {
                 continue;
             }
 
             double sumOfZeroPoints = 0;
-            float levels = quantizationParams.levels;
 
             for (size_t i = 0; i < numberOfQuantParams; i++) {
                 float ol = quantizationParams.outputLowValues[i];
