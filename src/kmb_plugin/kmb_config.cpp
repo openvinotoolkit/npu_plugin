@@ -80,7 +80,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
-                                                  VPU_KMB_CONFIG_KEY(VPUSMM_SLICE_INDEX),
+                                                  VPU_CONFIG_KEY(DEVICE_ID),
                                               });
 
     return options;
@@ -102,7 +102,7 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
         << "KmbConfig::parse attempt to set invalid lpi value for SIPP: '"
         << SIPPLpi << "',  valid values are 1, 2, 4, 8, 16";
 
-    setOption(_VPUSMMSliceIdx, config, VPU_KMB_CONFIG_KEY(VPUSMM_SLICE_INDEX), parseInt);
+    setOption(_VPUSMMSliceIdx, config, VPU_CONFIG_KEY(DEVICE_ID), parseInt);
     IE_ASSERT(0 <= _VPUSMMSliceIdx && _VPUSMMSliceIdx < 4)
         << "KmbConfig::parse attempt to set invalid VPUSMM slice index value for SIPP: '" << _VPUSMMSliceIdx
         << "',  valid values are integers from 0 to 3";
