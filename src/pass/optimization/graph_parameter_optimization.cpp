@@ -174,7 +174,7 @@ namespace mv
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
-                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool isInputFakeSparsity)
+                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool fakeSparsity)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -225,72 +225,72 @@ namespace mv
                 }
 
                 //Additional memory footprint for sparsity
-                if(inputActivationSparsity){
-                    if(isInputFakeSparsity)
+
+                if(fakeSparsity)
+                {
+                    if (opType != "MaxPool" && opType != "DepthwiseConv" && !isCMConv)
                     {
-                        if (opType != "MaxPool" && opType != "DepthwiseConv" && !isCMConv)
-                        {
-                            //error
-                            throw LogicError(*this, op.getName() + ": Invalid fake Sparsity! Has to be only for MaxPool, DW or CMConv!! opType is " + opType);
-                        }
-                        std::vector<std::size_t> ndims(4);
-                        uint16_t kernelW, kernelH;
+                        //error
+                        throw LogicError(*this, op.getName() + ": Invalid fake Sparsity! Has to be only for MaxPool, DW or CMConv!! opType is " + opType);
+                    }
+                    std::vector<std::size_t> ndims(4);
+                    uint16_t kernelW, kernelH;
 
 
-                        auto strides = op.get<std::array<unsigned short, 2>>("stride");
+                    auto strides = op.get<std::array<unsigned short, 2>>("stride");
 
-                        if (op.hasAttr("kSize"))
-                        {
-                            auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
-                            kernelW = kernelShape[0];
-                            kernelH = kernelShape[1];
-                        }
-                        else
-                        {
-                            auto weightsShape = op.getInputTensor(1)->getShape();
-                            kernelW = weightsShape[mv::KERNEL_WIDTH];
-                            kernelH = weightsShape[mv::KERNEL_HEIGHT];
-                        }
-
-                        mv::DType dataType =op.getInputTensor(0)->get<mv::DType>("dType");
-                        if (opType != "MaxPool")
-                            dataType = op.getInputTensor(1)->get<mv::DType>("dType");
-
-                        auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
-                        size_t fakeSparsitySize = 0;
-                        if ((opType == "MaxPool") || (opType == "DepthwiseConv"))
-                        {
-                            //inputChannels = 1
-                            auto bitpatternSize = windowsSize*kernelH;
-                            //ndims = {16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0)), 1, 1, 1};
-                            fakeSparsitySize = 16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0));
-                        }
-                        else if (isCMConv)//isChannelMajorConvolution
-                        {
-                            std::size_t outputChannels =  mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
-                            outputChannels = mv::round_up(outputChannels/streamConfig["K"], 16);
-                            std::size_t inputChannels = mv::round_up(op.getInputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
-
-                            auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
-                            auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
-
-                            //ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
-                            fakeSparsitySize = 16*NumberOfRowsSparistyBytes*outputChannels;
-
-                        }
-                        inputSize += fakeSparsitySize;
+                    if (op.hasAttr("kSize"))
+                    {
+                        auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
+                        kernelW = kernelShape[0];
+                        kernelH = kernelShape[1];
                     }
                     else
                     {
-                        size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
-                        //w*h*c, 1 bit per byte of tensor.
-                        auto sparseInputSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
-                        //storage element
-                        sparseInputSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
-                        sparseInputSize = mv::round_up(sparseInputSize, 16);
-                        inputSize += (sparseInputSize / streamDivisor);
+                        auto weightsShape = op.getInputTensor(1)->getShape();
+                        kernelW = weightsShape[mv::KERNEL_WIDTH];
+                        kernelH = weightsShape[mv::KERNEL_HEIGHT];
                     }
+
+                    mv::DType dataType =op.getInputTensor(0)->get<mv::DType>("dType");
+                    if (opType != "MaxPool")
+                        dataType = op.getInputTensor(1)->get<mv::DType>("dType");
+
+                    auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
+                    size_t fakeSparsitySize = 0;
+                    if ((opType == "MaxPool") || (opType == "DepthwiseConv"))
+                    {
+                        //inputChannels = 1
+                        auto bitpatternSize = windowsSize*kernelH;
+                        //ndims = {16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0)), 1, 1, 1};
+                        fakeSparsitySize = 16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0));
+                    }
+                    else if (isCMConv)//isChannelMajorConvolution
+                    {
+                        std::size_t outputChannels =  mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                        outputChannels = mv::round_up(outputChannels/streamConfig["K"], 16);
+                        std::size_t inputChannels = mv::round_up(op.getInputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+
+                        auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
+                        auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
+
+                        //ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+                        fakeSparsitySize = 16*NumberOfRowsSparistyBytes*outputChannels;
+
+                    }
+                    inputSize += fakeSparsitySize;
                 }
+                if(inputActivationSparsity)
+                {
+                    size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
+                    //w*h*c, 1 bit per byte of tensor.
+                    auto sparseInputSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
+                    //storage element
+                    sparseInputSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
+                    sparseInputSize = mv::round_up(sparseInputSize, 16);
+                    inputSize += (sparseInputSize / streamDivisor);
+                }
+
                 if(outputActivationSparsity){
                     size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["K"];
                     //w*h*c, 1 bit per byte of tensor.
@@ -556,7 +556,7 @@ namespace mv
                 if(requiresRealActivationSparsity(op, clustering)) 
                     return true;
 
-                if(requiresFakeActivationSparsity(op, clustering)) 
+                if(requiresFakeActivationSparsity(op))
                     return true;
 
                 return false;
@@ -586,7 +586,7 @@ namespace mv
             }
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
-            bool requiresFakeActivationSparsity(Op& op, string clustering){
+            bool requiresFakeActivationSparsity(Op& op){
                 if(enableChannelMajorConv and
                   (op.getOpType() == "Conv") and
                   (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16) )
@@ -658,7 +658,7 @@ namespace mv
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
-                        requiresFakeActivationSparsity(op, clustering));
+                        requiresFakeActivationSparsity(op));
                     // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
@@ -908,7 +908,7 @@ namespace mv
                     parentOutputSparsity = true;
                     childInputSparsity = true;
                 }
-                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp, childClustering);
+                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
                 if(requiresFakeSparsity){
                     parentOutputSparsity = false;
                     childInputSparsity = true;
@@ -923,7 +923,7 @@ namespace mv
                                             false,
                                             parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(), false);
+                                            parent["streaming"].get<Shape>(), requiresFakeActivationSparsity(parentOp));
 
                     auto childMem = memorySize(childOp,
                                             childClustering,
@@ -1138,7 +1138,7 @@ namespace mv
                     for( const auto clustering : clusteringStrategyPool)
                     {
                         bool iAS = inputActivationSparsity;
-                        bool fakeSparsity = requiresFakeActivationSparsity(op, clustering.get<string>());
+                        bool fakeSparsity = requiresFakeActivationSparsity(op);
                         if (requiresActivationSparsity(op, clustering.get<string>())) iAS = true;
                         // Determine streaming options
                         // 1. Determine if streams over H are possible
