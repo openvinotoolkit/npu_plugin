@@ -160,11 +160,10 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
 
     while (isPostOp(children.front())) {
         children = CNNNetworkHelper::getChildren(*(children.front()));
-    }
-
-    if (children.size() == 0) {
-        outputQuantParams = initialQuantParams;
-        return;
+        if (children.size() == 0) {
+            outputQuantParams = initialQuantParams;
+            return;
+        }
     }
 
     if (children.size() > 1) {
