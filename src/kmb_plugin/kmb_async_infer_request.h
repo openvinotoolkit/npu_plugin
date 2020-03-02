@@ -22,7 +22,7 @@
 namespace vpu {
 namespace KmbPlugin {
 
-class KmbAsyncInferRequest : virtual public InferenceEngine::AsyncInferRequestThreadSafeDefault {
+class KmbAsyncInferRequest : public InferenceEngine::AsyncInferRequestThreadSafeDefault {
 public:
     KmbAsyncInferRequest(const KmbInferRequest::Ptr& request,
         const InferenceEngine::ITaskExecutor::Ptr& taskExecutorStart,
