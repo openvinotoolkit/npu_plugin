@@ -109,10 +109,24 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         mv::Order(mv::Order::getRowMajorID(4)),
                         weightsQuantParams);
 
+    if (branch == 1)
+    {
+        updateInfMinMaxPerTensor(task->getOutputTensor(0));
+        double_t minConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMin()[0];
+        double_t maxConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMax()[0];
+        int64_t out_zero_point;
+        double out_scale;
+        double_t maxConvNew, minConvNew;
+        minConvNew = minConv/alpha;
+        maxConvNew = maxConv * alpha;
+        calcZeroPointAndScalePerTensor(maxConvNew, minConvNew, out_scale, out_zero_point);
+        quantParams = {{out_zero_point},{out_scale},{minConvNew},{maxConvNew}};
+    }
     auto conv = om.conv(inputTensor, weights, previousConv->get<std::array<unsigned short, 2>>("stride"),
                              previousConv->get<std::array<unsigned short, 4>>("padding"), previousConv->get<unsigned>("dilationFactor"),
                              previousConv->get<unsigned>("group"),
-                             mv::DType("UInt8"), quantParams, name + std::to_string(branch) + "_PPEConv");
+                        mv::DType("UInt8"), quantParams,
+                        name + std::to_string(branch) + "_PPEConv");
     auto convOp = om.getSourceOp(conv);
 
     if (hasBias)
