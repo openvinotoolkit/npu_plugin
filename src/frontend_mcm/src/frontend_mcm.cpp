@@ -1542,6 +1542,26 @@ void FrontEndMcm::parseBias(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     _logger->debug(FINISH_PARSING_STR, mvBias->getName());
 }
 
+namespace {
+bool canReplaceClampToReLU(const ie::ClampLayer& layer, const mv::QuantizationParams& quantParams) {
+    auto mins = quantParams.getMin();
+    auto maxs = quantParams.getMax();
+    auto clampMin = layer.min_value;
+    auto clampMax = layer.max_value;
+    if (layer.min_value < 0) {
+        return false;
+    }
+
+    for (size_t i = 0; i < mins.size(); i++) {
+        if ((mins[i] < clampMin) || (maxs[i] > clampMax)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+}  // namespace
+
 void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
 
@@ -1549,15 +1569,27 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     IE_ASSERT(clampLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
-
     auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-    auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
-        inputQuantParams, clampLayer->name + "clamp-min");
-    auto mvClampMax = _modelMcm.maximum(
-        mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
-    bindOutput(mvClampMax, layer->outData[0]);
 
-    _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
+    //  Try to use ReLU instead of Clamp due to accuracy loss. ReLU works better. [Track number: D#2504]
+    auto useReLU = canReplaceClampToReLU(*clampLayer, inputQuantParams);
+
+    if (useReLU) {
+        mv::Data::TensorIterator mvRelu;
+
+        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), inputQuantParams, layer->name);
+
+        bindOutput(mvRelu, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvRelu->getName());
+
+    } else {
+        auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
+            inputQuantParams, clampLayer->name + "clamp-min");
+        auto mvClampMax = _modelMcm.maximum(
+            mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
+        bindOutput(mvClampMax, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
+    }
 }
 
 void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
