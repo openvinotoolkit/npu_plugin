@@ -79,6 +79,10 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
         scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
         zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
         updateInfMinMaxPerChannel(weightsTensor);
+        min.clear();
+        min.clear();
+        scale.clear();
+        zp.clear();
 
         for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
         {
@@ -88,7 +92,9 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
             calcZeroPointAndScalePerTensor(max[k], min[k], new_scale, new_zero_point);
 
             for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
+            {
                 for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
+                {
                     for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
                     {
                         auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
@@ -96,6 +102,8 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         auto newQuantizedValue = std::round(real_weight/new_scale + new_zero_point);
                         weightsData.push_back(newQuantizedValue);
                     }
+                }
+            }
             scale.push_back(new_scale);
             zp.push_back(new_zero_point);
         }
@@ -104,7 +112,7 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
 
     auto weights = om.constantInt(weightsData,
                         {weightsTensor->getShape()[mv::KERNEL_WIDTH], weightsTensor->getShape()[mv::KERNEL_HEIGHT],
-                        inputShape[mv::KERNEL_INPUT_CHANNELS], inputShape[mv::KERNEL_OUTPUT_CHANNELS]},
+                        weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]},
                         mv::DType("UInt8"),
                         mv::Order(mv::Order::getRowMajorID(4)),
                         weightsQuantParams);
@@ -227,6 +235,7 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
         auto backup = parentOp.leftmostOutput();
         om.undefineFlow(backup);
+        om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
         om.removeOp(parentOp);
         om.removeOp(leakyReluOp);
         sinkOperators[0]->setInputTensor(add0->getOutputTensor(0), branch, false);
