@@ -89,6 +89,6 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
  * Type: integer, default is 0.
  * Use this VPUSMM slice index to allocate memory
  */
-DECLARE_VPU_KMB_CONFIG_KEY(VPUSMM_SLICE_INDEX);
+DECLARE_VPU_CONFIG_KEY(DEVICE_ID);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
