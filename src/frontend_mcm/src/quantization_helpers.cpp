@@ -36,7 +36,7 @@ mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 static double clamp(const double& v, const double& lo, const double& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
-    return ((layer->type == "ReLU") || (layer->type == "Clamp"));
+    return ((layer->type == "ReLU") || (layer->type == "Clamp") || (layer->type == "ReorgYolo"));
 }
 
 std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer) {
@@ -158,7 +158,7 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
         return;
     }
 
-    if (isPostOp(children.front())) {
+    while (isPostOp(children.front())) {
         children = CNNNetworkHelper::getChildren(*(children.front()));
     }
 
