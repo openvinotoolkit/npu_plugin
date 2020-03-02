@@ -90,7 +90,6 @@
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
-            "ProvideAccuracyinPPEs",
             "FusePostOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",

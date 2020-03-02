@@ -4,6 +4,7 @@
 #include "include/mcm/tensor/math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include <functional>
 
 void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel& model, std::string opType);
@@ -13,7 +14,7 @@ void fuseMaximumFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 void fuseScaleFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
 void fuseBatchNormFcn(mv::Data::OpListIterator &opIt,  mv::ComputationModel& model, std::string opType);
-static void fusePostOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -29,30 +30,62 @@ namespace mv
     }
 }
 
-void fusePostOpsFcn(const mv::pass::PassEntry&pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     UNUSED(fuseScaleFcn);
     UNUSED(fuseBatchNormFcn);
-    pass.log(mv::Logger::MessageType::Debug, "Fuse passes are starting");
 
     mv::OpModel om(model);
-    std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-
-    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
-                                       {{"Bias", fuseBiasFcn},
-                                        {"Sigmoid", fuseUsualPPEFcn},
-                                        {"Relu", fuseUsualPPEFcn},
-                                        {"LeakyRelu", fuseUsualPPEFcn},
-                                        {"Minimum", fuseMinimumFcn},
-                                        {"Maximum", fuseMaximumFcn}};
-
-    //NOTE: Iterate the fuse_types vector for correct order reason according to map
-    for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
+    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
+    if (PPEAccuracy)
     {
-        auto fuseFunctor = (fuseTaskMap.at(*type));
-        for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
-            fuseFunctor(*opIt, model, *type);
+        std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
+                                           {{"Bias", fuseBiasFcn},
+                                            {"Sigmoid", fuseUsualPPEFcn},
+                                            {"Relu", fuseUsualPPEFcn},
+                                            {"LeakyRelu", fuseUsualPPEFcn},
+                                            {"Minimum", fuseMinimumFcn},
+                                            {"Maximum", fuseMaximumFcn}};
+
+        std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
+
+        auto fuseFunctor = (fuseTaskMap.at("Bias"));
+        for (auto bias : biasOperations)
+            fuseBiasFcn(bias, model, "Bias");
+
+        provideAccuracyinPPEs(model);
+        std::vector<std::string> fuse_types = {"Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
+
+        //NOTE: Iterate the fuse_types vector for correct order reason according to map
+        for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
+        {
+            auto fuseFunctor = (fuseTaskMap.at(*type));
+            for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
+                fuseFunctor(*opIt, model, *type);
+        }
+    }
+    else
+    {
+        std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+        std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
+
+        std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
+                                           {{"Bias", fuseBiasFcn},
+                                            {"Sigmoid", fuseUsualPPEFcn},
+                                            {"Relu", fuseUsualPPEFcn},
+                                            {"LeakyRelu", fuseUsualPPEFcn},
+                                            {"Minimum", fuseMinimumFcn},
+                                            {"Maximum", fuseMaximumFcn}};
+
+        //NOTE: Iterate the fuse_types vector for correct order reason according to map
+        for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
+        {
+            auto fuseFunctor = (fuseTaskMap.at(*type));
+            for (auto opIt = operationsOfType[*type].begin(); opIt != operationsOfType[*type].end();++opIt)
+                fuseFunctor(*opIt, model, *type);
+        }
     }
 }
 
