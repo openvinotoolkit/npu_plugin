@@ -289,6 +289,7 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
+    log(Logger::MessageType::Debug, "LexTopological Sorted Operations: ");
     for (auto s: toReturn)
     {
         log(Logger::MessageType::Debug, s->getName());
