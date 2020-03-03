@@ -89,7 +89,7 @@ std::string mv::BaseOpModel::varName(std::string name)
 
 void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
 {
-    // std::cout << "Initializing RecordedModel..." << std::endl;
+    // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
     delete dataOut_;
 
@@ -291,7 +291,7 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
 
     for (auto s: toReturn)
     {
-        std::cout << s->getName() << std::endl;
+        log(Logger::MessageType::Debug, s->getName());
     }
     return toReturn;
 }

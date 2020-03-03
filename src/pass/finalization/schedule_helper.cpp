@@ -66,7 +66,7 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
         }
         catch (mv::ArgumentError error)
         {
-            std::cout << error.what() << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, error.what());
         }
 
     }
@@ -99,7 +99,7 @@ void graphfileIndexHelperPass(const mv::pass::PassEntry& pass, mv::ComputationMo
         }
         catch (mv::ArgumentError error)
         {
-            std::cout << error.what() << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, error.what());
         }
 
     }

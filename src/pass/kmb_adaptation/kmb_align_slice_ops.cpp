@@ -19,7 +19,7 @@ namespace mv
     }
 }
 
-void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void alignSliceOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -33,13 +33,13 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 
         if (!op->getInputTensor(0)->isPopulated())
         {
-            std::cout << "input tensor not populated for slice of op " << op->getName() << "...not aligning" << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, "input tensor not populated for slice of op " + op->getName() + "...not aligning");
             continue;
         }
 
         auto opId = op->get<unsigned>("opId");
 
-        std::cout << "Aligning sliceOp " << op->getName() << std::endl;
+        pass.log(mv::Logger::MessageType::Debug, "Aligning sliceOp " + op->getName());
 
         auto inputMemoryLocation = op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto outputMemoryLocation = op->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
@@ -84,7 +84,7 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         for (auto parentOp = ctlFlow.leftmostParent(); parentOp != cm.opEnd(); ++parentOp)
         {
             inputControlFlows.push_back(parentOp);
-            std::cout << "FOUND slice parent " << parentOp->getName() << " of " << op->getName() << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, "FOUND slice parent " + parentOp->getName() + " of " + op->getName());
         }
 
         auto outputDataFlows = mv::getOutputDataFlow(om, op);
@@ -96,7 +96,7 @@ void alignSliceOpsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         for (auto cp : inputControlFlows)
         {
             cm.defineFlow(om.switchContext(cp),om.getSourceOp(newSlice));
-            std::cout << "ADDED CONTROL FLOW from " << cp->getName() << " to " << om.getSourceOp(newSlice)->getName() << std::endl;
+            pass.log(mv::Logger::MessageType::Debug, "ADDED CONTROL FLOW from " + cp->getName() + " to " + om.getSourceOp(newSlice)->getName());
         }
 
         newSlice->set<mv::Shape>("OriginalShape", outputShape);

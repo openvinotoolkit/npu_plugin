@@ -203,7 +203,7 @@ void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         }
         catch (mv::ArgumentError error)
         {
-            std::cout << error.what() << std::endl;
+            pass.log(mv::Logger::MessageType::Error, error.what());
         }
 
     }
