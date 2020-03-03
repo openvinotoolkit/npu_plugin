@@ -56,6 +56,8 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     }
     std::vector<double> min = {-std::numeric_limits<double>::infinity()};
     std::vector<double> max = {std::numeric_limits<double>::infinity()};
+    double max_inf = std::numeric_limits<double>::infinity();
+    double min_inf = -std::numeric_limits<double>::infinity();
     auto inputShape = inputTensor->getShape();
     std::string name = task->getName();
     std::vector<double> scale(1, 1.0);
@@ -76,20 +78,24 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     {
         int64_t new_zero_point;
         double new_scale;
-        scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
-        zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
-        updateInfMinMaxPerChannel(weightsTensor);
+        std::vector <double> old_scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
+        std::vector <int64_t> old_zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
+        //NOTE: The order of the functions was moved in order to validate the per tensor quantization in weights first
+//        updateInfMinMaxPerChannel(weightsTensor);
+        updateInfMinMaxPerTensor(weightsTensor);
         min.clear();
-        min.clear();
+        max.clear();
         scale.clear();
         zp.clear();
+        min.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[0]);
+        max.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[0]);
+        calcZeroPointAndScalePerTensor(max[0], min[0], new_scale, new_zero_point);
 
         for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
         {
             //compute maximum, minimum with FUNCTIONS
-            min.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
-            max.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
-            calcZeroPointAndScalePerTensor(max[k], min[k], new_scale, new_zero_point);
+//            min.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[0]);
+//            max.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[0]);
 
             for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
             {
@@ -98,15 +104,20 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                     for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
                     {
                         auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                        double real_weight = ((int64_t)currWeight - zp[k]) * scale[k];
-                        auto newQuantizedValue = std::round(real_weight/new_scale + new_zero_point);
+                        double real_weight = ((int64_t)currWeight - old_zp[0]) * old_scale[0];
+                        real_weight = -alpha * real_weight;
+                        auto newQuantizedValue = std::round(real_weight/new_scale) + new_zero_point;
+                        if (newQuantizedValue > 255)
+                            newQuantizedValue = 255;
+                        else if (newQuantizedValue < 0)
+                            newQuantizedValue = 0;
                         weightsData.push_back(newQuantizedValue);
                     }
                 }
             }
-            scale.push_back(new_scale);
-            zp.push_back(new_zero_point);
         }
+        scale.push_back(new_scale);
+        zp.push_back(new_zero_point);
     }
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
 
@@ -117,19 +128,19 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                         mv::Order(mv::Order::getRowMajorID(4)),
                         weightsQuantParams);
 
-    if (branch == 1)
-    {
-        updateInfMinMaxPerTensor(task->getOutputTensor(0));
-        double_t minConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMin()[0];
-        double_t maxConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMax()[0];
-        int64_t out_zero_point;
-        double out_scale;
-        double_t maxConvNew, minConvNew;
-        minConvNew = minConv/alpha;
-        maxConvNew = maxConv * alpha;
-        calcZeroPointAndScalePerTensor(maxConvNew, minConvNew, out_scale, out_zero_point);
-        quantParams = {{out_zero_point},{out_scale},{minConvNew},{maxConvNew}};
-    }
+//    if (branch == 1)
+//    {
+//        updateInfMinMaxPerTensor(task->getOutputTensor(0));
+//        double_t minConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMin()[0];
+//        double_t maxConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMax()[0];
+//        int64_t out_zero_point;
+//        double out_scale;
+//        double_t maxConvNew, minConvNew;
+//        minConvNew = minConv/alpha;
+//        maxConvNew = maxConv * alpha;
+//        calcZeroPointAndScalePerTensor(maxConvNew, minConvNew, out_scale, out_zero_point);
+//        quantParams = {{out_zero_point},{out_scale},{minConvNew},{maxConvNew}};
+//    }
     auto conv = om.conv(inputTensor, weights, previousConv->get<std::array<unsigned short, 2>>("stride"),
                              previousConv->get<std::array<unsigned short, 4>>("padding"), previousConv->get<unsigned>("dilationFactor"),
                              previousConv->get<unsigned>("group"),
@@ -140,7 +151,40 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
     if (hasBias)
     {
         if (branch == 0)
-            om.addAttr(convOp, "bias", biasTensor);
+        {
+            //NOTE: Normally should use the scale computation but is unused
+            biasTensor->set<mv::QuantizationParams>("quantParams", {{0},{1.0},{min_inf},{max_inf}});
+            om.addAttr(convOp, "bias", biasTensor->getName());
+        }
+        else
+        {
+            double biasOldScale, real_bias;
+            std::vector <int64_t> biasData;
+            std::vector <double> biasScale;
+            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
+            {
+                biasOldScale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]
+                        * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0];
+                real_bias = ((int64_t) biasTensor->at(k)) * biasOldScale;
+                real_bias = -alpha * real_bias;
+                auto newQuantizedValue = std::round(real_bias
+                                               /(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]));
+                if (newQuantizedValue > 2147483647)
+                    newQuantizedValue = 2147483647;
+                else if (newQuantizedValue < -2147483648)
+                    newQuantizedValue = -2147483648;
+                biasData.push_back(newQuantizedValue);
+                biasScale.push_back(scale[k] * inputTensor->get<mv::QuantizationParams>("quantParams").getScale()[0]);
+            }
+            mv::QuantizationParams biasQuant = mv::QuantizationParams({{0},biasScale,
+                                        {-min_inf},{max_inf}});
+
+            mv::Data::TensorIterator branch2biasTensor;
+            std::string branch2biasTensorName = mv::createBiasName(convOp->getName());
+            branch2biasTensor = dm.defineTensor(mv::Tensor(branch2biasTensorName, biasTensor->getShape(),
+                            biasTensor->getDType(), biasTensor->getOrder(), biasData, biasQuant));
+            om.addAttr(convOp, "bias", branch2biasTensorName);
+        }
     }
 
     auto weightsOp = om.getSourceOp(weights);
@@ -196,7 +240,6 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         return;
     auto leakyRelus = om.getOps("LeakyRelu");
     auto leakyRelu = leakyRelus.begin();
-    std::vector <std::string> opNames;
 
     while (leakyRelu != leakyRelus.end())
     {
@@ -207,12 +250,16 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto leakyReluQuantParams = leakyReluOp->get<mv::QuantizationParams>("quantParams");
         uint8_t branch = 0;
         std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
-        for (std::string opName : opNames)
+        //NOTE: For now take into account that only the first sink
+        //goes to concat but in general this needs to be searched
+        if (sinkOperators[0]->getOpType() == "Concat")
         {
-            if (opName == sinkOperators[0]->getName())
-                branch++;
+            for (uint8_t inputId = 0; inputId < sinkOperators[0]->getInputTensor().size(); inputId++)
+            {
+                if (sinkOperators[0]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+                    branch = inputId;
+            }
         }
-        opNames.push_back(sinkOperators[0]->getName());
 
         mv::Data::OpListIterator relu0, conv0, conv1, depthwise1, relu1;
         for (uint8_t i = 0; i < ADD_INPUT_FLOWS; i++)
@@ -238,8 +285,14 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
         om.removeOp(parentOp);
         om.removeOp(leakyReluOp);
-        sinkOperators[0]->setInputTensor(add0->getOutputTensor(0), branch, false);
-        om.defineFlow(add0->getOutputTensor(0), sinkOperators[0], branch);
+        for (std::size_t numberOfSink = 0; numberOfSink < sinkOperators.size(); numberOfSink++)
+        {
+            sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
+            om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
+            //NOTE: These lines are here for the positive branch....
+//            sinkOperators[numberOfSink]->setInputTensor(relu0->getOutputTensor(0), branch, false);
+//            om.defineFlow(relu0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
+        }
         leakyRelu++;
     }
 }
