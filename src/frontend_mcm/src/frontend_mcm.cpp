@@ -535,6 +535,82 @@ void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     }
 }
 
+namespace {
+template <typename T>
+bool needAlignZeroPoints(std::vector<T> lowValues, std::vector<T> highValues, const float levels) {
+    auto firstZP =
+        QuantizationHelpers::calculateZeroPoint(highValues[0], lowValues[0], levels, InferenceEngine::Precision::U8);
+    for (size_t i = 1; i < lowValues.size(); i++) {
+        auto zp = QuantizationHelpers::calculateZeroPoint(
+            highValues[i], lowValues[i], levels, InferenceEngine::Precision::U8);
+        if (firstZP != zp) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isFakeQuantizeOnWeights(const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer) {
+    InferenceEngine::DataPtr inputData = fakeQuantizeLayer->insData[0].lock();
+    IE_ASSERT(inputData != nullptr);
+    auto parentLayer = inputData->getCreatorLayer().lock();
+
+    //  Check that FQ on weights
+    return parentLayer->type == "Const" ? true : false;
+}
+}  // namespace
+
+void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "FakeQuantize") {
+            if (!isFakeQuantizeOnWeights(layer)) {
+                continue;
+            }
+
+            auto quantizationParams = QuantizationDetails::getDetails(*layer);
+            float levels = quantizationParams.levels;
+
+            auto numberOfQuantParams = quantizationParams.outputLowValues.size();
+            if (!needAlignZeroPoints(quantizationParams.outputLowValues, quantizationParams.outputHighValues, levels)) {
+                continue;
+            }
+
+            double sumOfZeroPoints = 0;
+
+            for (size_t i = 0; i < numberOfQuantParams; i++) {
+                float ol = quantizationParams.outputLowValues[i];
+                float oh = quantizationParams.outputHighValues[i];
+
+                float x = -(levels - 1) * ol / (oh - ol);
+
+                // re-calculate ZP for weights, we use U8 for weights
+                sumOfZeroPoints += x;
+            }
+            auto avgZeroPoints = std::round(sumOfZeroPoints / numberOfQuantParams);
+
+            // NOTE: ol is always negative value
+            std::vector<float> newLowValues(numberOfQuantParams);
+            std::vector<float> newHighValues(numberOfQuantParams);
+            for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
+                float ol = quantizationParams.outputLowValues[i];
+                float oh = quantizationParams.outputHighValues[i];
+
+                float zpl = oh * avgZeroPoints / (avgZeroPoints - (levels - 1));
+                float zph = ol - ol * (levels - 1) / avgZeroPoints;
+
+                ol = std::min(ol, zpl);
+                oh = std::max(oh, zph);
+                newLowValues[i] = ol;
+                newHighValues[i] = oh;
+            }
+            CNNNetworkHelper::updateBlobs(*layer, 1, newLowValues);
+            CNNNetworkHelper::updateBlobs(*layer, 2, newHighValues);
+            CNNNetworkHelper::updateBlobs(*layer, 3, newLowValues);
+            CNNNetworkHelper::updateBlobs(*layer, 4, newHighValues);
+        }
+    }
+}
+
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
 
@@ -546,6 +622,9 @@ void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     }
     if (_config.concatScalesAlignment()) {
         alignConcatScales(cnnNet);
+    }
+    if (_config.zeroPointsOnWeightsAlignment()) {
+        alignZeroPointsOnWeights(cnnNet);
     }
 
     parseNetworkDFS(cnnNet, _parsedNetwork);
@@ -1463,6 +1542,26 @@ void FrontEndMcm::parseBias(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     _logger->debug(FINISH_PARSING_STR, mvBias->getName());
 }
 
+namespace {
+bool canReplaceClampToReLU(const ie::ClampLayer& layer, const mv::QuantizationParams& quantParams) {
+    auto mins = quantParams.getMin();
+    auto maxs = quantParams.getMax();
+    auto clampMin = layer.min_value;
+    auto clampMax = layer.max_value;
+    if (layer.min_value < 0) {
+        return false;
+    }
+
+    for (size_t i = 0; i < mins.size(); i++) {
+        if ((mins[i] < clampMin) || (maxs[i] > clampMax)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+}  // namespace
+
 void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
 
@@ -1470,15 +1569,27 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     IE_ASSERT(clampLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
-
     auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-    auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
-        inputQuantParams, clampLayer->name + "clamp-min");
-    auto mvClampMax = _modelMcm.maximum(
-        mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
-    bindOutput(mvClampMax, layer->outData[0]);
 
-    _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
+    //  Try to use ReLU instead of Clamp due to accuracy loss. ReLU works better. [Track number: D#2504]
+    auto useReLU = canReplaceClampToReLU(*clampLayer, inputQuantParams);
+
+    if (useReLU) {
+        mv::Data::TensorIterator mvRelu;
+
+        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), inputQuantParams, layer->name);
+
+        bindOutput(mvRelu, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvRelu->getName());
+
+    } else {
+        auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
+            inputQuantParams, clampLayer->name + "clamp-min");
+        auto mvClampMax = _modelMcm.maximum(
+            mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
+        bindOutput(mvClampMax, layer->outData[0]);
+        _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
+    }
 }
 
 void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

@@ -36,7 +36,7 @@ mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 static double clamp(const double& v, const double& lo, const double& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
-    return ((layer->type == "ReLU") || (layer->type == "Clamp"));
+    return ((layer->type == "ReLU") || (layer->type == "Clamp") || (layer->type == "ReorgYolo"));
 }
 
 std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer) {
@@ -70,7 +70,7 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     if (precision == InferenceEngine::Precision::I8) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = ceil(x);  // TODO Why not round?
+            zeroPoint = round(x);
         } else if (low > 0.f) {
             zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
@@ -79,8 +79,8 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     } else if (precision == InferenceEngine::Precision::U8) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
-            auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
+            float x = -(levels - 1) * low / (high - low);
+            zeroPoint = round(x);
         } else if (low >= 0.f) {
             zeroPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
@@ -91,32 +91,20 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     return zeroPoint;
 }
 
-void reCalculateQuantizationParamsOnActivation(
-    const CNNLayerPtr& quantizedLayer1, const CNNLayerPtr& quantizedLayer2, mv::QuantizationParams& outputQuantParams) {
-    auto quantizationParams1 = QuantizationDetails::getDetails(*quantizedLayer1);
-    auto quantizationParams2 = QuantizationDetails::getDetails(*quantizedLayer2);
-
-    IE_ASSERT(quantizationParams1.levels == quantizationParams2.levels);
-    auto levels = quantizationParams1.levels;
-    IE_ASSERT(quantizationParams1.inputLowValues.size() == quantizationParams2.inputLowValues.size());
-
-    float totalHighMax = std::max(quantizationParams1.maxOutputHigh(), quantizationParams2.maxOutputHigh());
-    float totalHighLow = std::min(quantizationParams1.minOutputLow(), quantizationParams2.minOutputLow());
-
-    int64_t zepoPoint = calculateZeroPoint(totalHighMax, totalHighLow, levels, InferenceEngine::Precision::U8);
-    double scale = static_cast<double>((totalHighMax - totalHighLow) / (levels - 1));
-    outputQuantParams = {{zepoPoint}, {scale}, {-inf}, {inf}};
-}
-
-void calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, std::vector<int64_t>& zeroPoints,
-    std::vector<double>& scales, bool mergeInOne) {
+mv::QuantizationParams calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, bool mergeInOne) {
     auto quantizationParams = QuantizationDetails::getDetails(*fakeQuantizeLayer);
-    auto levels = quantizationParams.levels;
+    int levels = quantizationParams.levels;
 
     if (quantizationParams.outputLowValues.size() != quantizationParams.outputHighValues.size()) {
         THROW_IE_EXCEPTION << "Unsupported case, we expect same size for outputLow and outputHigh. Layer "
                            << fakeQuantizeLayer->name;
     }
+
+    std::vector<int64_t> zeroPoints;
+    std::vector<double> scales;
+    std::vector<double> mins;
+    std::vector<double> maxs;
+    mv::QuantizationParams outputQuantParams = initialQuantParams;
 
     if (mergeInOne) {
         // NOTE: Now, this branch using only for activation flow. MCM expects U8 activations
@@ -127,6 +115,8 @@ void calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, std
 
         scales.push_back(static_cast<double>((outputHighMax - outputLowMin) / (levels - 1)));
         zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
+        mins.push_back(outputLowMin);
+        maxs.push_back(outputHighMax);
     } else {
         // NOTE: Now, this branch using only for weights. MCM expects U8 weights
         int64_t avgZeroPoints = 0;
@@ -151,8 +141,12 @@ void calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, std
 
             scales.push_back(static_cast<double>((oh - ol) / (levels - 1)));
             zeroPoints.push_back(avgZeroPoints);
+            mins.push_back(ol);
+            maxs.push_back(oh);
         }
     }
+    outputQuantParams = {zeroPoints, scales, mins, maxs};
+    return outputQuantParams;
 }
 
 void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::QuantizationParams& outputQuantParams) {
@@ -164,13 +158,12 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
         return;
     }
 
-    if (isPostOp(children.front())) {
+    while (isPostOp(children.front())) {
         children = CNNNetworkHelper::getChildren(*(children.front()));
-    }
-
-    if (children.size() == 0) {
-        outputQuantParams = initialQuantParams;
-        return;
+        if (children.size() == 0) {
+            outputQuantParams = initialQuantParams;
+            return;
+        }
     }
 
     if (children.size() > 1) {
@@ -184,10 +177,7 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
         return;
     }
 
-    std::vector<int64_t> zeroPoints;
-    std::vector<double> scales;
-    calculateOutputScalesAndZeroPoint(fakeQuantizeLayer, zeroPoints, scales, true);
-    outputQuantParams = {zeroPoints, scales, {-inf}, {inf}};
+    outputQuantParams = calculateOutputScalesAndZeroPoint(fakeQuantizeLayer, true);
 }
 
 mv::QuantizationParams fillQuantizeParamsForU8orI8weights(
@@ -243,6 +233,8 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
 
     auto scales = weightsQuantParams.getScale();
     auto zeroPoints = weightsQuantParams.getZeroPoint();
+    auto mins = weightsQuantParams.getMin();
+    auto maxs = weightsQuantParams.getMax();
 
     const bool isWeightsQuantizationBroadcasted = scales.size() != outputsSize;
 
@@ -259,9 +251,13 @@ Blob::Ptr quantizeWeightsBlob(const CNNLayerPtr& fakeQuantizeOnWeights, Inferenc
 
                     auto scale = scales[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
                     auto zeroPoint = zeroPoints[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
+                    auto lo = mins[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
+                    auto hi = maxs[isWeightsQuantizationBroadcasted ? 0 : outputIndex];
 
                     if (precision == InferenceEngine::Precision::U8) {
-                        uint8_t value = clamp(std::round((srcData.get()[idx] + scale * zeroPoint) / scale), 0, 255);
+                        auto src = srcData.get()[idx];
+                        src = clamp(src, lo, hi);
+                        uint8_t value = std::round((src - lo) / scale);
                         dstBuffer.get()[idx] = value;
                     } else if (precision == InferenceEngine::Precision::I8) {
                         int8_t value = clamp(std::round((srcData.get()[idx] + scale * zeroPoint) / scale), -128, 127);
@@ -294,10 +290,7 @@ Blob::Ptr calculateQuntizationWeights(const CNNLayerPtr& weightableLayer, mv::Qu
     auto convWeightsFakeQuantizeLayer = fakeQuantizeData->getCreatorLayer().lock();
     IE_ASSERT(convWeightsFakeQuantizeLayer->type == "FakeQuantize");
 
-    std::vector<int64_t> zeroPoints;
-    std::vector<double> scales;
-    calculateOutputScalesAndZeroPoint(convWeightsFakeQuantizeLayer, zeroPoints, scales);
-    weightsQuantParams = {zeroPoints, scales, {-inf}, {inf}};
+    weightsQuantParams = calculateOutputScalesAndZeroPoint(convWeightsFakeQuantizeLayer);
 
     //  now we use I8 for weights
     return quantizeWeightsBlob(convWeightsFakeQuantizeLayer, InferenceEngine::Precision::U8, weightsQuantParams);
@@ -322,7 +315,6 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
 
     const bool isBiasScalesBroadcasted = isWeightsScalesBroadcasted && isActivationScalesBroadcasted;
 
-    auto biasData = biasBlob->buffer().as<float*>();
     std::vector<int64_t> newBiasData(biasCount, 0);
     std::vector<double> biasScales;
 

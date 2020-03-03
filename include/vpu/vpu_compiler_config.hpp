@@ -122,10 +122,17 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
+ * Type: "YES/NO", default is "YES".
  * Enable or disable Input->ScaleShift pattern removing
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING);
+
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "YES".
+ * Enable or disable weights zero points alignment
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
 
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

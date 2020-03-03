@@ -33,17 +33,14 @@ std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLaye
 bool isWeightableLayerQuantized(const InferenceEngine::CNNLayerPtr& weightableLayer);
 bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer);
 
-void calculateOutputScalesAndZeroPoint(const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer,
-    std::vector<int64_t>& zeroPoints, std::vector<double>& scales, bool mergeInOne = false);
+mv::QuantizationParams calculateOutputScalesAndZeroPoint(
+    const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer, bool mergeInOne = false);
 
 void fillQuntizationActivationParams(
     const InferenceEngine::CNNLayerPtr& quantizedLayer, mv::QuantizationParams& outputQuantParams);
 
 // for symmetric case only, using mcm logic
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
-
-void reCalculateQuantizationParamsOnActivation(const InferenceEngine::CNNLayerPtr& quantizedLayer1,
-    const InferenceEngine::CNNLayerPtr& quantizedLayer2, mv::QuantizationParams& outputQuantParams);
 
 InferenceEngine::Blob::Ptr calculateQuntizationWeights(
     const InferenceEngine::CNNLayerPtr& weightableLayer, mv::QuantizationParams& weightsQuantParams);
@@ -54,12 +51,6 @@ mv::QuantizationParams fillQuantizeParamsForU8orI8weights(
 std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     const std::vector<double>& weightsScales, const InferenceEngine::Blob::Ptr biasBlob,
     mv::QuantizationParams& outputQuantParam);
-
-InferenceEngine::Blob::Ptr quantizeBlob(InferenceEngine::Blob::Ptr weightsBlob, std::vector<size_t> dims,
-    mv::QuantizationParams weightsQuantParams, InferenceEngine::Precision precision, const std::string& fqName);
-
-InferenceEngine::Blob::Ptr quantizeConstLayer(const InferenceEngine::CNNLayerPtr& fakeQuantizeOnWeights,
-    InferenceEngine::Precision precision, mv::QuantizationParams& weightsQuantParams);
 
 }  // namespace QuantizationHelpers
 }  // namespace vpu
