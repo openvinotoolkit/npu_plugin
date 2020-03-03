@@ -23,6 +23,7 @@
 
 #include <frontend_mcm.hpp>
 #include <ie_icnn_network.hpp>
+#include <ie_profiling.hpp>
 #include <ie_util_internal.hpp>
 
 #include "include/mcm/compiler/compilation_unit.hpp"
@@ -60,6 +61,7 @@ static std::string getMcmLogLevel(LogLevel lvl) {
 
 void MCMAdapter::compileNetwork(
     InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob) {
+    IE_PROFILING_AUTO_SCOPE(compileNetwork);
     auto unit = std::make_shared<mv::CompilationUnit>(network.getName());
 
     if (unit == nullptr) {
