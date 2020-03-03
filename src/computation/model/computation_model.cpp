@@ -298,6 +298,14 @@ std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps(const std::st
     return toReturn;
 }
 
+std::vector<mv::Data::OpListIterator> mv::ComputationModel::getOps() {
+    std::vector<mv::Data::OpListIterator> toReturn;
+    for (auto& opIt : *ops_) {
+        toReturn.push_back(opIt.second);
+    }
+    return toReturn;
+}
+
 std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> mv::ComputationModel::getOpsOfTypes(const std::vector<std::string> &opTypes)
 {
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> toReturn;
