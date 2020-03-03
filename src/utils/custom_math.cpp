@@ -87,3 +87,46 @@ std::pair<std::size_t, std::size_t> mv::tileSpatialOutputSize(std::size_t output
 
     return std::make_pair(newOutputSize, remainderOutputSize);
 }
+
+uint16_t mv::getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
+{
+    //Find max mpe where if calc window <= 32
+    //return window size for the max mpe
+    uint16_t windowSize, maxMpeWindowSize = 64;
+    int mpe = 1;
+
+    if (dataType == mv::DType("UInt8"))
+    {
+        //mpe in [1,2,4,8,16] for uint8
+        while(mpe <= 16)
+        {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
+
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
+
+            mpe *= 2;
+        }
+    }
+    else if (dataType == mv::DType("Float16"))
+    {
+        //mpe in [1,2,4] for float
+        while(mpe <= 4)
+        {
+            if (sx <= kx)
+                windowSize = kx + sx * (mpe - 1);
+            else
+                windowSize = kx * mpe;
+
+            if (windowSize <= 32)
+                maxMpeWindowSize = windowSize;
+
+            mpe *= 2;
+        }
+    }
+
+    return maxMpeWindowSize;
+}
