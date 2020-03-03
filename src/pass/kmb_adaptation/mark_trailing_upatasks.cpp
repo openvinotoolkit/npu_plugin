@@ -27,20 +27,21 @@ void markTrailingUPATasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& m
 
     mv::OpModel om(model);
 
-    auto upaTasks = om.getOps("UPATask");
-    for(auto& task : upaTasks)
+    auto sink = om.getOutput();
+    auto sink_input_cnt = sink->inputSlots();
+    while (sink_input_cnt)
     {
-        bool is_trailing = true;
-        auto nextOp = task.leftmostOutput().sink();
-        while (nextOp->getOpType() != "Output")
+        auto inputTensor = sink->getInputTensor(0);
+        auto source = om.getSourceOp(inputTensor);
+        if (source->getOpType() == "UPATask")
+            source->set<bool>("trailing", true);
+        else
         {
-            if (nextOp->getOpType() == "DPUTask")
-                is_trailing = false;
-
-            nextOp = nextOp.leftmostOutput().sink();
+            sink_input_cnt = 0;
+            break;
         }
 
-        task->set<bool>("trailing", is_trailing);
+        sink = source;
+        sink_input_cnt = sink->inputSlots();
     }
-
 }
