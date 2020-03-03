@@ -226,14 +226,14 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterato
     }
 
     auto activationOp = model.getSourceOp(biasOp->getInputTensor(0));
-    auto activation_params = activationOp->get<mv::QuantizationParams>("quantParams");
+    auto input_quant_params = model.getSourceOp(activationOp->getInputTensor(0))->get<mv::QuantizationParams>("quantParams");
     auto weights_op = model.getSourceOp(model.getSourceOp(activationOp->getInputTensor(1))->getInputTensor(0));
     auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
 
-    // assert(activation_params.isPerTensor() == weights_params.isPerTensor());
-    bool is_broadcasted = activation_params.isPerTensor() && weights_params.isPerTensor();
+    // assert(input_quant_params.isPerTensor() == weights_params.isPerTensor());
+    bool is_broadcasted = input_quant_params.isPerTensor() && weights_params.isPerTensor();
 
-    if (!activation_params.isPerTensor() && activation_params.getScale().size() != tensor_data.size()) {
+    if (!input_quant_params.isPerTensor() && input_quant_params.getScale().size() != tensor_data.size()) {
         throw std::runtime_error("Bias and Activation quant params size mismatch");
     }
 
@@ -253,7 +253,7 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterato
         auto bias_data = biasOp->getInputTensor(1)->getDoubleData();
 
         for (size_t i = 0; i < bias_data.size(); ++i) {
-            auto activation_scale = activation_params.getScale(i);
+            auto activation_scale = input_quant_params.getScale(i);
             auto weights_scale = weights_params.getScale(i);
 
             auto bias_scale = activation_scale * weights_scale;
@@ -268,7 +268,7 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterato
         }
 
         auto original_tensor = biasOp->getInputTensor(1);
-        mv::QuantizationParams quant_params = activation_params; // {{zeroPoints}, {biasScales}, {}, {}};
+        mv::QuantizationParams quant_params = activationOp->get<mv::QuantizationParams>("quantParams"); // {{zeroPoints}, {biasScales}, {}, {}};
 
         //TODO: check quant params of bias op const layer
         auto quantized_data = model.constantInt(newBiasData, original_tensor->getShape(), getDType(Precision::I32), original_tensor->getOrder(), quant_params, model.getSourceOp(biasOp->getInputTensor(1))->getName()+":replaced");
