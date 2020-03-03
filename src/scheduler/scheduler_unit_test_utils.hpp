@@ -425,10 +425,95 @@ struct scheduler_traits<scheduler_unit_tests::Operation_Dag>
     template<typename T>
     static operation_t scheduled_op(const T& in) { return in.op_; }
 
+
+    ////////////////////////////////////////////////////////////////////////////
+    // Scheduled Operation Traits //
+    struct scheduled_op_t {
+      scheduled_op_t() : op_(), schedule_time_(), rbegin_(), rend_() {}
+      scheduled_op_t(const operation_t& op, size_t schedule_time,
+          resource_t rbegin, resource_t rend) : op_(op),
+      schedule_time_(schedule_time), rbegin_(rbegin), rend_(rend) {}
+
+      bool operator<(const scheduled_op_t& o) const {
+        return schedule_time_ < o.schedule_time_;
+      }
+
+      // interval equivalence //
+      bool operator==(const scheduled_op_t& o) const {
+        return (rbegin_ == o.rbegin_) && (rend_ == o.rend_);
+      }
+
+      operation_t op_;
+      size_t schedule_time_;
+      resource_t rbegin_;
+      resource_t rend_;
+    }; // struct scheduled_op_t //
+    typedef std::hash<operation_t> scheduled_op_hash_t;
+    typedef size_t unit_t;
+
+    struct data_op_selector_t {
+      data_op_selector_t() : dag_ptr_(NULL) {}
+      data_op_selector_t(const dag_t& dag) : dag_ptr_(&dag) {}
+      data_op_selector_t(const data_op_selector_t& o) : dag_ptr_(o.dag_ptr_) {}
+
+      bool operator()(const operation_t& op) const {
+        assert(dag_ptr_);
+        return dag_ptr_->is_data_op(op);
+      }
+      dag_t const * dag_ptr_;
+    }; // struct data_op_selector_t //
+    typedef size_t schedule_time_t;
+
+    static resource_t begin_resource(const scheduled_op_t& op) {
+      return op.rbegin_;
+    }
+    static resource_t end_resource(const scheduled_op_t& op) {
+      return op.rend_;
+    }
+
+    static operation_t scheduled_operation(const scheduled_op_t& op) {
+      return op.op_;
+    }
+
+    static schedule_time_t scheduled_time(const scheduled_op_t& op) {
+      return op.schedule_time_;
+    }
+    static bool using_valid_resource(const scheduled_op_t& op) {
+      return (op.rbegin_ <= op.rend_);
+    }
+    static bool is_valid_scheduled_op(const scheduled_op_t& ) { return true; }
+    static void set_new_schedule_time(scheduled_op_t& op,
+          const schedule_time_t& t) {
+      op.schedule_time_ = t;
+    }
+
 }; // specialization for scheduler_unit_tests::dag_t //
+
 
 } // namespace lp_scheduler //
 } // namespace mv //
+
+
+typedef mv::lp_scheduler::scheduler_traits<scheduler_unit_tests::Operation_Dag>
+  unit_testing_scheduler_traits_t;
+typedef typename unit_testing_scheduler_traits_t::scheduled_op_t
+  unit_testing_scheduled_op_t;
+
+namespace mv {
+namespace lp_scheduler {
+
+template<>
+struct interval_traits<unit_testing_scheduled_op_t> {
+    typedef unit_testing_scheduled_op_t interval_t;
+    typedef size_t unit_t;
+    // interval traits //
+    static unit_t interval_begin(const interval_t& op) { return op.rbegin_; }
+    static unit_t interval_end(const interval_t& op) { return op.rend_; }
+}; // struct interval_traits //
+
+
+} // namespace lp_scheduler //
+} // namespace mv//
 
 
 
