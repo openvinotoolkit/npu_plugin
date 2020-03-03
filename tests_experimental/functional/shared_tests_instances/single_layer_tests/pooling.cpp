@@ -9,7 +9,7 @@
 
 #include "common_test_utils/test_constants.hpp"
 
-using namespace NGraphFunctions;
+using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
 
 namespace {
@@ -33,8 +33,8 @@ const std::vector<ngraph::op::RoundingType> roundingTypes = {
 ////* ========== Max Polling ========== */
 /* +========== Explicit Pad Floor Rounding ========== */
 const auto maxPool_ExplicitPad_FloorRounding_Params =
-    ::testing::Combine(::testing::Values(Pooling::PoolingTypes::MAX), ::testing::ValuesIn(kernels),
-        ::testing::ValuesIn(strides), ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
+    ::testing::Combine(::testing::Values(PoolingTypes::MAX), ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
+        ::testing::ValuesIn(padBegins), ::testing::ValuesIn(padEnds),
         ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
@@ -46,7 +46,7 @@ INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_FloorRpunding, PoolingLayerTest,
 
 /* ========== Explicit Pad Ceil Rounding ========== */
 const auto maxPool_ExplicitPad_CeilRounding_Params =
-    ::testing::Combine(::testing::Values(Pooling::PoolingTypes::MAX), ::testing::ValuesIn(kernels),
+    ::testing::Combine(::testing::Values(PoolingTypes::MAX), ::testing::ValuesIn(kernels),
         // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at
         // axis 3" thrown in the test body.
         ::testing::Values(InferenceEngine::SizeVector({1, 1})), ::testing::ValuesIn(padBegins),
@@ -63,7 +63,7 @@ INSTANTIATE_TEST_CASE_P(MaxPool_ExplicitPad_CeilRpunding, PoolingLayerTest,
 ////* ========== Avg Pooling ========== */
 /* +========== Explicit Pad Ceil Rounding ========== */
 const auto avgPoolExplicitPadCeilRoundingParams =
-    ::testing::Combine(::testing::Values(Pooling::PoolingTypes::AVG), ::testing::ValuesIn(kernels),
+    ::testing::Combine(::testing::Values(PoolingTypes::AVG), ::testing::ValuesIn(kernels),
         // TODO: Non 1 strides fails in ngraph reference implementation with error "The end corner is out of bounds at
         // axis 3" thrown in the test body.
         ::testing::Values(InferenceEngine::SizeVector({1, 1})),
@@ -79,12 +79,12 @@ INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
     PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
-const auto avgPoolExplicitPadFloorRoundingParams = ::testing::Combine(::testing::Values(Pooling::PoolingTypes::AVG),
-    ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
-    // TODO: Non zero pads excluded because of accuracy mismatch
-    ::testing::Values(InferenceEngine::SizeVector({0, 0})), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
-    ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
-    ::testing::Values(true, false));
+const auto avgPoolExplicitPadFloorRoundingParams =
+    ::testing::Combine(::testing::Values(PoolingTypes::AVG), ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
+        // TODO: Non zero pads excluded because of accuracy mismatch
+        ::testing::Values(InferenceEngine::SizeVector({0, 0})), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
+        ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
+        ::testing::Values(true, false));
 
 INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadFloorRoundingParams, ::testing::ValuesIn(inputPrecisions),
@@ -94,14 +94,13 @@ INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
 
 ////* ========== Avg and Max Polling Cases ========== */
 /*    ========== Valid Pad Rounding Not Applicable ========== */
-const auto allPools_ValidPad_Params =
-    ::testing::Combine(::testing::Values(Pooling::PoolingTypes::MAX, Pooling::PoolingTypes::AVG),
-        ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides),
-        ::testing::Values(InferenceEngine::SizeVector({0, 0})), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
-        ::testing::Values(
-            ngraph::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
-        ::testing::Values(ngraph::op::PadType::VALID),
-        ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
+const auto allPools_ValidPad_Params = ::testing::Combine(::testing::Values(PoolingTypes::MAX, PoolingTypes::AVG),
+    ::testing::ValuesIn(kernels), ::testing::ValuesIn(strides), ::testing::Values(InferenceEngine::SizeVector({0, 0})),
+    ::testing::Values(InferenceEngine::SizeVector({0, 0})),
+    ::testing::Values(
+        ngraph::op::RoundingType::FLOOR),  // placeholder value - Rounding Type not applicable for Valid pad type
+    ::testing::Values(ngraph::op::PadType::VALID),
+    ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
 INSTANTIATE_TEST_CASE_P(MAX_and_AVGPool_ValidPad, PoolingLayerTest,
     ::testing::Combine(allPools_ValidPad_Params, ::testing::ValuesIn(inputPrecisions),
