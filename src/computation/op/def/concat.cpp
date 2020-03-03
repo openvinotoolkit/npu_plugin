@@ -43,8 +43,14 @@ namespace mv
                         continue;
                     if (inputShapeI[shapeDimension] != inputShape0[shapeDimension])
                     {
-                        errMsg = "Invalid shape of the input tensor (input " + std::to_string(i) + ") - inconsistent with the dimension of "
-                            " the first input (input 0) ";
+                        std::ostringstream strm;
+                        strm
+                                << "Invalid shape of the input " << i << " tensor "
+                                << "(" << shapeDimension << ":" << inputShapeI[shapeDimension]
+                                << " - inconsistent with the dimension of the first input "
+                                << "(" << inputShape0[shapeDimension] << ")";
+
+                        errMsg = strm.str();
 
                         return {false, 0};
                     }

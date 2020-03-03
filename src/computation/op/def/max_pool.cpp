@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/tiling.hpp"
 
 namespace mv
 {
@@ -11,22 +12,6 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-
-            auto auto_pad = args.at("auto_pad").get<std::string>();
-            auto rounding_type = args.at("rounding_type").get<std::string>();
-
-            if (auto_pad != "" && auto_pad != "same_upper" && auto_pad != "same_lower" && auto_pad != "valid")
-            {
-                errMsg = "Invalid argument: auto_pad=" + auto_pad;
-                return {false, 0};
-            }
-
-            if (rounding_type != "floor" && rounding_type != "ceil")
-            {
-                errMsg = "Invalid argument: rounding_type=" + rounding_type;
-                return {false, 0};
-            }
-
             auto inputShape = inputs[0]->getShape();
 
             if (inputShape.ndims() != 4)
@@ -67,8 +52,12 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
 
-            Shape outputShape({(inputShape[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kSize[0]) / stride[0] + 1,
-                (inputShape[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kSize[1]) / stride[1] + 1, inputShape[IO_CHANNEL_DIMENSION], inputShape[IO_BATCH_DIMENSION]});
+            auto W = Tiling::inferOutputSize(inputShape[IO_WIDTH_DIMENSION], padding[0], padding[1], kSize[0], stride[0]);
+            auto H = Tiling::inferOutputSize(inputShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], kSize[1], stride[1]);
+            auto C = inputShape[IO_CHANNEL_DIMENSION];
+            auto N = inputShape[IO_BATCH_DIMENSION];
+
+            Shape outputShape({W, H, C, N});
 
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))
@@ -85,12 +74,6 @@ namespace mv
 
 
     namespace op {
-
-        // TODO: make setOptionalArg accept "..." instead of std::string("...")
-        // Default values for (some of) optional arguments
-        static std::string default_auto_pad = ""; // variants: "", "same_upper", "same_lower", "valid"
-        static std::string default_rounding_type = "floor"; // variants: "floor", "ceil"
-
         MV_REGISTER_OP(MaxPool)
         .setInputs({"data"})
         .setOutputs({"output"})
@@ -98,8 +81,6 @@ namespace mv
         .setArg<std::array<unsigned short, 2>>("stride")
         .setArg<std::array<unsigned short, 4>>("padding")
         .setOptionalArg<bool>("exclude_pad", true)
-        .setOptionalArg<std::string>("auto_pad", default_auto_pad)      // default: ""
-        .setOptionalArg<std::string>("rounding_type", default_rounding_type) // default: "floor"
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_max_pool::inputCheckFcn)

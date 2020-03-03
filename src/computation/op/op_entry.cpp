@@ -46,14 +46,14 @@ mv::op::OpEntry& mv::op::OpEntry::setInputCheck(const std::function<std::pair<bo
     return *this;
 }
 
-mv::op::OpEntry& mv::op::OpEntry::setInputCheck(bool inputCheck)
+mv::op::OpEntry& mv::op::OpEntry::skipInputCheck()
 {
-    checkInputs_ = inputCheck;
+    checkInputs_ = false;
     return *this;
 }
 
 
-mv::op::OpEntry& mv::op::OpEntry::setOutputDef(std::function<void(const std::vector<Data::TensorIterator>&,
+mv::op::OpEntry& mv::op::OpEntry::setOutputDef(const std::function<void(const std::vector<Data::TensorIterator>&,
     const std::map<std::string, Attribute>&, std::vector<Tensor>&)>& outputDef)
 {
     outputDef_ = outputDef;

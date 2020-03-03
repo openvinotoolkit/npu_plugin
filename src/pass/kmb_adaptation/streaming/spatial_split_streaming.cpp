@@ -494,8 +494,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 kernelStride,
                                 currentPad,
                                 op->get<const bool>("exclude_pad"),
-                                op->get<std::string>("auto_pad"),
-                                op->get<std::string>("rounding_type"),
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
