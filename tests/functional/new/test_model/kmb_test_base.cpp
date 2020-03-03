@@ -198,7 +198,7 @@ void KmbTestBase::SetUp() {
         core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, DEVICE_NAME);
     }
 
-    core->SetConfig({{"LP_TRANSFORMS_MODE", "LP_TRANSFORMS_MODE_OFF"}}, "CPU");
+    core->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, "CPU");
 
     dumpBaseName = cleanName(vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name()));
 
