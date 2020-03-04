@@ -79,8 +79,11 @@ namespace mv
             }
 
             // output tensor uses permuted shape with old order
-            outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
-        
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
     }
