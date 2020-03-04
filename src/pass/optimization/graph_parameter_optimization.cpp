@@ -865,7 +865,7 @@ namespace mv
                                 op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > 8192)
                                 executableInHW = 2;
                             auto stride_array = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
-                            if (stride_array[0] > 8 || stride_array[1] > 8)
+                            if (stride_array[0] > 8 || stride_array[1] > 8 || stride_array[0] != stride_array[1])
                                 executableInHW = 3;
                         }
                     }
