@@ -20,6 +20,9 @@ namespace mv
     }
 }
 
+static double inf = std::numeric_limits<double>::infinity();
+static const auto initial_quant_params = mv::QuantizationParams{{0}, {1}, {-inf}, {inf}};
+
 enum class Precision {
     Default,
     U8,
@@ -67,6 +70,9 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
             zeroPoint = 127;  // TODO Why not assert?
         }
     }
+
+    if (zeroPoint == 147)
+        return 148;
 
     return zeroPoint;
 }
@@ -311,11 +317,14 @@ void propagate(mv::OpModel& model, mv::Data::OpListIterator fqOp) {
     currentOp->set<mv::QuantizationParams>("quantParams", params);
 }
 
+
 bool isQuantizableOp(mv::Data::OpListIterator op) {
-    static std::set<std::string> quantizable_ops{"Conv", "FullyConnected", "Eltwise", "AveragePool"};
+    static std::set<std::string> quantizable_ops{"Conv", "FullyConnected", "Eltwise" , "AveragePool"};
     return quantizable_ops.count(op->getOpType());
 }
 
+// TODO: fix it
+// ERROR: wrong naming or assumtion. isQuantized mean const data is integral
 // NOTE: Heuristic. Op is quantized if weights tensor have fakeQuantize.
 bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     assert(isQuantizableOp(op));
@@ -361,7 +370,6 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
         return extractQuantParams(current_op, false);
     }
 
-    static double inf = std::numeric_limits<double>::infinity();
     return mv::QuantizationParams{{0}, {1}, {-inf}, {inf}};
 }
 
@@ -379,13 +387,24 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void propagateNew(mv::ComputationModel& model, mv::Data::OpListIterator op) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
-    auto name = op->getName();
-    if (name == "333") {
+    auto name = op->getOpType();
+    if (name == "AveragePool") {
         int x = 42;
     }
     if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
         quant_params = findOutputQuantParams(model, op);
-        op->set<mv::QuantizationParams>("quantParams", quant_params);
+        if (op->getOpType() == "AveragePool" && quant_params == initial_quant_params) {
+            auto parent = om.getSourceOp(op->getInputTensor(0));
+            assert(parent->hasAttr("quantParams"));
+            quant_params = parent->get<mv::QuantizationParams>("quantParams");
+        }
+
+       op->set<mv::QuantizationParams>("quantParams", quant_params);
+       auto out_tensors = op->getOutputTensor();
+       for (auto& tensor : out_tensors) {
+           tensor->set<mv::QuantizationParams>("quantParams", quant_params);
+       }
+
     } else if (op->getOpType() != "Input" && op->getOpType() != "ConstantInt") {
         auto parent = om.getSourceOp(op->getInputTensor(0));
         if (parent->getOpType() == "Input" && op->getOpType() == "Scale")
@@ -394,6 +413,11 @@ void propagateNew(mv::ComputationModel& model, mv::Data::OpListIterator op) {
         assert(parent->hasAttr("quantParams"));
         quant_params = parent->get<mv::QuantizationParams>("quantParams");
         op->set<mv::QuantizationParams>("quantParams", quant_params);
+
+        auto out_tensors = op->getOutputTensor();
+        for (auto& tensor : out_tensors) {
+            tensor->set<mv::QuantizationParams>("quantParams", quant_params);
+        }
     }
     // TODO: add handling of Input and Concat check for equal QP
 }
@@ -413,8 +437,11 @@ void quantizeConst(mv::ComputationModel& model) {
     mv::OpModel om(model);
 
     auto fqOps = om.getOps("FakeQuantize");
-
+    fqOps = om.topologicalSort();
     for (auto& fq : fqOps) {
+        if (fq->getOpType() != "FakeQuantize")
+            continue;
+
         auto parent = om.getSourceOp(fq->getInputTensor(0));
         if (parent->getOpType() == "Constant") {
             quantize_weights(om, parent, fq);
@@ -427,8 +454,12 @@ void quantizeBias(mv::ComputationModel& model) {
     mv::OpModel om(model);
 
     auto biasOps = om.getOps("Bias");
+    biasOps = om.topologicalSort();
 
     for (auto& biasOp : biasOps) {
+        if (biasOp->getOpType() != "Bias")
+            continue;
+
         auto parent = om.getSourceOp(biasOp->getInputTensor(0));
         if (isQuantizableOp(parent)) {
             quantizeBias(om, biasOp);
@@ -481,42 +512,53 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> data) {
 }
 
 std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& qp) {
-    os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}" << std::endl;
+    os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}";
     return os;
 }
 
 void dumpFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string name) {
-    auto ops = model.getOps();
-    std::sort(ops.begin(), ops.end(), [](mv::Data::OpListIterator left, mv::Data::OpListIterator right) {return left->getName() < right->getName();});
+    mv::OpModel om(model);
+    auto ops = om.topologicalSort();
+
     std::ofstream ofs(name, std::ios::out);
     if (!ofs.good()) {
         int x = 32;
     }
 
     for (auto& op : ops) {
-//        if (op->getOpType() == "ConstantInt")
-//            continue;
 
+        auto op_params = op->get<mv::QuantizationParams>("quantParams");
+        auto tensor_params = op->get<mv::QuantizationParams>("quantParams");
+
+        if (op->getOpType() == "ConstantInt") {
+            ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams") << std::endl;
+            auto data = op->getOutputTensor(0)->getIntData();
+            ofs << "{ " << data << " }";
+            ofs << std::endl;
+            continue;
+
+        }
         if (op->hasAttr("quantParams")) {
             ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams");
-
-            if (op->getOpType() == "ConstantInt") {
-                auto data = op->getOutputTensor(0)->getIntData();
-                ofs << "{ " << data << " }";
-            }
-
             ofs << std::endl;
-
+//                    auto tensor = op->getOutputTensor(0);
+//          ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams");
         }
         else
             ofs << op->getName() << " " << op->getOpType() << std::endl;
+
+        if (op->getOutputTensor().size() >= 1) {
+            auto tensor = op->getOutputTensor(0);
+            ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams") << std::endl;
+        }
+
     }
 }
 
 }
 
 void propagateParametersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
-    std::string name = "origianl_model_quant_dump.txt";
+    std::string name = "original_model_quant_dump.txt";
 
 
     propagateParametersNew(pass, model);
