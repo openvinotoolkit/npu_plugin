@@ -124,7 +124,9 @@ void HddlUniteInferData::createRemoteDesc(const bool isInput, const std::string&
      *  remote allocator. Only wrap memory. */
     blobDesc.m_fd = remoteMemoryFD;
 
-    _inferDataPtr->createBlob(name, blobDesc, isInput);
+    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
+        THROW_IE_EXCEPTION << "Incorrect blob descriptor";
+    }
 }
 
 void HddlUniteInferData::createLocalDesc(const bool isInput, const std::string& name, const IE::Blob::Ptr& blob) {
@@ -140,7 +142,9 @@ void HddlUniteInferData::createLocalDesc(const bool isInput, const std::string& 
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, blobSize);
 
-    _inferDataPtr->createBlob(name, blobDesc, isInput);
+    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
+        THROW_IE_EXCEPTION << "Incorrect blob descriptor";
+    }
 
     if (isInput) {
         auto localBuffer = blob->buffer().as<void*>();

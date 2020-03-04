@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -17,9 +17,6 @@
 #include <InferBlob.h>
 #include <InferData.h>
 #include <Inference.h>
-#include <models/model_pooling.h>
-
-#include <ie_core.hpp>
 
 #include "RemoteMemory.h"
 #include "gtest/gtest.h"
@@ -28,6 +25,7 @@
 #include "hddl2_helpers/helper_hddl_unite_graph.h"
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "hddl2_helpers/helper_workload_context.h"
+#include "models/precompiled_resnet.h"
 
 using namespace HddlUnite;
 namespace IE = InferenceEngine;
@@ -204,9 +202,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CreatingTwoWorkloadContextForSameProcessW
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_BlobDescr_Tests
-//------------------------------------------------------------------------------
-class HDDL2_HddlUnite_BlobDescr_Tests : public HDDL2_HddlUnite_Tests {
+class HddlUnite_BlobDescr : public HDDL2_HddlUnite_Tests {
 public:
     void SetUp() override;
     void callInferenceOnBlobs();
@@ -221,7 +217,6 @@ public:
     const size_t resNetOutputSize = 512;
 
     std::string simpleInputData;
-    std::string simpleOutputData;
 
     HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
     RemoteMemoryFd remoteMemoryFd = 0;
@@ -234,7 +229,7 @@ protected:
     HddlUnite_Graph_Helper::Ptr _uniteGraphHelper = nullptr;
 };
 
-void HDDL2_HddlUnite_BlobDescr_Tests::SetUp() {
+void HddlUnite_BlobDescr::SetUp() {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext);
 
@@ -244,10 +239,9 @@ void HDDL2_HddlUnite_BlobDescr_Tests::SetUp() {
     _uniteGraphHelper = std::make_shared<HddlUnite_Graph_Helper>(*workloadContext);
 
     simpleInputData = std::string(resNetInputSize, '*');
-    simpleOutputData = std::string(resNetOutputSize, '*');
 }
 
-void HDDL2_HddlUnite_BlobDescr_Tests::callInferenceOnBlobs() {
+void HddlUnite_BlobDescr::callInferenceOnBlobs() {
     auto inputBlob = inferDataPtr->getInputBlob(inputName);
     if (inputBlob == nullptr) {
         std::cout << "Input blob not found : creating default\n";
@@ -258,8 +252,10 @@ void HDDL2_HddlUnite_BlobDescr_Tests::callInferenceOnBlobs() {
             const bool needAllocate = true;
 
             HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+            ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+
             blobDesc.m_srcPtr = (void*)simpleInputData.data();
-            inferDataPtr->createBlob(inputName, blobDesc, isInput);
+            ASSERT_TRUE(inferDataPtr->getInputBlob(inputName)->updateBlob(blobDesc));
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "Failed to create default input blob: " << ex.what();
         }
@@ -272,11 +268,10 @@ void HDDL2_HddlUnite_BlobDescr_Tests::callInferenceOnBlobs() {
             const int isInput = false;
 
             const bool isRemoteMem = false;
-            const bool needAllocate = false;
+            const bool needAllocate = true;
 
             HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
-            blobDesc.m_srcPtr = (void*)simpleOutputData.data();
-            inferDataPtr->createBlob(outputName, blobDesc, isInput);
+            ASSERT_TRUE(inferDataPtr->createBlob(outputName, blobDesc, isInput));
         } catch (const std::exception& ex) {
             THROW_IE_EXCEPTION << "Failed to create default output blob: " << ex.what();
         }
@@ -290,57 +285,50 @@ void HDDL2_HddlUnite_BlobDescr_Tests::callInferenceOnBlobs() {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Input Blobs - Local mem
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanNotCreateAndInfer_InputLocalBlobDesc_WithoutSrcPtr) {
+class HddlUnite_BlobDescr_LocalMemory_Input : public  HddlUnite_BlobDescr {
+public:
     const int isInput = true;
-
     const bool isRemoteMem = false;
+    /**
+     * Local memory always should be allocated by hddlunite.
+     * We should provide pointer to data, which will be synced to unite buffer (if required)
+     */
     const bool needAllocate = true;
+};
+
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Input, CanCreateAndInfer_WithSrcPtr) {
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
+    ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
 
-    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
-    ASSERT_ANY_THROW(callInferenceOnBlobs());
-}
-
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputLocalBlobDesc_WithSrcPtr) {
-    const int isInput = true;
-
-    const bool isRemoteMem = false;
-    const bool needAllocate = false;
-
-    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     blobDesc.m_srcPtr = (void*)simpleInputData.data();
     blobDesc.m_dataSize = resNetInputSize;
 
-    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_TRUE(inferDataPtr->getInputBlob(inputName)->updateBlob(blobDesc));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Input Blobs - Remote mem
-//------------------------------------------------------------------------------
-// TODO Add same test with remote memory wrapping (needAllocate = false)
-// We want only to allocate remote memory without
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputRemoteBlobDesc_WithoutSrcPtr) {
+class HddlUnite_BlobDescr_RemoteMemory_Input : public  HddlUnite_BlobDescr {
+public:
     const int isInput = true;
-
     const bool isRemoteMem = true;
+
     const bool needAllocate = true;
+};
+
+// TODO Add same test with remote memory wrapping (needAllocate = false)
+// We want only to allocate remote memory without providing data to it
+TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithoutSrcPtr) {
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
 
-    ASSERT_NO_THROW(inferDataPtr->createBlob(inputName, blobDesc, isInput));
+    ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
 // If src ptr provided, data will be synced with remote memory
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputRemoteBlobDesc_WithSrcPtr) {
-    const int isInput = true;
-
-    const bool isRemoteMem = true;
-    const bool needAllocate = true;
+TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithSrcPtr) {
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     blobDesc.m_srcPtr = (void*)simpleInputData.data();
@@ -350,35 +338,25 @@ TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_InputRemoteBlobDesc_Wi
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_BlobDescr_Tests Initiation - Output Blobs - Local mem
-//------------------------------------------------------------------------------
-// TODO Didn't found where the problem
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, DISABLED_CanCreateAndInfer_OutputLocalBlobDesc_WithoutSrcPtr) {
+class HddlUnite_BlobDescr_LocalMemory_Output : public  HddlUnite_BlobDescr {
+public:
     const int isInput = false;
-
     const bool isRemoteMem = false;
     const bool needAllocate = true;
+};
+
+/**
+ * After inference memory should me copied manually 
+ */
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, CanCreateAndInfer_WithoutSrcPtr) {
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
 
-    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
-    ASSERT_ANY_THROW(callInferenceOnBlobs());
-}
-
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanCreateAndInfer_OutputLocalBlobDesc_WithSrcPtr) {
-    const int isInput = false;
-
-    const bool isRemoteMem = false;
-    const bool needAllocate = false;
-
-    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
-    blobDesc.m_srcPtr = (void*)simpleOutputData.data();
-
-    ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
+    ASSERT_TRUE(inferDataPtr->createBlob(outputName, blobDesc, isInput));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
     HddlUnite_Graph_Helper graphHelper;
     const int isInput = false;
 
@@ -407,7 +385,7 @@ TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CreatedOutputBlobDesc_WillHaveSaveSizeAs
 
 // TODO FAIL - HDDLUnite problem? - Data size is differ, but it can be problem because result data
 //  filled that way (fixed size) in emulator
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_CustomSize) {
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_CustomSize) {
     HddlUnite_Graph_Helper graphHelper;
     const int isInput = false;
 
@@ -432,7 +410,7 @@ TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, DISABLED_CreatedOutputBlobDesc_WillHaveS
     EXPECT_EQ(actualSize, actualSizeInDesc);
 }
 
-TEST_F(HDDL2_HddlUnite_BlobDescr_Tests, CanInferOnDefaultLocalBlobs) {
+TEST_F(HddlUnite_BlobDescr, CanInferOnDefaultLocalBlobs) {
     // Inference on default blobs, which will
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }

@@ -28,7 +28,7 @@ public:
     Graph::Ptr getGraph();
 
 protected:
-    const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
+    const std::string _modelToImport = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
     Graph::Ptr _graphPtr = nullptr;
 };
 
