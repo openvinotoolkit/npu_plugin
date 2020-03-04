@@ -151,7 +151,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
 
     //    NOTE: Thanks to proper padding handling we don't need this anymore
     //    Leaving it here as an historical note... and now it's back as an option
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
     {
        dpuConvOp->erase("taskOp");
        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");

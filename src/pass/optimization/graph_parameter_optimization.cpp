@@ -433,7 +433,7 @@ namespace mv
                 auto clusterStrategy = clustering.get<string>();
 
                 if(enableChannelMajorConv and opType == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
                         isCMConv = true;
 
                 if(opType != "Input"){
@@ -817,7 +817,7 @@ namespace mv
             bool requiresFakeActivationSparsity(Op& op){
                 if(enableChannelMajorConv and
                   (op.getOpType() == "Conv") and
-                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16) )
+                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16) )
                 {
                     return true;
                 }
@@ -943,7 +943,7 @@ namespace mv
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-                    if ( numInChannels < 16 ) //assume channel major conv
+                    if ( numInChannels % 16 ) //assume channel major conv
                         if(clustering == "SplitOverH" and streamShape["H"] > 1)
                             return 10;
                 }
@@ -1066,7 +1066,7 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     //This rule only relevant for channel major convs
-                    if( enableChannelMajorConv and numInChannels < 16)
+                    if( enableChannelMajorConv and numInChannels % 16)
                     {
                         if(childClustering == "SplitOverH" and not (parentClustering == "SplitOverHOverlapped"))
                         {
@@ -1111,7 +1111,7 @@ namespace mv
                 //Note: Input clustering strategy should match first layer, if it is Z-major
                 if(parentOp.getOpType() == "Input" and not
                     (childOp.getOpType() == "Conv" and enableChannelMajorConv
-                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
+                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16))
                 {
                     if(parentClustering != childClustering)
                     {
@@ -1307,7 +1307,7 @@ namespace mv
 
                 // If CM convolutions are enabled, don't sparsify these
                 if(enableChannelMajorConv and op.getOpType() == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
                     return false;
 
                 //Size of weights, actual sparsity of tensor determine speedup
