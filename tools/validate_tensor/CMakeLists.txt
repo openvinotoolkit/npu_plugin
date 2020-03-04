@@ -7,4 +7,4 @@ add_executable(validate
     "validate.cpp"
 )
 
-target_link_libraries(validate gflags corebase)
+target_link_libraries(validate gflags cm)
