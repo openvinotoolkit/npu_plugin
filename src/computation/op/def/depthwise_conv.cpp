@@ -25,7 +25,8 @@ namespace mv
                 return {false, 1};
             }
 
-            if (opInput->getShape()[IO_CHANNEL_DIMENSION] != weights->getShape()[2])
+            if ((opInput->getShape()[IO_CHANNEL_DIMENSION] != weights->getShape()[2]) &&
+                (opInput->getShape()[IO_CHANNEL_DIMENSION] != weights->getShape()[3]))
             {
                 errMsg = "Number of weights channels not match input_channels " + std::to_string(opInput->getShape()[2]);
                 return {false, 1};
