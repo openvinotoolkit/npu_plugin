@@ -50,7 +50,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 
-        auto fuseFunctor = (fuseTaskMap.at("Bias"));
         for (auto bias : biasOperations)
             fuseBiasFcn(bias, model, "Bias");
 

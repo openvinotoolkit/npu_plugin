@@ -143,7 +143,7 @@ void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
     {
         std::vector <double> maximums, minimums;
         double maximumFloat, minimumFloat;
-        for (uint32_t channel = 0; channel < tensor->getShape()[mv::IO_BATCH_DIMENSION]; channel++)
+        for (uint32_t channel = 0; channel < tensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]; channel++)
         {
             //Quantization equation Real = scale(Quantized - zeroPoint)
             maximumFloat = tensorQuantization.getScale()[channel] * (255 - tensorQuantization.getZeroPoint()[0]);
