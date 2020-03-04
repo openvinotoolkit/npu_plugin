@@ -53,7 +53,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
             auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
+            zeroPoint = std::round(levels - 1 - x);  // TODO Why not round?
         } else if (low >= 0.f) {
             zeroPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
@@ -63,7 +63,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
     if (dtype == getDType(Precision::I8)) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = ceil(x);  // TODO Why not round?
+            zeroPoint = std::round(x);  // TODO Why not round?
         } else if (low > 0.f) {
             zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
@@ -384,11 +384,17 @@ void propagateParameters(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
+//TODO: add more checks to compare all fields
+//TODO: move to struct
+bool operator==(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+    return left.getScale() == right.getScale() && left.getZeroPoint() == right.getZeroPoint();
+}
+
 void propagateNew(mv::ComputationModel& model, mv::Data::OpListIterator op) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto name = op->getOpType();
-    if (name == "AveragePool") {
+    if (name == "AveragePool" || name == "Reshape") {
         int x = 42;
     }
     if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
