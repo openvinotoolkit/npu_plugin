@@ -346,7 +346,7 @@ public:
 };
 
 /**
- * After inference memory should me copied manually 
+ * After inference memory should be copied manually
  */
 TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, CanCreateAndInfer_WithoutSrcPtr) {
 
@@ -413,4 +413,19 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_Wi
 TEST_F(HddlUnite_BlobDescr, CanInferOnDefaultLocalBlobs) {
     // Inference on default blobs, which will
     ASSERT_NO_THROW(callInferenceOnBlobs());
+}
+
+//------------------------------------------------------------------------------
+using HddlUnite_Stress = HDDL2_HddlUnite_Tests;
+TEST_F(HddlUnite_Stress, MultipleAllocations) {
+    const size_t amountOfAllocations = 100;
+
+    HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;
+    const std::string graphName = PrecompiledResNet_Helper::resnet50_dpu.graphName;
+    const std::string graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+
+    for (size_t i = 0; i < amountOfAllocations; ++i) {
+        ASSERT_EQ(HddlUnite::Inference::loadGraph(graphPtr, graphName, graphPath), HDDL_OK);
+        EXPECT_EQ(HddlUnite::Inference::unloadGraph(graphPtr), HDDL_OK);
+    }
 }
