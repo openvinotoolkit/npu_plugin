@@ -16,173 +16,84 @@
 
 #include <Inference.h>
 #include <hddl_unite/hddl2_infer_data.h>
+#include <ie_compound_blob.h>
 
 #include <string>
+#include <memory>
 
 #include "hddl2_remote_blob.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
-
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::Ptr& blob) {
-    RemoteMemoryFD memoryFd = 0;
-    try {
-        HDDL2RemoteBlob::Ptr remoteBlobPtr = std::dynamic_pointer_cast<HDDL2RemoteBlob>(blob);
-        memoryFd = remoteBlobPtr->getRemoteMemoryFD();
-    } catch (const std::exception& ex) {
-        printf("Failed to get memory fd from remote blob! %s\n", ex.what());
-    }
-    return memoryFd;
-}
-
-HddlUnite::Inference::Precision HddlUniteInferData::convertIEPrecision(const IE::Precision& precision) {
-    switch (precision) {
-    case IE::Precision::UNSPECIFIED:
-        return HddlUnite::Inference::UNSPECIFIED;
-    case IE::Precision::MIXED:
-        return HddlUnite::Inference::MIXED;
-    case IE::Precision::FP32:
-        return HddlUnite::Inference::FP32;
-    case IE::Precision::FP16:
-        return HddlUnite::Inference::FP16;
-    case IE::Precision::Q78:
-        return HddlUnite::Inference::Q78;
-    case IE::Precision::I16:
-        return HddlUnite::Inference::I16;
-    case IE::Precision::U8:
-        return HddlUnite::Inference::U8;
-    case IE::Precision::I8:
-        return HddlUnite::Inference::I8;
-    case IE::Precision::U16:
-        return HddlUnite::Inference::U16;
-    case IE::Precision::I32:
-        return HddlUnite::Inference::I32;
-    case IE::Precision::I64:
-        return HddlUnite::Inference::I64;
-    case IE::Precision::BIN:
-        return HddlUnite::Inference::BIN;
-    case IE::Precision::CUSTOM:
-        return HddlUnite::Inference::CUSTOM;
-    default:
-        THROW_IE_EXCEPTION << "Incorrect precision";
-    }
-}
-
-static void checkInputArguments(const std::string& inputName, const IE::Blob::Ptr& blob) {
-    if (inputName.empty()) {
-        THROW_IE_EXCEPTION << "Name is empty";
-    }
-    if (blob == nullptr) {
-        THROW_IE_EXCEPTION << "Blob is null";
-    }
-    if (blob->size() == 0) {
-        THROW_IE_EXCEPTION << "Blob is empty";
+static void checkData(const IE::DataPtr& desc) {
+    if (!desc) {
+        THROW_IE_EXCEPTION << "Data is null";
     }
 }
 
 //------------------------------------------------------------------------------
-//      class HddlUniteInferData Implementation
-//------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const HDDL2RemoteContext::Ptr& remoteContext) {
+HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing, const HDDL2RemoteContext::Ptr& remoteContext) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
     HddlUnite::WorkloadContext::Ptr workloadContext = nullptr;
     if (remoteContext != nullptr) {
         workloadContext = remoteContext->getHddlUniteWorkloadContext();
+        isVideoWorkload = true;
+        if (workloadContext == nullptr) {
+            THROW_IE_EXCEPTION << "Workload context is null!";
+        }
     }
 
-    if (workloadContext != nullptr) {
-        isVideoWorkload = true;
-        _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext);
-    } else {
-        _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob);
-    }
+    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext, needPreProcessing);
 
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "Failed to create inferData";
     }
 }
 
-void HddlUniteInferData::createRemoteDesc(const bool isInput, const std::string& name, const IE::Blob::Ptr& blob) {
-    const RemoteMemoryFD remoteMemoryFD = getFDFromRemoteBlob(blob);
-    const IE::TensorDesc tensorDesc = blob->getTensorDesc();
-    const size_t blobSize = blob->byteSize();
-
-    if (remoteMemoryFD == 0) {
-        THROW_IE_EXCEPTION << "Incorrect remote memory file descriptor";
+void HddlUniteInferData::prepareInput(const IE::Blob::Ptr& blob, const IE::InputInfo::Ptr& info) {
+    if (!info) {
+        THROW_IE_EXCEPTION << "Input blob info is null";
     }
-    HddlUnite::Inference::Precision precision = convertIEPrecision(tensorDesc.getPrecision());
-    const bool isRemoteMem = true;
-    const bool needAllocate = false;
+    checkData(info->getInputData());
 
-    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, blobSize);
+    const bool isInput = true;
+    const std::string name = info->getInputData()->getName();
+    const auto desc = info->getInputData();
 
-    /** @note We will not provide pointer to data (src_ptr) as all synchronization logic hidden in
-     *  remote allocator. Only wrap memory. */
-    blobDesc.m_fd = remoteMemoryFD;
-
-    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
-        THROW_IE_EXCEPTION << "Incorrect blob descriptor";
-    }
-}
-
-void HddlUniteInferData::createLocalDesc(const bool isInput, const std::string& name, const IE::Blob::Ptr& blob) {
-    const IE::TensorDesc tensorDesc = blob->getTensorDesc();
-    const size_t blobSize = blob->byteSize();
-
-    HddlUnite::Inference::Precision precision = convertIEPrecision(tensorDesc.getPrecision());
-
-    bool isRemoteMem = false;
-    bool needAllocate = true;
-
-    if (isVideoWorkload) {
-        /** @note In case of video workload, we should always use remote memory.
-         *  For input,  srcPtr will be memory, which will be synced with remote
-         *  For output, srcPtr will be memory, to which result will be synced after inference. */
-        isRemoteMem = true;
-        needAllocate = true;
-    }
-
-    HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, blobSize);
-
-    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
-        THROW_IE_EXCEPTION << "Incorrect blob descriptor";
-    }
-
-    if (isInput) {
-        auto localBuffer = blob->buffer().as<void*>();
-        blobDesc.m_srcPtr = localBuffer;
-        if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
-            THROW_IE_EXCEPTION << "Failed to prepare local desc!";
-        }
-    }
-}
-
-void HddlUniteInferData::prepareInput(const std::string& inputName, const IE::Blob::Ptr& blob) {
-    checkInputArguments(inputName, blob);
-
-    const bool isInputBlob = true;
-
-    if (blob->is<HDDL2RemoteBlob>()) {
-        createRemoteDesc(isInputBlob, inputName, blob);
+    BlobDescriptor::Ptr blobDescriptorPtr;
+    if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
+        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(isInput, desc, blob);
     } else {
-        createLocalDesc(isInputBlob, inputName, blob);
+        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(isInput, desc, blob);
     }
+    _inferDataPtr->createBlob(name, blobDescriptorPtr->create(), isInput);
+
+    blobDescriptorPtr->setPreProcessing(info->getPreProcess());
+    _inferDataPtr->getInputBlob(name)->updateBlob(blobDescriptorPtr->init());
+
+    _inputs[name] = blobDescriptorPtr;
 }
 
-void HddlUniteInferData::prepareOutput(const std::string& outputName, const IE::Blob::Ptr& blob) {
-    checkInputArguments(outputName, blob);
+void HddlUniteInferData::prepareOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
+    checkData(desc);
 
-    const bool isInputBlob = false;
+    const bool isInput = false;
+    const std::string name = desc->getName();
 
-    if (blob->is<HDDL2RemoteBlob>()) {
-        createRemoteDesc(isInputBlob, outputName, blob);
+    BlobDescriptor::Ptr blobDescriptorPtr;
+    if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
+        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(isInput, desc, blob);
     } else {
-        createLocalDesc(isInputBlob, outputName, blob);
+        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(isInput, desc, blob);
     }
+
+    _inferDataPtr->createBlob(name, blobDescriptorPtr->create(), isInput);
+
+    _outputs[name] = blobDescriptorPtr;
 }
 
 std::string HddlUniteInferData::getOutputData(const std::string& outputName) {

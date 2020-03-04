@@ -79,7 +79,20 @@ TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, remoteBlobPtr));
 }
 
+TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
+    inferRequest = executableNetwork.CreateInferRequest();
+    ASSERT_EQ(executableNetwork.GetInputsInfo().size(), 1);
 
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+    auto nv12Blob = NV12Blob_Creator::createBlob(inputInfoPtr->getTensorDesc());
+    auto preProcess = IE::PreProcessInfo();
+    preProcess.setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
+    preProcess.setColorFormat(IE::ColorFormat::NV12);
+
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputName, nv12Blob, preProcess));
+}
 
 //------------------------------------------------------------------------------
 using InferRequest_GetBlob = InferRequest_Tests;

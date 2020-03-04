@@ -49,9 +49,7 @@ static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensor
 
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
     const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context)
-    : InferRequestInternal(networkInputs, networkOutputs), _loadedGraphPtr(loadedGraph) {
-    _inferDataPtr = std::make_shared<HddlUniteInferData>(context);
-
+    : InferRequestInternal(networkInputs, networkOutputs), _loadedGraphPtr(loadedGraph), _context(context) {
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
@@ -68,6 +66,10 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
 }
 
 void HDDL2InferRequest::InferImpl() {
+    // TODO [Design flaw] InferData need to know if preprocessing required on creation.
+    const bool needPreProcessing = isPreProcessingSpecified();
+    _inferDataPtr = std::make_shared<HddlUniteInferData>(needPreProcessing, _context);
+
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
 
@@ -77,7 +79,7 @@ void HDDL2InferRequest::InferImpl() {
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
 
-        _inferDataPtr->prepareInput(inputName, inputBlobPtr);
+        _inferDataPtr->prepareInput(inputBlobPtr, networkInput.second);
     }
 
     for (const auto& networkOutput : _networkOutputs) {
@@ -89,7 +91,7 @@ void HDDL2InferRequest::InferImpl() {
         }
         const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
-        _inferDataPtr->prepareOutput(outputName, outputBlobPtr);
+        _inferDataPtr->prepareOutput(outputBlobPtr, networkOutput.second);
     }
     _loadedGraphPtr->InferSync(_inferDataPtr);
     GetResult();
