@@ -31,7 +31,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 class HDDL2_ImportNetwork_Tests : public HDDL2_Core_API_Tests {
 public:
-    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet;
+    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
     void SetUp() override;
     InferenceEngine::ParamMap params;
 

@@ -130,25 +130,25 @@ void HddlUniteInferData::createRemoteDesc(const bool isInput, const std::string&
 void HddlUniteInferData::createLocalDesc(const bool isInput, const std::string& name, const IE::Blob::Ptr& blob) {
     const IE::TensorDesc tensorDesc = blob->getTensorDesc();
     const size_t blobSize = blob->byteSize();
-    auto localBuffer = blob->buffer().as<void*>();
 
     HddlUnite::Inference::Precision precision = convertIEPrecision(tensorDesc.getPrecision());
 
     bool isRemoteMem = false;
-    bool needAllocate = false;
+    bool needAllocate = true;
 
-    if (isVideoWorkload) {
-        /** @note In case of video workload, we should always use remote memory.
-         *  For input,  srcPtr will be memory, which will be synced with remote
-         *  For output, srcPtr will be memory, to which result will be synced after inference. */
-        isRemoteMem = true;
-        needAllocate = true;
-    }
+    IE_ASSERT(!isVideoWorkload);
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, blobSize);
-    blobDesc.m_srcPtr = localBuffer;
 
     _inferDataPtr->createBlob(name, blobDesc, isInput);
+
+    if (isInput) {
+        auto localBuffer = blob->buffer().as<void*>();
+        blobDesc.m_srcPtr = localBuffer;
+        if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
+            THROW_IE_EXCEPTION << "Failed to prepare local desc!";
+        }
+    }
 }
 
 void HddlUniteInferData::prepareInput(const std::string& inputName, const IE::Blob::Ptr& blob) {
@@ -173,4 +173,12 @@ void HddlUniteInferData::prepareOutput(const std::string& outputName, const IE::
     } else {
         createLocalDesc(isInputBlob, outputName, blob);
     }
+}
+
+std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
+    const auto outputBlob = _inferDataPtr->getOutputBlob(outputName);
+    if (outputBlob == nullptr) {
+        THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
+    }
+    return outputBlob->getData();
 }

@@ -92,10 +92,40 @@ void HDDL2InferRequest::InferImpl() {
         _inferDataPtr->prepareOutput(outputName, outputBlobPtr);
     }
     _loadedGraphPtr->InferSync(_inferDataPtr);
+    GetResult();
 }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
     UNUSED(perfMap);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+void HDDL2InferRequest::GetResult() {
+    if (_networkOutputs.size() != 1) {
+        THROW_IE_EXCEPTION << "Only one output is supported!";
+    }
+
+    const std::string outputName = _networkOutputs.begin()->first;
+    auto foundOutputBlob = _outputs.find(outputName);
+    if (foundOutputBlob == _outputs.end()) {
+        THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+    }
+    const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
+
+    const std::string outputData = _inferDataPtr->getOutputData(outputName);
+
+    if (outputData.size() != _outputs[outputName]->size()) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output.";
+    }
+
+    {
+        IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(outputBlobPtr);
+        if (!mblob) {
+            THROW_IE_EXCEPTION << "Failed output blob type!";
+        }
+        auto lockedMemory = mblob->rmap();
+        void* data = lockedMemory.as<void*>();
+        memcpy(data, outputData.data(), outputData.size());
+    }
 }
