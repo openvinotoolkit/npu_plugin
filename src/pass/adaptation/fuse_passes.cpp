@@ -55,7 +55,7 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             fuseBiasFcn(bias, model, "Bias");
 
         provideAccuracyinPPEs(model);
-        std::vector<std::string> fuse_types = {"Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
+        std::vector<std::string> fuse_types = {"Sigmoid", "Relu", "Minimum", "Maximum"};
         std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map

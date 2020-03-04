@@ -8,6 +8,8 @@
 #include <functional>
 
 static const uint8_t ADD_INPUT_FLOWS = 2;
+static const double max_inf = std::numeric_limits<double>::infinity();
+static const double min_inf = -std::numeric_limits<double>::infinity();
 
 mv::Data::OpListIterator portDepthwise(mv::ComputationModel& model, mv::Data::TensorIterator inputTensor, mv::Data::OpListIterator task,
                         mv::QuantizationParams quantParams)
@@ -16,8 +18,8 @@ mv::Data::OpListIterator portDepthwise(mv::ComputationModel& model, mv::Data::Te
     mv::Data::TensorIterator weights;
     std::vector<int64_t> zp = {255};
     std::vector<double> scale = {0.00392156862745098};
-    std::vector<double> min = {-std::numeric_limits<double>::infinity()};
-    std::vector<double> max = {std::numeric_limits<double>::infinity()};
+    std::vector<double> min = {min_inf};
+    std::vector<double> max = {max_inf;
     auto inputShape = inputTensor->getShape();
     std::string name = task->getName();
 
@@ -40,29 +42,29 @@ mv::Data::OpListIterator portDepthwise(mv::ComputationModel& model, mv::Data::Te
 }
 
 mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListIterator task,
-                mv::Data::OpListIterator previousConv, uint8_t branch)
+                mv::Data::OpListIterator previousOp, uint8_t branch)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
     mv::Data::TensorIterator weightsTensor, biasTensor, inputTensor;
-    inputTensor = previousConv->getInputTensor(0);
+    inputTensor = previousOp->getInputTensor(0);
     bool hasBias = false;
-    if (previousConv->getOpType() == "Conv")
+    //NOTE: Add second input needs to be handled as well
+    if (previousOp->getOpType() == "Conv" || previousOp->getOpType() == "DepthwiseConv")
     {
-        weightsTensor = previousConv->getInputTensor(1);
-        hasBias = previousConv->hasAttr("bias");
+        weightsTensor = previousOp->getInputTensor(1);
+        hasBias = previousOp->hasAttr("bias");
         if (hasBias)
-            biasTensor = dm.getTensor(previousConv->get<std::string>("bias"));
+            biasTensor = dm.getTensor(previousOp->get<std::string>("bias"));
     }
-    std::vector<double> min = {-std::numeric_limits<double>::infinity()};
-    std::vector<double> max = {std::numeric_limits<double>::infinity()};
-    double max_inf = std::numeric_limits<double>::infinity();
-    double min_inf = -std::numeric_limits<double>::infinity();
+    std::vector<double> min = {min_inf};
+    std::vector<double> max = {max_inf};
     auto inputShape = inputTensor->getShape();
     std::string name = task->getName();
     std::vector<double> scale(1, 1.0);
     std::vector<int64_t> zp(1, 0);
     auto kernelShape = weightsTensor->getShape();
+    std::string constantName;
     mv::QuantizationParams quantParams = task->get<mv::QuantizationParams>("quantParams");
 
     double alpha = task->get<double>("alpha");
@@ -120,30 +122,19 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
         zp.push_back(new_zero_point);
     }
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+    constantName = previousOp->getInputTensor()[1]->getName() + std::to_string(branch);
+
 
     auto weights = om.constantInt(weightsData,
                         {weightsTensor->getShape()[mv::KERNEL_WIDTH], weightsTensor->getShape()[mv::KERNEL_HEIGHT],
                         weightsTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]},
                         mv::DType("UInt8"),
-                        mv::Order(mv::Order::getRowMajorID(4)),
-                        weightsQuantParams);
+                        mv::Order("NCHW"),
+                        weightsQuantParams, constantName);
 
-//    if (branch == 1)
-//    {
-//        updateInfMinMaxPerTensor(task->getOutputTensor(0));
-//        double_t minConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMin()[0];
-//        double_t maxConv = task->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").getMax()[0];
-//        int64_t out_zero_point;
-//        double out_scale;
-//        double_t maxConvNew, minConvNew;
-//        minConvNew = minConv/alpha;
-//        maxConvNew = maxConv * alpha;
-//        calcZeroPointAndScalePerTensor(maxConvNew, minConvNew, out_scale, out_zero_point);
-//        quantParams = {{out_zero_point},{out_scale},{minConvNew},{maxConvNew}};
-//    }
-    auto conv = om.conv(inputTensor, weights, previousConv->get<std::array<unsigned short, 2>>("stride"),
-                             previousConv->get<std::array<unsigned short, 4>>("padding"), previousConv->get<unsigned>("dilationFactor"),
-                             previousConv->get<unsigned>("group"),
+    auto conv = om.conv(inputTensor, weights, previousOp->get<std::array<unsigned short, 2>>("stride"),
+                             previousOp->get<std::array<unsigned short, 4>>("padding"), previousOp->get<unsigned>("dilationFactor"),
+                             previousOp->get<unsigned>("group"),
                         mv::DType("UInt8"), quantParams,
                         name + std::to_string(branch) + "_PPEConv");
     auto convOp = om.getSourceOp(conv);
@@ -189,8 +180,8 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
 
     auto weightsOp = om.getSourceOp(weights);
     unsigned currentOpId = task->get<unsigned>("opId");
-    weightsOp->set<unsigned>("opId", currentOpId);
-    convOp->set<unsigned>("opId", currentOpId);
+    weightsOp->set<unsigned>("opId", currentOpId + branch);
+    convOp->set<unsigned>("opId", currentOpId + ADD_INPUT_FLOWS + 1);
 
     return convOp;
 }
@@ -231,6 +222,10 @@ static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataM
 
 void provideAccuracyinPPEs(mv::ComputationModel& model)
 {
+    //NOTE: The idea of this workaround is that the ppe mechanism in hardware
+    //seems not to round the negative values correctly, so we apply a workaround
+    //with executing 2 parallel convolutions, one with positive values and the other
+    //with the negatives and then adding the outputs, to avoid ppe rounding
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -282,14 +277,15 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto add0 = portAdd(om, inputs, leakyReluOp, leakyReluQuantParams);
         auto backup = parentOp.leftmostOutput();
         om.undefineFlow(backup);
-        om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
-        om.removeOp(parentOp);
+        if ((parentOp.getOpType() == "Conv") || (parentOp.getOpType() == "DepthwiseConv"))
+            om.removeOp(om.getSourceOp(parentOp->getInputTensor()[1]));
         om.removeOp(leakyReluOp);
+        om.removeOp(parentOp);
         for (std::size_t numberOfSink = 0; numberOfSink < sinkOperators.size(); numberOfSink++)
         {
             sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
             om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
-            //NOTE: These lines are here for the positive branch....
+//            NOTE: These lines are here for the positive branch....
 //            sinkOperators[numberOfSink]->setInputTensor(relu0->getOutputTensor(0), branch, false);
 //            om.defineFlow(relu0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
         }

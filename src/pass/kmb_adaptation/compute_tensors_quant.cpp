@@ -43,7 +43,6 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
                        mv::TargetDescriptor& td, mv::Element& e0, mv::Element& e1)
 {
     alignConcatScales(pass, model, td, e0, e1);
-    std::cout << "Concats aligned " << std::endl;
     updateOutputQuantParams(pass, model, td, e0, e1);
 }
 
@@ -295,11 +294,9 @@ static void markCompensatedConcats(std::vector<mv::Data::OpListIterator> &concat
         auto tempScale = concatIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale()[0];
         concatIt->set<bool>("compensateNeed", false);
         concatIt->getInputTensor(0)->set<double>("oldScale", tempScale);
-        std::cout << concatIt->getInputTensor(0)->getName() << std::endl;
 
         for (std::size_t i = 1; i < concatIt->getInputTensor().size(); i++)
         {
-            std::cout << concatIt->getInputTensor(i)->getName() << std::endl;
             auto concatInputQuantParams = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
             //NOTE: Activation tensors need to support only one value
             if (std::abs(tempScale - concatInputQuantParams.getScale()[0])/tempScale >
