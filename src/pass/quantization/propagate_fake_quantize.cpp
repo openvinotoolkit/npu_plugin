@@ -53,7 +53,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
             auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = std::round(levels - 1 - x);  // TODO Why not round?
+            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
         } else if (low >= 0.f) {
             zeroPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
@@ -63,7 +63,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
     if (dtype == getDType(Precision::I8)) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = std::round(x);  // TODO Why not round?
+            zeroPoint = ceil(x);  // TODO Why not round?
         } else if (low > 0.f) {
             zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
@@ -121,7 +121,7 @@ mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool me
     }
 
     //TODO: In original code we have -inf, inf insted of mins and max. What variant should we use
-    return mv::QuantizationParams{zero_points, scales, mins, maxs};
+    return mv::QuantizationParams{zero_points, scales, {-inf}, {inf}};
 }
 
 template<typename T>
@@ -518,7 +518,7 @@ std::ostream& operator<<(std::ostream& os, std::vector<T> data) {
 }
 
 std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& qp) {
-    os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}";
+    os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}" << " MINS {" << qp.getMin() << "} MAXS{" << qp.getMax() <<"}";
     return os;
 }
 
