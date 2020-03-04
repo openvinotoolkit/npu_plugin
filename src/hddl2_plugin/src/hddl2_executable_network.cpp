@@ -64,6 +64,9 @@ ExecutableNetwork::ExecutableNetwork(
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
     _context = castIEContextToHDDL2(ieContext);
     _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+
+    this->_networkInputs = _graphPtr->getInputsInfo();
+    this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
 
 IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(

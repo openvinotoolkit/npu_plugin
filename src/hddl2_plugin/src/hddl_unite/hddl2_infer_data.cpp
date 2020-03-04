@@ -138,7 +138,13 @@ void HddlUniteInferData::createLocalDesc(const bool isInput, const std::string& 
     bool isRemoteMem = false;
     bool needAllocate = true;
 
-    IE_ASSERT(!isVideoWorkload);
+    if (isVideoWorkload) {
+        /** @note In case of video workload, we should always use remote memory.
+         *  For input,  srcPtr will be memory, which will be synced with remote
+         *  For output, srcPtr will be memory, to which result will be synced after inference. */
+        isRemoteMem = true;
+        needAllocate = true;
+    }
 
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, blobSize);
 
