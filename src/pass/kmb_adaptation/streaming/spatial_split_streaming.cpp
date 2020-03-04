@@ -89,7 +89,6 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "No strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Debug, "No custom streaming strategy provided");
         return;
     }
@@ -112,7 +111,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplitx.numSplits = splitList[i].get<int>("H");
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit = true;
-                    std::cout << "Streaming for node: " << nodeName << " has stream H = " << opxSplitx.numSplits << std::endl ;
+                    pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream H = " + std::to_string(opxSplitx.numSplits));
                 }
             }
             //NOTE:: Streaming over width, channels are not used
@@ -135,7 +134,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplitx.numSplits = splitList[i].get<int>("C");
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit=true;
-                    std::cout << "Streaming for node: " << nodeName << " has stream C = " << opxSplitx.numSplits << std::endl ;
+                    pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream C = " + std::to_string(opxSplitx.numSplits));
                 }
             }
             if (splitList[i].hasAttr("K"))
@@ -151,7 +150,7 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     }
 
                     nodeHasSplit = true;
-                    std::cout << "Streaming for node: " << nodeName << " has stream K = " << splitList[i].get<int>("K") << std::endl ;
+                    pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream K = " + std::to_string(splitList[i].get<int>("K")));
                 }
             }
         }
