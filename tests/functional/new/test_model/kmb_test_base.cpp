@@ -693,7 +693,7 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels
 
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
     std::string modelPath = KmbModelsPath() + '/' + netDesc.irFileName();
-    if (modelPath == "")
+    if (!exist(modelPath.c_str()))
         modelPath = ModelsPath() + "/" + netDesc.irFileName();
 
     auto net = core->ReadNetwork(modelPath);

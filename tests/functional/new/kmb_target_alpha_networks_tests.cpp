@@ -19,7 +19,7 @@
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-         SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/resnet50_uint8_int8_weights_pertensor.xml")
@@ -32,7 +32,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50_Alpha) {
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/mobilenet_v2_uint8_int8_weights_perchannel.xml")
@@ -46,7 +46,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2_Alpha) {
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/inception-v1_tf_uint8_int8_weights_pertensor.xml")
@@ -59,7 +59,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1_Alpha) {
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/inception-v3_tf_uint8_int8_weights_pertensor.xml")
@@ -72,7 +72,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3_Alpha) {
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
@@ -89,7 +89,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1_Alpha) {
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
@@ -106,7 +106,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Alpha) {
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Alpha) {
     if (std::getenv("KMB_ALPHA_TESTS_DATA_PATH") == nullptr)
-        SKIP();
+        SKIP() << " KMB_ALPHA_TESTS_DATA_PATH is not set";
 
     runTest(
         TestNetworkDesc("/alpha/yolo_v2_uint8_int8_weights_pertensor.xml")
