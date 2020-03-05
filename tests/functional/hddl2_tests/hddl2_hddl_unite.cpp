@@ -102,9 +102,8 @@ TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests Initiation - Change
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
+// [Track number: S#28336]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateAndChangeRemoteMemory) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -122,7 +121,8 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
     ASSERT_EQ(resultData, message);
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
+// [Track number: S#28336]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrappedMemoryWillHaveSameData) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -285,7 +285,7 @@ void HddlUnite_BlobDescr::callInferenceOnBlobs() {
 }
 
 //------------------------------------------------------------------------------
-class HddlUnite_BlobDescr_LocalMemory_Input : public  HddlUnite_BlobDescr {
+class HddlUnite_BlobDescr_LocalMemory_Input : public HddlUnite_BlobDescr {
 public:
     const int isInput = true;
     const bool isRemoteMem = false;
@@ -296,8 +296,8 @@ public:
     const bool needAllocate = true;
 };
 
-TEST_F(HddlUnite_BlobDescr_LocalMemory_Input, CanCreateAndInfer_WithSrcPtr) {
-
+// [Track number: S#28336]
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Input, DISABLED_CanCreateAndInfer_WithSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
 
@@ -309,7 +309,7 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Input, CanCreateAndInfer_WithSrcPtr) {
 }
 
 //------------------------------------------------------------------------------
-class HddlUnite_BlobDescr_RemoteMemory_Input : public  HddlUnite_BlobDescr {
+class HddlUnite_BlobDescr_RemoteMemory_Input : public HddlUnite_BlobDescr {
 public:
     const int isInput = true;
     const bool isRemoteMem = true;
@@ -319,8 +319,8 @@ public:
 
 // TODO Add same test with remote memory wrapping (needAllocate = false)
 // We want only to allocate remote memory without providing data to it
-TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithoutSrcPtr) {
-
+// [Track number: S#28336]
+TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, DISABLED_CanCreateAndInfer_WithoutSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
 
     ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
@@ -328,8 +328,8 @@ TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithoutSrcPtr) 
 }
 
 // If src ptr provided, data will be synced with remote memory
-TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithSrcPtr) {
-
+// [Track number: S#28336]
+TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, DISABLED_CanCreateAndInfer_WithSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     blobDesc.m_srcPtr = (void*)simpleInputData.data();
 
@@ -338,7 +338,7 @@ TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, CanCreateAndInfer_WithSrcPtr) {
 }
 
 //------------------------------------------------------------------------------
-class HddlUnite_BlobDescr_LocalMemory_Output : public  HddlUnite_BlobDescr {
+class HddlUnite_BlobDescr_LocalMemory_Output : public HddlUnite_BlobDescr {
 public:
     const int isInput = false;
     const bool isRemoteMem = false;
@@ -348,15 +348,17 @@ public:
 /**
  * After inference memory should be copied manually
  */
-TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, CanCreateAndInfer_WithoutSrcPtr) {
-
+// [Track number: S#28336]
+TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CanCreateAndInfer_WithoutSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
 
     ASSERT_TRUE(inferDataPtr->createBlob(outputName, blobDesc, isInput));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
-TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
+// [Track number: S#28336]
+TEST_F(
+    HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
     HddlUnite_Graph_Helper graphHelper;
     const int isInput = false;
 
@@ -410,14 +412,16 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_Wi
     EXPECT_EQ(actualSize, actualSizeInDesc);
 }
 
-TEST_F(HddlUnite_BlobDescr, CanInferOnDefaultLocalBlobs) {
+// [Track number: S#28336]
+TEST_F(HddlUnite_BlobDescr, DISABLED_CanInferOnDefaultLocalBlobs) {
     // Inference on default blobs, which will
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
 //------------------------------------------------------------------------------
 using HddlUnite_Stress = HDDL2_HddlUnite_Tests;
-TEST_F(HddlUnite_Stress, MultipleAllocations) {
+// Stress tests should belong to another test executor
+TEST_F(HddlUnite_Stress, DISABLED_MultipleAllocations) {
     const size_t amountOfAllocations = 100;
 
     HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;

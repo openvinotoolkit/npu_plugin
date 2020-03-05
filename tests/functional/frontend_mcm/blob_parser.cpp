@@ -36,7 +36,7 @@ protected:
 };
 
 void BlobParser_Tests::SetUp() {
-    const std::string graphPath = PrecompiledResNet_Helper::resnet.graphPath;
+    const std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
 
     std::ifstream blobFile(graphPath, std::ios::binary);
     if (!blobFile.is_open()) {

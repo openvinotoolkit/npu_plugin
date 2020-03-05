@@ -43,7 +43,8 @@ TEST_P(HDDL2_InferRequest_Tests, CanCreateInferRequest) {
 //------------------------------------------------------------------------------
 //      class HDDL2_InferRequest_Tests Initiation - Infer
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_InferRequest_Tests, CanCallInference) {
+// [Track number: S#28336]
+TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanCallInference) {
     // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
     if (GetParam() == LoadNetwork) {
         SKIP() << "Allocated output blob does not have the same size as data from unite";
@@ -69,7 +70,8 @@ TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, blob));
 }
 
-TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob_WithRemoteBlob) {
+// [Track number: S#28336]
+TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanSetInputBlob_WithRemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -93,7 +95,8 @@ TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob_WithRemoteBlob) {
 //------------------------------------------------------------------------------
 //      class HDDL2_InferRequest_Tests Initiation - GetBlob
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_InferRequest_Tests, CanGetOutputBlobAfterInference) {
+// [Track number: S#28336]
+TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanGetOutputBlobAfterInference) {
     // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
     if (GetParam() == LoadNetwork) {
         SKIP() << "Allocated output blob does not have the same size as data from unite";
@@ -108,7 +111,8 @@ TEST_P(HDDL2_InferRequest_Tests, CanGetOutputBlobAfterInference) {
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(outputName));
 }
 
-TEST_P(HDDL2_InferRequest_Tests, GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
+// [Track number: S#28336]
+TEST_P(HDDL2_InferRequest_Tests, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;

@@ -161,7 +161,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnNegativeSize_Null
 //------------------------------------------------------------------------------
 //      class HDDL2_Allocator_Manipulations_UnitTests Initiations - lock & unlock
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, canLockAndUnlockMemory) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -173,7 +174,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, canLockAndUnlockMemory) {
     allocator->unlock(memoryHandle);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, lock_DoubleLock_SecondReturnNull) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnNull) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -186,7 +188,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, lock_DoubleLock_SecondReturnNull
     allocator->unlock(memoryHandle);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, unlock_MemoryChanged_RemoteMemoryWillChange) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMemoryWillChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -206,7 +209,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, unlock_MemoryChanged_RemoteMemor
     ASSERT_EQ(remoteMemoryValue, testValue);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, lock_BeforeUnlock_RemoteMemoryNotChange) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemoryNotChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -251,7 +255,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSec
     ASSERT_FALSE(allocator->free(memoryHandle));
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_LockedMemory_ReturnFalse) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -263,7 +268,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_LockedMemory_ReturnFalse) {
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteAllocator_UnitTests Initiations: Functional - memory change
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, ChangeLocalMemory_RemoteDoesNotChanged) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;
@@ -287,7 +293,8 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, ChangeLocalMemory_RemoteDoesNotC
     ASSERT_EQ(testValue, mem[0]);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, ChangeLockedForReadMemory_RemoteDoesNotChanged) {
+// [Track number: S#28336]
+TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;

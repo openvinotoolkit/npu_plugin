@@ -65,7 +65,8 @@ void ImageWorkload_Tests::printRawBlob(
     std::cout << std::endl;
 }
 
-TEST_F(ImageWorkload_Tests, SyncInference) {
+// [Track number: S#28336]
+TEST_F(ImageWorkload_Tests, DISABLED_SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
