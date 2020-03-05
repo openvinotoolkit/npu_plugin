@@ -606,7 +606,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
 
             }
-            else if(opType == "ImplicitReshape")
+            else if((opType == "ImplicitReshape") || (opType == "ImplicitPermute"))
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);

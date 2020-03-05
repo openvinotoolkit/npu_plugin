@@ -186,6 +186,7 @@
         "Singular": [
             "ConcatAsImplicit",
             "ReshapeAsImplicit",
+            "PermuteAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "SetUpPPETasks",

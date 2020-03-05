@@ -34,7 +34,7 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     {
          std::string opType = opIt->getOpType();
 
-        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
+        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape" || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
             || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align")
         {
             auto input = opIt->getInputTensor(0);
@@ -42,8 +42,8 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
             if (input->hasAttr("quantParams"))
             {
                 mv::QuantizationParams &inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                outputQuantization.quantize(inputQuantization.getShift(), inputQuantization.getMult());
+                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
+                output->set<mv::QuantizationParams>("quantParams", inputQuantization);
             }
         }
     }
@@ -59,8 +59,8 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
     {
          std::string opType = opIt->getOpType();
 
-        if (opType ==  "Slice"
-            || opType ==  "Crop")
+        if (opType ==  "Slice" || opType ==  "Crop" ||
+            opType == "ImplicitReshape" || opType == "ImplicitPermute")
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);

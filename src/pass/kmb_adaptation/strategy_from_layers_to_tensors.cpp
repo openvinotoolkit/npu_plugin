@@ -74,10 +74,24 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             implicitConcat->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitConcat->getInputTensor(0)->get<std::string>("splitStrategy"));
     }
+    auto implicitPermuteOps = om.getOps("ImplicitPermute");
+    for (auto implicitPermute : implicitPermuteOps)
+    {
+        if (implicitPermute->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitPermute->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitPermute->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
+    auto implicitReshapeOps = om.getOps("ImplicitReshape");
+    for (auto implicitReshape : implicitReshapeOps)
+    {
+        if (implicitReshape->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitReshape->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitReshape->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "Concat")
+        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" || opType == "Concat")
         {
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
