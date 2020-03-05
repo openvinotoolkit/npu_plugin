@@ -94,7 +94,10 @@ mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool me
     auto output_min = fqOp->getInputTensor(3)->getDoubleData();
     auto output_max = fqOp->getInputTensor(4)->getDoubleData();
 
-    assert(input_min.size() == input_max.size() == output_min.size() == output_max.size() && input_min.size() != 0);
+    assert(input_min.size() != 0);
+    assert(input_min.size() == input_max.size());
+    assert(input_min.size() == output_min.size());
+    assert(input_max.size() == output_max.size());
 
     std::vector<int64_t> zero_points;
     std::vector<double> scales;
