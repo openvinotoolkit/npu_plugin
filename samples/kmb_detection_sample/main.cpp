@@ -294,6 +294,7 @@ int main(int argc, char *argv[]) {
 
         // --------------------------- 3. Configure input & output ---------------------------------------------
         ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+        if (inputInfo.empty()) throw std::logic_error("inputInfo is empty");
 
         // -----------------------------------------------------------------------------------------------------
 

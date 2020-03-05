@@ -46,10 +46,12 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
     const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
+      _deviceLayout(Layout::NHWC),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _blobWithResult(nullptr),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
+    IE_PROFILING_AUTO_SCOPE(KmbInferRequest);
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
@@ -120,6 +122,7 @@ void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const
 }
 
 void KmbInferRequest::InferAsync() {
+    IE_PROFILING_AUTO_SCOPE(InferAsync);
     execPreprocessing(_inputs);
 
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
@@ -143,6 +146,7 @@ void KmbInferRequest::InferAsync() {
     }
 
     const auto& deviceInputs = _executor->getNetworkInputs();
+    if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
     const auto input = _inputs.begin()->second;
 
@@ -152,6 +156,7 @@ void KmbInferRequest::InferAsync() {
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+    IE_PROFILING_AUTO_SCOPE(execPreprocessing);
     if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
@@ -248,11 +253,13 @@ static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layo
 }
 
 Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
+    IE_PROFILING_AUTO_SCOPE(reallocateBlob);
     return reallocateBlobToLayout(blob, blob->getTensorDesc().getLayout());
 }
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
+    IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.forceNCHWToNHWC()) {
         _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
@@ -330,6 +337,7 @@ static Blob::Ptr convertPrecision(
 }
 
 void KmbInferRequest::GetResult() {
+    IE_PROFILING_AUTO_SCOPE(GetResult);
     auto dataName = _networkOutputs.begin()->first;
 
     auto foundInputBlob = _outputs.find(dataName);
@@ -406,6 +414,7 @@ void KmbInferRequest::Infer() {
 }
 
 void KmbInferRequest::checkBlobs() {
+    IE_PROFILING_AUTO_SCOPE(checkBlobs);
     if (_custom_outputs.empty()) {
         for (auto const& output : _outputs) {
             checkBlob(output.second, output.first, false);

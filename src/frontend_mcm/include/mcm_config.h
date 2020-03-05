@@ -54,6 +54,8 @@ public:
 
     bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
 
+    bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
+
     bool useNGraphParser() const { return _useNGraphParser; }
 
 protected:
@@ -81,6 +83,7 @@ private:
     bool _eltwiseScalesAlignment = true;
     bool _concatScalesAlignment = true;
     bool _inputScaleShiftRemoving = true;
+    bool _zeroPointsOnWeightsAlignment = true;
 
     bool _useNGraphParser = false;
 };
