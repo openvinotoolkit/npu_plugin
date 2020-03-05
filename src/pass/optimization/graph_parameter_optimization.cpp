@@ -445,11 +445,12 @@ namespace mv
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
+                size_t outChannels = op.outputSlots() ? op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION] : 0;
+                size_t alignedFullChannels = mv::round_up(outChannels, 16);
+                size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                 if(opType == "Conv" || opType == "DepthwiseConv")
                 {
-                    size_t alignedFullChannels = mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
-                    size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
-                    weightTableSize = 4 * alignedSplittedChannels;
+                    weightTableSize = 16 * alignedSplittedChannels;
                     if (opType == "Conv")
                     {
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1}, clusterStrategy);
@@ -464,7 +465,7 @@ namespace mv
                 }
                 else if(opType == "MaxPool")
                 {
-                    weightTableSize = 0;
+                    weightTableSize = 16 * alignedSplittedChannels;
                     weightSize = 0;
                 }
                 else if(opType == "Eltwise" && !software)
