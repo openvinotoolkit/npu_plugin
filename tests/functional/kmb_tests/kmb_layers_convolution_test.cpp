@@ -88,7 +88,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
 }
 
 // TODO: Test segfault, when kmb_plugin compile with MCM_COMPILER
@@ -124,7 +124,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
 }
 
 // TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias)
@@ -169,7 +169,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
         clonedNetwork = cloneNet(network);
         details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "KMB", config));
     }
 }
 
@@ -214,7 +214,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
         clonedNetwork = cloneNet(network);
         details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "kmb", config));
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "KMB", config));
     }
 }
 
@@ -269,7 +269,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "KMB", config));
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
 #else
 

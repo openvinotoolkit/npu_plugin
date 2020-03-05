@@ -139,7 +139,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
 // [Track number: S#27195]
@@ -199,7 +199,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
 TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
@@ -238,7 +238,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     // TODO disable 'parse only' and find out why LoadNetwork fails
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
 static const tensor_test_params paramsTable[] = {
