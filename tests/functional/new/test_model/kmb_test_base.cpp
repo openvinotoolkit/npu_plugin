@@ -198,7 +198,7 @@ void KmbTestBase::SetUp() {
         core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, DEVICE_NAME);
     }
 
-    core->SetConfig({{"LP_TRANSFORMS_MODE", "LP_TRANSFORMS_MODE_OFF"}}, "CPU");
+    core->SetConfig({{"LP_TRANSFORMS_MODE", CONFIG_VALUE(NO)}}, "CPU");
 
     dumpBaseName = cleanName(vpu::formatString("%v_%v", testInfo->test_case_name(), testInfo->name()));
 
@@ -1262,7 +1262,7 @@ std::vector<KmbDetectionNetworkTest::BBox> KmbYoloV2NetworkTest::yolov2BoxExtrac
                     boxes,
                     1,
                     anchors);
-    
+
     doNMSSort(boxes, probs, lw * lh * num, classes, nms);
     getDetections(imw, imh, lw * lh * num, threshold, boxes.data(), probs, classes, boxes_result);
 

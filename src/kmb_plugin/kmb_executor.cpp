@@ -43,6 +43,9 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #include <libgen.h>
+
+#include <ie_profiling.hpp>
+
 #endif
 
 using namespace vpu::KmbPlugin;
@@ -83,8 +86,11 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
       xlinkChannelIn(0),
       xlinkChannelOut(0),
+      _xlinkChannelInferenceInput(0),
+      _xlinkChannelInferenceOutput(0),
       _outTensorLen(0),
-      _outTensorAddr(0) {
+      _outTensorAddr(0),
+      _inferenceVirtAddr(nullptr) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -98,6 +104,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
 
 void KmbExecutor::initVpualObjects() {
 #ifdef ENABLE_VPUAL
+    IE_PROFILING_AUTO_SCOPE(initVpualObjects);
     if (!RgnAlloc) {
         RgnAlloc = make_shared<RgnAllocator>();
     }
@@ -210,6 +217,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     }
 
 #ifdef ENABLE_VPUAL
+    IE_PROFILING_AUTO_SCOPE(allocateGraph);
     initVpualObjects();
     static int graphId_main = 1;
     int nThreads = _config.throghputStreams();
@@ -395,6 +403,7 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
+    IE_PROFILING_AUTO_SCOPE(queueInference);
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
@@ -415,6 +424,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     }
 
 #ifdef ENABLE_VPUAL
+    IE_PROFILING_AUTO_SCOPE(getResult);
     uint32_t len_inferenceId = 0;
     uint32_t pAddr_inferenceId = 0;
     plgInferenceOutput_->PullInferenceID(&pAddr_inferenceId, &len_inferenceId);
@@ -449,6 +459,7 @@ void KmbExecutor::deallocateGraph() {
     }
 
 #ifdef ENABLE_VPUAL
+    IE_PROFILING_AUTO_SCOPE(deallocateGraph);
     if (pipe) {
         pipe->Stop();
         pipe->Delete();

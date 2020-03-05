@@ -53,7 +53,7 @@ DECLARE_VPU_KMB_CONFIG_KEY(PLATFORM);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "NO".
+ * Type: "YES/NO", default is "YES".
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
 

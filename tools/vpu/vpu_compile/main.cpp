@@ -17,6 +17,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <algorithm>
+#include <chrono>
 #include <unordered_map>
 #include <map>
 #include <vector>
@@ -247,7 +248,12 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     }
 }
 
+using Time = std::chrono::time_point<std::chrono::steady_clock>;
+using TimeDiff = std::chrono::milliseconds;
+Time (*GetCurrentTime)() = &std::chrono::steady_clock::now;
+
 int main(int argc, char *argv[]) {
+    TimeDiff loadNetworkTimeElapsed {0};
     try {
         std::cout << "Inference Engine: " << InferenceEngine::GetInferenceEngineVersion() << std::endl;
 
@@ -260,7 +266,9 @@ int main(int argc, char *argv[]) {
         processPrecisions(network, FLAGS_ip, FLAGS_op, FLAGS_iop);
 
         InferenceEngine::Core ie;
+        Time timeBeforeLoadNetwork = GetCurrentTime();
         auto executableNetwork = ie.LoadNetwork(network, "KMB", configure(FLAGS_c, FLAGS_m));
+        loadNetworkTimeElapsed = std::chrono::duration_cast<TimeDiff>(GetCurrentTime() - timeBeforeLoadNetwork);
 
         std::string outputName = FLAGS_o;
         if (outputName.empty()) {
@@ -278,6 +286,6 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    std::cout << "Done" << std::endl;
+    std::cout << "Done. LoadNetwork time elapsed: " << loadNetworkTimeElapsed.count() << " ms" << std::endl;
     return EXIT_SUCCESS;
 }

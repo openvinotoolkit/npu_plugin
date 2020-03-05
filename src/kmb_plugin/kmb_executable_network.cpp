@@ -48,12 +48,15 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 }
 
 void ExecutableNetwork::LoadBlob() {
+    IE_PROFILING_AUTO_SCOPE(LoadBlob);
     _executor->allocateGraph(_graphBlob);
     _networkInputs = _executor->getNetworkInputs();
     _networkOutputs = _executor->getNetworkOutputs();
 }
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config): _config(config) {
+    IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
+
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
@@ -98,6 +101,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config): _config(config) {
+    IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 

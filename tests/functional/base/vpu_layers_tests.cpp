@@ -403,7 +403,7 @@ void vpuLayersTests::setup(Precision outputPrecision, Precision inputPrecision, 
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
 
-    _exeNetwork = ie.LoadNetwork(network, "kmb", config);
+    _exeNetwork = ie.LoadNetwork(network, "KMB", config);
     _inputsInfo = network.getInputsInfo();
     _outputsInfo = network.getOutputsInfo();
     genInputBlobs(inputPrecision);
