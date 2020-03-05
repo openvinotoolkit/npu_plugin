@@ -751,10 +751,11 @@ namespace mv
                     baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
                 }
 
+                Shape streamShape = {streaming["W"], streaming["H"], streaming["K"], 1};
                 //the actual compute
-                if (outputShape.ndims() != streamNumerator.ndims())
-                    outputShape = outputShape.augment(outputShape, streamNumerator.ndims());
-                Shape dpuOutShape = ( outputShape / streamNumerator ) / isiSplit;
+                if (outputShape.ndims() != streamShape.ndims())
+                    outputShape = outputShape.augment(outputShape, streamShape.ndims());
+                Shape dpuOutShape = ( outputShape / streamShape ) / isiSplit;
                 Shape contextsInOp = dpuOutShape / contexts;
                 unsigned numContextsInOp = contextsInOp.totalSize();
 
@@ -763,7 +764,7 @@ namespace mv
 
                 unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-                return contextsPerDpu * streamNumerator.totalSize() * baseKernelCost;
+                return contextsPerDpu * streamShape.totalSize() * baseKernelCost;
             }
 
             bool requiresActivationSparsity(Op& op, string clustering){
