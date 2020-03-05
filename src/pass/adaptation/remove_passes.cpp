@@ -35,7 +35,6 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     removeDropOut(pass, model);
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
-    removePermuteNoOpFcn(pass, model);
 }
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
