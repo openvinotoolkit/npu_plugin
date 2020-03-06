@@ -1635,8 +1635,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAResampleTask(ComputationModel& 
         softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_BILINEAR;
     else if (interpolation.compare(std::string("BICUBIC")) == 0)
         softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_BICUBIC;
-    else
+    else if (interpolation.compare(std::string("NEAREST")) == 0)
         softLayerParamsValue->interpolation = MVCNN::InterpolationMethod_NEAREST;
+    else
+        throw ArgumentError("mv::RuntimeModel::buildUPAResampleTask", "Attempt to set unsupported interpolation: ",
+                    interpolation, "buildUPAResampleTask failed");
 
     softLayerParamsValue->antialias = opIt->get<bool>("antialias");
 
