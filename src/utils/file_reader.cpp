@@ -62,7 +62,8 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
             if (sizeFile == count * sizeof(char)) {
                 in.read(blobRawData, count * sizeof(char));
             } else {
-                THROW_IE_EXCEPTION << "File has invalid size!";
+                THROW_IE_EXCEPTION << "File has invalid size! Blob size: " << count * sizeof(char)
+                                   << " file size: " << sizeFile;
             }
         }
     } else {
