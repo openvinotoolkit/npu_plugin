@@ -26,6 +26,7 @@ struct modelBlobInfo {
 
 namespace PrecompiledResNet_Helper {
     // Old version, u8 output
+    // TODO Remote after adding fp16 output support to HDDL2 Plugin
     static const modelBlobInfo resnet50_dpu =
             {
                     .graphName = "resnet-50-dpu",
