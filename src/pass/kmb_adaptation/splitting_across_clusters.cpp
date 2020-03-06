@@ -90,7 +90,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
             //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
         }
-        
+
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
