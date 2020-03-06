@@ -212,10 +212,10 @@
     },
     "dma": {
         "Singular" : [
-            "SetDpuTasksMemoryLocation",
-            "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
+            "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
