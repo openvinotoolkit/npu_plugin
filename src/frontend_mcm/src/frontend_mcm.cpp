@@ -637,7 +637,6 @@ void FrontEndMcm::bindOutput(mv::Data::TensorIterator node, ie::DataPtr& layerOu
 
 void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inputs) {
     IE_ASSERT(layer != nullptr);
-
     inputs.resize(layer->insData.size());
     for (size_t i = 0; i < layer->insData.size(); ++i) {
         auto layerInput = layer->insData[i].lock();
@@ -771,34 +770,6 @@ void FrontEndMcm::parseInputData() {
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
-
-#if 0  // TODO: rewrite logic to mcm compiler if this part is needed
-       //
-// Parse constant data
-//
-
-auto kmbData = model->addInputData(ieData->getName(), kmbDesc);
-bindData(kmbData, ieData);
-
-auto kmbData = model->addConstData(
-ieData->getName(),
-kmbDesc,
-ieBlobContent(ieBlob));
-
-// User might ask to return the output from Const layer.
-if (auto kmbOutData = getVpuData(ieData)) {
-IE_ASSERT(kmbOutData->usage() == DataUsage::Output);
-
-_stageBuilder->addCopyStage(
-    model,
-    formatString("%s@return-const", kmbData->name()),
-    nullptr,
-    kmbData,
-    kmbOutData);
-}
-
-bindData(kmbData, ieData);
-#endif
 }
 
 void FrontEndMcm::parseOutputData() {
@@ -933,8 +904,6 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     bindOutput(mvConv, layerOutput);
     _logger->debug(FINISH_PARSING_STR, mvConv->getName());
 }
-
-
 namespace {
 
 void cvtPaddingsFromCeilToFloorMode(
@@ -991,14 +960,14 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams, poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
             {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams, poolLayer->name);
     }
 
     bindOutput(mvPooling, layerOutput);
@@ -1036,7 +1005,6 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
 
     _logger->debug(FINISH_PARSING_STR, mvFullyConnected->getName());
 }
-
 
 void FrontEndMcm::parseReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
@@ -1289,7 +1257,6 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
 
     _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
 }
-
 
 void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto layerOutput = layer->outData[0];
