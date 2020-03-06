@@ -975,17 +975,14 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     }
 
     size_t groupSize = convLayer->_group;
-    const auto rounding_type = layer->GetParamAsString("rounding_type", "floor");
 
-    if (rounding_type == "ceil") {
-        auto layerOutput = layer->outData[0];
-        IE_ASSERT(layerOutput != nullptr);
-        auto outDesc = layerOutput->getTensorDesc();
-        cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(3), outDesc.getDims().at(3),
-            kernelSizeX * dilationX, kernelStrideX, padLeft, padRight);
-        cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2),
-            kernelSizeY * dilationY, kernelStrideY, padTop, padBottom);
-    }
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    auto outDesc = layerOutput->getTensorDesc();
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX * dilationX,
+        kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY * dilationY,
+        kernelStrideY, padTop, padBottom);
 
     // Quantization parameters
     mv::QuantizationParams weightsQuantParams = initialQuantParams;
@@ -993,11 +990,8 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     mv::QuantizationParams outputQuantParams = initialQuantParams;
     mv::QuantizationParams biasQuantParams = initialQuantParams;
 
-    auto layerOutput = layer->outData[0];
     mv::DType convolutionDataType("Default");
 
-    IE_ASSERT(layerOutput != nullptr);
-    auto outDesc = layerOutput->getTensorDesc();
     mv::Data::TensorIterator mvConv;
     mv::Data::TensorIterator mvConvOnly;
     mv::Data::TensorIterator mvWeights;
@@ -1152,12 +1146,10 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     auto outDesc = layerOutput->getTensorDesc();
 
-    if (rounding_type == "ceil") {
-        cvtPaddingsFromCeilToFloorMode(
-            input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
-        cvtPaddingsFromCeilToFloorMode(
-            input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
-    }
+    cvtPaddingsFromCeilToFloorMode(
+        input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(
+        input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
 
     mv::QuantizationParams outputQuantParams = initialQuantParams;
     QuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
