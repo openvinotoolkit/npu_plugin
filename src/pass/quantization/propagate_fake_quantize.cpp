@@ -71,9 +71,6 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
         }
     }
 
-    if (zeroPoint == 147)
-        return 148;
-
     return zeroPoint;
 }
 
@@ -95,22 +92,19 @@ mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool me
     auto output_max = fqOp->getInputTensor(4)->getDoubleData();
 
     assert(input_min.size() != 0);
-    assert(input_min.size() == input_max.size());
-    assert(input_min.size() == output_min.size());
-    assert(input_max.size() == output_max.size());
 
     std::vector<int64_t> zero_points;
     std::vector<double> scales;
-    std::vector<double> mins;
-    std::vector<double> maxs;
+    std::vector<double> min;
+    std::vector<double> max;
     if (merge_in_one) {
         float output_min_value = *std::min_element(output_min.begin(), output_min.end());
         float output_max_value = *std::max_element(output_max.begin(), output_max.end());
 
         zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
         scales.push_back(calculateScales(output_min_value, output_max_value, levels));
-        mins.push_back(output_min_value);
-        maxs.push_back(output_max_value);
+        min.push_back(output_min_value);
+        max.push_back(output_max_value);
     } else {
         for (size_t i = 0; i < output_min.size(); ++i) {
             float min_value = output_min[i];
@@ -118,13 +112,12 @@ mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool me
 
             zero_points.push_back(calculateZeroPoint(min_value, max_value, levels, getDType(Precision::U8)));
             scales.push_back(calculateScales(min_value, max_value, levels));
-            mins.push_back(min_value);
-            maxs.push_back(max_value);
+            min.push_back(min_value);
+            max.push_back(max_value);
         }
     }
 
-    //TODO: In original code we have -inf, inf insted of mins and max. What variant should we use
-    return mv::QuantizationParams{zero_points, scales, mins, maxs};
+    return mv::QuantizationParams{zero_points, scales, min, max};
 }
 
 template<typename T>
@@ -138,13 +131,6 @@ static bool isQuantizableOp(mv::Data::OpListIterator op) {
     return quantizable_ops.count(op->getOpType());
 }
 
-// TODO: fix it
-// ERROR: wrong naming or assumtion. isQuantized mean const data is integral
-// NOTE: Heuristic. Op is quantized if weights tensor have fakeQuantize.
-// TODO: can we make heuristic
-// If inputTensor.size() == 1 then check fQ of tensor 0
-// Else check on tensor 1?
-// Whats about reshape?
 bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     if (!isQuantizableOp(op)) {
         return false;
@@ -155,24 +141,13 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     }
 
     assert(op->getInputTensor().size() > 1);
-    return om.getSourceOp(op->getInputTensor(1))->getOpType() == "FakeQuantize";
-}
-
-//TODO: copypasted. Reuse.
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
+    return (om.getSourceOp(op->getInputTensor(1))->getOpType() == "FakeQuantize") ||
+            op->getInputTensor(1)->getDType() == getDType(Precision::U8) ||
+            op->getInputTensor(1)->getDType() == getDType(Precision::I8);
 }
 
 mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
-    //TODO: we have the case were is assumption is wrong. See PriorBox
+    //NOTE: we have the case were is assumption is wrong. See PriorBox
     assert(op->getOutputTensor().size() == 1);
 
     mv::DataModel dm(model);
@@ -180,31 +155,28 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     auto current_op = findSinkLayers(dm, op->getOutputTensor(0)).at(0);
     while(current_op->getOpType() != "FakeQuantize" && current_op->getOpType() != "Output")
     {
-        current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0); // TODO: rewrite if unreadable
+        current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
         assert(current_op->getOutputTensor().size() < 2); // < 2 handles output op. Output op outTensor.size() equals 0
     }
 
     if (current_op->getOpType() == "FakeQuantize") {
-        //TODO: check bool option
+        //TODO: check bool option. What does it mean
         return extractQuantParams(current_op, false);
     }
 
     return initial_quant_params;
 }
 
-//TODO: add more checks to compare all fields
-//TODO: move to struct
-bool operator==(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    return left.getScale() == right.getScale() && left.getZeroPoint() == right.getZeroPoint();
-}
-
 bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    return left == right;
+    return left.getScale() == right.getScale()
+        && left.getZeroPoint() == right.getZeroPoint()
+        && left.getMin() == right.getMin()
+        && left.getMax() == right.getMax();
 }
 
-mv::QuantizationParams getParentQuantParams(mv::OpModel& om, const mv::Data::OpListIterator& op) {
+mv::QuantizationParams getParentQuantParams(mv::OpModel& om, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
     assert(op->getInputTensor().size() > 0);
-    auto parent = om.getSourceOp(op->getInputTensor(0));
+    auto parent = om.getSourceOp(op->getInputTensor(parent_idx));
     assert(parent->hasAttr("quantParams"));
     return parent->get<mv::QuantizationParams>("quantParams");
 }
@@ -217,12 +189,27 @@ void setQuantizationParams(mv::Data::OpListIterator& op, mv::QuantizationParams 
     }
 }
 
+bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
+    std::vector<mv::QuantizationParams> input_params;
+    for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
+        input_params.push_back(getParentQuantParams(om, op, i));
+    }
+
+    return std::adjacent_find(input_params.begin(), input_params.end(),
+            [](const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+        return !isEqual(left, right);
+    }) != input_params.end();
+}
+
 void propagateParametersNew(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
 
     for (auto& op : sorted_ops) {
+        if (op->getOpType() == "Eltwise" && op->getOpType() == "Concat") {
+            assert(areAllInputQuantParamsEqual(om, op));
+        }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
             quant_params = findOutputQuantParams(model, op);
@@ -239,9 +226,6 @@ void propagateParametersNew(mv::ComputationModel& model) {
 
             quant_params = getParentQuantParams(om, op);
             setQuantizationParams(op, quant_params);
-        } else {
-            // TODO: remove
-            int x = 42;
         }
 
         // TODO: add handling of Input and Concat check for equal QP
@@ -336,13 +320,14 @@ void quantizeConst(mv::ComputationModel& model) {
     }
 }
 
-mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterator biasOp) {
+mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator biasOp) {
     auto tensor_data = biasOp->getInputTensor(1)->getData();
 
     // TODO: add description
-    auto activationOp = model.getSourceOp(biasOp->getInputTensor(0));
-    auto input_quant_params = model.getSourceOp(activationOp->getInputTensor(0))->get<mv::QuantizationParams>("quantParams");
-    auto weights_op = model.getSourceOp(model.getSourceOp(activationOp->getInputTensor(1))->getInputTensor(0));
+    auto activationOp = om.getSourceOp(biasOp->getInputTensor(0));
+    auto input_quant_params = getParentQuantParams(om, activationOp);
+
+    auto weights_op = om.getSourceOp(om.getSourceOp(activationOp->getInputTensor(1))->getInputTensor(0));
     auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
 
     bool is_broadcasted = input_quant_params.isPerTensor() && weights_params.isPerTensor();
@@ -381,20 +366,20 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel model, mv::Data::OpListIterato
         auto original_tensor = biasOp->getInputTensor(1);
         mv::QuantizationParams quant_params = activationOp->get<mv::QuantizationParams>("quantParams");
 
-        auto quantized_data = model.constantInt(newBiasData,
+        auto quantized_data = om.constantInt(newBiasData,
                                                 original_tensor->getShape(),
                                                 getDType(Precision::I32),
                                                 original_tensor->getOrder(),
                                                 quant_params,
-                                                model.getSourceOp(biasOp->getInputTensor(1))->getName()+":quantized");
+                                                om.getSourceOp(biasOp->getInputTensor(1))->getName()+":quantized");
 
-        auto quantize_bias_tensor = model.bias(biasOp->getInputTensor(0),
+        auto quantize_bias_tensor = om.bias(biasOp->getInputTensor(0),
                                                quantized_data,
                                                quantized_data->getDType(),
                                                quant_params,
                                                biasOp->getName()+":quantized");
 
-        return mv::linkNewOperationsReplacement(model.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, model, biasOp);
+        return mv::linkNewOperationsReplacement(om.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, om, biasOp);
     } else if (bias_dtype == getDType(Precision::I32)) {
         // Do nothing
     } else {
@@ -417,6 +402,17 @@ void quantizeBias(mv::ComputationModel& model) {
     }
 }
 
+void quantizeIO(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    assert(om.getOps("Input").size() == 1);
+    auto input = om.getOps("Input").at(0);
+    setQuantizationParams(input, initial_quant_params);
+
+    assert(om.getOps("Output").size() == 1);
+    auto output = om.getOps("Output").at(0);
+    setQuantizationParams(output, {{}, {}, {}, {}});
+}
+
 void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
@@ -429,17 +425,6 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
         // TODO: Remove fix that was made to prevent this behaviour
         linkNewOperationsRemove(parent, parent->getOutputTensor(0), om, fq);
     }
-}
-
-void quantizeIO(mv::ComputationModel& model) {
-    mv::OpModel om(model);
-    assert(om.getOps("Input").size() == 1);
-    auto input = om.getOps("Input").at(0);
-    setQuantizationParams(input, initial_quant_params);
-
-    assert(om.getOps("Output").size() == 1);
-    auto output = om.getOps("Output").at(0);
-    setQuantizationParams(output, {{}, {}, {}, {}});
 }
 
 namespace pretty_print {
@@ -504,15 +489,14 @@ void dumpFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::s
 }
 
 void propagateParametersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
-    std::string name = "original_model_quant_dump.txt";
-
     propagateParametersNew( model);
     quantizeIO(model);
-//    name = "mcm_model_quant_dump.txt";
-//    pretty_print::dumpFQ(pass, model, name);
-
     quantizeConst(model);
     quantizeBias(model);
     removeFQ(pass, model);
 
+    // std::string name = "original_model_quant_dump.txt";
+
+    //    name = "mcm_model_quant_dump.txt";
+    //    pretty_print::dumpFQ(pass, model, name);
 }
