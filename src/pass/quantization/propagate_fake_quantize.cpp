@@ -335,13 +335,13 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator b
     auto weights_op = om.getSourceOp(om.getSourceOp(activationOp->getInputTensor(1))->getInputTensor(0));
     auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
 
-    bool is_broadcasted = input_quant_params.isPerTensor() && weights_params.isPerTensor();
+    bool is_broadcasted = input_quant_params.isScalePerTensor() && weights_params.isScalePerTensor();
 
-    if (!input_quant_params.isPerTensor() && input_quant_params.getScale().size() != tensor_data.size()) {
+    if (!input_quant_params.isScalePerTensor() && input_quant_params.getScale().size() != tensor_data.size()) {
         throw std::runtime_error("Bias and Activation quant params size mismatch");
     }
 
-    if (!weights_params.isPerTensor() && weights_params.getScale().size() != tensor_data.size()) {
+    if (!weights_params.isScalePerTensor() && weights_params.getScale().size() != tensor_data.size()) {
         throw std::runtime_error("Bias and Weights quant params size mismatch");
     }
 

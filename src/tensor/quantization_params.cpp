@@ -8,7 +8,6 @@ mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element
 mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max)
     :Element("quantParams")
 {
-    // assert(zp.size() == scale.size());
     set<std::vector<int64_t>>("zeroPoint", zp);
     set<std::vector<double>>("scale", scale);
     set<std::vector<double>>("min", min);
@@ -138,8 +137,7 @@ bool mv::QuantizationParams:: infinitelimits() const
     return is_infinite;
 }
 
-bool mv::QuantizationParams::isPerTensor() const{
-    // assert(get<std::vector<double>>("scale").size() == get<std::vector<int64_t>>("zeroPoint").size());
+bool mv::QuantizationParams::isScalePerTensor() const{
     return get<std::vector<double>>("scale").size() == 1;
 }
 

@@ -18,7 +18,6 @@ namespace mv
                 errMsg = "FakeQuantize needs at least five inputs";
                 return {false, 1};
             }
-            //TODO
 
             return {true, 0};
 

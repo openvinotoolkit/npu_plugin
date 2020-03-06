@@ -407,8 +407,6 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
 mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
     throw mv::RuntimeError("convertToTaskGraph", "FakeQuantize currently not supported!");
-
-    //todo
     return inputs[0];
 }
 

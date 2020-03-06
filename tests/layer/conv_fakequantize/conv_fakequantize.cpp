@@ -1,9 +1,8 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include <iostream>
-#include <fstream>
 
 // Seed is given for reproducibility of results
-std::vector<double> generateRandomSequence(std::size_t dataSize, double start, double end, unsigned seed)
+static std::vector<double> generateRandomSequence(std::size_t dataSize, double start, double end, unsigned seed)
 {
     // Specify the engine and distribution.
     std::mt19937 mersenne_engine {seed};  // Generates random integers
@@ -32,7 +31,6 @@ int main()
 
     std::vector<double> minData = mv::utils::generateSequence<double> (1, *std::min_element(weightsData0.begin(), weightsData0.end()), 0);
     std::vector<double> maxData = mv::utils::generateSequence<double> (1, *std::max_element(weightsData0.begin(), weightsData0.end()), 0);
-    std::cout << *std::min_element(weightsData0.begin(), weightsData0.end()) << " " << *std::max_element(weightsData0.begin(), weightsData0.end()) << std::endl;
 
     auto weights_min0 = om.constant(minData,{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));
     auto weights_max0 = om.constant(maxData,{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));

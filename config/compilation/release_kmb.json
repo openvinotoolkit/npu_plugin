@@ -307,14 +307,7 @@
             "control_flows",
             "finalize",
             "scheduling",
-            "serialize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/final.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            }
+            "serialize"
         ]
     }
 }
