@@ -5,7 +5,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 #include <math.h>
 
-static void propagateParametersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
+static void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&);
 
 namespace mv
 {
@@ -13,9 +13,9 @@ namespace mv
     {
 
         MV_REGISTER_PASS(FakeQuantize)
-        .setFunc(propagateParametersFcn)
+        .setFunc(quantizeGraphFcn)
         .setDescription(
-            "Propagate quantization parametets from FakeQuantize layer"
+            "This pass propagate parameters from FakeQuantize ops to all other operations and quantize const data"
         );
     }
 }
@@ -77,7 +77,6 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
 double calculateScales(float low, float high, int levels) {
     return static_cast<double>((high - low) / (levels - 1));
 }
-
 
 //NOTE: workaround. merge_in_one is true for activations and false for weights
 mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool merge_in_one) {
@@ -203,7 +202,7 @@ bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
     }) != input_params.end();
 }
 
-void propagateParametersNew(mv::ComputationModel& model) {
+void propagateParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
@@ -429,76 +428,10 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     }
 }
 
-namespace pretty_print {
-
-template<class T>
-std::ostream& operator<<(std::ostream& os, std::vector<T> data) {
-    size_t counter = 0;
-    for (auto& value : data) {
-        os << value << ", ";
-
-        if (counter++ > 25)
-            break;
-    }
-
-    return os;
-}
-
-std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& qp) {
-    os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}" << " MINS {" << qp.getMin() << "} MAXS{" << qp.getMax() <<"}";
-    return os;
-}
-
-void dumpFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string name) {
-    mv::OpModel om(model);
-    auto ops = om.topologicalSort();
-
-    std::ofstream ofs(name, std::ios::out);
-    if (!ofs.good()) {
-        int x = 32;
-    }
-
-    for (auto& op : ops) {
-
-        auto op_params = op->get<mv::QuantizationParams>("quantParams");
-        auto tensor_params = op->get<mv::QuantizationParams>("quantParams");
-
-        if (op->getOpType() == "ConstantInt") {
-            ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams") << std::endl;
-            auto data = op->getOutputTensor(0)->getIntData();
-            ofs << "{ " << data << " }";
-            ofs << std::endl;
-            continue;
-
-        }
-        if (op->hasAttr("quantParams")) {
-            ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams");
-            ofs << std::endl;
-//                    auto tensor = op->getOutputTensor(0);
-//          ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams");
-        }
-        else
-            ofs << op->getName() << " " << op->getOpType() << std::endl;
-
-        if (op->getOutputTensor().size() >= 1) {
-            auto tensor = op->getOutputTensor(0);
-            ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams") << std::endl;
-        }
-
-    }
-}
-
-}
-
-void propagateParametersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
-    propagateParametersNew( model);
+void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
+    propagateParameters( model);
     quantizeIO(model);
     quantizeConst(model);
     quantizeBias(model);
     removeFQ(pass, model);
-
-    // std::string name = "original_model_quant_dump.txt";
-
-    //    name = "mcm_model_quant_dump.txt";
-    //    pretty_print::dumpFQ(pass, model, name);
 }
