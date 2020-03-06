@@ -100,3 +100,61 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
 
     return opIt;
 }
+
+void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
+{
+    outScale = (outputMax - outputMin)/255;
+    if (outputMin >= 0.0)
+        outZp = 0;
+    else if (outputMax <= 0.0)
+        outZp = 255;
+    else if ((outputMin < 0.0) && (outputMax > 0.0))
+    {
+        auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
+        outZp = std::ceil(255 - max_diff);
+    }
+}
+
+void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
+{
+    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+
+    //Note: if input Tensor has min, max of infs...we need to compute them
+    if (tensorQuantization.infinitelimits())
+    {
+        //Quantization equation Real = scale(Quantized - zeroPoint)
+        double maximumFloat = tensorQuantization.getScale()[0] * (255 - tensorQuantization.getZeroPoint()[0]);
+        double minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[0];
+        if (minimumFloat == -0)
+            minimumFloat = 0;
+
+        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
+                                                    tensorQuantization.getScale(),{minimumFloat},{maximumFloat});
+        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+    }
+}
+
+void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
+{
+    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+
+    //Note: Do not care if populated or unpopulated....batch = 1
+    if (tensorQuantization.infinitelimits())
+    {
+        std::vector <double> maximums, minimums;
+        double maximumFloat, minimumFloat;
+        for (uint32_t channel = 0; channel < tensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]; channel++)
+        {
+            //Quantization equation Real = scale(Quantized - zeroPoint)
+            maximumFloat = tensorQuantization.getScale()[channel] * (255 - tensorQuantization.getZeroPoint()[0]);
+            minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[channel];
+            if (minimumFloat == -0)
+                minimumFloat = 0;
+            maximums.push_back(maximumFloat);
+            minimums.push_back(minimumFloat);
+        }
+        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
+                                                    tensorQuantization.getScale(),minimums, maximums);
+        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+    }
+}

@@ -17,6 +17,7 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
