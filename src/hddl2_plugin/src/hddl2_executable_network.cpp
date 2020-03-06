@@ -52,11 +52,23 @@ ExecutableNetwork::ExecutableNetwork(
     this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
 
+namespace {
+
+bool isDaemonAvailable() {
+    std::ifstream daemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
+    return std::getenv("KMB_INSTALL_DIR") != nullptr || !daemon.good();
+}
+
+}
+
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
-    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+
+    if (isDaemonAvailable())
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    }
 }
 
 ExecutableNetwork::ExecutableNetwork(
@@ -71,5 +83,9 @@ ExecutableNetwork::ExecutableNetwork(
 
 IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
+    if (_loadedGraph == nullptr) {
+        THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
+    }
+
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context);
 }
