@@ -14,6 +14,11 @@
 // stated in the License.
 //
 
+// FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
+// can be enabled with other allocator
+// [Track number: S#28136]
+#ifdef __arm__
+
 #include <gtest/gtest-param-test.h>
 #include <gtest/gtest.h>
 #include <ie_blob.h>
@@ -183,3 +188,4 @@ TEST_F(kmbAllocatorUnitTests, checkValidPtrOnVpusmm) {
     ASSERT_TRUE(allocator.isValidPtr(data));
     ASSERT_TRUE(allocator.free(data));
 }
+#endif  //  __arm__

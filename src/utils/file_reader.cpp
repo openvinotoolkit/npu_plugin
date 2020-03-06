@@ -41,7 +41,7 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
                     in.read(reinterpret_cast<char *>(&tmp), sizeof(float));
                     blobRawDataFP16[i] = InferenceEngine::PrecisionUtils::f32tof16(tmp);
                 }
-            } else if (sizeFile == count * sizeof(InferenceEngine::Precision::FP16)) {
+            } else if (sizeFile == count * sizeof(InferenceEngine::ie_fp16)) {
                 for (size_t i = 0; i < count; i++) {
                     InferenceEngine::ie_fp16 tmp;
                     in.read(reinterpret_cast<char *>(&tmp), sizeof(InferenceEngine::ie_fp16));

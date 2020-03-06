@@ -1262,7 +1262,7 @@ std::vector<KmbDetectionNetworkTest::BBox> KmbYoloV2NetworkTest::yolov2BoxExtrac
                     boxes,
                     1,
                     anchors);
-    
+
     doNMSSort(boxes, probs, lw * lh * num, classes, nms);
     getDetections(imw, imh, lw * lh * num, threshold, boxes.data(), probs, classes, boxes_result);
 

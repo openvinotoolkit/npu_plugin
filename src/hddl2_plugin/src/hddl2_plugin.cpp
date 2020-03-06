@@ -20,12 +20,12 @@
 #include <string>
 
 // Inference Engine include
+#include <cnn_network_impl.hpp>
+#include <cnn_network_ngraph_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <details/ie_irelease.hpp>
 #include <fstream>
 #include <ie_icore.hpp>
-#include <cnn_network_ngraph_impl.hpp>
-#include <cnn_network_impl.hpp>
 #include <ie_util_internal.hpp>
 
 // Plugin include

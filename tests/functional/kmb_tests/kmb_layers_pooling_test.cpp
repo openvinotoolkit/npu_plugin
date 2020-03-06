@@ -143,7 +143,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
 // [Track number: S#27192]
@@ -205,7 +205,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "kmb", config));
+    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, "KMB", config));
 }
 
 TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
