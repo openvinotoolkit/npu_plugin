@@ -46,6 +46,10 @@ public:
         const InferenceEngine::InputsDataMap networkInputs,
         const InferenceEngine::OutputsDataMap networkOutputs) override;
 
+    void ExportImpl(std::ostream& model) override;
+
+    void Export(const std::string& modelFileName) override;
+
 private:
     Graph::Ptr _graphPtr = nullptr;
     HddlUniteGraph::Ptr _loadedGraph = nullptr;

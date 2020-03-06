@@ -53,20 +53,20 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 namespace {
-
+// TODO: this function should be provided by HDDL Unite API
 bool isDaemonAvailable() {
     std::ifstream daemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
-    return std::getenv("KMB_INSTALL_DIR") != nullptr || !daemon.good();
+    return std::getenv("KMB_INSTALL_DIR") != nullptr || daemon.good();
 }
 
-}
+}  // namespace
 
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
 
-    if (isDaemonAvailable())
+    if (isDaemonAvailable()) {
         _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
     }
 }
@@ -88,4 +88,19 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
     }
 
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context);
+}
+
+void ExecutableNetwork::ExportImpl(std::ostream& model) {
+    auto graphBlob = _graphPtr->getGraphBlob();
+    model.write(graphBlob.data(), graphBlob.size());
+}
+
+void ExecutableNetwork::Export(const std::string& modelFileName) {
+    std::ofstream modelFile(modelFileName, std::ios::binary);
+
+    if (modelFile.is_open()) {
+        ExportImpl(modelFile);
+    } else {
+        THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export.";
+    }
 }
