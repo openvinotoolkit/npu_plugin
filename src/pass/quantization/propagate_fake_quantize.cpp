@@ -52,8 +52,8 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
     if (dtype == getDType(Precision::U8)) {
         //  MCM team provide this formula, need check
         if ((low <= 0.f) && (high >= 0.f)) {
-            auto x = (high / (fabs(low) + high)) * (levels - 1);
-            zeroPoint = ceil(levels - 1 - x);  // TODO Why not round?
+            float x = -(levels - 1) * low / (high - low);
+            zeroPoint = std::round(x);
         } else if (low >= 0.f) {
             zeroPoint = 0;  // TODO Why not assert?
         } else if (high <= 0.f) {
@@ -63,7 +63,7 @@ int64_t calculateZeroPoint(float low, float high, int levels, mv::DType dtype) {
     if (dtype == getDType(Precision::I8)) {
         if ((low <= 0.f) && (high >= 0.f)) {
             float x = -(levels - 1) * ((high + low) * 0.5f) / (high - low);
-            zeroPoint = ceil(x);  // TODO Why not round?
+            zeroPoint = std::round(x);
         } else if (low > 0.f) {
             zeroPoint = 127 - (levels - 1);  // TODO Why not assert?
         } else if (high < 0.f) {
@@ -78,6 +78,8 @@ double calculateScales(float low, float high, int levels) {
     return static_cast<double>((high - low) / (levels - 1));
 }
 
+
+//NOTE: workaround. merge_in_one is true for activations and false for weights
 mv::QuantizationParams extractQuantParams(mv::Data::OpListIterator fqOp, bool merge_in_one) {
     assert(fqOp->getOpType() == "FakeQuantize");
 
@@ -160,8 +162,8 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     }
 
     if (current_op->getOpType() == "FakeQuantize") {
-        //TODO: check bool option. What does it mean
-        return extractQuantParams(current_op, false);
+        assert(op->getOpType() != "ConstantInt");
+        return extractQuantParams(current_op, op->getOpType() != "Constant");
     }
 
     return initial_quant_params;
@@ -227,8 +229,6 @@ void propagateParametersNew(mv::ComputationModel& model) {
             quant_params = getParentQuantParams(om, op);
             setQuantizationParams(op, quant_params);
         }
-
-        // TODO: add handling of Input and Concat check for equal QP
     }
 }
 
@@ -246,18 +246,22 @@ void getWeightsDims(const mv::Shape& shape, size_t& OC, size_t& IC, size_t& KH, 
 
 //NOTE: Bias is not a const op.
 mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterator operation, mv::QuantizationParams quant_params, mv::DType precision) {
-    // TODO: fp16 tensors are constInt. need to handle
+    // TODO: fp16 tensors. need to handle
     assert(operation->getOpType() == "Constant");
+
     auto originalTensor = operation->getOutputTensor(0);
+    assert(originalTensor->getDType() != getDType(Precision::FP16));
 
     auto shape = operation->getOutputTensor(0)->getShape();
 
-    // TODO: check correctness
     size_t OC, IC, KH, KW;
     getWeightsDims(shape, OC, IC, KW, KH);
 
     auto src_data = operation->getOutputTensor(0)->getDoubleData();
     std::vector<int64_t> quantized_weights(src_data.size());
+    auto min = quant_params.getMin();
+    auto max = quant_params.getMax();
+
     //TODO: rewrite. We can do it only for ochannel loop
     for (size_t oc = 0; oc < OC; ++oc) {
         for (size_t ic = 0; ic < IC; ++ic) {
@@ -269,8 +273,11 @@ mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterat
                                         kw;
 
                     auto scale = quant_params.getScale(oc);
-                    auto zero_point = quant_params.getZeroPoint(oc);
-                    auto new_value = std::round((src_data[idx] + scale * zero_point) / scale);
+                    auto low = min[min.size() > 1 ? oc : 0];
+                    auto high = max[max.size() > 1 ? oc : 0];
+
+                    auto new_value = clamp<double>(src_data[idx], low, high);
+                    new_value = std::round((new_value - low) / scale);
 
                     if (precision == getDType(Precision::U8)) {
                         uint8_t value = clamp<double>(new_value, 0, 255);
@@ -310,8 +317,7 @@ void quantizeConst(mv::ComputationModel& model) {
         if (data_tensor->getDType() == getDType(Precision::I8) ||
             data_tensor->getDType() == getDType(Precision::U8)) {
             // Weights would already be quantized
-            // TODO: Recalculate quant params
-            assert(false && "Not implemented");
+            // Do nothing
             return;
         }
 
@@ -419,10 +425,6 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 
     for (auto& fq : fq_ops) {
         auto parent = om.getSourceOp(fq->getInputTensor(0));
-
-        //TODO: this function doesn't work correct for weights because in mcm Weight is const tensor and
-        // this functions removes all const inputs of the fq op.
-        // TODO: Remove fix that was made to prevent this behaviour
         linkNewOperationsRemove(parent, parent->getOutputTensor(0), om, fq);
     }
 }

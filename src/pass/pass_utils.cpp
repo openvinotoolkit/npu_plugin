@@ -94,7 +94,6 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
 
     for (unsigned j = 0; j < opsToLink.size(); ++j)
     {
-        // std::cout << om.getSourceOp(sourceTensor)->getName() << " " << om.getSourceOp(sourceTensor)->getOpType() << std::endl;
         opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
