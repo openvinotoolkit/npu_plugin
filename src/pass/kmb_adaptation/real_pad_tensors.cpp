@@ -449,7 +449,12 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     auto biasTensorName = opIt->get<std::string>("bias");
     if(biasTensorSizePadded != biasTensorSize)
     {
-        auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
+        mv::QuantizationParams biasTensorQuantizationParams({}, {}, {}, {});
+        if (biasTensor->isQuantized()) {
+          biasTensorQuantizationParams =
+            biasTensor->get<mv::QuantizationParams>("quantParams");
+        }
+
         int64_t zeroPoint = 0;
         if(biasTensor->isQuantized())
             zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
