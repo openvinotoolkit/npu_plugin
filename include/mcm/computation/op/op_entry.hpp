@@ -51,14 +51,14 @@ namespace mv
             OpEntry& setOutputs(std::vector<std::string> labels);
             OpEntry& setInputCheck(const std::function<std::pair<bool, std::size_t>
                 (const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&, std::string&)>& inputCheck);
-            OpEntry& setOutputDef(std::function<void(const std::vector<Data::TensorIterator>&,
+            OpEntry& setOutputDef(const std::function<void(const std::vector<Data::TensorIterator>&,
                 const std::map<std::string, Attribute>&, std::vector<Tensor>&)>& outputDef);
             OpEntry& setDescription(const std::string& description);
             OpEntry& setTypeTrait(const std::string& trait);
             OpEntry& setTypeTrait(std::initializer_list<std::string> traits);
             OpEntry& setBaseOperation(const std::string& opType);
             OpEntry& setBaseOperation(std::initializer_list<std::string> ops);
-            OpEntry& setInputCheck(bool inputCheck);
+            OpEntry& skipInputCheck();
             OpEntry& setExtraInputs(bool allowsExtraInputs);
 
             const std::string getDescription() const;

@@ -447,10 +447,10 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
                 foundPath = true;
             }
         }
-    if(!foundPath){
-        cout<< "Unable to find non-infinite path between pivot nodes"<< endl;
+    //if(!foundPath){
+    //    cout<< "Unable to find non-infinite path between pivot nodes"<< endl;
         //TODO throw exception
-    }
+    //}
 
     auto& bestCriPath = criticalPaths_.find(bestPair)->second;
 
@@ -476,8 +476,7 @@ void MetaGraph::write(string dotFileLocation,bool skipInf)
     if (!ostream.is_open())
     {
         //todo::throw exceptions
-//            throw ArgumentError(*this, "output", dotFileLocation, "Unable to open output file");
-        cout<<"CANNOT OPEN OFILE IN WRITER : " << outputFile << endl;
+        throw ArgumentError("MetaGraph", "output", dotFileLocation, "Unable to open output file");
     }
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";

@@ -523,7 +523,7 @@ def buildOM(
             output_file.write(' ' * 4 + 'auto pool' + str(pooling_node_id) + ' = om.' + str(pool_mcm[layer.getType()]) + '(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) + ', {' + str(ry) +
                               ', ' + str(rx) + '}, {' + str(sy) + ', ' + str(sx) + '}, {' + str(px[0]) + ', ' + str(px[1]) +
-                              ', ' + str(py[0]) + ', ' + str(py[1]) + '}, ' + 'true, "", "floor", ' + 'mv::DType("' +
+                              ', ' + str(py[0]) + ', ' + str(py[1]) + '}, ' + 'true, ' + 'mv::DType("' +
                               str(order_type_dict[type(type_value)]) + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
@@ -686,7 +686,7 @@ def buildOM(
 
             output_file.write(' ' * 4 + 'auto power' + str(power_node_id) + ' = om.power({' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ', ' + str(tensor_mapping_dict[layer.getInputTensors()[1].getName().stringifyName()]) + '}, ' 
+                              ', ' + str(tensor_mapping_dict[layer.getInputTensors()[1].getName().stringifyName()]) + '}, '
                               + 'mv::DType("' + order_type_dict[type(type_value)] + '"), {{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) + '},{' +
                               ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) + '},{' +
@@ -1071,7 +1071,7 @@ def buildOM(
         # other dimension of weights is the mult of all the input tensor
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
         mv_quant_params = get_parse_quant(layer.getOutputTensors()[0])
-        weights_ = ca.constant(om, weights_data, ca.getShape(w_orig.shape[1], (w_orig.shape[2] * w_orig.shape[3] * w_orig.shape[0])), 
+        weights_ = ca.constant(om, weights_data, ca.getShape(w_orig.shape[1], (w_orig.shape[2] * w_orig.shape[3] * w_orig.shape[0])),
             ca.getOrder(mcm_2d_layout[parser]), weight_mv_quant_params[0], weight_tensor_name)
         fc = ca.fullyConnected(om, in_, weights_, order_type_dict[output_type_value], mv_quant_params[0], output_tensor_name)
         if (output_file is not None):
@@ -1103,7 +1103,7 @@ def buildOM(
 
             output_file.write(' ' * 4 + 'auto fc' + str(fully_node_id) + ' = om.fullyConnected(' +
                               str(tensor_mapping_dict[layer.getInputTensors()[0].getName().stringifyName()]) +
-                              ', weights' + str(fully_node_id) + ', mv::DType("' + order_type_dict[output_type_value] + '")' + 
+                              ', weights' + str(fully_node_id) + ', mv::DType("' + order_type_dict[output_type_value] + '")' +
                               ', {{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[1])) +
                               '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[2])) +
                               '},{' + ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[3])) +

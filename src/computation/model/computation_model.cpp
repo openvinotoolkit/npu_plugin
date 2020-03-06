@@ -360,7 +360,7 @@ mv::json::Array mv::ComputationModel::dataFlowToJSON() const
     json::Array data_flows;
     for (auto dataIt = dataGraph_.edge_begin(); dataIt != dataGraph_.edge_end(); ++dataIt)
         data_flows.append((*dataIt).toJSON());
-    //    std::cout<<"Data Flows in computation model: "<<data_flows.stringify()<<std::endl;
+    //    log(Logger::MessageType::Debug, "Data Flows in computation model: " + data_flows.stringify());
     return data_flows;
 }
 
@@ -369,7 +369,8 @@ mv::json::Array mv::ComputationModel::controlFlowToJSON() const
     json::Array control_flow;
     for (auto controlIt = controlGraph_.edge_begin(); controlIt != controlGraph_.edge_end(); ++controlIt)
         control_flow.append((*controlIt).toJSON());
-    std::cout << "control Flows in computation model: " << control_flow.stringify() << std::endl;
+    
+    log(Logger::MessageType::Debug, "control Flows in computation model: " + control_flow.stringify());
     return control_flow;
 }
 

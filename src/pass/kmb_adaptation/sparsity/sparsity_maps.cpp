@@ -6,6 +6,7 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -40,48 +41,6 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
     return sparsityMap;
 }
 
-uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
-{
-    //Find max mpe where if calc window <= 32
-    //return window size for the max mpe
-    uint16_t windowSize, maxMpeWindowSize = 64;
-    int mpe = 1;
-
-    if (dataType == mv::DType("UInt8"))
-    {
-        //mpe in [1,2,4,8,16] for uint8
-        while(mpe <= 16)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
-
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
-
-            mpe *= 2;
-        }
-    }
-    else if (dataType == mv::DType("Float16"))
-    {
-        //mpe in [1,2,4] for float
-        while(mpe <= 4)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
-
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
-
-            mpe *= 2;
-        }
-    }
-
-    return maxMpeWindowSize;
-}
 
 std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_t windowsSize, uint16_t inputChannels)
 {

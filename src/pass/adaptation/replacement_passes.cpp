@@ -106,7 +106,7 @@ void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
 {
     auto inputFlow = task.leftmostInput();
     auto neutralMaxPool = om.maxPool(task->getInputTensor(0), {1,1}, {1,1}, {0, 0, 0, 0},
-                                     false, "", "floor", mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
+                                     false, mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
     auto maxPoolOp = om.getSourceOp(neutralMaxPool);
     maxPoolOp->set<unsigned>("opId", task->get<unsigned>("opId"));
     maxPoolOp->set<bool>("softwareExecuted", true);
@@ -411,12 +411,12 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             if (sourceTensor->isQuantized())
             {
                 auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-                avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), quantParams, name + "_AvgPool");
+                avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,  mv::DType("Default"), quantParams, name + "_AvgPool");
             }
             else
             {
                 mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                 avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
+                 avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
             }
 
             auto avgOp = om.getSourceOp(avgPool);
@@ -726,8 +726,6 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
         first_attrs.at("stride") == second_attrs.at("stride") &&
         first_attrs.at("padding") == first_attrs.at("padding") &&
         first_attrs.at("exclude_pad") == second_attrs.at("exclude_pad") &&
-        first_attrs.at("auto_pad") == second_attrs.at("auto_pad") &&
-        first_attrs.at("rounding_type") == second_attrs.at("rounding_type") &&
         first_attrs.at("dType") == second_attrs.at("dType")))
         return false;
 
@@ -793,8 +791,6 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
                     op_attrs.at("stride"),
                     op_attrs.at("padding"),
                     op_attrs.at("exclude_pad"),
-                    op_attrs.at("auto_pad"),
-                    op_attrs.at("rounding_type"),
                     op_attrs.at("dType"),
                     op_attrs.at("quantParams"));
 

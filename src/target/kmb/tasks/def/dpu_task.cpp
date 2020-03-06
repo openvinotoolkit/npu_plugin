@@ -38,7 +38,7 @@ namespace mv
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_dpu::inputCheckFcn)
-        .setInputCheck(false)
+        .skipInputCheck()
         .setOutputDef(op_dpu::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)

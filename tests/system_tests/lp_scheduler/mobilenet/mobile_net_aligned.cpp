@@ -493,7 +493,7 @@ int main(int argc, char **argv)
     auto biasWeights34 = om.constantInt(biasWeightsData34,{1280}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.7448621040093713e-05},{-inf},{inf}}, "Conv_1/Relu6#163_bias#165");
     auto bias_c34 = om.bias(conv34, biasWeights34, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool0 = om.averagePool(bias_c34, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "Logits/AvgPool/AvgPool#233");
+    auto pool0 = om.averagePool(bias_c34, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "Logits/AvgPool/AvgPool#233");
 
     std::vector<int64_t> weightsData35 = mv::utils::generateSequence<int64_t> (1*1*1280*1024);
     auto weights35 = om.constantInt(weightsData35,{1,1,1280,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{132},{0.003863171674311161},{-0.5084267854690552},{0.47668200731277466}}, "Logits/Conv2d_1c_1x1/BiasAdd/Logits/Conv2d_1c_1x1/BiasAdd#167_weights#168");
