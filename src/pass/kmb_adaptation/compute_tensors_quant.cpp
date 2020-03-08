@@ -522,12 +522,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  int exponent;
                  double mantissa;
 
-                 for (size_t i = 0; i < mSize; i++)
-                 {
-                     mantissa = std::frexp(m[i], &exponent);
-                     shift[i] = bits - exponent;
-                     mScaled[i] = (mantissa * pow(2, bits));
-                 }
+                for (size_t i = 0; i < mSize; i++)
+                {
+                    mantissa = std::frexp(m[i], &exponent);
+                    shift[i] = bits - exponent;
+                    mScaled[i] = (mantissa * pow(2, bits));
+                    if (mScaled[i] / pow(2, shift[i]) < m[i]) {
+                        mScaled[i] += 1;
+                    }
+                }
                  std::vector<int32_t> zeroPointScaled(m.size());
                  std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
