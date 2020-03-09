@@ -5,11 +5,11 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 20,
-                "Number_of_Clusters" : 4,
+                "Number_of_DPUs" : 1,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 16777216,
@@ -17,6 +17,7 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
                 [
@@ -91,15 +92,23 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "DecideOutputDataType",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dtype_tensors.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
-                        {"name" : "dpuPerCluster",  "value" : 5   },
+                        {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.75},
@@ -172,7 +181,14 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adaptation.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "kmb_adapt": {
@@ -181,6 +197,13 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dpu_tasks.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -199,7 +222,14 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/kmb_adaptation.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "dma": {
@@ -237,7 +267,6 @@
                 "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
-            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",

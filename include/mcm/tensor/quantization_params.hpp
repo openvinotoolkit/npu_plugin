@@ -21,11 +21,6 @@ namespace mv
             return get<std::vector<int64_t>>("zeroPoint");
         }
 
-        inline std::vector<int64_t>& getZeroPoint()
-        {
-            return get<std::vector<int64_t>>("zeroPoint");
-        }
-
         inline std::vector<double> getScale() const
         {
             return get<std::vector<double>>("scale");

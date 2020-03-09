@@ -19,5 +19,9 @@ void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double&
 void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor);
 void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor);
 void provideAccuracyinPPEs(mv::ComputationModel& model);
+//template <class T>
+//std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
+std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName);
+std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName);
 
 #endif // PASS_UTILS_HPP_
