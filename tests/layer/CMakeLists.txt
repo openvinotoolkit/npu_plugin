@@ -36,6 +36,9 @@ else()
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
 
+    add_executable(conv_batch conv_batch/conv_batch.cpp)
+    target_link_libraries(conv_batch cm)
+
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
 

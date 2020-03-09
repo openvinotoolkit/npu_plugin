@@ -78,6 +78,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 std::map<std::string, std::function<std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator>(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>>&, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)>> streamSplit =
 {
 //    {"W",solveSpatialTiling},
+    {"N",solveSpatialTiling},
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling},
     {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
@@ -112,6 +113,17 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit = true;
                     pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream H = " + std::to_string(opxSplitx.numSplits));
+                }
+            }
+            if (splitList[i].hasAttr("B"))
+            {
+                if (splitList[i].get<int>("B") > 1)
+                {
+                    opxSplitx.axis = "N";
+                    opxSplitx.numSplits = splitList[i].get<int>("B");
+                    opxSplits.push_back(opxSplitx);
+                    nodeHasSplit = true;
+                    pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream N = " + std::to_string(opxSplitx.numSplits));
                 }
             }
             //NOTE:: Streaming over width, channels are not used
@@ -427,6 +439,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
     std::array<unsigned short, 2> kernelStride;
+    std::string sliceName;
     if (op->hasAttr("stride"))
         kernelStride = op->get<std::array<unsigned short, 2>>("stride");
     else
@@ -457,6 +470,15 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         endPad[2] = 0;
         middlePad[2] = 0;
         middlePad[3] = 0;
+        sliceName = "_sliceH_";
+    }
+    if (axisToSplit == mv::Shape::getAxis("N"))
+    {
+        startPad[3] = 0;
+        endPad[2] = 0;
+        middlePad[2] = 0;
+        middlePad[3] = 0;
+        sliceName = "_sliceN_";
     }
 
     for (unsigned split = 0; split < number_of_splits; split++)
@@ -483,7 +505,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 childTiles[split].getStartCoord(),
                                 childTiles[split].getSize(),
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
-                                op->getName() + "_sliceH_" + std::to_string(split));
+                                op->getName() + sliceName + std::to_string(split));
             storeExistingSlice(inputTensor->getName(), split, slice, name_firstStream_sliceOp);
             om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
@@ -680,7 +702,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
             auto sourceTensor = opIt->getInputTensor(0);
             auto parentOpIt = om.getSourceOp(sourceTensor);
-            auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile,
+            auto result = (streamSplit[axisToSplit])(om, opIt, masterTile,
                                thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
 
             // reconnect children to subgraph
