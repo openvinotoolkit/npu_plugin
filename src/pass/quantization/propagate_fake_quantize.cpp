@@ -138,8 +138,7 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
     }
 
     if (op->getOpType() == "AveragePool") {
-        return true;
-        // return om.getSourceOp(op->getInputTensor(0))->getOpType() == "FakeQuantize";
+        return om.getSourceOp(op->getOutputTensor(0))->getOpType() == "FakeQuantize";
     }
 
     assert(op->getInputTensor().size() > 1);
@@ -265,6 +264,14 @@ mv::Data::OpListIterator quantizeConstOp(mv::OpModel& om, mv::Data::OpListIterat
     std::vector<int64_t> quantized_weights(src_data.size());
     auto min = quant_params.getMin();
     auto max = quant_params.getMax();
+
+    // Workaround for depthwise convolution
+    // Because we expect shpae of depthwise conv to be in {KH, KW, N, 1} format
+    // and all other weights have shape like {KW, KW, IC, N} we have OC=1 and IC=N
+    // But further logic requires OC be equal to N and IC equal to 1
+    if (operation->hasAttr("is_depthwise_weights")) {
+        std::swap(OC, IC);
+    }
 
     //TODO: rewrite. We can do it only for ochannel loop
     for (size_t oc = 0; oc < OC; ++oc) {
@@ -433,73 +440,10 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     }
 }
 
-namespace pretty_print {
-
-    template<class T>
-    std::ostream& operator<<(std::ostream& os, std::vector<T> data) {
-        size_t counter = 0;
-        for (auto& value : data) {
-            os << value << ", ";
-
-            if (counter++ > 25)
-                break;
-        }
-
-        return os;
-    }
-
-    std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& qp) {
-        os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}" << " MINS {" << qp.getMin() << "} MAXS{" << qp.getMax() <<"}";
-        return os;
-    }
-
-    void dumpFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string name) {
-        mv::OpModel om(model);
-        auto ops = om.topologicalSort();
-
-        std::ofstream ofs(name, std::ios::out);
-        if (!ofs.good()) {
-            int x = 32;
-        }
-
-        for (auto& op : ops) {
-
-            auto op_params = op->get<mv::QuantizationParams>("quantParams");
-            auto tensor_params = op->get<mv::QuantizationParams>("quantParams");
-
-            if (op->getOpType() == "ConstantInt") {
-                ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams") << std::endl;
-                auto data = op->getOutputTensor(0)->getIntData();
-                ofs << "{ " << data << " }";
-                ofs << std::endl;
-                continue;
-
-            }
-            if (op->hasAttr("quantParams")) {
-                ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams");
-                ofs << std::endl;
-//                    auto tensor = op->getOutputTensor(0);
-//          ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams");
-            }
-            else
-                ofs << op->getName() << " " << op->getOpType() << std::endl;
-
-            if (op->getOutputTensor().size() >= 1) {
-                auto tensor = op->getOutputTensor(0);
-                ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams") << std::endl;
-            }
-
-        }
-    }
-
-}
-
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
     propagateParameters( model);
     quantizeIO(model);
     quantizeConst(model);
     quantizeBias(model);
     removeFQ(pass, model);
-
-    pretty_print::dumpFQ(pass, model, "original_model.txt");
 }
