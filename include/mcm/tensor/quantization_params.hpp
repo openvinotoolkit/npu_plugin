@@ -47,6 +47,7 @@ namespace mv
         }
 
         void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
+        void setScale(std::vector<double> scale_);
 
         int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;

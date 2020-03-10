@@ -333,6 +333,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector<float> S1(scale.begin(), scale.end());
                      //S1*S2
                      std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+                     if (output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32"))
+                     {
+                         std::vector<double> output_scale;
+                         output_scale = inputQuantization.getScale();
+                         std::transform(output_scale.begin(), output_scale.end(),
+                                        weightsQuantization.getScale().begin(), output_scale.begin(), std::multiplies<double>());
+                         outputQuantization.setScale(output_scale);
+                     }
+
                  }
                  else if (isEltwiseAddSub) //Add Subtract
                  {
