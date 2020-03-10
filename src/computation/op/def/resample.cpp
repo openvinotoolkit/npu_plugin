@@ -6,12 +6,25 @@ namespace mv
 
     namespace op_resample
     {
+        static const std::set<std::string> supportedInterpolations = {"BILINEAR", "BICUBIC", "NEAREST"};
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+            auto interpolation = args.at("interpolation").get<std::string>();
+            std::set<std::string>::const_iterator interpolationIter = supportedInterpolations.find(interpolation);
+            if (interpolationIter == supportedInterpolations.end())
+            {
+                errMsg = "Attempt to set unsupported interpolation: " +
+                         interpolation + ". Supported values are: ";
+                for (const std::string& supportedValue : supportedInterpolations) {
+                    errMsg += supportedValue + " ";
+                }
+
+                return {false, 0};
+            }
 
             return {true, 0};
         };
