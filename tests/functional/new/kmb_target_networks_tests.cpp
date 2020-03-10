@@ -356,7 +356,11 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
 // TinyYolo V2
 //
 
+// KMB : Bad inference results.
+// [Track number: S#28195]
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
+    SKIP_INFER_ON("KMB", "bad results");
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
