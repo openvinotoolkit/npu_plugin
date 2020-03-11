@@ -678,9 +678,9 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     std::unordered_map<std::string, bool> createSlicesPerStream = {};
     std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> name_firstStream_sliceOp;
 
-    for (auto layerNameStrategy: thisGraphStrategy)
+    for(auto strategyIt = thisGraphStrategy.cbegin(); strategyIt != thisGraphStrategy.cend(); ++strategyIt)
     {
-        std::string nodeName = layerNameStrategy.first;
+        std::string nodeName = strategyIt->first;
         //NOTE: Graph optimizer will never do that but needs to be her for manual Scheduling
         if (!om.checkOp(nodeName))
         {
