@@ -1853,10 +1853,33 @@ void FrontEndMcm::parsePad(const ie::CNNLayerPtr& layer, const McmNodeVector& in
     VPU_THROW_EXCEPTION << "Pad layer is not supported by kmbPlugin";
 }
 
+const static std::map<std::string, std::string> interpolationMap = {
+    {"caffe.ResampleParameter.NEAREST", "NEAREST"},
+    {"caffe.ResampleParameter.CUBIC", "BICUBIC"},
+    {"caffe.ResampleParameter.LINEAR", "BILINEAR"},
+};
+
 void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Resample layer is not supported by kmbPlugin";
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto antialias = layer->GetParamAsBool("antialias", 0);
+    auto factor = layer->GetParamAsFloat("factor", 2.0);
+    auto height = layer->GetParamAsUInt("height", 0);
+    auto width = layer->GetParamAsUInt("width", 0);
+    auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    mv::Shape output_shape(getWHCN(layerOutput->getTensorDesc()).getDims());
+
+    auto resample_result = _modelMcm.resample(inputs[0]->getMcmNode(), interpolationMap.at(interpolation), antialias,
+        output_shape, mv::DType("Default"), inputQuantParams, layer->name);
+
+    bindOutput(resample_result, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, resample_result->getName());
 }
 
 void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
