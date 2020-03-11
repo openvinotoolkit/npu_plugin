@@ -618,10 +618,10 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     //means the weights will be repeated for the second level of streaming, this is why need
     //the data structures below...to create only one pair of nested slices
 
-    for (auto layerNameStrategy : strategyList)
+    for(auto strategyIt = thisGraphStrategy.cbegin(); strategyIt != thisGraphStrategy.cend(); ++strategyIt)
     {
-        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-        //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
+        std::string nodeName = strategyIt->first;
+        //NOTE: Graph optimizer will never do that but needs to be her for manual Scheduling
         if (!om.checkOp(nodeName))
         {
             pass.log(mv::Logger::MessageType::Error, nodeName + " is not present in model, skipping streaming");
