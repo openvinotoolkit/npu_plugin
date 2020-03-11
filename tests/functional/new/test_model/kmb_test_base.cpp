@@ -27,6 +27,7 @@
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
 #include <vpu/utils/error.hpp>
+#include <test_kmb_models_path.h>
 
 //
 // KmbTestBase
@@ -655,6 +656,10 @@ void TestNetworkDesc::fillUserOutputInfo(OutputsDataMap& info) const {
 Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels) {
     std::ostringstream imageFilePath;
     imageFilePath << get_data_path() << "/" << image.imageFileName();
+    if (!exist(imageFilePath.str())) {
+        imageFilePath.str("");
+        imageFilePath << getTestDataPathNonFatal() << "/" << image.imageFileName();
+    }
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);
@@ -690,8 +695,9 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels
 }
 
 CNNNetwork KmbNetworkTestBase::readNetwork(const TestNetworkDesc& netDesc, bool fillUserInfo) {
-    ModelsPath modelPath;
-    modelPath << "/" << netDesc.irFileName();
+    std::string modelPath = KmbModelsPath() + '/' + netDesc.irFileName();
+    if (!exist(modelPath.c_str()))
+        modelPath = ModelsPath() + "/" + netDesc.irFileName();
 
     auto net = core->ReadNetwork(modelPath);
 
