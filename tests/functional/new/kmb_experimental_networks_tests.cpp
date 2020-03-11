@@ -36,3 +36,13 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
         "32x32/0_cat.bmp",
         1, 0.5f);
 }
+
+TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP16),
+        "224x224/cat3.bmp",
+        1, 0.5f);
+}
