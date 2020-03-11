@@ -17,7 +17,7 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": false,
+                "PredictionOfQuantizationOutput": true,
                 "PPEAccuracy": false,
                 "split_strategy" :
                 [
