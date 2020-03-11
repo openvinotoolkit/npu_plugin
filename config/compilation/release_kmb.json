@@ -87,14 +87,7 @@
     },
     "quantization" : {
         "Singular" : [
-            "FakeQuantize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/initial_state.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            }
+            "FakeQuantize"
         ]
     },
     "adapt": {

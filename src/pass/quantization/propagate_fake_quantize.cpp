@@ -202,6 +202,21 @@ bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
     }) != input_params.end();
 }
 
+//NOTE: here is FQ operation parameters propagation algorithm.
+// Since FQ was design to be propagted parameters to a next layer to quantize it (FQ -> Layer(that should be quantized))
+// this approach aims to provide suitable output quantization parameters for all operations in terms of mcm.
+// The basic idea is to find output quantization parameters for each operation in the graph
+// (If this operation is "quantizable". It means that it can  greatly affect output range and be executed in integer)
+// (In this terms all quantization agnostic operations such as MaxPool are not qunatizable)
+// For each operation we are trying our heruristic to set quantization operation
+// If operation is quantizable and needs to be quantized we are trying to find the next FQ quantize operation
+// and extract quantization parameters for current operation.
+// Else we just get quntization parameters from the parent
+// Example: ->Conv->Bias->Relu->FQ
+// Conv will get parameters from FQ. Bias from Conv. And Relu from Bias.
+// Exceptions:
+// For AveragePool. If we didn't find output quant params, just get parents qunat_params
+// For scale and bias right after the Input op we save parameters propagated from the Kmb-Plugin as a workaround
 void propagateParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
@@ -210,10 +225,6 @@ void propagateParameters(mv::ComputationModel& model) {
     for (auto& op : sorted_ops) {
         if (op->getOpType() == "Eltwise" && op->getOpType() == "Concat") {
             assert(areAllInputQuantParamsEqual(om, op));
-        }
-
-        if (op->getOpType() == "AveragePool") {
-            int x = 42;
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
@@ -337,6 +348,9 @@ void quantizeConst(mv::ComputationModel& model) {
     }
 }
 
+//NOTE: To quantize bias we use quantization parameters of input op and activations weights;
+// Input-> Activation(e.g. Conv) -> Bias
+// In current mcm approach it doesn't matter which qunat_params were set on bias
 mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator biasOp) {
     auto tensor_data = biasOp->getInputTensor(1)->getData();
 
@@ -344,7 +358,7 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator b
     auto activationOp = om.getSourceOp(biasOp->getInputTensor(0));
     auto input_quant_params = getParentQuantParams(om, activationOp);
 
-    auto weights_op = om.getSourceOp(om.getSourceOp(activationOp->getInputTensor(1))->getInputTensor(0));
+    auto weights_op = om.getSourceOp(activationOp->getInputTensor(1));
     auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
 
     bool is_broadcasted = input_quant_params.isScalePerTensor() && weights_params.isScalePerTensor();
