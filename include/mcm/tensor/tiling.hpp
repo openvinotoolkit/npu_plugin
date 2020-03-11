@@ -83,8 +83,8 @@ namespace mv
             auto numberOfSplits = childTiles_.size();
             auto parentTileShape = getSize();
             auto axisToSplit =  mv::Shape::getAxis(getAxis());
-            int newSize = ceil( ((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
-            int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
+            int newSize = mv::round_up(parentTileShape[axisToSplit] / numberOfSplits, 16);
+            int remainderSize = mv::round_up(parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1)), 16);
             unsigned startCoord = 0;
             for(std::size_t split = 0; split < numberOfSplits; split++)
             {
