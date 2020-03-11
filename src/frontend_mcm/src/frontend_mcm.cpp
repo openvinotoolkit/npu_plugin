@@ -1163,14 +1163,14 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
             {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
     }
 
     bindOutput(mvPooling, layerOutput);
