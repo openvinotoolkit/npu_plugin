@@ -181,11 +181,16 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
     else
     {
         auto convs = om.getOps("Conv");
+        bool outputConvHasQuantParams, outputConvHasEmptyQuantParams, outputConvHasNeutralQuantParams;
         for (auto conv : convs)
         {
-            if (!conv->getOutputTensor()[0]->hasAttr("quantParams") ||
-                    conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty() ||
-                        conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral())
+            inputQuantized = false, weightsQuantized = false;
+            outputConvHasQuantParams = conv->getOutputTensor()[0]->hasAttr("quantParams");
+            outputConvHasEmptyQuantParams =
+                conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty();
+            outputConvHasNeutralQuantParams =
+                conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral();
+            if (!outputConvHasQuantParams|| outputConvHasEmptyQuantParams || outputConvHasNeutralQuantParams)
             {
                 if (conv->getInputTensor()[0]->hasAttr("quantParams"))
                 {
@@ -204,8 +209,11 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     }
                 }
             }
-            conv->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
-            conv->set<mv::DType>("dType", mv::DType("Int32"));
+            if (weightsQuantized && inputQuantized)
+            {
+                conv->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
+                conv->set<mv::DType>("dType", mv::DType("Int32"));
+            }
         }
     }
 
