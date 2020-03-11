@@ -1406,11 +1406,9 @@ std::vector<size_t> calculateMcmShape(const SizeVector dims) {
 
 void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(layer->type == "Const");
-
     const auto constBlob = layer->blobs.begin()->second;
     auto blobPrecision = constBlob->getTensorDesc().getPrecision();
     auto mcmShape = calculateMcmShape(layer->outData.front()->getDims());
-
     if (isInteger(blobPrecision)) {
         std::vector<int64_t> constData = packBlobToVector<int64_t>(constBlob, constBlob->size());
         auto constMCM =
