@@ -1345,27 +1345,21 @@ void FrontEndMcm::parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector
 
 void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
-
     auto normLayer = std::dynamic_pointer_cast<ie::NormLayer>(layer);
     IE_ASSERT(normLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    auto mvLRN =
-        _modelMcm.localResponseNormalization(inputs[0]->getMcmNode(), normLayer->_size, normLayer->_k, normLayer->name);
-
-    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
-    // in "inception_v1_caffe_benchmark" test
-    // VPUNND-2284, VPUNND-2237,
-    mvLRN->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+    auto alpha = static_cast<double>(normLayer->_alpha);
+    auto beta = static_cast<double>(normLayer->_beta);
+    std::string region = std::to_string(normLayer->_k);
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+    auto mvLRN = _modelMcm.norm(inputs[0]->getMcmNode(), alpha, beta, region, normLayer->_size, mv::DType("Default"),
+        inputQuantParams, normLayer->name);
 
     bindOutput(mvLRN, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvLRN->getName());
-
-    // TODO: add parsing following parameters
-    // stage->attrs().set<float>("alpha", layer->_alpha);
-    // stage->attrs().set<float>("beta", layer->_beta);
 }
 
 void FrontEndMcm::parseScaleImpl(
