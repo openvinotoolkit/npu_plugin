@@ -56,7 +56,7 @@ void mv::MemoryAllocator::MemoryBuffer::setOffset(std::size_t offset_)
 {
     offset = offset_;
     for (auto itSlave = slaveBuffers.begin(); itSlave != slaveBuffers.end(); ++itSlave)
-        (**itSlave)->offset = offset;
+        (**itSlave)->setOffset(offset);
 }
 
 std::size_t mv::MemoryAllocator::MemoryBuffer::getOffset() const
