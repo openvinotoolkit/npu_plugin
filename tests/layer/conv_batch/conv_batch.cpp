@@ -1,27 +1,34 @@
+#include <limits>
+#include <include/mcm/op_model.hpp>
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include <iostream>
-#include <fstream>
+#include "conv_batch.data.inc"
+
+void build_pySwigCU(mv::OpModel& model)
+{
+    using namespace mv;
+
+    static const auto inf = std::numeric_limits<double>::infinity();
+
+    const auto input_3_0 = model.input({2, 1, 64, 2}, mv::DType("UInt8"), mv::Order("NHWC"), {{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input#3");
+    const auto conv1_conv1_0_weights_1_0 = model.constantInt(conv1_conv1_0_weights_1_0_data, {1, 1, 64, 64}, mv::DType("UInt8"), mv::Order("NCHW"), {{113},{0.002789004007354},{-0.315335750579834},{0.395860284566879},{0},{1}}, "conv1/conv1#0_weights#1");
+    const auto conv1_conv1_4_0 = model.conv(input_3_0, conv1_conv1_0_weights_1_0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "conv1/conv1#4");
+    const auto conv1_conv1_0_bias_2weights_0 = model.constantInt(conv1_conv1_0_bias_2weights_0_data, {64}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000021874540835},{-inf},{inf},{0},{1}}, "conv1/conv1#0_bias#2weights");
+    const auto conv1_conv1_0_bias_2_0 = model.bias(conv1_conv1_4_0, conv1_conv1_0_bias_2weights_0, mv::DType("UInt8"), {{0},{0.000021874540835},{-inf},{inf},{0},{1}}, "conv1/conv1#0_bias#2");
+    const auto output = model.output(conv1_conv1_0_bias_2_0, mv::DType("Default"), {{},{},{},{}}, "");
+}
 
 int main()
 {
-    mv::CompilationUnit unit("ConvBatchModel");
+    mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
-
-    // Input is in WHCN, for use with conv_batching.in and conv_batching.out
-    auto input0 = om.input({7,7,1024,100}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1},{},{}}, "input#170");
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (512, 1, 0);
-    std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (512, 3, 0);
-    weightsData0.insert(weightsData0.end(), weightsData1.begin(), weightsData1.end());
-
-    auto weights0 = om.constantInt(weightsData0,{1,1,1024,1}, mv::DType("Int8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});
-    auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("Int8"),{{0},{1},{},{}} , "conv");
-    om.output(conv0);
+    build_pySwigCU(om);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_SC-PrefetchAdaptive.json";
     unit.loadCompilationDescriptor(compDescPath);
-    unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
+
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
 
+    return 0;
 }
