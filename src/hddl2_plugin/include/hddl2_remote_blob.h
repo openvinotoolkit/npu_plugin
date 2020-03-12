@@ -37,10 +37,12 @@ public:
 
     InferenceEngine::ParamMap getParamMap() const;
     RemoteMemoryFD getRemoteMemoryFD() const;
+    InferenceEngine::ColorFormat getColorFormat() const;
 
 protected:
     InferenceEngine::ParamMap _paramMap;
     RemoteMemoryFD _remoteMemoryFd;
+    InferenceEngine::ColorFormat _colorFormat;
 };
 
 //------------------------------------------------------------------------------
@@ -82,6 +84,12 @@ public:
     std::string getDeviceName() const noexcept override;
 
     RemoteMemoryFD getRemoteMemoryFD() const;
+
+    InferenceEngine::ColorFormat getColorFormat() const;
+
+    size_t size() const noexcept override;
+
+    size_t byteSize() const noexcept override;
 
 protected:
     HDDL2BlobParams _params;

@@ -66,11 +66,36 @@ static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::Ptr& blob) {
     }
     return memoryFd;
 }
+static bool isBlobContainsNV12Data(const InferenceEngine::Blob::Ptr& blobPtr) {
+    if (blobPtr->is<IE::NV12Blob>()) {
+        return true;
+    } else if (blobPtr->is<HDDL2RemoteBlob>()) {
+        auto remoteBlob = blobPtr->as<HDDL2RemoteBlob>();
+        return remoteBlob->getColorFormat() == IE::ColorFormat::NV12;
+    }
+    return false;
+}
+
+static IE::SizeVector getNV12ImageDims(const IE::Blob::Ptr& blobPtr) {
+    if (blobPtr->is<IE::NV12Blob>()) {
+        auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
+        if (nv12Ptr == nullptr) {
+            THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+        }
+        auto yPlaneBlob = nv12Ptr->y();
+        return yPlaneBlob->getTensorDesc().getDims();
+    } else if (blobPtr->is<HDDL2RemoteBlob>()) {
+        return blobPtr->getTensorDesc().getDims();
+    }
+    THROW_IE_EXCEPTION << "Unsupported blob format with NV12 Data";
+}
 
 //------------------------------------------------------------------------------
 BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob) {
     checkBlobIsValid(blob);
     checkBlobCompatibility(blob);
+
+    _isNV12Data = isBlobContainsNV12Data(blob);
     _blobPtr = blob;
 
     checkDataIsValid(desc);
@@ -83,7 +108,7 @@ HddlUnite::Inference::BlobDesc BlobDescriptor::create() {
 
     size_t blobSize = _blobPtr->byteSize();
     if (_desc->getTensorDesc() != _blobPtr->getTensorDesc()) {
-        printf("Tensors of NN input and blob desc does not match. Preprocessing required.");
+        printf("Tensors of NN input and blob desc does not match. Preprocessing required.\n");
     }
 
     // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
@@ -149,7 +174,7 @@ void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& bl
 
 void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDesc) {
     blobDesc.m_format = HddlUnite::Inference::FourCC::BGR;
-    if (_blobPtr->is<IE::NV12Blob>()) {
+    if (_isNV12Data) {
         blobDesc.m_format = HddlUnite::Inference::FourCC::NV12;
     }
 
@@ -158,15 +183,9 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
     // NN input dims
     IE::SizeVector dims = _desc->getDims();
 
-    // If it's NV12 blob, we should use PP input dims instead
-    if (_blobPtr->is<IE::NV12Blob>()) {
-        auto nv12Ptr = _blobPtr->as<IE::NV12Blob>();
-        if (nv12Ptr == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
-        }
-        auto yPlaneBlob = nv12Ptr->y();
-        checkBlobIsValid(yPlaneBlob);
-        dims = yPlaneBlob->getTensorDesc().getDims();
+    // If it's NV12 data, we should use preprocessing input dims
+    if (_isNV12Data) {
+        dims = getNV12ImageDims(_blobPtr);
     }
 
     uint H_index;
@@ -194,6 +213,9 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
 //------------------------------------------------------------------------------
 LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
     : BlobDescriptor(desc, blob) {
+    if (blob->is<HDDL2RemoteBlob>()) {
+        THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
+    }
     _isRemoteMemory = false;
     _isNeedAllocation = true;
 }
