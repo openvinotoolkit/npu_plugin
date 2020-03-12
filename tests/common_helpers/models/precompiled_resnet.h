@@ -24,6 +24,10 @@ struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
 };
 
+struct modelTensors {
+    InferenceEngine::TensorDesc inputTensor, outputTensor;
+};
+
 namespace PrecompiledResNet_Helper {
     // Old version, u8 output
     // TODO Remote after adding fp16 output support to HDDL2 Plugin
@@ -32,7 +36,19 @@ namespace PrecompiledResNet_Helper {
                     .graphName = "resnet-50-dpu",
                     .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
                     .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
-                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
+                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output.bin"
+            };
+
+    static const modelTensors resnet50_dpu_tensors =
+            {
+                    .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                               {1, 3, 224, 224},
+                                                               InferenceEngine::Layout::NCHW
+                    ),
+                    .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                                {1, 1000, 1, 1},
+                                                                InferenceEngine::Layout::NCHW
+                    )
             };
 
     // Actual version, fp16 output
@@ -42,5 +58,17 @@ namespace PrecompiledResNet_Helper {
                     .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
                     .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin",
                     .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin",
+            };
+
+    static const modelTensors resnet50_tensors =
+            {
+                    .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                               {1, 3, 224, 224},
+                                                               InferenceEngine::Layout::NCHW
+                    ),
+                    .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
+                                                                {1, 1000, 1, 1},
+                                                                InferenceEngine::Layout::NCHW
+                    )
             };
 };
