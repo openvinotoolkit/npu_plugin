@@ -186,10 +186,13 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
         {
             inputQuantized = false, weightsQuantized = false;
             outputConvHasQuantParams = conv->getOutputTensor()[0]->hasAttr("quantParams");
-            outputConvHasEmptyQuantParams =
-                conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty();
-            outputConvHasNeutralQuantParams =
-                conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral();
+            if (outputConvHasQuantParams)
+            {
+                outputConvHasEmptyQuantParams =
+                    conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty();
+                outputConvHasNeutralQuantParams =
+                    conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral();
+            }
             if (!outputConvHasQuantParams|| outputConvHasEmptyQuantParams || outputConvHasNeutralQuantParams)
             {
                 if (conv->getInputTensor()[0]->hasAttr("quantParams"))
