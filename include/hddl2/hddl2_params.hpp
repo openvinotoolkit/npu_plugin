@@ -45,15 +45,18 @@ namespace HDDL2ContextParams {
     DECLARE_PARAM_KEY_IMPL(name, __VA_ARGS__)
 
     /**
-     * @brief HDDLUnite Workloader context id
+     * @brief HDDLUnite Workload context id
      */
     DECLARE_HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID, uint64_t);
 
     /**
-     * @brief HddlUnite Remote memory fd
+     * @brief HDDLUnite Remote memory file descriptor
      */
     DECLARE_HDDL2_PARAM_KEY(REMOTE_MEMORY_FD, uint64_t);
 
-
+    /**
+     * @brief Color format of remote memory
+     */
+    DECLARE_HDDL2_PARAM_KEY(COLOR_FORMAT, InferenceEngine::ColorFormat);
 }  // namespace HDDL2ContextParams
 }  // namespace InferenceEngine

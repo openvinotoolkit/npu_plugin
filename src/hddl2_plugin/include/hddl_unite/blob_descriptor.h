@@ -41,6 +41,7 @@ public:
 protected:
     bool _isRemoteMemory;
     bool _isNeedAllocation;
+    bool _isNV12Data;
 
     InferenceEngine::Blob::Ptr _blobPtr = nullptr;
     std::shared_ptr<InferenceEngine::PreProcessInfo> _preProcessPtr = nullptr;
