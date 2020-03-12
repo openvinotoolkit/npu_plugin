@@ -21,11 +21,6 @@ namespace mv
             return get<std::vector<int64_t>>("zeroPoint");
         }
 
-        inline std::vector<int64_t>& getZeroPoint()
-        {
-            return get<std::vector<int64_t>>("zeroPoint");
-        }
-
         inline std::vector<double> getScale() const
         {
             return get<std::vector<double>>("scale");
@@ -52,6 +47,7 @@ namespace mv
         }
 
         void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
+        void setScale(std::vector<double> scale_);
 
         int64_t getZeroPoint(const size_t channel) const;
         virtual std::string getLogID() const override;

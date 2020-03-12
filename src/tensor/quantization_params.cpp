@@ -53,6 +53,11 @@ void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<u
     set<std::vector<unsigned>>("mult", mult);
 }
 
+void mv::QuantizationParams::setScale(std::vector<double> scale_)
+{
+    set<std::vector<double>>("scale", scale_);
+}
+
 int64_t mv::QuantizationParams::getZeroPoint(const size_t channel) const
 {
     std::vector<int64_t> zeroPoint = get<std::vector<int64_t>>("zeroPoint");
