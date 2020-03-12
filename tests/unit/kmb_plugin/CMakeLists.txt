@@ -21,12 +21,16 @@ file(GLOB TEST_SOURCES
 
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
+target_include_directories(${TARGET_NAME} PRIVATE
+        "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
+        )
+
 target_compile_options(${TARGET_NAME}
         PRIVATE
             -Wall
             -Werror)
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmbPlugin_test_static)
+target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmb_utils kmbPlugin_test_static)
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 

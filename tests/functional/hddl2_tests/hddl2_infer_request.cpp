@@ -14,51 +14,38 @@
 // stated in the License.
 //
 
-#include <Inference.h>
+#include <executable_network.h>
 #include <hddl2_helpers/helper_remote_blob.h>
 #include <hddl2_helpers/helper_remote_memory.h>
 #include <hddl2_helpers/helper_workload_context.h>
 #include <helper_remote_context.h>
-#include <parametric_executable_network.h>
 
 #include <ie_core.hpp>
 
+#include "creators/creator_blob_nv12.h"
+
 namespace IE = InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_InferRequest_Tests : public Executable_Network_Parametric {
+class InferRequest_Tests : public ExecutableNetwork_Tests {
 public:
     InferenceEngine::InferRequest inferRequest;
 };
 
-//------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Initiation - create
-//------------------------------------------------------------------------------
-TEST_P(HDDL2_InferRequest_Tests, CanCreateInferRequest) {
+TEST_F(InferRequest_Tests, CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Initiation - Infer
-//------------------------------------------------------------------------------
 // [Track number: S#28336]
-TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanCallInference) {
-    // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
-    if (GetParam() == LoadNetwork) {
-        SKIP() << "Allocated output blob does not have the same size as data from unite";
-    }
-
+TEST_F(InferRequest_Tests, DISABLED_CanCallInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Initiation - SetBlob
-//------------------------------------------------------------------------------
-TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob) {
+// TODO [Add tests] Set NV12Blob preprocessing information inside cnnNetwork
+using InferRequest_SetBlob = InferRequest_Tests;
+TEST_F(InferRequest_SetBlob, CanSetInputBlob) {
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
     IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
@@ -71,7 +58,7 @@ TEST_P(HDDL2_InferRequest_Tests, CanSetInputBlob) {
 }
 
 // [Track number: S#28336]
-TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanSetInputBlob_WithRemoteBlob) {
+TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -92,16 +79,25 @@ TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanSetInputBlob_WithRemoteBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, remoteBlobPtr));
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Initiation - GetBlob
-//------------------------------------------------------------------------------
-// [Track number: S#28336]
-TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanGetOutputBlobAfterInference) {
-    // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
-    if (GetParam() == LoadNetwork) {
-        SKIP() << "Allocated output blob does not have the same size as data from unite";
-    }
+TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
+    inferRequest = executableNetwork.CreateInferRequest();
+    ASSERT_EQ(executableNetwork.GetInputsInfo().size(), 1);
 
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+    auto nv12Blob = NV12Blob_Creator::createBlob(inputInfoPtr->getTensorDesc());
+    auto preProcess = IE::PreProcessInfo();
+    preProcess.setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
+    preProcess.setColorFormat(IE::ColorFormat::NV12);
+
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputName, nv12Blob, preProcess));
+}
+
+//------------------------------------------------------------------------------
+using InferRequest_GetBlob = InferRequest_Tests;
+// [Track number: S#28336]
+TEST_F(InferRequest_GetBlob, DISABLED_CanGetOutputBlobAfterInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     inferRequest.Infer();
@@ -112,7 +108,7 @@ TEST_P(HDDL2_InferRequest_Tests, DISABLED_CanGetOutputBlobAfterInference) {
 }
 
 // [Track number: S#28336]
-TEST_P(HDDL2_InferRequest_Tests, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
+TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -148,9 +144,3 @@ TEST_P(HDDL2_InferRequest_Tests, DISABLED_GetBlobWillContainsSameDataAsSetBlob_W
 
     ASSERT_EQ(inputData, resultData);
 }
-
-//------------------------------------------------------------------------------
-//      class HDDL2_InferRequest_Tests Test case Initiations
-//------------------------------------------------------------------------------
-INSTANTIATE_TEST_CASE_P(ExecNetworkFrom, HDDL2_InferRequest_Tests, ::testing::ValuesIn(memoryOwners),
-    Executable_Network_Parametric::PrintToStringParamName());

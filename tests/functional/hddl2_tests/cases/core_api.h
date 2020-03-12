@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,11 +16,17 @@
 
 #pragma once
 
-#include "ie_core.hpp"
+#include <Inference.h>
+#include <gtest/gtest.h>
+#include <ie_core.hpp>
+#include <test_model_path.hpp>
 
-class IE_Core_Helper {
+#include "helper_ie_core.h"
+
+class CoreAPI_Tests : public ::testing::Test,
+                      public IE_Core_Helper {
 public:
-    InferenceEngine::Core ie;
-
-    const std::string pluginName = "HDDL2";
+    InferenceEngine::CNNNetwork network;
+    InferenceEngine::ExecutableNetwork executableNetwork;
+    InferenceEngine::InferRequest inferRequest;
 };

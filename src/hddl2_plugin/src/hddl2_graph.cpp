@@ -80,7 +80,7 @@ ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& c
 
     std::ifstream blobFile(blobFilename, std::ios::binary);
     if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] *Could not open file: " << blobFilename;
+        THROW_IE_EXCEPTION << "[ERROR] Could not open file: " << blobFilename;
     }
 
     loadFileToString(blobFilename, _blobContentString);

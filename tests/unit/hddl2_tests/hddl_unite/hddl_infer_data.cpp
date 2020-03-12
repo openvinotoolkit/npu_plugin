@@ -15,32 +15,76 @@
 //
 
 #include <gtest/gtest.h>
+#include <hddl2_helpers/helper_tensor_description.h>
 
 #include "hddl_unite/hddl2_infer_data.h"
 
 using namespace vpu::HDDL2Plugin;
-//------------------------------------------------------------------------------
-//      class InferData_UnitTests Declaration
-//------------------------------------------------------------------------------
-class InferData_UnitTests : public ::testing::Test {};
+class InferData_UnitTests : public ::testing::Test {
+public:
+    const bool enablePreProcessing = false;
 
-TEST_F(InferData_UnitTests, constructor_default_NoThrow) { ASSERT_NO_THROW(HddlUniteInferData inferData); }
+    InferenceEngine::InputInfo::Ptr inputInfo;
+    InferenceEngine::DataPtr outputInfo;
 
-TEST_F(InferData_UnitTests, constructor_withNullContext_NoThrow) {
+    InferenceEngine::Blob::Ptr blob;
+
+protected:
+    void SetUp() override;
+    TensorDescription_Helper tensorDescriptionHelper;
+};
+
+void InferData_UnitTests::SetUp() {
+    inputInfo = std::make_shared<InferenceEngine::InputInfo>();
+    InferenceEngine::DataPtr inputData =
+        std::make_shared<InferenceEngine::Data>("input", tensorDescriptionHelper.tensorDesc);
+    inputInfo->setInputData(inputData);
+
+    outputInfo = std::make_shared<InferenceEngine::Data>("output", tensorDescriptionHelper.tensorDesc);
+    blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDescriptionHelper.tensorDesc);
+}
+
+//------------------------------------------------------------------------------
+using InferData_constructor = InferData_UnitTests;
+TEST_F(InferData_constructor, default_NoThrow) { ASSERT_NO_THROW(HddlUniteInferData inferData); }
+
+TEST_F(InferData_constructor, withNullContext_NoThrow) {
     auto context = nullptr;
-    ASSERT_NO_THROW(HddlUniteInferData inferData(context));
+    ASSERT_NO_THROW(HddlUniteInferData inferData(enablePreProcessing, context));
 }
 
-TEST_F(InferData_UnitTests, prepareInput_nullBlob_Throw) {
+//------------------------------------------------------------------------------
+using InferData_prepareInput = InferData_UnitTests;
+TEST_F(InferData_prepareInput, monkey_nullBlob_Throw) {
     HddlUniteInferData inferData;
-    const std::string inputName = "input";
 
-    ASSERT_ANY_THROW(inferData.prepareInput(inputName, nullptr));
+    ASSERT_ANY_THROW(inferData.prepareInput(nullptr, inputInfo));
 }
 
-TEST_F(InferData_UnitTests, prepareOutput_nullBlob_Throw) {
+TEST_F(InferData_prepareInput, monkey_nullInfo_Throw) {
     HddlUniteInferData inferData;
-    const std::string outputName = "input";
 
-    ASSERT_ANY_THROW(inferData.prepareOutput(outputName, nullptr));
+    ASSERT_ANY_THROW(inferData.prepareInput(blob, nullptr));
+}
+
+TEST_F(InferData_prepareInput, monkey_nullDesc_Throw) {
+    HddlUniteInferData inferData;
+    inputInfo->setInputData(nullptr);
+
+    ASSERT_ANY_THROW(inferData.prepareInput(blob, inputInfo));
+}
+
+//------------------------------------------------------------------------------
+using InferData_prepareOutput = InferData_UnitTests;
+TEST_F(InferData_prepareOutput, monkey_nullBlob_Throw) {
+    HddlUniteInferData inferData;
+
+    ASSERT_ANY_THROW(inferData.prepareOutput(nullptr, outputInfo));
+}
+
+TEST_F(InferData_prepareOutput, monkey_nullDesc_Throw) {
+    HddlUniteInferData inferData;
+    InferenceEngine::Blob::Ptr blob;
+
+    ASSERT_ANY_THROW(inferData.prepareOutput(blob, nullptr));
 }

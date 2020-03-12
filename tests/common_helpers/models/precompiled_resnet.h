@@ -22,6 +22,7 @@
 
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
+    std::string nv12Input, nv12Output;
 };
 
 struct modelTensors {
@@ -31,12 +32,16 @@ struct modelTensors {
 namespace PrecompiledResNet_Helper {
     // Old version, u8 output
     // TODO Remote after adding fp16 output support to HDDL2 Plugin
+    const std::string resnet_50_dpu_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/";
+
     static const modelBlobInfo resnet50_dpu =
             {
                     .graphName = "resnet-50-dpu",
-                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
-                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
-                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output.bin"
+                    .graphPath = resnet_50_dpu_folder + "resnet-50-dpu.blob",
+                    .inputPath = resnet_50_dpu_folder + "input.bin",
+                    .outputPath = resnet_50_dpu_folder + "output.bin",
+                    .nv12Input = resnet_50_dpu_folder + "input-228x228-nv12.bin",
+                    .nv12Output = resnet_50_dpu_folder + "output-228x228-nv12.bin"
             };
 
     static const modelTensors resnet50_dpu_tensors =
@@ -51,13 +56,17 @@ namespace PrecompiledResNet_Helper {
                     )
             };
 
+    const std::string resnet_50_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+
     // Actual version, fp16 output
     static const modelBlobInfo resnet50 =
             {
                     .graphName = "resnet-50-dpu",
-                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
-                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin",
-                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin",
+                    .graphPath = resnet_50_folder + "resnet-50.blob",
+                    .inputPath = resnet_50_folder + "input.bin",
+                    .outputPath = resnet_50_folder + "output.bin",
+                    .nv12Input = resnet_50_folder + "input-228x228-nv12.bin",
+                    .nv12Output = resnet_50_folder + "output-228x228-nv12.bin",
             };
 
     static const modelTensors resnet50_tensors =

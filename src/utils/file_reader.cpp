@@ -72,7 +72,7 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
 }
 
 void readNV12FileHelper(const std::string &filePath,
-                        size_t expectedSize,
+                        size_t sizeToRead,
                         uint8_t *imageData,
                         size_t readOffset) {
     std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
@@ -81,11 +81,11 @@ void readNV12FileHelper(const std::string &filePath,
     }
 
     const size_t fileSize = fileReader.tellg();
-    if (fileSize - readOffset < expectedSize) {
+    if (fileSize - readOffset < sizeToRead) {
         throw std::runtime_error("readNV12FileHelper: size of " + filePath + " is less than expected");
     }
     fileReader.seekg(readOffset, std::ios_base::beg);
-    fileReader.read(reinterpret_cast<char *>(imageData), expectedSize);
+    fileReader.read(reinterpret_cast<char *>(imageData), sizeToRead);
     fileReader.close();
 }
 

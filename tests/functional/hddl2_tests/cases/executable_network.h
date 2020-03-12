@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,11 +16,16 @@
 
 #pragma once
 
-#include "ie_core.hpp"
+#include "load_network.h"
 
-class IE_Core_Helper {
+class ExecutableNetwork_Tests : public LoadNetwork_Tests {
 public:
-    InferenceEngine::Core ie;
+    void SetUp() override;
+    InferenceEngine::ExecutableNetwork executableNetwork;
 
-    const std::string pluginName = "HDDL2";
 };
+
+inline void ExecutableNetwork_Tests::SetUp() {
+    LoadNetwork_Tests::SetUp();
+    executableNetwork = ie.LoadNetwork(network, pluginName);
+}
