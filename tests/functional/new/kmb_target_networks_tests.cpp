@@ -161,9 +161,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_MobileNet_V2) {  // 30.8% s
 }
 
 // KMB : Bad inference results. 
-// [Track number: D#2246]
+// [Track number: D#2246 D#2691]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% sparsity
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_INFER_ON("KMB", "bad results, mixed up top2 classes");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml")
