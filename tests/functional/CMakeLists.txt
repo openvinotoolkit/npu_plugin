@@ -40,6 +40,7 @@ target_compile_definitions(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common_helpers
         ${CMAKE_CURRENT_SOURCE_DIR}/new
         ${CMAKE_CURRENT_SOURCE_DIR}/base
         ${CMAKE_CURRENT_SOURCE_DIR}/common

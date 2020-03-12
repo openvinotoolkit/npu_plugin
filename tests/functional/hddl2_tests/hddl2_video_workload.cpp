@@ -93,7 +93,8 @@ VideoPipeline::~VideoPipeline() { HddlUnite::unregisterWorkloadContext(_workload
  * 3. Create remote blob from dma fd
  * 4. Check that input for inference the same as video pipeline provided
  */
-TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
+// [Track number: S#28336]
+TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_CanGetInputFromCreatedVideoPipeline) {
     const std::string data_str = "Hello HDDL2 Plugin";
     const size_t data_str_size = data_str.length() + 1;  // Null terminated symbol
 
@@ -140,7 +141,7 @@ TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
  * // TODO This part can note be checked correctly without device
  * 6. Check output after inference
  */
-
+// [Track number: S#28336]
 TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_SyncInferenceOnOneFrame) {
     WorkloadID workloadContextID;
     uint64_t remoteMemoryFd;

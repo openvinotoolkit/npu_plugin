@@ -41,6 +41,8 @@ public:
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
+    void GetResult();
+
 protected:
     HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;

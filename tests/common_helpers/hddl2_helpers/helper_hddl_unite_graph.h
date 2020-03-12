@@ -20,26 +20,23 @@
 #include "models/precompiled_resnet.h"
 
 //------------------------------------------------------------------------------
-//      class HddlUnite_Graph_Helper
-//------------------------------------------------------------------------------
 class HddlUnite_Graph_Helper {
 public:
     using Ptr = std::shared_ptr<HddlUnite_Graph_Helper>;
 
     HddlUnite_Graph_Helper();
-    HddlUnite_Graph_Helper(const HddlUnite::WorkloadContext& workloadContext);
+    ~HddlUnite_Graph_Helper();
+    explicit HddlUnite_Graph_Helper(const HddlUnite::WorkloadContext& workloadContext);
 
     HddlUnite::Inference::Graph::Ptr getGraph();
 
 protected:
     HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
 
-    const std::string _graphName = PrecompiledResNet_Helper::resnet.graphName;
-    const std::string _graphPath = PrecompiledResNet_Helper::resnet.graphPath;
+    const std::string _graphName = PrecompiledResNet_Helper::resnet50_dpu.graphName;
+    const std::string _graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
 };
 
-//------------------------------------------------------------------------------
-//      class HddlUnite_Graph_Helper Implementation
 //------------------------------------------------------------------------------
 inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper() {
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(
@@ -48,6 +45,11 @@ inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper() {
         THROW_IE_EXCEPTION << "Failed to load graph";
     }
 }
+
+inline HddlUnite_Graph_Helper::~HddlUnite_Graph_Helper() {
+    HddlUnite::Inference::unloadGraph(_graphPtr);
+}
+
 
 inline HddlUnite_Graph_Helper::HddlUnite_Graph_Helper(const HddlUnite::WorkloadContext& workloadContext) {
     HddlStatusCode statusCode = HddlUnite::Inference::loadGraph(

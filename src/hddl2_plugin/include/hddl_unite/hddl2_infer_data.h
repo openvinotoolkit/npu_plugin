@@ -43,9 +43,10 @@ public:
 
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
 
+    std::string getOutputData(const std::string& outputName);
+
 private:
     void createRemoteDesc(const bool isInput, const std::string& name, const InferenceEngine::Blob::Ptr& blob);
-
     void createLocalDesc(const bool isInput, const std::string& name, const InferenceEngine::Blob::Ptr& blob);
 
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;

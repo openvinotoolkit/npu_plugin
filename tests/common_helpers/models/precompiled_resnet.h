@@ -20,20 +20,25 @@
 #include <ie_api.h>
 #include "test_model_path.hpp"
 
-//------------------------------------------------------------------------------
-//      PrecompiledResNet_Helper parameters
-//------------------------------------------------------------------------------
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
 };
 
-//------------------------------------------------------------------------------
-//      PrecompiledResNet_Helper Declaration
-//------------------------------------------------------------------------------
 namespace PrecompiledResNet_Helper {
-    static const modelBlobInfo resnet =
+    // Old version, u8 output
+    // TODO Remote after adding fp16 output support to HDDL2 Plugin
+    static const modelBlobInfo resnet50_dpu =
             {
-                    .graphName = "resnet",
+                    .graphName = "resnet-50-dpu",
+                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/resnet-50-dpu.blob",
+                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/input.bin",
+                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/output.bin",
+            };
+
+    // Actual version, fp16 output
+    static const modelBlobInfo resnet50 =
+            {
+                    .graphName = "resnet-50-dpu",
                     .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
                     .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin",
                     .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin",

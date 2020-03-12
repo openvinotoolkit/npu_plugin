@@ -44,7 +44,7 @@ public:
 
 protected:
     // ImportNetwork
-    modelBlobInfo _modelBlobInfo = PrecompiledResNet_Helper::resnet;
+    modelBlobInfo _modelBlobInfo = PrecompiledResNet_Helper::resnet50_dpu;
 
     // LoadNetwork
     InferenceEngine::CNNNetwork _cnnNetwork;
