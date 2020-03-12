@@ -47,6 +47,36 @@ static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensor
     return blob;
 }
 
+static void checkInputsSpecified(
+    const InferenceEngine::InputsDataMap& inputData, const InferenceEngine::BlobMap& inputBlobs) {
+    for (const auto& networkInput : inputData) {
+        const std::string& inputName = networkInput.first;
+
+        const auto& foundInputBlob = inputBlobs.find(inputName);
+        if (foundInputBlob == inputBlobs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+        if (foundInputBlob->second == nullptr) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is null.";
+        }
+    }
+}
+
+static void checkOutputsSpecified(
+    const InferenceEngine::OutputsDataMap& outputData, const InferenceEngine::BlobMap& outputBlobs) {
+    for (const auto& networkOutput : outputData) {
+        const std::string& outputName = networkOutput.first;
+
+        const auto& foundOutputBlob = outputBlobs.find(outputName);
+        if (foundOutputBlob == outputBlobs.end()) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+        }
+        if (foundOutputBlob->second == nullptr) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is null.";
+        }
+    }
+}
+
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
     const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context)
     : InferRequestInternal(networkInputs, networkOutputs), _loadedGraphPtr(loadedGraph), _context(context) {
@@ -66,33 +96,45 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
 }
 
 void HDDL2InferRequest::InferImpl() {
+    checkInputsSpecified(_networkInputs, _inputs);
+    checkOutputsSpecified(_networkOutputs, _outputs);
+
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
-    const bool needPreProcessing = isPreProcessingSpecified();
+    bool needPreProcessing = false;
+
+    for (const auto& networkInput : _networkInputs) {
+        const std::string inputName = networkInput.first;
+        const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+        if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
+            needPreProcessing = true;
+        }
+    }
+
     _inferDataPtr = std::make_shared<HddlUniteInferData>(needPreProcessing, _context);
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
+        const IE::InputInfo::Ptr inputDesc = networkInput.second;
 
-        auto foundInputBlob = _inputs.find(inputName);
-        if (foundInputBlob == _inputs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        // TODO [Design flaw] At this point we have input blob or preprocessing blob specified inside _preProcData
+        if (_preProcData.find(inputName) != _preProcData.end()) {
+            const IE::PreProcessDataPtr preprocessData = _preProcData.find(inputName)->second;
+            const IE::Blob::Ptr blobForPreprocessing = preprocessData->getRoiBlob();
+
+            _inferDataPtr->prepareInput(blobForPreprocessing, inputDesc);
+        } else {
+            const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+            _inferDataPtr->prepareInput(inputBlobPtr, inputDesc);
         }
-        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-
-        _inferDataPtr->prepareInput(inputBlobPtr, networkInput.second);
     }
 
     for (const auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
-
-        auto foundOutputBlob = _outputs.find(outputName);
-        if (foundOutputBlob == _outputs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
-        }
-        const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
+        const IE::Blob::Ptr outputBlobPtr = _outputs.find(outputName)->second;
 
         _inferDataPtr->prepareOutput(outputBlobPtr, networkOutput.second);
     }
+
     _loadedGraphPtr->InferSync(_inferDataPtr);
     GetResult();
 }

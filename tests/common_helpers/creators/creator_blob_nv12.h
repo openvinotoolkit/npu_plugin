@@ -17,11 +17,14 @@
 #pragma once
 
 #include "ie_compound_blob.h"
+#include "file_reader.h"
 
 namespace NV12Blob_Creator {
     InferenceEngine::NV12Blob::Ptr createBlob(const std::size_t &width, const std::size_t &height);
     InferenceEngine::NV12Blob::Ptr createBlob(const InferenceEngine::TensorDesc& tensorDesc);
     InferenceEngine::NV12Blob::Ptr createFromMemory(const std::size_t &width, const std::size_t &height, uint8_t *data);
+    InferenceEngine::NV12Blob::Ptr createFromFile(const std::string &filePath, const std::size_t &width, const std::size_t &height);
+
     void descriptorsFromFrameSize(const size_t &width, const size_t &height,
                                   InferenceEngine::TensorDesc &uvDesc, InferenceEngine::TensorDesc &yDesc);
 
@@ -32,7 +35,10 @@ namespace NV12Blob_Creator {
         NV12Blob_Creator::descriptorsFromFrameSize(width, height, uvDesc, yDesc);
 
         auto yPlane = InferenceEngine::make_shared_blob<uint8_t>(yDesc);
+        yPlane->allocate();
+
         auto uvPlane = InferenceEngine::make_shared_blob<uint8_t>(uvDesc);
+        uvPlane->allocate();
 
         return InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(yPlane, uvPlane);
     }
@@ -73,5 +79,26 @@ namespace NV12Blob_Creator {
         }
 
         return createBlob(dims[W_index], dims[H_index]);
+    }
+
+    inline InferenceEngine::NV12Blob::Ptr createFromFile(const std::string &filePath, const std::size_t &width, const std::size_t &height) {
+        InferenceEngine::NV12Blob::Ptr nv12Blob = createBlob(width, height);
+        auto yBlob = nv12Blob->y()->as<InferenceEngine::MemoryBlob>();
+        {
+            auto yLockMem = yBlob->rmap();
+            auto yMem = yLockMem.as<uint8_t  *>();
+            // TODO [S-28377] call to utils lib
+            vpu::KmbPlugin::utils::readNV12FileHelper(filePath, yBlob->size(), yMem, 0);
+        }
+
+        auto uvBlob = nv12Blob->uv()->as<InferenceEngine::MemoryBlob>();
+        {
+            auto uvLockMem = uvBlob->rmap();
+            auto uvMem = uvLockMem.as<uint8_t  *>();
+            // TODO [S-28377] call to utils lib
+            vpu::KmbPlugin::utils::readNV12FileHelper(filePath, uvBlob->size(), uvMem, yBlob->size());
+        }
+
+        return nv12Blob;
     }
 }

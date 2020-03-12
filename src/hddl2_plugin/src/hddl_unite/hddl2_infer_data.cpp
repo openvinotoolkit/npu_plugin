@@ -18,8 +18,9 @@
 #include <hddl_unite/hddl2_infer_data.h>
 #include <ie_compound_blob.h>
 
-#include <string>
+#include <ie_preprocess_data.hpp>
 #include <memory>
+#include <string>
 
 #include "hddl2_remote_blob.h"
 
@@ -62,19 +63,20 @@ void HddlUniteInferData::prepareInput(const IE::Blob::Ptr& blob, const IE::Input
 
     const bool isInput = true;
     const std::string name = info->getInputData()->getName();
-    const auto desc = info->getInputData();
+    IE::DataPtr desc = info->getInputData();
 
     BlobDescriptor::Ptr blobDescriptorPtr;
     if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
-        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(isInput, desc, blob);
+        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
     } else {
-        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(isInput, desc, blob);
+        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
-    _inferDataPtr->createBlob(name, blobDescriptorPtr->create(), isInput);
+    auto blobDesc = blobDescriptorPtr->create();
+    _inferDataPtr->createBlob(name, blobDesc, isInput);
 
-    blobDescriptorPtr->setPreProcessing(info->getPreProcess());
-    _inferDataPtr->getInputBlob(name)->updateBlob(blobDescriptorPtr->init());
+    auto updatedBlobDesc = blobDescriptorPtr->init();
 
+    _inferDataPtr->getInputBlob(name)->updateBlob(updatedBlobDesc);
     _inputs[name] = blobDescriptorPtr;
 }
 
@@ -86,9 +88,9 @@ void HddlUniteInferData::prepareOutput(const IE::Blob::Ptr& blob, const IE::Data
 
     BlobDescriptor::Ptr blobDescriptorPtr;
     if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
-        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(isInput, desc, blob);
+        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
     } else {
-        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(isInput, desc, blob);
+        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
 
     _inferDataPtr->createBlob(name, blobDescriptorPtr->create(), isInput);

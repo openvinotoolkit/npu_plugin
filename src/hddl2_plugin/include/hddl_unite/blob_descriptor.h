@@ -16,8 +16,10 @@
 
 #pragma once
 #include <memory>
+
 #include "Inference.h"
 #include "ie_blob.h"
+#include "ie_data.h"
 #include "ie_preprocess.hpp"
 
 namespace vpu {
@@ -30,28 +32,22 @@ class BlobDescriptor {
 public:
     using Ptr = std::shared_ptr<BlobDescriptor>;
 
-    explicit BlobDescriptor(
-        const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
     virtual ~BlobDescriptor() = default;
 
-    virtual void setPreProcessing(const InferenceEngine::PreProcessInfo& preProcess);
     virtual HddlUnite::Inference::BlobDesc create();
     virtual HddlUnite::Inference::BlobDesc init() = 0;
 
 protected:
-    bool _isInput;
     bool _isRemoteMemory;
     bool _isNeedAllocation;
 
     InferenceEngine::Blob::Ptr _blobPtr = nullptr;
     std::shared_ptr<InferenceEngine::PreProcessInfo> _preProcessPtr = nullptr;
 
-    // FIXME Do we really need this?
     InferenceEngine::DataPtr _desc = nullptr;
 
-    HddlUnite::Inference::BlobDesc _blobDesc;
-
-    virtual void setBlobFormat();
+    virtual void setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDesc);
     // TODO [Workaround] Find suitable approach for IE::NV12 & HddlUnite::NV12 handling
     /**
      * @brief Workaround to provide to HddlUnite one sequence of raw data
@@ -64,8 +60,7 @@ protected:
 //------------------------------------------------------------------------------
 class LocalBlobDescriptor : public BlobDescriptor {
 public:
-    explicit LocalBlobDescriptor(
-        const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
 
     HddlUnite::Inference::BlobDesc init() override;
 };
@@ -73,8 +68,7 @@ public:
 //------------------------------------------------------------------------------
 class RemoteBlobDescriptor : public BlobDescriptor {
 public:
-    explicit RemoteBlobDescriptor(
-        const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
 
     HddlUnite::Inference::BlobDesc init() override;
 };

@@ -16,6 +16,10 @@
 
 #pragma once
 
+#include <ie_blob.h>
+
+#include <ie_input_info.hpp>
+#include <ie_preprocess_data.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -24,8 +28,6 @@
 #include "InferGraph.h"
 #include "blob_descriptor.h"
 #include "hddl2_remote_context.h"
-#include "ie_blob.h"
-#include "ie_input_info.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {

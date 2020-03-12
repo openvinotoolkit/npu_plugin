@@ -18,6 +18,7 @@
 #include <ie_core.hpp>
 
 #include "comparators.h"
+#include "creators/creator_blob_nv12.h"
 #include "file_reader.h"
 #include "gtest/gtest.h"
 #include "ie_blob.h"
@@ -65,8 +66,10 @@ void ImageWorkload_Tests::printRawBlob(
     std::cout << std::endl;
 }
 
+//------------------------------------------------------------------------------
+using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
 // [Track number: S#28336]
-TEST_F(ImageWorkload_Tests, DISABLED_SyncInference) {
+TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -97,6 +100,67 @@ TEST_F(ImageWorkload_Tests, DISABLED_SyncInference) {
     // --- Look at raw input/output/reference
     const size_t byteToPrint = 8;
     EXPECT_NO_THROW(printRawBlob(inputBlob, byteToPrint, "inputBlob"));
+    EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
+    EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
+
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
+    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, numberOfTopClassesToCompare));
+}
+
+//------------------------------------------------------------------------------
+class ImageWorkload_WithPreprocessing : public ImageWorkload_Tests {
+protected:
+    void SetUp() override;
+};
+
+void ImageWorkload_WithPreprocessing::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
+}
+
+// [Track number: S#28336]
+TEST_F(ImageWorkload_WithPreprocessing, DISABLED_SyncInference) {
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    // ---- Import or load network
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Load NV12 Image and create blob from it
+    auto inputName = executableNetwork.GetInputsInfo().begin()->first;
+
+    const size_t image_width = 228;
+    const size_t image_height = 228;
+    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(refInputPath, image_width, image_height);
+
+    // Since it 228x228 image on 224x224 network, resize preprocessing also required
+    IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+    preprocInfo.setResizeAlgorithm(IE::RESIZE_BILINEAR);
+    preprocInfo.setColorFormat(IE::ColorFormat::NV12);
+
+    // ---- Set NV12 blob with preprocessing information
+    inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    refBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+
+    // --- Look at raw output/reference
+    const size_t byteToPrint = 8;
     EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
     EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
 

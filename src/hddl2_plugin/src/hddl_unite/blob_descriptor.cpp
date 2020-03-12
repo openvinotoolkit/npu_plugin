@@ -18,6 +18,7 @@
 
 #include <hddl2_remote_blob.h>
 #include <ie_compound_blob.h>
+
 #include <memory>
 
 #include "converters.h"
@@ -37,14 +38,14 @@ static void checkBlobIsValid(const InferenceEngine::Blob::Ptr& blob) {
 }
 
 static void checkBlobCompatibility(const InferenceEngine::Blob::Ptr& blob) {
-    if (blob->is<IE::CompoundBlob>()) {
-        THROW_IE_EXCEPTION << "CompoundBlob is not supported";
-    }
-    if (blob->is<IE::NV12Blob>()) {
-        THROW_IE_EXCEPTION << "NV12Blob is not supported";
-    }
     if (blob->is<HDDL2RemoteBlob>() || blob->is<IE::MemoryBlob>()) {
         return;
+    }
+    if (blob->is<IE::NV12Blob>()) {
+        return;
+    }
+    if (blob->is<IE::CompoundBlob>()) {
+        THROW_IE_EXCEPTION << "CompoundBlob is not supported";
     }
     THROW_IE_EXCEPTION << "Blob type is unexpected";
 }
@@ -67,13 +68,9 @@ static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::Ptr& blob) {
 }
 
 //------------------------------------------------------------------------------
-BlobDescriptor::BlobDescriptor(
-    const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob) {
-    _isInput = isInput;
-
+BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob) {
     checkBlobIsValid(blob);
     checkBlobCompatibility(blob);
-
     _blobPtr = blob;
 
     checkDataIsValid(desc);
@@ -81,112 +78,164 @@ BlobDescriptor::BlobDescriptor(
 }
 
 HddlUnite::Inference::BlobDesc BlobDescriptor::create() {
-    // TODO Why I can't get it from desc???
-    const IE::TensorDesc tensorDesc = _blobPtr->getTensorDesc();
-    HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(tensorDesc.getPrecision());
+    HddlUnite::Inference::BlobDesc blobDesc;
+    HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
 
-    const size_t blobSize = _blobPtr->byteSize();
-    _blobDesc = HddlUnite::Inference::BlobDesc(precision, _isRemoteMemory, _isNeedAllocation, blobSize);
-
-    return _blobDesc;
-}
-
-void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& blobPtr) {
-    if (!blobPtr->is<InferenceEngine::NV12Blob>()) {
-        THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
+    size_t blobSize = _blobPtr->byteSize();
+    if (_desc->getTensorDesc() != _blobPtr->getTensorDesc()) {
+        printf("Tensors of NN input and blob desc does not match. Preprocessing required.");
     }
-    auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
-    auto repackedBlob = InferenceEngine::make_shared_blob<uint8_t>(blobPtr->getTensorDesc());
-
-    // FIXME throw exceptions instead of assert
-    {
-        auto yPlane = nv12Ptr->y();
-        IE::Blob::Ptr blob;
-        auto mblob = IE::as<IE::MemoryBlob>(blob);
-        IE_ASSERT(!yPlane->is<IE::RemoteBlob>());
-        auto yPlaneMemory = yPlane->buffer().as<uint8_t*>();
-
-        auto uvPlane = nv12Ptr->uv();
-        IE_ASSERT(!uvPlane->is<IE::RemoteBlob>());
-        auto uvPlaneMemory = uvPlane->buffer().as<uint8_t*>();
-
-        IE_ASSERT(repackedBlob->size() == (yPlane->size() + uvPlane->size()));
-        auto memory = repackedBlob->buffer().as<uint8_t*>();
-        memcpy(memory, yPlaneMemory, yPlane->size());
-        memcpy(memory + yPlane->size(), uvPlaneMemory, uvPlane->size());
-    }
-    _repackedBlob = repackedBlob;
-}
-
-void BlobDescriptor::setBlobFormat() {
-    _blobDesc.m_format = HddlUnite::Inference::FourCC::BGR;
-    if (_blobPtr->is<IE::NV12Blob>()) {
-        _blobDesc.m_format = HddlUnite::Inference::FourCC::NV12;
-    }
-
-    const IE::TensorDesc tensorDesc = _blobPtr->getTensorDesc();
-
-    if (tensorDesc.getLayout() != IE::NCHW) {
-        THROW_IE_EXCEPTION << "Failed to create blob description for " << tensorDesc.getLayout() << " layout.";
-    }
-    const uint H_index = 2;
-    const uint W_index = 3;
-
-    // FIXME Not sure about that
-    _blobDesc.m_res_height = _blobDesc.m_plane_stride = tensorDesc.getDims()[H_index];
-    _blobDesc.m_res_width = _blobDesc.m_width_stride = tensorDesc.getDims()[W_index];
-}
-
-void BlobDescriptor::setPreProcessing(const InferenceEngine::PreProcessInfo& preProcess) {
-    _preProcessPtr = std::make_shared<InferenceEngine::PreProcessInfo>(preProcess);
-}
-
-//------------------------------------------------------------------------------
-LocalBlobDescriptor::LocalBlobDescriptor(
-    const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob = nullptr)
-    : BlobDescriptor(isInput, desc, blob) {
-    _isRemoteMemory = false;
-    // TODO For output memory buffer is not provided (for now)
-    _isNeedAllocation = !_isInput;
-}
-
-HddlUnite::Inference::BlobDesc LocalBlobDescriptor::init() {
-    _blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
 
     // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
     if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
         createRepackedNV12Blob(_blobPtr);
-        _blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
+        checkBlobIsValid(_repackedBlob);
+        blobSize = _repackedBlob->byteSize();
     }
 
-    setBlobFormat();
+    _isNeedAllocation = !_blobPtr->is<HDDL2RemoteBlob>();
+    blobDesc = HddlUnite::Inference::BlobDesc(precision, _isRemoteMemory, _isNeedAllocation, blobSize);
 
-    return _blobDesc;
+    return blobDesc;
+}
+
+void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& blobPtr) {
+    if (!blobPtr->is<InferenceEngine::NV12Blob>()) THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
+
+    auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
+    if (nv12Ptr == nullptr) THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+
+    auto nv12Tensor = nv12Ptr->getTensorDesc();
+    if (nv12Tensor.getPrecision() != IE::Precision::U8) THROW_IE_EXCEPTION << "Unsupported NV12 Blob precision.";
+
+    IE::Blob::Ptr yPlane = nv12Ptr->y();
+    IE::Blob::Ptr uvPlane = nv12Ptr->uv();
+    checkBlobIsValid(yPlane);
+    checkBlobIsValid(uvPlane);
+
+    const size_t repackedBlobSize = yPlane->size() + uvPlane->size();
+    IE::TensorDesc repackedTensor = IE::TensorDesc(IE::Precision::U8, {1, repackedBlobSize}, IE::Layout::NC);
+
+    IE::Blob::Ptr repackedBlob = IE::make_shared_blob<uint8_t>(repackedTensor);
+    repackedBlob->allocate();
+
+    {
+        IE::MemoryBlob::Ptr yPlaneMBlob = IE::as<IE::MemoryBlob>(yPlane);
+        if (yPlaneMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast yPlane blob to memory blob";
+
+        auto yPlaneLockedMemory = yPlaneMBlob->rmap();
+        auto yPlaneMemory = yPlaneLockedMemory.as<uint8_t*>();
+        if (yPlaneMemory == nullptr) THROW_IE_EXCEPTION << "Null yPlane memory";
+
+        IE::MemoryBlob::Ptr uvPlaneMBlob = IE::as<IE::MemoryBlob>(uvPlane);
+        if (uvPlaneMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast uvPlane blob to memory blob";
+
+        auto uvPlaneLockedMemory = uvPlaneMBlob->rmap();
+        auto uvPlaneMemory = uvPlaneLockedMemory.as<uint8_t*>();
+        if (uvPlaneMemory == nullptr) THROW_IE_EXCEPTION << "Null uvPlane memory";
+
+        IE::MemoryBlob::Ptr repackedMBlob = IE::as<IE::MemoryBlob>(repackedBlob);
+        if (repackedMBlob == nullptr) THROW_IE_EXCEPTION << "Failed to cast blob to memory blob";
+
+        auto repackedBlobLockedMemory = repackedMBlob->wmap();
+        auto repackedBlobMemory = repackedBlobLockedMemory.as<uint8_t*>();
+        if (repackedBlobMemory == nullptr) THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
+
+        memcpy(repackedBlobMemory, yPlaneMemory, yPlane->size());
+        memcpy(repackedBlobMemory + yPlane->size(), uvPlaneMemory, uvPlane->size());
+    }
+    _repackedBlob = repackedBlob;
+}
+
+void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDesc) {
+    blobDesc.m_format = HddlUnite::Inference::FourCC::BGR;
+    if (_blobPtr->is<IE::NV12Blob>()) {
+        blobDesc.m_format = HddlUnite::Inference::FourCC::NV12;
+    }
+
+    const IE::Layout layout = _desc->getLayout();
+
+    // NN input dims
+    IE::SizeVector dims = _desc->getDims();
+
+    // If it's NV12 blob, we should use PP input dims instead
+    if (_blobPtr->is<IE::NV12Blob>()) {
+        auto nv12Ptr = _blobPtr->as<IE::NV12Blob>();
+        if (nv12Ptr == nullptr) {
+            THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
+        }
+        auto yPlaneBlob = nv12Ptr->y();
+        checkBlobIsValid(yPlaneBlob);
+        dims = yPlaneBlob->getTensorDesc().getDims();
+    }
+
+    uint H_index;
+    uint W_index;
+    if (layout == IE::NCHW) {
+        H_index = 2;
+        W_index = 3;
+    } else if (layout == IE::NHWC) {
+        H_index = 1;
+        W_index = 2;
+    } else {
+        THROW_IE_EXCEPTION << "Failed to create blob description for " << layout << " layout.";
+    }
+
+    blobDesc.m_res_height = dims[H_index];
+    blobDesc.m_res_width = blobDesc.m_width_stride = dims[W_index];
+    blobDesc.m_plane_stride = blobDesc.m_width_stride * blobDesc.m_res_height;
+
+    if (_blobPtr->is<IE::NV12Blob>()) {
+        HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
+        blobDesc.m_rect.push_back(rect0);
+    }
 }
 
 //------------------------------------------------------------------------------
-RemoteBlobDescriptor::RemoteBlobDescriptor(
-    const bool& isInput, const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob = nullptr)
-    : BlobDescriptor(isInput, desc, blob) {
+LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+    : BlobDescriptor(desc, blob) {
+    _isRemoteMemory = false;
+    _isNeedAllocation = true;
+}
+
+HddlUnite::Inference::BlobDesc LocalBlobDescriptor::init() {
+    HddlUnite::Inference::BlobDesc blobDesc = create();
+    blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
+
+    if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
+        if (_repackedBlob == nullptr) {
+            THROW_IE_EXCEPTION << "Repacked nv12 blob is not created!";
+        }
+        blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
+    }
+
+    setImageFormatToDesc(blobDesc);
+
+    return blobDesc;
+}
+
+//------------------------------------------------------------------------------
+RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+    : BlobDescriptor(desc, blob) {
     _isRemoteMemory = true;
 }
 
 HddlUnite::Inference::BlobDesc RemoteBlobDescriptor::init() {
+    HddlUnite::Inference::BlobDesc blobDesc = create();
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
-        _isNeedAllocation = false;
-        _blobDesc.m_fd = getFDFromRemoteBlob(_blobPtr);
+        blobDesc.m_fd = getFDFromRemoteBlob(_blobPtr);
     } else {
-        _isNeedAllocation = true;
-        _blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
+        blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
 
-        // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
         if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
-            createRepackedNV12Blob(_blobPtr);
-            _blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
+            if (_repackedBlob == nullptr) {
+                THROW_IE_EXCEPTION << "Repacked nv12 blob is not created!";
+            }
+            blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
         }
     }
 
-    setBlobFormat();
+    setImageFormatToDesc(blobDesc);
 
-    return _blobDesc;
+    return blobDesc;
 }
