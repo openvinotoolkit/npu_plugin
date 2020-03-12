@@ -54,7 +54,7 @@ protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     bool _useKmbExecutor = true;
 #else
     bool _useKmbExecutor = false;

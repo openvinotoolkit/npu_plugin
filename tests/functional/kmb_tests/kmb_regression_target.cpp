@@ -182,7 +182,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_KmbParsingOnlyTest_smoke_nightly, KmbNoRegressi
 using kmbLayersTestsConvolution = kmbLayersTests_nightly;
 
 TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     std::string model = convolution_u8_only;
@@ -245,7 +245,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
 }
 #endif
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 const size_t NUMBER_OF_TOP_CLASSES = 5;
 const std::string YOLO_GRAPH_NAME = "tiny-yolo-v2.blob";

@@ -1,4 +1,4 @@
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 #include <fcntl.h>
 #include <file_reader.h>
@@ -207,7 +207,9 @@ using VpuPreprocessingTests = vpuLayersTests;
 
 // [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
-#ifdef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#else
     if (useSIPP()) {
         SKIP();
     }
@@ -258,7 +260,9 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
 
 // [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
-#ifdef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#else
     if (useSIPP()) {
         SKIP();
     }
@@ -318,7 +322,9 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
 
 // [Track number: S#27548]
 TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
-#ifdef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#else
     if (useSIPP()) {
         SKIP();
     }

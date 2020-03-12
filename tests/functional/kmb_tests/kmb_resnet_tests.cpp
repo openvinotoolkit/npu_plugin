@@ -54,7 +54,7 @@ Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
 
 // [Track number: S#27240]
 TEST_P(ResnetTest, DISABLED_resnetAccuracy) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     resnet_params test_params = GetParam();

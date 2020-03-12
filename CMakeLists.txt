@@ -32,8 +32,7 @@ if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
 
-if (ENABLE_VPUAL)
-    add_definitions(-DENABLE_VPUAL)
+if (ARM OR AARCH64)
     if (NOT vpualHost_DIR)
         set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)
     endif()
@@ -60,16 +59,11 @@ endif()
 
 if(ENABLE_TESTS)
     enable_testing()
-
-    if(ENABLE_VPUAL AND ENABLE_MCM_COMPILER)
-        add_subdirectory(src/vpual_model)
-    endif()
-
     add_subdirectory(tests)
     add_subdirectory(tests_experimental)
 endif()
 
-if(ENABLE_KMB_SAMPLES AND ENABLE_VPUAL)
+if(ENABLE_KMB_SAMPLES AND (ARM OR AARCH64))
     add_subdirectory(samples)
 endif()
 

@@ -31,7 +31,7 @@ function(add_3rdparty_subdir SUBDIR_NAME)
     add_subdirectory(${SUBDIR_NAME})
 endfunction()
 
-if(ENABLE_VPUAL)
+if(ARM OR AARCH64)
     add_subdirectory(vsi_cmodel/vpusmm)
 
     # copy memory manager library to target directory when vpualHost is enabled

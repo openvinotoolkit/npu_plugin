@@ -3,7 +3,7 @@
 //
 
 #pragma once
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include <opencv2/gapi.hpp>
 
 namespace InferenceEngine {

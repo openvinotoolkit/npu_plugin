@@ -166,7 +166,7 @@ static void testOverflow(const Blob::Ptr& blob) {
 
 // [Track number: S#27235]
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTest_manual) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
@@ -299,7 +299,7 @@ public:
 
 // [Track number: D#2376]
 TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     auto _inputsInfo = _network.getInputsInfo();
@@ -355,7 +355,7 @@ TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
 
 // [Track number: S#27236]
 TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());

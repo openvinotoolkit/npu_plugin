@@ -20,7 +20,7 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include <vpusmm.h>
 #endif
 
@@ -29,7 +29,7 @@
 using namespace vpu::KmbPlugin;
 
 void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     long pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
 
@@ -56,7 +56,7 @@ void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
 }
 
 bool KmbVpusmmAllocator::free(void* handle) noexcept {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;
@@ -82,7 +82,7 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 }
 
 bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
 #else
     UNUSED(ptr);

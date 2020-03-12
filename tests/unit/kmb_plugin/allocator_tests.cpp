@@ -175,7 +175,7 @@ INSTANTIATE_TEST_CASE_P(unit, kmbAllocatorDifferentSizeUnitTests, ::testing::Val
     kmbAllocatorDifferentSizeUnitTests::PrintToStringParamName());
 
 TEST_F(kmbAllocatorUnitTests, checkValidPtrOnVpusmm) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
 

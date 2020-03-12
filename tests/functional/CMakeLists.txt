@@ -21,9 +21,6 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
 endif()
 
 list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB} kmb_utils)
-if(ENABLE_VPUAL AND ENABLE_VPUAL_MODEL)
-    list(APPEND KMB_TEST_LIBRARIES vpualModel)
-endif()
 
 add_executable(${TARGET_NAME} ${KMB_TEST_SOURCES})
 

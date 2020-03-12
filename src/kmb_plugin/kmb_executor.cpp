@@ -53,7 +53,7 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::VPUConfigParams;
 using namespace std;
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 // XLink channel number to start allocation from
 const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
@@ -95,7 +95,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
         return;
     }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
     _inferenceVirtAddr = nullptr;
@@ -103,7 +103,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
 }
 
 void KmbExecutor::initVpualObjects() {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(initVpualObjects);
     if (!RgnAlloc) {
         RgnAlloc = make_shared<RgnAllocator>();
@@ -147,7 +147,7 @@ void KmbExecutor::initVpualObjects() {
 #endif
 }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 namespace {
 
 InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
@@ -216,7 +216,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
         return;
     }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(allocateGraph);
     initVpualObjects();
     static int graphId_main = 1;
@@ -402,7 +402,7 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
         return;
     }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(queueInference);
     auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
@@ -423,7 +423,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
         return;
     }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(getResult);
     uint32_t len_inferenceId = 0;
     uint32_t pAddr_inferenceId = 0;
@@ -458,7 +458,7 @@ void KmbExecutor::deallocateGraph() {
         return;
     }
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(deallocateGraph);
     if (pipe) {
         pipe->Stop();

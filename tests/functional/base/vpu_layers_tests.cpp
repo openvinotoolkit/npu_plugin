@@ -822,8 +822,7 @@ void compareTopClasses(
     EXPECT_TRUE(std::equal(outTopClasses.begin(), outTopClasses.end(), refTopClasses.begin())) << logStream.str();
 }
 
-#ifdef ENABLE_VPUAL
-
+#if defined(__arm__) || defined(__aarch64__)
 bool useSIPP() {
     static const bool USE_SIPP = [](const char* str) -> bool {
         std::string var(str ? str : "");
@@ -832,5 +831,4 @@ bool useSIPP() {
 
     return USE_SIPP;
 }
-
 #endif

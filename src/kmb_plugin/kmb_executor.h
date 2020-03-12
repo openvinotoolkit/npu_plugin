@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include <GraphManagerPlg.h>
 #include <MemAllocator.h>
 #include <NNFlicPlg.h>
@@ -69,7 +69,7 @@ public:
 private:
     unsigned int _numStages = 0;
     Logger::Ptr _logger;
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<GraphManagerPlg> gg;
     std::shared_ptr<PlgTensorSource> plgTensorInput_;
     std::shared_ptr<PlgStreamResult> plgTensorOutput_;
