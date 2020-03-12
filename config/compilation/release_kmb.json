@@ -119,7 +119,7 @@
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -199,7 +199,14 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "dma": {
@@ -210,7 +217,14 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling"
+            "EnsureSplitStrategiesForSpilling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "control_flows":{
@@ -266,7 +280,14 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "validate": {

@@ -130,50 +130,37 @@ namespace mv
                 return attr;
             }
 
-            // size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
-            // {
-            //     size_t totalTensorSize = 1;
-            //     if(isCMConv)
-            //         totalTensorSize = tensorToSize->computeTotalSize(16, false, false, false);
-            //     else 
-            //         totalTensorSize = tensorToSize->computeTotalSize(16, false, false, true);
-
-            //     size_t maxTensorSize = totalTensorSize;
-
-            //     // Adjust max tensor size based on streaming options, consider reality of how it will be tiled
-            //     // and use the worst case scenario (e.g. size/stream + remainder)
-            //     size_t streamDivisor = 1;
-            //     for(size_t dim = 0; dim <  streamingPool.ndims(); ++dim)
-            //     {
-            //         if(streamingPool[dim] > 1){ // Streaming this dimension
-
-            //         }
-            //     }
-
-            //     return maxTensorSize;
-            // }
             size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
                 Shape worstStreamPool = streamingPool;
 
-                //TODO harmonize this, for now only consider worst shape for nested streams
-                // if(streamingPool["H"] > 1 and streamingPool["K"] > 1)
-                // {
-                    Shape tensorShape = tensorToSize->getShape();
-                    //update the streamingPool to the worst combination, based on slice sizes
-                    size_t outputSize;
-                    size_t numberOfSplits;
-                    if(streamingPool["H"] > 1)
-                    {
-                        outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-                        numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
-                    }else {
-                        outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-                        numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-                    }
+                Shape tensorShape = tensorToSize->getShape();
+                //update the streamingPool to the worst combination, based on slice sizes
+                size_t outputSize;
+                size_t numberOfSplits;
+                if(streamingPool["H"] > 1) // If streaming over H
+                {
+                    outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.first;
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.first;
 
+
+                    int remainderOutputSize = newOutputSizes.second;
+                    if (remainderOutputSize > newOutputSize)
+                        newOutputSize = remainderOutputSize;
+
+                    auto worstNumberOfSplits = outputSize/newOutputSize;
+                    worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+                }
+                else if(streamingPool[4] > 1) // If streaming over N
+                {
+                    outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
+                    numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
                     int newOutputSize = newOutputSizes.first;
 
@@ -182,20 +169,15 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
-                    if(streamingPool["H"] > 1)
-                        worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-                    else
-                        worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-                // }
+                    worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
+                }
 
                 //TODO add handling for weights case if we dont align it to 16 always
                 size_t streamDivisor = 1;
                 for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
                 {
                     streamDivisor = streamDivisor * worstStreamPool[dim];
-                    // cout<< "worstStreamPool[" << dim << "] = " << worstStreamPool[dim] << endl;
                 }
-                // cout << "streamDivisor = " << streamDivisor <<endl;
 
                 if(isCMConv)
                     return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
@@ -1127,6 +1109,7 @@ namespace mv
                                     maxSplitOverH = splitsToFit+1;
                             }
                         }
+                        // Stream over batch, match number of streams over H
                         // unsigned maxSplitOverN = 1;
                         // if(hasStreamOverN and op.getInputTensor(0)->getShape()["N"] > 1)
                         // {
@@ -1135,10 +1118,11 @@ namespace mv
                         //     if (maxSplitOverN > op.getInputTensor(0)->getShape()["N"])
                         //         maxSplitOverN = op.getInputTensor(0)->getShape()["N"];
                         // }
+                        // Temporarily force all streams over N = N, stream to batch 1
                         unsigned n = 1;
                         if(hasStreamOverN and op.getInputTensor(0)->getShape()["N"] > 1)
                         {
-                            n =op.getInputTensor(0)->getShape()["N"];
+                            n = op.getInputTensor(0)->getShape()["N"];
                         }
 
                         //Max split over H cannot be higher than dimension/kernel
