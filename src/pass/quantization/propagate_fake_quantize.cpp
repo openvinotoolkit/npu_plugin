@@ -435,9 +435,7 @@ void quantizeBias(mv::ComputationModel& model) {
 
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
-    assert(om.getOps("Input").size() == 1);
-    auto input = om.getOps("Input").at(0);
-    setQuantizationParams(input, initial_quant_params);
+    // Do nothing with input. Keep parameters
 
     assert(om.getOps("Output").size() == 1);
     auto output = om.getOps("Output").at(0);
@@ -454,10 +452,103 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     }
 }
 
+//TODO: delete before merge
+namespace pretty_print {
+
+    template<class T>
+    std::ostream& operator<<(std::ostream& os, std::vector<T> data) {
+        size_t counter = 0;
+        for (auto& value : data) {
+            os << value << ", ";
+
+            if (counter++ > 25)
+                break;
+        }
+
+        return os;
+    }
+
+    std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& qp) {
+        os << " SCALES: {" << qp.getScale() << "} | ZERO_POINTS: {" << qp.getZeroPoint()  << "}" << " MINS {" << qp.getMin() << "} MAXS{" << qp.getMax() <<"}";
+        return os;
+    }
+
+    void dumpFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string name) {
+        mv::OpModel om(model);
+        auto ops = om.topologicalSort();
+
+        std::ofstream ofs(name, std::ios::out);
+        if (!ofs.good()) {
+            int x = 32;
+        }
+
+
+        std::sort(ops.begin(), ops.end(), [](mv::Data::OpListIterator left, mv::Data::OpListIterator right) {
+           if (left->getOpType() == "ConstantInt" && right->getOpType() != "ConstantInt") {
+               return true;
+           } else if (left->getOpType() != "ConstantInt" && right->getOpType() == "ConstantInt") {
+               return false;
+           } else if (left->getOpType() != "ConstantInt" && right->getOpType() != "ConstantInt") {
+               return left->getName() < right->getName();
+           } else {
+               auto ldata = left->getOutputTensor(0)->getIntData();
+               auto rdata = right->getOutputTensor(0)->getIntData();
+
+               for (size_t i = 0; i < 25; ++i) {
+                   if (ldata[i] == rdata[i])
+                       continue;
+
+                   return ldata[i] < rdata[i];
+               }
+           }
+
+           return false;
+        });
+
+        for (auto& op : ops) {
+
+            auto op_params = op->get<mv::QuantizationParams>("quantParams");
+            auto tensor_params = op->get<mv::QuantizationParams>("quantParams");
+
+            if (op->getOpType() == "ConstantInt") {
+                ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams") << std::endl;
+                auto data = op->getOutputTensor(0)->getIntData();
+                ofs << "{ " << data << " }";
+                ofs << std::endl;
+
+                if (op->getOutputTensor().size() >= 1) {
+                    auto tensor = op->getOutputTensor(0);
+                    ofs << "TENSOR: " << tensor->getName() << " " << tensor->getShape().toString() << " " << tensor->get<mv::QuantizationParams>("quantParams") << std::endl;
+                }
+
+                continue;
+
+            }
+            if (op->hasAttr("quantParams")) {
+                ofs << op->getName() << " " << op->getOpType() << " " << op->get<mv::QuantizationParams>("quantParams");
+                ofs << std::endl;
+//                    auto tensor = op->getOutputTensor(0);
+//          ofs << "TENSOR: " << tensor->getName() << " " << tensor->get<mv::QuantizationParams>("quantParams");
+            }
+            else
+                ofs << op->getName() << " " << op->getOpType() << std::endl;
+
+            if (op->getOutputTensor().size() >= 1) {
+                auto tensor = op->getOutputTensor(0);
+                ofs << "TENSOR: " << tensor->getName() << " " << tensor->getShape().toString() << " " << tensor->get<mv::QuantizationParams>("quantParams") << std::endl;
+            }
+
+        }
+    }
+
+}
+
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
     propagateParameters( model);
     quantizeIO(model);
     quantizeConst(model);
     quantizeBias(model);
     removeFQ(pass, model);
+
+//    pretty_print::dumpFQ(pass, model, "mcm_model.txt");
 }
