@@ -162,11 +162,11 @@ static void getImageSize(IE::TensorDesc tensorDesc, size_t& outWidth, size_t& ou
     outHeight = 0;
     outWidth = 0;
     if (layout == IE::Layout::NCHW) {
-        outHeight = dims[2];
-        outWidth = dims[3];
+        outHeight = dims.at(2);
+        outWidth = dims.at(3);
     } else if (layout == IE::Layout::NHWC) {
-        outHeight = dims[1];
-        outWidth = dims[2];
+        outHeight = dims.at(1);
+        outWidth = dims.at(2);
     } else {
         THROW_IE_EXCEPTION << "Unsupported layout.";
     }
@@ -178,9 +178,7 @@ size_t HDDL2RemoteBlob::size() const noexcept {
         // FIXME It's a very bad solution
         size_t width, height;
         getImageSize(tensorDesc, width, height);
-        IE_ASSERT(width % 2 == 0);
-        IE_ASSERT(height % 2 == 0);
-        return 1.5 * width * height;
+        return (3 * width * height) / 2;
     } else {
         return MemoryBlob::size();
     }

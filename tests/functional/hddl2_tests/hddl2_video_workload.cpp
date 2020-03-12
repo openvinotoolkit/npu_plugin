@@ -154,7 +154,7 @@ void VideoWorkload_WithPreprocessing::SetUp() {
 }
 
 // [Track number: S#28336]
-TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
+TEST_F(VideoWorkload_WithPreprocessing, DISABLED_onOneRemoteFrame) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
