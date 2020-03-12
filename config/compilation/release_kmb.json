@@ -239,6 +239,7 @@
                 "filter": "MemoryRequirement"
             },
             "MarkLastNodeForMaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
             {
                 "name": "GenerateWorkloads",
