@@ -444,11 +444,22 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
         throw ArgumentError(*this, "rightPadding::size", std::to_string(rightPadding.size()), "Does not match the dimensionality of the shape " +
             shape.toString() + " of the input tensor " + tensor->getName());
 
+    // To accomodate implicit ops, allow shape mismatch if totalSize is equal
+    auto oldTotal = 0;
+    auto newTotal = 0;
     for (std::size_t i = 0; i < shape.ndims(); ++i)
-        if (shape[i] + leftPadding[i] + rightPadding[i] != allocatedShape[i])
-            throw ArgumentError(*this, tensor->getName() + "::paddedShape[" + std::to_string(i) + "]",
-                std::to_string(shape[i] + leftPadding[i] + rightPadding[i]), "Does not match the dimension " + std::to_string(allocatedShape[i]) +
-                " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
+    {
+        oldTotal += allocatedShape[i];
+        newTotal += shape[i] + leftPadding[i] + rightPadding[i];
+    }
+    if (oldTotal != newTotal)
+    {
+        for (std::size_t i = 0; i < shape.ndims(); ++i)
+            if (shape[i] + leftPadding[i] + rightPadding[i] != allocatedShape[i])
+                throw ArgumentError(*this, tensor->getName() + "::paddedShape[" + std::to_string(i) + "]",
+                    std::to_string(shape[i] + leftPadding[i] + rightPadding[i]), "Does not match the dimension " + std::to_string(allocatedShape[i]) +
+                    " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
+    }
 
     if ((*slaveBuffer)->masterBuffer != bufferEnd((*slaveBuffer)->stage))
     {
