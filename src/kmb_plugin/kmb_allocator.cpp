@@ -20,7 +20,7 @@
 
 #include <iostream>
 #include <string>
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include <vpusmm.h>
 #endif
 

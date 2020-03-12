@@ -316,7 +316,7 @@ class ConvolutionTest : public testing::WithParamInterface<convolution_test_para
 
 template <class Reference>
 void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tolerance) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     InferenceEngine::InferRequest inferRequest;
@@ -337,7 +337,7 @@ void InferAndCompare(ExecutableNetwork& exeNetwork, Reference refFunc, float tol
 
 // [Track number: S#27226]
 TEST_P(ConvolutionTest, DISABLED_fq_convolution_only_manual) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     // Besides weights and biases we need to store FQ blobs as well
@@ -467,7 +467,7 @@ TEST_P(ConvolutionTest, DISABLED_fq_convolution_only_manual) {
 
 // [Track number: S#27226]
 TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     auto input_dims = GetParam().input_dim;
@@ -537,7 +537,7 @@ TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
 
 // [Track number: S#27226]
 TEST_P(ConvolutionTest, DISABLED_convolution_and_relu_u8) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     auto input_dims = GetParam().input_dim;
@@ -667,7 +667,7 @@ class ConvolutionTestIdent :
 
 // [Track number: S#27226]
 TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     auto input_dims = GetParam().input_dim;
@@ -835,7 +835,7 @@ class ConvolutionAndPoolingTest :
 
 // [Track number: S#27226]
 TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
-#ifndef ENABLE_VPUAL
+#if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
     if (!GetParam().is_positive_weights) SKIP();  // TODO

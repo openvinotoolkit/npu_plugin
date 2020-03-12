@@ -10,7 +10,7 @@
 
 #include "kmb_allocator.h"
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include "kmb_preproc_pool.hpp"
 #endif
 
@@ -18,20 +18,27 @@ namespace InferenceEngine {
 
 namespace SippPreproc {
 bool useSIPP() {
+#if defined(__arm__) || defined(__aarch64__)
     static const bool USE_SIPP = [](const char* str) -> bool {
         std::string var(str ? str : "");
         return var == "Y" || var == "YES" || var == "ON" || var == "1";
     }(std::getenv("USE_SIPP"));
 
     return USE_SIPP;
+#else
+    return false;
+#endif
 }
 
+#if defined(__arm__) || defined(__aarch64__)
 static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
     return (interp == RESIZE_BILINEAR) && (inFmt == ColorFormat::NV12);
 }
+#endif
 
 bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData,
     InputsDataMap& networkInputs) {
+#if defined(__arm__) || defined(__aarch64__)
     if (inputs.size() != 1) return false;
 
     for (auto& input : inputs) {
@@ -45,12 +52,18 @@ bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::st
         }
     }
     return true;
+#else
+    UNUSED(inputs);
+    UNUSED(preprocData);
+    UNUSED(networkInputs);
+    return false;
+#endif
 }
 
 void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     IE_ASSERT(numShaves > 0 && numShaves <= 16)
         << "SippPreproc::execSIPPDataPreprocessing "
         << "attempt to set invalid number of shaves for SIPP: " << numShaves << ", valid numbers are from 1 to 16";
@@ -62,7 +75,7 @@ void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::s
     UNUSED(out_format);
     UNUSED(numShaves);
     UNUSED(lpi);
-
+    THROW_IE_EXCEPTION << "VPUAL is disabled. Used only for arm";
 #endif
 }
 }  // namespace SippPreproc

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 #include <ie_blob.h>
 
@@ -78,4 +78,4 @@ public:
 SippPreprocPool& sippPreprocPool();
 
 }  // namespace InferenceEngine
-#endif  // #ifdef ENABLE_VPUAL
+#endif  // #if defined(__arm__) || defined(__aarch64__)

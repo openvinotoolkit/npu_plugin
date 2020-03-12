@@ -24,7 +24,7 @@
 #include "allocators.hpp"
 #include "../kmb_plugin/kmb_allocator.h"
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include "vpusmm.h"
 #endif
 
@@ -46,7 +46,7 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
 }
 
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
     int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
     if (fileDesc < 0) {
@@ -73,7 +73,7 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
 }
 
 void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     std::tuple<int, void*, size_t> chunk = _memChunks.at(chunkIndex);
     void* virtAddr = std::get<1>(chunk);
     return virtAddr;
@@ -84,7 +84,7 @@ void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 }
 
 VPUSMMAllocator::~VPUSMMAllocator() {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
@@ -97,7 +97,7 @@ VPUSMMAllocator::~VPUSMMAllocator() {
 }
 
 void* NativeAllocator::allocate(size_t requestedSize) {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     uint8_t* allocatedChunk = new uint8_t [requestedSize];
     _memChunks.push_back(allocatedChunk);
     return allocatedChunk;
@@ -108,7 +108,7 @@ void* NativeAllocator::allocate(size_t requestedSize) {
 }
 
 void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     return _memChunks.at(chunkIndex);
 #else
     UNUSED(chunkIndex);
@@ -117,7 +117,7 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 }
 
 NativeAllocator::~NativeAllocator() {
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
     for (uint8_t* chunk : _memChunks) {
         delete [] chunk;
     }

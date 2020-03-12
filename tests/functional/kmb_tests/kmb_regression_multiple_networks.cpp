@@ -13,7 +13,7 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 #include <file_reader.h>
 #include <gtest/gtest.h>

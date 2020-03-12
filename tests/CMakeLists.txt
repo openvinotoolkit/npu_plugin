@@ -16,6 +16,6 @@ if (ENABLE_BEH_TESTS)
     add_subdirectory(behavior)
 endif()
 
-if (ENABLE_VPUAL)
+if (ARM OR AARCH64)
     add_subdirectory(gapi_preproc)
 endif()

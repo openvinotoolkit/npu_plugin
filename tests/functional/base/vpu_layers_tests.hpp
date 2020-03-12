@@ -70,7 +70,7 @@ struct interp_test_params {
 using namespace InferenceEngine;
 using namespace details;
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 // this is a copy of useSipp function from kmbPlugin/kmbPreproc.hpp just because func from kmbPlugin/kmbPreproc.hpp
 // is not avaible from functional tests environment
