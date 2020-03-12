@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -93,13 +93,6 @@
             "TensorsToFP16",
             "FusePostOps",
             "DecideOutputDataType",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dtype_tensors.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -181,14 +174,7 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adaptation.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
@@ -197,13 +183,6 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dpu_tasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -222,14 +201,7 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/kmb_adaptation.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "ConfigureOutputPrecision"
         ]
     },
     "dma": {
