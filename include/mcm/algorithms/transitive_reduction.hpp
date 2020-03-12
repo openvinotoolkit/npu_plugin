@@ -218,43 +218,54 @@ namespace mv
             std::set<typename graph<T_node, T_edge>::edge_list_iterator,
               EdgeItComparator>())
     {
+        typedef typename graph<T_node, T_edge>::edge_list_iterator
+            edge_iterator;
+
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         size_t input_edges = graphEdgeCount(g);
         printf("[Starting Transitive Reduction] input edges=%lu...\n",
               input_edges);
         std::map<typename graph<T_node, T_edge>::node_list_iterator, size_t, 
             NodeItComparator> nodeLevels;
-        std::list<typename graph<T_node, T_edge>::edge_list_iterator>
-            edges_to_eliminate;
+        std::map<size_t, std::list<edge_iterator> > ordered_edges;
+
 
         //STEP-1: label each node with its level in the DAG //
         computeNodeLevels_(g, nodeLevels);
+        //STEP-1.1: order the edges based on the level of the source//
 
         for (auto e=g.edge_begin(); e!=g.edge_end(); ++e) {
           auto src_itr = nodeLevels.find(e->source());
-          auto sink_itr = nodeLevels.find(e->sink());
           assert(src_itr != nodeLevels.end());
-          assert(sink_itr != nodeLevels.end());
-          assert(sink_itr->second > src_itr->second);
+          ordered_edges[ src_itr->second ].push_back(e);
+        }
 
-          // edge (u,w) can be eliminated if there is a path between 'u' and
-          // 'w' of at least one node between them.
-          size_t level_diff = sink_itr->second - src_itr->second;
-          if ((level_diff > 1UL) &&
-                hasPathWithAtleastOneNode_(g, e->source(), e->sink())) {
-            edges_to_eliminate.push_back(e);
+        size_t eliminated = 0UL;
+        for (auto litr=ordered_edges.begin(); litr!=ordered_edges.end();
+              ++litr) {
+          for (auto eitr=litr->second.begin(); eitr!=litr->second.end();
+                ++eitr) {
+            edge_iterator e = *eitr;
+            auto src_itr = nodeLevels.find(e->source());
+            auto sink_itr = nodeLevels.find(e->sink());
+            assert(src_itr != nodeLevels.end());
+            assert(sink_itr != nodeLevels.end());
+            assert(sink_itr->second > src_itr->second);
+
+            // edge (u,w) can be eliminated if there is a path between 'u' and
+            // 'w' of at least one node between them.
+            size_t level_diff = sink_itr->second - src_itr->second;
+            if ((level_diff > 1UL) &&
+                  hasPathWithAtleastOneNode_(g, e->source(), e->sink())) {
+              // eliminate the edge //
+              if (filteredEdges.find(*eitr) == filteredEdges.end()) {
+                g.edge_erase(*eitr);
+                eliminated++;
+              }
+            }
           }
         }
 
-        printf("[Candidate edges to eliminate = %lu]\n",
-              edges_to_eliminate.size());
-        size_t eliminated = 0UL;
-        for (auto eitr=edges_to_eliminate.begin();
-            eitr!=edges_to_eliminate.end(); ++eitr) {
-          if (filteredEdges.find(*eitr) != filteredEdges.end()) { continue; }
-          g.edge_erase(*eitr);
-          eliminated++;
-        }
         printf("[Eliminated edges= %lu Input edges=%lu]\n",
               eliminated, input_edges);
         printf("[Done Transitive Reduction]...\n");
