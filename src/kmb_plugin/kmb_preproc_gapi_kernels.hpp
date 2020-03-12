@@ -3,7 +3,7 @@
 //
 
 #pragma once
-
+#ifdef ENABLE_VPUAL
 #include <opencv2/gapi.hpp>
 
 namespace InferenceEngine {
@@ -71,3 +71,5 @@ cv::GMat merge3p(const cv::GMatP& src);
 
 }  // namespace gapi
 }  // namespace InferenceEngine
+
+#endif

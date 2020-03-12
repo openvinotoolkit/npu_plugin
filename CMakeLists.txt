@@ -32,6 +32,14 @@ if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
 
+if (ENABLE_VPUAL)
+    add_definitions(-DENABLE_VPUAL)
+    if (NOT vpualHost_DIR)
+        set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)
+    endif()
+    find_package(vpualHost REQUIRED CONFIG PATHS ${vpualHost_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
+endif()
+
 add_subdirectory(thirdparty)
 
 if(ENABLE_MCM_COMPILER)
@@ -42,10 +50,6 @@ endif()
 # TODO Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config
 add_subdirectory(src/frontend_mcm)
-
-if (ENABLE_VPUAL)
-    add_definitions(-DENABLE_VPUAL)
-endif()
 
 add_subdirectory(src/utils)
 add_subdirectory(src/kmb_plugin)
@@ -65,7 +69,7 @@ if(ENABLE_TESTS)
     add_subdirectory(tests_experimental)
 endif()
 
-if(ENABLE_KMB_SAMPLES)
+if(ENABLE_KMB_SAMPLES AND ENABLE_VPUAL)
     add_subdirectory(samples)
 endif()
 

@@ -8,13 +8,13 @@
 #include <memory>
 #include <string>
 
+#include "kmb_allocator.h"
+
 #ifdef ENABLE_VPUAL
 #include "kmb_preproc_pool.hpp"
 #endif
 
 namespace InferenceEngine {
-
-#ifdef ENABLE_VPUAL
 
 namespace SippPreproc {
 bool useSIPP() {
@@ -50,12 +50,20 @@ bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::st
 void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
+#ifdef ENABLE_VPUAL
     IE_ASSERT(numShaves > 0 && numShaves <= 16)
         << "SippPreproc::execSIPPDataPreprocessing "
         << "attempt to set invalid number of shaves for SIPP: " << numShaves << ", valid numbers are from 1 to 16";
     sippPreprocPool().execSIPPDataPreprocessing({inputs, preprocData, networkInputs, out_format}, numShaves, lpi);
-}
-}  // namespace SippPreproc
+#else
+    UNUSED(inputs);
+    UNUSED(preprocData);
+    UNUSED(networkInputs);
+    UNUSED(out_format);
+    UNUSED(numShaves);
+    UNUSED(lpi);
 
 #endif
+}
+}  // namespace SippPreproc
 }  // namespace InferenceEngine
