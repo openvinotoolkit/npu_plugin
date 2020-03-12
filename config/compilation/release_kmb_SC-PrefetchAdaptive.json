@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Error",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
@@ -199,7 +199,14 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforedma.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "dma": {
@@ -208,6 +215,13 @@
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/indma.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
