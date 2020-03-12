@@ -146,9 +146,6 @@ namespace mv
                     numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
                     int newOutputSize = newOutputSizes.first;
-                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.first;
-
 
                     int remainderOutputSize = newOutputSizes.second;
                     if (remainderOutputSize > newOutputSize)
