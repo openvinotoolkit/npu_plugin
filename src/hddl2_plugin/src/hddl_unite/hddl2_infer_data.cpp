@@ -75,9 +75,13 @@ void HddlUniteInferData::prepareInput(const IE::Blob::Ptr& blob, const IE::Input
     _inferDataPtr->createBlob(name, blobDesc, isInput);
 
     auto updatedBlobDesc = blobDescriptorPtr->init();
-
     _inferDataPtr->getInputBlob(name)->updateBlob(updatedBlobDesc);
     _inputs[name] = blobDescriptorPtr;
+
+    if (isVideoWorkload) {
+        auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
+        _inferDataPtr->setNNInputDesc(nnBlobDesc);
+    }
 }
 
 void HddlUniteInferData::prepareOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {

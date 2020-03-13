@@ -32,11 +32,17 @@ class BlobDescriptor {
 public:
     using Ptr = std::shared_ptr<BlobDescriptor>;
 
+    BlobDescriptor(const BlobDescriptor&) = delete;
+    BlobDescriptor(const BlobDescriptor&&) = delete;
+    BlobDescriptor& operator=(const BlobDescriptor&) = delete;
+    BlobDescriptor& operator=(const BlobDescriptor&&) = delete;
+
     explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
     virtual ~BlobDescriptor() = default;
 
     virtual HddlUnite::Inference::BlobDesc create();
     virtual HddlUnite::Inference::BlobDesc init() = 0;
+    virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
 protected:
     bool _isRemoteMemory;
@@ -44,7 +50,6 @@ protected:
     bool _isNV12Data;
 
     InferenceEngine::Blob::Ptr _blobPtr = nullptr;
-    std::shared_ptr<InferenceEngine::PreProcessInfo> _preProcessPtr = nullptr;
 
     InferenceEngine::DataPtr _desc = nullptr;
 
