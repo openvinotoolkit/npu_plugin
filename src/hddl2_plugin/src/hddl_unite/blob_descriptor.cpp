@@ -19,6 +19,7 @@
 #include <hddl2_remote_blob.h>
 #include <ie_compound_blob.h>
 
+#include <ie_algorithm.hpp>
 #include <memory>
 
 #include "converters.h"
@@ -38,10 +39,7 @@ static void checkBlobIsValid(const InferenceEngine::Blob::Ptr& blob) {
 }
 
 static void checkBlobCompatibility(const InferenceEngine::Blob::Ptr& blob) {
-    if (blob->is<HDDL2RemoteBlob>() || blob->is<IE::MemoryBlob>()) {
-        return;
-    }
-    if (blob->is<IE::NV12Blob>()) {
+    if (blob->is<HDDL2RemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
         return;
     }
     if (blob->is<IE::CompoundBlob>()) {
@@ -90,6 +88,11 @@ static IE::SizeVector getNV12ImageDims(const IE::Blob::Ptr& blobPtr) {
     THROW_IE_EXCEPTION << "Unsupported blob format with NV12 Data";
 }
 
+static size_t calculateBlobSizeFromTensor(const IE::TensorDesc& tensorDesc) {
+    if (tensorDesc.getLayout() == IE::Layout::SCALAR) return 1;
+    return IE::details::product(tensorDesc.getDims().begin(), tensorDesc.getDims().end());
+}
+
 //------------------------------------------------------------------------------
 BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob) {
     checkBlobIsValid(blob);
@@ -107,9 +110,6 @@ HddlUnite::Inference::BlobDesc BlobDescriptor::create() {
     HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
 
     size_t blobSize = _blobPtr->byteSize();
-    if (_desc->getTensorDesc() != _blobPtr->getTensorDesc()) {
-        printf("Tensors of NN input and blob desc does not match. Preprocessing required.\n");
-    }
 
     // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
     if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
@@ -208,6 +208,15 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
         HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
         blobDesc.m_rect.push_back(rect0);
     }
+}
+
+HddlUnite::Inference::NNInputDesc BlobDescriptor::createNNDesc() {
+    HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
+    const bool needAllocation = true;
+    const size_t blobSize = calculateBlobSizeFromTensor(_desc->getTensorDesc());
+    const int batch = 1;
+
+    return HddlUnite::Inference::NNInputDesc(precision, _isRemoteMemory, needAllocation, blobSize, batch);
 }
 
 //------------------------------------------------------------------------------
