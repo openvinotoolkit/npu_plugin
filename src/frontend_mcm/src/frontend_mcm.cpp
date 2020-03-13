@@ -866,8 +866,6 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY * dilationY,
         kernelStrideY, padTop, padBottom);
 
-    mv::QuantizationParams outputQuantParams = initialQuantParams;
-
     mv::DType convolutionDataType("Default");
     mv::Data::TensorIterator mvConv;
     mv::Data::TensorIterator mvConvOnly;
@@ -880,6 +878,9 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     auto mvWeights = inputs[1]->getMcmNode();
 
     if (isDepthWiseConv) {
+        // TODO: Need align API in mcmCompiler
+        // mcm expects (1,*,*,*) shape for depthwise weights, but Openvino has a (*,1,*,*)
+
         auto sourceWeightsOp = _modelMcm.getSourceOp(mvWeights);
         auto constWeightTensor = mvWeights;
         if (sourceWeightsOp->getOpType() == "FakeQuantize") {
@@ -1339,7 +1340,7 @@ void FrontEndMcm::parseReorgYolo(const ie::CNNLayerPtr& layer, const McmNodeVect
     _logger->debug(FINISH_PARSING_STR, reorg->getName());
 }
 
-InferenceEngine::CNNLayerPtr getInputLayerSafety(const InferenceEngine::CNNLayerPtr& layer, const size_t index) {
+InferenceEngine::CNNLayerPtr getInputLayerSafe(const InferenceEngine::CNNLayerPtr& layer, const size_t index) {
     IE_ASSERT(index < layer->insData.size());
     auto inputData = layer->insData[index].lock();
     IE_ASSERT(inputData != nullptr);
@@ -1350,47 +1351,32 @@ InferenceEngine::CNNLayerPtr getInputLayerSafety(const InferenceEngine::CNNLayer
 
 namespace {
 bool isInteger(ie::Precision iePrecision) {
-    bool isInteger = false;
-    switch (iePrecision) {
-    case ie::Precision::I8:
-        isInteger = true;
-        break;
-    case ie::Precision::U8:
-        isInteger = true;
-        break;
-    case ie::Precision::I32:
-        isInteger = true;
-        break;
-    case ie::Precision::I64:
-        isInteger = true;
-        break;
-    default:
-        isInteger = false;
-    }
-    return isInteger;
+    static std::set<ie::Precision> integer_precision {
+        ie::Precision::I8, ie::Precision::U8, ie::Precision::I32, ie::Precision::I64};
+    return integer_precision.count(iePrecision);
 }
 
-std::vector<size_t> calculateMcmShape(const SizeVector dims) {
-    std::vector<size_t> mcmShape;
+mv::Shape calculateMcmShape(const SizeVector dims) {
+    std::vector<size_t> shapes;
     size_t dimN, dimZ, dimY, dimX;
     switch (dims.size()) {
     case 0:
-        mcmShape = {1};
+        shapes = {1};
         break;
     case 1:
         dimZ = dims[0];
-        mcmShape.push_back(dimZ);
+        shapes.push_back(dimZ);
         break;
     case 2:
         dimN = dims[0];
         dimZ = dims[1];
-        mcmShape = {dimZ, dimN};
+        shapes = {dimZ, dimN};
         break;
     case 3:
         dimX = dims[2];
         dimY = dims[1];
         dimZ = dims[0];
-        mcmShape = {dimX, dimY, dimZ};
+        shapes = {dimX, dimY, dimZ};
         break;
     case 4:
         dimX = dims[3];
@@ -1398,13 +1384,13 @@ std::vector<size_t> calculateMcmShape(const SizeVector dims) {
         dimZ = dims[1];
         dimN = dims[0];
         //  hack for mcmWeights
-        mcmShape = {dimX, dimY, dimZ, dimN};
+        shapes = {dimX, dimY, dimZ, dimN};
         break;
     default:
         THROW_IE_EXCEPTION << "Unsupported dimensions layout";
         break;
     }
-    return mcmShape;
+    return mv::Shape(shapes);
 }
 }  // namespace
 
@@ -1417,13 +1403,13 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         std::vector<int64_t> constData = packBlobToVector<int64_t>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constantInt(constData, mcmShape, convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                mv::Order::getColMajorID(mcmShape.size()), initialQuantParams, layer->name);
+                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
         bindOutput(constMCM, layer->outData[0]);
     } else {
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constant(constData, mcmShape, convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                mv::Order::getColMajorID(mcmShape.size()), initialQuantParams, layer->name);
+                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
         bindOutput(constMCM, layer->outData[0]);
     }
 }
@@ -1431,10 +1417,10 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
 void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, const vpu::McmNodeVector& inputs) {
     IE_ASSERT(layer->type == "FakeQuantize");
 
-    const auto inputLowLayer = getInputLayerSafety(layer, 1);
-    const auto inputHighLayer = getInputLayerSafety(layer, 2);
-    const auto outputLowLayer = getInputLayerSafety(layer, 3);
-    const auto outputHighLayer = getInputLayerSafety(layer, 4);
+    const auto inputLowLayer = getInputLayerSafe(layer, 1);
+    const auto inputHighLayer = getInputLayerSafe(layer, 2);
+    const auto outputLowLayer = getInputLayerSafe(layer, 3);
+    const auto outputHighLayer = getInputLayerSafe(layer, 4);
 
     const auto levels = layer->GetParamAsInt("levels");
 
