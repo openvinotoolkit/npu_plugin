@@ -207,7 +207,7 @@
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
-            "ResolveImplicitOperations"
+            "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
