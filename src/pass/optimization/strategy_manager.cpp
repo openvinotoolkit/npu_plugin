@@ -215,7 +215,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
         auto splitList = s.get<std::vector<mv::Element>>("splits");
         for (unsigned i = 0; i < splitList.size(); i++)
         {
-            if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K"))||(splitList[i].hasAttr("B")))
+            if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K"))||(splitList[i].hasAttr("N")))
                 hasSpec.push_back(nodeName);
         }
     }
@@ -238,7 +238,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
             copySplits[1].set<int>("H", newStrategy[1]);
             copySplits[2].set<int>("C", newStrategy[2]);
             copySplits[3].set<int>("K", newStrategy[3]);
-            copySplits[4].set<int>("B", newStrategy[4]);
+            copySplits[4].set<int>("N", newStrategy[4]);
             copyElement.set("splits",copySplits);
             streamingStrategyList.push_back(copyElement);
         }

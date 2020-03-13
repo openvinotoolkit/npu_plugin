@@ -9,7 +9,7 @@
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 4,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 16777216,
@@ -96,7 +96,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -199,14 +199,7 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/beforedma.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            }
+            "ConfigureOutputPrecision"
         ]
     },
     "dma": {
@@ -214,14 +207,7 @@
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
-            "ResolveImplicitOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/indma.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
+            "ResolveImplicitOperations"
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"

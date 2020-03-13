@@ -78,7 +78,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 std::map<std::string, std::function<std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIterator>(mv::OpModel&, mv::Data::OpListIterator, mv::Tiling&, std::map<std::string, std::vector<opStreamingSplitDef>>&, std::unordered_map<std::string, bool>& createSlicesPerStream, std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> &name_firstStream_sliceOp)>> streamSplit =
 {
 //    {"W",solveSpatialTiling},
-    {"N",solveSpatialTiling},
+    {"N",solveSpatialTiling}, //Stream over batch, dimension N
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling},
     {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
@@ -115,12 +115,12 @@ static void setStreamingStrategy(const mv::pass::PassEntry &pass, mv::Computatio
                     pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream H = " + std::to_string(opxSplitx.numSplits));
                 }
             }
-            if (splitList[i].hasAttr("B"))
+            if (splitList[i].hasAttr("N"))
             {
-                if (splitList[i].get<int>("B") > 1)
+                if (splitList[i].get<int>("N") > 1)
                 {
                     opxSplitx.axis = "N";
-                    opxSplitx.numSplits = splitList[i].get<int>("B");
+                    opxSplitx.numSplits = splitList[i].get<int>("N");
                     opxSplits.push_back(opxSplitx);
                     nodeHasSplit = true;
                     pass.log(mv::Logger::MessageType::Debug, "Streaming for node: " + nodeName + " has stream N = " + std::to_string(opxSplitx.numSplits));
@@ -666,6 +666,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     //the input Tensor of the Op and then for every new Op have to stream it over K, which
     //means the weights will be repeated for the second level of streaming, this is why need
     //the data structures below...to create only one pair of nested slices
+    //The same logic will apply for streaming NK, Stream over N (batch) for the input tensor
     std::unordered_map<std::string, bool> createSlicesPerStream = {};
     std::map<std::pair<std::string, unsigned>, mv::Data::TensorIterator> name_firstStream_sliceOp;
 

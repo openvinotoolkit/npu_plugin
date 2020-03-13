@@ -154,7 +154,7 @@ namespace mv
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
                 }
-                else if(streamingPool[4] > 1) // If streaming over N
+                else if(streamingPool["B"] > 1) // If streaming over N
                 {
                     outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
                     numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
@@ -211,9 +211,9 @@ namespace mv
                         isCMConv = true;
 
                 if(op.getOpType() != "Input")
-                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig[4]}, isCMConv);
+                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
                 if(op.getOpType() != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig[4]}, isCMConv);
+                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
@@ -930,7 +930,7 @@ namespace mv
                     execTime2 += ((double)(iSize + oSize) / (double)ddrBandwidth)  * (extra_stream_decay * childStreamOverH);
                 }
 
-                auto parentStreamOverN = parent["streaming"].get<Shape>()[4];
+                auto parentStreamOverN = parent["streaming"].get<Shape>()["B"];
                 if(parentStreamOverN > 1)
                 {
                     auto iSize = parentOp.getInputTensor(0)->getShape().totalSize();
@@ -938,7 +938,7 @@ namespace mv
 
                     execTime1 += ((double)(iSize + oSize) / (double)ddrBandwidth) * (extra_stream_decay * parentStreamOverN);
                 }
-                auto childStreamOverN = child["streaming"].get<Shape>()[4];
+                auto childStreamOverN = child["streaming"].get<Shape>()["B"];
                 if(childStreamOverN > 1)
                 {
                     auto iSize = childOp.getInputTensor(0)->getShape().totalSize();
@@ -1147,7 +1147,7 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.back();
-                        auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,1});
+                        auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n});
                         auto memoryMaxK = memK.first + memK.second;
 
 
