@@ -404,12 +404,6 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     return om.uPATaskNorm(inputs, alpha, beta, region, local_size, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
-{
-    throw mv::RuntimeError("convertToTaskGraph", "FakeQuantize currently not supported!");
-    return inputs[0];
-}
-
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -448,8 +442,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Norm", convertNormToUPATask},
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
-    {"Permute", convertPermuteToUPATask},
-    {"FakeQuantize", convertFakeQuantizeToUPATask}
+    {"Permute", convertPermuteToUPATask}
     };
 
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
