@@ -398,6 +398,9 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          mantissa = std::frexp(m[i], &exponent);
                          shift[i] = bits - exponent;
                          mScaled[i] = (mantissa * pow(2, bits));
+                         if (mScaled[i] / pow(2, shift[i]) < m[i]) {
+                            mScaled[i] += 1;
+                         }
                      }
                  }
                  else
@@ -408,6 +411,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          mScaled[i] = 1;
                      }
                  }
+
                  std::vector<int32_t> zeroPointScaled(m.size());
                  std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
