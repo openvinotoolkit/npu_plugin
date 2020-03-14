@@ -147,8 +147,8 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     //    Leaving it here as an historical note... and now it's back as an option
     if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
     {
-           dpuConvOp->erase("taskOp");
-           dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+       dpuConvOp->erase("taskOp");
+       dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
 
     return dpuConv;
@@ -472,7 +472,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if (newTensorOp->getOpType() == "DPUTask")
             {
-                if (!software)
+                if (newTensor->hasAttr("dType") && newTensor->get<mv::DType>("dType") == mv::DType("Int32"))
+                    newTensor->set<mv::DType>("dType", mv::DType("Int32"));
+                else if (!software)
                     newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
                 else
                     newTensor->set<mv::DType>("dType", mv::DType("Float16"));

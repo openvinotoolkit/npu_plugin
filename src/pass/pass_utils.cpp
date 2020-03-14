@@ -158,3 +158,70 @@ void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
         tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
     }
 }
+
+//template <class T>
+//std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName)
+//{
+//    if (value.size() == 1)
+//        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
+
+//    // We enter in this case if and only if we specified multi channel scales and
+//    // the tensor has been aligned
+//    if (value.size() < size)
+//    {
+//        auto toReturn = mv::utils::generateSequence<T>(size, static_cast<T>(0) , 0);
+//        for(unsigned i = 0; i < value.size(); ++i)
+//            toReturn[i] = value[i];
+//        return toReturn;
+//    }
+
+//    if (value.size() == size)
+//        return value;
+
+//    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+//                std::to_string(value.size()));
+//}
+
+std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<double>(size, static_cast<double>(value[0]) , 0);
+
+    // We enter in this case if and only if we specified multi channel scales and
+    // the tensor has been aligned
+    if (value.size() < size)
+    {
+        auto toReturn = mv::utils::generateSequence<double>(size, static_cast<double>(0) , 0);
+        for(unsigned i = 0; i < value.size(); ++i)
+            toReturn[i] = value[i];
+        return toReturn;
+    }
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
+
+std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(value[0]) , 0);
+
+    // We enter in this case if and only if we specified multi channel scales and
+    // the tensor has been aligned
+    if (value.size() < size)
+    {
+        auto toReturn = mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(0) , 0);
+        for(unsigned i = 0; i < value.size(); ++i)
+            toReturn[i] = value[i];
+        return toReturn;
+    }
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
