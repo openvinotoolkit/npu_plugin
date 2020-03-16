@@ -30,6 +30,7 @@ TESTS=(
         custom_ctc_decoder
         custom_st
         custom_fake_binarization
+        regionyolo
       )
 
 . $PWD/common/test_executor.sh
