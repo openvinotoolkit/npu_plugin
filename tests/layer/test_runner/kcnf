@@ -1,0 +1,43 @@
+menu "InferenceManagerDemo"
+
+    config LOOP_COUNT
+        string "Set the number of repetitions"
+        default 1
+
+    config BLOB_NAME
+        string "Set blob name"
+        default "test.blob"
+
+    config INPUT_PATTERN
+        string "Set input file pattern"
+        default "input-%u.bin"
+
+    config OUTPUT_PATTERN
+        string "Set output file pattern"
+        default "output-%u.bin"
+
+    config MAX_PATTERN_LENGTH
+        int "Set max pattern length"
+        default 256
+
+    config MAX_INPUTS
+        int "Set max input tensors"
+        default 2
+
+    config MAX_OUTPUTS
+        int "Set max output tensors"
+        default 2
+
+    config INPUT_BUFFER_MAX_SIZE_MB
+        int "Input (activation) buffer size for the input image, unit [MB],default 16MB"
+        default 16
+
+    config OUTPUT_BUFFER_MAX_SIZE_MB
+        int "Output buffer size for the computed output tensor of the network, unit [MB],default 16MB"
+        default 16
+
+    config BLOB_BUFFER_MAX_SIZE_MB
+        int "Output buffer size for the computed output tensor of the network, unit [MB],default 64MB"
+        default 64
+
+endmenu

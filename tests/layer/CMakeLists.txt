@@ -6,6 +6,7 @@ if (MSVC)
     # TODO - implement
 
 else()
+    add_subdirectory(test_runner)
 
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
@@ -25,7 +26,6 @@ else()
 
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
-
 
     add_executable(conv_int32_output conv_int32_output/int32_output_conv.cpp)
     target_link_libraries(conv_int32_output cm)
@@ -61,7 +61,7 @@ else()
 
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
-    
+
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
 
