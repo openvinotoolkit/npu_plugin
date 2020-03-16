@@ -26,6 +26,9 @@
 using namespace InferenceEngine;
 
 TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
     bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
 
@@ -97,6 +100,9 @@ static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
 }
 
 TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;
@@ -132,6 +138,9 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
 }
 
 TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;
@@ -167,6 +176,9 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
 
 // TODO enable when models with FP16 output become available in ModelsPath
 TEST(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
     Core ie;

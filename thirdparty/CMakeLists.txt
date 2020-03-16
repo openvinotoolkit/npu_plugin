@@ -31,16 +31,8 @@ function(add_3rdparty_subdir SUBDIR_NAME)
     add_subdirectory(${SUBDIR_NAME})
 endfunction()
 
-add_subdirectory(vsi_cmodel/vpusmm)
-
-if(ENABLE_VPUAL)
-    # Try to locate external vpualHost (location can be set via vpualHost_DIR).
-    # If no external vpualHost provided, it will be built from thirdparty directory
-    find_package(vpualHost QUIET)
-    if(NOT vpualHost_FOUND)
-        # Including vpualHost/host directory directly not to add vpualHost's examples to the build
-        add_3rdparty_subdir(movidius/vpualHost/host)
-    endif()
+if(ARM OR AARCH64)
+    add_subdirectory(vsi_cmodel/vpusmm)
 
     # copy memory manager library to target directory when vpualHost is enabled
     get_target_property(VPUSMM_LIB_PATH vpusmm IMPORTED_LOCATION)
@@ -49,6 +41,15 @@ if(ENABLE_VPUAL)
     add_custom_target(vpusmm_copy_library ALL
         COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}*" "${VPUSMM_OUT_DIR}"
         COMMENT "[VPUSMM] Copy vpusmm library to build results")
+
+    add_custom_target(vpual_copy_library ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy  $<TARGET_PROPERTY:NN,LOCATION>
+                                                $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
+                                                $<TARGET_PROPERTY:sipp_custom,LOCATION>
+                                                $<TARGET_PROPERTY:XLink,LOCATION>
+                                                $<TARGET_PROPERTY:RemoteFlic,LOCATION>
+            $<TARGET_FILE_DIR:kmbPlugin>
+            COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
 
@@ -67,6 +68,7 @@ if(ENABLE_VPUAL)
 
     set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+    set(VPUSMM_LIB vpusmm CACHE INTERNAL "")
 else()
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
@@ -79,6 +81,7 @@ else()
 
     set(GAPI_SIPP_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES "" CACHE INTERNAL "")
+    set(VPUSMM_LIB "" CACHE INTERNAL "")
 endif()
 
 if(ENABLE_MCM_COMPILER)

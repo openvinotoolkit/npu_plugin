@@ -41,9 +41,15 @@ public:
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
+    void GetResult();
+
 protected:
     HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;
+
+    // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
+    // need to store it here
+    HDDL2RemoteContext::Ptr _context = nullptr;
 };
 
 }  //  namespace HDDL2Plugin

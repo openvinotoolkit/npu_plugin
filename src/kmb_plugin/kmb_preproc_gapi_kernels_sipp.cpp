@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 #include <sippDefs.h>
 #include <sippSWConfig.h>
 

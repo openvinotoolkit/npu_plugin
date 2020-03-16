@@ -795,35 +795,10 @@ void compareTopClasses(
     const InferenceEngine::Blob::Ptr& resultBlob, const InferenceEngine::Blob::Ptr& refBlob, size_t maxClasses) {
     // do not compare anything if have fake device
     if (hasFakeXLinkDevice()) return;
-
-    std::vector<size_t> outTopClasses, refTopClasses;
-    switch (resultBlob->getTensorDesc().getPrecision()) {
-    case Precision::U8:
-        outTopClasses = yieldTopClasses<uint8_t>(resultBlob, maxClasses);
-        refTopClasses = yieldTopClasses<uint8_t>(refBlob, maxClasses);
-        break;
-    case Precision::FP32:
-        outTopClasses = yieldTopClasses<float>(resultBlob, maxClasses);
-        refTopClasses = yieldTopClasses<float>(refBlob, maxClasses);
-        break;
-    default:
-        throw std::runtime_error("compareTopClasses: only U8 and FP32 are supported");
-    }
-    std::ostringstream logStream;
-    logStream << "out: ";
-    for (size_t classId = 0; classId < maxClasses; classId++) {
-        logStream << outTopClasses[classId] << " ";
-    }
-
-    logStream << std::endl << "ref: ";
-    for (size_t classId = 0; classId < maxClasses; classId++) {
-        logStream << refTopClasses[classId] << " ";
-    }
-    EXPECT_TRUE(std::equal(outTopClasses.begin(), outTopClasses.end(), refTopClasses.begin())) << logStream.str();
+    Comparators::compareTopClasses(resultBlob, refBlob, maxClasses);
 }
 
-#ifdef ENABLE_VPUAL
-
+#if defined(__arm__) || defined(__aarch64__)
 bool useSIPP() {
     static const bool USE_SIPP = [](const char* str) -> bool {
         std::string var(str ? str : "");
@@ -832,5 +807,4 @@ bool useSIPP() {
 
     return USE_SIPP;
 }
-
 #endif

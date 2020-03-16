@@ -170,6 +170,9 @@ static void fillFcIR(std::string& model, SizeVector input_dims, size_t weightsBu
 typedef kmbLayerTestBaseWithParam<fullyConnected_test_params> kmbLayersTestsFullyConnectedWithIR;
 
 TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     size_t weightsBufferOffset = 48;
     auto input_dims = GetParam().input_dim;
     uint32_t outChannels = GetParam().out_channels;
@@ -262,6 +265,9 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
 }
 
 TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     auto input_dims = GetParam().input_dim;
     uint32_t outChannels = GetParam().out_channels;
 

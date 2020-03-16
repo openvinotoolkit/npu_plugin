@@ -932,6 +932,18 @@ void FrontEndMcm::parseOutputData() {
     }
 }
 
+namespace {
+
+void cvtPaddingsFromCeilToFloorMode(
+    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
+    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
+
+    pad_end = pad_end + (input_size_floor - input_size_ceil);
+    pad_end = std::max(pad_end, 0);
+}
+
+}  // namespace
+
 void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto input = inputs[0];
     bool is_quantized = false;
@@ -964,17 +976,22 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
 
     size_t groupSize = convLayer->_group;
 
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    auto outDesc = layerOutput->getTensorDesc();
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX * dilationX,
+        kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY * dilationY,
+        kernelStrideY, padTop, padBottom);
+
     // Quantization parameters
     mv::QuantizationParams weightsQuantParams = initialQuantParams;
     mv::QuantizationParams inputQuantParams = initialQuantParams;
     mv::QuantizationParams outputQuantParams = initialQuantParams;
     mv::QuantizationParams biasQuantParams = initialQuantParams;
 
-    auto layerOutput = layer->outData[0];
     mv::DType convolutionDataType("Default");
 
-    IE_ASSERT(layerOutput != nullptr);
-    auto outDesc = layerOutput->getTensorDesc();
     mv::Data::TensorIterator mvConv;
     mv::Data::TensorIterator mvConvOnly;
     mv::Data::TensorIterator mvWeights;
@@ -1099,18 +1116,6 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     _logger->debug(FINISH_PARSING_STR, mvConv->getName());
 }
 
-namespace {
-
-void cvtPaddingsFromCeilToFloorMode(
-    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
-    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
-    IE_ASSERT(input_size_floor >= input_size_ceil);
-
-    pad_end = pad_end + (input_size_floor - input_size_ceil);
-}
-
-}  // namespace
-
 void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
 
@@ -1141,12 +1146,10 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     auto outDesc = layerOutput->getTensorDesc();
 
-    if (rounding_type == "ceil") {
-        cvtPaddingsFromCeilToFloorMode(
-            input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
-        cvtPaddingsFromCeilToFloorMode(
-            input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
-    }
+    cvtPaddingsFromCeilToFloorMode(
+        input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX, kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(
+        input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY, kernelStrideY, padTop, padBottom);
 
     mv::QuantizationParams outputQuantParams = initialQuantParams;
     QuantizationHelpers::fillQuntizationActivationParams(poolLayer, outputQuantParams);
@@ -1163,14 +1166,14 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
             {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, "", "floor", mv::DType("Default"), outputQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), outputQuantParams, poolLayer->name);
     }
 
     bindOutput(mvPooling, layerOutput);
@@ -1342,27 +1345,21 @@ void FrontEndMcm::parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector
 
 void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
-
     auto normLayer = std::dynamic_pointer_cast<ie::NormLayer>(layer);
     IE_ASSERT(normLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    auto mvLRN =
-        _modelMcm.localResponseNormalization(inputs[0]->getMcmNode(), normLayer->_size, normLayer->_k, normLayer->name);
-
-    // Workaround to avoid parsing stage crash 'ArgumentError: attribute identifer quantParams - Undefined identifier'
-    // in "inception_v1_caffe_benchmark" test
-    // VPUNND-2284, VPUNND-2237,
-    mvLRN->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+    auto alpha = static_cast<double>(normLayer->_alpha);
+    auto beta = static_cast<double>(normLayer->_beta);
+    std::string region = std::to_string(normLayer->_k);
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+    auto mvLRN = _modelMcm.norm(inputs[0]->getMcmNode(), alpha, beta, region, normLayer->_size, mv::DType("Default"),
+        inputQuantParams, normLayer->name);
 
     bindOutput(mvLRN, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvLRN->getName());
-
-    // TODO: add parsing following parameters
-    // stage->attrs().set<float>("alpha", layer->_alpha);
-    // stage->attrs().set<float>("beta", layer->_beta);
 }
 
 void FrontEndMcm::parseScaleImpl(
@@ -1853,10 +1850,33 @@ void FrontEndMcm::parsePad(const ie::CNNLayerPtr& layer, const McmNodeVector& in
     VPU_THROW_EXCEPTION << "Pad layer is not supported by kmbPlugin";
 }
 
+const static std::map<std::string, std::string> interpolationMap = {
+    {"caffe.ResampleParameter.NEAREST", "NEAREST"},
+    {"caffe.ResampleParameter.CUBIC", "BICUBIC"},
+    {"caffe.ResampleParameter.LINEAR", "BILINEAR"},
+};
+
 void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Resample layer is not supported by kmbPlugin";
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto antialias = layer->GetParamAsBool("antialias", 0);
+    auto factor = layer->GetParamAsFloat("factor", 2.0);
+    auto height = layer->GetParamAsUInt("height", 0);
+    auto width = layer->GetParamAsUInt("width", 0);
+    auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
+
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    mv::Shape output_shape(getWHCN(layerOutput->getTensorDesc()).getDims());
+
+    auto resample_result = _modelMcm.resample(inputs[0]->getMcmNode(), interpolationMap.at(interpolation), antialias,
+        output_shape, mv::DType("Default"), inputQuantParams, layer->name);
+
+    bindOutput(resample_result, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, resample_result->getName());
 }
 
 void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

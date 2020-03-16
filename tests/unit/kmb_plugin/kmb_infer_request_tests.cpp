@@ -17,6 +17,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include "creators/creator_blob.h"
+#include "creators/creator_blob_nv12.h"
 #include "kmb_allocator.h"
 #include "kmb_infer_request.h"
 #include "kmb_private_config.hpp"
@@ -124,18 +126,6 @@ protected:
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
     }
 
-    ie::Blob::Ptr createBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
-        if (dims.size() != 4) {
-            THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
-        }
-        ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
-
-        auto blob = ie::make_shared_blob<uint8_t>(desc);
-        blob->allocate();
-
-        return blob;
-    }
-
     ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
         if (dims.size() != 4) {
             THROW_IE_EXCEPTION << "Dims size must be 4 for createVPUBlob method";
@@ -149,41 +139,29 @@ protected:
         return blob;
     }
 
-    ie::NV12Blob::Ptr createNV12Blob(const std::size_t width, const std::size_t height) {
-        nv12Data = new uint8_t[height * width * 3 / 2];
-        return createNV12BlobFromMemory(width, height, nv12Data);
-    }
-
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
         nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width * 3 / 2));
-        return createNV12BlobFromMemory(width, height, nv12Data);
+        return NV12Blob_Creator::createFromMemory(width, height, nv12Data);
     }
+
     void TearDown() override {
         // nv12Data can be allocated in two different ways in the tests below
         // that why we need to branches to handle removing of memory
         if (nv12Data != nullptr) {
             if (getKmbAllocator()->isValidPtr(nv12Data)) {
                 getKmbAllocator()->free(nv12Data);
-            } else {
-                delete[] nv12Data;
             }
         }
     }
 
 private:
     uint8_t* nv12Data = nullptr;
-    ie::NV12Blob::Ptr createNV12BlobFromMemory(const std::size_t width, const std::size_t height, uint8_t* data) {
-        ie::TensorDesc uvDesc = {ie::Precision::U8, {1, 2, height / 2, width / 2}, ie::Layout::NHWC};
-        ie::TensorDesc yDesc = {ie::Precision::U8, {1, 1, height, width}, ie::Layout::NHWC};
-
-        auto yPlane = ie::make_shared_blob<uint8_t>(yDesc, data);
-        auto uvPlane = ie::make_shared_blob<uint8_t>(uvDesc, data + height * width);
-
-        return ie::make_shared_blob<ie::NV12Blob>(yPlane, uvPlane);
-    }
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     auto inputName = _inputs.begin()->first.c_str();
 
     ie::Blob::Ptr input;
@@ -195,6 +173,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -215,6 +196,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) 
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -235,7 +219,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPre
         SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
     }
 
-    auto nv12Input = createNV12Blob(1080, 1080);
+    auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
         .WillOnce(Return(nv12Input->uv()));
@@ -259,8 +243,11 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPre
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
-    auto largeInput = createBlob({dims[0], dims[1], dims[2] * 2, dims[3] * 2});
+    auto largeInput = Blob_Creator::createBlob({dims[0], dims[1], dims[2] * 2, dims[3] * 2});
 
     auto inputName = _inputs.begin()->first.c_str();
     auto preProcInfo = _inputs.begin()->second->getPreProcess();
@@ -274,6 +261,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     setenv("IE_VPU_KMB_DUMP_INPUT_PATH", ".", 1 /*overwrite*/);
 
     ie::Blob::Ptr input;
@@ -292,7 +282,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
         SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
     }
 
-    auto nv12Input = createNV12Blob(1080, 1080);
+    auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
         .WillOnce(Return(nv12Input->uv()));
@@ -316,6 +306,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuInput = createVPUBlob(dims);
 
@@ -333,6 +326,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
@@ -355,7 +351,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) 
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMatchedNetworkInput) {
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
-    auto inputToSet = createBlob(dims);
+    auto inputToSet = Blob_Creator::createBlob(dims);
 
     auto reallocatedInput = createVPUBlob(dims);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(inputToSet))
@@ -376,10 +372,13 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMa
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNotMatchedNetworkInput) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
-    auto inputToSet = createBlob(dims);
+    auto inputToSet = Blob_Creator::createBlob(dims);
 
     auto inputName = _inputs.begin()->first.c_str();
     auto preProcInfo = _inputs.begin()->second->getPreProcess();

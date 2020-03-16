@@ -19,13 +19,17 @@
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
+
+#if defined(__arm__) || defined(__aarch64__)
 #include <vpusmm.h>
+#endif
 
 #include <iostream>
 
 using namespace vpu::KmbPlugin;
 
 void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
     long pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
 
@@ -45,9 +49,14 @@ void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
     _allocatedMemory[virtAddr] = memDesc;
 
     return virtAddr;
+#else
+    UNUSED(size);
+    return nullptr;
+#endif
 }
 
 bool KmbVpusmmAllocator::free(void* handle) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
         return false;
@@ -66,6 +75,17 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
     _allocatedMemory.erase(handle);
 
     return true;
+#else
+    UNUSED(handle);
+    return false;
+#endif
 }
 
-bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept { return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0; }
+bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
+#else
+    UNUSED(ptr);
+    return false;
+#endif
+}

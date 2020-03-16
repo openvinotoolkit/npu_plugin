@@ -26,7 +26,7 @@ namespace KmbPlugin {
 namespace utils {
 
 void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
-void readNV12FileHelper(const std::string &filePath, size_t expectedSize, uint8_t *imageData, size_t readOffset);
+void readNV12FileHelper(const std::string &filePath, size_t sizeToRead, uint8_t *imageData, size_t readOffset);
 InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath, size_t imageWidth, size_t imageHeight,
                                         std::shared_ptr<VPUAllocator> &allocator);
 

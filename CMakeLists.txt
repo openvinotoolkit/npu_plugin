@@ -1,5 +1,17 @@
-# Copyright (C) 2018 Intel Corporation
-# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright 2019-2020 Intel Corporation.
+#
+# This software and the related documents are Intel copyrighted materials,
+# and your use of them is governed by the express license under which they
+# were provided to you (End User License Agreement for the Intel(R) Software
+# Development Products (Version May 2017)). Unless the License provides
+# otherwise, you may not use, modify, copy, publish, distribute, disclose or
+# transmit this software or the related documents without Intel's prior
+# written permission.
+#
+# This software and the related documents are provided as is, with no
+# express or implied warranties, other than those that are expressly
+# stated in the License.
 #
 
 # Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
@@ -32,6 +44,13 @@ if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
 
+if (ARM OR AARCH64)
+    if (NOT vpualHost_DIR)
+        set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)
+    endif()
+    find_package(vpualHost REQUIRED CONFIG PATHS ${vpualHost_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
+endif()
+
 add_subdirectory(thirdparty)
 
 if(ENABLE_MCM_COMPILER)
@@ -43,10 +62,6 @@ endif()
 #   dependencies, like mcm_config
 add_subdirectory(src/frontend_mcm)
 
-if (ENABLE_VPUAL)
-    add_definitions(-DENABLE_VPUAL)
-endif()
-
 add_subdirectory(src/utils)
 add_subdirectory(src/kmb_plugin)
 
@@ -56,16 +71,11 @@ endif()
 
 if(ENABLE_TESTS)
     enable_testing()
-
-    if(ENABLE_VPUAL AND ENABLE_MCM_COMPILER)
-        add_subdirectory(src/vpual_model)
-    endif()
-
     add_subdirectory(tests)
     add_subdirectory(tests_experimental)
 endif()
 
-if(ENABLE_KMB_SAMPLES)
+if(ENABLE_KMB_SAMPLES AND (ARM OR AARCH64))
     add_subdirectory(samples)
 endif()
 

@@ -49,7 +49,7 @@ private:
 
 void Graph_Common_UnitTests::SetUp() {
     if (GetParam() == fromImportedGraph) {
-        const std::string _modelToImport = PrecompiledResNet_Helper::resnet.graphPath;
+        const std::string _modelToImport = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
         ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
     } else {
         ModelPooling_Helper modelPoolingHelper;

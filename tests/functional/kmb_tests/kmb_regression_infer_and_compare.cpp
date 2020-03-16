@@ -32,7 +32,7 @@
 #include "low_precision_transformations/transformer.hpp"
 #include "tests_timeout.hpp"
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 using namespace ::testing;
 using namespace InferenceEngine;

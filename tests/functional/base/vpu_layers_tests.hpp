@@ -21,6 +21,7 @@
 #include <vpu/private_plugin_config.hpp>
 #include <random>
 #include "layers_reference_functions.hpp"
+#include "comparators.h"
 
 // clang-format on
 
@@ -70,7 +71,7 @@ struct interp_test_params {
 using namespace InferenceEngine;
 using namespace details;
 
-#ifdef ENABLE_VPUAL
+#if defined(__arm__) || defined(__aarch64__)
 
 // this is a copy of useSipp function from kmbPlugin/kmbPreproc.hpp just because func from kmbPlugin/kmbPreproc.hpp
 // is not avaible from functional tests environment
@@ -359,28 +360,6 @@ inline bool vpuLayersTests::GenerateNetAndInfer(bool useHWOpt, bool runRefGraph,
 }
 
 InferenceEngine::Blob::Ptr ConvertU8ToFP32(const InferenceEngine::Blob::Ptr& inBlob);
-
-template <typename blobData_t>
-std::vector<size_t> yieldTopClasses(const InferenceEngine::Blob::Ptr& resultBlob, size_t maxClasses) {
-    const blobData_t* unsortedRawData = resultBlob->cbuffer().as<const blobData_t*>();
-    // map key is a byte from raw data (quantized probability)
-    // map value is the index of that byte (class id)
-    std::multimap<blobData_t, size_t> sortedClassMap;
-    for (size_t classIndex = 0; classIndex < resultBlob->size(); classIndex++) {
-        blobData_t classProbability = unsortedRawData[classIndex];
-        std::pair<blobData_t, size_t> mapItem(classProbability, classIndex);
-        sortedClassMap.insert(mapItem);
-    }
-
-    std::vector<size_t> topClasses;
-    for (size_t classCounter = 0; classCounter < maxClasses; classCounter++) {
-        typename std::multimap<blobData_t, size_t>::reverse_iterator classIter = sortedClassMap.rbegin();
-        std::advance(classIter, classCounter);
-        topClasses.push_back(classIter->second);
-    }
-
-    return topClasses;
-}
 
 void compareTopClasses(
     const InferenceEngine::Blob::Ptr& resultBlob, const InferenceEngine::Blob::Ptr& refBlob, size_t maxClasses);

@@ -14,8 +14,8 @@
 // stated in the License.
 //
 
+#include "core_api.h"
 #include "gtest/gtest.h"
-#include "hddl2_core_api.h"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
@@ -25,7 +25,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      class HDDL2_Remote_Context_Tests Declaration
 //------------------------------------------------------------------------------
-class HDDL2_Remote_Context_Tests : public HDDL2_Core_API_Tests {};
+class HDDL2_Remote_Context_Tests : public CoreAPI_Tests {};
 
 //------------------------------------------------------------------------------
 //      class HDDL2_Remote_Context_Tests Initiation

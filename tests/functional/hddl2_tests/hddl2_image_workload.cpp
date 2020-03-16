@@ -14,74 +14,157 @@
 // stated in the License.
 //
 
+#include <blob_factory.hpp>
 #include <ie_core.hpp>
 
+#include "comparators.h"
+#include "creators/creator_blob_nv12.h"
 #include "file_reader.h"
 #include "gtest/gtest.h"
 #include "ie_blob.h"
-#include "parametric_executable_network.h"
+#include "models/precompiled_resnet.h"
 
 namespace IE = InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_ImageWorkload_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_ImageWorkload_Tests : public Executable_Network_Parametric {};
+class ImageWorkload_Tests : public ::testing::Test {
+public:
+    std::string graphPath;
+    std::string refInputPath;
+    std::string refOutputPath;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_ImageWorkload_Tests Initiation
-//------------------------------------------------------------------------------
-/**
- * 1. Create executable network
- * 2. Set input data
- * 3. Run inference
- * 4. Check output
- */
+    const size_t numberOfTopClassesToCompare = 5;
 
-TEST_P(HDDL2_ImageWorkload_Tests, SyncInference) {
-    // TODO Enable LoadNetwork after finding solution with fixed size of emulator output
-    if (GetParam() == LoadNetwork) {
-        SKIP() << "Allocated output blob does not have the same size as data from unite";
+protected:
+    void SetUp() override;
+    static void printRawBlob(const IE::Blob::Ptr& blob, const size_t& sizeToPrint, const std::string& blobName = "");
+};
+
+void ImageWorkload_Tests::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
+}
+
+void ImageWorkload_Tests::printRawBlob(
+    const IE::Blob::Ptr& blob, const size_t& sizeToPrint, const std::string& blobName) {
+    if (blob->size() < sizeToPrint) {
+        THROW_IE_EXCEPTION << "Blob size is smaller then required size to print.\n"
+                              "Blob size: "
+                           << blob->size() << " sizeToPrint: " << sizeToPrint;
+    }
+    if (blob->getTensorDesc().getPrecision() != IE::Precision::U8) {
+        THROW_IE_EXCEPTION << "Unsupported precision";
     }
 
+    auto mBlob = IE::as<IE::MemoryBlob>(blob);
+    auto mappedMemory = mBlob->rmap();
+    uint8_t* data = mappedMemory.as<uint8_t*>();
+    std::cout << "uint8_t output raw data" << (blobName.empty() ? "" : " for " + blobName) << "\t: " << std::hex;
+    for (size_t i = 0; i < sizeToPrint; ++i) {
+        std::cout << unsigned(data[i]) << " ";
+    }
+    std::cout << std::endl;
+}
+
+//------------------------------------------------------------------------------
+using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
+// [Track number: S#28336]
+TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
-    // ---- Import or load network. Already prepared for test
-    (void)executableNetwork;
+    // ---- Import or load network
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     // ---- Set input
-    IE::ConstInputsDataMap inputsInfo;
-    inputsInfo = executableNetwork.GetInputsInfo();
-
-    for (auto& item : inputsInfo) {
-        IE::Blob::Ptr inputBlob = inferRequest.GetBlob(item.first);
-        auto lockedMemory = inputBlob->buffer();
-        auto memory = lockedMemory.as<char*>();
-        memset(memory, 1, inputBlob->byteSize() / sizeof(int));
-        inferRequest.SetBlob(item.first, inputBlob);
-    }
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
 
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
 
     // --- Get output
-    IE::ConstOutputsDataMap outputsInfo;
-    for (auto& item : outputsInfo) {
-        IE::Blob::Ptr outputBlob = inferRequest.GetBlob(item.first);
-        auto lockedMemory = outputBlob->buffer();
-        auto memory = lockedMemory.as<char*>();
-        std::string memoryBuffer(memory);
-        ASSERT_GT(memoryBuffer.size(), 0);
-    }
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    refBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+
+    // --- Look at raw input/output/reference
+    const size_t byteToPrint = 8;
+    EXPECT_NO_THROW(printRawBlob(inputBlob, byteToPrint, "inputBlob"));
+    EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
+    EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
+
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
+    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_ImageWorkload_Tests Test case Initiations
-//------------------------------------------------------------------------------
-INSTANTIATE_TEST_CASE_P(ExecNetworkFrom, HDDL2_ImageWorkload_Tests, ::testing::ValuesIn(memoryOwners),
-    Executable_Network_Parametric::PrintToStringParamName());
+class ImageWorkload_WithPreprocessing : public ImageWorkload_Tests {
+protected:
+    void SetUp() override;
+};
+
+void ImageWorkload_WithPreprocessing::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
+}
+
+// [Track number: S#28336]
+TEST_F(ImageWorkload_WithPreprocessing, DISABLED_SyncInference) {
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    // ---- Import or load network
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Load NV12 Image and create blob from it
+    auto inputName = executableNetwork.GetInputsInfo().begin()->first;
+
+    const size_t image_width = 228;
+    const size_t image_height = 228;
+    IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(refInputPath, image_width, image_height);
+
+    // Since it 228x228 image on 224x224 network, resize preprocessing also required
+    IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+    preprocInfo.setResizeAlgorithm(IE::RESIZE_BILINEAR);
+    preprocInfo.setColorFormat(IE::ColorFormat::NV12);
+
+    // ---- Set NV12 blob with preprocessing information
+    inferRequest.SetBlob(inputName, nv12InputBlob, preprocInfo);
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    refBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+
+    // --- Look at raw output/reference
+    const size_t byteToPrint = 8;
+    EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
+    EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
+
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
+    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, numberOfTopClassesToCompare));
+}

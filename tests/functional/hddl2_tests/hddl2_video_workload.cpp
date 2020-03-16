@@ -14,156 +14,98 @@
 // stated in the License.
 //
 
+#include <blob_factory.hpp>
+#include <fstream>
+
 #include "RemoteMemory.h"
+#include "comparators.h"
+#include "file_reader.h"
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
 #include "ie_core.hpp"
-#include "models/model_pooling.h"
+#include "models/precompiled_resnet.h"
 
 namespace IE = InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_VideoWorkload_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_VideoWorkload_Tests : public ::testing::Test {};
-
-//------------------------------------------------------------------------------
-//      class VideoPipeline Declaration
-//------------------------------------------------------------------------------
-class VideoPipeline {
+using RemoteMemoryFD = uint64_t;
+class VideoWorkload_Tests : public ::testing::Test {
 public:
-    /**
-     * 1. Create workload context
-     * 2. Create remote memory and set some information to it
-     * 3. Save workloadContextId and dmaFd to reuse it as parameters for IE
-     */
-    bool createVideoPipeline(WorkloadID& workloadContextID, uint64_t& remoteMemoryFd, const std::string& data);
+    std::string graphPath;
+    std::string refInputPath;
+    std::string refOutputPath;
 
-    ~VideoPipeline();
+    const size_t numberOfTopClassesToCompare = 5;
+    RemoteMemoryFD allocateRemoteMemory(
+        const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
-    // TODO Use real input instead
-    const size_t _inputSize = 200000;
-
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemoryPtr = nullptr;
-    WorkloadID _workloadId = -1;
+    void SetUp() override;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
+RemoteMemoryFD VideoWorkload_Tests::allocateRemoteMemory(
+    const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
+    _remoteFrame = HddlUnite::SMM::allocate(*context, dataSize);
+
+    if (_remoteFrame == nullptr) {
+        THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
+    }
+
+    if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to sync memory to device.";
+    }
+    return _remoteFrame->getDmaBufFd();
+}
+
+void VideoWorkload_Tests::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
+}
+
 //------------------------------------------------------------------------------
-//      class VideoPipeline Implementation
-//------------------------------------------------------------------------------
-bool VideoPipeline::createVideoPipeline(
-    WorkloadID& workloadContextID, uint64_t& remoteMemoryFd, const std::string& data) {
+using VideoWorkload_WithoutPreprocessing = VideoWorkload_Tests;
+// [Track number: S#28336]
+TEST_F(VideoWorkload_WithoutPreprocessing, DISABLED_SyncInferenceOneRemoteFrame) {
+    // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
+    ASSERT_NE(nullptr, context.get());
 
-    auto ret = context->setContext(_workloadId);
-    if (ret != HDDL_OK) {
-        printf("Error: WorkloadContext set context failed");
-        return false;
-    }
-    ret = registerWorkloadContext(context);
-    if (ret != HDDL_OK) {
-        printf("Error: WorkloadContext register on WorkloadCache failed");
-        return false;
-    }
+    WorkloadID workloadId;
+    context->setContext(workloadId);
+    EXPECT_EQ(workloadId, context->getWorkloadContextID());
+    EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
 
-    _remoteMemoryPtr = HddlUnite::SMM::allocate(*context, _inputSize);
+    // ---- Load frame to remote memory (emulate VAAPI result)
+    // ----- Load binary input
+    const auto& inputTensor = PrecompiledResNet_Helper::resnet50_dpu_tensors.inputTensor;
+    auto inputRefBlob = make_blob_with_precision(inputTensor);
+    inputRefBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
 
-    if (_remoteMemoryPtr == nullptr) {
-        return false;
-    }
-
-    _remoteMemoryPtr->syncToDevice(data.data(), data.size() + 1);
-
-    workloadContextID = _workloadId;
-    remoteMemoryFd = _remoteMemoryPtr->getDmaBufFd();
-
-    return true;
-}
-
-VideoPipeline::~VideoPipeline() { HddlUnite::unregisterWorkloadContext(_workloadId); }
-
-//------------------------------------------------------------------------------
-//      class HDDL2_VideoWorkload_Tests Initiation
-//------------------------------------------------------------------------------
-/**
- * 1. Create remote blob in video pipeline and set data to it
- * 2. Create remote context from workload id
- * 3. Create remote blob from dma fd
- * 4. Check that input for inference the same as video pipeline provided
- */
-TEST_F(HDDL2_VideoWorkload_Tests, CanGetInputFromCreatedVideoPipeline) {
-    const std::string data_str = "Hello HDDL2 Plugin";
-    const size_t data_str_size = data_str.length() + 1;  // Null terminated symbol
-
-    WorkloadID workloadContextID;
-    uint64_t remoteMemoryFd;
-
-    // ---- Create video pipeline mock
-    VideoPipeline videoPipeline;
-    ASSERT_TRUE(videoPipeline.createVideoPipeline(workloadContextID, remoteMemoryFd, data_str));
+    // ----- Allocate memory with HddlUnite on device
+    RemoteMemoryFD remoteMemoryFd =
+        allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
     // ---- Init context map and create context based on it
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadContextID}};
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
     IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
 
-    // ---- Create remote blob by using already exists fd
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    // ---- Import network providing context as input to bind to context
+    const std::string& modelPath = graphPath;
 
-    // For this test real network will not be allocated, so we will just create memory for string
-    IE::TensorDesc tensorDesc(IE::Precision::U8, {1, 1, 1, data_str_size}, IE::NCHW);
-    IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(tensorDesc, blobParamMap);
-    ASSERT_NE(nullptr, remoteBlobPtr);
-
-    // ---- Check that memory contains message we are expecting
-    remoteBlobPtr->allocate();
-
-    std::string first_output;
-    {
-        auto lockedMemory = remoteBlobPtr->buffer();
-        auto data = lockedMemory.as<char*>();
-        first_output = std::string(data);
+    std::filebuf blobFile;
+    if (!blobFile.open(modelPath, std::ios::in | std::ios::binary)) {
+        blobFile.close();
+        THROW_IE_EXCEPTION << "Could not open file: " << modelPath;
     }
-    ASSERT_EQ(data_str, first_output);
-}
+    std::istream graphBlob(&blobFile);
 
-/**
- * 1. Create video pipeline
- * 2. Create remote context from workload id
- * 3. Create executable network using context
- * 4. Create remote blob from remote memory fd and set it to infer request
- * 5. Run Inference
- * // TODO This part can note be checked correctly without device
- * 6. Check output after inference
- */
-
-TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_SyncInferenceOnOneFrame) {
-    WorkloadID workloadContextID;
-    uint64_t remoteMemoryFd;
-    const std::string data_str = "Hello HDDL2 Plugin";
-
-    // ---- Create video pipeline mock
-    VideoPipeline videoPipeline;
-    ASSERT_TRUE(videoPipeline.createVideoPipeline(workloadContextID, remoteMemoryFd, data_str));
-
-    // ---- Load inference engine instance
-    InferenceEngine::Core ie;
-
-    // ---- Init context map and create context based on it
-    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadContextID}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
-
-    // ---- Load network providing context as input and get input information
-    ModelPooling_Helper modelPoolingHelper;
-    IE::CNNNetwork network = modelPoolingHelper.network;
-    IE::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, contextPtr);
-
-    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;
@@ -171,6 +113,10 @@ TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_SyncInferenceOnOneFrame) {
 
     // ---- Create remote blob by using already exists fd
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+
+    auto inputsInfo = executableNetwork.GetInputsInfo();
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(), blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -180,14 +126,114 @@ TEST_F(HDDL2_VideoWorkload_Tests, DISABLED_SyncInferenceOnOneFrame) {
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
 
-    // TODO Implement real output check for real device
     // --- Get output
-    IE::ConstOutputsDataMap outputsInfo;
-    for (auto& item : outputsInfo) {
-        IE::Blob::Ptr outputBlob = inferRequest.GetBlob(item.first);
-        auto lockedMemory = outputBlob->buffer();
-        auto memory = lockedMemory.as<char*>();
-        std::string memoryBuffer(memory);
-        ASSERT_GT(memoryBuffer.size(), 0);
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    outputRefBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+
+    // --- Compare with expected output
+    ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
+    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, outputRefBlob, numberOfTopClassesToCompare));
+}
+
+//------------------------------------------------------------------------------
+class VideoWorkload_WithPreprocessing : public VideoWorkload_Tests {
+protected:
+    void SetUp() override;
+};
+
+void VideoWorkload_WithPreprocessing::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
+}
+
+// [Track number: S#28336]
+TEST_F(VideoWorkload_WithPreprocessing, DISABLED_onOneRemoteFrame) {
+    // ---- Create workload context
+    HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
+    ASSERT_NE(nullptr, context.get());
+
+    WorkloadID workloadId;
+    context->setContext(workloadId);
+    EXPECT_EQ(workloadId, context->getWorkloadContextID());
+    EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
+
+    // ---- Load frame to remote memory (emulate VAAPI result)
+    // ----- Load binary input
+    const auto& nv12FrameTensor =
+        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 77976}, InferenceEngine::Layout::NCHW);
+
+    auto inputRefBlob = make_blob_with_precision(nv12FrameTensor);
+    inputRefBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+
+    // ----- Allocate memory with HddlUnite on device
+    RemoteMemoryFD remoteMemoryFd =
+        allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
+
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    // ---- Init context map and create context based on it
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+
+    // ---- Import network providing context as input to bind to context
+    const std::string& modelPath = graphPath;
+
+    std::filebuf blobFile;
+    if (!blobFile.open(modelPath, std::ios::in | std::ios::binary)) {
+        blobFile.close();
+        THROW_IE_EXCEPTION << "Could not open file: " << modelPath;
     }
+    std::istream graphBlob(&blobFile);
+
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Create remote blob by using already exists fd and specify color format of it
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
+        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
+
+    // Specify input
+    auto inputsInfo = executableNetwork.GetInputsInfo();
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+
+    IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, 228, 228}, IE::Layout::NCHW);
+    IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
+    ASSERT_NE(nullptr, remoteBlobPtr);
+
+    // Since it 228x228 image on 224x224 network, resize preprocessing also required
+    IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
+    preprocInfo.setResizeAlgorithm(IE::RESIZE_BILINEAR);
+    preprocInfo.setColorFormat(IE::ColorFormat::NV12);
+
+    // ---- Set remote NV12 blob with preprocessing information
+    inferRequest.SetBlob(inputName, remoteBlobPtr, preprocInfo);
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    outputRefBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+
+    // --- Compare with expected output
+    ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
+    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
+    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, outputRefBlob, numberOfTopClassesToCompare));
 }

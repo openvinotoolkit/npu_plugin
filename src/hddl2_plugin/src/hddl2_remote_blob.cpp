@@ -25,6 +25,19 @@
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
+static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
+    switch (colorFormat) {
+    case InferenceEngine::NV12:
+    case InferenceEngine::BGR:
+        return;
+    case InferenceEngine::RAW:
+    case InferenceEngine::RGB:
+    case InferenceEngine::RGBX:
+    case InferenceEngine::BGRX:
+    case InferenceEngine::I420:
+        THROW_IE_EXCEPTION << "Unsupported color format.";
+    }
+}
 //------------------------------------------------------------------------------
 //      class HDDL2BlobParams Implementation
 //------------------------------------------------------------------------------
@@ -43,7 +56,20 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
     try {
         _remoteMemoryFd = remote_memory_fd_iter->second.as<RemoteMemoryFD>();
     } catch (...) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param have incorrect type information";
+        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Remote memory fd param have incorrect type information";
+    }
+
+    auto color_format_iter = params.find(IE::HDDL2_PARAM_KEY(COLOR_FORMAT));
+    if (color_format_iter == params.end()) {
+        printf("Color format information is not found.");
+        _colorFormat = IE::ColorFormat::BGR;
+    } else {
+        try {
+            _colorFormat = color_format_iter->second.as<IE::ColorFormat>();
+            checkSupportedColorFormat(_colorFormat);
+        } catch (...) {
+            THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Color format param have incorrect type information";
+        }
     }
 
     _paramMap = params;
@@ -52,6 +78,8 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
 InferenceEngine::ParamMap HDDL2BlobParams::getParamMap() const { return _paramMap; }
 
 RemoteMemoryFD HDDL2BlobParams::getRemoteMemoryFD() const { return _remoteMemoryFd; }
+
+InferenceEngine::ColorFormat HDDL2BlobParams::getColorFormat() const { return _colorFormat; }
 
 //------------------------------------------------------------------------------
 //      class HDDL2RemoteBlob Implementation
@@ -125,3 +153,35 @@ const std::shared_ptr<InferenceEngine::IAllocator>& HDDL2RemoteBlob::getAllocato
 }
 
 RemoteMemoryFD HDDL2RemoteBlob::getRemoteMemoryFD() const { return _params.getRemoteMemoryFD(); }
+
+InferenceEngine::ColorFormat HDDL2RemoteBlob::getColorFormat() const { return _params.getColorFormat(); }
+
+static void getImageSize(IE::TensorDesc tensorDesc, size_t& outWidth, size_t& outHeight) {
+    const auto layout = tensorDesc.getLayout();
+    const auto dims = tensorDesc.getDims();
+    outHeight = 0;
+    outWidth = 0;
+    if (layout == IE::Layout::NCHW) {
+        outHeight = dims.at(2);
+        outWidth = dims.at(3);
+    } else if (layout == IE::Layout::NHWC) {
+        outHeight = dims.at(1);
+        outWidth = dims.at(2);
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported layout.";
+    }
+}
+
+size_t HDDL2RemoteBlob::size() const noexcept {
+    if (_params.getColorFormat() == IE::ColorFormat::NV12) {
+        if (tensorDesc.getLayout() == IE::Layout::SCALAR) return 1;
+        // FIXME It's a very bad solution
+        size_t width, height;
+        getImageSize(tensorDesc, width, height);
+        return (3 * width * height) / 2;
+    } else {
+        return MemoryBlob::size();
+    }
+}
+
+size_t HDDL2RemoteBlob::byteSize() const noexcept { return size() * element_size(); }

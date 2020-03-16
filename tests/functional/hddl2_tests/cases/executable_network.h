@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,12 +16,16 @@
 
 #pragma once
 
-#define VPUAL_MODEL_VISIBILITY __attribute__((visibility("default")))
+#include "load_network.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-VPUAL_MODEL_VISIBILITY int ioctl(int __fd, unsigned long int __request, ...);
-#ifdef __cplusplus
+class ExecutableNetwork_Tests : public LoadNetwork_Tests {
+public:
+    void SetUp() override;
+    InferenceEngine::ExecutableNetwork executableNetwork;
+
+};
+
+inline void ExecutableNetwork_Tests::SetUp() {
+    LoadNetwork_Tests::SetUp();
+    executableNetwork = ie.LoadNetwork(network, pluginName);
 }
-#endif

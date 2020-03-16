@@ -159,7 +159,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getTensorDesc_AllocatedBlob_ReturnCorrectTens
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Initiations - buffer
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_NotAllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     auto lockedMemory = remoteBlobPtr->buffer();
@@ -168,7 +169,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_NotAllocatedBlob_ReturnNotNullLocked) 
     ASSERT_NE(data, nullptr);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_AllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -178,7 +180,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_AllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(nullptr, data);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_ChangeAllocatedBlob_ShouldStoreNewData) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_ChangeAllocatedBlob_ShouldStoreNewData) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -201,7 +204,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_ChangeAllocatedBlob_ShouldStoreNewData
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Initiations - cbuffer
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, cbuffer_NotAllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_cbuffer_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     auto lockedMemory = remoteBlobPtr->cbuffer();
@@ -210,7 +214,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, cbuffer_NotAllocatedBlob_ReturnNotNullLocked)
     ASSERT_NE(nullptr, data);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_AllocatedBlob_CannotBeChanged) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_AllocatedBlob_CannotBeChanged) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -240,7 +245,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, buffer_AllocatedBlob_CannotBeChanged) {
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Initiations - rwlock
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_NotAllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rwlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     auto lockedMemory = remoteBlobPtr->rwmap();
@@ -249,7 +255,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_NotAllocatedBlob_ReturnNotNullLocked) 
     ASSERT_NE(data, nullptr);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_AllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rwlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -259,7 +266,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_AllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(nullptr, data);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_ChangeAllocatedBlob_ShouldStoreNewData) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rwlock_ChangeAllocatedBlob_ShouldStoreNewData) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     {
@@ -277,7 +285,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rwlock_ChangeAllocatedBlob_ShouldStoreNewData
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Initiations - rlock
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_NotAllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     auto lockedMemory = remoteBlobPtr->rmap();
@@ -286,7 +295,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_NotAllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(data, nullptr);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_AllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -296,7 +306,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_AllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(nullptr, data);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_ChangeAllocatedBlob_ShouldNotChangeRemote) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_rlock_ChangeAllocatedBlob_ShouldNotChangeRemote) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     {
         auto lockedMemory = remoteBlobPtr->rmap();
@@ -313,7 +324,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, rlock_ChangeAllocatedBlob_ShouldNotChangeRemo
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Initiations - wlock
 //------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_NotAllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_NotAllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
 
     auto lockedMemory = remoteBlobPtr->wmap();
@@ -322,7 +334,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_NotAllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(data, nullptr);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_AllocatedBlob_ReturnNotNullLocked) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_AllocatedBlob_ReturnNotNullLocked) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     remoteBlobPtr->allocate();
 
@@ -332,7 +345,8 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_AllocatedBlob_ReturnNotNullLocked) {
     ASSERT_NE(nullptr, data);
 }
 
-TEST_F(HDDL2_RemoteBlob_UnitTests, wlock_ChangeAllocatedBlob_ShouldChangeRemote) {
+// [Track number: S#28336]
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_ChangeAllocatedBlob_ShouldChangeRemote) {
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap);
     {
         auto lockedMemory = remoteBlobPtr->wmap();

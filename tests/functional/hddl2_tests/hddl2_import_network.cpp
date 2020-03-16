@@ -18,8 +18,8 @@
 
 #include <fstream>
 
+#include "core_api.h"
 #include "gtest/gtest.h"
-#include "hddl2_core_api.h"
 #include "hddl2_helpers/helper_workload_context.h"
 #include "helper_remote_context.h"
 #include "models/precompiled_resnet.h"
@@ -29,9 +29,9 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      class HDDL2_ImportNetwork_Tests Declaration
 //------------------------------------------------------------------------------
-class HDDL2_ImportNetwork_Tests : public HDDL2_Core_API_Tests {
+class HDDL2_ImportNetwork_Tests : public CoreAPI_Tests {
 public:
-    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet;
+    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
     void SetUp() override;
     InferenceEngine::ParamMap params;
 

@@ -20,14 +20,13 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${KMB_TEST_SOURCES})
 endif()
 
-list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph vpusmm kmb_utils)
-if(ENABLE_VPUAL AND ENABLE_VPUAL_MODEL)
-    list(APPEND KMB_TEST_LIBRARIES vpualModel)
-endif()
+list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB} kmb_utils)
 
 add_executable(${TARGET_NAME} ${KMB_TEST_SOURCES})
 
 add_dependencies(${TARGET_NAME} kmbPlugin)
+
+add_definitions(-DKMB_ALPHA_TESTS_DATA_PATH="${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/temp/models")
 
 target_compile_options(${TARGET_NAME}
     PRIVATE
@@ -41,6 +40,7 @@ target_compile_definitions(${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../common_helpers
         ${CMAKE_CURRENT_SOURCE_DIR}/new
         ${CMAKE_CURRENT_SOURCE_DIR}/base
         ${CMAKE_CURRENT_SOURCE_DIR}/common

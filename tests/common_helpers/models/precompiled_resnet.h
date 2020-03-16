@@ -20,22 +20,64 @@
 #include <ie_api.h>
 #include "test_model_path.hpp"
 
-//------------------------------------------------------------------------------
-//      PrecompiledResNet_Helper parameters
-//------------------------------------------------------------------------------
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
+    std::string nv12Input, nv12Output;
 };
 
-//------------------------------------------------------------------------------
-//      PrecompiledResNet_Helper Declaration
-//------------------------------------------------------------------------------
+struct modelTensors {
+    InferenceEngine::TensorDesc inputTensor, outputTensor;
+};
+
 namespace PrecompiledResNet_Helper {
-    static const modelBlobInfo resnet =
+    // Old version, u8 output
+    // TODO Remote after adding fp16 output support to HDDL2 Plugin
+    const std::string resnet_50_dpu_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/";
+
+    static const modelBlobInfo resnet50_dpu =
             {
-                    .graphName = "resnet",
-                    .graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob",
-                    .inputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin",
-                    .outputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin",
+                    .graphName = "resnet-50-dpu",
+                    .graphPath = resnet_50_dpu_folder + "resnet-50-dpu.blob",
+                    .inputPath = resnet_50_dpu_folder + "input.bin",
+                    .outputPath = resnet_50_dpu_folder + "output.bin",
+                    .nv12Input = resnet_50_dpu_folder + "input-228x228-nv12.bin",
+                    .nv12Output = resnet_50_dpu_folder + "output-228x228-nv12.bin"
+            };
+
+    static const modelTensors resnet50_dpu_tensors =
+            {
+                    .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                               {1, 3, 224, 224},
+                                                               InferenceEngine::Layout::NCHW
+                    ),
+                    .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                                {1, 1000, 1, 1},
+                                                                InferenceEngine::Layout::NCHW
+                    )
+            };
+
+    const std::string resnet_50_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+
+    // Actual version, fp16 output
+    static const modelBlobInfo resnet50 =
+            {
+                    .graphName = "resnet-50-dpu",
+                    .graphPath = resnet_50_folder + "resnet-50.blob",
+                    .inputPath = resnet_50_folder + "input.bin",
+                    .outputPath = resnet_50_folder + "output.bin",
+                    .nv12Input = resnet_50_folder + "input-228x228-nv12.bin",
+                    .nv12Output = resnet_50_folder + "output-228x228-nv12.bin",
+            };
+
+    static const modelTensors resnet50_tensors =
+            {
+                    .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                               {1, 3, 224, 224},
+                                                               InferenceEngine::Layout::NCHW
+                    ),
+                    .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
+                                                                {1, 1000, 1, 1},
+                                                                InferenceEngine::Layout::NCHW
+                    )
             };
 };

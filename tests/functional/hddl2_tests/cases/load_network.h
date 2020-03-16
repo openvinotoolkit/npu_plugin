@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,20 +16,17 @@
 
 #pragma once
 
-#include <Inference.h>
-#include <gtest/gtest.h>
-#include <ie_core.hpp>
-#include <test_model_path.hpp>
+#include "core_api.h"
+#include "gtest/gtest.h"
+#include "models/model_pooling.h"
 
-#include "helper_ie_core.h"
-
-//------------------------------------------------------------------------------
-//      class HDDL2_Core_API_Tests Declaration
-//------------------------------------------------------------------------------
-class HDDL2_Core_API_Tests : public ::testing::Test,
-                             public IE_Core_Helper {
+class LoadNetwork_Tests : public CoreAPI_Tests {
 public:
+    void SetUp() override;
     InferenceEngine::CNNNetwork network;
-    InferenceEngine::ExecutableNetwork executableNetwork;
-    InferenceEngine::InferRequest inferRequest;
+
+protected:
+    ModelPooling_Helper _modelPoolingHelper;
 };
+
+inline void LoadNetwork_Tests::SetUp() { network = _modelPoolingHelper.network; }

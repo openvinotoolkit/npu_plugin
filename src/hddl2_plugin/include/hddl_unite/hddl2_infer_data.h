@@ -16,15 +16,18 @@
 
 #pragma once
 
+#include <ie_blob.h>
+
+#include <ie_input_info.hpp>
+#include <ie_preprocess_data.hpp>
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "InferGraph.h"
+#include "blob_descriptor.h"
 #include "hddl2_remote_context.h"
-#include "ie_blob.h"
-#include "ie_input_info.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -33,23 +36,22 @@ class HddlUniteInferData {
 public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
-    explicit HddlUniteInferData(const HDDL2RemoteContext::Ptr& remoteContext = nullptr);
+    explicit HddlUniteInferData(
+        const bool& needPreProcessing = false, const HDDL2RemoteContext::Ptr& remoteContext = nullptr);
 
-    void prepareInput(const std::string& inputName, const InferenceEngine::Blob::Ptr& blob);
-
-    void prepareOutput(const std::string& outputName, const InferenceEngine::Blob::Ptr& blob);
-
-    static HddlUnite::Inference::Precision convertIEPrecision(const InferenceEngine::Precision& precision);
+    void prepareInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);
+    void prepareOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
 
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
 
+    std::string getOutputData(const std::string& outputName);
+
 private:
-    void createRemoteDesc(const bool isInput, const std::string& name, const InferenceEngine::Blob::Ptr& blob);
-
-    void createLocalDesc(const bool isInput, const std::string& name, const InferenceEngine::Blob::Ptr& blob);
-
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
+
+    std::map<std::string, BlobDescriptor::Ptr> _inputs;
+    std::map<std::string, BlobDescriptor::Ptr> _outputs;
 
     bool isVideoWorkload = false;
 };
