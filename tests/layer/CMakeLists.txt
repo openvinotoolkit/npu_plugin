@@ -83,9 +83,6 @@ else()
     add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
     target_link_libraries(proposal_caffe cm)
 
-    add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
-    target_link_libraries(reorgyolo cm)
-
     add_executable(resample resample/resample.cpp)
     target_link_libraries(resample cm)
 

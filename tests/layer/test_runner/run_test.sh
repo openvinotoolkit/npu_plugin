@@ -31,6 +31,7 @@ TESTS=(
         custom_st
         custom_fake_binarization
         regionyolo
+        reorgyolo
       )
 
 . $PWD/common/test_executor.sh
