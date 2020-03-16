@@ -387,11 +387,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-<<<<<<< HEAD
-    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers hde)
-=======
-    target_link_libraries(cm PUBLIC model metamodel flatbuffers)
->>>>>>> master
+    target_link_libraries(cm PUBLIC model metamodel flatbuffers hde)
     target_link_libraries(model PUBLIC lemon)
 
     if(NOT CMAKE_CROSSCOMPILING)
