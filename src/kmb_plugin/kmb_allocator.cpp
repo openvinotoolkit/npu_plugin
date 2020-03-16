@@ -19,14 +19,13 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 
+#include <string>
+#include <vector>
 
 #include "kmb_allocator.h"
 #include "kmb_udma_allocator.h"
 #include "kmb_native_allocator.h"
 #include "kmb_vpusmm_allocator.h"
-
-#include <iostream>
-#include <string>
 
 using namespace vpu::KmbPlugin;
 
@@ -68,22 +67,22 @@ void KmbAllocator::setSliceIdx(int sliceIdx) {
 }
 
 std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator(int sliceIdx) {
-    static std::shared_ptr<KmbAllocator> allocator;
-    if (allocator == nullptr) {
-        const char *allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
+    static std::vector<std::shared_ptr<KmbAllocator>> allocatorList(VPUSMM_SLICE_COUNT, nullptr);
+    if (sliceIdx < VPUSMM_SLICE_COUNT && allocatorList.at(sliceIdx) == nullptr) {
+        const char* allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
         std::string allocatorType;
         if (allocatorEnvPtr) {
             allocatorType = allocatorEnvPtr;
         }
         if (allocatorType == "UDMA") {
-            allocator = std::make_shared<KmbUdmaAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbUdmaAllocator>();
         } else if (allocatorType == "NATIVE") {
-            allocator = std::make_shared<KmbNativeAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbNativeAllocator>();
         } else {
-            allocator = std::make_shared<KmbVpusmmAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbVpusmmAllocator>();
             // TODO allocator constructor must take slice index as an argument
-            allocator->setSliceIdx(sliceIdx);
+            allocatorList.at(sliceIdx)->setSliceIdx(sliceIdx);
         }
     }
-    return allocator;
+    return allocatorList.at(sliceIdx);
 }
