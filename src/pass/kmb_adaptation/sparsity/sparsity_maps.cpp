@@ -107,10 +107,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 }
 
                 mv::DType dataType = dpuTask->getInputTensor(0)->get<mv::DType>("dType");
+
+                //Temporary workaround to avoid RuntimeCrash for invalid Activation_Windows_Channel_Length calculation based on WindowsSize when DType=Float16 for maxpool
+                //When Mixed precision is enabled/implemented/supported, will need to fix Pass order in CD- VPUNND-2775
+                //KMBQuantizeConversion Pass (Handles DType Conversion but currently comes after GenerateSparsityMapsPopulatedTensor)
+
                 if(dataType.toString() == "Float16" && isPooling == true)
                     dataType = mv::DType("UInt8");
-                if (!isPooling)
-                    dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
                 if (!isPooling)
                     dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
 
