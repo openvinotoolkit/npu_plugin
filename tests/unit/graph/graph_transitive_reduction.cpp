@@ -67,3 +67,24 @@ TEST (graph_transitive_reduction, test1)
 
     std::cout << "Finished" << std::endl;
 }
+
+typedef mv::DAG_Transitive_Reducer<graph_string_string,
+        EdgeItComparator, NodeItComparator> transitive_reducer_t;
+TEST(graph_transitive_reduction, cycle) {
+  
+  graph_string_string g;
+
+  auto na = g.node_insert("a");
+  auto nb = g.node_insert("b");
+  auto nc = g.node_insert("c");
+  auto nd = g.node_insert("d");
+  
+  g.edge_insert(na, nb, "a->b");
+  g.edge_insert(nb, nc, "b->c");
+  g.edge_insert(nc, nd, "c->d");
+  g.edge_insert(nd, nb, "d->b");
+
+  transitive_reducer_t reducer(g);
+
+  EXPECT_FALSE(reducer.reduce());
+}
