@@ -32,7 +32,6 @@ endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11 --no-gnu-unique)
-add_compile_options(-O0)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -268,6 +267,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/ppe_replacement.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/reshape_as_implicit.cpp"
@@ -276,6 +276,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_output_dtype.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
@@ -296,7 +297,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
 
@@ -367,19 +367,16 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-    add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:metamodel>)
+    add_library(model OBJECT ${model})
 
     add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 
-    target_link_libraries(cm PUBLIC corebase metamodel)
-    target_link_libraries(model PUBLIC corebase)
+    target_link_libraries(cm PUBLIC metamodel)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-    add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
 
     if(TARGET generate-comp-api)
@@ -390,7 +387,11 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
+<<<<<<< HEAD
     target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers hde)
+=======
+    target_link_libraries(cm PUBLIC model metamodel flatbuffers)
+>>>>>>> master
     target_link_libraries(model PUBLIC lemon)
 
     if(NOT CMAKE_CROSSCOMPILING)

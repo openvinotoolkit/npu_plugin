@@ -47,7 +47,6 @@ if (MSVC)
         ${META_DIR_PATH}/src/compositional_model.cpp
         ${META_DIR_PATH}/src/op_model.cpp
         $<TARGET_OBJECTS:model>
-        $<TARGET_OBJECTS:corebase>
     )
 else()
     add_library(metamodel SHARED

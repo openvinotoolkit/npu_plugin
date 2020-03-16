@@ -181,6 +181,8 @@ namespace mv
         void bindData(Tensor& other, const std::vector<std::size_t>& leftPadding = {}, const std::vector<std::size_t>& rightPadding = {});
         void broadcast(const Shape& shape);
 
+        std::string subTensorInfo() const;
+
         inline bool isDoubleType() const {
             return getDType().isDoubleType();
         }
@@ -227,6 +229,12 @@ namespace mv
                 flag = true;
             return flag;
         }
+
+        inline size_t numSubTensors() const
+        {
+            return subTensors_.size();
+        }
+
         inline bool isQuantized() const
         {
             return hasAttr("quantParams");

@@ -34,7 +34,5 @@ TEST(ops, maxPool2D)
     ASSERT_EQ(poolOp->inputSlots(), 1);
     ASSERT_EQ(poolOp->outputSlots(), 1);
     ASSERT_EQ(poolOp->get<bool>("exclude_pad"), true);
-    ASSERT_EQ(poolOp->get<std::string>("auto_pad"), "");
-    ASSERT_EQ(poolOp->get<std::string>("rounding_type"), "floor");
     ASSERT_TRUE(poolOp->hasTypeTrait("executable"));
 }

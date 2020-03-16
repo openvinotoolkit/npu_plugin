@@ -66,7 +66,6 @@ void markControlFlows(mv::ControlModel& cm, const std::pair<int, std::vector<mv:
 {
     for(auto& edgeDesc : maxTopologicalCut.second)
     {
-        std::cout << edgeDesc.name << " memory requirement " << edgeDesc.memoryRequirement << std::endl;
         auto ctflow = cm.getControlFlow(edgeDesc.name);
         ctflow->set<bool>("inMaxCut", true);
     }

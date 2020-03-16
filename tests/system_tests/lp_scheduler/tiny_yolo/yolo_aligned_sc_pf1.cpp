@@ -66,7 +66,7 @@ int main(int argc, char **argv)
     auto biasWeights0 = om.constantInt(biasWeightsData0,{16}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.791293288988527e-05},{-inf},{inf}}, "conv1#0_bias#2");
     auto bias_c0 = om.bias(conv0, biasWeights0, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool0 = om.maxPool(bias_c0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#35");
+    auto pool0 = om.maxPool(bias_c0, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#35");
 
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (3*3*16*32);
     auto weights1 = om.constantInt(weightsData1,{3,3,16,32}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{119},{0.002742463955655694},{-0.32530343532562256},{0.374024897813797}}, "conv2#4_weights#5");
@@ -76,7 +76,7 @@ int main(int argc, char **argv)
     auto biasWeights1 = om.constantInt(biasWeightsData1,{32}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.075476120604435e-05},{-inf},{inf}}, "conv2#4_bias#6");
     auto bias_c1 = om.bias(conv1, biasWeights1, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool1 = om.maxPool(bias_c1, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool2/max_pool#37");
+    auto pool1 = om.maxPool(bias_c1, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool2/max_pool#37");
 
     std::vector<int64_t> weightsData2 = mv::utils::generateSequence<int64_t> (3*3*32*64);
     auto weights2 = om.constantInt(weightsData2,{3,3,32,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.0032946206629276276},{-0.42331647872924805},{0.4168117642402649}}, "conv3#8_weights#9");
@@ -86,7 +86,7 @@ int main(int argc, char **argv)
     auto biasWeights2 = om.constantInt(biasWeightsData2,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2920080735057127e-05},{-inf},{inf}}, "conv3#8_bias#10");
     auto bias_c2 = om.bias(conv2, biasWeights2, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool2 = om.maxPool(bias_c2, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool3/max_pool#39");
+    auto pool2 = om.maxPool(bias_c2, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool3/max_pool#39");
 
     std::vector<int64_t> weightsData3 = mv::utils::generateSequence<int64_t> (3*3*64*128);
     auto weights3 = om.constantInt(weightsData3,{3,3,64,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{132},{0.003287225728854537},{-0.43268874287605286},{0.40555381774902344}}, "conv4#12_weights#13");
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
     auto biasWeights3 = om.constantInt(biasWeightsData3,{128}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2891081496491097e-05},{-inf},{inf}}, "conv4#12_bias#14");
     auto bias_c3 = om.bias(conv3, biasWeights3, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool3 = om.maxPool(bias_c3, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool4/max_pool#41");
+    auto pool3 = om.maxPool(bias_c3, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool4/max_pool#41");
 
     std::vector<int64_t> weightsData4 = mv::utils::generateSequence<int64_t> (3*3*128*256);
     auto weights4 = om.constantInt(weightsData4,{3,3,128,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0035929458681493998},{-0.46311089396476746},{0.45309028029441833}}, "conv5#16_weights#17");
@@ -106,7 +106,7 @@ int main(int argc, char **argv)
     auto biasWeights4 = om.constantInt(biasWeightsData4,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4089983778831083e-05},{-inf},{inf}}, "conv5#16_bias#18");
     auto bias_c4 = om.bias(conv4, biasWeights4, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool4 = om.maxPool(bias_c4, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool5/max_pool#43");
+    auto pool4 = om.maxPool(bias_c4, {2, 2}, {2, 2}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool5/max_pool#43");
 
     std::vector<int64_t> weightsData5 = mv::utils::generateSequence<int64_t> (3*3*256*512);
     auto weights5 = om.constantInt(weightsData5,{3,3,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{133},{0.0037452178075909615},{-0.4963448643684387},{0.4586856961250305}}, "conv6#20_weights#21");
@@ -116,7 +116,7 @@ int main(int argc, char **argv)
     auto biasWeights5 = om.constantInt(biasWeightsData5,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4687128896184731e-05},{-inf},{inf}}, "conv6#20_bias#22");
     auto bias_c5 = om.bias(conv5, biasWeights5, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool5 = om.maxPool(bias_c5, {2, 2}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool6/max_pool#45");
+    auto pool5 = om.maxPool(bias_c5, {2, 2}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "pool6/max_pool#45");
 
     std::vector<int64_t> weightsData6 = mv::utils::generateSequence<int64_t> (3*3*512*1024);
     auto weights6 = om.constantInt(weightsData6,{3,3,512,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.004124246072024107},{-0.5335013270378113},{0.5181813836097717}}, "conv7#24_weights#25");

@@ -681,14 +681,12 @@ void StrategyManager::graphParameterOptimizations()
 
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
-    //TODO:: error
-    cout<<"ERROR generateStrategySetForLayer" << endl;
-    return;
+    throw mv::ArgumentError("StrategyManager", "generateStrategySetForLayer", op.toString(), "No strategy for this layer");
 }
 
 double StrategyManager::transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
 {
-    cout<<"ERROR transitionCost" << endl;
+    log(mv::Logger::MessageType::Warning, "No transition cost asssociated with this op:  " + childOp.toString());
     return -1;
 }
 }

@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
+                "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -18,6 +18,8 @@
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": true,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -91,6 +93,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "DecideOutputDataType",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {

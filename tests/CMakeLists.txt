@@ -65,6 +65,9 @@ file(GLOB scheduler_unit_tests
 file(GLOB hde_unit_tests
   "${CMAKE_SOURCE_DIR}/tests/unit/target/kmb/hde/hde.cpp"
 )
+#file(GLOB runtime_model_unit_tests
+# "${CMAKE_SOURCE_DIR}/tests/unit/runtime_model/runtime_model_test.cpp"
+#)
 
 add_executable(mcm_unit_tests
     mcm_unit_tests.cpp
@@ -82,6 +85,7 @@ add_executable(mcm_unit_tests
 #    ${utils}
     ${scheduler_unit_tests}
     ${hde_unit_tests}
+    ${runtime_model_unit_tests}
 )
 
 if(VALIDATION)
@@ -102,6 +106,7 @@ target_link_libraries(mcm_unit_tests cm)
 target_include_directories(mcm_unit_tests PRIVATE utils
       INTERFACE lp_scheduler lp_scheduler_pass)
 target_link_libraries(mcm_unit_tests lp_scheduler lp_scheduler_pass)
+#target_link_libraries(mcm_unit_tests gcomparator)
 
 add_subdirectory(layer)
 add_subdirectory(system_tests/lp_scheduler/three_layer_conv_model)

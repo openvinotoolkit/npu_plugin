@@ -68,7 +68,75 @@ struct model_traits<mv::OpModel> {
 
 // Forward declaration //
 namespace lp_scheduler {
-  template<typename T> class DDR_Address_Generator;
+
+enum class op_type_e {ORIGINAL_OP=0, SPILLED_WRITE_OP=1, SPILLED_READ_OP=2};
+
+struct Scheduled_Op {
+
+  Scheduled_Op() : op_(NULL),
+    schedule_time_(std::numeric_limits<size_t>::max()), schedule_end_time_(),
+  cmx_address_start_(), cmx_address_end_(), op_type_() {}
+
+  Scheduled_Op(mv::Op const *op, size_t t, size_t start, size_t end,
+      op_type_e op_type=op_type_e::ORIGINAL_OP) : op_(op), schedule_time_(t),
+  schedule_end_time_(), cmx_address_start_(start), cmx_address_end_(end),
+  op_type_(op_type) {}
+
+  Scheduled_Op(const Scheduled_Op& o) : op_(o.op_),
+  schedule_time_(o.schedule_time_), schedule_end_time_(o.schedule_end_time_),
+  cmx_address_start_(o.cmx_address_start_),
+  cmx_address_end_(o.cmx_address_end_), op_type_(o.op_type_) {}
+
+  const Scheduled_Op& operator=(const Scheduled_Op& o) {
+    op_ = o.op_;
+    schedule_time_ = o.schedule_time_;
+    schedule_end_time_ = o.schedule_end_time_;
+    cmx_address_start_ = o.cmx_address_start_;
+    cmx_address_end_ = o.cmx_address_end_;
+    op_type_ = o.op_type_;
+    return *this;
+  }
+
+  bool operator==(const Scheduled_Op& o) const {
+    return (op_ == o.op_) && (schedule_time_ == o.schedule_time_) &&
+      (cmx_address_start_ == o.cmx_address_start_) &&
+      (cmx_address_end_ == o.cmx_address_end_);
+  }
+
+  bool is_spilled_read() const {
+    return (op_type_ == op_type_e::SPILLED_READ_OP);
+  }
+  bool is_spilled_write() const {
+    return (op_type_ == op_type_e::SPILLED_WRITE_OP);
+  }
+  bool is_original_op() const { return (op_type_ == op_type_e::ORIGINAL_OP); }
+  const char *op_type_name() const {
+    if (op_type_ == op_type_e::SPILLED_READ_OP) { return "SPILLED READ"; }
+    if (op_type_ == op_type_e::SPILLED_WRITE_OP) { return "SPILLED WRITE"; }
+    return "ORIGINAL";
+  }
+
+  bool has_valid_address() const { 
+    return (cmx_address_start_ <= cmx_address_end_);
+  }
+
+  bool has_active_resource() const { return has_valid_address(); }
+
+  operator size_t() const { return schedule_time_; }
+
+  typedef mv::Op const * operation_t;
+  operator operation_t() const { return op_; }
+
+
+  mv::Op const * op_;
+  size_t schedule_time_;
+  size_t schedule_end_time_;
+  size_t cmx_address_start_;
+  size_t cmx_address_end_;
+  op_type_e op_type_;
+}; // struct Scheduled_Op //
+
+template<typename T> class DDR_Address_Generator;
 } // namespace lp_scheduler //
 
 namespace scheduler {
@@ -95,6 +163,17 @@ class Operation_Dag {
       }
       std::hash<std::string> name_hash_;
     }; // struct operation_hash_t //
+
+    struct repackable_op_selector_t {
+      repackable_op_selector_t() : dag_ptr_(NULL) {}
+      repackable_op_selector_t(const dag_t& dag) : dag_ptr_(&dag) {}
+
+      bool operator()(const operation_t& op) const {
+        return dag_t::is_repackable_data_op(*dag_ptr_, op);
+      }
+
+      dag_t const *dag_ptr_;
+    }; // struct repackable_op_selector_t //
 
 
     typedef std::list<const_op_ptr_t> op_ref_list_t;
@@ -230,6 +309,16 @@ class Operation_Dag {
       return (resource_utility_map_.find(op) != resource_utility_map_.end());
     }
 
+    resource_t resource_utility(model_t& model, const char* op_name) {
+      typedef model_traits<model_t> mtraits;
+      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+
+      op_itr_t itr = model.getOp(op_name);
+      return itr == mtraits::end_operations(model) ?
+          resource_t() : resource_utility(&(*itr));
+    }
+
+
     resource_t resource_utility(const operation_t& op) const {
       auto itr = resource_utility_map_.find(op);
       assert(itr != resource_utility_map_.end());
@@ -241,6 +330,12 @@ class Operation_Dag {
                                  citr_end = end_nodes(op);
       if (citr == citr_end) { return false; }
       ++citr;
+      return (citr == citr_end);
+    }
+
+    bool op_has_zero_in_degree(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_parent_nodes(op),
+                                 citr_end = end_parent_nodes(op);
       return (citr == citr_end);
     }
 
@@ -292,7 +387,6 @@ class Operation_Dag {
     }
 
 
-
     static const_operation_iterator_t incoming_operations_begin(const dag_t& in,
         const operation_t& op) {
       return in.begin_parent_nodes(op);
@@ -302,6 +396,11 @@ class Operation_Dag {
       return in.end_parent_nodes(op);
     }
 
+    static bool is_repackable_data_op(const dag_t& dag, const operation_t& op) {
+      return dag.is_dma_op(op) &&
+          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) && 
+          dag.op_has_zero_in_degree(op);
+    }
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
       return dag.is_dma_op(op) &&
@@ -370,6 +469,34 @@ class Operation_Dag {
       return (location == mv::Tensor::MemoryLocation::NNCMX) ?
         out_itr->getClusterSize() : out_itr->computeTotalSize();
     }
+
+    typedef mv::lp_scheduler::Scheduled_Op scheduled_op_t;
+    struct scheduled_op_hash_t {
+      size_t operator()(const scheduled_op_t& o) const {
+        return hash_(o.op_);
+      }
+      std::hash<operation_t> hash_;
+    }; // struct scheduled_op_hash_t //
+    typedef repackable_op_selector_t data_op_selector_t;
+    typedef size_t schedule_time_t;
+    typedef size_t unit_t;
+
+    static void set_new_schedule_time(scheduled_op_t& op,
+          const schedule_time_t& t) {
+      op.schedule_time_ = t;
+    }
+
+    static schedule_time_t scheduled_time(const scheduled_op_t& op) {
+      return op.schedule_time_;
+    }
+    static operation_t scheduled_operation(const scheduled_op_t& sched_op) {
+      return sched_op.op_;
+    }
+
+    static bool is_valid_scheduled_op(const scheduled_op_t& op) {
+      return op.has_valid_address();
+    }
+    
     ////////////////////////////////////////////////////////////////////////////
 
     op_itr_t get_op_iterator(operation_t op) const {
@@ -633,27 +760,37 @@ class Operation_Dag {
       }
     }
 
+    bool is_aligned_dma_op(model_t& model, const char* op_name) const {
+      typedef model_traits<model_t> mtraits;
+      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+
+      op_itr_t itr = model.getOp(op_name);
+      return itr == mtraits::end_operations(model) ? false :
+          is_aligned_dma_op(model, &(*itr));
+    }
+
 
   private:
 
     template<typename model_t>
     bool is_aligned_dma_op(model_t& model, operation_t op) const { 
       typedef model_traits<model_t> mtraits;
-      typedef typename mtraits::const_operation_iterator_t op_itr_t;
+      typedef typename mtraits::const_child_operation_iterator_t cop_itr_t;
 
-      if (!is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
+      if (is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
       
       op_itr_t pop_itr = model.getOp(op->getName());
-      
+
       // out degree should be one //
       size_t out_degree = 0UL;
-      for (op_itr_t cop_itr=mtraits::begin_child_operations(pop_itr);
+      for (cop_itr_t cop_itr=mtraits::begin_child_operations(pop_itr);
             (cop_itr != mtraits::end_operations(model)) && (out_degree <= 1UL);
             ++cop_itr, ++out_degree) { }
 
-      if (out_degree > 1UL) { return false; }
+      if (out_degree != 1UL) { return false; }
 
       op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
+
 
       return (cop_itr->getOpType() == "Align");
     }
@@ -670,7 +807,7 @@ class Operation_Dag {
 
       op_itr_t pop_itr = model.getOp(op->getName());
       op_itr_t cop_itr = mtraits::begin_child_operations(pop_itr);
-      return output_tensor_size(*cop_itr);
+      return output_tensor_size(&(*cop_itr));
     }
 
 
@@ -687,14 +824,9 @@ class Operation_Dag {
       for (typename resource_utility_map_t::iterator
             ritr = resource_utility_map_.begin();
             ritr != resource_utility_map_.end(); ++ritr) {
-
         if (is_aligned_dma_op(model, ritr->first)) {
-          size_t utility_before = ritr->second;
           ritr->second =
               get_aligned_dma_op_resource_utility(model, ritr->first);
-
-          printf("[AlignedResourceUpdate]:%s before=%lu after=%lu\n", 
-              (ritr->first)->getName().c_str(), utility_before, ritr->second);
         }
       }
     }
@@ -794,6 +926,8 @@ class Operation_Dag {
             *short_circuit_itr);
       }
 
+      update_resource_utility_for_aligned_dma_ops(model);
+
       printf("[Initfrom Model] op count = %lu\n", num_ops);
     }
 
@@ -869,7 +1003,16 @@ class Operation_Dag {
     void clear_resource_model() { resource_utility_map_.clear(); }
 
   public:
-    
+   
+    bool add_directed_edge(const std::string& src_op,
+          const std::string& sink_op, mv::OpModel& model) {
+
+      mv::Data::OpListIterator src_itr = model.getOp(src_op);
+      mv::Data::OpListIterator sink_itr = model.getOp(sink_op);
+      assert((src_itr != model.opEnd()) && (sink_itr != model.opEnd()));
+      return add_directed_edge(&(*src_itr), &(*sink_itr));
+    }
+
     bool add_directed_edge(operation_t source_op, operation_t sink_op) {
 
       master_op_iterator_t itr_source = ops_.find(source_op);
@@ -896,7 +1039,12 @@ class Operation_Dag {
       // add source_op to rev_adj_list of sink_op //
       {
         adjacency_map_t::iterator adj_rev_itr = adj_map_rev_.find(sink_op);
-        assert(adj_rev_itr != adj_map_rev_.end());
+        if (adj_rev_itr == adj_map_rev_.end()) {
+          adj_rev_itr =
+            adj_map_rev_.insert(std::make_pair(sink_op, op_ref_list_t())).first;
+        }
+
+        //assert(adj_rev_itr != adj_map_rev_.end());
 
         op_ref_list_t& parent_list = adj_rev_itr->second;
         for (op_ref_list_t::const_iterator parent=parent_list.begin();

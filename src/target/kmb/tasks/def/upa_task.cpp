@@ -41,7 +41,7 @@ namespace mv
         .setOutputs({"output"})
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_upa::inputCheckFcn)
-        .setInputCheck(false)
+        .skipInputCheck()
         .setOutputDef(op_upa::outputDefFcn)
         .setTypeTrait({"executable"})
         .setVariableInputNum(true)

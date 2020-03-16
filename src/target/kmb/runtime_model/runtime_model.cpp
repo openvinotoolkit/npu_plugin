@@ -390,6 +390,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto starting_address = 0;
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
+        else
+        {
+            auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+            starting_address = (*masterBuffer)->getOffset();
+        }
 
         toBuild->data->data_index = starting_address + byte_index;
 
@@ -1143,8 +1148,15 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->get<bool>("multiCast"))
     {
         if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
-            toBuild->output_data->data->data_index += clusterId * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_CHANNEL_DIMENSION]
-                    * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_HEIGHT_DIMENSION] * opIt->getOutputTensor(0)->getSubTensor(clusterId).getShape()[IO_WIDTH_DIMENSION];
+        {
+            auto outputTensor = opIt->getOutputTensor(0);
+            auto subtensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+            auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+            auto index = outputTensor->getOrder().subToInd(outputTensor->getShape(), offset);
+            auto byte_index = index * outputTensor->getDType().getSizeInBits() / 8;
+
+            toBuild->output_data->data->data_index += byte_index;
+        }
     }
 
     //OP inputs == n ->

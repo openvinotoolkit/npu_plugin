@@ -177,6 +177,15 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                                 + ": </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
                                                 + dataIt->getTensor()->get(*attrIt).toString()
                                                 + "</FONT></TD></TR>";
+
+                                if (dataIt->getTensor()->hasSubTensors())
+                                {
+                                    edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\"> \
+                                                subtensors: \
+                                                </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
+                                                + dataIt->getTensor()->subTensorInfo()
+                                                + "</FONT></TD></TR>";
+                                }
                             }
                             edgeDef += "<TR><TD ALIGN=\"LEFT\"><FONT POINT-SIZE=\"11.0\"> Shape : </FONT></TD> <TD ALIGN=\"RIGHT\"><FONT POINT-SIZE=\"11.0\">"
                                         + dataIt->getTensor()->getShape().toString()
@@ -195,6 +204,10 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                 for (auto attrIt = attrKeys.begin(); attrIt != attrKeys.end(); ++attrIt)
                                     if (*attrIt != "flows")
                                         edgeDef += *attrIt + ": " + dataIt->getTensor()->get(*attrIt).toString() + "\\n";
+                                if (dataIt->getTensor()->hasSubTensors())
+                                {
+                                    edgeDef += "subtensors: " + dataIt->getTensor()->subTensorInfo();
+                                }
                             }
                             edgeDef += "\"];";
                         }

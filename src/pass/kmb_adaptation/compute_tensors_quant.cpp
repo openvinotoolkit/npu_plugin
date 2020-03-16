@@ -1,22 +1,16 @@
 ﻿#include "include/mcm/pass/pass_registry.hpp"
-#include "include/mcm/op_model.hpp"
-#include "include/mcm/computation/model/control_model.hpp"
-#include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "mcm/utils/custom_math.hpp"
 #include <numeric>
 #include <cmath>
 
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint);
 //static void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat);
 //static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
-
-template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
 
 namespace mv
 {
@@ -38,181 +32,10 @@ namespace mv
     }
 }
 
-void calcZeroPointAndScale(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
-{
-    outScale = (outputMax - outputMin)/255;
-    if (outputMin >= 0.0)
-        outZp = 0;
-    else if (outputMax <= 0.0)
-        outZp = 255;
-    else if ((outputMin < 0.0) && (outputMax > 0.0))
-    {
-        auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
-        outZp = std::ceil(255 - max_diff);
-    }
-}
-
 void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor& td, mv::Element& e0, mv::Element& e1)
 {
     alignConcatScales(pass, model, td, e0, e1);
-    updateOutputQuantParams(pass, model, td, e0, e1);
-}
-
-void updateInfMinMax(mv::Data::TensorIterator input)
-{
-    auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-
-    //Note: if input Tensor has min, max of infs...we need to compute them
-    if (inputQuantization.infinitelimits())
-    {
-        //Quantization equation Real = scale(Quantized - zeroPoint)
-        double maximumFloat = inputQuantization.getScale()[0] * (255 - inputQuantization.getZeroPoint()[0]);
-        double minimumFloat = -inputQuantization.getZeroPoint()[0] * inputQuantization.getScale()[0];
-        if (minimumFloat == -0)
-            minimumFloat = 0;
-
-        mv::QuantizationParams newInputQuantization(inputQuantization.getZeroPoint(),
-                                                    inputQuantization.getScale(),{minimumFloat},{maximumFloat});
-        input->set<mv::QuantizationParams>("quantParams", newInputQuantization);
-    }
-}
-
-void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    //NOTE: This pass will generate output Quantization Params when they are not defined...
-    //Here we search for the minimum, maximum possible solution (better range) for the output Activation Tensor
-    //Input(Imin,Imax)     Weights(Wmin,Wmax)
-    // \                   /
-    //  \                 /
-    //   \               /
-    //    \             /
-    //     \           /
-    //      \         /
-    //       \       /
-    //          Conv
-    //           |
-    //       Output(Omin,Omax)
-    //           |
-    //        Bias(Bmin,Bmax)
-    // Suggestion: Omin = Imin * Wmin * kernel_w * kernel_h * input_channels, Rmin = Omin + Bmin
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
-
-    std::vector<std::string> convolution_types = {"Conv", "DepthwiseConv", "ChannelMajorConvolution"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfConvolution = om.getOpsOfTypes(convolution_types);
-    std::vector <mv::Data::OpListIterator> convolutions = {};
-    convolutions.reserve(operationsOfConvolution["Conv"].size() + operationsOfConvolution["Depthwise"].size() + operationsOfConvolution["ChannelMajorConvolution"].size());
-    convolutions.insert(convolutions.end(), operationsOfConvolution["Conv"].begin(), operationsOfConvolution["Conv"].end());
-    double inf = std::numeric_limits<double>::infinity();
-    auto maxPoolOps = om.getOps("MaxPool");
-    for(auto& opIt : maxPoolOps)
-    {
-        auto output = opIt->getOutputTensor(0);
-        auto input = opIt->getInputTensor(0);
-
-        if (!output->hasAttr("quantParams")
-                || output->get<mv::QuantizationParams>("quantParams").isNeutral())
-        {
-            if (!input->hasAttr("quantParams"))
-            {
-                if (input->get<mv::QuantizationParams>("quantParams").isNeutral())
-                    continue;
-            }
-            else
-            {
-                auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-
-                output->set<mv::QuantizationParams>("quantParams", inputQuantization);
-                opIt->set<mv::QuantizationParams>("quantParams", inputQuantization);
-            }
-        }
-
-    }
-    for(auto& opIt : convolutions)
-    {
-        auto output = opIt->getOutputTensor(0);
-        auto input = opIt->getInputTensor(0);
-        auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
-
-        if (!output->hasAttr("quantParams")
-                || output->get<mv::QuantizationParams>("quantParams").isNeutral())
-        {
-            double outputMin = inf;
-            double outputMax = -inf;
-
-            std::vector<double> outMin(outputChannels, inf);
-            std::vector<double> outMax(outputChannels, -inf);
-
-            //Note: if input Tensor has min, max of infs...we need to compute them
-            updateInfMinMax(input);
-
-            auto& newInputQuantization = input->get<mv::QuantizationParams>("quantParams");
-            auto weights = opIt->getInputTensor("weights");
-            auto kernelShape = weights->getShape();
-            auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-            auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
-            auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
-
-            //input/output quantization are per tensor, weights, bias quantization are per channel
-            std::vector<double> outScale(1);
-            std::vector<int64_t> outZp(1);
-            auto minIn = newInputQuantization.getMin();
-            auto maxIn = newInputQuantization.getMax();
-
-            bool hasBias = opIt->hasAttr("bias");
-            mv::Data::TensorIterator bias;
-            if (hasBias)
-            {
-                bias = dm.getTensor(opIt->get<std::string>("bias"));
-            }
-            double_t real_weight, real_bias;
-            for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
-            {
-                double sum_weight = 0;
-                double outputMinC = 0;
-                double outputMaxC = 0;
-                double biasScale = weights_scale[k] * newInputQuantization.getScale()[0];
-
-                for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
-                    for (size_t h = 0; h < kernelShape[mv::KERNEL_HEIGHT]; h++)
-                        for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
-                        {
-                            auto currWeight = (int64_t)weights->at({w,h,c,k});
-                            real_weight = ((int64_t) currWeight - weights_zp[k]) * weights_scale[k];
-
-                            sum_weight += real_weight;
-                        }
-
-                outputMaxC = maxIn[0] * sum_weight;
-                outputMinC = minIn[0] * sum_weight;
-                if (outputMinC > outputMaxC)
-                //could happen if weight is negative
-                {
-                    auto temp = outputMaxC;
-                    outputMaxC = outputMinC;
-                    outputMinC = temp;
-                }
-                if (hasBias)
-                {
-                    real_bias = ((int64_t) bias->at(k)) * biasScale;
-                    outputMinC += real_bias;
-                    outputMaxC += real_bias;
-                }
-                outMax[k] = outputMaxC;
-                outMin[k] = outputMinC;
-            }
-            outputMin = *std::min_element(outMin.begin(), outMin.end());
-            outputMax = *std::max_element(outMax.begin(), outMax.end());
-
-            calcZeroPointAndScale(outputMax, outputMin, outScale[0], outZp[0]);
-
-            mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
-            output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
-        }
-    }
 }
 
 void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint)
@@ -318,13 +141,15 @@ static void markCompensatedConcats(std::vector<mv::Data::OpListIterator> &concat
         auto tempScale = concatIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale()[0];
         concatIt->set<bool>("compensateNeed", false);
         concatIt->getInputTensor(0)->set<double>("oldScale", tempScale);
+
         for (std::size_t i = 1; i < concatIt->getInputTensor().size(); i++)
         {
+            auto concatInputQuantParams = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
             //NOTE: Activation tensors need to support only one value
-            if (std::abs(tempScale - concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0])/tempScale >
+            if (std::abs(tempScale - concatInputQuantParams.getScale()[0])/tempScale >
                     0.01)
             {
-                auto oldScale = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams").getScale()[0];
+                auto oldScale = concatInputQuantParams.getScale()[0];
                 concatIt->getInputTensor(i)->set<double>("oldScale", oldScale);
                 concatIt->set<bool>("compensateNeed", true);
             }
@@ -342,7 +167,7 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
     for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
     {
         //Note: if input Tensor has min, max of infs...we need to compute them
-        updateInfMinMax(concatIt->getInputTensor(i));
+        updateInfMinMaxPerTensor(concatIt->getInputTensor(i));
 
         auto& inputQuantization = concatIt->getInputTensor(i)->get<mv::QuantizationParams>("quantParams");
 
@@ -355,7 +180,7 @@ static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator
 
     double masterScale = 1.0;
     int64_t zeroPoint = 0;
-    calcZeroPointAndScale(maxConcatScale, minConcatScale, masterScale, zeroPoint);
+    calcZeroPointAndScalePerTensor(maxConcatScale, minConcatScale, masterScale, zeroPoint);
 
     return {{zeroPoint},{masterScale},{minConcatScale},{maxConcatScale}};
 }
@@ -430,6 +255,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     for(auto& opIt : dpuTasks)
     {
          std::string taskOp = opIt->get<std::string>("taskOp");
+
          bool isEltwise = taskOp == "Eltwise";
          bool isEltwiseMult = false;
          bool isEltwiseAddSub = false;
@@ -469,12 +295,24 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  auto scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
                  std::vector<float> S2(scale.begin(), scale.end());
 
+                 std::vector <float> S3(outputChannels, 1);
+                 std::vector <int32_t> zeroPoint(outputChannels, 0);
+                 bool outputOfAccWithBias = true;
                  mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                 scale = extendToK(outputChannels, outputQuantization.getScale(), output->getName());
-                 std::vector<float> S3(scale.begin(), scale.end());
+                 if (!(output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32")))
+                 {
+                     //NOTE: Here I compute all the quantization parameters like they should be
+                     //in order to dequantize the output of the DPU TASK, as Int32
+                     //32 bit is not a correct statement, practically it is Int33 as
+                     //the output of the accumulator+bias is an int33 number, but in
+                     //graphfile and everywhere will be noted as Int32 for better exposing to the user
+                     outputOfAccWithBias = false;
+                     scale = extendToK(outputChannels, outputQuantization.getScale(), output->getName());
+                     S3 = {scale.begin(), scale.end()};
 
-                 auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
-                 std::vector<int32_t> zeroPoint(zeroPointU.begin(), zeroPointU.end());
+                     auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
+                     zeroPoint = {zeroPointU.begin(), zeroPointU.end()};
+                 }
 
                  bool isPooling = taskOp == "MaxPool";
                  //Workaround for HW bug #227
@@ -495,6 +333,15 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      std::vector<float> S1(scale.begin(), scale.end());
                      //S1*S2
                      std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+                     if (output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32"))
+                     {
+                         std::vector<double> output_scale;
+                         output_scale = inputQuantization.getScale();
+                         std::transform(output_scale.begin(), output_scale.end(),
+                                        weightsQuantization.getScale().begin(), output_scale.begin(), std::multiplies<double>());
+                         outputQuantization.setScale(output_scale);
+                     }
+
                  }
                  else if (isEltwiseAddSub) //Add Subtract
                  {
@@ -544,12 +391,27 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  int exponent;
                  double mantissa;
 
-                 for (size_t i = 0; i < mSize; i++)
+                 if (!outputOfAccWithBias)
                  {
-                     mantissa = std::frexp(m[i], &exponent);
-                     shift[i] = bits - exponent;
-                     mScaled[i] = (mantissa * pow(2, bits));
+                     for (size_t i = 0; i < mSize; i++)
+                     {
+                         mantissa = std::frexp(m[i], &exponent);
+                         shift[i] = bits - exponent;
+                         mScaled[i] = (mantissa * pow(2, bits));
+                         if (mScaled[i] / pow(2, shift[i]) < m[i]) {
+                            mScaled[i] += 1;
+                         }
+                     }
                  }
+                 else
+                 {
+                     for (size_t i = 0; i < mSize; i++)
+                     {
+                         shift[i] = 0;
+                         mScaled[i] = 1;
+                     }
+                 }
+
                  std::vector<int32_t> zeroPointScaled(m.size());
                  std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
@@ -562,25 +424,3 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
-template <class T>
-std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName)
-{
-    if (value.size() == 1)
-        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
-
-    // We enter in this case if and only if we specified multi channel scales and
-    // the tensor has been aligned
-    if (value.size() < size)
-    {
-        auto toReturn = mv::utils::generateSequence<T>(size, static_cast<T>(0) , 0);
-        for(unsigned i = 0; i < value.size(); ++i)
-            toReturn[i] = value[i];
-        return toReturn;
-    }
-
-    if (value.size() == size)
-        return value;
-
-    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
-                std::to_string(value.size()));
-}

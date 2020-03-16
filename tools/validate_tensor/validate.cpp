@@ -183,13 +183,14 @@ std::vector<float> softmaxResults(std::vector<float>& results)
     return normalized;    
 }
 
-bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation)
+bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation, bool fp)
 {
     std::cout << "Comparing results ... " << std::endl;
     std::cout << "  Actual Results size: " << actualResults.size() << std::endl;
     std::cout << "  Expected Results size: " << expectedResults.size() << std::endl;
     std::cout << "  Tolerance: " << tolerance << "%" << std::endl;
-    std::cout << "  Allowed Deviation: " << allowedDeviation << " " << std::endl;
+    if(!fp)
+        std::cout << "  Allowed Deviation: " << allowedDeviation << " " << std::endl;
     if (actualResults.size() != expectedResults.size())
         std::cout << "  RESULTS SIZES DO NOT MATCH! Continuing..." << std::endl;
 
@@ -204,7 +205,7 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
 
         float abs_error = fabsf(actual - expected);
         float no_zero_div = 0.0;
-        if(expected == 0) no_zero_div = 0.0000001;
+        if(expected == 0) no_zero_div = std::numeric_limits<float>::min();
         float relative_error = fabsf(abs_error / (no_zero_div + expected));
 
         sumSquareDiffs += pow(abs_error, 2);
@@ -214,7 +215,12 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
         if(relative_error > maxRelErr) maxRelErr = relative_error;
 
         std::string result = "\t\033[1;32mPass\033[0m";
-        if ((abs_error > allowedDeviation))
+        if (!fp and (abs_error > allowedDeviation))
+        {
+            countErrs++;
+            result = "\t\033[1;31mfail\033[0m";
+        }
+        if (fp and ((relative_error*100) > (tolerance/2)))
         {
             countErrs++;
             result = "\t\033[1;31mfail\033[0m";
@@ -397,9 +403,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
+    // read movisim port and runtime config from env var if exist
+    std::string movisimPort = "30001";
+    if(std::getenv("MOVISIM_PORT") != NULL)
+        movisimPort = std::getenv("MOVISIM_PORT");
+
+    std::string runtimeConfig = ".config";
+    if(std::getenv("RUNTIME_CONFIG") != NULL)
+        runtimeConfig = std::getenv("RUNTIME_CONFIG");
+
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
-        "make run srvIP=" + evmIP;
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -463,6 +478,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     file.seekg(0, std::ios::beg);
 
     float allowedDeviation = 1.0;
+    bool fp = false;
 
     std::vector<float> outputFP32;
     if (dtype == MVCNN::DType::DType_U8)
@@ -519,6 +535,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         float range = max - min;
         allowedDeviation = 1.0 * (FLAGS_t * range/100);
         allowedDeviation = allowedDeviation / 2; // Consider half the range above or below of a given result
+        fp = true;
     }
     writeToFile(outputFP32, "./output-kmb-dequantized.bin");
 
@@ -534,8 +551,8 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
     // compare
     bool pass = false;
-    pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation);
-    std::cout << "Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl; 
+    pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
+    std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl; 
     if (pass)
         return RESULT_SUCCESS;
     else 
@@ -686,6 +703,54 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     return RESULT_SUCCESS;    
 }
 
+int checkInference(std::string actualResults, std::string imagePath, bool yoloNetwork=true)
+{
+    // convert blob to json
+    std::cout << "Checking inference results ..." << std::endl;
+
+    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    if (yoloNetwork) 
+        commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/yolo_bbox.py ") + imagePath;
+    std::cout << commandline << std::endl;
+    int result = std::system(commandline.c_str());
+    
+    // read in expected inference results
+    std::string expectedInferencePath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + std::string("/inference_results.txt");
+    std::ifstream inExpected(expectedInferencePath);
+    std::vector<std::string> expectedInferenceResults;
+    std::string str;
+    std::cout << std::endl << "Expected top 10: ";
+    while (std::getline(inExpected, str))
+    {
+        if(str.size() > 0) {
+            expectedInferenceResults.push_back(str);
+            std::cout << str << " ";
+        }
+    }
+
+    // read in actual inference results
+    std::string actualInferencePath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/actual_inference_results.txt");
+    std::ifstream inActual(actualInferencePath);
+    std::vector<std::string> actualInferenceResults;
+    std::cout << std::endl << "Actual top 10:   ";
+    while (std::getline(inActual, str))
+    {
+        if(str.size() > 0){
+            actualInferenceResults.push_back(str);
+            std::cout << str << " ";
+        }
+    }
+    
+    // compare
+    // bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
+    bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
+    std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
+    if (pass)
+        return RESULT_SUCCESS;
+    else 
+        return FAIL_VALIDATION;
+}
+
 int main(int argc, char *argv[]) 
 {
     if(std::getenv("DLDT_HOME") == NULL)
@@ -710,6 +775,12 @@ int main(int argc, char *argv[])
         std::string actualPathProcessed = "./output_transposed.dat";
         postProcessActualResults(FLAGS_a, FLAGS_b);
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
+        
+        bool yoloNetwork=false;
+        if (FLAGS_m.find("yolo") != std::string::npos)
+            yoloNetwork=true;
+
+        checkInference(FLAGS_a, FLAGS_i, yoloNetwork);
         return(0);
     }
 
@@ -745,9 +816,12 @@ int main(int argc, char *argv[])
     result = postProcessActualResults(actualPath, blobPath);
     if ( result > 0 ) return result;
 
-    result = validate(blobPath, expectedPath, actualPathProcessed);
-    if ( result > 0 )
-        return result;
+    validate(blobPath, expectedPath, actualPathProcessed);
     
-    return(0);
+    // master test is if the top 1's match
+    bool yoloNetwork=false;
+    if (FLAGS_m.find("yolo") != std::string::npos)
+        yoloNetwork=true;
+
+    return (checkInference(actualPath, FLAGS_i, yoloNetwork));
 }

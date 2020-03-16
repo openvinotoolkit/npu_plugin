@@ -82,14 +82,14 @@ std::string mv::BaseOpModel::varName(std::string name)
     std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
     if (!name.empty() && !std::isalpha(name[0]))
     {
-        name[0] = '_';
+        name = '_' + name;
     }
     return name;
 }
 
 void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
 {
-    // std::cout << "Initializing RecordedModel..." << std::endl;
+    // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
     delete dataOut_;
 
@@ -289,9 +289,10 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
+    log(Logger::MessageType::Debug, "LexTopological Sorted Operations: ");
     for (auto s: toReturn)
     {
-        std::cout << s->getName() << std::endl;
+        log(Logger::MessageType::Debug, s->getName());
     }
     return toReturn;
 }

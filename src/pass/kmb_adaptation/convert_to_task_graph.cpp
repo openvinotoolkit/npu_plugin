@@ -10,7 +10,7 @@
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0);
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt);
 
@@ -34,6 +34,11 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    double leakyReluHack = 1.0;
+
+    auto returnedParams = model.getGlobalConfigParams();
+    if (returnedParams->hasAttr("LeakyReluHack"))
+        leakyReluHack = returnedParams->get<double>("LeakyReluHack");
 
     auto dpuTasks = om.getOps("DPUTask");
     for(auto& dpuTask : dpuTasks)
@@ -44,7 +49,8 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
         std::vector<std::string> postOps;
         if(dpuTask->hasAttr("postOpTypes"))
             postOps = dpuTask->get<std::vector<std::string>>("postOpTypes");
-        addPpeTask(dpuTask, postOps, leakyAlpha);
+
+        addPpeTask(dpuTask, postOps, leakyAlpha, leakyReluHack);
     }
 }
 
@@ -91,13 +97,11 @@ mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vec
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
     auto kernelSize = attrs.at("kSize").get<std::array<unsigned short, 2>>();
     auto exclude_pad = attrs.at("exclude_pad").get<bool>();
-    auto auto_pad = attrs.at("auto_pad").get<std::string>();
-    auto rounding_type = attrs.at("rounding_type").get<std::string>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
 
     auto dpuPool = om.dPUTaskMaxPool(inputs, kernelSize, strides, padding,
-                       exclude_pad, auto_pad, rounding_type, outputTensorType, quantParams, mv::createDPUTaskName(name));
+                       exclude_pad, outputTensorType, quantParams, mv::createDPUTaskName(name));
 
     om.getSourceOp(dpuPool)->set<bool>("hasWeights", false);
     return dpuPool;
@@ -143,8 +147,8 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     //    Leaving it here as an historical note... and now it's back as an option
     if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
     {
-           dpuConvOp->erase("taskOp");
-           dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+       dpuConvOp->erase("taskOp");
+       dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
 
     return dpuConv;
@@ -468,7 +472,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             if (newTensorOp->getOpType() == "DPUTask")
             {
-                if (!software)
+                if (newTensor->hasAttr("dType") && newTensor->get<mv::DType>("dType") == mv::DType("Int32"))
+                    newTensor->set<mv::DType>("dType", mv::DType("Int32"));
+                else if (!software)
                     newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
                 else
                     newTensor->set<mv::DType>("dType", mv::DType("Float16"));
@@ -488,7 +494,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     }
 }
 
-void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha)
+void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
 
@@ -509,7 +515,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 
             mantissa = std::frexp(leakyAlpha, &exponent);
             ppeShift = bits - exponent;
-            ppeMult = (mantissa * pow(2, bits));
+            ppeMult = (mantissa * pow(2, bits)) * leakyReluHack;
         }
         ppeFixedFunction.setLReluMult(ppeMult);
         ppeFixedFunction.setLReluShift(ppeShift);

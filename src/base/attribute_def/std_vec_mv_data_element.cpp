@@ -14,9 +14,7 @@ namespace mv
         static mv::json::Value toJSON(const Attribute& a)
         {
             json::Array output;
-            std::cout << "XXXXXXXXXXXXXXXXXXXXXXXX JUST BEFORE " << std::endl;
             auto vec = a.get<std::vector<mv::DataElement>>();
-            std::cout << "XXXXXXXXXXXXXXXXXXXXXXXX JUST AFTER " << std::endl;
             for (std::size_t i = 0; i < vec.size(); ++i)
             {
                 output.append(vec[i].isDouble());

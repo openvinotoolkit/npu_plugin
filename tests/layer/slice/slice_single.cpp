@@ -33,7 +33,7 @@ int main()
     for (auto i=0; i<1; ++i)
     {
         slices.push_back(om.slice(input0, beginShapes.at(i), outputShapes.at(i), {{0},{1.0},{},{}}, "slice" + std::to_string(i)));
-        maxpools.push_back(om.maxPool(slices.back(), {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool" + std::to_string(i)));
+        maxpools.push_back(om.maxPool(slices.back(), {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool" + std::to_string(i)));
     }
 
     // Concat
@@ -41,7 +41,7 @@ int main()
     //auto concat0 = om.concat(maxpools, concat_axis, mv::DType("UInt8"), {{0},{1.0},{},{}}, "concat0");
 
     // Dummy maxpool
-    //auto maxpool5 = om.maxPool(concat0, {1,1}, {1,1}, {0,0,0,0}, true, "", "floor", mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool5");
+    //auto maxpool5 = om.maxPool(concat0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.0},{},{}}, "identity_maxpool5");
 
     // Output
     auto output0 = om.output(maxpools.back());
