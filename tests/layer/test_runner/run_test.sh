@@ -7,8 +7,6 @@ BUILD_DIR="${PWD}/../../../build"
 
 export PATH=$PATH:${BUILD_DIR}/contrib/flatbuffers
 
-./compile_kernels.sh
-
 mkdir -p ${BUILD_DIR}
 cd ${BUILD_DIR}
 cmake ..
