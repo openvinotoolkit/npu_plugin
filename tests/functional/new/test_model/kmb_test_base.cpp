@@ -22,7 +22,7 @@
 #include <chrono>
 
 #include <blob_factory.hpp>
-#include <plugin_cache.hpp>
+#include "functional_test_utils/plugin_cache.hpp"
 #include <test_model_path.hpp>
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>

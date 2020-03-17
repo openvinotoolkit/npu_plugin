@@ -12,7 +12,7 @@
 
 #include "blob_factory.hpp"
 #include "ie_memcpy.h"
-#include "plugin_cache.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 
 using namespace InferenceEngine;
 

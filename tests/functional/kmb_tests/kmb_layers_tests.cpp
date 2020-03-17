@@ -22,7 +22,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/vpu_compiler_config.hpp>
 
-#include "plugin_cache.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 
 using namespace InferenceEngine;
 
