@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_HDDL2)
+if (ENABLE_HDDL2 AND ENABLE_HDDL2_TESTS)
     add_subdirectory(hddl2_tests)
 endif()
 
