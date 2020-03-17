@@ -1,6 +1,7 @@
 #!/bin/bash
 
 rm -rf ./blobs ./blobs_info ./result.csv
+rm -rf ./mvbuild
 
 TEST_DIR=${PWD}
 BUILD_DIR="${PWD}/../../../build"
