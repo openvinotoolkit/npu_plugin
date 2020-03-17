@@ -88,3 +88,128 @@ TEST(graph_transitive_reduction, cycle) {
 
   EXPECT_FALSE(reducer.reduce());
 }
+
+template<typename IteratorA, typename IteratorB>
+bool EquivalentIteratorList(IteratorA abeg, IteratorA aend,
+    IteratorB bbeg, IteratorB bend) {
+
+  while (abeg != aend) {
+    if (bbeg == bend) { return false; }
+    if (!(*abeg == *bbeg)) {
+      std::cout <<"a =" << *abeg <<" b=" << *bbeg << std::endl;
+      return false;
+    }
+    ++abeg;
+    ++bbeg;
+  }
+  return (abeg == aend) && (bbeg == bend); 
+}
+
+bool EquivalentLabelledGraphs(graph_string_string& g_a,
+    graph_string_string& g_b) {
+
+  if (g_a.node_size() != g_b.node_size()) { return false; }
+  if (g_a.edge_size() != g_b.edge_size()) { return false; }
+
+  return EquivalentIteratorList(g_a.node_begin(), g_a.node_end(),
+        g_b.node_begin(), g_b.node_end()) &&
+    EquivalentIteratorList(g_a.edge_begin(), g_a.edge_end(),
+        g_b.edge_begin(), g_b.edge_end());
+}
+
+typedef mv::DAG_Transitive_Reducer<graph_string_string,
+        EdgeItComparator, NodeItComparator> transitive_reducer_t;
+
+TEST(graph_transitive_reduction, simple_chain) {
+  graph_string_string g, g_gold;
+
+  {
+    //input //
+    auto na = g.node_insert("a");
+    auto nb = g.node_insert("b");
+    auto nc = g.node_insert("c");
+    g.edge_insert(na, nb, "a->b");
+    g.edge_insert(nb, nc, "b->c");
+    g.edge_insert(na, nc, "a->c");
+  }
+
+  {
+    //output//
+    auto na = g_gold.node_insert("a");
+    auto nb = g_gold.node_insert("b");
+    auto nc = g_gold.node_insert("c");
+    g_gold.edge_insert(na, nb, "a->b");
+    g_gold.edge_insert(nb, nc, "b->c");
+  }
+
+
+  transitive_reducer_t reducer(g);
+  EXPECT_TRUE(reducer.reduce());
+  EXPECT_TRUE(EquivalentLabelledGraphs(g, g_gold));
+}
+
+TEST(graph_transitive_reduction, multi_level_chain) {
+  graph_string_string g, g_gold;
+  char node_buf[4096], edge_buf[8194];
+  size_t node_count = 25UL;
+
+  { // input: one node per level and add edges from node at
+    // level 'i' to all nodes nodes at levels 'i+1', 'i+2' ... //
+    auto nprev = g.node_insert("N0");
+    for (size_t i=1UL; i<node_count; i++) {
+      sprintf(node_buf, "N%lu", i);
+      auto ncurr = g.node_insert(std::string(node_buf));
+
+      sprintf(edge_buf, "E:%lu->%lu", i-1, i);
+      g.edge_insert(nprev, ncurr, std::string(edge_buf));
+
+      nprev = ncurr;
+    }
+    g_gold = g; // just a linear chain //
+
+    for (size_t i=1UL; i<node_count; i++) {
+      sprintf(node_buf, "N%lu", i);
+      auto nodei = g.node_find(node_buf);
+
+      for (size_t j=i+2UL; j<node_count; j++) {
+        sprintf(node_buf, "N%lu", j);
+        auto nodej = g.node_find(node_buf);
+
+        sprintf(edge_buf, "E:%lu->%lu", i, j);
+        g.edge_insert(nodei, nodej, std::string(edge_buf));
+      }
+    }
+  }
+
+
+  transitive_reducer_t reducer(g);
+  EXPECT_TRUE(reducer.reduce());
+  reducer.dump_reduce_info();
+  EXPECT_TRUE(EquivalentLabelledGraphs(g, g_gold));
+}
+
+TEST(graph_transitive_reduction, bipartite) {
+  graph_string_string g, g_gold;
+
+  {
+    //input //
+    auto na = g.node_insert("a");
+    auto nb = g.node_insert("b");
+    auto nc = g.node_insert("c");
+    auto nd = g.node_insert("d");
+
+    g.edge_insert(na, nc, "a->c");
+    g.edge_insert(na, nd, "a->d");
+    g.edge_insert(nb, nc, "b->c");
+    g.edge_insert(nb, nd, "b->d");
+  }
+
+  {
+    g_gold = g;
+  }
+
+  transitive_reducer_t reducer(g);
+  EXPECT_TRUE(reducer.reduce());
+  reducer.dump_reduce_info();
+  EXPECT_TRUE(EquivalentLabelledGraphs(g, g_gold));
+}
