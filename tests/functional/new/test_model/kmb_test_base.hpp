@@ -25,6 +25,7 @@
 #include "kmb_test_convolution_def.hpp"
 #include "kmb_test_fake_quantize_def.hpp"
 #include "kmb_test_softmax_def.hpp"
+#include "kmb_test_fully_connected_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
