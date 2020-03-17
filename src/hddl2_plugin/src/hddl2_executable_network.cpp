@@ -55,8 +55,12 @@ ExecutableNetwork::ExecutableNetwork(
 namespace {
 // TODO: this function should be provided by HDDL Unite API
 bool isDaemonAvailable() {
-    std::ifstream daemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
-    return std::getenv("KMB_INSTALL_DIR") != nullptr || daemon.good();
+    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
+
+    std::string specifiedDaemonPath = std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
+    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("/bin/kmbhddldaemon"));
+
+    return specifiedDaemon.good() || defaultDaemon.good();
 }
 
 }  // namespace

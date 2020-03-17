@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -23,6 +23,7 @@
 #include <ie_core.hpp>
 
 #include "creators/creator_blob_nv12.h"
+#include "models/model_pooling.h"
 
 namespace IE = InferenceEngine;
 
@@ -143,4 +144,14 @@ TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithR
     }
 
     ASSERT_EQ(inputData, resultData);
+}
+
+using InferRequestCreation_Tests = CoreAPI_Tests;
+TEST_F(InferRequestCreation_Tests, CanCompileButCanNotCreateRequestWithoutDaemon) {
+    unsetenv("KMB_INSTALL_DIR");
+    ModelPooling_Helper modelPoolingHelper;
+    auto cnnNetwork = modelPoolingHelper.network;
+
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(cnnNetwork, pluginName));
+    ASSERT_ANY_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
