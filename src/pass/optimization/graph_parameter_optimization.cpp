@@ -140,11 +140,8 @@ namespace mv
                     auto numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
 
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.first;
-
-                    int remainderOutputSize = newOutputSizes.second;
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
+                    int newOutputSize = newOutputSizes.front();
+                    int remainderOutputSize = newOutputSizes.back();
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
@@ -576,7 +573,8 @@ namespace mv
                 if ( op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" and 
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
-                         op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) )
+                         op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) 
+                         and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16))
                          {
                             return true;
                          }
