@@ -18,7 +18,7 @@ int main()
 
     const uint32_t top_channels = 81;
 
-    auto test = CustomLayerTest<>("CustomCorrelateModel");
+    auto test = CustomLayerTest<>("Correlate");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_constant("custom_correlate/in1.bin", {width, height, channels, 1},
         mv::DType{"Float16"}, mv::Order{"NHWC"});

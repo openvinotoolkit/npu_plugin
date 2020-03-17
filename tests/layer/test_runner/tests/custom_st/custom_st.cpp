@@ -7,7 +7,7 @@ int main()
     const uint32_t height = 96;
     const uint32_t channels = 3;
 
-    auto test = CustomLayerTest<>("CustomSpatialTransformModel");
+    auto test = CustomLayerTest<>("SpatialTransform");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_constant("custom_st/in1.bin", {3, 2, 1, 1}, mv::DType{"Float16"}, mv::Order{"NHWC"});
     test.add_output({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});

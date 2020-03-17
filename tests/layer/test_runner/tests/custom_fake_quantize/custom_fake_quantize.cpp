@@ -12,7 +12,7 @@ int main()
     const uint32_t output_low_size = 256;
     const uint32_t output_high_size = 256;
 
-    auto test = CustomLayerTest<>("CustomFakeBinarizationModel");
+    auto test = CustomLayerTest<>("FakeQuantize");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_constant("custom_fake_quantize/in1.bin", {1, 1, 256, 1}, mv::DType{"Float16"}, mv::Order{"NHWC"});
     test.add_constant("custom_fake_quantize/in2.bin", {1, 1, 256, 1}, mv::DType{"Float16"}, mv::Order{"NHWC"});

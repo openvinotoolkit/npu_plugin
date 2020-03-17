@@ -12,7 +12,7 @@ int main()
     const uint32_t channels = 64;
     const uint32_t stride = 2;
 
-    auto test = CustomLayerTest<>("CustomReorgModel");
+    auto test = CustomLayerTest<>("ReorgYolo");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, order);
     test.add_output({width / stride, height / stride, channels * stride * stride, 1}, mv::DType{"Float16"}, order);
 

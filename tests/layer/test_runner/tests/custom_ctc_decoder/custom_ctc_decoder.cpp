@@ -7,7 +7,7 @@ int main()
     const uint32_t height = 1;
     const uint32_t channels = 88;
 
-    auto test = CustomLayerTest<>("CustomCTCDecoderModel");
+    auto test = CustomLayerTest<>("CTCDecoder");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_constant("custom_ctc_decoder/in1.bin", {channels, 1, 1, 1}, mv::DType{"Float16"}, mv::Order{"NHWC"});
     test.add_output({channels, 1, 1, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});

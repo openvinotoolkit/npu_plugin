@@ -15,7 +15,7 @@ int main()
     const uint32_t coords  = 4;
     const uint32_t num     = 5;
 
-    auto test = CustomLayerTest<>("CustomRegionModel");
+    auto test = CustomLayerTest<>("RegionYolo");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, order);
     test.add_output({width, height, channels, 1}, mv::DType{"Float16"}, order);
     test.local_size = {(width + 7)/8*8, 1, 1};

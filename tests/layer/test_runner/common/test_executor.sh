@@ -1,12 +1,13 @@
 KMB_IP=$1
 
 if [ -z $KMB_IP ]; then
-	echo "Usage: $0 <kmb_ip>"
-	exit 1
+	KMB_IP="localhost"
+	echo "KMB IP was not provided. Using localhost as default."
 fi
 
 if [[ -z "${INFERENCE_MANAGER_DEMO_HOME}" ]]; then
     echo "Environment variable INFERENCE_MANAGER_DEMO_HOME is not defined"
+    exit 1
 fi
 
 echo Creating soft links to IM folders
@@ -49,9 +50,8 @@ for ((t=0; t<${#TESTS[@]}; ++t)); do
 	blob="blobs/${target}.blob"
 
 	if ! [ -e $blob ]; then
-		echo Could not find $blob
-		echo Run the blob generation script first
-		exit 1
+		echo "Could not find ${blob}. Skipping the test."
+		continue
 	fi
 
 	input_count=0

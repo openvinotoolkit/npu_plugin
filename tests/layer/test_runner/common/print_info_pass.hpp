@@ -38,7 +38,7 @@ static void printBlobInfoFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
 	const auto layerType = blobInfo.taskOp == "Custom" ? "Custom" : "Native";
 
-    std::cout << layerType << ";"
+    std::cout << om.getName() << ";" << layerType << ";"
     		  << blobInfo.inputShape << ";" << blobInfo.outputShape << ";"
     		  << blobInfo.inputOrder << ";" << blobInfo.inputDType << "\n";
 }

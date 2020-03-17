@@ -9,7 +9,7 @@ int main()
     const uint32_t switch_out = 0;
     const uint32_t input_low_high_size = 256;
 
-    auto test = CustomLayerTest<>("CustomFakeBinarizationModel");
+    auto test = CustomLayerTest<>("FakeBinarization");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_constant("custom_fake_binarization/in1.bin", {1, 1, 256, 1},
         mv::DType{"Float16"}, mv::Order{"NHWC"});

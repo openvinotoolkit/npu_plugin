@@ -10,7 +10,7 @@ int main()
     const uint32_t out_height = 52;
     const uint32_t channels = 128;
 
-    auto test = CustomLayerTest<>("CustomResampleAAModel");
+    auto test = CustomLayerTest<>("Resample_AA");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_output({out_width, out_height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.local_size = {1, 1, channels};

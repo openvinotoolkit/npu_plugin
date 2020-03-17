@@ -124,8 +124,6 @@ public:
 
     void run(const std::string& kernel_file, const std::vector<uint32_t>& layer_params)
     {
-        std::cout << kernel_file.substr(0, kernel_file.size() - 4) << ";";
-
         assert(inputs.size() == 1 && outputs.size() == 1);
 
         const auto kernel_data = read_kernel_file(kernel_file);

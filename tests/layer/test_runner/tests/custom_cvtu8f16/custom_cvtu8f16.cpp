@@ -9,7 +9,7 @@ int main()
     const uint32_t scale = CustomLayerTest<>::float_as_int(2.0f);
     const uint32_t bias = CustomLayerTest<>::float_as_int(4.0f);
 
-    auto test = CustomLayerTest<>("CustomCvtu8f16Model");
+    auto test = CustomLayerTest<>("Convert");
     test.add_input({width, height, channels, 1}, mv::DType{"UInt8"}, mv::Order{"NCHW"});
     test.add_output({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.local_size = {width, 1, 1};

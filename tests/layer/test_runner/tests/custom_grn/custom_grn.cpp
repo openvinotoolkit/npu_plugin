@@ -8,7 +8,7 @@ int main()
     const uint32_t channels = 24;
     const uint32_t bias = CustomLayerTest<>::float_as_int(1.0f);
 
-    auto test = CustomLayerTest<>("CustomGRNModel");
+    auto test = CustomLayerTest<>("GRN");
     test.add_input({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.add_output({width, height, channels, 1}, mv::DType{"Float16"}, mv::Order{"NCHW"});
     test.local_size = {width, 1, 1};
