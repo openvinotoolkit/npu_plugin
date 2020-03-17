@@ -20,6 +20,21 @@
 // ResNet50
 //
 
+// Fails on parsing stage:
+// "C++ exception with description "AssertionFailed: weightableLayer->insData.size() > 1"
+// or "C++ exception with description "Tensor::0 - ArgumentError: data vector type double - Unable to populate, data type is not doubleDType of tensor is Float16 but populating with double data" thrown in the test body."
+//    if isWeightableLayerQuantized insData.size() assertion excluded
+// [Track number: S#28568]
+TEST_F(KmbClassifyNetworkTest, DISABLED_resnet_50_pytorch_dense_fp16_IRv10) {
+    runTest(
+        TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
+            .setUserInputPresision("input", Precision::FP16)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP16),
+        "224x224/cat3.bmp",
+        3, 1e-5f);
+}
+
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
     SKIP_INFER_ON("KMB", "bad results");  // TODO: create JIRA ticket
     SKIP_INFER_ON("CPU", "segfault on infer");  // TODO: create JIRA ticket
