@@ -11,8 +11,8 @@
 #include <vpu/vpu_compiler_config.hpp>
 
 #include "blob_factory.hpp"
+#include "functional_test_utils/plugin_cache.hpp"
 #include "ie_memcpy.h"
-#include "plugin_cache.hpp"
 
 using namespace InferenceEngine;
 
