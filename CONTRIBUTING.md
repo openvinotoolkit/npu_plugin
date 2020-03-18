@@ -13,3 +13,9 @@
    if you do not have permission to do that, you may request the second reviewer
    to merge it for you.
 8. The feature branch is to be deleted after merging
+
+## CI Infrastructure 
+
+1. The CI infrastructure is available here: https://mig-ci-jenkins.ir.intel.com/job/KeemBay/
+2. Access is through AGS. Please go to https://ags.intel.com and apply for access to the group "MOVIDIUS MIG JENKINS DEVELOPER".
+
