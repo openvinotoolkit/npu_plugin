@@ -11,7 +11,6 @@ if [[ -z "${INFERENCE_MANAGER_DEMO_HOME}" ]]; then
 fi
 
 echo Creating soft links to IM folders
-ln -sf "${INFERENCE_MANAGER_DEMO_HOME}/config" "./"
 ln -sf "${INFERENCE_MANAGER_DEMO_HOME}/leon" "./"
 ln -sf "${INFERENCE_MANAGER_DEMO_HOME}/leon_nn" "./"
 
