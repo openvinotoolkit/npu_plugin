@@ -218,7 +218,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                 auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
                 if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size() > 1)
                 {
-                    std::size_t outputChannelsofSlice, starting_point;
+                    std::size_t outputChannelsofSlice=1, starting_point=0;
                     if (op->getOpType() == "Conv")
                     {
                         outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];

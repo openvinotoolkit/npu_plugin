@@ -170,7 +170,7 @@ namespace mv
 void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
-    bool PredictionOfQuantizationOutput;
+    bool PredictionOfQuantizationOutput=true;
     auto returnedParams = model.getGlobalConfigParams();
     if (returnedParams->hasAttr("PredictionOfQuantizationOutput"))
         PredictionOfQuantizationOutput = returnedParams->get<bool>("PredictionOfQuantizationOutput");

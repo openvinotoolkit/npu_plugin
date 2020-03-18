@@ -154,7 +154,7 @@ namespace mv
             else
                 padding = {0,0,0,0};
 
-            int padStart,padEnd;
+            int padStart=0,padEnd=0;
 
             if (axisToSplit == mv::Shape::getAxis("W"))
             {

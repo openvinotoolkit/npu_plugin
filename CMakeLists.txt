@@ -377,8 +377,9 @@ if (MSVC)
     target_link_libraries(cm PUBLIC metamodel)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    target_compile_options(cm PRIVATE -Wall -Wextra)
     add_library(model SHARED ${model})
-
+    
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
