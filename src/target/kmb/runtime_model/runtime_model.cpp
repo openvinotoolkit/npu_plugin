@@ -332,12 +332,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(numericStrides.begin(), numericStrides.end());
 
     toBuild->dimensions = dimensions; //might need to be changed for hde here?
-    //   if(t->hasAttr("CompressedSize"))
-    //         totalSize = src->get<int>("CompressedSize");
-    //     else 
-    //         totalSize *= src->getDType().getSizeInBits() / 8;
+
+    // uint32_t totalSize;
+    // if(t->hasAttr("CompressedSize"))
+    //     totalSize = t->get<int>("CompressedSize");
+    // else 
+    //     totalSize *= t->getDType().getSizeInBits() / 8;
         
-    //     std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+    // std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
 
     toBuild->strides = numericStrides;
 
@@ -749,8 +751,8 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         if(src->isSparse())
             totalSize = src->getSubTensor(i).dataPackedSize();
         
-        if(src->hasAttr("CompressedSize"))
-            totalSize = src->get<int>("CompressedSize");
+        if(src->getSubTensor(i).hasAttr("CompressedSize"))
+            totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else 
             totalSize *= src->getDType().getSizeInBits() / 8;
         
@@ -832,6 +834,9 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
         checkUnstridedDMA(src, i, tmp); // I don't think this will work for new SOK tensors
 
+        if(src->getSubTensor(i).hasAttr("Compression"))
+            compression = src->getSubTensor(i).get<bool>("Compression"); //This is main tensor for SOK
+
         tmp->compression =  compression;
         toPush->task.value = tmp;
         toReturn.push_back(std::move(toPush));
@@ -865,7 +870,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     bool compression = false;
     if(inputTensor->hasAttr("Compression"))
-        compression = inputTensor->get<bool>("Compression");
+        compression = inputTensor->get<bool>("Compression"); //This is main tensor for SOK
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
