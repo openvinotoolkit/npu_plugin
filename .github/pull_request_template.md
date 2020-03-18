@@ -16,9 +16,9 @@
 
 ## CI
 
-(The following CI jobs are required. Please use link below to start each. Replace links below with your actual job)
+(The following CI jobs are required. Please use link below to start each. Replace links below with your actual job. 
+Access is through https://ags.intel.com apply for group "MOVIDIUS MIG JENKINS DEVELOPER".)
 
 * [ ] [Fast Top 7 Networks](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/FAST%20Top%207%20Networks/build)
 * [ ] [Openvino Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO/build)
 * [ ] [Software Layer tests](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/Software%20Layer%20Unit%20Tests/build)
-
