@@ -198,35 +198,6 @@ $KMB_WORK_DIR/Release/MklDnnFunctionalTests
 Use instructions from [VPU Wiki Accuracy Checker].
 For CPU ARM plugin replace `-td KMB` command line option with `-td CPU`.
 
-## Testing on x86_64
-
-You can run tests with inference using x86 platform with a fake device.
-It can be done by a library called `vpualModel` library.
-The library implements `ioctl` function, which can be loaded before loading real `ioctl` (using `LD_PRELOAD`) to fake a real device.
-
-To be able to do it please follow the steps:
-
-1. Create a dummy file for the XLink device:
-
-    ```bash
-    sudo touch /dev/xlnk
-    sudo chmod 666 /dev/xlnk
-    ```
-
-2. Enable corresponding environment to use the model:
-
-    ```bash
-    export LD_PRELOAD=$DLDT_HOME/bin/intel64/Release/lib/libvpualModel.so
-    export IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE=NATIVE
-    ```
-
-3. Run tests with inference. Example:
-
-    ```bash
-    $DLDT_HOME/bin/intel64/Release/KmbBehaviorTests
-    $DLDT_HOME/bin/intel64/Release/KmbFunctionalTests
-    ```
-
 ## Miscellaneous
 
 `IE_VPU_KMB_DUMP_INPUT_PATH` environment variable can be used to dump input files for debugging purposes.
