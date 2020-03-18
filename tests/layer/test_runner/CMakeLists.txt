@@ -1,10 +1,11 @@
 if(NOT DEFINED "ENV{VPU_CLC_PATH}")
-    message(FATAL_ERROR "VPU_CLC_PATH variable for OpenCL compiler is not set.")
+    message(WARNING "VPU_CLC_PATH variable for OpenCL compiler is not set.")
 elseif(NOT EXISTS "$ENV{VPU_CLC_PATH}/bin/clc")
-    message(FATAL_ERROR "Can't find 'clc' file in '\${VPU_CLC_PATH}/bin' folder:\n$ENV{VPU_CLC_PATH}/bin")
+    message(WARNING "Can't find 'clc' file in '\${VPU_CLC_PATH}/bin' folder:\n$ENV{VPU_CLC_PATH}/bin")
 else()
-    set(VPU_CLC_PATH $ENV{VPU_CLC_PATH})
+    set(RUN_CUSTOM_LAYER_TESTS 1)
 
+    set(VPU_CLC_PATH $ENV{VPU_CLC_PATH})
     set(KERNELS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/kernels")
     set(ELF_DIR "${CMAKE_CURRENT_SOURCE_DIR}/elf")
 
@@ -32,12 +33,19 @@ else()
             VERBATIM)
     endforeach()
 endif()
-
 add_custom_target(compile_custom_kernels
         DEPENDS ${CUSTOM_KERNELS}
         COMMENT "[CLC] Compiled custom kernels")
 
-file(GLOB_RECURSE TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+file(GLOB_RECURSE NATIVE_TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+list(FILTER NATIVE_TEST_FILES EXCLUDE REGEX ".*custom_.*.cpp")
+set(TEST_FILES ${NATIVE_TEST_FILES})
+
+if (RUN_CUSTOM_LAYER_TESTS)
+    file(GLOB_RECURSE CUSTOM_TEST_FILES "${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp")
+    list(FILTER CUSTOM_TEST_FILES INCLUDE REGEX ".*custom_.*.cpp")
+    list(APPEND TEST_FILES ${CUSTOM_TEST_FILES})
+endif()
 
 include_directories("${CMAKE_CURRENT_SOURCE_DIR}/common/")
 
@@ -65,4 +73,4 @@ endforeach()
 
 add_custom_target(gen_blobs
         DEPENDS ${all_blobs}
-        COMMENT "Compiled custom kernel blobs")
+        COMMENT "Compiled test blobs")
