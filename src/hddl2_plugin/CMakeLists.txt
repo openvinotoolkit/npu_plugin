@@ -23,23 +23,24 @@ set(TARGET_NAME "HDDL2Plugin")
 if(ENABLE_HDDL2_SIMULATOR)
 set(HDDLUNITE_ARCHIVE_VERSION simulator_DEBUG-75d3-03-04-2020)
 else()
-set(HDDLUNITE_ARCHIVE_VERSION DEBUG-75d3-03-04-2020)
+set(HDDLUNITE_ARCHIVE_VERSION RELEASE-75d32d-03-17-2020)
 endif()
 
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
 include(dependency_solver)
 
-reset_deps_cache(HDDL_UNITE_DIR)
+reset_deps_cache(HDDL_UNITE)
 
-RESOLVE_DEPENDENCY(HDDL_UNITE_DIR
+RESOLVE_DEPENDENCY(HDDL_UNITE
         ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}.tgz"
-        ENVIRONMENT "HDDL_UNITE_DIR"
+        ENVIRONMENT "HDDL_UNITE"
         TARGET_PATH "${TEMP}/hddl_unite")
 
 find_library(HDDL_UNITE_LIBRARY
         NAMES  HddlUnite
-        HINTS "${HDDL_UNITE_DIR}/kmb_hddl/lib")
+        HINTS "${HDDL_UNITE}/kmb_hddl/lib"
+        NO_DEFAULT_PATH)
 
 add_library(HddlUnite SHARED IMPORTED GLOBAL)
 
@@ -65,7 +66,7 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
 set(HDDL_UNITE_OUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-file( GLOB LIB_XLINKPC_DIR ${HDDL_UNITE_DIR}/kmb_hddl/lib/libXLink* )
+file( GLOB LIB_XLINKPC_DIR ${HDDL_UNITE}/kmb_hddl/lib/libXLink* )
 
 add_custom_target(hddl_unite_copy_library
         COMMAND "${CMAKE_COMMAND}" -E copy ${LIB_XLINKPC_DIR} ${HDDL_UNITE_OUT_DIR}
@@ -89,6 +90,7 @@ target_link_libraries(${TARGET_NAME}
         kmb_utils
         frontend_mcm)
 
+log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
 
 if (ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
