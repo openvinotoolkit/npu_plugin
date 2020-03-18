@@ -19,6 +19,10 @@ else()
     add_executable(conv_elu conv_elu/conv_elu.cpp)
     target_link_libraries(conv_elu cm)
 
+    add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
+    target_link_libraries(conv_fakequantize cm)
+
+
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 

@@ -1108,3 +1108,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/sigmoid.cpp"
 #include    "src/computation/op/def/softmax.cpp"
 #include    "src/computation/op/def/tanh.cpp"
+#include    "src/computation/op/def/fake_quantize.cpp"

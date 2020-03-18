@@ -21,7 +21,6 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
                                   const mv::pass::PassEntry& pass, int &success);
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -259,18 +258,6 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
     }
     subTensors = newSubTensors;
     return;
-}
-
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
 }
 
 //TODO re-enable this version

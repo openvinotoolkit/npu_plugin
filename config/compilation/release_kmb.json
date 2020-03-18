@@ -85,6 +85,11 @@
             }
         ]
     },
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize"
+        ]
+    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -288,6 +293,7 @@
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",

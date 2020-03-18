@@ -254,6 +254,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
 
