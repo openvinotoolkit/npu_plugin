@@ -1654,7 +1654,7 @@ namespace mv
             return nodes_.size();
         }
 
-        std::size_t edge_size()
+        std::size_t edge_size() const
         {
             return edges_.size();
         }
