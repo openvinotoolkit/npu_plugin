@@ -1063,9 +1063,8 @@ void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     auto alpha = static_cast<double>(normLayer->_alpha);
     auto beta = static_cast<double>(normLayer->_beta);
     std::string region = std::to_string(normLayer->_k);
-    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     auto mvLRN = _modelMcm.norm(inputs[0]->getMcmNode(), alpha, beta, region, normLayer->_size, mv::DType("Default"),
-        inputQuantParams, normLayer->name);
+        initialQuantParams, normLayer->name);
 
     bindOutput(mvLRN, layer->outData[0]);
 
@@ -1253,11 +1252,10 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
-        inputQuantParams, clampLayer->name + "clamp-min");
+        initialQuantParams, clampLayer->name + "clamp-min");
     auto mvClampMax = _modelMcm.maximum(
-        mvClampMin, clampLayer->min_value, mv::DType("Default"), inputQuantParams, clampLayer->name + "clamp-max");
+        mvClampMin, clampLayer->min_value, mv::DType("Default"), initialQuantParams, clampLayer->name + "clamp-max");
     bindOutput(mvClampMax, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
@@ -1357,40 +1355,13 @@ bool isInteger(ie::Precision iePrecision) {
 }
 
 mv::Shape calculateMcmShape(const SizeVector dims) {
-    std::vector<size_t> shapes;
-    size_t dimN, dimZ, dimY, dimX;
-    switch (dims.size()) {
-    case 0:
-        shapes = {1};
-        break;
-    case 1:
-        dimZ = dims[0];
-        shapes.push_back(dimZ);
-        break;
-    case 2:
-        dimN = dims[0];
-        dimZ = dims[1];
-        shapes = {dimZ, dimN};
-        break;
-    case 3:
-        dimX = dims[2];
-        dimY = dims[1];
-        dimZ = dims[0];
-        shapes = {dimX, dimY, dimZ};
-        break;
-    case 4:
-        dimX = dims[3];
-        dimY = dims[2];
-        dimZ = dims[1];
-        dimN = dims[0];
-        //  hack for mcmWeights
-        shapes = {dimX, dimY, dimZ, dimN};
-        break;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported dimensions layout";
-        break;
+    if (dims.size() == 0) {
+        return mv::Shape({1});
+    } else {
+        auto newShapes = dims;
+        std::reverse(newShapes.begin(), newShapes.end());
+        return mv::Shape(newShapes);
     }
-    return mv::Shape(shapes);
 }
 }  // namespace
 
@@ -1612,14 +1583,12 @@ void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVecto
     auto width = layer->GetParamAsUInt("width", 0);
     auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
 
-    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
     mv::Shape output_shape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
     auto resample_result = _modelMcm.resample(inputs[0]->getMcmNode(), interpolationMap.at(interpolation), antialias,
-        output_shape, mv::DType("Default"), inputQuantParams, layer->name);
+        output_shape, mv::DType("Default"), initialQuantParams, layer->name);
 
     bindOutput(resample_result, layer->outData[0]);
 
