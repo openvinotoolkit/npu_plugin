@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -16,7 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": true,
                 "PPEAccuracy": false,
@@ -106,7 +106,7 @@
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 0.75},
-                        {"name" : "createStrategyDots", "value" : false},
+                        {"name" : "createStrategyDots", "value" : true},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
@@ -283,7 +283,7 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/final_model.dot",
-                "scope": "OpModel",
+                "scope": "OpControlModel",
                 "content": "full",
                 "html": true
             },
