@@ -21,9 +21,11 @@
 #include <ie_core.hpp>
 #include <test_model/kmb_test_utils.hpp>
 
+#include "models/model_pooling.h"
 #include "vpu_layers_tests.hpp"
 
 using namespace InferenceEngine;
+using namespace vpu;
 
 TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
 #if !defined(__arm__) && !defined(__aarch64__)
@@ -209,4 +211,24 @@ TEST(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
 
     const size_t NUMBER_OF_CLASSES = 1;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+}
+
+TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
+#if defined(__arm__) || defined(__aarch64__)
+    SKIP();
+#endif
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    ModelPooling_Helper modelPoolingHelper;
+    const std::string testFileName = "tmp_test.xml";
+    std::remove(testFileName.c_str());
+    network = ie.LoadNetwork(modelPoolingHelper.network, "KMB");
+    std::ifstream notExist(testFileName);
+    ASSERT_FALSE(notExist.good());
+    network = ie.LoadNetwork(
+        modelPoolingHelper.network, "KMB", {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
+    std::ifstream exists(testFileName);
+    ASSERT_TRUE(exists.good());
+    std::remove(testFileName.c_str());
 }

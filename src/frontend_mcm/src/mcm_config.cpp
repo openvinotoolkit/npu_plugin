@@ -43,6 +43,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                          VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT),
                                                          VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT),
                                                          VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING),
+                                                         VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
                                                          VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
                                                      });
 
@@ -77,6 +78,8 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_eltwiseScalesAlignment, switches, config, VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT));
     setOption(_concatScalesAlignment, switches, config, VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT));
     setOption(_inputScaleShiftRemoving, switches, config, VPU_COMPILER_CONFIG_KEY(INPUT_SCALE_SHIFT_REMOVING));
+
+    setOption(_serializeCNNBeforeCompileFile, config, VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE));
 
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
 }

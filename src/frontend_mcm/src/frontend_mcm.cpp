@@ -606,6 +606,14 @@ void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     if (_config.zeroPointsOnWeightsAlignment()) {
         alignZeroPointsOnWeights(cnnNet);
     }
+    if (!_config.serializeCNNBeforeCompileFile().empty()) {
+        std::string origFileName = _config.serializeCNNBeforeCompileFile();
+        auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
+                                ? origFileName.substr(0, origFileName.length() - 4)
+                                : origFileName;
+
+        cnnNet.serialize(baseFileName + ".xml", baseFileName + ".bin");
+    }
 
     parseNetworkDFS(cnnNet, _parsedNetwork);
     parseInputData();
