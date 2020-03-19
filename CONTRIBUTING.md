@@ -19,59 +19,6 @@
    if you do not have permission to do that, you may request the second reviewer
    to merge it for you.
    
-## How to manage tests
-
-1. Use Gtest framework for testing your code
-2. If your tests don't work, you have to either disable them (if they fail on all configurations) or use SKIP command for problematic configurations.
-3. Each of disabled tests must have related Jira ticket, in which you have to provide detailed description of problem.
-4. In the source files for each disabled test you have to specify related Jira ticket with special comment on previous line: 
-	- For CVS jira tickets:
-		// [Track number: S#xxxxx]
-	- For VPUNND jira tickets:
-		// [Track number: D#xxxxx]
-5. For example:
-````
-// [Track number: S#12345]
-TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_Scale_Shift) {
-    extern std::string conv_after_scale_shift;
-    std::string model = conv_after_scale_shift;
-    ...
-````
-
-````
-// [Track number: S#67890]
-TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias) {
-    auto dim = GetParam();
-    std::size_t biasesSize = 1;
-    ...
-
-````
-
-````
-// [Track number: S#45678]
-INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
-    ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
-````
-
-````
-// [Track number: S#76543]
-PLUGING_CASE_WITH_PREFIX(KMB, DISABLED_, LayoutTTTest, params);
-````
-
-````
-// Bad inference results.
-// Compilation fails.
-// [Track number: D#9876/D#3456]
-TEST_F(KmbClassifyNetworkTest, DISABLED_inception_v3_tf_uint8_int8_weights_pertensor) {
-    ...
-````
-
-6. Please, follow the rules, because we have python script (kmb-plugin/scripts/tests_parser/ParseTestsInfo.py) 
-which parse source files and try to find related jira tickets for each of disabled tests and generate e-table
-with this info in human-readable format.
-7. Actual tests status for master branch can be found there (https://docs.google.com/spreadsheets/d/1wTSZ7LWGObpl7B6tQUTObNalf_mtM5C69GMf_0tB89A/edit?usp=sharing)
-
-
 ## How to run TeamCity Build All
 1. Go to the link provided in the MR template.
 2. Choose dldt branch to test (on the right side of `Build Keembay only` label)
