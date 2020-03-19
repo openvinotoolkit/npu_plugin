@@ -1,8 +1,8 @@
-Built from https://github.com/movidius/vpuip_2 cf0931abab0cfd4be5b3b2ffc0e5034f69a7c045
+Built from https://github.com/movidius/vpuip_2 8468a17ce6758ca9032316f6ae1d32924b6072c8
 
 ```
 cd vpuip_2/application/vpuFirmware
-python3.7 make_std_fw_image.py -a FW_bootLoader -o vpu.bin -fva cf0931abab0cfd4be5b3b2ffc0e5034f69a7c045 -fla 0x84802000 -fcla 0x84800000 -fvla 0x84801000 --run-target kmb_silicon
+python3.7 make_std_fw_image.py -a FW_bootLoader -o vpu.bin -fva 8468a17ce6758ca9032316f6ae1d32924b6072c8 -fla 0x84802000 -fcla 0x84800000 -fvla 0x84801000 --run-target kmb_silicon
 ```
 
 It is possible to choose the firmware via environment variable VPU_FIRMWARE_FILE:
