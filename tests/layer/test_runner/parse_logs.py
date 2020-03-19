@@ -17,33 +17,34 @@ while True:
         break
 
     regex = r".*?Median clock cycles: IR (\d+)"
-    clockMatches = [re.match(regex, line) for line in open(filename)]
     IR = "NaN"
-    for match in clockMatches:
+    for match in [re.match(regex, line) for line in open(filename)]:
         if match:
             IR = match.group(1)
             break
 
     regex = r".*?Instructions: (\d+)\s+Cycles: (\d+)\s+Branches: (\d+)\s+Stalls: (\d+)"
-    perfCounterMatches = [re.match(regex, line) for line in open(filename)]
     perfCounters = ";".join(["NaN"] * 4)
-    for match in perfCounterMatches:
+    for match in [re.match(regex, line) for line in open(filename)]:
         if match:
             perfCounters = ";".join([match.group(1), match.group(2), match.group(3), match.group(4)])
             break
 
     regex = r".*Test passed!.*"
-    testPassedMatches = [re.match(regex, line) for line in open(filename)]
     passed = False
-    for match in testPassedMatches:
+    for match in [re.match(regex, line) for line in open(filename)]:
         if match:
             passed = True
             break
 
     blob_info = ";".join(["NaN"] * 6)
     try:
-        f = open("blobs_info/" + test_blobs[log_id] + ".csv", "r")
-        blob_info = f.readline().replace("\n", "")
+        blobsInfoFilename = "blobs_info/" + test_blobs[log_id] + ".csv"
+        regex = r"^(.*?;){5,}.*?$"
+        for match in [re.match(regex, line) for line in open(blobsInfoFilename)]:
+            if match:
+                blob_info = match.group(0)
+                break
     except IOError:
         pass
 
@@ -52,4 +53,3 @@ while True:
     result.write(output + "\n")
 
     log_id += 1
-
