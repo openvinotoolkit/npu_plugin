@@ -61,12 +61,20 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         std::vector <mv::Data::TensorIterator> tensors;
         std::vector <mv::Data::TensorIterator> specialTensors;
 
+        //Todo:: the construction and logic of this pass needs to be refactored.
+        // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
+        // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
+        // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
+
         auto implicitConcats = om.getOps("ImplicitConcat");
         for(auto layer : implicitConcats)
         {
-            auto outputTensorName = layer->getOutputTensor(0)->getName();
-            tensorNames.insert(outputTensorName);
-
+            auto outputTensor = layer->getOutputTensor(0);
+            if(outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto outputTensorName = layer->getOutputTensor(0)->getName();
+                tensorNames.insert(outputTensorName);
+            }
         }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
