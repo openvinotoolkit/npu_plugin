@@ -60,6 +60,14 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         std::set <std::string> specialTensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         std::vector <mv::Data::TensorIterator> specialTensors;
+
+        auto implicitConcats = om.getOps("ImplicitConcat");
+        for(auto layer : implicitConcats)
+        {
+            auto outputTensorName = layer->getOutputTensor(0)->getName();
+            tensorNames.insert(outputTensorName);
+
+        }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
