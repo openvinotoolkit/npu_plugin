@@ -22,6 +22,8 @@
 #include <vpu/parsed_config_base.hpp>
 #include <vpu/vpu_compiler_config.hpp>
 
+#include "frontend_private_config.hpp"
+
 namespace vpu {
 
 class MCMConfig : public ParsedConfigBase {
@@ -56,6 +58,8 @@ public:
 
     bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
 
+    const std::string& serializeCNNBeforeCompileFile() const { return _serializeCNNBeforeCompileFile; }
+
     bool useNGraphParser() const { return _useNGraphParser; }
 
 protected:
@@ -84,6 +88,7 @@ private:
     bool _concatScalesAlignment = true;
     bool _inputScaleShiftRemoving = true;
     bool _zeroPointsOnWeightsAlignment = true;
+    std::string _serializeCNNBeforeCompileFile = "";
 
     bool _useNGraphParser = false;
 };
