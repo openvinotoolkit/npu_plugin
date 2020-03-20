@@ -17,7 +17,9 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": true,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
                 [
@@ -98,6 +100,7 @@
             "TensorsToFP16",
             "FusePostOps",
             "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {

@@ -9,6 +9,7 @@ const std::unordered_map<mv::PPELayerTypeEnum, std::string, mv::PPELayerTypeEnum
     {PPELayerType_NOOP, "NOOP"},
     {PPELayerType_HALT, "HALT"},
     {PPELayerType_ADD, "Add"},
+    {PPELayerType_AND, "And"},
     {PPELayerType_SUB, "Subtract"},
     {PPELayerType_MULT, "Multiply"},
     {PPELayerType_RELU, "Relu"},

@@ -10,8 +10,6 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -26,18 +24,6 @@ namespace mv
 
     namespace pass
     {
-
-        MV_REGISTER_PASS(TensorsToFP16)
-        .setFunc(tensorsToFP16Fcn)
-        .setDescription(
-            "Replaces full precision tensors with FP16 tensors"
-        );
-
-        MV_REGISTER_PASS(TensorsToU8)
-        .setFunc(tensorsToU8Fcn)
-        .setDescription(
-            "Replaces quantized int8 tensors with U8 tensors"
-        );
 
         MV_REGISTER_PASS(ReplacementOps)
         .setFunc(replacementOpsFcn)
@@ -73,98 +59,6 @@ void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
     om.defineFlow(neutralMaxPool, task, 0);
 }
 
-void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    using namespace mv;
-    OpModel om(model);
-
-    auto kernelOp = om.getInput();
-    while (kernelOp != om.opEnd())
-    {
-        if(kernelOp.outputsSize() > 0)
-        {
-            auto outputTensor = kernelOp->getOutputTensor(0);
-            if(outputTensor->get<mv::DType>("dType") == mv::DType("Float64") ||
-               outputTensor->get<mv::DType>("dType") == mv::DType("Float32"))
-            {
-                auto opId = kernelOp->get<unsigned>("opId");
-                if (outputTensor->isPopulated())
-                {
-                    std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
-                    std::vector<int64_t> newData(oldData.size());
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
-                    if(outputTensor->hasAttr("quantParams"))
-                        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-
-                    for(unsigned i = 0; i < oldData.size(); ++i)
-                        newData[i] = mv::fp32_to_fp16(oldData[i]);
-                    auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
-                    auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
-                    //with data flows I am finding where the op was attached to attache the new one!!!
-                    auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-
-                    auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder, quantParams);
-                    auto newKernelOp = om.getSourceOp(newKernel);
-                    newKernelOp->set<unsigned>("opId", opId);
-                    newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
-                    mv::setOutputDataFlow(om, newKernel, outputDataFlows);
-                }
-                else
-                {
-                    mv::DType newType = mv::DType("Float16");
-                    outputTensor->setDType(newType);
-                    kernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
-                    ++kernelOp;
-                }
-            }
-            else
-                ++kernelOp;
-        }
-        else
-            ++kernelOp;
-    }
-}
-
-// Pass logic:
-// Runtime will handle the input, we uniform all the rest to UInt8
-void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    mv::OpModel om(model);
-
-    int64_t zeroPointShift = 128;
-    auto sourceDType = mv::DType("Int8");
-    auto targetDType = mv::DType("UInt8");
-
-    auto kernelOp = om.getInput();
-    auto inputType = kernelOp->getOutputTensor(0)->getDType();
-    if(inputType == mv::DType("Int8"))
-        throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
-
-    for (; kernelOp != om.opEnd(); ++kernelOp)
-    {
-        if(kernelOp.outputsSize() > 0)
-        {
-            auto outputTensor = kernelOp->getOutputTensor(0);
-            auto outputTensorDType = outputTensor->get<mv::DType>("dType");
-            if(outputTensorDType == sourceDType)
-            {
-                mv::DType newType = targetDType;
-                auto quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-                auto quantParamsZp = quantParams.getZeroPoint();
-                for(auto& zp: quantParamsZp)
-                    zp += zeroPointShift;
-                quantParams = mv::QuantizationParams(quantParamsZp, quantParams.getScale(),{},{});
-                outputTensor->setDType(newType);
-                kernelOp->set<mv::DType>("dType",  newType);
-                outputTensor->set<mv::QuantizationParams>("quantParams", quantParams);
-                kernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
-                if (outputTensor->isPopulated())
-                    for(unsigned i = 0; i < outputTensor->size(); ++i)
-                        outputTensor->at(i) += zeroPointShift;
-            }
-        }
-    }
-}
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)

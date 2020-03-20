@@ -210,8 +210,8 @@ namespace mv
 
                 auto result = children_.insert(child);
                 
-                if (!result.second)
-                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " child");
+//                if (!result.second)
+//                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " child");
 
             }
 
@@ -227,8 +227,8 @@ namespace mv
                 // Bond child to parent
                 auto result = parents_.insert(parent);
 
-                if (!result.second)
-                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " parent");
+//                if (!result.second)
+//                    throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " parent");
 
                 // Bond with new siblings
                 for (auto new_sibling = parent.lock()->get_children().begin(); new_sibling != parent.lock()->get_children().end(); ++new_sibling)
@@ -241,17 +241,17 @@ namespace mv
                         {
                             // Add child of a common parent as a sibling
                             result = siblings_.insert(*new_sibling);
-                            if (!result.second)
-                                throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " sibling");
+//                            if (!result.second)
+//                                throw std::runtime_error("Unable to define iterable " + std::to_string(getID()) + " sibling");
                         }
 
                         if ((*new_sibling).lock()->siblings_.find(child) == (*new_sibling).lock()->siblings_.end())
                         {
                             // Add new child to siblings of child of a common parent
                             result = (*new_sibling).lock()->siblings_.insert(child);
-                            if (!result.second)
-                                throw std::runtime_error("Unable to define iterable " + 
-                                    std::to_string((*new_sibling).lock()->getID()) + " sibling");
+//                            if (!result.second)
+//                                throw std::runtime_error("Unable to define iterable " +
+//                                    std::to_string((*new_sibling).lock()->getID()) + " sibling");
                         }
 
                     }
