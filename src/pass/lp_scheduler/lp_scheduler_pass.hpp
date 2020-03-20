@@ -19,6 +19,7 @@
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
 #include "include/mcm/logger/logger.hpp"
+#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
 
 namespace mv {
 namespace lp_scheduler {
@@ -214,14 +215,9 @@ class Control_Edge_Set {
               add_control_edge(redirected_consumer_op, sink_op, model);
 
           if (consumer_control_edge) {
-            char printBuffer[256];
-            std::string logString;
-            sprintf(printBuffer, "[ConsumerControl: (%s) -> (%s)]\n",
+            printfInfo("operationPrecedenceDag""[ConsumerControl: (%s) -> (%s)]\n",
                 redirected_consumer_op->getName().c_str(),
                 sink_op->getName().c_str());
-            logString = printBuffer;
-            mv::Logger::log(mv::Logger::MessageType::Info,
-              "lpSchedulerPass", logString);
           } else {
 
           }
@@ -305,17 +301,12 @@ class Control_Edge_Set {
       // !comodel.pathExists(oitr_sink, oitr_source), however the calling the
       // calling this (CosumerControl) need to check avoiding edges between
       // the sibiling and then this check can be removed.
-      char printBuffer[256];
-      std::string logString;
       if ( (flow_itr == cmodel.flowEnd()) &&
           !(cmodel.pathExists(oitr_source, oitr_sink)) &&
           !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
-          sprintf(printBuffer, "[cycle : edge (sink<-source) = (%s <- %s)]\n",
+          printfInfo("operationPrecedenceDag""[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "lpSchedulerPass", logString);
           fflush(stdout);
         }
         assert(!cmodel.pathExists(oitr_sink, oitr_source));
@@ -363,13 +354,8 @@ class Control_Edge_Set {
           operation_t child_op = *citr;
           if (!dag.is_dpu_op(child_op)) { continue; }
 
-          char printBuffer[256];
-          std::string logString;
-          sprintf(printBuffer,"[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
+          printfInfo("operationPrecedenceDag""[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
               (child_op->getName()).c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "lpSchedulerPass", logString);
           add_control_edge(op, child_op, model);
         }
       }
@@ -403,13 +389,8 @@ class Control_Edge_Set {
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
-        char printBuffer[256];
-        std::string logString;
-        sprintf(printBuffer, "[redirecting %s to %s]\n", (op->getName()).c_str(),
+        printfInfo("operationPrecedenceDag""[redirecting %s to %s]\n", (op->getName()).c_str(),
               (cop->getName()).c_str());
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
       }
     }
 
@@ -463,23 +444,12 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       void print() const {
-        char printBuffer[256];
-        std::string logString;
-        sprintf(printBuffer, "[read_op=%s]->{ ", read_op_->getName().c_str());
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag""[read_op=%s]->{ ", read_op_->getName().c_str());
         for (auto itr=consumer_list_.begin(); itr!=consumer_list_.end();
               ++itr){
-          sprintf(printBuffer, " %s ", (*itr)->getName().c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "lpSchedulerPass", logString);
+          printfInfo("operationPrecedenceDag"" %s ", (*itr)->getName().c_str());
         }
-        sprintf(printBuffer, " }\n");
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag"" }\n");
       }
 
       operation_t read_op_;
@@ -510,20 +480,12 @@ class Dynamic_Spill_Node_Inserter {
 
       //Precondition: has_valid_write() //
       void print() const {
-        char printBuffer[256];
-        std::string logString;
-        sprintf(printBuffer, "[write_op=%s]\n", spilled_write_op_->getName().c_str());
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag""[write_op=%s]\n", spilled_write_op_->getName().c_str());
         for (auto ritr=read_subtrees_.begin(); ritr!=read_subtrees_.end();
               ++ritr) {
           ritr->print();
         }
-        sprintf(printBuffer, "\n");
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag""\n");
       }
 
       bool has_valid_write() const { return spilled_write_op_ != NULL; }
@@ -650,25 +612,14 @@ class Dynamic_Spill_Node_Inserter {
     } // update_scheduled_ops_with_new_read_write_ops //
 
     void print() const {
-      char printBuffer[256];
-      std::string logString;
       for (auto itr=spilled_op_map_.begin(); itr!=spilled_op_map_.end();
             ++itr) {
-        sprintf(printBuffer, "========================\n");
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag""========================\n");
         if (!has_redundant_spilled_write(itr)) {
-          sprintf(printBuffer, "[spilled_op=%s]\n", (itr->first)->getName().c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "lpSchedulerPass", logString);
+          printfInfo("operationPrecedenceDag""[spilled_op=%s]\n", (itr->first)->getName().c_str());
           (itr->second).print();
         } 
-        sprintf(printBuffer, "========================\n");
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "lpSchedulerPass", logString);
+        printfInfo("operationPrecedenceDag""========================\n");
       }
     }
 
@@ -1841,22 +1792,14 @@ class Repack_Input_DMA_Tasks {
 
 
           // updated scheduled op //
-          char printBuffer[256];
-          std::string logString;
           if (new_repack_time != repack_time) {
-            sprintf(printBuffer, "[RepackUpdate (%lu) (%lu) ]: original=",
+            printfInfo("operationPrecedenceDag""[RepackUpdate (%lu) (%lu) ]: original=",
                   new_repack_time, repack_time);
-            logString = printBuffer;
-            mv::Logger::log(mv::Logger::MessageType::Info,
-              "lpSchedulerPass", logString);
             repack_info.print();
 
             repack_info.update(get_original_scheduled_op(new_limiting_op));
 
-            sprintf(printBuffer, "[RepackUpdate]: updated=");
-            logString = printBuffer;
-            mv::Logger::log(mv::Logger::MessageType::Info,
-              "lpSchedulerPass", logString);
+            printfInfo("operationPrecedenceDag""[RepackUpdate]: updated=");
             repack_info.print();
           }
         }

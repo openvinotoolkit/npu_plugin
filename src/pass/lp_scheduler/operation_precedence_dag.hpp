@@ -8,6 +8,8 @@
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
+#include "include/mcm/logger/logger.hpp"
+#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
 
 namespace mv {
 
@@ -545,24 +547,16 @@ class Operation_Dag {
       operation_t curr_op;
 
       // add all zero in-degree nodes //
-      char printBuffer[256];
-      std::string logString;
       for (const_operation_iterator_t citr=begin_nodes(), citr_end=end_nodes();
             citr != citr_end; ++citr) {
         curr_op = *citr;
         size_t in_degree;
         if (!(in_degree=operation_in_degree(curr_op))) {
-          sprintf(printBuffer, "zero-degree-node=%s\n", curr_op->getName().c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "operationPrecedenceDag", logString);
+          printfInfo("operationPrecedenceDag", "zero-degree-node=%s\n", curr_op->getName().c_str());
           bfs_list.push_back(curr_op);
         } else {
-          sprintf(printBuffer, "non-zero-degree-node=%s in-degree=%lu\n",
+          printfInfo("operationPrecedenceDag", "non-zero-degree-node=%s in-degree=%lu\n",
               curr_op->getName().c_str(), in_degree);
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "operationPrecedenceDag", logString);
         }
       }
 
@@ -681,14 +675,9 @@ class Operation_Dag {
         child_op = *(child_list.front());
       }
 
-      char printBuffer[256];
-      std::string logString;
-      sprintf(printBuffer, "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+      printfInfo("operationPrecedenceDag", "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
           parent_op->getName().c_str(), op->getName().c_str(),
           child_op->getName().c_str());
-      logString = printBuffer;
-      mv::Logger::log(mv::Logger::MessageType::Info,
-        "operationPrecedenceDag", logString);
       fflush(stdout);
 
       // remove this op from the DAG //
@@ -733,8 +722,6 @@ class Operation_Dag {
           color_closure_t;
 
       color_closure_t color_closure_algo(*this);
-      char printBuffer[256];
-      std::string logString;
       for (const_operation_iterator_t itr=begin_nodes(); itr!=end_nodes();
           ++itr) {
 
@@ -746,26 +733,17 @@ class Operation_Dag {
         color_closure_algo.compute_connected_vertices(pop,
             std::back_inserter(color_closure), implicit_op_color_functor_t() );
 
-        sprintf(printBuffer, "[ColorClosure(%s) : {", (pop->getName()).c_str());
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "operationPrecedenceDag", logString);
+        printfInfo("operationPrecedenceDag", "[ColorClosure(%s) : {", (pop->getName()).c_str());
 
         if (!color_closure.empty()) {
           for (auto citr=color_closure.begin(); citr!=color_closure.end();
                 ++citr) {
             const operation_t& cop = *citr;
             add_directed_edge(pop, cop);
-            sprintf(printBuffer, " %s ", (cop->getName()).c_str());
-            logString = printBuffer;
-            mv::Logger::log(mv::Logger::MessageType::Info,
-              "operationPrecedenceDag", logString);
+            printfInfo("operationPrecedenceDag", " %s ", (cop->getName()).c_str());
           }
         }
-        sprintf(printBuffer, "}\n");
-        logString = printBuffer;
-        mv::Logger::log(mv::Logger::MessageType::Info,
-          "operationPrecedenceDag", logString);
+        printfInfo("operationPrecedenceDag", "}\n");
 
       } // foreach implicit op in the input DAG //
 
@@ -775,10 +753,7 @@ class Operation_Dag {
         if (is_implicit_op(pop)) {
           const_operation_iterator_t itr_next = itr;
           ++itr_next;
-          sprintf(printBuffer, "[Removed %s]\n", ((*itr)->getName()).c_str());
-          logString = printBuffer;
-          mv::Logger::log(mv::Logger::MessageType::Info,
-            "operationPrecedenceDag", logString);
+          printfInfo("operationPrecedenceDag", "[Removed %s]\n", ((*itr)->getName()).c_str());
           remove_op_from_dag(*itr);
           itr = itr_next;
         } else {
@@ -955,12 +930,7 @@ class Operation_Dag {
 
       update_resource_utility_for_aligned_dma_ops(model);
 
-      char printBuffer[256];
-      std::string logString;
-      sprintf(printBuffer, "[Initfrom Model] op count = %lu\n", num_ops);
-      logString = printBuffer;
-      mv::Logger::log(mv::Logger::MessageType::Info,
-        "operationPrecedenceDag", logString);
+      printfInfo("operationPrecedenceDag", "[Initfrom Model] op count = %lu\n", num_ops);
     }
 
     // Removes the op from the DAG and removes all incoming and outgoing edges

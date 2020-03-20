@@ -4,6 +4,8 @@
 #include <time.h>
 #include <string>
 #include <unordered_map>
+#include <stdarg.h>
+#include <stdio.h>
 #include <iostream>
 #include <regex>
 #include <list>
@@ -57,6 +59,7 @@ namespace mv
     public:
 
         static Logger& instance();
+        static void InfoLog(const std::string& senderName, char* format, ...);
         static void log(MessageType messageType, const std::string& senderName, const std::string &content);
         static void setVerboseLevel(VerboseLevel verboseLevel);
         static void enableLogTime();
