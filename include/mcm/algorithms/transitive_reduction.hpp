@@ -120,7 +120,10 @@ class DAG_Transitive_Reducer {
       input_edge_count_(0UL), eliminated_edge_count_(0UL){}
 
 
-
+    void dump_reduce_info() const {
+      printf("[TransitiveReduction] input=%lu eliminated=%lu\n",
+          input_edge_count_, eliminated_edge_count_);
+    }
 
 
     bool reduce(const filter_edge_set_t &filtered_edges=filter_edge_set_t()) {
