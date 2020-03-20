@@ -40,6 +40,10 @@ if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
 endif()
 
+if(ENABLE_MCM_COMPILER)
+    add_definitions(-DENABLE_MCM_COMPILER)
+endif()
+
 if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
@@ -52,11 +56,6 @@ if (ARM OR AARCH64)
 endif()
 
 add_subdirectory(thirdparty)
-
-if(ENABLE_MCM_COMPILER)
-    add_definitions(-DENABLE_MCM_COMPILER)
-    add_subdirectory(tools)
-endif()
 
 # TODO Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config
@@ -74,6 +73,8 @@ if(ENABLE_TESTS)
     add_subdirectory(tests)
     add_subdirectory(tests_experimental)
 endif()
+
+add_subdirectory(tools)
 
 if(ENABLE_KMB_SAMPLES AND (ARM OR AARCH64))
     add_subdirectory(samples)
