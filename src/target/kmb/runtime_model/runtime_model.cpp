@@ -1061,10 +1061,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")	
-        {	
-            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");	
-            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);	
+        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        {
+            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
         }
 
         toBuild->kernel_padLeft = kernelPadding[0];
@@ -1958,6 +1958,49 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm,
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerParams;
+
+    for (size_t i = 0; i < opIt->inputSlots(); i++) {
+        const auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (size_t i = 0; i < opIt->outputSlots(); i++) {
+        const auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto softParams = new MVCNN::CustomLayerParamsT();
+    toBuild->softLayerParams.value = softParams;
+
+    softParams->leonPreambleID = -1u;  // unused
+
+    const auto pack = [](const std::vector<uint8_t>& src) {
+        auto packed = std::vector<uint64_t>(ceil_division(src.size(), 8));
+        for (size_t i = 0; i < src.size(); i++) {
+            ((uint8_t *) packed.data())[i] = src[i];
+        }
+        return packed;
+    };
+
+    const auto paramData = opIt->get<std::vector<uint8_t>>("paramData");
+    softParams->paramData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->paramData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->paramData->data = pack(paramData);
+    softParams->paramData->length = paramData.size();
+
+    const auto kernelData = opIt->get<std::vector<uint8_t>>("kernelData");
+    softParams->kernelData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->kernelData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->kernelData->data = pack(kernelData);
+    softParams->kernelData->length = kernelData.size();
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2003,6 +2046,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Argmax")
         toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Custom")
+        toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
