@@ -215,7 +215,7 @@ class Control_Edge_Set {
               add_control_edge(redirected_consumer_op, sink_op, model);
 
           if (consumer_control_edge) {
-            printfInfo("operationPrecedenceDag""[ConsumerControl: (%s) -> (%s)]\n",
+            printfInfo("operationPrecedenceDag", "[ConsumerControl: (%s) -> (%s)]\n",
                 redirected_consumer_op->getName().c_str(),
                 sink_op->getName().c_str());
           } else {
@@ -305,7 +305,7 @@ class Control_Edge_Set {
           !(cmodel.pathExists(oitr_source, oitr_sink)) &&
           !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
-          printfInfo("operationPrecedenceDag""[cycle : edge (sink<-source) = (%s <- %s)]\n",
+          printfInfo("operationPrecedenceDag", "[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
           fflush(stdout);
         }
@@ -354,7 +354,7 @@ class Control_Edge_Set {
           operation_t child_op = *citr;
           if (!dag.is_dpu_op(child_op)) { continue; }
 
-          printfInfo("operationPrecedenceDag""[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
+          printfInfo("operationPrecedenceDag", "[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
               (child_op->getName()).c_str());
           add_control_edge(op, child_op, model);
         }
@@ -389,7 +389,7 @@ class Control_Edge_Set {
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
-        printfInfo("operationPrecedenceDag""[redirecting %s to %s]\n", (op->getName()).c_str(),
+        printfInfo("operationPrecedenceDag", "[redirecting %s to %s]\n", (op->getName()).c_str(),
               (cop->getName()).c_str());
       }
     }
@@ -444,12 +444,12 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       void print() const {
-        printfInfo("operationPrecedenceDag""[read_op=%s]->{ ", read_op_->getName().c_str());
+        printfInfo("operationPrecedenceDag", "[read_op=%s]->{ ", read_op_->getName().c_str());
         for (auto itr=consumer_list_.begin(); itr!=consumer_list_.end();
               ++itr){
-          printfInfo("operationPrecedenceDag"" %s ", (*itr)->getName().c_str());
+          printfInfo("operationPrecedenceDag", " %s ", (*itr)->getName().c_str());
         }
-        printfInfo("operationPrecedenceDag"" }\n");
+        printfInfo("operationPrecedenceDag", " }\n");
       }
 
       operation_t read_op_;
@@ -480,12 +480,12 @@ class Dynamic_Spill_Node_Inserter {
 
       //Precondition: has_valid_write() //
       void print() const {
-        printfInfo("operationPrecedenceDag""[write_op=%s]\n", spilled_write_op_->getName().c_str());
+        printfInfo("operationPrecedenceDag", "[write_op=%s]\n", spilled_write_op_->getName().c_str());
         for (auto ritr=read_subtrees_.begin(); ritr!=read_subtrees_.end();
               ++ritr) {
           ritr->print();
         }
-        printfInfo("operationPrecedenceDag""\n");
+        printfInfo("operationPrecedenceDag", "\n");
       }
 
       bool has_valid_write() const { return spilled_write_op_ != NULL; }
@@ -614,12 +614,12 @@ class Dynamic_Spill_Node_Inserter {
     void print() const {
       for (auto itr=spilled_op_map_.begin(); itr!=spilled_op_map_.end();
             ++itr) {
-        printfInfo("operationPrecedenceDag""========================\n");
+        printfInfo("operationPrecedenceDag", "========================\n");
         if (!has_redundant_spilled_write(itr)) {
-          printfInfo("operationPrecedenceDag""[spilled_op=%s]\n", (itr->first)->getName().c_str());
+          printfInfo("operationPrecedenceDag", "[spilled_op=%s]\n", (itr->first)->getName().c_str());
           (itr->second).print();
         } 
-        printfInfo("operationPrecedenceDag""========================\n");
+        printfInfo("operationPrecedenceDag", "========================\n");
       }
     }
 
@@ -1793,13 +1793,13 @@ class Repack_Input_DMA_Tasks {
 
           // updated scheduled op //
           if (new_repack_time != repack_time) {
-            printfInfo("operationPrecedenceDag""[RepackUpdate (%lu) (%lu) ]: original=",
+            printfInfo("operationPrecedenceDag", "[RepackUpdate (%lu) (%lu) ]: original=",
                   new_repack_time, repack_time);
             repack_info.print();
 
             repack_info.update(get_original_scheduled_op(new_limiting_op));
 
-            printfInfo("operationPrecedenceDag""[RepackUpdate]: updated=");
+            printfInfo("operationPrecedenceDag", "[RepackUpdate]: updated=");
             repack_info.print();
           }
         }
