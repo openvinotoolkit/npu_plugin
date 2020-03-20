@@ -333,6 +333,10 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
         if(dpuTaskOp->getOpType() == "DPUTask")
         {
             auto taskOp = dpuTaskOp->get<std::string>("taskOp");
+            printf("### %S SS\n",__FUNCTION__);
+            std::cout << "Op: " << dpuTaskOp->getName() << std::endl;
+            std::cout << "Op: " << taskOp << std::endl;
+            printf("%s\n",taskOp);
             if(taskOp == "Conv" ||
                taskOp == "ChannelMajorConvolution" ||
                taskOp == "MaxPool" ||
@@ -352,11 +356,32 @@ static void generateWeightsTablesFcn(const mv::pass::PassEntry&, mv::Computation
                 mv::Shape shape({WT_ELEMENTS_PER_CHANNEL, 1, 1, outputChannels});
                 std::vector<int64_t> weightsTableData(shape.totalSize(), 0);
                 mv::QuantizationParams quantParams = {{},{},{},{}};
-                auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, kernelWeightsTableName);
-                om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
-                unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
-                om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
-                dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);
+
+                auto weightsTensor = dpuTaskOp->getInputTensor(1);
+                auto weightsOp = om.getSourceOp(weightsTensor);
+                for (mv::Data::FlowSiblingIterator sinkFlow(weightsOp.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    mv::Data::OpListIterator  dpuTaskInFlow = sinkFlow.sink();
+                    if (dpuTaskInFlow != dpuTaskOp)
+                    {
+                        if (dpuTaskInFlow->inputSlots() > 2 ) //dpuTaskInFlow->getInputTensor(2)->isPopulated()  not working
+                        {
+                            auto weightTable = dpuTaskInFlow->getInputTensor(2);//weightstable
+                            unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
+                            om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
+                            dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);
+                            break;
+                        }
+                    }
+                }
+                if ( dpuTaskOp->inputSlots() == 2 ) //!dpuTaskInFlow->getInputTensor(2)->isPopulated()  not working
+                {
+                    auto weightTable = om.constantInt(weightsTableData, shape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, kernelWeightsTableName);
+                    om.getSourceOp(weightTable)->set<unsigned>("opId", dpuTaskOp->get<unsigned>("opId"));
+                    unsigned newSize = dpuTaskOp->addInputTensor(weightTable);
+                    om.defineFlow(weightTable, dpuTaskOp, newSize - 1);
+                    dpuTaskOp->set<size_t>("weightsTableIndex", newSize - 1);
+                }
             }
         }
     }
