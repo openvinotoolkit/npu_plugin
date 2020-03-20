@@ -9,7 +9,6 @@
 #include "include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
 #include "include/mcm/logger/logger.hpp"
-#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
 
 namespace mv {
 

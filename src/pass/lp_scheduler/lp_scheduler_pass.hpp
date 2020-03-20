@@ -19,7 +19,6 @@
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
 #include "include/mcm/logger/logger.hpp"
-#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
 
 namespace mv {
 namespace lp_scheduler {

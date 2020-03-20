@@ -7,7 +7,6 @@
 
 #include "scheduler/scheduler_unit_test_utils.hpp"
 #include "include/mcm/logger/logger.hpp"
-#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
 
 using namespace scheduler_unit_tests;
 typedef Operation_Dag dag_t;

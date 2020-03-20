@@ -1,6 +1,8 @@
 #ifndef LOGGER_HPP_
 #define LOGGER_HPP_
 
+#define printfInfo(senderName, ...) mv::Logger::InfoLog(senderName, __VA_ARGS__)
+
 #include <time.h>
 #include <string>
 #include <unordered_map>
