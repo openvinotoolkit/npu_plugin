@@ -1278,14 +1278,14 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
       spilled_write_count++;
     }
 
-    printfInfo("operationPrecedenceDag", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    printfInfo("feasibleSchedulerTest", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
 
     if (scheduled_op.has_active_resource()) {
-      printfInfo("operationPrecedenceDag", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      printfInfo("feasibleSchedulerTest", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
     } else {
-      printfInfo("operationPrecedenceDag", " resource=<none>\n");
+      printfInfo("feasibleSchedulerTest", " resource=<none>\n");
     }
   }
 
@@ -1329,14 +1329,14 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
       spilled_write_count++;
     }
 
-    printfInfo("operationPrecedenceDag", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    printfInfo("feasibleSchedulerTest", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
 
     if (scheduled_op.has_active_resource()) {
-      printfInfo("operationPrecedenceDag", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      printfInfo("feasibleSchedulerTest", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
     } else {
-      printfInfo("operationPrecedenceDag", " resource=<none>\n");
+      printfInfo("feasibleSchedulerTest", " resource=<none>\n");
     }
   }
 

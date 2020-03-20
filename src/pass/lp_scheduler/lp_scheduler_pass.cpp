@@ -118,7 +118,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   auto params = model.getGlobalConfigParams();
 
   dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
-  printfInfo("operationPrecedenceDag", "[upper_bound = %lu]\n", upper_bound);
+  printfInfo("lpSchedulerPass", "[upper_bound = %lu]\n", upper_bound);
   std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
@@ -131,7 +131,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      printfInfo("operationPrecedenceDag", "[exceeding op:] %s resource=%lu\n",
+      printfInfo("lpSchedulerPass", "[exceeding op:] %s resource=%lu\n",
           (itr->first)->getName().c_str(), (itr->second));
     }
     assert(exceeding_ops.empty());
@@ -217,7 +217,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   std::vector<control_edge_t> dynamic_spill_control_edges;
   if (has_any_dynamic_spill_ops) {
-    printfInfo("operationPrecedenceDag", "[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
+    printfInfo("lpSchedulerPass", "[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
     mv::lp_scheduler::Dynamic_Spill_Node_Inserter<dag_t> dynamic_spill(
           input_dag, model);
 
@@ -337,7 +337,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   { 
     control_edges.add_edges_to_fresh_control_model(input_dag, model, 
         scheduled_ops.begin(), scheduled_ops.end());
-    printfInfo("operationPrecedenceDag", "[Dynamic Spill Control Edge Count]: %lu\n",
+    printfInfo("lpSchedulerPass", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
