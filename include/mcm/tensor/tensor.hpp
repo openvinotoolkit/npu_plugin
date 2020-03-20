@@ -299,6 +299,7 @@ namespace mv
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
         void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
         void cleanSubtensors();
+        int computeAppropriatePadding() const;
     };
 
 }

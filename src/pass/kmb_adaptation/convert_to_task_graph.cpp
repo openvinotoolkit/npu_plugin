@@ -6,6 +6,7 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -403,6 +404,20 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     return om.uPATaskNorm(inputs, alpha, beta, region, local_size, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    return om.uPATaskCustom(inputs,
+                            attrs.at("kernelData").get<std::vector<uint8_t>>(),
+                            attrs.at("paramData").get<std::vector<uint8_t>>(),
+                            attrs.at("outOrder").get<mv::Order>(),
+                            attrs.at("outShape").get<mv::Shape>(),
+                            attrs.at("dType").get<mv::DType>(),
+                            attrs.at("quantParams").get<mv::QuantizationParams>(),
+                            name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -414,7 +429,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp", "Norm"};
+                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
+                                                       "Norm", "FakeQuantize", "Custom"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -441,7 +457,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Norm", convertNormToUPATask},
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
-    {"Permute", convertPermuteToUPATask}
+    {"Permute", convertPermuteToUPATask},
+    {"Custom", convertCustomToUPATask},
     };
 
     bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;

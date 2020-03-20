@@ -17,6 +17,7 @@ static void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::Compu
 static void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static mv::Data::OpListIterator fuseCropAlign(mv::Data::OpListIterator parentOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
 static void addCropNode(mv::OpModel& om, mv::Data::OpListIterator& opIt, mv::Data::TensorIterator& outputTensor, std::size_t& outputTensorChannels);
+void alignInputForChannelMajorConvolution(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -152,7 +153,8 @@ void cropOrPadFinalOutputFunc(const mv::pass::PassEntry& , mv::ComputationModel&
     else
     {
         //make sure there's a crop layer
-        if (parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop")
+        if ((parentOpIt->hasAttr("alignment") && parentOpIt->getOpType() != "Crop") ||
+            (parentOpIt->hasAttr("alignWidth") && parentOpIt->getOpType() != "Crop"))
         {
             if (inputTensor->hasAttr("oldDimensions"))
             {
@@ -233,6 +235,84 @@ void removeCropAlignInCMXFunc(const mv::pass::PassEntry& , mv::ComputationModel&
         if (removeCrop)
             om.removeOp(layer);
 
+    }
+}
+
+void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data::OpListIterator& opIt)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    const int tensorWidthMultiple = 16;
+
+    auto inputTensor = opIt->getInputTensor(0);
+    auto parentOpIt = om.getSourceOp(inputTensor);
+
+    if (parentOpIt->getOpType() != "Align" && inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] % tensorWidthMultiple != 0)
+    {
+
+        inputTensor->set<bool>("alignWidth", true);
+        opIt->set<bool>("alignWidth", true);
+
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+        auto sourceFlowStart = parentOpIt.leftmostOutput();
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            flowsToRemove.push_back(sinkFlow);
+        }
+
+        auto alignOpName = inputTensor->getName() + "_align";
+        mv::QuantizationParams quantParams = {{}, {}, {}, {}};
+
+        if (inputTensor->hasAttr("quantParams"))
+            quantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+
+        auto alignedTensor = om.align(inputTensor,
+                                mv::IO_WIDTH_DIMENSION,
+                                tensorWidthMultiple,
+                                quantParams,
+                                alignOpName);
+        // This will work because of the implicit flows compensatory DMA passes
+        //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
+        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+
+
+        alignedTensor->set<bool>("alignWidth", true);
+
+        auto alignOp = om.getOp(alignOpName);
+
+        alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
+
+        if (opIt->hasAttr("padding"))
+        {
+            alignOp->set<std::array<unsigned short, 4>>("padding", opIt->get<std::array<unsigned short, 4>>("padding"));
+        }
+        if (parentOpIt->hasAttr("splitStrategy"))
+        {
+            alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+        }
+
+        if (inputTensor->hasAttr("splitStrategy"))
+        {
+            alignOp->getOutputTensor()[0]->set<std::string>("splitStrategy", inputTensor->get<std::string>("splitStrategy"));
+        }
+
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
+
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
+            opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+            om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+        }  
     }
 }
 
@@ -355,6 +435,9 @@ void alignUnpopulatedTensorsFunc(const mv::pass::PassEntry&, mv::ComputationMode
                 propagateShapeChange(om, flowStr);
             addCropNode(om, opIt, outputTensor, outputTensorChannels);
         }
+
+       if(taskOp == "ChannelMajorConvolution")
+            alignInputForChannelMajorConvolution(model, opIt);
     }
 }
 

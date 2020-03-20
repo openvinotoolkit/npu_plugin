@@ -34,7 +34,7 @@ namespace mv
         /*
         There are two reasons to store all member variables that are non-static members as either references or smart pointers provided by
         the Allocator concept
-            - for objects that are containers - enforcing to be failure safe by using Allocator's factory methods (no possibility of 
+            - for objects that are containers - enforcing to be failure safe by using Allocator's factory methods (no possibility of
             having unhandled bad allocation errors, particularly STL exceptions)
             - obtaining a capability of shallow coping the ComputationModel that is exploited by e.g. switchable contexts (OpModel, DataModel)
         */
@@ -66,7 +66,7 @@ namespace mv
         std::shared_ptr<Data::OpListIterator> output_;
 
         std::reference_wrapper<ComputationModel> selfRef_;
-        
+
         Data::TensorIterator findTensor_(const std::string &name);
         void incrementOpsInstanceCounter_(const std::string& opType);
         void decrementOpsInstanceCounter_(const std::string& opType);
@@ -79,7 +79,7 @@ namespace mv
 
         /**
          * @brief Copy constructor performing shallow copy
-         * 
+         *
          * @param other Object that will share all members with the new one
          */
         ComputationModel(ComputationModel &other);
@@ -89,7 +89,7 @@ namespace mv
         /**
          * @brief Check basic logical cohesion of the computation model. Does not guarantee that the model can executed successfully on the
          * target platform
-         * 
+         *
          * @return true Computation model is valid.
          * @return false Computation model is invalid.
          */
@@ -101,7 +101,7 @@ namespace mv
         bool isValid(Control::FlowListIterator it) const;
         bool isValid(GroupIterator it) const;
         bool isValid(Control::StageIterator it) const;
-        
+
         GroupIterator addGroup(const std::string &name);
         GroupIterator groupBegin();
         GroupIterator groupEnd();
@@ -114,10 +114,11 @@ namespace mv
         Data::TensorIterator tensorBegin() const;
         Data::TensorIterator tensorEnd() const;
         Data::TensorIterator getTensor(const std::string& name);
-        
+
         bool checkOp(const std::string& name);
         Data::OpListIterator getOp(const std::string& name);
         std::vector<Data::OpListIterator> getOps(const std::string& opType);
+        std::vector<mv::Data::OpListIterator> getOps();
         std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> getOpsOfTypes(const std::vector<std::string> &opTypes);
         Data::FlowListIterator getDataFlow(const std::string& name);
         Control::FlowListIterator getControlFlow(const std::string& name);
@@ -131,7 +132,7 @@ namespace mv
 
         /**
          * @brief Gets global params stored under GlobalConfigParams in Compilation Descriptor
-         * 
+         *
          * @return compilation descriptor Element*/
         std::shared_ptr<mv::Element>getGlobalConfigParams() const;
         void setGlobalConfigParams(mv::Element& element);

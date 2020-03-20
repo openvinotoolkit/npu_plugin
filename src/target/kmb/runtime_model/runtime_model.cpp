@@ -92,19 +92,37 @@ void setIfPresent(T1& fieldToFill, mv::Element& compilationDescriptor, const std
         fieldToFill = compilationDescriptor.get<T2>(key);
 }
 
-void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, bool padFinalOutput)
+//Note: 16/8 used below depend on the dtype
+void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, mv::Tensor& tensor, const size_t dimension, bool padFinalOutput)
 {
-    auto globalConfigParams = cm.getGlobalConfigParams();
-    std::vector<std::size_t> dimensions = tensor.getShape();
-    auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], 16);
-    dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
-    auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
-    numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
-    std::reverse(dimensions.begin(), dimensions.end());
-    std::reverse(numericStrides.begin(), numericStrides.end());
-    tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
-    if(padFinalOutput)
-        tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+
+    if(dimension == IO_CHANNEL_DIMENSION) 
+    {
+        auto globalConfigParams = cm.getGlobalConfigParams();
+        int pad = tensor.computeAppropriatePadding();
+        std::vector<std::size_t> dimensions = tensor.getShape();
+        auto outputChannelsPadded = mv::round_up(dimensions[mv::IO_CHANNEL_DIMENSION], pad);
+        dimensions = {dimensions[mv::IO_WIDTH_DIMENSION], dimensions[mv::IO_HEIGHT_DIMENSION], outputChannelsPadded, dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; // NOTE: Maybe directly bufferIt->computeStrides() in the future
+        if(padFinalOutput)
+            tensorT->dimensions = std::vector<uint32_t>(dimensions.begin(), dimensions.end());
+    }
+    else if (dimension == IO_WIDTH_DIMENSION) 
+    {
+        std::vector<std::size_t> dimensions = tensor.getShape();
+        auto widthPadded = mv::round_up(dimensions[mv::IO_WIDTH_DIMENSION], 16);
+        dimensions = {widthPadded, dimensions[mv::IO_HEIGHT_DIMENSION],dimensions[mv::IO_CHANNEL_DIMENSION] , dimensions[mv::IO_BATCH_DIMENSION]};
+        auto numericStrides = tensor.getOrder().computeByteStrides(mv::Shape(dimensions), tensor.getDType().getSizeInBits() / 8);
+        numericStrides.push_back(tensor.getDType().getSizeInBits() / 8);
+        std::reverse(dimensions.begin(), dimensions.end());
+        std::reverse(numericStrides.begin(), numericStrides.end());
+        tensorT->strides = numericStrides; 
+
+    }    
 }
 
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
@@ -475,7 +493,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
-        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), paddOutput);
+        alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
     auto taskCount = [](mv::OpModel m)
     {
         unsigned i = 0;
@@ -735,7 +753,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     if (direction != mv::DDR2NNCMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
-            alignTensor(cm, tmp->dst, *dst, padFinalOutput);
+            alignTensor(cm, tmp->dst, *dst, IO_CHANNEL_DIMENSION, padFinalOutput);
     }
 
     std::vector<unsigned int> locale_index;
@@ -771,8 +789,16 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         if (direction != mv::DDR2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
-                alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_CHANNEL_DIMENSION, padFinalOutput);
         }
+
+        //Check if DMA is DDR2CMX
+        if (direction == mv::DDR2NNCMX)
+        {
+            if (dst->hasAttr("alignWidth")){
+                alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
+            }
+        }	        
 
         checkUnstridedDMA(src, i, tmp);
 
@@ -1035,10 +1061,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (opIt->hasAttr("padding"))
     {
         auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
-        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")	
-        {	
-            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");	
-            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);	
+        if (opIt->get<std::string>("taskOp") == "ChannelMajorConvolution")
+        {
+            unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            kernelPadding = getNewPadding(kernelPadding, clusterId, numClusters);
         }
 
         toBuild->kernel_padLeft = kernelPadding[0];
@@ -1156,7 +1182,7 @@ bool mv::RuntimeModel::hardwareBugDepthwise(Control::OpListIterator opIt)
     auto splitStrategy = opIt->get<std::string>("splitStrategy");
     auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
     auto kernelSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-    return ((splitStrategy == "SplitOverH") &&
+    return (((splitStrategy == "SplitOverH") || splitStrategy == "SplitOverHOverlapped") &&
         (padding[0] % 2 == 1) &&
         (kernelSize[mv::KERNEL_HEIGHT] > 1));
 }
@@ -1932,6 +1958,49 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm,
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CustomLayerParams;
+
+    for (size_t i = 0; i < opIt->inputSlots(); i++) {
+        const auto input = opIt->getInputTensor(i);
+        toBuild->inputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, input));
+    }
+
+    for (size_t i = 0; i < opIt->outputSlots(); i++) {
+        const auto output = opIt->getOutputTensor(i);
+        toBuild->outputs.push_back(buildTensorReferenceT(cm, compilationDescriptor, output));
+    }
+
+    auto softParams = new MVCNN::CustomLayerParamsT();
+    toBuild->softLayerParams.value = softParams;
+
+    softParams->leonPreambleID = -1u;  // unused
+
+    const auto pack = [](const std::vector<uint8_t>& src) {
+        auto packed = std::vector<uint64_t>(ceil_division(src.size(), 8));
+        for (size_t i = 0; i < src.size(); i++) {
+            ((uint8_t *) packed.data())[i] = src[i];
+        }
+        return packed;
+    };
+
+    const auto paramData = opIt->get<std::vector<uint8_t>>("paramData");
+    softParams->paramData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->paramData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->paramData->data = pack(paramData);
+    softParams->paramData->length = paramData.size();
+
+    const auto kernelData = opIt->get<std::vector<uint8_t>>("kernelData");
+    softParams->kernelData = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
+    softParams->kernelData->underlying_type = MVCNN::DType::DType_U8;
+    softParams->kernelData->data = pack(kernelData);
+    softParams->kernelData->length = kernelData.size();
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -1977,6 +2046,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAPriorboxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Argmax")
         toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Custom")
+        toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     return toReturn;
@@ -2074,7 +2145,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
             //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK") || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
                 toReturn = 1;
             // NOTE: a sok tensor might come from a different strategy op
             else if(!sourceIsBroadCasted)

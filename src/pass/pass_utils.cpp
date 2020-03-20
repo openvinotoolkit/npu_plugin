@@ -75,8 +75,49 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-            || paramOp->getOpType() == "ConstantDataElement")
+        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+            || paramOp->getOpType() == "ConstantDataElement"))
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    if(sourceTensor == om.tensorEnd())
+        sourceTensor = parentOpIt->getOutputTensor(0);
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
+mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
+    {
+        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+            || paramOp->getOpType() == "ConstantDataElement"))
         {
             auto backUp = paramOp;
             ++paramOp;
@@ -224,4 +265,16 @@ std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::str
 
     throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
                 std::to_string(value.size()));
+}
+
+std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }
