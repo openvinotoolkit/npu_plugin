@@ -2,11 +2,11 @@
 #include <limits>
 #include <unordered_map>
 #include <vector>
+#include "include/mcm/logger/logger.hpp"
 
 #include "gtest/gtest.h"
 
 #include "scheduler/scheduler_unit_test_utils.hpp"
-
 
 using namespace scheduler_unit_tests;
 typedef Operation_Dag dag_t;
@@ -1277,14 +1277,25 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
       spilled_write_count++;
     }
 
-    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    char printBuffer[256];
+    std::string logString;
+    sprintf(printBuffer, "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
+    logString = printBuffer;
+    mv::Logger::log(mv::Logger::MessageType::Info,
+      "feasibleSchedulerTest", logString);
 
     if (scheduled_op.has_active_resource()) {
-      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      sprintf(printBuffer, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
+      logString = printBuffer;
+      mv::Logger::log(mv::Logger::MessageType::Info,
+        "feasibleSchedulerTest", logString);
     } else {
-      printf(" resource=<none>\n");
+      sprintf(printBuffer, " resource=<none>\n");
+      logString = printBuffer;
+      mv::Logger::log(mv::Logger::MessageType::Info,
+        "feasibleSchedulerTest", logString);
     }
   }
 
@@ -1328,14 +1339,25 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
       spilled_write_count++;
     }
 
-    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    char printBuffer[256];
+    std::string logString;
+    sprintf(printBuffer, "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
+    logString = printBuffer;
+    mv::Logger::log(mv::Logger::MessageType::Info,
+      "feasibleSchedulerTest", logString);
 
     if (scheduled_op.has_active_resource()) {
-      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      sprintf(printBuffer, " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
+      logString = printBuffer;
+      mv::Logger::log(mv::Logger::MessageType::Info,
+        "feasibleSchedulerTest", logString);
     } else {
-      printf(" resource=<none>\n");
+      sprintf(printBuffer, " resource=<none>\n");
+      logString = printBuffer;
+      mv::Logger::log(mv::Logger::MessageType::Info,
+        "feasibleSchedulerTest", logString);
     }
   }
 
