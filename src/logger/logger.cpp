@@ -1,6 +1,17 @@
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/base/printable.hpp"
 
+void mv::Logger::InfoLog(const std::string& senderName, char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    char buffer[256];
+    std::string logString;
+    vsnprintf(buffer, 256, format, args);
+    logString = buffer;
+    mv::Logger::log(mv::Logger::MessageType::Info, senderName, logString);
+    va_end(args);
+}
+
 std::string mv::Logger::getTime_() const
 {
     struct tm *timeInfo;
