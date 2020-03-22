@@ -569,7 +569,6 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
-    std::cout << t.getName() << std::endl;
 
     //Huffman compression call for Uint8 data
     if(t.getDType().toString() == "UInt8" && huffmanCompression) 
@@ -583,12 +582,19 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
             toBuild->length = length;
             toBuild->underlying_type = MVCNN::DType::DType_U8;
             t.set<bool>("Compression", true);
+            std::cout << t.getName() << std::endl;
+            std::cout << "Size " << t.getShape().totalSize() << std::endl;
+            std::cout << "Lenght " << length << std::endl;
+            std::cout << "compressed" << std::endl;
+
+           
         }
         else {
             auto dataPacked = t.getDataPacked();
             toBuild->data = packToInt64(dataPacked, t.getDType());
             toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
             toBuild->underlying_type = MVCNN::DType::DType_U8;
+            t.set<bool>("Compression", false);
         }
     }
     else 
@@ -597,6 +603,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         toBuild->data = packToInt64(dataPacked, t.getDType());
         toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
         toBuild->underlying_type = MVCNN::DType::DType_U8;
+        t.set<bool>("Compression", false);
     }
 
     return toBuild;
@@ -2325,7 +2332,6 @@ std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inp
     vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
     compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
 
-    std::cout << t.getName() << " compressed" << std::endl;
     t.set<int>("CompressedSize", compressedSize);
 
     std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
