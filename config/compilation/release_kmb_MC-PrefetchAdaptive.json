@@ -86,8 +86,8 @@
         ]
     },
     "quantization" : {
-        "singular" : [
-            "fakequantize"
+        "Singular" : [
+            "FakeQuantize"
         ]
     },
     "adapt": {
