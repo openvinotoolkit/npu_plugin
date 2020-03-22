@@ -582,10 +582,10 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
             toBuild->length = length;
             toBuild->underlying_type = MVCNN::DType::DType_U8;
             t.set<bool>("Compression", true);
-            std::cout << t.getName() << std::endl;
-            std::cout << "Size " << t.getShape().totalSize() << std::endl;
-            std::cout << "Lenght " << length << std::endl;
-            std::cout << "compressed" << std::endl;
+            // std::cout << t.getName() << std::endl;
+            // std::cout << "Size " << t.getShape().totalSize() << std::endl;
+            // std::cout << "Lenght " << length << std::endl;
+            // std::cout << "compressed" << std::endl;
 
            
         }
