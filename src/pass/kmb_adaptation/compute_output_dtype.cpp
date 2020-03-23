@@ -343,7 +343,25 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             conv->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
                         }
                         else
-                            conv->set<bool>("placeConversionToFloat", true);
+                        {
+                            //NOTE: Eltwise quantize can support only per tensor quantization!!!
+                            bool perTensor = true;
+                            std::vector <double> absRelativeErrorScale;
+                            auto channelScale = conv->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                            for (std::size_t i = 1; i < conv->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale().size();
+                                 i++)
+                                absRelativeErrorScale.push_back(std::abs(channelScale[i] - channelScale[0]));
+                            for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                            {
+                                if (*it > 0.01f)
+                                {
+                                    perTensor = false;
+                                    break;
+                                }
+                            }
+                            if (perTensor)
+                                conv->set<bool>("placeConversionToFloat", true);
+                        }
                     }
                 }
             }

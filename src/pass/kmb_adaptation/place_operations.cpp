@@ -6,7 +6,7 @@
 #include <numeric>
 #include <cmath>
 
-void placeEltwiseAndDequantize(mv::OpModel om, mv::Data::OpListIterator task);
+void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -23,23 +23,26 @@ namespace mv
     }
 }
 
-void placeEltwiseAndDequantize(mv::OpModel om, mv::Data::OpListIterator task)
+void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task)
 {
-    auto inputFlow = task.leftmostInput();
-    std::vector<mv::Data::TensorIterator> andInputs = {task->getInputTensor(0), task->getInputTensor(0)};
-    auto placeEltwiseAndDequantize = om.eltwise(andInputs, "And",
+    auto neutralCopy = om.copy(task->getInputTensor(0), mv::DType("UInt8"),
+                    task->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), task->getName() + "Neutral");
+    auto neutralCopyOp = om.getSourceOp(neutralCopy);
+    neutralCopyOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+
+    std::vector<mv::Data::TensorIterator> andInputs = {task->getInputTensor(0), neutralCopy};
+    auto placeEltwiseDequantize = om.eltwise(andInputs, "And",
                                     mv::DType("Default"), {{0}, {1.0f}, {}, {}}, task->getName() + "AND_Conversion");
-    auto placeEltwiseAndDequantizeOp = om.getSourceOp(placeEltwiseAndDequantize);
+    auto placeEltwiseDequantizeOp = om.getSourceOp(placeEltwiseDequantize);
 
-    placeEltwiseAndDequantizeOp->getInputTensor(0)->set<mv::DType>("dType", mv::DType("UInt8"));
-    placeEltwiseAndDequantizeOp->getInputTensor(1)->set<mv::DType>("dType", mv::DType("UInt8"));
-    placeEltwiseAndDequantizeOp->getOutputTensor(0)->set<mv::DType>("dType", mv::DType("Float16"));
-    placeEltwiseAndDequantizeOp->set<bool>("mixedToFloat", true);
+    placeEltwiseDequantizeOp->getInputTensor(0)->set<mv::DType>("dType", mv::DType("UInt8"));
+    placeEltwiseDequantizeOp->getInputTensor(1)->set<mv::DType>("dType", mv::DType("UInt8"));
+    placeEltwiseDequantizeOp->getOutputTensor(0)->set<mv::DType>("dType", mv::DType("Float16"));
+    placeEltwiseDequantizeOp->set<bool>("mixedToFloat", true);
 
-    placeEltwiseAndDequantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-    om.undefineFlow(inputFlow);
-    task->setInputTensor(placeEltwiseAndDequantize, 0, false);
-    om.defineFlow(placeEltwiseAndDequantize, task, 0);
+    placeEltwiseDequantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
+    task->setInputTensor(placeEltwiseDequantize, 0, false);
+    om.defineFlow(placeEltwiseDequantize, task, 0);
 }
 
 void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -58,7 +61,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (opIt->get<bool>("placeConversionToFloat"))
             {
                 auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
-                placeEltwiseAndDequantize(om, opIt);
+                placeEltwiseDequantize(om, opIt);
+
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
                 //NOTE: Do not care of the data type of input but it will be float so all
@@ -124,8 +128,11 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         om.addAttr(opIt, "bias", floatBiasName);
                         bias->set<mv::DType>("dType", mv::DType("Float16"));
                     }
-                    auto backup = previousOpIt.leftmostOutput();
-                    om.undefineFlow(backup);
+                    for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
+                    {
+                        if (sourceFlow.source()->getName() == previousOpIt->getName())
+                            om.undefineFlow(sourceFlow);
+                    }
                     om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
                     opIt->setInputTensor(weights, 1, false);
                     om.defineFlow(weights, opIt, 1);
