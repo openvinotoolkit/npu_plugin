@@ -19,7 +19,7 @@ elseif(X86 OR X86_64)
                    ${CMAKE_CURRENT_SOURCE_DIR}/hddl2_plugin/include/hddl_unite
                    ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2
                    ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu)
-    set(LIBRARIES HddlUnite frontend_mcm)
+    set(LIBRARIES HddlUnite)
 else()
     message(FATAL_ERROR "Your platform is not supported for VPU Plugin")
 endif()
@@ -37,7 +37,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        IE::inference_engine ${INTEL_ITT_LIBS} ${LIBRARIES})
+        IE::inference_engine ${INTEL_ITT_LIBS} frontend_mcm ${LIBRARIES})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
