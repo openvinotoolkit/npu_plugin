@@ -574,20 +574,13 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     if(t.getDType().toString() == "UInt8" && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
-        auto sizeKb = t.computeTotalSize() / 1024;
+        double sizeKb = t.computeTotalSize() / 1024;
         if(sizeKb > 4) {
             auto compressedData = huffmanCompress(dataPacked, t); 
             toBuild->data = packToInt64(compressedData, t.getDType());
             int length = t.get<int>("CompressedSize");
             toBuild->length = length;
-            toBuild->underlying_type = MVCNN::DType::DType_U8;
-            t.set<bool>("Compression", true);
-            // std::cout << t.getName() << std::endl;
-            // std::cout << "Size " << t.getShape().totalSize() << std::endl;
-            // std::cout << "Lenght " << length << std::endl;
-            // std::cout << "compressed" << std::endl;
-
-           
+            toBuild->underlying_type = MVCNN::DType::DType_U8;         
         }
         else {
             auto dataPacked = t.getDataPacked();
@@ -841,10 +834,13 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
         checkUnstridedDMA(src, i, tmp); // I don't think this will work for new SOK tensors
 
-        if(src->getSubTensor(i).hasAttr("Compression"))
-            compression = src->getSubTensor(i).get<bool>("Compression"); //This is main tensor for SOK
+        // if(src->getSubTensor(i).hasAttr("Compression"))
+        //     compression = src->getSubTensor(i).get<bool>("Compression"); //This is main tensor for SOK
 
-        tmp->compression =  compression;
+        //tmp->compression =  compression;
+        if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+            tmp->compression =  true;
+
         toPush->task.value = tmp;
         toReturn.push_back(std::move(toPush));
     }
