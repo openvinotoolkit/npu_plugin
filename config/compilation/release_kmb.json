@@ -109,7 +109,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -225,10 +225,6 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "HangingDmaControlFlows",
-                "weights_prefetch": 1
-            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -238,14 +234,17 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "AddDeallocationTasks",
+            { "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
+              "enable_simple_repacking" : true
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "MarkLastNodeForMaxTopologicalCut",
-            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -257,8 +256,11 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
-            "TensorGraphColoring",
-            "RemoveDeallocationTasks",
+            {
+              "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "allocator_mode": true
+            },
             "TransitiveReduction",
             {
                 "name" : "InsertBarrierTasks",
