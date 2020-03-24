@@ -26,13 +26,14 @@
 #include <details/ie_irelease.hpp>
 #include <fstream>
 #include <ie_icore.hpp>
+#include <ie_metric_helpers.hpp>
 #include <ie_util_internal.hpp>
 
 // Plugin include
 #include "hddl2_executable_network.h"
 #include "hddl2_helpers.h"
+#include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
-#include "hddl2_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;
 
@@ -144,6 +145,18 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
     return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map);
+}
+
+InferenceEngine::Parameter Engine::GetMetric(
+    const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
+    if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, HDDL2Metrics::GetAvailableDeviceNames());
+    } else if (name == VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES)) {
+        IE_SET_METRIC_RETURN(VPU_HDDL2_GET_AVAILABLE_EXECUTION_CORES, HDDL2Metrics::GetAvailableExecutionCoresNames());
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
+    }
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
 IE_SUPPRESS_DEPRECATED_START

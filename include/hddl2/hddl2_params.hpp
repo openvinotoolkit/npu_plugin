@@ -24,7 +24,16 @@
 
 #include <string>
 
+#include "ie_plugin_config.hpp"
+
 namespace InferenceEngine {
+namespace Metrics {
+#define VPU_HDDL2_METRIC(name) METRIC_KEY(VPU_HDDL2_##name)
+#define DECLARE_VPU_HDDL2_METRIC(name, ...)  DECLARE_METRIC_KEY(VPU_HDDL2_##name, __VA_ARGS__)
+
+DECLARE_VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES, std::vector<std::string>);
+}// namespace Metrics
+
 namespace HDDL2ContextParams {
 /**
  * @def HDDL2_PARAM_KEY(name)
