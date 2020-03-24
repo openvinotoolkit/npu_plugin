@@ -13,6 +13,8 @@
    if you do not have permission to do that, you may request the second reviewer
    to merge it for you.
 8. The feature branch is to be deleted after merging
+9. Additions to a compilation descriptor MUST be updated in all compilation descriptors. Don't just edit release_kmb.json.
+   Add the setting (eg, a new pass) to all the other .json files. 
 
 ## CI Infrastructure 
 
