@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -16,9 +16,6 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": true,
-                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -85,11 +82,6 @@
             }
         ]
     },
-    "quantization" : {
-        "singular" : [
-            "fakequantize"
-        ]
-    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -97,7 +89,6 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "DecideOutputDataType",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -136,8 +127,9 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -314,7 +306,6 @@
     "root": {
         "Singular": [
             "initialize",
-            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
