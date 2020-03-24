@@ -2267,6 +2267,57 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_TileParams;
+    auto softLayerParamsValue = new MVCNN::TileParamsT();
+
+    // Fill in required params
+    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+    softLayerParamsValue->tiles = opIt->get<unsigned>("tiles");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input0 = opIt->getInputTensor(0);
+    auto input1 = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CTCDecoderParams;
+    auto softLayerParamsValue = new MVCNN::CTCDecoderParamsT();
+
+    // Fill in required params
+    softLayerParamsValue->ctc_merge_repeated = opIt->get<bool>("ctc_merge_repeated");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input0);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     UNUSED(cm);
@@ -2442,6 +2493,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Deconv")
         toReturn[0]->task.value = buildUPADeconvTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Tile")
+        toReturn[0]->task.value = buildUPATileTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "CTCDecoder")
+        toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))

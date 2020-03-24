@@ -7,9 +7,26 @@ namespace mv
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
-            [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::string&) -> std::pair<bool, std::size_t>
+            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
+            std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+            auto input = inputs[0];
+            auto inputShape = input->getShape();
+
+            auto axis  = args.at("axis").get<unsigned>();
+            auto tiles = args.at("tiles").get<unsigned>();
+
+            if (axis >= inputShape.ndims()) {
+                errMsg = "Invalid axis number - has to be less than number of dimensions - 1"
+                    + std::to_string(axis);
+                return {false, 1};
+            }
+
+            if (tiles == 0) {
+                errMsg = "Number of tiles shall be more than 0";
+                return {false, 2};
+            }
+
             return {true, 0};
         };
 
@@ -23,16 +40,25 @@ namespace mv
 
             mv::Order order(inputs[0]->getOrder());
 
-            // auto axis  = args.at("axis").get<size_t>();
-            // auto tiles = args.at("tiles").get<size_t>();
-            // TODO: calculate output shape from input shape and params
+            auto axis  = args.at("axis").get<unsigned>();
+            auto tiles = args.at("tiles").get<unsigned>();
 
-            auto new_shape = args.at("output_shape").get<mv::Shape>();;
+            // calculate output shape from input shape and params
+            auto inputShape = inputs[0]->getShape();
+            auto ndims = inputShape.ndims();
+            mv::Shape outputShape(ndims);
+            for (size_t i = 0; i < ndims; i++)
+            {
+                outputShape[i] = inputShape[i];
+                if (i == axis) {
+                    outputShape[i] = outputShape[i] * tiles;
+                }
+            }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, order));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, order));
             else
-                outputs.push_back(mv::Tensor(":0",  new_shape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
         };
     }
 
@@ -43,8 +69,8 @@ namespace mv
         MV_REGISTER_OP(Tile)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setArg<std::string>("axis")
-        .setArg<std::string>("tiles")
+        .setArg<unsigned>("axis")
+        .setArg<unsigned>("tiles")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_tile::inputCheckFcn)
