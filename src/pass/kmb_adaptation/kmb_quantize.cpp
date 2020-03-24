@@ -204,9 +204,11 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
         {
             dpuTasksFP16.push_back(dpuTask);
             dpuTasksFP16Names.push_back(dpuTask->getName());
-            dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTask), dpuTasks.end());
         }
     }
+
+    for (auto& dpuTaskFP16 : dpuTasksFP16)
+        dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTaskFP16), dpuTasks.end());
 
     auto upaTasks = om.getOps("UPATask");
 
@@ -222,11 +224,11 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
         auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
                            afterSlice[0]->getName());
         if (it != dpuTasksFP16Names.end())
-        {
             slicesFP16.push_back(slice);
-            slices.erase(std::remove(slices.begin(), slices.end(), slice), slices.end());
-        }
     }
+
+    for (auto& sliceFP16 : slicesFP16)
+        slices.erase(std::remove(slices.begin(), slices.end(), sliceFP16), slices.end());
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
