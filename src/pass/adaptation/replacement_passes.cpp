@@ -596,9 +596,9 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-
     // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
-    const std::vector<std::string> pattern = {"AveragePool", "Reshape", "Reshape", "AveragePool", "Reshape"};
+    //const std::vector<std::string> pattern = {"AveragePool", "Reshape", "Reshape", "AveragePool", "Reshape"};
+    const std::vector<std::string> pattern = {"Reshape", "AveragePool", "Reshape", "Reshape", "AveragePool"};
     auto ops = om.getOps(*pattern.begin());
 
     auto can_replace_pool = [&pattern, &om](mv::Data::OpListIterator opIt) -> bool {
@@ -607,12 +607,11 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
         auto it = opIt;
         for (size_t i = 0; i < pattern.size(); ++i) {
             if (it->getOpType() == "AveragePool") {
-                poolOps.push_back(opIt);
+                poolOps.push_back(it);
             }
 
             it = om.getSourceOp(it->getInputTensor(0));
         }
-
         assert(poolOps.size() == 2);
 
         return canReplaceAveragePool(poolOps[1], poolOps[0], om);
@@ -623,9 +622,9 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
         if (!opIt) {
             continue;
         }
-        if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
-            auto poolingOp = opIt;
 
+        if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
+            auto poolingOp = om.getSourceOp(opIt->getInputTensor(0));
             auto kernel = std::max(poolingOp->get<std::array<unsigned short, 2>>("kSize")[0], poolingOp->get<std::array<unsigned short, 2>>("kSize")[1]);
             std::array<unsigned short, 2> kSize = {kernel, kernel};
             auto op_attrs =  poolingOp->getAttrs({"kSize"});

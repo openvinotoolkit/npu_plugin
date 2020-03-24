@@ -280,7 +280,6 @@ void transitiveReduction(graph<T_node, T_edge>& g,
 
     transitive_reducer_t reducer(g);
     reducer.reduce(filteredEdges);
-    reducer.dump_reduce_info();
   }
 #else
     transitiveReductionOld<T_node, T_edge, EdgeItComparator,
