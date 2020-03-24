@@ -186,6 +186,7 @@
         "Singular": [
             "ConcatAsImplicit",
             "ReshapeAsImplicit",
+            "PermuteAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
             "SetUpPPETasks",
@@ -211,9 +212,9 @@
     },
     "dma": {
         "Singular" : [
+            "UpdateImplicitLayersLocation",
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",

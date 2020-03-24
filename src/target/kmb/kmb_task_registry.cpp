@@ -13,3 +13,4 @@
 #include    "src/target/kmb/tasks/def/weights_table.cpp"
 #include    "src/target/kmb/tasks/def/implicit_concat.cpp"
 #include    "src/target/kmb/tasks/def/implicit_reshape.cpp"
+#include    "src/target/kmb/tasks/def/implicit_permute.cpp"

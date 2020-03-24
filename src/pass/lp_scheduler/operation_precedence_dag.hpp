@@ -252,7 +252,7 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Align"} ) {
+      implicit_op_types_( {"Slice", "Crop", "Align", "ImplicitReshape", "ImplicitPermute"} ) {
         init_from_model(model);
     }
 

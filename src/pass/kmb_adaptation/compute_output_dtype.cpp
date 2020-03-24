@@ -60,6 +60,84 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
         }
 
     }
+
+    // Find ScaleShifts (converted to Depthwise in replacement pass)
+    std::vector <mv::Data::OpListIterator> scaleshifts = {};
+    scaleshifts.reserve(operationsOfConvolution["DepthwiseConv"].size());
+    for (auto opIt=operationsOfConvolution["DepthwiseConv"].begin(); opIt != operationsOfConvolution["DepthwiseConv"].end(); ++opIt)
+    {
+        if ((*opIt)->hasAttr("isScaleShift") && (*opIt)->get<bool>("isScaleShift"))
+            scaleshifts.push_back(*opIt);
+    }
+
+    for(auto& opIt : scaleshifts)
+    {
+        auto output = opIt->getOutputTensor(0);
+        auto input = opIt->getInputTensor(0);
+        auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+        if (!output->hasAttr("quantParams")
+                || output->get<mv::QuantizationParams>("quantParams").isNeutral())
+        {
+            double outWeightsMin = inf;
+            double outWeightsMax = -inf;
+            double outBiasesMin = inf;
+            double outBiasesMax = -inf;
+
+            auto& newInputQuantization = input->get<mv::QuantizationParams>("quantParams");
+            auto weights = opIt->getInputTensor("weights");
+            auto kernelShape = weights->getShape();
+            auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
+            auto weights_scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
+            auto weights_zp = extendToK(outputChannels, weightsQuantization.getZeroPoint(), weights->getName());
+
+            std::vector<double> outScale(1);
+            std::vector<int64_t> outZp(1);
+            // input range
+            auto minIn = newInputQuantization.getMin()[0];
+            auto maxIn = newInputQuantization.getMax()[0];
+
+            bool hasBias = opIt->hasAttr("bias");
+            mv::Data::TensorIterator bias;
+            if (hasBias)
+            {
+                bias = dm.getTensor(opIt->get<std::string>("bias"));
+            }
+            double_t real_weight, real_bias;
+            for (size_t c = 0; c < kernelShape[mv::IO_CHANNEL_DIMENSION]; c++)
+            {
+                double biasScale = weights_scale[c] * newInputQuantization.getScale()[0];
+
+                auto currWeight = (int64_t)weights->at(c);
+                real_weight = ((int64_t) currWeight - weights_zp[c]) * weights_scale[c];
+                // weights range
+                if (real_weight < outWeightsMin)
+                    outWeightsMin = real_weight;
+                if (real_weight > outWeightsMax)
+                    outWeightsMax = real_weight;
+
+                if (hasBias)
+                {
+                    // biases range
+                    real_bias = ((double) bias->at(c)) * biasScale;
+                    if (real_bias < outBiasesMin)
+                        outBiasesMin = real_bias;
+                    if (real_bias > outBiasesMax)
+                        outBiasesMax = real_bias;
+                }
+            }
+            // Calculate outputs range
+            double outputMin = (minIn * outWeightsMin) + outBiasesMin;
+            double outputMax = (maxIn * outWeightsMax) + outBiasesMax;
+
+            calcZeroPointAndScalePerTensor(outputMax, outputMin, outScale[0], outZp[0]);
+
+            mv::QuantizationParams newOutputQuantization = {outZp,outScale,{outputMin},{outputMax}};
+            output->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
+            opIt->set<mv::QuantizationParams>("quantParams", newOutputQuantization);
+        }
+    }
+
     for(auto& opIt : convolutions)
     {
         auto output = opIt->getOutputTensor(0);
