@@ -1387,7 +1387,11 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
     } else {
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
         auto constMCM =
-            _modelMcm.constant(constData, mcmShape, convert_data_type(constBlob->getTensorDesc().getPrecision()),
+            _modelMcm.constant(constData, mcmShape, convert_data_type(Precision(Precision::ePrecision::FP32)),
+                    // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
+                    // but as WorkAround it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+                    // It is so just because mcmCompiler has not supported FP16 yet.
+                    // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
         bindOutput(constMCM, layer->outData[0]);
     }
