@@ -37,20 +37,21 @@ namespace mv
         {
             auto quant_param = a.get<mv::QuantizationParams>();
             std::string output;
-            auto zp = quant_param.getZeroPoint();
-            auto scale = quant_param.getScale();
-            if (zp.empty() || scale.empty())
+            if (quant_param.hasAttr("mult"))
             {
-                output = "none";
-
-            }
-            else if ((zp.size() == 1) || (scale.size() == 1))
-            {
-                output = "(" + std::to_string(zp[0]) + ", " + std::to_string(scale[0]) + ")";
+                output = "(" + std::to_string(quant_param.getZeroPoint().size()) + ", " +
+                std::to_string(quant_param.getScale().size()) + ", " +
+                std::to_string(quant_param.getMin().size()) + ", " +
+                std::to_string(quant_param.getMax().size()) + ", " +
+                std::to_string(quant_param.getShift().size()) + ", " +
+                std::to_string(quant_param.getMult().size()) + ")";
             }
             else
             {
-                output = "(" + std::to_string(zp[0]) + "... , " + std::to_string(scale[0]) + " ...)";
+                output = "(" + std::to_string(a.get<mv::QuantizationParams>().getZeroPoint().size()) + ", " +
+                std::to_string(quant_param.getScale().size()) + ", " +
+                std::to_string(quant_param.getMin().size()) + ", " +
+                std::to_string(quant_param.getMax().size()) + ")";
             }
             return output;
         }
