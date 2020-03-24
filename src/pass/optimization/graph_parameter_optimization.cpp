@@ -1022,10 +1022,12 @@ namespace mv
             void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
             {
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
-
-                vector<Attribute> spillingPool = {true};
-                if(!globalForceSpilling)
-                    spillingPool.push_back(false);
+                
+                vector<Attribute> spillingPool;
+                if(globalForceSpilling)
+                    spillingPool.push_back(true);
+                else
+                    spillingPool = createTStrategyPoolFromBool(op, "forceSpilling");
 
 
                 vector<Attribute> clusteringStrategyPool;
