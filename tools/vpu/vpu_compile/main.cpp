@@ -234,6 +234,7 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     const auto in_precision = inputs_precision.empty() ? defaultPrecision
                                                  : getInputPrecision(inputs_precision);
     for (auto &&layer : network.getInputsInfo()) {
+        layer.second->setLayout(InferenceEngine::Layout::NHWC);
         layer.second->setPrecision(in_precision);
     }
 

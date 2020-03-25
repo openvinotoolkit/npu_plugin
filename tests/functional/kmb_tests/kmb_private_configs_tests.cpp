@@ -223,6 +223,12 @@ TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     ModelPooling_Helper modelPoolingHelper;
     const std::string testFileName = "tmp_test.xml";
     std::remove(testFileName.c_str());
+    for (auto&& input : modelPoolingHelper.network.getInputsInfo()) {
+        input.second->setLayout(InferenceEngine::Layout::NHWC);
+    }
+    for (auto&& output : modelPoolingHelper.network.getOutputsInfo()) {
+        output.second->setLayout(InferenceEngine::Layout::NHWC);
+    }
     network = ie.LoadNetwork(modelPoolingHelper.network, "KMB");
     std::ifstream notExist(testFileName);
     ASSERT_FALSE(notExist.good());

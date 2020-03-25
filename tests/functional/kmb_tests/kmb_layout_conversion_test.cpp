@@ -522,12 +522,64 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     ASSERT_EQ(exeNetworkOutputs.begin()->second->getTensorDesc().getLayout(), output_layout);
 }
 
+class UnsupportedLayoutAndPrecisionTest :
+    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout,
+        InferenceEngine::Precision, InferenceEngine::Precision>>,
+    public kmbLayersTests_nightly {};
+
+TEST_P(UnsupportedLayoutAndPrecisionTest, setUnsupportedLayoutAndPrecisionTest) {
+#if defined(__arm__) || defined(__aarch64__)
+    SKIP();
+#endif
+    InferenceEngine::Layout input_layout = std::get<0>(GetParam());
+    InferenceEngine::Layout output_layout = std::get<1>(GetParam());
+    InferenceEngine::Precision input_precision = std::get<2>(GetParam());
+    InferenceEngine::Precision output_precision = std::get<3>(GetParam());
+    const std::string& model = layout_conversion_pooling_model;
+
+    Core ie;
+    Blob::CPtr weightsBuffer;
+    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+
+    auto _inputsInfo = network.getInputsInfo();
+    _inputsInfo.at("input")->setPrecision(input_precision);
+    _inputsInfo.at("input")->setLayout(input_layout);
+
+    auto _outputsInfo = network.getOutputsInfo();
+    _outputsInfo.at("output")->setPrecision(output_precision);
+    _outputsInfo.at("output")->setLayout(output_layout);
+
+    std::map<std::string, std::string> config;
+    setCommonConfig(config);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
+    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
+    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(NO);
+
+    InferenceEngine::ExecutableNetwork exeNetwork;
+    ASSERT_THROW(
+        exeNetwork = ie.LoadNetwork(network, "KMB", config), InferenceEngine::details::InferenceEngineException);
+}
+
 const std::vector<InferenceEngine::Layout> test_layouts = {
     InferenceEngine::Layout::NHWC, InferenceEngine::Layout::NCHW};
 
 INSTANTIATE_TEST_CASE_P(accuracy, LayoutConversionTest,
     ::testing::Combine(::testing::ValuesIn(test_layouts),  // inputs
         ::testing::ValuesIn(test_layouts)                  // outputs
+        ));
+
+const std::vector<InferenceEngine::Layout> unsupported_input_layouts = {InferenceEngine::Layout::NCHW};
+const std::vector<InferenceEngine::Layout> unsupported_output_layouts = {InferenceEngine::Layout::NCHW};
+const std::vector<InferenceEngine::Precision> unsupported_input_precisions = {
+    InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> unsupported_output_precisions = {
+    InferenceEngine::Precision::I8, InferenceEngine::Precision::FP32};
+
+INSTANTIATE_TEST_CASE_P(layouts, UnsupportedLayoutAndPrecisionTest,
+    ::testing::Combine(::testing::ValuesIn(unsupported_input_layouts),  // input layouts
+        ::testing::ValuesIn(unsupported_output_layouts),                // output layouts
+        ::testing::ValuesIn(unsupported_input_precisions),              // input precisions
+        ::testing::ValuesIn(unsupported_output_precisions)              // output precisions
         ));
 
 static auto params = Combine(Values(conv_p), Values(std::make_pair(Precision::FP32, 1e-5)), Values(NCHW, NHWC),

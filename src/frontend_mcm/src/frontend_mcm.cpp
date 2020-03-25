@@ -779,6 +779,14 @@ void FrontEndMcm::parseInputData() {
         }
 
         // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
+        if (ieData->getTensorDesc().getLayout() != InferenceEngine::Layout::NHWC) {
+            VPU_THROW_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
+        }
+
+        if (ieData->getTensorDesc().getPrecision() != InferenceEngine::Precision::U8) {
+            VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
+        }
+
         auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8), mv::Order("NHWC"),
             inputQuantParamsOverRide, netInput->name());
         bindOutput(mvInput, ieData);
@@ -824,6 +832,12 @@ void FrontEndMcm::parseOutputData() {
             break;
         default:
             VPU_THROW_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
+        }
+
+        const InferenceEngine::Layout outputLayout = ieData->getTensorDesc().getLayout();
+        // NC outputs are not supported by MCM, but the output can be casted to NC via VPU_KMB_FORCE_NCHW_TO_NHWC
+        if (outputLayout != InferenceEngine::Layout::NHWC && outputLayout != InferenceEngine::Layout::NC) {
+            VPU_THROW_EXCEPTION << "Output layout is not supported: " << outputLayout;
         }
 
         auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}});

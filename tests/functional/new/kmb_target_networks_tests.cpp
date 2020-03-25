@@ -113,7 +113,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_MobileNet_V2) {
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet-v2-caffe-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPresision("output", Precision::FP16)
+            .setUserOutputLayout("output", Layout::NHWC),
         "224x224/cat3.bmp",
         3, 1e-5f);
 }
@@ -320,7 +321,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPresision("output", Precision::FP16)
+            .setUserOutputLayout("input", Layout::NHWC),
         TestImageDesc("227x227/cat3.bmp", false),
         1, 0.05f);
 }
@@ -488,7 +490,8 @@ TEST_F(KmbClassifyNetworkTest, squeezenet_v1_1_caffe2_dense_int8_IRv10) {
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPresision("output", Precision::FP32)
+            .setUserOutputLayout("output", Layout::NHWC),
         "227x227/cat3.bmp",
         1, 2.0f);
 }

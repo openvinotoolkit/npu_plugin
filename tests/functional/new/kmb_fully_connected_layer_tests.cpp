@@ -39,13 +39,13 @@ std::ostream& operator<<(std::ostream& os, const FCTestParams& p) {
 class KmbFullyConnectedLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<FCTestParams> {};
 
 TEST_P(KmbFullyConnectedLayerTests, FakeQuantize_FC) {
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_ON("KMB", "Check 'arg0_shape compatible arg1_shape' failed");
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
 
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NC);
-    const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NC);
+    const auto userInDesc = TensorDesc(Precision::U8, {1, 1024, 1, 1}, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(Precision::FP32, p._inDims, Layout::NC);
 
     const auto tolerance = 1e-3f;
 
