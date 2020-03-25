@@ -35,7 +35,6 @@ target_include_directories(${TARGET_NAME}
         ${MCM_COMPILER_INCLUDES}
     PUBLIC
         "include"
-        ${CMAKE_CURRENT_SOURCE_DIR}
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
 
 target_link_libraries(${TARGET_NAME}

@@ -68,6 +68,8 @@ if (ENABLE_HDDL2)
     add_subdirectory(src/hddl2_plugin)
 endif()
 
+add_subdirectory(src)
+
 if(ENABLE_TESTS)
     enable_testing()
     add_subdirectory(tests)
