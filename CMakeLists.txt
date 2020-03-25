@@ -10,7 +10,6 @@ option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
-
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
 
 set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
@@ -278,6 +277,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_output_dtype.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/place_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"

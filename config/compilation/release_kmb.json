@@ -18,6 +18,8 @@
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": true,
+                "FloatOutput": false,
+                "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
                 [
@@ -98,6 +100,7 @@
             "TensorsToFP16",
             "FusePostOps",
             "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {

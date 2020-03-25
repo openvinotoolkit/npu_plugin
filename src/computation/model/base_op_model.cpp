@@ -424,6 +424,11 @@ void mv::BaseOpModel::addAttr(Data::OpListIterator op, const std::string& name, 
     op->set(name, attr);
 }
 
+void mv::BaseOpModel::eraseAttr(Data::OpListIterator op, const std::string& name)
+{
+    op->erase(name);
+}
+
 std::string mv::BaseOpModel::getLogID() const
 {
     return "OpModel:" + name_;

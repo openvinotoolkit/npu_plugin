@@ -250,7 +250,7 @@ namespace mv
                             // Add new child to siblings of child of a common parent
                             result = (*new_sibling).lock()->siblings_.insert(child);
                             if (!result.second)
-                                throw std::runtime_error("Unable to define iterable " + 
+                                throw std::runtime_error("Unable to define iterable " +
                                     std::to_string((*new_sibling).lock()->getID()) + " sibling");
                         }
 

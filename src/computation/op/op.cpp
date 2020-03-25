@@ -302,3 +302,14 @@ bool mv::Op::isImplicit() const
         isImplicitOp = false;
     return isImplicitOp;
 }
+
+bool mv::Op::hasWeights() const
+{
+    bool hasWeights = false;
+    std::vector<std::string> weightTypes = {"Conv", "DepthwiseConv"};
+    if (std::count(weightTypes.begin(), weightTypes.end(), getOpType()))
+        hasWeights = true;
+    else
+        hasWeights = false;
+    return hasWeights;
+}
