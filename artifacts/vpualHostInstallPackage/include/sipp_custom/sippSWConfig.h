@@ -6,6 +6,7 @@
 /// @brief     This file lists the configuration structures for SIPP SW filters.
 ///
 
+#include <swcFrameTypes.h>
 
 /**
  * Parameter structure of the box filter.
@@ -1063,3 +1064,101 @@ typedef struct
     UInt16 pixValue;
 }
 PadKernel_u16Param;
+
+/**
+ * Parameter structure of the dilate3x3 filter.
+ *
+ * This filter performs a dilate on the source image using
+ * the specified structuring element.
+ *
+ * Identifier: svuDilate3x3
+ */
+typedef struct
+{
+    UInt32 dMat[3];
+}
+Dilate3x3Param;
+
+
+/**
+ * Parameter structure of the calcEpipolarDistance filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges using the Canny algorithm.
+ *
+ * Identifier: svuCalcEpipolarDistance
+ */
+typedef struct
+{
+    UInt32 nPoints;
+    float  RANSAC_dist_threshold;
+    float  fm[9];
+}
+calcEpipolarDistanceParam;
+
+
+/**
+ * Parameter structure of the calcG filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges.
+ *
+ * Identifier: svuCalcG
+ */
+typedef struct
+{
+    UInt32 isz[2];
+    UInt32 jsz[2];
+    UInt32 minI[2];
+    UInt32 minJ[2];
+}
+calcGParam;
+
+
+/**
+ * Parameter structure of the calcBxBy filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges.
+ *
+ * Identifier: svuCalcBxBy
+ */
+typedef struct
+{
+    UInt32 isz[2];
+    UInt32 jsz[2];
+    UInt32 minI[2];
+    UInt32 minJ[2];
+}
+calcBxByParam;
+
+
+/**
+ * Parameter structure of the cvtColorChromaYUVToNV12 filter.
+ *
+ * This filter performs conversion from YUV image format to NV12
+ * for the chroma part only. The luma part is identical between
+ * these two formats and needs to be copied separately.
+ *
+ * Identifier: svuCvtColorChromaYUVToNV12
+ */
+typedef struct
+{
+    frameType inputFrameType;
+    UInt8 needs2Parents;
+}
+CvtColorChromaYUVToNV12Param;
+
+
+/**
+ * Parameter structure of the hammingDistance filter.
+ *
+ * This HammingDistance kernel finds matches between two descriptors
+ *
+ * Identifier: svuHammingDistance
+ */
+typedef struct
+{
+    int descriptor_size;
+}
+HammingDistanceParam;

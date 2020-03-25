@@ -15,6 +15,9 @@
 #include <swcFrameTypes.h>
 #include "Pool.h"
 
+// TODO - need this for DevicePtr, may be better place to put it.
+#include <VpuData.h>
+
 typedef struct SippPipeline SippPipeline;
 //////////////////////////////////////////////////////////////////
 /////////////////////// Pipeline Creation ////////////////////////
@@ -146,20 +149,20 @@ void sippSendFilterConfig(SippFilter* filter, void* cfg, uint32_t size);
 /**
  * Set up an address update for a dma filter
  *
- * @param filter       - dma filter to update
- * @param memory - Memory to update to/from
+ * @param filter - dma filter to update
+ * @param data   - Memory to write
  * @param spec   - frame spec
  */
-void sippDmaWriteBuffer(SippFilter* filter, uint32_t paddr, const frameSpec* spec);
+void sippDmaWriteBuffer(SippFilter* filter, DevicePtr data, const frameSpec* spec);
 
 /**
  * Set the output address for a dma filter
  *
  * @param filter  - dma filter to update
- * @param paddr   - Memory to write to
+ * @param buffer  - Memory to write to
  * @param length  - length of buffer
  */
-void sippDmaSetOutputBuffer(SippFilter* filter, uint32_t paddr, uint32_t length);
+void sippDmaSetOutputBuffer(SippFilter* filter, DevicePtr buffer, uint32_t length);
 
 /**
  * Delete a SIPP pipeline.

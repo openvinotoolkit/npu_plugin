@@ -86,12 +86,6 @@ if(ARM OR AARCH64)
                   $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
             COMPONENT kmb)
-
-    install(FILES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1.0.0"
-                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1"
-                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so"
-            DESTINATION "${IE_CPACK_LIBRARY_PATH}"
-            COMPONENT kmb)
 endif()
 
 if(ENABLE_CLANG_FORMAT)

@@ -10,17 +10,16 @@ extern "C" {
     defined(SHAVE_PROFILE) || \
     defined(SAMPLE_PROFILING)
 
-__attribute__((no_instrument_function))
 static inline void enableProfiler() {
     extern int __profileEnable; // do not use this directly, may change without notice
     __profileEnable = 1;
 }
-__attribute__((no_instrument_function))
+
 static inline void disableProfiler() {
     extern int __profileEnable; // do not use this directly, may change without notice
     __profileEnable = 0;
 }
-__attribute__((no_instrument_function))
+
 static inline int profilerEnabled() {
     extern int __profileEnable; // do not use this directly, may change without notice
     return __profileEnable;

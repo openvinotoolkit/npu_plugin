@@ -191,6 +191,17 @@ enum SippFilters {
     svuMinMaxValue                        = BASE_SW_ID + 155,
     svuPadKernel_u8                       = BASE_SW_ID + 156,
     svuPadKernel_u16                      = BASE_SW_ID + 157,
+    svuCvtColorYUVToRGB                   = BASE_SW_ID + 158,
+    svuDilate3x3                          = BASE_SW_ID + 159,
+    svuCvtColorNV12toYUV422i              = BASE_SW_ID + 160,
+    svuCalcEpipolarDistance               = BASE_SW_ID + 161,
+    svuCalcG                              = BASE_SW_ID + 162,
+    svuCalcBxBy                           = BASE_SW_ID + 163,
+    svuCvtColorChromaYUVToNV12            = BASE_SW_ID + 164,
+    svuCvtColorRGBfp16ToLumaU8            = BASE_SW_ID + 165,
+    svuCvtColorRGBfp16ToUV420U8           = BASE_SW_ID + 166,
+    svuHammingDistance                    = BASE_SW_ID + 167,
+
 };
 
 // SIPP function identifiers.

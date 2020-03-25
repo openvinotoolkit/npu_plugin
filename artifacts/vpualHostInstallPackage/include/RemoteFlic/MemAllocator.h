@@ -18,7 +18,7 @@
 class IAllocator : public VpualStub {
   public:
     /** Constructor just invokes the parent constructor. */
-    IAllocator(const char type[DECODER_NAME_MAX_LENGTH]) : VpualStub(type){};
+    IAllocator(std::string type) : VpualStub(type){};
 };
 
 //##############################################################
