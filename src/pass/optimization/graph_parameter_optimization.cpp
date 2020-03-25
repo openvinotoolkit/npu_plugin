@@ -136,14 +136,14 @@ namespace mv
 
                 Shape worstStreamPool = streamingPool;
 
-                Shape tensorShape = tensorToSize->getShape();
-                //update the streamingPool to the worst combination, based on slice sizes
-                size_t outputSize;
-                size_t numberOfSplits;
-                if(streamingPool["H"] > 1) // If streaming over H
+                //TODO harmonize this, for now only consider worst shape for nested streams
+                if(streamingPool["H"] > 1 and streamingPool["K"] > 1)
                 {
-                    outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-                    numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+                    Shape tensorShape = tensorToSize->getShape();
+                    //update the streamingPool to the worst combination, based on slice sizes
+                    auto outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    auto numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
                     int newOutputSize = newOutputSizes.first;
 
@@ -153,20 +153,6 @@ namespace mv
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-                }
-                else if(streamingPool["B"] > 1) // If streaming over N
-                {
-                    outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-                    numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.first;
-
-                    int remainderOutputSize = newOutputSizes.second;
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
-
-                    auto worstNumberOfSplits = outputSize/newOutputSize;
-                    worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
                 }
 
                 //TODO add handling for weights case if we dont align it to 16 always
@@ -180,6 +166,55 @@ namespace mv
                     return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
 
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+
+                // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+
+                // Shape worstStreamPool = streamingPool;
+
+                // Shape tensorShape = tensorToSize->getShape();
+                // //update the streamingPool to the worst combination, based on slice sizes
+                // size_t outputSize;
+                // size_t numberOfSplits;
+                // if(streamingPool["H"] > 1) // If streaming over H
+                // {
+                //     outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                //     numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+                //     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                //     int newOutputSize = newOutputSizes.first;
+
+                //     int remainderOutputSize = newOutputSizes.second;
+                //     if (remainderOutputSize > newOutputSize)
+                //         newOutputSize = remainderOutputSize;
+
+                //     auto worstNumberOfSplits = outputSize/newOutputSize;
+                //     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+                // }
+                // else if(streamingPool["B"] > 1) // If streaming over N
+                // {
+                //     outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
+                //     numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
+                //     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                //     int newOutputSize = newOutputSizes.first;
+
+                //     int remainderOutputSize = newOutputSizes.second;
+                //     if (remainderOutputSize > newOutputSize)
+                //         newOutputSize = remainderOutputSize;
+
+                //     auto worstNumberOfSplits = outputSize/newOutputSize;
+                //     worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
+                // }
+
+                // //TODO add handling for weights case if we dont align it to 16 always
+                // size_t streamDivisor = 1;
+                // for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
+                // {
+                //     streamDivisor = streamDivisor * worstStreamPool[dim];
+                // }
+
+                // if(isCMConv)
+                //     return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
+
+                // return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig){
@@ -1105,7 +1140,7 @@ namespace mv
                                 if (splitsToFit < 1)
                                     maxSplitOverH = 1;
                                 else
-                                    maxSplitOverH = splitsToFit+1;
+                                    maxSplitOverH = splitsToFit;
                             }
                         }
                         // Stream over batch, match number of streams over H
