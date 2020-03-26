@@ -144,6 +144,12 @@ mv::DType convert_data_type(ie::Precision iePrecision) {
     return mvType;
 }
 
+mv::Order convert_layout(const ie::Layout& ieLayout) {
+    std::ostringstream layoutToOrder;
+    layoutToOrder << ieLayout;
+    return mv::Order(layoutToOrder.str());
+}
+
 void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
     runCommonPasses(network);
     for (const auto& layer : _parsedNetwork.orderedLayers) {
@@ -778,16 +784,17 @@ void FrontEndMcm::parseInputData() {
             inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
         }
 
-        // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
-        if (ieData->getTensorDesc().getLayout() != InferenceEngine::Layout::NHWC) {
+        const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
+        if (inputLayout != InferenceEngine::Layout::NHWC) {
             VPU_THROW_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
         }
 
-        if (ieData->getTensorDesc().getPrecision() != InferenceEngine::Precision::U8) {
+        const InferenceEngine::Precision inputPrecision = ieData->getTensorDesc().getPrecision();
+        if (inputPrecision != InferenceEngine::Precision::U8) {
             VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
         }
 
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8), mv::Order("NHWC"),
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision), convert_layout(inputLayout),
             inputQuantParamsOverRide, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
