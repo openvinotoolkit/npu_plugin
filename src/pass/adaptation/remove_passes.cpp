@@ -35,7 +35,6 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     removeDropOut(pass, model);
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
-    removePermuteNoOpFcn(pass, model);
 }
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -117,7 +116,7 @@ void removePermuteNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {
         auto inputShape = opIt->getInputTensor(0)->getShape();
         auto outputShape = opIt->getOutputTensor(0)->getShape();
-        if (inputShape == outputShape)
+        if ((inputShape == outputShape) || (inputShape.isFlat() && outputShape.isFlat()))
         {
             auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");

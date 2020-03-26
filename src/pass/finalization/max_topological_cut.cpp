@@ -28,6 +28,7 @@ namespace mv
         );
     }
 }
+
 void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&)
 {
 
@@ -62,6 +63,7 @@ void markLastNodeForMaxTopologicalCutFcn(const mv::pass::PassEntry& pass, mv::Co
     // else
     //     sinkNode.leftmostParent()->set<bool>("MaxCutSinkNode", true);
 }
+
 
 void markControlFlows(mv::ControlModel& cm, const std::pair<int, std::vector<mv::edgeDescription>>& maxTopologicalCut)
 {

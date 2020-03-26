@@ -45,6 +45,7 @@ namespace mv
         std::size_t inputSlots() const;
         std::size_t outputSlots() const;
         bool isImplicit() const;
+        bool hasWeights() const;
 
         std::string getLogID() const override;
 

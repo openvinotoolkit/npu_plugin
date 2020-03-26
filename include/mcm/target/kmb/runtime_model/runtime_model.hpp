@@ -61,7 +61,7 @@ namespace mv
             static MVCNN::DPULayerType convertTaskOp(const std::string& opName);
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
             static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);
-            static void alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, bool padFinalOutput = false);
+            static void alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, Tensor &tensor, const size_t dimension, bool padFinalOutput = false);
 
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, const std::string& allocatorName = "");
             static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReferenceT(ComputationModel &cm, Element&, Data::TensorIterator t, unsigned clusterId, const std::string &allocatorName = "");
@@ -124,6 +124,7 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPADetectionOutputTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAPriorboxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPAArgmaxTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
             // UTILS
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);

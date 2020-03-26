@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <utility>
+#include <vector>
 #include "include/mcm/tensor/dtype/dtype.hpp"
 
 
@@ -12,7 +13,7 @@ namespace mv
     unsigned ceil_division(unsigned x, unsigned d);
     unsigned count_bits(unsigned number);
     unsigned next_greater_power_of_2(unsigned number);
-    std::pair<std::size_t, std::size_t> tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits);
+    std::vector<std::size_t> tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits);
     uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType);
 
 

@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 
 #include "scheduler/scheduler_unit_test_utils.hpp"
-
+#include "include/mcm/logger/logger.hpp"
 
 using namespace scheduler_unit_tests;
 typedef Operation_Dag dag_t;
@@ -1277,14 +1277,14 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test) {
       spilled_write_count++;
     }
 
-    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    printfInfo("feasibleSchedulerTest", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
 
     if (scheduled_op.has_active_resource()) {
-      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      printfInfo("feasibleSchedulerTest", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
     } else {
-      printf(" resource=<none>\n");
+      printfInfo("feasibleSchedulerTest", " resource=<none>\n");
     }
   }
 
@@ -1328,14 +1328,14 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
       spilled_write_count++;
     }
 
-    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+    printfInfo("feasibleSchedulerTest", "op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
         scheduled_op.op_type_name(), scheduled_op.time_);
 
     if (scheduled_op.has_active_resource()) {
-      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+      printfInfo("feasibleSchedulerTest", " resource=[%lu %lu]\n", scheduled_op.begin_resource(),
           scheduled_op.end_resource());
     } else {
-      printf(" resource=<none>\n");
+      printfInfo("feasibleSchedulerTest", " resource=<none>\n");
     }
   }
 

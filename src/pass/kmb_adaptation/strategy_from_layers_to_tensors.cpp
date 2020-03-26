@@ -1,4 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -7,7 +8,6 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 static void strategyLayersToTensors(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
 
 namespace mv
 {
@@ -74,10 +74,24 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             implicitConcat->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitConcat->getInputTensor(0)->get<std::string>("splitStrategy"));
     }
+    auto implicitPermuteOps = om.getOps("ImplicitPermute");
+    for (auto implicitPermute : implicitPermuteOps)
+    {
+        if (implicitPermute->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitPermute->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitPermute->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
+    auto implicitReshapeOps = om.getOps("ImplicitReshape");
+    for (auto implicitReshape : implicitReshapeOps)
+    {
+        if (implicitReshape->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitReshape->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitReshape->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "Concat")
+        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" || opType == "Concat")
         {
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
@@ -85,16 +99,27 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
     }
 
+    // Usually Align op takes the strategy from the previous op
+    // when the previous op to align has no strategy defined, align takes the strategy from sinkOp of align 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
         if (opType == "Align")
         {
-            auto outputTensor = layer->getOutputTensor(0);
-            std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
-            auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
-            outputTensor->set<std::string>("splitStrategy", opStrategy);
-            layer->set<std::string>("splitStrategy", opStrategy);
+           if (layer->hasAttr("splitStrategy")) 
+           {
+               auto opStrategy = layer->get<std::string>("splitStrategy");
+               auto outputTensor = layer->getOutputTensor(0);
+               outputTensor->set<std::string>("splitStrategy", opStrategy);
+           }
+           else
+           {
+               auto outputTensor = layer->getOutputTensor(0);
+               std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+               auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+               outputTensor->set<std::string>("splitStrategy", opStrategy);
+               layer->set<std::string>("splitStrategy", opStrategy);
+           }
         }
     }
 
@@ -111,16 +136,4 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     }
 
     return;
-}
-
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
 }

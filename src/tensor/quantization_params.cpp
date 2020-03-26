@@ -137,4 +137,19 @@ bool mv::QuantizationParams:: infinitelimits() const
     return is_infinite;
 }
 
+bool mv::QuantizationParams::isScalePerTensor() const{
+    return get<std::vector<double>>("scale").size() == 1;
+}
+
+//TODO: isn't it too performance consuming?
+double mv::QuantizationParams::getScale(const size_t channel) const {
+    auto scales = get<std::vector<double>>("scale");
+    if (scales.size() == 1)
+        return scales[0];
+    if (channel >= scales.size())
+        throw ArgumentError("quantParams", "channel", std::to_string(channel),
+                            "Invalid index: channel is greater than scales vector");
+    return scales[channel];
+}
+
 

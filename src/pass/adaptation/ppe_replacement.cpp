@@ -216,18 +216,6 @@ mv::Data::OpListIterator portAdd(mv::ComputationModel& model, std::vector <mv::D
     return eltwise_op;
 }
 
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
-}
-
 void provideAccuracyinPPEs(mv::ComputationModel& model)
 {
     //NOTE: The idea of this workaround is that the ppe mechanism in hardware

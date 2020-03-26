@@ -6,9 +6,15 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 
 static void convertOpsToTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void setUpPPETasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order);
+static void correct_order_string(std::string& s, bool reverse=false);
+static void calculate_permutation_from_orders(std::vector<unsigned>& permute_order, std::string old_order, std::string new_order);
+static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<unsigned> &permute_order);
+static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
@@ -55,7 +61,7 @@ void setUpPPETasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, 
 }
 
 mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software)
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto eltwiseType = attrs.at("eltwiseType").get<std::string>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
@@ -91,7 +97,7 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
 
 
 mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
@@ -108,7 +114,7 @@ mv::Data::TensorIterator convertMaxPoolToDPUTask(mv::OpModel& om, const std::vec
 }
 
 mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
     auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
@@ -155,7 +161,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
 }
 
 mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -164,7 +170,7 @@ mv::Data::TensorIterator convertIdentityToUPATask(mv::OpModel& om, const std::ve
 }
 
 mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto axis = attrs.at("axis").get<std::string>();
@@ -174,7 +180,7 @@ mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vec
 }
 
 mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -203,7 +209,7 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
 }
 
 mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -217,7 +223,7 @@ mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::
 }
 
 mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -226,7 +232,7 @@ mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::ve
 }
 
 mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto interpolation = attrs.at("interpolation").get<std::string>();
     auto antialias = attrs.at("antialias").get<bool>();
@@ -238,7 +244,7 @@ mv::Data::TensorIterator convertResampleToUPATask(mv::OpModel& om, const std::ve
 }
 
 mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto shape = attrs.at("shape").get<mv::Shape>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -248,7 +254,7 @@ mv::Data::TensorIterator convertReshapeToUPATask(mv::OpModel& om, const std::vec
 }
 
 mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto coords = attrs.at("coords").get<unsigned>();
     auto classes = attrs.at("classes").get<unsigned>();
@@ -262,7 +268,7 @@ mv::Data::TensorIterator convertRegionYoloToUPATask(mv::OpModel& om, const std::
 }
 
 mv::Data::TensorIterator convertReorgYoloToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto stride = attrs.at("stride").get<unsigned>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -272,7 +278,7 @@ mv::Data::TensorIterator convertReorgYoloToUPATask(mv::OpModel& om, const std::v
 }
 
 mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -283,7 +289,7 @@ mv::Data::TensorIterator convertNormalizeToUPATask(mv::OpModel& om, const std::v
     return om.uPATaskNormalize(inputs, eps, across_spatial, channel_shared, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -309,7 +315,7 @@ mv::Data::TensorIterator convertDetectionOutputToUPATask(mv::OpModel& om, const 
                                      decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams);
 }
 
-mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -322,7 +328,7 @@ mv::Data::TensorIterator convertPriorboxToUPATask(mv::OpModel& om, const std::ve
     return om.uPATaskPriorbox(inputs, flip, clip, step_w, step_h, offset, dtype, quantParams);
 }
 
-mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto dtype = attrs.at("dType").get<mv::DType>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
@@ -334,7 +340,7 @@ mv::Data::TensorIterator convertArgmaxToUPATask(mv::OpModel& om, const std::vect
 }
 
 mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
-                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto order = attrs.at("order").get<mv::Order>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -342,36 +348,71 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
 
     mv::Data::TensorIterator upaPermute = om.uPATaskPermute(inputs, order, dtype, quantParams, name);
     auto upaPermuteOp = om.getSourceOp(upaPermute);
-    // Correct order of strings if necessary
-    auto old_order_str = inputs[0]->getOrder().toString();
-    auto new_order_str = order.toString();
+    auto vpu_in_order_str = inputs[0]->getOrder().toString();
+    auto vpu_out_order_str = vpu_in_order_str;
+    auto cpu_in_order_str = std::string("NCHW");
+    auto cpu_out_order_str = order.toString();
 
-    if (old_order_str[0] != 'N')
-        old_order_str = std::string(old_order_str.rbegin(), old_order_str.rend());
+    // Reverse order strings if necessary
+    correct_order_string(cpu_in_order_str, true);
+    correct_order_string(cpu_out_order_str, true);
 
-    if (new_order_str[0] != 'N')
-        new_order_str = std::string(new_order_str.rbegin(), new_order_str.rend());
+    /**********************************************************************
+     Example: data order="0,2,3,1"
 
-    // Convert permute order to axes
-    std::vector<unsigned> permute_order(3);
-    for (auto i=0; i < 3; i++)
-    {
-        for (auto j=0; j < 3; j++)
-        {
-            if (new_order_str[i+1] == old_order_str[j+1])
-                permute_order.at(i) = j;
-        }
+        CPU_in                          <---          VPU_in
+        order: NCHW                                   order: NHWC
+        nchw_shape: (1,2,3,4)                         nhwc_shape: (1,3,4,2)
 
-    }
 
-    upaPermuteOp->set<unsigned>("permute_order_x", permute_order.at(0));
-    upaPermuteOp->set<unsigned>("permute_order_y", permute_order.at(1));
-    upaPermuteOp->set<unsigned>("permute_order_z", permute_order.at(2));
+                                                            .
+              |                                             .
+              |   P(a,b,c,d)                                .   P(x,y,z)
+             \ /  e.g., P(0,2,3,1)                         \ /  e.g., P(1,2,0)
+              `                                             `
+
+
+         CPU_out                        --->         VPU_out
+         order: NCHW_P(a,b,c,d)                      order: NHWC_P(x,y,z)
+         nchw_shape: (1,3,4,2)                       nhwc_shape: (1,4,2,3)
+
+    **********************************************************************/
+
+    std::vector<unsigned> po_VPU_in_to_CPU_in(3);
+    std::vector<unsigned> po_CPU_in_to_CPU_out(3);
+    std::vector<unsigned> po_CPU_out_to_VPU_out(3);
+    std::vector<unsigned> po_VPU_in_to_VPU_out_relative = {0,1,2};
+    std::vector<unsigned> po_VPU_in_to_VPU_out_xyz(3);
+
+    // Correct order of strings if necessary (e.g., NCHW instead of WHCN)
+    correct_order_string(vpu_in_order_str);
+    correct_order_string(cpu_in_order_str);
+    correct_order_string(cpu_out_order_str);
+    correct_order_string(vpu_out_order_str);
+
+    // Steps:
+    // 1) Calculate the permute_orders for each of the 3 order transitions:
+    //      - VPU_in --> CPU_in
+    //      - CPU_in --> CPU_out
+    //      - CPU_out (i.e., CPU_in) --> VPU_out
+    calculate_permutation_from_orders(po_VPU_in_to_CPU_in, vpu_in_order_str, cpu_in_order_str);
+    calculate_permutation_from_orders(po_CPU_in_to_CPU_out, cpu_in_order_str, cpu_out_order_str);
+    calculate_permutation_from_orders(po_CPU_out_to_VPU_out, cpu_in_order_str, vpu_out_order_str);
+
+    // 2) Calculate the functionally-equivalent permute_order for:
+    //      - VPU_in --> VPU_out
+    calculate_permutation_from_permutes(po_VPU_in_to_CPU_in, po_VPU_in_to_VPU_out_relative);
+    calculate_permutation_from_permutes(po_CPU_in_to_CPU_out, po_VPU_in_to_VPU_out_relative);
+    calculate_permutation_from_permutes(po_CPU_out_to_VPU_out, po_VPU_in_to_VPU_out_relative);
+
+    upaPermuteOp->set<unsigned>("permute_order_x", po_VPU_in_to_VPU_out_relative.at(0));
+    upaPermuteOp->set<unsigned>("permute_order_y", po_VPU_in_to_VPU_out_relative.at(1));
+    upaPermuteOp->set<unsigned>("permute_order_z", po_VPU_in_to_VPU_out_relative.at(2));
 
     return upaPermute;
 }
 
-mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -389,7 +430,7 @@ mv::Data::TensorIterator convertInterpToUPATask(mv::OpModel& om, const std::vect
     return om.uPATaskInterp(inputs, factor, pad_beg, pad_end, height, width, align_corners, dtype, quantParams, name);
 }
 
-mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs, const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto dtype = attrs.at("dType").get<mv::DType>();
@@ -403,6 +444,20 @@ mv::Data::TensorIterator convertNormToUPATask(mv::OpModel& om, const std::vector
     return om.uPATaskNorm(inputs, alpha, beta, region, local_size, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    return om.uPATaskCustom(inputs,
+                            attrs.at("kernelData").get<std::vector<uint8_t>>(),
+                            attrs.at("paramData").get<std::vector<uint8_t>>(),
+                            attrs.at("outOrder").get<mv::Order>(),
+                            attrs.at("outShape").get<mv::Shape>(),
+                            attrs.at("dType").get<mv::DType>(),
+                            attrs.at("quantParams").get<mv::QuantizationParams>(),
+                            name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -414,7 +469,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
-                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp", "Norm"};
+                                                       "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
+                                                       "Norm", "FakeQuantize", "Custom"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -441,10 +497,9 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Norm", convertNormToUPATask},
     {"Priorbox", convertPriorboxToUPATask},
     {"Argmax", convertArgmaxToUPATask},
-    {"Permute", convertPermuteToUPATask}
+    {"Permute", convertPermuteToUPATask},
+    {"Custom", convertCustomToUPATask},
     };
-
-    bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
 
     for(auto& opType: opsTypesToConvert)
     {
@@ -455,7 +510,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             //Note: That condition is coming due to limitations like add with different scales
             if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
                 software = true;
-            software = (software || DPUTasksinSW);
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
@@ -464,20 +518,27 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
-
-            auto newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
+            mv::Data::TensorIterator newTensor;
+            newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             auto newTensorOp = om.getSourceOp(newTensor);
+            newTensorOp->setAttrs(attrsToCopy);
 
             if (newTensorOp->getOpType() == "DPUTask")
             {
+                //NOTE: There are multiple cases of DPU Task:
+                //1)Simple U8 Input U8 Output
+                //2)Simple FP16 Input FP16 Output, floatPrecision
+                //3)u8->Fp16, done by an Eltwise And, z-major conv 1x1 output, mixedToFloat
+                //4)Fp16->u8, done by an Eltwise And, z-major conv 1x1 output, mixedToU8
                 if (newTensor->hasAttr("dType") && newTensor->get<mv::DType>("dType") == mv::DType("Int32"))
                     newTensor->set<mv::DType>("dType", mv::DType("Int32"));
-                else if (!software)
-                    newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
-                else
+                if ((newTensorOp->hasAttr("mixedToFloat") && newTensorOp->get<bool>("mixedToFloat")) ||
+                        newTensorOp->hasAttr("floatPrecision"))
                     newTensor->set<mv::DType>("dType", mv::DType("Float16"));
+                else
+                    newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
             }
             else if (newTensorOp->get<std::string>("taskOp") == "Quantize")
             {
@@ -486,7 +547,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             else if(newTensorOp->getOpType() == "UPATask") // UPA
                 newTensor->set<mv::DType>("dType", mv::DType("Float16"));
 
-            newTensorOp->setAttrs(attrsToCopy);
             setOutputDataFlow(om, newTensor, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(newTensorOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(newTensorOp), outputControlFlows);
@@ -648,4 +708,70 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
         }
     }
     return clamp;
+}
+
+// Calculate the permute_order
+void convert_chw_to_index(std::string order, std::vector<unsigned>& permute_order)
+{
+    std::unordered_map<char, unsigned> chw_to_index = {
+        {'C',2},
+        {'H',1},
+        {'W',0},
+    };
+
+    for (auto i = 0; i < 3; i++)
+    {
+        permute_order.at(i) = chw_to_index[order[i + 1]];
+    }
+}
+
+// Reverse order string if necessary
+// e.g., reverse=false; in=CWHN; out=NHWC
+//       reverse=true; in=NCHW; out=WHCN
+void correct_order_string(std::string& s, bool reverse)
+{
+    auto N_index = (reverse) ? 3 : 0;
+    if (s[N_index] != 'N')
+        s = std::string(s.rbegin(), s.rend());
+}
+
+// Calculate P(x,y,z) from old_order & new_order
+// e.g., NCHW -> NHWC  =  P(1,2,0)
+void calculate_permutation_from_orders(std::vector<unsigned>& permute_order, std::string old_order, std::string new_order)
+{
+    for (auto i = 0; i < 3; i++)
+    {
+        for (auto j = 0; j < 3; j++)
+        {
+            if (new_order[i + 1] == old_order[j + 1])
+                permute_order.at(i) = j;
+        }
+
+    }
+}
+
+// Update the permute_order based on permutation P()
+//
+//                P()
+// permute_order ----> permute_order
+void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::vector<unsigned> &permute_order)
+{
+    std::vector<unsigned> permute_order_copy = {permute_order.at(0), permute_order.at(1), permute_order.at(2)};
+    for (auto i = 0; i < 3; i++)
+    {
+        permute_order.at(i) = permute_order_copy.at(P.at(i));
+    }
+}
+
+// Calculates positions of X, Y, & Z from permute_order
+void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order)
+{
+    for (auto i = 0; i < 3; i++)
+    {
+        for (auto j = 0; j < 3; j++)
+        {
+            if (permute_order.at(j) == i)
+                permute_order_xyz.at(i) = j;
+        }
+    }
 }

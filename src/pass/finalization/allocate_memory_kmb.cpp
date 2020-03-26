@@ -618,7 +618,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 }
 
             }
-            else if(opType == "ImplicitReshape")
+            else if((opType == "ImplicitReshape") || (opType == "ImplicitPermute"))
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
@@ -633,6 +633,11 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
+                else
+                {
+                    inputBuffer = dm.getBuffer(location2Allocator[inputLocation.toString()],
+                                                stageIt, inputTensor);
+                }
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
@@ -640,6 +645,15 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
+                else
+                {
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],
+                                                stageIt, outputTensor);
+                }
+
+                auto newBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
+                                                inputBuffer, outputBuffer,
+                                                {0,0,0,0}, {0,0,0,0});
 
             }
             else
