@@ -53,7 +53,7 @@ class PluginStub : public VpualStub
 
   public:
     /** Constructor just invokes the parent constructor. */
-    PluginStub(const char type[DECODER_NAME_MAX_LENGTH]) : VpualStub(type){};
+    PluginStub(std::string type) : VpualStub(type){};
 
     virtual void Stop  () {};   // By default do nothing.
     virtual void Delete() {};   // By default do nothing.

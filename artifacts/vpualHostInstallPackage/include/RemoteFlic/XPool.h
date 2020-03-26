@@ -20,7 +20,6 @@
 
 #include "Flic.h"
 #include "Message.h"
-#include "xlink.h"
 
 // TODO - We only need DevicePtr from here:
 #include <VpuData.h>
@@ -36,10 +35,6 @@ enum XPoolMethods : uint32_t
     XP_CREATE  = 1,
 };
 
-// TODO[OB] - a better way to get this..?
-/** XLink handle. */
-extern xlink_handle XlinkDeviceHandle;
-
 template <typename T>
 class XPool : public PluginStub
 {
@@ -50,12 +45,14 @@ class XPool : public PluginStub
     /** Allocation / Free function typedefs. */
     typedef DevicePtr (*AllocatorFunction)(uint32_t);
     typedef void (*FreeFunction)(DevicePtr);
+    typedef void (*FreeFunctionCtx)(DevicePtr, void*);
 
   private:
     /** Allocator function for new buffers. */
     AllocatorFunction Alloc { nullptr };
     /** Free function for released buffers. */
     FreeFunction Free { nullptr };
+    FreeFunctionCtx FreeCtx { nullptr };
 
     /** Threads listening on the XLink channel. */
     std::thread allocThread;
@@ -77,6 +74,8 @@ class XPool : public PluginStub
 
     /** XLink channel ID used. */
     uint16_t chanId;
+
+    void *user_context_ { nullptr };
 
 
   private:
@@ -111,6 +110,7 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
                     throw std::runtime_error("Xpool error xlink_read_data_to_buffer");
@@ -138,6 +138,7 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
                 auto sc { xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId,
                                                     msg, &size) };
                 if (sc != X_LINK_SUCCESS) {
@@ -181,7 +182,10 @@ class XPool : public PluginStub
 #endif // __REMOTE_HOST__
 
                 // Notify user that the buffer is ready.
-                if (Free) {
+                if (FreeCtx) {
+                    // Prefer the free with user context function.
+                    FreeCtx(out_data, user_context_);
+                } else if (Free) {
                     Free(out_data);
                 }
                 // Remove the buffer from the queue.
@@ -213,6 +217,21 @@ class XPool : public PluginStub
             std::cerr << "Warning: Killing joinable thread." << std::endl;
             freeThread.detach();
         }
+    }
+
+    void SetFreeFunction(FreeFunction freefunc)
+    {
+        Free = freefunc;
+    }
+
+    void SetFreeFunction(FreeFunctionCtx freefunc)
+    {
+        FreeCtx = freefunc;
+    }
+
+    void SetUserContext(void *context)
+    {
+        user_context_ = context;
     }
 
     /**
@@ -253,7 +272,8 @@ class XPool : public PluginStub
         }
 
         // Open blocking each way, with no timeout.
-        xlink_error status = xlink_open_channel(&XlinkDeviceHandle, xId, RXB_TXB, bSize, 0);
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_error status = xlink_open_channel(&XlinkDeviceHandle, xId, RXB_TXB, (nBuf * bSize) * 4, 0);
         if (status) {
             std::cerr << "XPool Open Channel Status: " << status << std::endl;
             return static_cast<int>(status);
@@ -318,6 +338,7 @@ class XPool : public PluginStub
 
     /** Delete method. Close the channel. */
     void Delete (void) {
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
         xlink_error rc = xlink_close_channel(&XlinkDeviceHandle, chanId);
         if (X_LINK_SUCCESS != rc) {
             std::cerr << "XPool close channel status: " << rc << std::endl;
@@ -345,6 +366,8 @@ class XPool : public PluginStub
             // mvLog(MVLOG_WARNING, "Warning, sending more buffers than XPool can hold on the VPU.");
             std::cout << "Warning, sending more buffers than XPool can hold on the VPU." << std::endl;
         }
+
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
 #ifdef __REMOTE_HOST__
         // TODO We actually just want to do a sort of:
         //    xlink_allocate_vpu_buffer(chan, bufferSize);

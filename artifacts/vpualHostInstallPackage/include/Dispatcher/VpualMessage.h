@@ -142,6 +142,15 @@ class VpualMessage
 	 * @return start address of buffer.
 	 */
     uint8_t *dat(void) const { return sdata; }
+
+    /**
+     * Set a new write position for the buffer.
+     *
+     * @param new_wp the new write position (bytes) for the buffer.
+     */
+    void set_len(uint32_t new_wp) {
+        wp = new_wp;
+    }
 };
 
 #endif // __VPUAL_MESSAGE_H__

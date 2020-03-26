@@ -110,7 +110,7 @@ static const char mvLogHeader[MVLOG_LAST][30] =
 // #ifdef __shave__
 // __attribute__((section(".laststage")))
 // #endif
-unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
+unsigned int MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
 
 // #ifdef __shave__
 // __attribute__((section(".laststage")))

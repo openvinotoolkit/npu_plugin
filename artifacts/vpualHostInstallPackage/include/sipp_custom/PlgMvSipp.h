@@ -14,6 +14,7 @@
 #include "Flic.h"
 #include "Message.h"
 #include "xlink.h" // for the async channel
+#include <thread>
 
 #include "sipp_messages.h"
 
@@ -103,7 +104,7 @@ class PlgSipp : public PluginStub
 
     // Static members
     static uint16_t asyncChannelId;
-    static pthread_t  asyncChanThread;
+    static std::thread asyncChanThread;
 };
 
 #endif // __PLG_MV_SIPP_H__
