@@ -1474,8 +1474,7 @@ void FrontEndMcm::parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector
     logParsingStartHelper(_logger, layer, inputs);
 
     auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
-    auto mvSigmoid = _modelMcm.sigmoid(inputs[0]->getMcmNode(), mv::DType("Default"),
-                                       inputQuantParams, layer->name);
+    auto mvSigmoid = _modelMcm.sigmoid(inputs[0]->getMcmNode(), mv::DType("Default"), inputQuantParams, layer->name);
 
     bindOutput(mvSigmoid, layer->outData[0]);
 
