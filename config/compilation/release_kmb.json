@@ -213,11 +213,11 @@
             "ConfigureOutputPrecision"
         ]
     },
-    "dma": {
+  "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-	    "UpdateImplicitLayersLocation",
+            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
