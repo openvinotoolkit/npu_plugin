@@ -299,7 +299,6 @@
     "root": {
         "Singular": [
             "initialize",
-            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
