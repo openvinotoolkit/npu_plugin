@@ -202,6 +202,7 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     }
 
     // Work Around for FP16->INT8 networks due to absence of FP16 support in mcmCompiler
+    // TODO: combine previous and this block of code. Escape duplication of code.
     if (biasesPrecision == InferenceEngine::Precision::FP16) {
         biasesPrecision = InferenceEngine::Precision::FP32; // Set to FP32 to avoid throw exception (see code below)
 
