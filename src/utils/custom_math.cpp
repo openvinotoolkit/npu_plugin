@@ -1,5 +1,6 @@
 #include "mcm/utils/custom_math.hpp"
 #include <cmath>
+#include <algorithm>
 
 unsigned mv::round_up(unsigned x, unsigned mult)
 {
@@ -75,17 +76,23 @@ float mv::fp16_to_fp32(uint16_t value){
     return v.fp;
 }
 
-std::pair<std::size_t, std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits)
+std::vector<std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std::size_t numberOfSplits)
 {
-    int newOutputSize = round( (double)(outputSize) / (double)numberOfSplits);
+    // aim is to get the splits such that the last split is smallest and rest of the splits are equal
+    // but if thats not possible, logic is added to have the first one largest and rest of the splits equal (is this right?)
+    int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
     int remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));
     if (remainderOutputSize <= 0)
     {
         newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
         remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));
     }
-
-    return std::make_pair(newOutputSize, remainderOutputSize);
+    std::vector<std::size_t> outputSizes(numberOfSplits, newOutputSize);
+    if (remainderOutputSize > newOutputSize)
+       outputSizes[0] = remainderOutputSize;
+    else
+       outputSizes[numberOfSplits-1] = remainderOutputSize; 
+    return outputSizes;
 }
 
 uint16_t mv::getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)

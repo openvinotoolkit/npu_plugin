@@ -45,7 +45,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
             bool isElementWise = taskOp == "Eltwise";
 
             if (taskOp == "DepthwiseConv"  ||
-                taskOp == "MaxPool" || taskOp == "Conv" || isElementWise)
+                taskOp == "MaxPool" || taskOp == "Conv" || isElementWise || taskOp == "ChannelMajorConvolution")
             {
                 auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 

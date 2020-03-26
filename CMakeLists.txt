@@ -10,7 +10,6 @@ option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
-
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
 
 set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
@@ -27,7 +26,7 @@ include_directories(${META_DIR_PATH})
 
 if (NOT CMAKE_BUILD_TYPE)
     # Due to the current development pace, Debug is default build type
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
@@ -254,6 +253,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
 
@@ -269,11 +270,14 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/reshape_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/permute_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_output_dtype.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/place_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"

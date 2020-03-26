@@ -8,6 +8,7 @@
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
+#include "include/mcm/logger/logger.hpp"
 
 namespace mv {
 
@@ -251,7 +252,7 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Align"} ) {
+      implicit_op_types_( {"Slice", "Crop", "Align", "ImplicitReshape", "ImplicitPermute"} ) {
         init_from_model(model);
     }
 
@@ -550,10 +551,10 @@ class Operation_Dag {
         curr_op = *citr;
         size_t in_degree;
         if (!(in_degree=operation_in_degree(curr_op))) {
-          printf("zero-degree-node=%s\n", curr_op->getName().c_str());
+          printfInfo("operationPrecedenceDag", "zero-degree-node=%s\n", curr_op->getName().c_str());
           bfs_list.push_back(curr_op);
         } else {
-          printf("non-zero-degree-node=%s in-degree=%lu\n",
+          printfInfo("operationPrecedenceDag", "non-zero-degree-node=%s in-degree=%lu\n",
               curr_op->getName().c_str(), in_degree);
         }
       }
@@ -673,7 +674,7 @@ class Operation_Dag {
         child_op = *(child_list.front());
       }
 
-      printf("[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+      printfInfo("operationPrecedenceDag", "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
           parent_op->getName().c_str(), op->getName().c_str(),
           child_op->getName().c_str());
       fflush(stdout);
@@ -731,17 +732,17 @@ class Operation_Dag {
         color_closure_algo.compute_connected_vertices(pop,
             std::back_inserter(color_closure), implicit_op_color_functor_t() );
 
-        printf("[ColorClosure(%s) : {", (pop->getName()).c_str());
+        printfInfo("operationPrecedenceDag", "[ColorClosure(%s) : {", (pop->getName()).c_str());
 
         if (!color_closure.empty()) {
           for (auto citr=color_closure.begin(); citr!=color_closure.end();
                 ++citr) {
             const operation_t& cop = *citr;
             add_directed_edge(pop, cop);
-            printf(" %s ", (cop->getName()).c_str());
+            printfInfo("operationPrecedenceDag", " %s ", (cop->getName()).c_str());
           }
         }
-        printf("}\n");
+        printfInfo("operationPrecedenceDag", "}\n");
 
       } // foreach implicit op in the input DAG //
 
@@ -751,7 +752,7 @@ class Operation_Dag {
         if (is_implicit_op(pop)) {
           const_operation_iterator_t itr_next = itr;
           ++itr_next;
-          printf("[Removed %s]\n", ((*itr)->getName()).c_str());
+          printfInfo("operationPrecedenceDag", "[Removed %s]\n", ((*itr)->getName()).c_str());
           remove_op_from_dag(*itr);
           itr = itr_next;
         } else {
@@ -928,7 +929,7 @@ class Operation_Dag {
 
       update_resource_utility_for_aligned_dma_ops(model);
 
-      printf("[Initfrom Model] op count = %lu\n", num_ops);
+      printfInfo("operationPrecedenceDag", "[Initfrom Model] op count = %lu\n", num_ops);
     }
 
     // Removes the op from the DAG and removes all incoming and outgoing edges

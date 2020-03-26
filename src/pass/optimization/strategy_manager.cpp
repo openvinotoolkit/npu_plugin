@@ -420,8 +420,9 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
             continue;
 
         auto outTensor = op->getOutputTensor(0);
+        auto executable = op->hasTypeTrait("executable") ? true : false;
 
-        if(spilling)
+        if(spilling && executable)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);

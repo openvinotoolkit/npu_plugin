@@ -6,6 +6,7 @@ if (MSVC)
     # TODO - implement
 
 else()
+    add_subdirectory(test_runner)
 
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
@@ -19,8 +20,15 @@ else()
     add_executable(conv_elu conv_elu/conv_elu.cpp)
     target_link_libraries(conv_elu cm)
 
+    add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
+    target_link_libraries(conv_fakequantize cm)
+
+
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
+
+    add_executable(conv_int32_output conv_int32_output/int32_output_conv.cpp)
+    target_link_libraries(conv_int32_output cm)
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
     target_link_libraries(conv_output_quant cm)
@@ -59,7 +67,7 @@ else()
 
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
-    
+
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
 
@@ -80,12 +88,6 @@ else()
 
     add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
     target_link_libraries(proposal_caffe cm)
-
-    add_executable(regionyolo regionyolo/regionyolo.cpp)
-    target_link_libraries(regionyolo cm)
-
-    add_executable(reorgyolo reorgyolo/reorgyolo.cpp)
-    target_link_libraries(reorgyolo cm)
 
     add_executable(resample resample/resample.cpp)
     target_link_libraries(resample cm)

@@ -62,6 +62,20 @@ std::size_t mv::Shape::totalSize() const
 
 }
 
+bool mv::Shape::isFlat() const
+{
+    std::size_t totalSize = dims_[0];
+
+    for (std::size_t i = 1; i < dims_.size(); ++i)
+        totalSize *= dims_[i];
+
+    return (dims_[mv::IO_BATCH_DIMENSION] == totalSize ||
+            dims_[mv::IO_CHANNEL_DIMENSION] == totalSize ||
+            dims_[mv::IO_HEIGHT_DIMENSION] == totalSize ||
+            dims_[mv::IO_WIDTH_DIMENSION] == totalSize);
+}
+
+
 mv::Shape::operator std::vector<std::size_t>() const
 {
     return dims_;

@@ -56,6 +56,7 @@ namespace mv
             auto new_order = args.at("order").get<mv::Order>();
             auto old_order_str = old_order.toString();
             auto new_order_str = new_order.toString();
+            auto cpu_in_order_str = std::string("WHCN");
 
             // Reverse order strings if necessary
             if (old_order_str[3] != 'N')
@@ -72,14 +73,17 @@ namespace mv
             mv::Shape outputShape(ndims);
             for (size_t i=0; i < ndims; i++)
             {
-                auto j = old_order_str.find(new_order_str[i]);
+                auto j = cpu_in_order_str.find(new_order_str[i]);
                 assert(j != std::string::npos && j < ndims);
                 outputShape[i] = inputShape[j];
             }
 
             // output tensor uses permuted shape with old order
-            outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
-        
+            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order));
+            else
+                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, old_order, args.at("quantParams").get<mv::QuantizationParams>()));
+
         };
 
     }

@@ -198,7 +198,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
 
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat"
+                                    , "placeConversionToFloat", "Int32Output"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -432,8 +433,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
     // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
-
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "floatPrecision", "mixedToFloat"
+                                     , "placeConversionToFloat", "Int32Output"});
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
@@ -546,7 +547,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
             auto originalDType = op->get<mv::DType>("dType");
-            for (auto i = 0; i < inputSlots; i++)
+            for (std::size_t i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
 
