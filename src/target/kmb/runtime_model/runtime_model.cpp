@@ -799,7 +799,9 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     // Passing -1 as subtensor index, will have us get the full tensor
     checkUnstridedDMA(src, -1, tmp);
 
-    tmp->compression = compression;
+    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+        tmp->compression =  true;
+    //tmp->compression = compression;
 
     toPush->task.value = tmp;
 
