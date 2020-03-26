@@ -18,7 +18,7 @@
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": true,
-                "FloatOutput": false,
+                "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
