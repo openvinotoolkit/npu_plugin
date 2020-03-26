@@ -376,10 +376,9 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                                                "Sigmoid");
                      if (ppeSigmoidIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
                      {
-                        auto ppeQuantumBits = 5;
-                        auto ppeQuantum = std::pow(2, ppeQuantumBits);
-                        std::transform(m.begin(), m.end(), m.begin(), std::bind(std::multiplies<float>(),
-                                                                                std::placeholders::_1, ppeQuantum));
+                        //  Force quantization to match the one from the hw table
+                        std::fill(S3.begin(), S3.end(), 0.000980392156862745);
+                        std::fill(zeroPoint.begin(), zeroPoint.end(), 0);
                      }
                 }
                  // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
@@ -410,9 +409,6 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                          mScaled[i] = 1;
                      }
                  }
-
-                 std::vector<int32_t> zeroPointScaled(m.size());
-                 std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
 
                  std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                  std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
