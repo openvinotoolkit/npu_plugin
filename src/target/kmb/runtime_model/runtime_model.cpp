@@ -571,11 +571,11 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     //Huffman compression call for Uint8 data
-    if(t.getDType().toString() == "UInt8" && huffmanCompression) 
+    if((t.getDType().toString() == "UInt8" || t.getDType().toString() == "Int8") && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
-        double sizeKb = t.computeTotalSize() / 1024;
-        if(sizeKb > 4) {
+        auto weightSizeKb = t.computeTotalSize() / 1024;
+        if(weightSizeKb > 4) {
             auto compressedData = huffmanCompress(dataPacked, t); 
             toBuild->data = packToInt64(compressedData, t.getDType());
             int length = t.get<int>("CompressedSize");
@@ -801,7 +801,6 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
         tmp->compression =  true;
-    //tmp->compression = compression;
 
     toPush->task.value = tmp;
 
@@ -834,12 +833,8 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), padFinalOutput);
         }
 
-        checkUnstridedDMA(src, i, tmp); // I don't think this will work for new SOK tensors
+        checkUnstridedDMA(src, i, tmp); 
 
-        // if(src->getSubTensor(i).hasAttr("Compression"))
-        //     compression = src->getSubTensor(i).get<bool>("Compression"); //This is main tensor for SOK
-
-        //tmp->compression =  compression;
         if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
             tmp->compression =  true;
 
@@ -872,10 +867,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
-
-    bool compression = false;
-    if(inputTensor->hasAttr("Compression"))
-        compression = inputTensor->get<bool>("Compression"); //This is main tensor for SOK
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
@@ -2319,19 +2310,18 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     return binaryData_;
 }
 
-std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t) 
+std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& data, mv::Tensor& t) 
 {
-    std::vector<uint8_t> uint8InputData(inputData.begin(),inputData.end());
-    uint32_t originalsize = uint8InputData.size();
-    auto compressedBufferSize = originalsize + 2 * (std::ceil(originalsize / 4096.0) + 1);
-    std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
-    uint32_t compressedSize = codec_->huffmanCodecCompressArray(originalsize, &uint8InputData[0], &compressedDataBuffer[0]);
+    std::vector<uint8_t> uncompressedData(data.begin(),data.end());
+    uint32_t uncompressedDataSize = uncompressedData.size();
+    auto compressedBufferSize = uncompressedDataSize + 2 * (std::ceil(uncompressedDataSize / 4096.0) + 1);
 
+    std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
+    uint32_t compressedSize = codec_->huffmanCodecCompressArray(uncompressedDataSize, &uncompressedData[0], &compressedDataBuffer[0]);
     vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
     compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
 
     t.set<int>("CompressedSize", compressedSize);
-
     std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
        
     return toReturn;
@@ -2339,10 +2329,10 @@ std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& inp
 
 std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& compressedData) 
 {
-    uint32_t size = compressedData.size();
+    uint32_t comprssedSize = compressedData.size();
     auto deCompressedBufferSize = compressedData.size() * 5;
     std::vector<uint8_t> deCompressedDataBuffer (deCompressedBufferSize, 0); 
-    codec_->huffmanCodecDecompressArray(size, &compressedData[0], &deCompressedDataBuffer[0]);
+    codec_->huffmanCodecDecompressArray(comprssedSize, &compressedData[0], &deCompressedDataBuffer[0]);
 
     return deCompressedDataBuffer;
 }
