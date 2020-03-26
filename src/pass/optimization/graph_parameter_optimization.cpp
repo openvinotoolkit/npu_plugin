@@ -818,11 +818,16 @@ namespace mv
                             return INF;
                     }
                     //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
-                    if (parentClustering == "SplitOverH")
+                    if (parentClustering == "SplitOverH" && childClustering == "SplitOverH" && requiresRealActivationSparsity(childOp, "SplitOverH"))
                     {
-                        if (childClustering == "SplitOverH" &&
-                            childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 73)
+                        auto H = childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
+                        auto W = childOp.getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
+                        auto C = childOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        auto estimatedClusterH = (int)floor((double)H/totalClusters);
+                        if ((estimatedClusterH*W*C)%128 != 0)
+                        {
                             return INF;
+                        }
                     }
                 }
 
