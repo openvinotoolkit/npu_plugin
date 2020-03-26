@@ -201,7 +201,7 @@
             "ConfigureOutputPrecision"
         ]
     },
-  "dma": {
+   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
@@ -211,7 +211,8 @@
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"
         ]
-    },    "control_flows":{
+    },
+    "control_flows":{
         "Singular" : [
             "TaskControlFlows",
             "TransitiveReduction",
