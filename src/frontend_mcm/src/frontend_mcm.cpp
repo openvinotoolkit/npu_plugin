@@ -1468,9 +1468,18 @@ void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNo
 }
 
 void FrontEndMcm::parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Sigmoid layer is not supported by kmbPlugin";
+    IE_ASSERT(inputs.size() == 1);
+
+    IE_ASSERT(layer != nullptr);
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+    auto mvSigmoid = _modelMcm.sigmoid(inputs[0]->getMcmNode(), mv::DType("Default"),
+                                       inputQuantParams, layer->name);
+
+    bindOutput(mvSigmoid, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvSigmoid->getName());
 }
 
 void FrontEndMcm::parseTanH(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

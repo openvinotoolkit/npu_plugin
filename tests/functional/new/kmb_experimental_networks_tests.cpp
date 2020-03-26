@@ -26,6 +26,17 @@ TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) 
         1, 0.5f);
 }
 
+TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
+    SKIP_INFER_ON("KMB", "sigmoid is not properly supported in mcm compiler");  // TODO: create JIRA ticket
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32),
+        "28x28/image_1_28x28.bmp",
+        1, 0.5f);
+}
+
 TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
     SKIP_INFER_ON("KMB", "hangs on infer");  // TODO: create JIRA ticket
     runTest(
