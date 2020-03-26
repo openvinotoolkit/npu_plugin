@@ -868,6 +868,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         }
     }
 
+    bool compression = false;
+    if(inputTensor->hasAttr("Compression"))
+        compression = inputTensor->get<bool>("Compression"); //This is main tensor for SOK
+        
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
