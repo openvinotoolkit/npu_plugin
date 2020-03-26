@@ -430,25 +430,34 @@ namespace mv
 
                 if( (opType == "MaxPool") or (opType == "DepthwiseConv"))
                 {
-                    contexts = {16,1,16,1,1};
+                    contexts = {16,1,16,1};
                 }
                 else
                 {
-                    contexts = {4,4,16,1,1};
+                    contexts = {4,4,16,1};
                 }
 
                 if( (clustering == "SplitOverH") or (clustering == "SplitOverHOverlapped") or (clustering == "HKSwitch"))
                 {
-                    isiSplit = {1,totalClusters,1,1,1};
+                    isiSplit = {1,totalClusters,1,1};
                 }
                 else if(clustering == "SplitOverK")
                 {
-                    isiSplit = {1,1,totalClusters,1,1};
+                    isiSplit = {1,1,totalClusters,1};
                 }
                 else
                 {
-                    isiSplit = {1,1,1,1,1};
+                    isiSplit = {1,1,1,1};
                 }
+
+                mv::Shape streamNumerator;
+                if(streaming["B"] > 1){ // Note: Won't stream over both H and N
+                    streamNumerator = {streaming["W"], streaming["B"], streaming["C"], streaming["K"]};
+                }
+                else {
+                    streamNumerator = {streaming["W"], streaming["H"], streaming["C"], streaming["K"]};
+                }
+
 
                 //naively emulate the workload cost
                 //TODO: find cleaner solution
@@ -486,9 +495,9 @@ namespace mv
                 }
 
                 //the actual compute
-                if (outputShape.ndims() != streaming.ndims())
-                    outputShape = outputShape.augment(outputShape, streaming.ndims());
-                Shape dpuOutShape = ( outputShape / streaming ) / isiSplit;
+                if (outputShape.ndims() != streamNumerator.ndims())
+                    outputShape = outputShape.augment(outputShape, streamNumerator.ndims());
+                Shape dpuOutShape = ( outputShape / streamNumerator ) / isiSplit;
                 Shape contextsInOp = dpuOutShape / contexts;
                 unsigned numContextsInOp = contextsInOp.totalSize();
 
@@ -497,7 +506,7 @@ namespace mv
 
                 unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-                return contextsPerDpu * streaming.totalSize() * baseKernelCost;
+                return contextsPerDpu * streamNumerator.totalSize() * baseKernelCost;
             }
 
             bool requiresActivationSparsity(Op& op, string clustering){
