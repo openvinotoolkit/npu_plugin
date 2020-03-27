@@ -570,10 +570,12 @@ INSTANTIATE_TEST_CASE_P(accuracy, LayoutConversionTest,
 
 const std::vector<InferenceEngine::Layout> unsupported_input_layouts = {InferenceEngine::Layout::NCHW};
 const std::vector<InferenceEngine::Layout> unsupported_output_layouts = {InferenceEngine::Layout::NCHW};
-const std::vector<InferenceEngine::Precision> unsupported_input_precisions = {
-    InferenceEngine::Precision::FP16, InferenceEngine::Precision::FP32};
-const std::vector<InferenceEngine::Precision> unsupported_output_precisions = {
-    InferenceEngine::Precision::I8, InferenceEngine::Precision::FP32};
+const std::vector<InferenceEngine::Precision> unsupported_input_precisions = {Precision::UNSPECIFIED, Precision::MIXED,
+    Precision::FP32, Precision::FP16, Precision::Q78, Precision::I16, Precision::I8, Precision::U8, Precision::U16,
+    Precision::I32, Precision::I64, Precision::U64, Precision::BIN, Precision::BOOL, Precision::CUSTOM};
+const std::vector<InferenceEngine::Precision> unsupported_output_precisions = {Precision::UNSPECIFIED, Precision::MIXED,
+    Precision::FP32, Precision::FP16, Precision::Q78, Precision::I16, Precision::I8, Precision::U8, Precision::U16,
+    Precision::I32, Precision::I64, Precision::U64, Precision::BIN, Precision::BOOL, Precision::CUSTOM};
 
 INSTANTIATE_TEST_CASE_P(layouts, UnsupportedLayoutAndPrecisionTest,
     ::testing::Combine(::testing::ValuesIn(unsupported_input_layouts),  // input layouts
