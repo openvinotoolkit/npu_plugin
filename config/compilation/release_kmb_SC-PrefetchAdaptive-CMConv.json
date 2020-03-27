@@ -57,7 +57,8 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 1}
+                            {"K" : 1},
+                            {"N" : 1}
                         ]
                     }
                 ],
@@ -116,7 +117,7 @@
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -200,11 +201,11 @@
             "ConfigureOutputPrecision"
         ]
     },
-    "dma": {
+  "dma": {
         "Singular" : [
-            "UpdateImplicitLayersLocation",
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
