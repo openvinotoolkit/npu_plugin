@@ -315,15 +315,29 @@ void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
                     return;
                 }
 
-                auto scaleData = scaleShiftLayer->_weights->buffer().as<float*>();
-                float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
-                scaleValue /= scaleShiftLayer->_weights->size();
+                if (scaleShiftLayer->precision == ie::Precision::FP32) {
+                    auto scaleData = scaleShiftLayer->_weights->buffer().as<float *>();
+                    float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
+                    scaleValue /= scaleShiftLayer->_weights->size();
 
-                auto shiftsData = scaleShiftLayer->_biases->buffer().as<float*>();
-                float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
-                shiftValue /= scaleShiftLayer->_biases->size();
+                    auto shiftsData = scaleShiftLayer->_biases->buffer().as<float *>();
+                    float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
+                    shiftValue /= scaleShiftLayer->_biases->size();
+                    _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
+                }
 
-                _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
+                // Start Work Around for FP16->INT8 Networks
+                if (scaleShiftLayer->precision == ie::Precision::FP16) {
+                    auto scaleData = scaleShiftLayer->_weights->buffer().as<fp16_t *>();
+                    float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
+                    scaleValue /= scaleShiftLayer->_weights->size();
+
+                    auto shiftsData = scaleShiftLayer->_biases->buffer().as<fp16_t *>();
+                    float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
+                    shiftValue /= scaleShiftLayer->_biases->size();
+                    _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
+                }
+                // End Work Around for FP16->INT8 Networks
 
                 CNNNetworkHelper::removeLayer(network, scaleShiftLayer);
                 return;
@@ -1143,10 +1157,21 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     size_t dimC, stub;
     parseDims(input->desc(), stub, dimC, stub, stub);
 
-    auto scales = scaleLayer->_weights->buffer().as<float*>();
     std::vector<double> scaleData;
-    for (size_t i = 0; i < dimC; i++) {
-        scaleData.push_back(scales[i]);
+    std::vector<double> scaleLayerBiases;
+
+    if (scaleLayer->precision == ie::Precision::FP32){
+        auto scales = scaleLayer->_weights->buffer().as<float*>();
+        for (size_t i = 0; i < dimC; i++) {
+            scaleData.push_back(scales[i]);
+        }
+    }
+
+    if (scaleLayer->precision == ie::Precision::FP16){
+        auto scales = scaleLayer->_weights->buffer().as<short*>();
+        for (size_t i = 0; i < dimC; i++) {
+            scaleData.push_back(InferenceEngine::PrecisionUtils::f16tof32(scales[i]));
+        }
     }
 
     parseScaleImpl(layer, inputs, scaleData, scaleLayer->_biases);
@@ -1389,7 +1414,7 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         auto constMCM =
             _modelMcm.constant(constData, mcmShape, convert_data_type(Precision(Precision::ePrecision::FP32)),
                     // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                    // but as WorkAround it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+                    // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
                     // It is so just because mcmCompiler has not supported FP16 yet.
                     // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
@@ -1445,9 +1470,19 @@ void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     parseDims(input->desc(), stub, dimC, stub, stub);
 
     std::vector<double> scaleData;
-    for (size_t i = 0; i < dimC; i++) {
-        scaleData.push_back(powerLayer->scale);
+    if (powerLayer->precision == ie::Precision::FP32) {
+        for (size_t i = 0; i < dimC; i++) {
+            scaleData.push_back(powerLayer->scale);
+        }
     }
+
+    // Start Work Around for FP16->INT8 Networks
+    if (powerLayer->precision == ie::Precision::FP16) {
+        for (size_t i = 0; i < dimC; i++) {
+            scaleData.push_back(InferenceEngine::PrecisionUtils::f16tof32(powerLayer->scale));
+        }
+    }
+    // End Work Around for FP16->INT8 Networks
 
     ie::Blob::Ptr biases;
     if (powerLayer->offset != 0) {

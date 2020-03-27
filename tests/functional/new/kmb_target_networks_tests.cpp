@@ -694,11 +694,11 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10) {
 // Start of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
 
-// C++ exception with description "Layer Power_4347 supports only power = 1
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1439
+// C++ exception with description "Layer Power_123537 supports only power = 1
+// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1464
 // [Track number: D#2809]
 TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_ON("KMB", "compile error");
+//    SKIP_ON("KMB", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
@@ -741,8 +741,6 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_INFER_ON("KMB", "bad results");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -783,8 +781,6 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_INFER_ON("KMB", "bad results");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/resnet-101/resnet_101_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -795,8 +791,6 @@ TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_INFER_ON("KMB", "bad results");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/resnet-152/resnet_152_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
