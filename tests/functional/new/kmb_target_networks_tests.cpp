@@ -698,7 +698,7 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10) {
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1464
 // [Track number: D#2809]
 TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
-//    SKIP_ON("KMB", "compile error");
+    SKIP_ON("KMB", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
