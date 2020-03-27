@@ -29,6 +29,7 @@ ie::Blob::Ptr makeScalarBlob(float val, const ie::Precision& precision = ie::Pre
 ie::Blob::Ptr makeScalarBlob(int64_t val, const ie::Precision& precision = ie::Precision::I64, size_t numDims = 1);
 
 ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision);
+ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in);
 
 inline ie::Blob::Ptr toFP32(const ie::Blob::Ptr& in) {
     return toPrecision(in, ie::Precision::FP32);

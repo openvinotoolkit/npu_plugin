@@ -30,8 +30,8 @@ BlobVector refMultiply(const TestNetwork::NodePtr& layer, const BlobVector& inpu
     const auto mulLayer = std::dynamic_pointer_cast<ngraph::op::v1::Multiply>(layer);
     IE_ASSERT(mulLayer != nullptr);
 
-    const auto input1 = toDefLayout(toFP32(inputs.at(0)));
-    const auto input2 = toDefLayout(toFP32(inputs.at(1)));
+    const auto input1 = inputs.at(0);
+    const auto input2 = inputs.at(1);
 
     const auto& outDims = layer->output(0).get_shape();
     const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));

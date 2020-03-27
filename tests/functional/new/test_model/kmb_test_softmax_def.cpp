@@ -29,7 +29,7 @@ BlobVector refSoftmax(const TestNetwork::NodePtr& layer, const BlobVector& input
     const auto softmaxLayer = std::dynamic_pointer_cast<ngraph::op::v1::Softmax>(layer);
     IE_ASSERT(softmaxLayer != nullptr);
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
+    const auto input = inputs.at(0);
 
     const auto& outDims = layer->output(0).get_shape();
     const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));

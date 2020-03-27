@@ -27,8 +27,8 @@ BlobVector refFC(const TestNetwork::NodePtr& layer, const BlobVector& inputs, co
     IE_ASSERT(layer != nullptr);
     IE_ASSERT(inputs.size() == 2);
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
-    const auto weights = toDefLayout(toFP32(inputs.at(1)));
+    const auto input = inputs.at(0);
+    const auto weights = inputs.at(1);
 
     const auto& outDims = layer->output(0).get_shape();
     const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));

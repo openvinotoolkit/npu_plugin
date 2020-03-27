@@ -373,6 +373,18 @@ ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precisio
     return out;
 }
 
+ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in) {
+    IE_ASSERT(in != nullptr);
+
+    const auto inPrec = in->getTensorDesc().getPrecision();
+
+    if (inPrec == ie::Precision::U8 || inPrec == ie::Precision::FP16) {
+        return toPrecision(in, ie::Precision::FP32);
+    } else {
+        return in;
+    }
+}
+
 //
 // toLayout
 //

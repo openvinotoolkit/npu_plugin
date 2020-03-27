@@ -27,11 +27,11 @@ BlobVector refFQ(const TestNetwork::NodePtr& layer, const BlobVector& inputs, co
     const auto fqLayer = std::dynamic_pointer_cast<ngraph::op::FakeQuantize>(layer);
     IE_ASSERT(fqLayer != nullptr);
 
-    const auto input = toFP32(inputs.at(0));
-    const auto inputLowBlob = toFP32(inputs.at(1));
-    const auto inputHighBlob = toFP32(inputs.at(2));
-    const auto outputLowBlob = toFP32(inputs.at(3));
-    const auto outputHighBlob = toFP32(inputs.at(4));
+    const auto input = inputs.at(0);
+    const auto inputLowBlob = inputs.at(1);
+    const auto inputHighBlob = inputs.at(2);
+    const auto outputLowBlob = inputs.at(3);
+    const auto outputHighBlob = inputs.at(4);
 
     IE_ASSERT(inputLowBlob->size() == 1);
     IE_ASSERT(inputHighBlob->size() == 1);
@@ -86,30 +86,4 @@ TestNetwork& FakeQuantizeLayerDef::build() {
             levels);
 
     return testNet.addLayer(name, node, refFQ);
-}
-
-Blob::Ptr dequantize(
-        const Blob::Ptr& input,
-        float low, float high, size_t levels) {
-    const auto& outDims = input->getTensorDesc().getDims();
-    const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));
-    const auto output = make_blob_with_precision(outDesc);
-    output->allocate();
-
-    const auto defInput = toDefLayout(toFP32(input));
-
-    const auto inputPtr = defInput->cbuffer().as<const float*>();
-    const auto outputPtr = output->buffer().as<float*>();
-
-    IE_ASSERT(inputPtr != nullptr);
-    IE_ASSERT(outputPtr != nullptr);
-
-    const auto scale = (high - low) / (levels - 1);
-
-    for (size_t i = 0; i < output->size(); ++i) {
-        const auto inputVal = inputPtr[i];
-        outputPtr[i] = inputVal * scale + low;
-    }
-
-    return {output};
 }

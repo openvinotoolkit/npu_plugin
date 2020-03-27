@@ -210,6 +210,8 @@ TestNetwork& TestNetwork::addConst(const std::string& name, Blob::Ptr blob) {
     IE_ASSERT(_func == nullptr);
     IE_ASSERT(blob != nullptr);
 
+    blob = toDefLayout(blob);
+
     const auto type = precisionToType(blob->getTensorDesc().getPrecision());
     const auto shape = ngraph::Shape(blob->getTensorDesc().getDims());
     const auto node = std::make_shared<ngraph::op::Constant>(type, shape, blob->buffer());
@@ -218,7 +220,7 @@ TestNetwork& TestNetwork::addConst(const std::string& name, Blob::Ptr blob) {
         IE_ASSERT(layer != nullptr);
         IE_ASSERT(inputs.empty());
 
-        return {blob};
+        return {toDefPrecision(blob)};
     };
 
     return addLayer(name, node, refFunc);
@@ -291,7 +293,7 @@ BlobMap TestNetwork::calcRef(const BlobMap& inputs) const {
 
             auto callNode = std::make_shared<CallNode>();
             callNode->op = op;
-            callNode->outputs.push_back(input);
+            callNode->outputs.push_back(toDefLayout(toDefPrecision(input)));
 
             callsMap.insert({op, callNode});
             callsQueue.push(callNode);
@@ -362,7 +364,7 @@ BlobMap TestNetwork::calcRef(const BlobMap& inputs) const {
         const auto& output = callNode->outputs.at(p.second);
         IE_ASSERT(output != nullptr);
 
-        outputs.insert({callNode->op->get_friendly_name(), toFP32(output)});
+        outputs.insert({callNode->op->get_friendly_name(), output});
     }
 
     return outputs;

@@ -141,7 +141,3 @@ struct FakeQuantizeLayerDef final {
 
     TestNetwork& build();
 };
-
-Blob::Ptr dequantize(
-        const Blob::Ptr& input,
-        float low, float high, size_t levels);
