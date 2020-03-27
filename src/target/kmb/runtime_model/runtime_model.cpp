@@ -852,10 +852,10 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             }
         }
 
-        if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
-            tmp->compression =  true;	        
-
         checkUnstridedDMA(src, i, tmp);
+
+        if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+            tmp->compression =  true;	  
 
         toPush->task.value = tmp;
         toReturn.push_back(std::move(toPush));
