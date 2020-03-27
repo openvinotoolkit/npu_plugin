@@ -349,16 +349,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(dimensions.begin(), dimensions.end());
     std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = dimensions; //might need to be changed for hde here?
-
-    // uint32_t totalSize;
-    // if(t->hasAttr("CompressedSize"))
-    //     totalSize = t->get<int>("CompressedSize");
-    // else 
-    //     totalSize *= t->getDType().getSizeInBits() / 8;
-        
-    // std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
-
+    toBuild->dimensions = dimensions; 
     toBuild->strides = numericStrides;
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());

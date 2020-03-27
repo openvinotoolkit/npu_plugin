@@ -62,7 +62,6 @@ namespace mv
         HdeDescriptor hdeDef_;
         std::map<std::string, NceDescriptor> nceDefs_;
         std::map<std::string, mv::Element> serialDescriptions_;
-        
     public:
 
         TargetDescriptor(const std::string& filePath = "");

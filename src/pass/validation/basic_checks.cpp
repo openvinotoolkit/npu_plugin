@@ -62,8 +62,8 @@ void integerTensorsBoundaryCheckFcn(const mv::pass::PassEntry&, mv::ComputationM
         for(unsigned i = 0; i < populatedTensor->size(); ++i)
         {
             int64_t currentValue = static_cast<int64_t>(populatedTensor->at(i));
-            // if(currentValue < lowerBound || currentValue > upperBound)
-            //     throw std::runtime_error("Populated tensor with DType " + populatedTensorDType.toString() + " with out of bound value " + std::to_string(currentValue));
+            if(currentValue < lowerBound || currentValue > upperBound)
+                throw std::runtime_error("Populated tensor with DType " + populatedTensorDType.toString() + " with out of bound value " + std::to_string(currentValue));
         }
     }
 }

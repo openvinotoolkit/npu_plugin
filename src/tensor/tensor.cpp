@@ -1262,7 +1262,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                     subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
                         newShape, getDType(), order, splittedData));
                 }
-                if (isSplitOverK()) //need to fix not splitting weights table
+                if (isSplitOverK()) 
                 {
                     std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
                     size_t nOffset = static_cast<size_t>(wlItr->MinY);
