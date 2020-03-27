@@ -41,6 +41,9 @@ else()
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 
+    add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
+    target_link_libraries(conv_sparsity cm)
+
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
 
