@@ -7,7 +7,8 @@ const std::unordered_map<std::string, std::size_t> mv::Shape::axis_ =
     {"H", 1},
     {"C", 2},
     {"N", 3},
-    {"K", 3}
+    {"K", 3},
+    {"B", 4}
 };
 
 std::size_t mv::Shape::getAxis(const std::string& axis)
