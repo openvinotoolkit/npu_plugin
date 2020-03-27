@@ -1,21 +1,22 @@
-import os.path
+import os
 import re
-
-log_id = 0
 
 regex = r"^\s+(\S+)$"
 test_blobs = []
-for match in [re.match(regex,line) for line in open("run_test.sh")]:
+for match in [re.match(regex, line) for line in open("run_test.sh")]:
     if match:
         test_blobs.append(match.group(1))
 
-test_id = 0
-result = open("result.csv", "w")
-while True:
-    filename = "test_" + str(log_id) + ".log"
-    if not os.path.isfile(filename):
-        break
+logs = []
+for filename in os.listdir("./"):
+    match = re.match(r"test_(\d+).log", filename)
+    if match:
+        logs.append((int(match.group(1)), filename))
 
+logs.sort()
+
+result = open("result.csv", "w")
+for log_id, filename in logs:
     regex = r".*?Median clock cycles: IR (\d+)"
     IR = "NaN"
     for match in [re.match(regex, line) for line in open(filename)]:
@@ -27,7 +28,8 @@ while True:
     perfCounters = ";".join(["NaN"] * 4)
     for match in [re.match(regex, line) for line in open(filename)]:
         if match:
-            perfCounters = ";".join([match.group(1), match.group(2), match.group(3), match.group(4)])
+            perfCounters = ";".join(
+                [match.group(1), match.group(2), match.group(3), match.group(4)])
             break
 
     regex = r".*Test passed!.*"
@@ -48,7 +50,8 @@ while True:
     except IOError:
         pass
 
-    output = ";".join([blob_info, IR, perfCounters, "passed" if passed else "failed"])
+    output = ";".join([blob_info, IR, perfCounters,
+                       "passed" if passed else "failed"])
     print(output)
     result.write(output + "\n")
 
