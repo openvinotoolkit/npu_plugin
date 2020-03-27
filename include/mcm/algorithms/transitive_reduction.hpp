@@ -163,9 +163,6 @@ namespace mv
       size_t node_count = in_degree_map.size();
 
 
-      printf("zero_in_degree_list = %lu n=%lu\n",
-            zero_in_degree_list[0].size(), node_count);
-      fflush(stdout);
 
       while (levelled_nodes < node_count) {
         bool curr_parity = ((current_level%2UL) != 0);
@@ -189,8 +186,6 @@ namespace mv
               zero_in_degree_list[next_parity].push_back(sink_node);
             }
           }
-          printf("levelled_nodes=%lu\n", levelled_nodes);
-          fflush(stdout);
         }
         ++current_level;
       }
@@ -222,8 +217,6 @@ namespace mv
 
         MV_PROFILED_FUNCTION(MV_PROFILE_ALGO)
         size_t input_edges = graphEdgeCount(g);
-        printf("[Starting Transitive Reduction] input edges=%lu...\n",
-              input_edges);
         std::map<typename graph<T_node, T_edge>::node_list_iterator, size_t, 
             NodeItComparator> nodeLevels;
         std::map<size_t, std::list<edge_iterator> > ordered_edges;
@@ -265,10 +258,6 @@ namespace mv
           }
         }
 
-        printf("[Eliminated edges= %lu Input edges=%lu]\n",
-              eliminated, input_edges);
-        printf("[Done Transitive Reduction]...\n");
-        fflush(stdout);
     }
 
 //
