@@ -47,8 +47,17 @@ else()
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 
+    add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
+    target_link_libraries(conv_sparsity cm)
+
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
+
+    add_executable(conv_batch conv_batch/conv_batch.cpp)
+    target_link_libraries(conv_batch cm)
+
+    add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
+    target_link_libraries(conv_batch_fasterRCNN cm)
 
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)

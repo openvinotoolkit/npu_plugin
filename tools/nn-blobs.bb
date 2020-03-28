@@ -8,9 +8,9 @@ RDEPENDS_${PN} = "kernel-module-udmabuf openvino"
 
 SRC_URI = "file://${NN_BLOBS_PATH}/nn-blobs.tar.bz2"
 
-PV="nn_blobs-4734f4c-NN_Compiler_v1.2.13"
+PV = "nn_blobs_41f61ac+NN_Compiler_v1.2.18"
 
-S = "${WORKDIR}/nn-blobs"
+S = "${WORKDIR}/release_blobs"
 
 SOLIBS = ".so"
 FILES_SOLIBSDEV = ""

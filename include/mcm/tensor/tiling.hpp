@@ -161,7 +161,7 @@ namespace mv
                 padStart = padding[0];
                 padEnd = padding[1];
             }
-            else if (axisToSplit == mv::Shape::getAxis("H"))
+            else if (axisToSplit == mv::Shape::getAxis("H") || axisToSplit == mv::Shape::getAxis("N"))
             {
                 padStart = padding[2];
                 padEnd = padding[3];
