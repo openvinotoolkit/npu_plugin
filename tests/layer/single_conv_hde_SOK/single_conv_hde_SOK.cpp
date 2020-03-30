@@ -25,7 +25,7 @@ int main()
     mv::OpModel& om = unit.model();
     build_pySwigCU(om);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);

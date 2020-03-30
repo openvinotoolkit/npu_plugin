@@ -349,7 +349,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::reverse(dimensions.begin(), dimensions.end());
     std::reverse(numericStrides.begin(), numericStrides.end());
 
-    toBuild->dimensions = dimensions; 
+    toBuild->dimensions = dimensions;
     toBuild->strides = numericStrides;
 
     toBuild->data = std::unique_ptr<MVCNN::IndirectDataReferenceT>(new MVCNN::IndirectDataReferenceT());
@@ -358,7 +358,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         if(!t->isSparse())
         {
             //SOK dense weight tensors for HDE support
-            if(t->isSplitOverK() && t->get<mv::DType>("dType") == mv::DType("UInt8"))
+            if(t->isSplitOverK() && (t->get<mv::DType>("dType") == mv::DType("UInt8") || t->get<mv::DType>("dType") == mv::DType("Int8")))
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -568,10 +568,9 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
-            if ((i*nElementToPack + j) < dataSize) {
+            if ((i*nElementToPack + j) < dataSize)
                 toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
-            }
-    
+            
     return toReturn;
 }
 
@@ -579,11 +578,12 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    //Huffman compression call for Uint8 data
+    //Compress weights
     if((t.getDType().toString() == "UInt8" || t.getDType().toString() == "Int8") && huffmanCompression) 
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
+        //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
             auto compressedData = huffmanCompress(dataPacked, t); 
             toBuild->data = packToInt64(compressedData, t.getDType());
@@ -808,6 +808,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     // Passing -1 as subtensor index, will have us get the full tensor
     checkUnstridedDMA(src, -1, tmp);
 
+    // Check if the HDE engine compressed the weights
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
         tmp->compression =  true;
 
@@ -845,6 +846,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
         checkUnstridedDMA(src, i, tmp);
 
+        // Check if the HDE engine compressed the weights
         if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
             tmp->compression =  true;	  
 
@@ -2292,7 +2294,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                 else
                     toSort.push_back(&(*tIt));
             }
-            if(tIt->isSplitOverK() && tIt->get<mv::DType>("dType") == mv::DType("UInt8")) //exclude weights table
+            //Serialize SOK weights individually
+            if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {

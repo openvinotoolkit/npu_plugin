@@ -116,8 +116,9 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            // New approach for SOK, detect SOK weights (uint8 type)
-            if(tIt->isSplitOverK() && tIt->get<mv::DType>("dType") == mv::DType("UInt8")) // maybe checked for ConstantDataelement
+            // Serialize SOK weights individually
+            // Detect if they are weights UIn8 or Int8 dType 
+            if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {

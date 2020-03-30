@@ -27,7 +27,7 @@ int main()
     build_pySwigCU(om);
 
     //Note :: Switch on HDE in compilation descriptor
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
