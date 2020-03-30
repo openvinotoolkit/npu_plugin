@@ -22,4 +22,6 @@ int main()
     const uint32_t local_dst = out_width * test.local_size[1] * test.local_size[2] * sizeof(half);
     test.run("resample_AA.elf", {0, 0, local_src, local_dst, width, height,
             CustomLayerTest<>::float_as_int(2.0f), out_width, out_height, channels});
+
+    return 0;
 }

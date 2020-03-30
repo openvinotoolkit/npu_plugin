@@ -25,4 +25,6 @@ int main()
     const uint32_t local_data = (width + 7)/8*8 * (classes + coords + 1) * sizeof(half);
 
     test.run("region.elf", {0, 0, local_data, local_data, width, height, classes, coords, num});
+
+    return 0;
 }
