@@ -7,7 +7,8 @@ const std::unordered_map<std::string, std::size_t> mv::Shape::axis_ =
     {"H", 1},
     {"C", 2},
     {"N", 3},
-    {"K", 3}
+    {"K", 3},
+    {"B", 4}
 };
 
 std::size_t mv::Shape::getAxis(const std::string& axis)
@@ -60,6 +61,20 @@ std::size_t mv::Shape::totalSize() const
     return result;
 
 }
+
+bool mv::Shape::isFlat() const
+{
+    std::size_t totalSize = dims_[0];
+
+    for (std::size_t i = 1; i < dims_.size(); ++i)
+        totalSize *= dims_[i];
+
+    return (dims_[mv::IO_BATCH_DIMENSION] == totalSize ||
+            dims_[mv::IO_CHANNEL_DIMENSION] == totalSize ||
+            dims_[mv::IO_HEIGHT_DIMENSION] == totalSize ||
+            dims_[mv::IO_WIDTH_DIMENSION] == totalSize);
+}
+
 
 mv::Shape::operator std::vector<std::size_t>() const
 {

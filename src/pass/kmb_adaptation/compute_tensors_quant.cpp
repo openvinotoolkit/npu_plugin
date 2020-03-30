@@ -262,7 +262,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
          if(isEltwise)
          {
              auto eltwiseType = opIt->get<std::string>("eltwiseType");
-             if(eltwiseType == "Add" || eltwiseType == "Subtract")
+             if(eltwiseType == "Add" || eltwiseType == "Subtract" || eltwiseType == "And")
                  isEltwiseAddSub = true;
              if(eltwiseType == "Multiply")
                  isEltwiseMult = true;
@@ -278,8 +278,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
             std::vector<int> shift(outputChannels, 0);
             std::vector<int16_t> mScaled(outputChannels, 0);
 
-            if (output->hasAttr("quantParams") && input->hasAttr("quantParams") &&
-             output->isQuantized() && input->isQuantized())
+            if (output->isQuantized() && input->isQuantized())
             {
                  // Quantization for Gemmlowp output
                  // S1 = weight scale
@@ -296,6 +295,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  std::vector<float> S2(scale.begin(), scale.end());
 
                  std::vector <float> S3(outputChannels, 1);
+                 std::vector <float> floatScale(outputChannels, std::pow(2, -16));
                  std::vector <int32_t> zeroPoint(outputChannels, 0);
                  bool outputOfAccWithBias = true;
                  mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
@@ -313,6 +313,8 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                      auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
                      zeroPoint = {zeroPointU.begin(), zeroPointU.end()};
                  }
+                 if (opIt->hasAttr("mixedToFloat") && opIt->get<bool>("mixedToFloat"))
+                     S3 = {floatScale.begin(), floatScale.end()};
 
                  bool isPooling = taskOp == "MaxPool";
                  //Workaround for HW bug #227

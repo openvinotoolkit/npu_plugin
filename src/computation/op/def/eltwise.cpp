@@ -6,7 +6,7 @@ namespace mv
     namespace op_eltwise
     {
         const std::vector<std::string> ELTWISES = {"Add", "Subtract", "Multiply", "Divide", "Pow", "Minimum",
-                                               "Maximum"};
+                                               "Maximum", "And"};
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>& args, std::string&)> inputCheckFcn =

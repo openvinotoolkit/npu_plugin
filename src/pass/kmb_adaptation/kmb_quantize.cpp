@@ -1,6 +1,8 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 
 
 static void kmbQuantizeConversionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -191,17 +193,22 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     auto dpuTasks = om.getOps("DPUTask");
     std::vector<mv::Data::OpListIterator> dpuTasksFP16;
+    std::vector<std::string> dpuTasksFP16Names;
     for (auto& dpuTask : dpuTasks)
     {
-        if (dpuTask->hasAttr("softwareExecuted") && dpuTask->get<bool>("softwareExecuted"))
+        if (dpuTask->hasAttr("floatPrecision") && dpuTask->get<bool>("floatPrecision"))
         {
             dpuTasksFP16.push_back(dpuTask);
-            dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTask), dpuTasks.end());
+            dpuTasksFP16Names.push_back(dpuTask->getName());
         }
     }
+
+    for (auto& dpuTaskFP16 : dpuTasksFP16)
+        dpuTasks.erase(std::remove(dpuTasks.begin(), dpuTasks.end(), dpuTaskFP16), dpuTasks.end());
 
     auto upaTasks = om.getOps("UPATask");
 
@@ -209,23 +216,30 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     auto implicitConcats = om.getOps("ImplicitConcat");
     // NOTE: For now only operations with U8/DPU Tasks are streamed
     auto slices = om.getOps("Slice");
+    std::vector<mv::Data::OpListIterator> slicesFP16 = {};
+    for (auto& slice: slices)
+    {
+        std::vector<mv::Data::OpListIterator> afterSlice =
+                mv::findSinkLayers(dm, slice->getOutputTensor(0));
+        auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
+                           afterSlice[0]->getName());
+        if (it != dpuTasksFP16Names.end())
+            slicesFP16.push_back(slice);
+    }
+
+    for (auto& sliceFP16 : slicesFP16)
+        slices.erase(std::remove(slices.begin(), slices.end(), sliceFP16), slices.end());
 
     auto U8 = mv::DType("UInt8");
     auto FP16 = mv::DType("Float16");
 
-    std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     addQuantizationLayers(om, upaTasks, FP16);
-
-    bool DPUTasksinSW = globalParams->hasAttr("DPUTasksinFloat") ? globalParams->get<bool>("DPUTasksinFloat") : false;
-    if (!DPUTasksinSW)
-    {
-        addQuantizationLayers(om, dpuTasksFP16, FP16);
-        addQuantizationLayers(om, dpuTasks, U8);
-        addSliceQuantizationLayer(om, slices, U8);
-    }
+    addQuantizationLayers(om, dpuTasksFP16, FP16);
+    addQuantizationLayers(om, dpuTasks, U8);
+    addSliceQuantizationLayer(om, slices, U8);
+    addSliceQuantizationLayer(om, slicesFP16, FP16);
     // NOTE: Concat have the extra requirement that output tensor and input tensor have to match their DType, so
     // we split them in two vectors
-
     std::vector<mv::Data::OpListIterator> implicitConcatsU8;
     std::vector<mv::Data::OpListIterator> implicitConcatsFP16;
 

@@ -128,7 +128,7 @@ T clamp(const T& value, const T& min, const T& max) {
 }
 
 static bool isQuantizableOp(mv::Data::OpListIterator op) {
-    static std::set<std::string> quantizable_ops{"Conv", "FullyConnected", "Eltwise" , "AveragePool", "DepthwiseConv"};
+    static std::set<std::string> quantizable_ops{"Conv", "FullyConnected", "Eltwise" , "AveragePool", "DepthwiseConv", "Scale"};
     return quantizable_ops.count(op->getOpType());
 }
 
