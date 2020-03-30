@@ -833,6 +833,10 @@ namespace mv {
     {
         SplitVariantNonSymmetric best_variant;
         best_variant.cost_estimate = INFINITY; // worst
+        best_variant.factors = std::make_pair(0, 0); // default values
+        best_variant.xss = 0;
+        best_variant.yss = 0;
+        best_variant.mode = 'H';
 
         SplitFactorsList factors = getSplitFactors(N - 1);
         for (auto f : factors)

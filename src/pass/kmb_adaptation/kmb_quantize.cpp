@@ -96,7 +96,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
 
 void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListIterator>& slices, const mv::DType& dtypeNeededInInput)
 {
-    std::vector <mv::Data::TensorIterator> sliceInputs = {};
+    std::vector <mv::Data::TensorIterator> sliceInputs;
     std::map <std::string, std::vector<mv::Data::OpListIterator>> sliceLeafs;
     std::map <std::string, std::vector<mv::Data::FlowListIterator>> sliceFlows;
     std::vector<mv::Data::OpListIterator> slicesToRemove;
@@ -193,7 +193,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     mv::OpModel om(model);
 
     auto dpuTasks = om.getOps("DPUTask");
-    std::vector<mv::Data::OpListIterator> dpuTasksFP16 = {};
+    std::vector<mv::Data::OpListIterator> dpuTasksFP16;
     for (auto& dpuTask : dpuTasks)
     {
         if (dpuTask->hasAttr("softwareExecuted") && dpuTask->get<bool>("softwareExecuted"))

@@ -32,7 +32,7 @@ void updateOutputQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& m
 
     std::vector<std::string> convolution_types = {"Conv", "DepthwiseConv", "ChannelMajorConvolution"};
     std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfConvolution = om.getOpsOfTypes(convolution_types);
-    std::vector <mv::Data::OpListIterator> convolutions = {};
+    std::vector <mv::Data::OpListIterator> convolutions;
     convolutions.reserve(operationsOfConvolution["Conv"].size() + operationsOfConvolution["Depthwise"].size() + operationsOfConvolution["ChannelMajorConvolution"].size());
     convolutions.insert(convolutions.end(), operationsOfConvolution["Conv"].begin(), operationsOfConvolution["Conv"].end());
     double inf = std::numeric_limits<double>::infinity();
