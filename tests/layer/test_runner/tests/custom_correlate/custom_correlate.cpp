@@ -28,4 +28,6 @@ int main()
 
     test.run("correlate.elf", {0, 1, 0, top_width, top_height, width, height, channels, displacement, pad,
             neighborhood_grid_radius, neighborhood_grid_width, kernel_size, stride1, stride2});
+
+    return 0;
 }

@@ -26,4 +26,6 @@ int main()
 
     test.run("fakequantize.elf", {0, 1, 2, 3, 4, 0, levels, input_low_size, input_high_size, output_low_size,
                                   output_high_size, width, channels, local_data, local_data});
+
+    return 0;
 }

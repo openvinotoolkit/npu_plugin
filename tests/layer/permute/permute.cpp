@@ -21,4 +21,5 @@ int main()
     unit.initialize();
     unit.run();
 
+    return 0;
 }
