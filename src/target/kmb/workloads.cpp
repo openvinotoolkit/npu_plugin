@@ -675,7 +675,7 @@ namespace mv {
                                         const mv::DPUModeList& mode_list)
     {
         double best_efficiency = 0;
-        PaddingVariant best_variant; // undefined
+        PaddingVariant best_variant = {};
 
         for (auto mode : mode_list)
         {
