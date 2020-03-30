@@ -523,7 +523,7 @@ void KmbLayerTestBase::runTest(
         float tolerance, CompareMethod method) {
     if (!RUN_COMPILER || !RUN_REF_CODE) {
         if (DUMP_PATH.empty()) {
-            SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH vere not provided";
+            SKIP() << "Compilation and/or REF_CODE were disabled, but IE_KMB_TESTS_DUMP_PATH were not provided";
         }
     }
 

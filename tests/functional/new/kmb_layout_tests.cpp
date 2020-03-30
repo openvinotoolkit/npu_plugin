@@ -17,10 +17,10 @@
 #include "test_model/kmb_test_base.hpp"
 
 class KmbLayoutTests : public KmbLayerTestBase,
-    public testing::WithParamInterface<std::tuple<InferenceEngine::Precision, InferenceEngine::Layout>> {};
+    public testing::WithParamInterface<std::tuple<Precision, Precision, Layout>> {};
 
 static const std::set<Precision> supportedInPrecisions = { Precision::U8 };
-static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Precision::FP16, Precision::FP32 };
+static const std::set<Precision> supportedOutPrecisions = { Precision::UNSPECIFIED, Precision::U8, Precision::FP16, Precision::FP32 };
 static const std::set<Layout> supportedInLayouts = { Layout::NHWC };
 static const std::set<Layout> supportedOutLayouts = { Layout::NHWC, Layout::NC };
 
@@ -29,8 +29,12 @@ static bool is_supported(const Precision& inPrecision, const Layout& inLayout, c
     bool outPrecSupported = (supportedOutPrecisions.find(outPrecision) != supportedOutPrecisions.end());
     bool inLayoutSupported = (supportedInLayouts.find(inLayout) != supportedInLayouts.end());
     bool outLayoutSupported = (supportedOutLayouts.find(outLayout) != supportedOutLayouts.end());
+    bool compareWithReferenceSupported = outPrecision == Precision::FP16 || outPrecision == Precision::FP32 ||
+                                         outPrecision == Precision::UNSPECIFIED;
+    bool compareWithReferenceRequired = KmbTestBase::RUN_INFER;
+    bool compareSupported = compareWithReferenceSupported || !compareWithReferenceRequired;
 
-    return (inPrecSupported && outPrecSupported && inLayoutSupported && outLayoutSupported);
+    return (inPrecSupported && outPrecSupported && inLayoutSupported && outLayoutSupported && compareSupported);
 }
 
 static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
@@ -73,16 +77,16 @@ static std::vector<size_t> composeDimsByLayout(const Layout& layout) {
 }
 
 TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
-    SKIP_INFER_ON("KMB", "Hangs on 'Dispatcher channel opened successfully' for some reason");
     const auto& p = GetParam();
-    Precision precision = std::get<0>(p);
-    Layout layout = std::get<1>(p);
+    Precision in_precision = std::get<0>(p);
+    Precision out_precision = std::get<1>(p);
+    Layout layout = std::get<2>(p);
     std::vector<size_t> dims = composeDimsByLayout(layout);
 
     const auto netPrecision = Precision::FP32;
 
-    const auto userInDesc = TensorDesc(precision, dims, layout);
-    const auto userOutDesc = TensorDesc(precision, dims, layout);
+    const auto userInDesc = TensorDesc(in_precision, dims, layout);
+    const auto userOutDesc = TensorDesc(out_precision, dims, layout);
 
     const auto inputRange = std::make_pair(0.0f, 1.0f);
 
@@ -95,11 +99,15 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             }
     );
 
+    if (!is_supported(userInDesc.getPrecision(), userInDesc.getLayout(), userOutDesc.getPrecision(), userOutDesc.getLayout())) {
+        SKIP_INFER_ON("KMB", "Parameters are not supported, no graph to infer");
+    }
+
     const auto netBuidler = [&](TestNetwork& testNet) {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPrecision)
-            .addLayer<SoftmaxLayerDef>("softmax", 0)
+            .addLayer<SoftmaxLayerDef>("softmax", dims.size() > 1 ? 1 : 0)
                 .input("input", 0)
                 .build()
             .setUserOutput(PortInfo("softmax"), userOutDesc.getPrecision(), userOutDesc.getLayout())
@@ -123,6 +131,6 @@ static const std::vector<Precision> all_precisions = {Precision::UNSPECIFIED, Pr
     Precision::I32, Precision::I64, Precision::U64, Precision::BIN, Precision::BOOL, Precision::CUSTOM};
 
 static auto layoutsAndPrecisions = ::testing::Combine(
-    ::testing::ValuesIn(all_precisions), ::testing::ValuesIn(all_layouts));
+    ::testing::ValuesIn(all_precisions), ::testing::ValuesIn(all_precisions), ::testing::ValuesIn(all_layouts));
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbLayoutTests, layoutsAndPrecisions);
