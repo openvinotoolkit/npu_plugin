@@ -30,8 +30,8 @@ BlobVector refConv(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
     const auto convLayer = std::dynamic_pointer_cast<ngraph::op::v1::Convolution>(layer);
     IE_ASSERT(convLayer != nullptr);
 
-    const auto input = toDefLayout(toFP32(inputs.at(0)));
-    const auto weights = toDefLayout(toFP32(inputs.at(1)));
+    const auto input = inputs.at(0);
+    const auto weights = inputs.at(1);
 
     const auto& outDims = layer->output(0).get_shape();
     const auto outDesc = TensorDesc(Precision::FP32, outDims, TensorDesc::getLayoutByDims(outDims));

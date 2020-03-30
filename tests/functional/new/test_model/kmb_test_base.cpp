@@ -785,7 +785,7 @@ void KmbNetworkTestBase::runTest(
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
 
-        refOutputBlob = toDefLayout(toFP32(calcRefOutput(netDesc, inputBlob)));
+        refOutputBlob = toDefLayout(toDefPrecision(calcRefOutput(netDesc, inputBlob)));
 
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
