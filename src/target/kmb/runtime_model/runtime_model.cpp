@@ -597,7 +597,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
-        std::unique_ptr<MVCNN::TaskListT> * listToUse;
+        std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
         std::string opType = opIt->getOpType();
         if(opType.find("DPU") != std::string::npos)
             listToUse = &toBuild[0];
