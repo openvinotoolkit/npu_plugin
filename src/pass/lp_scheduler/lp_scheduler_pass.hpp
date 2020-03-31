@@ -1792,14 +1792,7 @@ class Repack_Input_DMA_Tasks {
 
           // updated scheduled op //
           if (new_repack_time != repack_time) {
-            printfInfo("lpSchedulerPass", "[RepackUpdate (%lu) (%lu) ]: original=",
-                  new_repack_time, repack_time);
-            repack_info.print();
-
             repack_info.update(get_original_scheduled_op(new_limiting_op));
-
-            printfInfo("lpSchedulerPass", "[RepackUpdate]: updated=");
-            repack_info.print();
           }
         }
 
