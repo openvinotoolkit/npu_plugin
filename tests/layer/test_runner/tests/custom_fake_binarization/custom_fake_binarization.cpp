@@ -18,4 +18,6 @@ int main()
     test.num_groups = {1, 1, channels};
 
     test.run("fakebinarization.elf", {0, 1, 0, switch_out, input_low_high_size, width, height});
+
+    return 0;
 }

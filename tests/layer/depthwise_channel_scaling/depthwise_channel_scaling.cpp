@@ -51,4 +51,6 @@ int main()
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
+
+    return 0;
 }

@@ -675,7 +675,7 @@ namespace mv {
                                         const mv::DPUModeList& mode_list)
     {
         double best_efficiency = 0;
-        PaddingVariant best_variant; // undefined
+        PaddingVariant best_variant = {};
 
         for (auto mode : mode_list)
         {
@@ -833,6 +833,10 @@ namespace mv {
     {
         SplitVariantNonSymmetric best_variant;
         best_variant.cost_estimate = INFINITY; // worst
+        best_variant.factors = std::make_pair(0, 0); // default values
+        best_variant.xss = 0;
+        best_variant.yss = 0;
+        best_variant.mode = 'H';
 
         SplitFactorsList factors = getSplitFactors(N - 1);
         for (auto f : factors)

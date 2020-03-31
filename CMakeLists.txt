@@ -379,7 +379,7 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(model SHARED ${model})
-
+    
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
@@ -390,6 +390,10 @@ else()
 
     target_link_libraries(cm PUBLIC model metamodel flatbuffers)
     target_link_libraries(model PUBLIC lemon)
+
+    # setup warnings as errors
+    target_compile_options(cm PRIVATE -Wall -Wextra)
+    target_compile_options(model PRIVATE -Wall -Wextra)
 
     if(NOT CMAKE_CROSSCOMPILING)
         if(MCM_COMPILER_BUILD_PYTHON)

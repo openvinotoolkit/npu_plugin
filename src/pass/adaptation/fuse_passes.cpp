@@ -200,7 +200,7 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
                 parentOpIt->set<mv::QuantizationParams>("quantParams", {{}, {}, {}, {}});
         }
     }
-    std::vector<std::string> postOpTypes = {};
+    std::vector<std::string> postOpTypes;
     if (parentOpIt->hasAttr("postOpTypes"))
         postOpTypes = parentOpIt->get<std::vector<std::string>>("postOpTypes");
 
