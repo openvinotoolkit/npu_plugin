@@ -15,11 +15,14 @@
 //
 
 #include "quantization_helpers.hpp"
+
 #include <precision_utils.h>
 
 #include <algorithm>
 #include <limits>
 #include <vector>
+
+#include "ie_utils.hpp"
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
@@ -183,8 +186,9 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     std::vector<int64_t> newBiasData(biasCount, 0);
     std::vector<double> biasScales;
 
-    if (biasesPrecision == InferenceEngine::Precision::FP32) {
-        auto biasData = biasBlob->buffer().as<float*>();
+    if (biasesPrecision == InferenceEngine::Precision::FP32 || biasesPrecision == InferenceEngine::Precision::FP16) {
+        ie::Blob::Ptr biasBlobFp32 = toFP32(biasBlob);
+        auto biasData = biasBlobFp32->buffer().as<float*>();
         //  ZP = 0
         //  ScaleBias = ActivationScale * WeightsScale
         for (size_t i = 0; i < biasCount; i++) {
@@ -201,40 +205,12 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
         outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
     }
 
-    // Work Around for FP16->INT8 networks due to absence of FP16 support in mcmCompiler
-    // TODO: combine previous and this block of code. Escape duplication of code.
-    if (biasesPrecision == InferenceEngine::Precision::FP16) {
-        biasesPrecision = InferenceEngine::Precision::FP32; // Set to FP32 to avoid throw exception (see code below)
-
-        auto biasData = biasBlob->buffer().as<short*>();
-        //  ZP = 0
-        //  ScaleBias = ActivationScale * WeightsScale
-        for (size_t i = 0; i < biasCount; i++) {
-            double activationScale = activationScales[isActivationScalesBroadcasted ? 0 : i];
-            double weightsScale = weightsScales[isWeightsScalesBroadcasted ? 0 : i];
-            double biasScale = activationScale * weightsScale;
-            biasScales.push_back(biasScale);
-            newBiasData[i] = std::round(InferenceEngine::PrecisionUtils::f16tof32(biasData[i]) / biasScale);
-        }
-        int64_t biasZp = 0;
-        if (isBiasScalesBroadcasted) {
-            biasScales.resize(1);
-        }
-        outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
-    }
-    // End of Work Around for FP16->INT8 networks
-
-
     if (biasesPrecision == InferenceEngine::Precision::I32) {
         auto biasData = biasBlob->buffer().as<int32_t*>();
         for (size_t i = 0; i < biasCount; i++) {
             newBiasData[i] = biasData[i];
         }
         outputQuantParam = initialQuantParams;
-    }
-
-    if (biasesPrecision != InferenceEngine::Precision::FP32 && biasesPrecision != InferenceEngine::Precision::I32) {
-        THROW_IE_EXCEPTION << "Unexpected biases precision";
     }
 
     return newBiasData;

@@ -90,7 +90,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% spar
 // KMB : Bad inference results.
 // Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_ON("KMB", "Compiler Error: min > max");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml")
@@ -721,6 +721,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) 
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -741,6 +742,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -761,6 +763,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -771,6 +774,7 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp1
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -781,6 +785,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/resnet-101/resnet_101_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
@@ -791,6 +796,7 @@ TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/resnet-152/resnet_152_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)

@@ -299,6 +299,76 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     std::reverse(parsedNetwork.orderedLayers.begin(), parsedNetwork.orderedLayers.end());
 }
 
+namespace {
+// TODO: Move this function to utils
+template <typename ResultType>
+std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedSize) {
+    IE_ASSERT(blobPtr != nullptr);
+
+    std::vector<ResultType> blobData(expectedSize, 0);
+
+    // TODO: Make the ASSERT on equality after correction of blob creation in tests
+    IE_ASSERT(expectedSize <= blobPtr->size());
+
+    ie::Precision blobPrecision = blobPtr->getTensorDesc().getPrecision();
+
+    // TODO: add proper layout handling. for now, weights are assumed to have OIYX
+    if (blobPrecision == ie::Precision::FP16) {
+        const auto* blobDataFP16 = blobPtr->cbuffer().as<const fp16_t*>();
+        IE_ASSERT(blobDataFP16 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = ie::PrecisionUtils::f16tof32(blobDataFP16[pos]);
+            blobData[pos] = val;
+        }
+    } else if (blobPrecision == ie::Precision::FP32) {
+        const auto* blobDataFP32 = blobPtr->cbuffer().as<const float*>();
+        IE_ASSERT(blobDataFP32 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataFP32[pos];
+            blobData[pos] = val;
+        }
+    } else if (blobPrecision == ie::Precision::U8) {
+        const auto* blobDataU8 = blobPtr->cbuffer().as<const uint8_t*>();
+        IE_ASSERT(blobDataU8 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataU8[pos];
+            blobData[pos] = val;
+        }
+    } else if (blobPrecision == ie::Precision::I8) {
+        const auto* blobDataI8 = blobPtr->cbuffer().as<const int8_t*>();
+        IE_ASSERT(blobDataI8 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataI8[pos];
+            blobData[pos] = val;
+        }
+    } else if (blobPrecision == ie::Precision::I32) {
+        const auto* blobDataI32 = blobPtr->cbuffer().as<const int32_t*>();
+        IE_ASSERT(blobDataI32 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataI32[pos];
+            blobData[pos] = val;
+        }
+    } else if (blobPrecision == ie::Precision::I64) {
+        const auto* blobDataI64 = blobPtr->cbuffer().as<const int64_t*>();
+        IE_ASSERT(blobDataI64 != nullptr);
+
+        for (size_t pos = 0; pos < expectedSize; pos++) {
+            ResultType val = blobDataI64[pos];
+            blobData[pos] = val;
+        }
+    } else {
+        THROW_IE_EXCEPTION << "precision '" << blobPrecision << "' is not supported";
+    }
+
+    return blobData;
+}
+}  // namespace
+
 void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
     for (auto& layer : network) {
         if (layer->type == "Input") {
@@ -315,29 +385,18 @@ void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
                     return;
                 }
 
-                if (scaleShiftLayer->precision == ie::Precision::FP32) {
-                    auto scaleData = scaleShiftLayer->_weights->buffer().as<float *>();
-                    float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
-                    scaleValue /= scaleShiftLayer->_weights->size();
+                std::vector<float> scaleData =
+                    packBlobToVector<float>(scaleShiftLayer->_weights, scaleShiftLayer->_weights->size());
+                std::vector<float> shiftData =
+                    packBlobToVector<float>(scaleShiftLayer->_biases, scaleShiftLayer->_biases->size());
 
-                    auto shiftsData = scaleShiftLayer->_biases->buffer().as<float *>();
-                    float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
-                    shiftValue /= scaleShiftLayer->_biases->size();
-                    _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
-                }
+                float scaleValue = std::accumulate(scaleData.begin(), scaleData.end(), 0.0f);
+                scaleValue /= scaleShiftLayer->_weights->size();
 
-                // Start Work Around for FP16->INT8 Networks
-                if (scaleShiftLayer->precision == ie::Precision::FP16) {
-                    auto scaleData = scaleShiftLayer->_weights->buffer().as<fp16_t *>();
-                    float scaleValue = std::accumulate(scaleData, scaleData + scaleShiftLayer->_weights->size(), 0.0f);
-                    scaleValue /= scaleShiftLayer->_weights->size();
+                float shiftValue = std::accumulate(shiftData.begin(), shiftData.end(), 0.0f);
+                shiftValue /= scaleShiftLayer->_biases->size();
 
-                    auto shiftsData = scaleShiftLayer->_biases->buffer().as<fp16_t *>();
-                    float shiftValue = std::accumulate(shiftsData, shiftsData + scaleShiftLayer->_biases->size(), 0.0f);
-                    shiftValue /= scaleShiftLayer->_biases->size();
-                    _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
-                }
-                // End Work Around for FP16->INT8 Networks
+                _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
 
                 CNNNetworkHelper::removeLayer(network, scaleShiftLayer);
                 return;
@@ -685,73 +744,6 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
 
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
-
-template <typename ResultType>
-std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedSize) {
-    IE_ASSERT(blobPtr != nullptr);
-
-    std::vector<ResultType> blobData(expectedSize, 0);
-
-    // TODO: Make the ASSERT on equality after correction of blob creation in tests
-    IE_ASSERT(expectedSize <= blobPtr->size());
-
-    ie::Precision blobPrecision = blobPtr->getTensorDesc().getPrecision();
-
-    // TODO: add proper layout handling. for now, weights are assumed to have OIYX
-    if (blobPrecision == ie::Precision::FP16) {
-        const auto* blobDataFP16 = blobPtr->cbuffer().as<const fp16_t*>();
-        IE_ASSERT(blobDataFP16 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = ie::PrecisionUtils::f16tof32(blobDataFP16[pos]);
-            blobData[pos] = val;
-        }
-    } else if (blobPrecision == ie::Precision::FP32) {
-        const auto* blobDataFP32 = blobPtr->cbuffer().as<const float*>();
-        IE_ASSERT(blobDataFP32 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = blobDataFP32[pos];
-            blobData[pos] = val;
-        }
-    } else if (blobPrecision == ie::Precision::U8) {
-        const auto* blobDataU8 = blobPtr->cbuffer().as<const uint8_t*>();
-        IE_ASSERT(blobDataU8 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = blobDataU8[pos];
-            blobData[pos] = val;
-        }
-    } else if (blobPrecision == ie::Precision::I8) {
-        const auto* blobDataI8 = blobPtr->cbuffer().as<const int8_t*>();
-        IE_ASSERT(blobDataI8 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = blobDataI8[pos];
-            blobData[pos] = val;
-        }
-    } else if (blobPrecision == ie::Precision::I32) {
-        const auto* blobDataI32 = blobPtr->cbuffer().as<const int32_t*>();
-        IE_ASSERT(blobDataI32 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = blobDataI32[pos];
-            blobData[pos] = val;
-        }
-    } else if (blobPrecision == ie::Precision::I64) {
-        const auto* blobDataI64 = blobPtr->cbuffer().as<const int64_t*>();
-        IE_ASSERT(blobDataI64 != nullptr);
-
-        for (size_t pos = 0; pos < expectedSize; pos++) {
-            ResultType val = blobDataI64[pos];
-            blobData[pos] = val;
-        }
-    } else {
-        THROW_IE_EXCEPTION << "precision '" << blobPrecision << "' is not supported";
-    }
-
-    return blobData;
-}
 
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
@@ -1157,22 +1149,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     size_t dimC, stub;
     parseDims(input->desc(), stub, dimC, stub, stub);
 
-    std::vector<double> scaleData;
-    std::vector<double> scaleLayerBiases;
-
-    if (scaleLayer->precision == ie::Precision::FP32){
-        auto scales = scaleLayer->_weights->buffer().as<float*>();
-        for (size_t i = 0; i < dimC; i++) {
-            scaleData.push_back(scales[i]);
-        }
-    }
-
-    if (scaleLayer->precision == ie::Precision::FP16){
-        auto scales = scaleLayer->_weights->buffer().as<short*>();
-        for (size_t i = 0; i < dimC; i++) {
-            scaleData.push_back(InferenceEngine::PrecisionUtils::f16tof32(scales[i]));
-        }
-    }
+    std::vector<double> scaleData = packBlobToVector<double>(scaleLayer->_weights, scaleLayer->_weights->size());
 
     parseScaleImpl(layer, inputs, scaleData, scaleLayer->_biases);
 }
@@ -1413,10 +1390,10 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constant(constData, mcmShape, convert_data_type(Precision(Precision::ePrecision::FP32)),
-                    // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                    // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
-                    // It is so just because mcmCompiler has not supported FP16 yet.
-                    // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
+                // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
+                // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+                // It is so just because mcmCompiler has not supported FP16 yet.
+                // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
         bindOutput(constMCM, layer->outData[0]);
     }
@@ -1454,7 +1431,6 @@ void FrontEndMcm::parseMVN(const ie::CNNLayerPtr& layer, const McmNodeVector& in
     UNUSED(layer);
     VPU_THROW_EXCEPTION << "MVN layer is not supported by kmbPlugin";
 }
-
 void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(inputs.size() == 1);
     auto powerLayer = std::dynamic_pointer_cast<ie::PowerLayer>(layer);
@@ -1469,20 +1445,9 @@ void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     size_t dimC, stub;
     parseDims(input->desc(), stub, dimC, stub, stub);
 
+    double powerScale = powerLayer->scale;
     std::vector<double> scaleData;
-    if (powerLayer->precision == ie::Precision::FP32) {
-        for (size_t i = 0; i < dimC; i++) {
-            scaleData.push_back(powerLayer->scale);
-        }
-    }
-
-    // Start Work Around for FP16->INT8 Networks
-    if (powerLayer->precision == ie::Precision::FP16) {
-        for (size_t i = 0; i < dimC; i++) {
-            scaleData.push_back(InferenceEngine::PrecisionUtils::f16tof32(powerLayer->scale));
-        }
-    }
-    // End Work Around for FP16->INT8 Networks
+    scaleData.resize(dimC, powerScale);
 
     ie::Blob::Ptr biases;
     if (powerLayer->offset != 0) {
