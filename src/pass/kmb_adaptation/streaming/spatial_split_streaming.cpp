@@ -262,12 +262,14 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         //todo: clean this if-then-else bias logic.... bloatware code....
         if (op->hasAttr("bias"))
         {
-            auto tileSize = childTiles[split].getSize()[axisToSplit];
-            biasStartIndex = biasEndIndex;
+            auto tileSize = kernelSliceShape[axisToSplit];
+            biasStartIndex = kernelSliceOffset[axisToSplit];
             biasEndIndex = biasStartIndex + tileSize;
+
             auto biasTensorName = op->get<std::string>("bias");
             auto originalBiasTensor = dm.getTensor(biasTensorName);
             auto oiginalBiasData = originalBiasTensor->getData();
+
             if ( biasEndIndex > oiginalBiasData.size())
                 biasEndIndex = oiginalBiasData.size();
             std::vector<mv::DataElement>::const_iterator biasFirst = oiginalBiasData.begin() + biasStartIndex;
