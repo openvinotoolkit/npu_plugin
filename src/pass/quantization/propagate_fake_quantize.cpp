@@ -454,36 +454,6 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     }
 }
 
-template<class T>
-std::ostream& operator<<(std::ostream& os, const std::vector<T>& container) {
-    for (auto& value : container) {
-        os << value << ",";
-    }
-    return os;
-}
-
-
-std::ostream& operator<<(std::ostream& os, const mv::QuantizationParams& params) {
-    os << "Scale {" << params.getScale() << "}\n";
-    os << "Bias {" << params.getShift() << "}\n";
-    os << "Min {" << params.getMin()  << "}\n";
-    os << "Max {" << params.getMax() << "}\n";
-
-    return os;
-}
-
-void dumpFQ(mv::ComputationModel& model) {
-    mv::OpModel om(model);
-
-    for (auto& op : om.topologicalSort()) {
-        if (op->hasAttr("quantParams") && op->getOpType() != "Output") {
-            std::cout << op->getName() << std::endl;
-            std::cout << op->get<mv::QuantizationParams>("quantParams");
-            std::cout << "Separator\n";
-        }
-    }
-}
-
 void quantizeInputScaleShift(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
