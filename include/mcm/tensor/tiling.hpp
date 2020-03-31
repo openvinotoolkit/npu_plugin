@@ -65,14 +65,13 @@ namespace mv
         //TODO::build proper stream out of this
         void printOut(unsigned depth) const
         {
-            for (unsigned tab = 0; tab < depth; tab++)
-                std::cout<<"\t";
             std::cout << "Master : " << size_.toString()  << std::endl;
 
-            for (unsigned tab = 0; tab < depth; tab++)
-                std::cout<<"\t";
             for (auto& tile : childTiles_)
             {
+                for (unsigned tab = 0; tab < depth; tab++)
+                    std::cout<<"\t";
+
                 std::cout << "\tChild: ";
                 tile.printOut(depth+1);\
             }
@@ -82,7 +81,7 @@ namespace mv
         {
             auto numberOfSplits = childTiles_.size();
             auto parentTileShape = getSize();
-            auto axisToSplit =  mv::Shape::getAxis(getAxis());
+            auto axisToSplit =  mv::Shape::getAxis("C"); // the Size of the tile , is the size of the outputTensor... That is why we ask for "C" in the shape of the outTensor
             int newSize = mv::round_up(parentTileShape[axisToSplit] / numberOfSplits, 16);
             int remainderSize = mv::round_up(parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1)), 16);
             unsigned startCoord = 0;
@@ -190,6 +189,16 @@ namespace mv
                 else
                     startCoord += sizes[split] * kernelStride;
             }
+        }
+
+        void generateTiling(mv::Data::OpListIterator opIt)
+        {
+            if(axis_ == "K")
+                generateWeightsTiling();
+            else if (axis_ == "H")
+                generateSpatialTiling(opIt);
+            else if (axis_ == "W")
+                generateSpatialTiling(opIt);
         }
     };
 }
