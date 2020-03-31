@@ -61,6 +61,7 @@ public:
     const std::string& serializeCNNBeforeCompileFile() const { return _serializeCNNBeforeCompileFile; }
 
     bool useNGraphParser() const { return _useNGraphParser; }
+    bool allowNCOutput() const { return _allowNCOutput; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -91,6 +92,7 @@ private:
     std::string _serializeCNNBeforeCompileFile = "";
 
     bool _useNGraphParser = false;
+    bool _allowNCOutput = true;
 };
 
 }  // namespace vpu

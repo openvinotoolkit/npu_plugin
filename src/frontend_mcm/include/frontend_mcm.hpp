@@ -44,7 +44,10 @@ namespace vpu {
 
 namespace ie = InferenceEngine;
 
-mv::DType convert_data_type(ie::Precision iePrecision);
+namespace {
+mv::DType convert_data_type(const ie::Precision& iePrecision);
+mv::Order convert_layout(const ie::Layout& ieLayout);
+}  // namespace
 
 class McmNodeObject final : public EnableHandle, public EnableCustomAttributes {
 public:

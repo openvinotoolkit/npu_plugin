@@ -17,7 +17,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 class KmbLayoutTests : public KmbLayerTestBase,
-    public testing::WithParamInterface<std::tuple<Precision, Precision, Layout>> {};
+    public testing::WithParamInterface<std::tuple<Precision, Precision, Layout, bool>> {};
 
 static const std::set<Precision> supportedInPrecisions = { Precision::U8 };
 static const std::set<Precision> supportedOutPrecisions = { Precision::UNSPECIFIED, Precision::U8, Precision::FP16, Precision::FP32 };
@@ -81,6 +81,7 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
     Precision in_precision = std::get<0>(p);
     Precision out_precision = std::get<1>(p);
     Layout layout = std::get<2>(p);
+    bool forceFP16ToFP32 = std::get<3>(p);
     std::vector<size_t> dims = composeDimsByLayout(layout);
 
     const auto netPrecision = Precision::FP32;
@@ -104,6 +105,11 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
     }
 
     const auto netBuidler = [&](TestNetwork& testNet) {
+        if (forceFP16ToFP32) {
+            testNet.setCompileConfig({{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(YES)}});
+        } else {
+            testNet.setCompileConfig({{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(NO)}});
+        }
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPrecision)
@@ -130,7 +136,19 @@ static const std::vector<Precision> all_precisions = {Precision::UNSPECIFIED, Pr
     Precision::FP32, Precision::FP16, Precision::Q78, Precision::I16, Precision::I8, Precision::U8, Precision::U16,
     Precision::I32, Precision::I64, Precision::U64, Precision::BIN, Precision::BOOL, Precision::CUSTOM};
 
-static auto layoutsAndPrecisions = ::testing::Combine(
-    ::testing::ValuesIn(all_precisions), ::testing::ValuesIn(all_precisions), ::testing::ValuesIn(all_layouts));
+static auto checkInputPrecisions = ::testing::Combine(::testing::ValuesIn(all_precisions),
+    ::testing::Values(Precision::FP16), ::testing::Values(Layout::NHWC), ::testing::Values(true));
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbLayoutTests, layoutsAndPrecisions);
+static auto checkOutputPrecisions = ::testing::Combine(::testing::Values(Precision::U8),
+    ::testing::ValuesIn(all_precisions), ::testing::Values(Layout::NHWC), ::testing::Values(true));
+
+static auto checkLayouts = ::testing::Combine(::testing::Values(Precision::U8),
+    ::testing::Values(Precision::FP16), ::testing::ValuesIn(all_layouts), ::testing::Values(true));
+
+static auto checkOutputPrecisionsForceFP16 = ::testing::Combine(::testing::Values(Precision::U8),
+    ::testing::ValuesIn(all_precisions), ::testing::Values(Layout::NHWC), ::testing::Values(false));
+
+INSTANTIATE_TEST_CASE_P(InPrecisions, KmbLayoutTests, checkInputPrecisions);
+INSTANTIATE_TEST_CASE_P(OutPrecisions, KmbLayoutTests, checkOutputPrecisions);
+INSTANTIATE_TEST_CASE_P(Layouts, KmbLayoutTests, checkLayouts);
+INSTANTIATE_TEST_CASE_P(OutPrecisionsForceFP16, KmbLayoutTests, checkOutputPrecisionsForceFP16);

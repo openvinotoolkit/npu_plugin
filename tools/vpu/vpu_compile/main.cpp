@@ -241,6 +241,11 @@ static void processPrecisions(InferenceEngine::CNNNetwork &network,
     const auto out_precision = outputs_precision.empty() ? defaultPrecision
             : getOutputPrecision(outputs_precision);
     for (auto &&layer : network.getOutputsInfo()) {
+        if (layer.second->getDims().size() == 2) {
+            layer.second->setLayout(InferenceEngine::Layout::NC);
+        } else {
+            layer.second->setLayout(InferenceEngine::Layout::NHWC);
+        }
         layer.second->setPrecision(out_precision);
     }
 

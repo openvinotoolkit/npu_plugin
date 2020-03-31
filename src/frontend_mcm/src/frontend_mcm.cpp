@@ -110,11 +110,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Const",              &FrontEndMcm::parseConst},
         };
 
-// clang-format on
-
-}  // namespace
-
-mv::DType convert_data_type(ie::Precision iePrecision) {
+mv::DType convert_data_type(const ie::Precision& iePrecision) {
     mv::DType mvType;
     switch (iePrecision) {
     case ie::Precision::UNSPECIFIED:
@@ -149,6 +145,10 @@ mv::Order convert_layout(const ie::Layout& ieLayout) {
     layoutToOrder << ieLayout;
     return mv::Order(layoutToOrder.str());
 }
+
+// clang-format on
+
+}  // namespace
 
 void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
     runCommonPasses(network);
@@ -751,6 +751,30 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
+bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::UNSPECIFIED, ie::Precision::U8};
+    return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
+}
+
+bool isInputLayoutSupported(const ie::Layout& inputLayout) {
+    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC};
+    return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
+}
+
+bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
+    const std::set<ie::Precision> supportedOutPrecisions = {
+        ie::Precision::UNSPECIFIED, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+    return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
+}
+
+bool isOutputLayoutSupported(const ie::Layout& outputLayout, bool allowNCOutput) {
+    std::set<ie::Layout> supportedOutLayouts = {ie::Layout::NHWC};
+    if (allowNCOutput) {
+        supportedOutLayouts.insert(ie::Layout::NC);
+    }
+    return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
+}
+
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
 
@@ -785,12 +809,12 @@ void FrontEndMcm::parseInputData() {
         }
 
         const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
-        if (inputLayout != InferenceEngine::Layout::NHWC) {
+        if (!isInputLayoutSupported(inputLayout)) {
             VPU_THROW_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
         }
 
         const InferenceEngine::Precision inputPrecision = ieData->getTensorDesc().getPrecision();
-        if (inputPrecision != InferenceEngine::Precision::U8) {
+        if (!isInputPrecisionSupported(inputPrecision)) {
             VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
         }
 
@@ -817,6 +841,9 @@ void FrontEndMcm::parseOutputData() {
         auto name = lastLayerOut->getMcmNode()->getName();
 
         const auto outputPrecision = ieData->getTensorDesc().getPrecision();
+        if (!isOutputPrecisionSupported(outputPrecision)) {
+            VPU_THROW_EXCEPTION << "Output data type is not supported: " << outputPrecision;
+        }
 
         // TODO: kmbPlugin already has a function convert_data_type() for matching IE precision to mcm, but
         // in this case we can't use due to limitations on mcm level (not all precisions are supported).
@@ -842,8 +869,8 @@ void FrontEndMcm::parseOutputData() {
         }
 
         const InferenceEngine::Layout outputLayout = ieData->getTensorDesc().getLayout();
-        // NC outputs are not supported by MCM, but the output can be casted to NC via VPU_KMB_FORCE_NCHW_TO_NHWC
-        if (outputLayout != InferenceEngine::Layout::NHWC && outputLayout != InferenceEngine::Layout::NC) {
+        // NC outputs are not supported by MCM, but the output can be casted to NC via VPU_COMPILER_ALLOW_NC_OUTPUT
+        if (!isOutputLayoutSupported(outputLayout, _config.allowNCOutput())) {
             VPU_THROW_EXCEPTION << "Output layout is not supported: " << outputLayout;
         }
 
