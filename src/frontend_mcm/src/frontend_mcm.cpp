@@ -1531,9 +1531,37 @@ void FrontEndMcm::parseTile(const ie::CNNLayerPtr& layer, const McmNodeVector& i
 }
 
 void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Normalize layer is not supported by kmbPlugin";
+    IE_ASSERT(inputs.size() == 1);
+    logParsingStartHelper(_logger, layer, inputs);
+
+    double eps = layer->GetParamAsFloat("eps");
+    bool across_spatial = layer->GetParamAsBool("across_spatial");
+    bool channel_shared = layer->GetParamAsBool("channel_shared");
+
+    ie::Blob::Ptr weightsBlob = nullptr;
+    weightsBlob = layer->blobs["weights"];
+    IE_ASSERT(weightsBlob != nullptr);
+
+    auto dims = inputs[0]->desc().getDims();
+    mv::Shape weightsShape = {1, dims[1], 1, 1};
+    int weightsSize = weightsBlob->size();
+
+    IE_ASSERT(dims[1] == weightsSize);
+
+    auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
+    auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+    auto mvWeightsValues = _modelMcm.constant(
+        weightsData, weightsShape, mv::DType(convert_data_type(weightsPrecision)), mv::Order::getZMajorID(4));
+
+    mv::Data::TensorIterator mvNormalize;
+    // auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
+
+    mvNormalize = _modelMcm.normalize(inputs[0]->getMcmNode(), mvWeightsValues, eps, across_spatial, channel_shared,
+        mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(mvNormalize, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvNormalize->getName());
 }
 
 void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
