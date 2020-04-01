@@ -910,7 +910,7 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
                             return INF;
                     }
-                    if( (parentOp.getOpType() != "Input") and 
+                    if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
                       ( (parentMem.first + parentMem.second) > clusterMemory) )
                     {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 
