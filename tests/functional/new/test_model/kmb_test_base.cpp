@@ -199,7 +199,12 @@ void KmbTestBase::SetUp() {
         core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, DEVICE_NAME);
     }
     if (RUN_COMPILER) {
-        core->SetConfig({{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}, DEVICE_NAME);
+        // MCM frontend supports only outputs with NHWC layout and U8 or FP16 precision
+        // but many tests in this framework use classification, so NC output is required
+        // also, FP32 precision is used to compare with references
+        // TODO either update tests to use NHWC with FP16, or update MCM compiler to support NC with FP32
+        core->SetConfig({{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)},
+            {"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(YES)}}, DEVICE_NAME);
     }
 
     if ((RUN_REF_CODE               && REF_DEVICE_NAME == "CPU") ||

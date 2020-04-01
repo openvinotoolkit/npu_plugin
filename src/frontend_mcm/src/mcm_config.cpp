@@ -46,6 +46,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                          VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
                                                          VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
                                                          VPU_COMPILER_CONFIG_KEY(ALLOW_NC_OUTPUT),
+                                                         VPU_COMPILER_CONFIG_KEY(ALLOW_FP32_OUTPUT),
                                                      });
 
     return options;
@@ -84,4 +85,5 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
     setOption(_allowNCOutput, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_NC_OUTPUT));
+    setOption(_allowFP32Output, switches, config, VPU_COMPILER_CONFIG_KEY(ALLOW_FP32_OUTPUT));
 }

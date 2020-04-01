@@ -140,11 +140,5 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
 
-/**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NC_OUTPUT);
-
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

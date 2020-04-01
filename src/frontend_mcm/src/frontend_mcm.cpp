@@ -761,9 +761,11 @@ bool isInputLayoutSupported(const ie::Layout& inputLayout) {
     return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
 }
 
-bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
-    const std::set<ie::Precision> supportedOutPrecisions = {
-        ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+bool isOutputPrecisionSupported(const ie::Precision& outputPrecision, bool allowFP32Output) {
+    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16};
+    if (allowFP32Output) {
+        supportedOutPrecisions.insert(ie::Precision::FP32);
+    }
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 
@@ -841,7 +843,7 @@ void FrontEndMcm::parseOutputData() {
         auto name = lastLayerOut->getMcmNode()->getName();
 
         const auto outputPrecision = ieData->getTensorDesc().getPrecision();
-        if (!isOutputPrecisionSupported(outputPrecision)) {
+        if (!isOutputPrecisionSupported(outputPrecision, _config.allowFP32Output())) {
             VPU_THROW_EXCEPTION << "Output data type is not supported: " << outputPrecision;
         }
 
