@@ -92,7 +92,7 @@ private:
     std::string _serializeCNNBeforeCompileFile = "";
 
     bool _useNGraphParser = false;
-    bool _allowNCOutput = true;
+    bool _allowNCOutput = false;
 };
 
 }  // namespace vpu

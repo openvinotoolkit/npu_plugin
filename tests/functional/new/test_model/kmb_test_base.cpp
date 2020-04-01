@@ -198,6 +198,9 @@ void KmbTestBase::SetUp() {
     if (PRINT_PERF_COUNTERS) {
         core->SetConfig({{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}}, DEVICE_NAME);
     }
+    if (RUN_COMPILER) {
+        core->SetConfig({{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}, DEVICE_NAME);
+    }
 
     if ((RUN_REF_CODE               && REF_DEVICE_NAME == "CPU") ||
        ((RUN_COMPILER || RUN_INFER) && DEVICE_NAME     == "CPU" )) {

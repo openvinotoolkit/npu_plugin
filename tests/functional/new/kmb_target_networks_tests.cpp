@@ -771,7 +771,8 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp1
             TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPresision("output", Precision::FP32),
+                    .setUserOutputPresision("output", Precision::FP32)
+                    .setUserOutputLayout("output", Layout::NHWC),
             "227x227/cat3.bmp",
             1, 2.0f);
 }
