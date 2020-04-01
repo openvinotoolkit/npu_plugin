@@ -752,7 +752,7 @@ double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::UNSPECIFIED, ie::Precision::U8};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
@@ -763,7 +763,7 @@ bool isInputLayoutSupported(const ie::Layout& inputLayout) {
 
 bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
     const std::set<ie::Precision> supportedOutPrecisions = {
-        ie::Precision::UNSPECIFIED, ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
+        ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 

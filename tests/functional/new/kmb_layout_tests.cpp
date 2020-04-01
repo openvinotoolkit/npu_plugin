@@ -20,7 +20,7 @@ class KmbLayoutTests : public KmbLayerTestBase,
     public testing::WithParamInterface<std::tuple<Precision, Precision, Layout, bool>> {};
 
 static const std::set<Precision> supportedInPrecisions = { Precision::U8 };
-static const std::set<Precision> supportedOutPrecisions = { Precision::UNSPECIFIED, Precision::U8, Precision::FP16, Precision::FP32 };
+static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Precision::FP16, Precision::FP32 };
 static const std::set<Layout> supportedInLayouts = { Layout::NHWC };
 static const std::set<Layout> supportedOutLayouts = { Layout::NHWC, Layout::NC };
 
@@ -29,8 +29,7 @@ static bool is_supported(const Precision& inPrecision, const Layout& inLayout, c
     bool outPrecSupported = (supportedOutPrecisions.find(outPrecision) != supportedOutPrecisions.end());
     bool inLayoutSupported = (supportedInLayouts.find(inLayout) != supportedInLayouts.end());
     bool outLayoutSupported = (supportedOutLayouts.find(outLayout) != supportedOutLayouts.end());
-    bool compareWithReferenceSupported = outPrecision == Precision::FP16 || outPrecision == Precision::FP32 ||
-                                         outPrecision == Precision::UNSPECIFIED;
+    bool compareWithReferenceSupported = outPrecision == Precision::FP16 || outPrecision == Precision::FP32;
     bool compareWithReferenceRequired = KmbTestBase::RUN_INFER;
     bool compareSupported = compareWithReferenceSupported || !compareWithReferenceRequired;
 
