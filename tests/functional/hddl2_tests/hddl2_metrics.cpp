@@ -20,6 +20,7 @@
 
 #include <blob_factory.hpp>
 #include <fstream>
+#include <core_api.h>
 
 #include "comparators.h"
 #include "file_reader.h"
@@ -32,35 +33,36 @@
 
 namespace IE = InferenceEngine;
 
-using Metrics_Tests = ::testing::Test;
+class Metrics_Tests : public CoreAPI_Tests {};
 
-TEST_F(Metrics_Tests, getAvailableDevices) {
-    std::string deviceName = "HDDL2";
-    IE::Core ie;
-    std::vector<std::string> hddl2SupportedMetrics = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+TEST_F(Metrics_Tests, supportsGetAvailableDevice) {
+    auto metricName = METRIC_KEY(AVAILABLE_DEVICES);
 
-    std::vector<std::string>::const_iterator hddl2AvalableDevMetricIter =
-        std::find(hddl2SupportedMetrics.begin(), hddl2SupportedMetrics.end(), METRIC_KEY(AVAILABLE_DEVICES));
-    ASSERT_NE(hddl2AvalableDevMetricIter, hddl2SupportedMetrics.end());
+    std::vector<std::string> supportedMetrics = ie.GetMetric(pluginName, METRIC_KEY(SUPPORTED_METRICS));
+    auto found_metric = std::find(supportedMetrics.begin(), supportedMetrics.end(), metricName);
+    ASSERT_NE(found_metric, supportedMetrics.end());
+}
 
-    std::vector<std::string>::const_iterator hddl2AvalableExeCoreMetricIter = std::find(
-        hddl2SupportedMetrics.begin(), hddl2SupportedMetrics.end(), VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES));
-    ASSERT_NE(hddl2AvalableExeCoreMetricIter, hddl2SupportedMetrics.end());
+TEST_F(Metrics_Tests, canGetAvailableDevice) {
+    std::vector<std::string> availableDevices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
 
-    std::vector<std::string> hddl2DeviceIds = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    ASSERT_FALSE(hddl2DeviceIds.empty());
-    ASSERT_NE(hddl2DeviceIds.begin()->find("HDDL2Device"), std::string::npos);
+    ASSERT_EQ(availableDevices.size(), 1);
+    ASSERT_EQ(availableDevices[0], pluginName);
+}
 
-    std::cout << "Found available HDDL2 devices: " << std::endl;
-    for (const std::string& deviceId : hddl2DeviceIds) {
-        std::cout << deviceId << std::endl;
-    }
+TEST_F(Metrics_Tests, supportsGetAvailableExecutionCores) {
+    auto metricName = VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES);
 
-    std::vector<std::string> hddl2Cores = ie.GetMetric(deviceName, VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES));
-    ASSERT_FALSE(hddl2Cores.empty());
+    std::vector<std::string> supportedMetrics = ie.GetMetric(pluginName, METRIC_KEY(SUPPORTED_METRICS));
+    auto found_metric = std::find(supportedMetrics.begin(), supportedMetrics.end(), metricName);
+    ASSERT_NE(found_metric, supportedMetrics.end());
+    auto devices = ie.GetAvailableDevices();
+}
 
-    std::cout << "Found available HDDL2 execution cores: " << std::endl;
-    for (const std::string& core : hddl2Cores) {
-        std::cout << core << std::endl;
-    }
+TEST_F(Metrics_Tests, canGetExecutionCores) {
+    std::vector<std::string> availableDevices = ie.GetMetric(pluginName, VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES));
+
+    ASSERT_EQ(availableDevices.size(), 1);
+    auto found_name = availableDevices[0].find(pluginName);
+    ASSERT_NE(found_name, std::string::npos);
 }

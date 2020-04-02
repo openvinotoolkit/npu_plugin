@@ -23,9 +23,7 @@
 #include "hddl2_params.hpp"
 
 using namespace vpu::HDDL2Plugin;
-//------------------------------------------------------------------------------
-// Implementation of methods of class HDDL2Metrics
-//------------------------------------------------------------------------------
+const std::string HDDL2Metrics::_deviceName= "HDDL2";
 
 HDDL2Metrics::HDDL2Metrics() {
     _supportedMetrics = {
@@ -41,17 +39,17 @@ std::vector<std::string> HDDL2Metrics::GetAvailableExecutionCoresNames() {
 
     std::vector<std::string> availableDevices;
     for (auto& core : Cores) {
-        availableDevices.push_back(std::to_string(core.getSwDeviceId()));
+        availableDevices.push_back(_deviceName + "." + std::to_string(core.getSwDeviceId()));
     }
     std::sort(availableDevices.begin(), availableDevices.end());
     return availableDevices;
 }
 
 std::vector<std::string> HDDL2Metrics::GetAvailableDeviceNames() {
-    return {HDDL2Metrics::isAvailableDevices() ? "HDDL2Device" : ""};
+    return {HDDL2Metrics::isAnyDeviceAvailable() ? _deviceName: ""};
 }
 
-bool HDDL2Metrics::isAvailableDevices() {
+bool HDDL2Metrics::isAnyDeviceAvailable() {
     std::vector<HddlUnite::Device> devices;
     getAvailableDevices(devices);
     return !devices.empty();

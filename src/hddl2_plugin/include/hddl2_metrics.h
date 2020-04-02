@@ -35,28 +35,20 @@ using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 namespace vpu {
 namespace HDDL2Plugin {
 
-//------------------------------------------------------------------------------
-// class HDDL2Metrics
-// Class to keep and extract metrics value.
-//------------------------------------------------------------------------------
-
 class HDDL2Metrics {
 public:
-    // Constructor
     HDDL2Metrics();
 
-    // Accessors
     static std::vector<std::string> GetAvailableExecutionCoresNames();
     static std::vector<std::string> GetAvailableDeviceNames();
-    static bool isAvailableDevices();
+    static bool isAnyDeviceAvailable();
     const std::vector<std::string>& SupportedMetrics() const;
 
-    // Destructor
     ~HDDL2Metrics() = default;
 
 private:
-    // Data section
     std::vector<std::string> _supportedMetrics;
+    static const std::string _deviceName;
 };
 
 }  // namespace HDDL2Plugin
