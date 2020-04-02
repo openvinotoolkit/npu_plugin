@@ -1563,9 +1563,9 @@ class Repack_Input_DMA_Tasks {
         schedule_time_t curr_time = traits::scheduled_time(original_op_);
         schedule_time_t repack_time = traits::scheduled_time(limiting_op_);
 
-        std::cout << "op=" << traits::operation_name(curr_op) <<
-          " curr_time=" << curr_time << " repack_time=" << repack_time  <<
-          " limiting_op=" << traits::operation_name(limit_op) << std::endl;
+//        std::cout << "op=" << traits::operation_name(curr_op) <<
+//          " curr_time=" << curr_time << " repack_time=" << repack_time  <<
+//          " limiting_op=" << traits::operation_name(limit_op) << std::endl;
         fflush(stdout);
         assert(repack_time != curr_time);
       }
@@ -1714,16 +1714,16 @@ class Repack_Input_DMA_Tasks {
       }
     }
 
-    void print() const {
-      std::cout << "===============<Repacked Ops>====================="
-          <<std::endl;
-      typename repack_map_t::const_iterator itr;
-      for (itr=repack_map_.begin(); itr!=repack_map_.end(); ++itr) {
-        (itr->second).print();
-      }
-      std::cout << "===============</Repacked Ops>====================="
-          <<std::endl;
-    }
+//    void print() const {
+//      std::cout << "===============<Repacked Ops>====================="
+//          <<std::endl;
+//      typename repack_map_t::const_iterator itr;
+//      for (itr=repack_map_.begin(); itr!=repack_map_.end(); ++itr) {
+//        (itr->second).print();
+//      }
+//      std::cout << "===============</Repacked Ops>====================="
+//          <<std::endl;
+//    }
 
     double average_repack_level() const {
       // (\Sum repack_level(v)) / total_data_ops 
