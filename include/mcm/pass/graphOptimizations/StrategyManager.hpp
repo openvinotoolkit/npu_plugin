@@ -157,7 +157,7 @@ public:
     mv::Element& passDesc_;
 
     string dotFileLocation;
-    bool createStrategyDots;
+    bool createStrategyDots=false;
     string jsonOutFileName;
 
     StrategyManager(OpModel& model,mv::Element& passDesc);

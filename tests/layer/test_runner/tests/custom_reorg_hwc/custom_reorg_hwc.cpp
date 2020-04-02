@@ -54,4 +54,6 @@ int main()
 
     test.run(is_chw ? "reorg_chw.elf" : "reorg_hwc.elf",
             {0, 0, width, height, channels, stride, local_memory_size, local_memory_size});
+
+    return 0;
 }
