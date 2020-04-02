@@ -36,7 +36,7 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
 
     if (INTEGRATION_TESTS_ENABLE_IE)
         add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
-        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::helpers NN vpusmm)
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::ieTestHelpers NN vpusmm)
 
     else()
         find_package(GTest REQUIRED)
