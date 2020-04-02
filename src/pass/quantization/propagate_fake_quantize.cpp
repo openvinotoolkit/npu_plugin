@@ -453,6 +453,11 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
 }
 
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
+    mv::OpModel om(model);
+    auto fq_ops = om.getOps("FakeQuantize");
+    if (fq_ops.empty())
+        return;
+
     propagateParameters( model);
     quantizeIO(model);
     quantizeConst(model);
