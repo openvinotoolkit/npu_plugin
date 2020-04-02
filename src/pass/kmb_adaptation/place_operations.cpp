@@ -70,18 +70,21 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 for(std::size_t i = 0; i < opIt->inputSlots(); ++i)
                     opIt->getInputTensor(i)->set<mv::DType>("dType", mv::DType("Float16"));
                 opIt->getOutputTensor(0)->set<mv::DType>("dType", mv::DType("Float16"));
+                opIt->set<mv::DType>("dType", mv::DType("Float16"));
                 bool hasBias = opIt->hasAttr("bias");
 
                 if (opIt->hasWeights())
                 {
                     double real_weight;
                     double real_weight_fp16;
-                    std::vector<int64_t> weightsData;
                     mv::Data::TensorIterator weightsTensor =  opIt->getInputTensor(1);
+                    std::vector<int64_t> weightsData(weightsTensor->getData().size());
                     std::vector<double> scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
                     std::vector<int64_t> zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
-
                     auto kernelShape = opIt->getInputTensor(1)->getShape();
+                    scale = extendToK(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], scale, weightsTensor->getName());
+                    zp = extendToK(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], zp, weightsTensor->getName());
+
                     for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
                     {
                         for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
@@ -93,7 +96,11 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                     auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
                                     real_weight = ((int64_t)currWeight - zp[k]) * scale[k];
                                     real_weight_fp16 = mv::fp32_to_fp16(real_weight);
-                                    weightsData.push_back(real_weight_fp16);
+                                    const size_t idx = (k * kernelShape[mv::KERNEL_INPUT_CHANNELS] * kernelShape[mv::KERNEL_WIDTH] * kernelShape[mv::KERNEL_HEIGHT]) +
+                                                       (c * kernelShape[mv::KERNEL_WIDTH] * kernelShape[mv::KERNEL_HEIGHT]) +
+                                                       (h * kernelShape[mv::KERNEL_WIDTH]) +
+                                                        w;
+                                    weightsData[idx] = real_weight_fp16;
                                 }
                             }
                         }
@@ -102,7 +109,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                                         {kernelShape[mv::KERNEL_WIDTH], kernelShape[mv::KERNEL_HEIGHT],
                                         kernelShape[mv::KERNEL_INPUT_CHANNELS], kernelShape[mv::KERNEL_OUTPUT_CHANNELS]},
                                         mv::DType("Float16"),
-                                        mv::Order("NCHW"),
+                                        weightsTensor->getOrder(),
                                         {{0},{1},{},{}}, opIt->getName() + "FP16_weights");
                     if (hasBias)
                     {
@@ -113,9 +120,10 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         int64_t real_bias_fp16;
                         std::vector<double> weightsScale = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams").getScale();
                         std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                        weightsScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], weightsScale, bias->getName());
                         for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                         {
-                            biasOldScale = weightsScale[0] * inputScale[0];
+                            biasOldScale = weightsScale[k] * inputScale[0];
                             real_bias = ((int64_t) bias->at(k)) * biasOldScale;
                             real_bias_fp16 = mv::fp32_to_fp16(real_bias);
                             biasData.push_back(real_bias_fp16);
