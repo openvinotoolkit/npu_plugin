@@ -178,22 +178,16 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     }
 
     // NO FQ on branches
-    if (outQuantParams.size() == 0) {
+    if (outQuantParams.empty()) {
         return initial_quant_params;
     }
 
-    bool quantParamsIsEqual = true;
     for (int i = 1; i < outQuantParams.size(); i++) {
         if (!isEqual(outQuantParams[0], outQuantParams[i])) {
-            quantParamsIsEqual = false;
+            throw std::runtime_error("Different quant params on branches");
         }
     }
-
-    if(quantParamsIsEqual) {
-        return outQuantParams[0];
-    } else {
-        throw std::runtime_error("Different quant params on branches");
-    }
+    return outQuantParams[0];
 }
 
 mv::QuantizationParams getParentQuantParams(mv::OpModel& om, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
