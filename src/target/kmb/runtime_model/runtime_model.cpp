@@ -2160,7 +2160,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 
         toReturn *= multiplicator;
     }
-    else if(taskType == "UPATask")
+    else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;
 
     return toReturn;
