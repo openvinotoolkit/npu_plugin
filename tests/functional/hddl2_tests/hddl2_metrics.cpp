@@ -14,26 +14,37 @@
 // stated in the License.
 //
 
-#include <RemoteMemory.h>
-#include <WorkloadContext.h>
-#include <details/ie_cnn_network_tools.h>
-
-#include <blob_factory.hpp>
-#include <fstream>
 #include <core_api.h>
 
-#include "comparators.h"
-#include "file_reader.h"
-#include "gtest/gtest.h"
-#include "hddl2_helpers/helper_tensor_description.h"
+#include "HddlUnite.h"
 #include "hddl2_params.hpp"
 #include "ie_core.hpp"
-#include "ie_plugin_config.hpp"
-#include "models/precompiled_resnet.h"
+#include "ie_metric_helpers.hpp"
 
 namespace IE = InferenceEngine;
 
-class Metrics_Tests : public CoreAPI_Tests {};
+class Metrics_Tests : public CoreAPI_Tests {
+public:
+    std::vector<std::string> getHddlDevicesIds();
+    std::vector<std::string> hddlDevicesIds;
+
+protected:
+    void SetUp() override;
+};
+
+std::vector<std::string> Metrics_Tests::getHddlDevicesIds() {
+    std::vector<HddlUnite::Device> devices;
+    std::vector<std::string> devicesNames;
+    auto status = getAvailableDevices(devices);
+    if (status == HDDL_OK) {
+        for (const auto& device : devices) {
+            devicesNames.push_back(std::to_string(device.getSwDeviceId()));
+        }
+    }
+    return devicesNames;
+}
+
+void Metrics_Tests::SetUp() { hddlDevicesIds = getHddlDevicesIds(); }
 
 TEST_F(Metrics_Tests, supportsGetAvailableDevice) {
     auto metricName = METRIC_KEY(AVAILABLE_DEVICES);
@@ -44,25 +55,35 @@ TEST_F(Metrics_Tests, supportsGetAvailableDevice) {
 }
 
 TEST_F(Metrics_Tests, canGetAvailableDevice) {
-    std::vector<std::string> availableDevices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> availableHDDL2Devices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
 
-    ASSERT_EQ(availableDevices.size(), 1);
-    ASSERT_EQ(availableDevices[0], pluginName);
+    ASSERT_GE(availableHDDL2Devices.size(), 1);
+    for (const auto& id : hddlDevicesIds) {
+        auto found_name =
+            std::find_if(availableHDDL2Devices.begin(), availableHDDL2Devices.end(), [id](const std::string& str) {
+                return str.find(id) != std::string::npos;
+            });
+        ASSERT_NE(found_name, availableHDDL2Devices.end());
+    }
 }
 
-TEST_F(Metrics_Tests, supportsGetAvailableExecutionCores) {
-    auto metricName = VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES);
-
-    std::vector<std::string> supportedMetrics = ie.GetMetric(pluginName, METRIC_KEY(SUPPORTED_METRICS));
-    auto found_metric = std::find(supportedMetrics.begin(), supportedMetrics.end(), metricName);
-    ASSERT_NE(found_metric, supportedMetrics.end());
-    auto devices = ie.GetAvailableDevices();
+TEST_F(Metrics_Tests, canFoundHddl2DeviceInAllDevices) {
+    std::vector<std::string> allDevices = ie.GetAvailableDevices();
+    auto found_name = std::find_if(allDevices.begin(), allDevices.end(), [this](const std::string& str) {
+        return str.find(pluginName) != std::string::npos;
+    });
+    ASSERT_NE(found_name, allDevices.end());
 }
 
-TEST_F(Metrics_Tests, canGetExecutionCores) {
-    std::vector<std::string> availableDevices = ie.GetMetric(pluginName, VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES));
-
-    ASSERT_EQ(availableDevices.size(), 1);
-    auto found_name = availableDevices[0].find(pluginName);
-    ASSERT_NE(found_name, std::string::npos);
+TEST_F(Metrics_Tests, canFoundHddl2DevicesIdsInAllDevices_IfMany) {
+    if (hddlDevicesIds.size() <= 1) {
+        GTEST_SKIP() << "Not enough devices for test";
+    }
+    std::vector<std::string> allDevices = ie.GetAvailableDevices();
+    for (const auto& id : hddlDevicesIds) {
+        auto found_name = std::find_if(allDevices.begin(), allDevices.end(), [id](const std::string& str) {
+            return str.find(id) != std::string::npos;
+        });
+        ASSERT_NE(found_name, allDevices.end());
+    }
 }

@@ -23,36 +23,27 @@
 #include "hddl2_params.hpp"
 
 using namespace vpu::HDDL2Plugin;
-const std::string HDDL2Metrics::_deviceName= "HDDL2";
 
 HDDL2Metrics::HDDL2Metrics() {
     _supportedMetrics = {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(AVAILABLE_DEVICES),
-        VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES),
     };
 }
 
-std::vector<std::string> HDDL2Metrics::GetAvailableExecutionCoresNames() {
-    std::vector<HddlUnite::Device> Cores;
-    getAvailableDevices(Cores);
-
-    std::vector<std::string> availableDevices;
-    for (auto& core : Cores) {
-        availableDevices.push_back(_deviceName + "." + std::to_string(core.getSwDeviceId()));
-    }
-    std::sort(availableDevices.begin(), availableDevices.end());
-    return availableDevices;
-}
-
-std::vector<std::string> HDDL2Metrics::GetAvailableDeviceNames() {
-    return {HDDL2Metrics::isAnyDeviceAvailable() ? _deviceName: ""};
-}
-
-bool HDDL2Metrics::isAnyDeviceAvailable() {
+std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
     std::vector<HddlUnite::Device> devices;
-    getAvailableDevices(devices);
-    return !devices.empty();
+    auto status = getAvailableDevices(devices);
+    if (status != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to get devices names!";
+    }
+
+    std::vector<std::string> devicesNames;
+    for (const auto& device : devices) {
+        devicesNames.push_back(std::to_string(device.getSwDeviceId()));
+    }
+    std::sort(devicesNames.begin(), devicesNames.end());
+    return devicesNames;
 }
 
 const std::vector<std::string>& HDDL2Metrics::SupportedMetrics() const { return _supportedMetrics; }

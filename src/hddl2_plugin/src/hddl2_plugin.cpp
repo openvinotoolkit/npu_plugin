@@ -150,9 +150,7 @@ RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
 InferenceEngine::Parameter Engine::GetMetric(
     const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, HDDL2Metrics::GetAvailableDeviceNames());
-    } else if (name == VPU_HDDL2_METRIC(GET_AVAILABLE_EXECUTION_CORES)) {
-        IE_SET_METRIC_RETURN(VPU_HDDL2_GET_AVAILABLE_EXECUTION_CORES, HDDL2Metrics::GetAvailableExecutionCoresNames());
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, HDDL2Metrics::GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
     }

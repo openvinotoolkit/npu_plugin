@@ -18,19 +18,10 @@
 
 #include <HddlUnite.h>
 
-#include <functional>
-#include <ie_core.hpp>
-#include <ie_metric_helpers.hpp>
-#include <ie_parameter.hpp>
-#include <map>
-#include <memory>
 #include <string>
-#include <tuple>
 #include <vector>
 
 #include "hddl2_params.hpp"
-
-using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -39,16 +30,13 @@ class HDDL2Metrics {
 public:
     HDDL2Metrics();
 
-    static std::vector<std::string> GetAvailableExecutionCoresNames();
-    static std::vector<std::string> GetAvailableDeviceNames();
-    static bool isAnyDeviceAvailable();
+    static std::vector<std::string> GetAvailableDevicesNames();
     const std::vector<std::string>& SupportedMetrics() const;
 
     ~HDDL2Metrics() = default;
 
 private:
     std::vector<std::string> _supportedMetrics;
-    static const std::string _deviceName;
 };
 
 }  // namespace HDDL2Plugin
