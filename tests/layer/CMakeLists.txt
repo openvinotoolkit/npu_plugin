@@ -116,6 +116,12 @@ else()
     add_executable(eltwise_replacement eltwise_replacement/eltwise_replacement.cpp)
     target_link_libraries(eltwise_replacement cm)
 
+    add_executable(eltwise_sparsity_pool eltwise_sparsity_pool/eltwise_sparsity_pool.cpp)
+    target_link_libraries(eltwise_sparsity_pool cm)
+
+    add_executable(eltwise_sparsity_conv eltwise_sparsity_conv/eltwise_sparsity_conv.cpp)
+    target_link_libraries(eltwise_sparsity_conv cm)
+
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 
