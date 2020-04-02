@@ -275,7 +275,7 @@ namespace mv
                 }
 
                 //Additional memory footprint for sparsity
-                               if(fakeSparsity)
+                if(fakeSparsity)
                 {
                     if (opType != "MaxPool" && opType != "DepthwiseConv" && !isCMConv)
                     {
