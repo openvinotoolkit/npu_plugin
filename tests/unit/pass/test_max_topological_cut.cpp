@@ -69,7 +69,7 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
     auto biasWeights0 = om.constantInt(biasWeightsData0,{64}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{2.2519669073517434e-05},{-inf},{inf}}, "conv1_bias#2");
     auto bias_c0 = om.bias(conv0, biasWeights0, {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto pool0 = om.maxPool(bias_c0, {3, 3}, {2, 2}, {0, 1, 0, 1}, true, "", "floor", {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#182");
+    auto pool0 = om.maxPool(bias_c0, {3, 3}, {2, 2}, {0, 1, 0, 1}, true, {{0},{0.003921568859368563},{0.0},{1.0}}, "pool1/max_pool#182");
 
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (1*1*64*256);
     auto weights1 = om.constantInt(weightsData1,{1,1,64,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{137},{0.0030952668748795986},{-0.42331647872924805},{0.36597657203674316}}, "res2a_branch1_weights#5");
@@ -519,7 +519,7 @@ TEST(MaxTopologicalCut, greaterThanCMXMemory)
 
     auto eltwise15 = om.add({eltwise14,bias_c52}, {{0},{0.250980406999588},{0.0},{64.0}}, "res5c/Relu#250");
 
-    auto pool1 = om.averagePool(eltwise15, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", {{0},{0.250980406999588},{0.0},{64.0}}, "pool5/AvgPool#251");
+    auto pool1 = om.averagePool(eltwise15, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, {{0},{0.250980406999588},{0.0},{64.0}}, "pool5/AvgPool#251");
 
     std::vector<int64_t> weightsData53 = mv::utils::generateSequence<int64_t> (1*1*2048*1024);
     auto weights53 = om.constantInt(weightsData53,{1,1,2048,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.003821961348876357},{-0.49569910764694214},{0.4789010286331177}}, "fc1000/fc1000_weights#178");

@@ -456,7 +456,7 @@ int main()
     auto biasWeights34 = om.constantInt(biasWeightsData34,{1792}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{0.00041725640767253935},{-inf},{inf}}, "MobilenetV2/Conv_1/Relu6#163_bias#165");
     auto bias_c34 = om.bias(conv34, biasWeights34, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}});
 
-    auto pool0 = om.averagePool(bias_c34, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, "", "floor", mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/Logits/AvgPool#233");
+    auto pool0 = om.averagePool(bias_c34, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.023528477177023888},{0.0},{5.999761581420898}}, "MobilenetV2/Logits/AvgPool#233");
 
     std::vector<int64_t> weightsData35 = mv::utils::generateSequence<int64_t> (1*1*1792*1001);
     auto weights35 = om.constantInt(weightsData35,{1,1,1792,1001}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{106},{0.0015488684875890613},{-0.16265293955802917},{0.2307596653699875}}, "MobilenetV2/Logits/Conv2d_1c_1x1/act_quant/FakeQuantWithMinMaxVars#167_weights#168");

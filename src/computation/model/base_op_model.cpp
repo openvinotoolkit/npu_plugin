@@ -89,7 +89,7 @@ std::string mv::BaseOpModel::varName(std::string name)
 
 void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
 {
-    // std::cout << "Initializing RecordedModel..." << std::endl;
+    // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
     delete dataOut_;
 
@@ -289,9 +289,10 @@ std::vector<mv::Data::OpListIterator> mv::BaseOpModel::lexTopologicalSort()
     auto lexTopSortResult = mv::lexTopologicalSort<Op, DataFlow, OpItComparator, OpLexComparator>(dataGraph_);
     std::vector<mv::Data::OpListIterator> toReturn(lexTopSortResult.begin(), lexTopSortResult.end());
 
+    log(Logger::MessageType::Debug, "LexTopological Sorted Operations: ");
     for (auto s: toReturn)
     {
-        std::cout << s->getName() << std::endl;
+        log(Logger::MessageType::Debug, s->getName());
     }
     return toReturn;
 }
@@ -421,6 +422,11 @@ long long unsigned mv::BaseOpModel::parametersCount() const
 void mv::BaseOpModel::addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr)
 {
     op->set(name, attr);
+}
+
+void mv::BaseOpModel::eraseAttr(Data::OpListIterator op, const std::string& name)
+{
+    op->erase(name);
 }
 
 std::string mv::BaseOpModel::getLogID() const

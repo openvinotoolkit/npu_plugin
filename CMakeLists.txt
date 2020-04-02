@@ -6,11 +6,11 @@ option(MCM_COMPILER_BUILD_PYTHON "Build Python wrappers" ON)
 option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
 option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
 option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
+option(MCM_COMPILER_FORCE_BUILD_LEMON "Force build lemon library" OFF)
 
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
-
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
 
 set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
@@ -27,12 +27,11 @@ include_directories(${META_DIR_PATH})
 
 if (NOT CMAKE_BUILD_TYPE)
     # Due to the current development pace, Debug is default build type
-    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 add_compile_options(-std=c++11 --no-gnu-unique)
-add_compile_options(-O3)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -102,7 +101,7 @@ add_code_coverage()
 #############################################################################################
 
 find_package(LEMON QUIET)
-if(LEMON_FOUND)
+if(LEMON_FOUND AND NOT MCM_COMPILER_FORCE_BUILD_LEMON)
     message(STATUS "Found LEMON installed on target system : ${LEMON_LIBRARY}")
 
     add_library(lemon UNKNOWN IMPORTED)
@@ -113,9 +112,9 @@ else()
     message(STATUS "LEMON library is not installed on target system, build it from the sources...")
     add_subdirectory(contrib/lemon)
 
-    target_include_directories(lemon INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon"
-        "${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon")
+    target_include_directories(lemon PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon
+        ${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon)
 endif()
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -255,6 +254,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/pass_registry.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/pass_utils.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/quantization/propagate_fake_quantize.cpp"
+
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
 
@@ -266,14 +267,18 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/ppe_replacement.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/reshape_as_implicit.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/permute_as_implicit.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/update_implicit_layers_quatization_params.cpp"
 
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_weights.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_control_flow.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_output_dtype.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/place_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
@@ -294,7 +299,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_to_16_channels.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/real_pad_tensors.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_align_slice_ops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
 
@@ -365,21 +369,18 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:corebase> $<TARGET_OBJECTS:metamodel>)
-    add_library(corebase OBJECT ${base} ${logger})
-    add_library(model OBJECT ${model} $<TARGET_OBJECTS:corebase>)
+    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:metamodel>)
+    add_library(model OBJECT ${model})
 
     add_dependencies(cm generate-comp-api)
     add_dependencies(cm generate-graphfile-headers)
     add_dependencies(model generate-comp-api)
 
-    target_link_libraries(cm PUBLIC corebase metamodel)
-    target_link_libraries(model PUBLIC corebase)
+    target_link_libraries(cm PUBLIC metamodel)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-    add_library(corebase SHARED ${base} ${logger})
     add_library(model SHARED ${model})
-
+    
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
@@ -388,8 +389,12 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC corebase model metamodel flatbuffers)
-    target_link_libraries(model PUBLIC lemon)
+    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
+    target_link_libraries(model PRIVATE lemon)
+
+    # setup warnings as errors
+    target_compile_options(cm PRIVATE -Wall -Wextra)
+    target_compile_options(model PRIVATE -Wall -Wextra)
 
     if(NOT CMAKE_CROSSCOMPILING)
         if(MCM_COMPILER_BUILD_PYTHON)
@@ -404,16 +409,19 @@ endif()
 add_subdirectory(src/scheduler)
 add_subdirectory(src/pass/lp_scheduler)
 add_dependencies(cm lp_scheduler lp_scheduler_pass)
+
+set(CM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include
+                           ${PROJECT_SOURCE_DIR}
+                           ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
+                           ${META_DIR_PATH})
+
 target_include_directories(cm
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/pass>
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>)
-
-
-target_include_directories(cm INTERFACE
-    ${PROJECT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
-    ${META_DIR_PATH})
+        PUBLIC
+            "$<BUILD_INTERFACE:${CM_INCLUDE_DIRECTORIES}>"
+            "$<INSTALL_INTERFACE:.>"
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/src/pass
+            ${PROJECT_SOURCE_DIR}/src/)
 
 if (${PROFILER} AND ${UNIX})
     target_link_libraries(cm easy_profiler)
@@ -431,3 +439,35 @@ if(NOT CMAKE_CROSSCOMPILING)
         add_subdirectory(tools)
     endif()
 endif()
+
+install(TARGETS cm model
+        EXPORT mcmCompilerTargets
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib
+        INCLUDES DESTINATION "include")
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/config
+        DESTINATION "."
+        PATTERN ".gitignore" EXCLUDE)
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION "include")
+
+install(DIRECTORY ${META_DIR_PATH}/include
+                  ${META_DIR_PATH}/schema
+        DESTINATION "include/mcm/meta")
+
+install(EXPORT mcmCompilerTargets DESTINATION "share/cmake/mcmCompiler")
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+        "${CMAKE_CURRENT_LIST_DIR}/cmake/mcmCompilerConfig.cmake.in"
+        "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
+        INSTALL_DESTINATION "share/cmake/mcmCompiler"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+install(FILES "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
+        DESTINATION "share/cmake/mcmCompiler")

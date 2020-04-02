@@ -47,7 +47,6 @@ if (MSVC)
         ${META_DIR_PATH}/src/compositional_model.cpp
         ${META_DIR_PATH}/src/op_model.cpp
         $<TARGET_OBJECTS:model>
-        $<TARGET_OBJECTS:corebase>
     )
 else()
     add_library(metamodel SHARED
@@ -60,3 +59,10 @@ else()
         target_link_libraries(metamodel easy_profiler)
     endif()
 endif()
+
+install(TARGETS metamodel
+        EXPORT mcmCompilerTargets
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib
+        INCLUDES DESTINATION "include")

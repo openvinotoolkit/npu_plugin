@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op_registry.hpp"
+#include "include/mcm/tensor/tiling.hpp"
 
 namespace mv
 {
@@ -90,11 +91,14 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto group = args.at("group").get<unsigned>();
 
-            // TODO: Please take dilation factor into account!
-            // Make sure that the result of subtract will not be negative
-            auto W = (dataShape[IO_WIDTH_DIMENSION] + padding[0] + padding[1] - kernelShape[KERNEL_WIDTH]) / stride[0] + 1;
-            auto H = (dataShape[IO_HEIGHT_DIMENSION] + padding[2] + padding[3] - kernelShape[KERNEL_HEIGHT]) / stride[1] + 1;
-            auto C =  kernelShape[KERNEL_OUTPUT_CHANNELS] * group;
+            // TODO: dilation factor must be per kernel dimension
+            auto dilationFactor = args.at("dilationFactor").get<unsigned>();
+            auto dilated_kernel_w = (kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1;
+            auto dilated_kernel_h = (kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1;
+
+            auto W = Tiling::inferOutputSize(dataShape[IO_WIDTH_DIMENSION], padding[0], padding[1], dilated_kernel_w, stride[0]);
+            auto H = Tiling::inferOutputSize(dataShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], dilated_kernel_h, stride[1]);
+            auto C = kernelShape[KERNEL_OUTPUT_CHANNELS] * group;
             auto N = dataShape[IO_BATCH_DIMENSION];
 
             mv::Shape outputShape({W, H, C, N});

@@ -125,7 +125,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
 
             if (hasSliceOp)
             {
-                //std::cout << "old weights location = " << oldWeightLocation.toString() << std::endl;
+                //pass.log(mv::Logger::MessageType::Debug, "old weights location = " + oldWeightLocation.toString());
                 newKernel->set<mv::Tensor::MemoryLocation>("Location", oldWeightLocation);
             }
 

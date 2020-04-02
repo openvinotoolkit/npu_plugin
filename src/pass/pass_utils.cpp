@@ -75,8 +75,8 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
     auto paramOp = opIt.leftmostParent();
     while(paramOp != om.opEnd())
     {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-            || paramOp->getOpType() == "ConstantDataElement")
+        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+            || paramOp->getOpType() == "ConstantDataElement"))
         {
             auto backUp = paramOp;
             ++paramOp;
@@ -99,4 +99,182 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
     }
 
     return opIt;
+}
+
+mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    auto paramOp = opIt.leftmostParent();
+    while(paramOp != om.opEnd())
+    {
+        if (paramOp->getOutputTensor(0) != sourceTensor && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+            || paramOp->getOpType() == "ConstantDataElement"))
+        {
+            auto backUp = paramOp;
+            ++paramOp;
+            om.removeOp(backUp);
+        }
+        else
+            ++paramOp;
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+
+    if(sourceTensor == om.tensorEnd())
+        sourceTensor = parentOpIt->getOutputTensor(0);
+
+    for (unsigned j = 0; j < opsToLink.size(); ++j)
+    {
+        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
+        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
+    }
+
+    return opIt;
+}
+
+void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
+{
+    outScale = (outputMax - outputMin)/255;
+    if (outputMin >= 0.0)
+        outZp = 0;
+    else if (outputMax <= 0.0)
+        outZp = 255;
+    else if ((outputMin < 0.0) && (outputMax > 0.0))
+    {
+        auto max_diff = (outputMax/(std::abs(outputMin) + outputMax)) * 255;
+        outZp = std::ceil(255 - max_diff);
+    }
+}
+
+void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor)
+{
+    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+
+    //Note: if input Tensor has min, max of infs...we need to compute them
+    if (tensorQuantization.infinitelimits())
+    {
+        //Quantization equation Real = scale(Quantized - zeroPoint)
+        double maximumFloat = tensorQuantization.getScale()[0] * (255 - tensorQuantization.getZeroPoint()[0]);
+        double minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[0];
+        if (minimumFloat == -0)
+            minimumFloat = 0;
+
+        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
+                                                    tensorQuantization.getScale(),{minimumFloat},{maximumFloat});
+        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+    }
+}
+
+void updateInfMinMaxPerChannel(mv::Data::TensorIterator tensor)
+{
+    auto& tensorQuantization = tensor->get<mv::QuantizationParams>("quantParams");
+
+    //Note: Do not care if populated or unpopulated....batch = 1
+    if (tensorQuantization.infinitelimits())
+    {
+        std::vector <double> maximums, minimums;
+        double maximumFloat, minimumFloat;
+        for (uint32_t channel = 0; channel < tensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]; channel++)
+        {
+            //Quantization equation Real = scale(Quantized - zeroPoint)
+            maximumFloat = tensorQuantization.getScale()[channel] * (255 - tensorQuantization.getZeroPoint()[0]);
+            minimumFloat = -tensorQuantization.getZeroPoint()[0] * tensorQuantization.getScale()[channel];
+            if (minimumFloat == -0)
+                minimumFloat = 0;
+            maximums.push_back(maximumFloat);
+            minimums.push_back(minimumFloat);
+        }
+        mv::QuantizationParams newTensorQuantization(tensorQuantization.getZeroPoint(),
+                                                    tensorQuantization.getScale(),minimums, maximums);
+        tensor->set<mv::QuantizationParams>("quantParams", newTensorQuantization);
+    }
+}
+
+//template <class T>
+//std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName)
+//{
+//    if (value.size() == 1)
+//        return mv::utils::generateSequence<T>(size, static_cast<T>(value[0]) , 0);
+
+//    // We enter in this case if and only if we specified multi channel scales and
+//    // the tensor has been aligned
+//    if (value.size() < size)
+//    {
+//        auto toReturn = mv::utils::generateSequence<T>(size, static_cast<T>(0) , 0);
+//        for(unsigned i = 0; i < value.size(); ++i)
+//            toReturn[i] = value[i];
+//        return toReturn;
+//    }
+
+//    if (value.size() == size)
+//        return value;
+
+//    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+//                std::to_string(value.size()));
+//}
+
+std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<double>(size, static_cast<double>(value[0]) , 0);
+
+    // We enter in this case if and only if we specified multi channel scales and
+    // the tensor has been aligned
+    if (value.size() < size)
+    {
+        auto toReturn = mv::utils::generateSequence<double>(size, static_cast<double>(0) , 0);
+        for(unsigned i = 0; i < value.size(); ++i)
+            toReturn[i] = value[i];
+        return toReturn;
+    }
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
+
+std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName)
+{
+    if (value.size() == 1)
+        return mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(value[0]) , 0);
+
+    // We enter in this case if and only if we specified multi channel scales and
+    // the tensor has been aligned
+    if (value.size() < size)
+    {
+        auto toReturn = mv::utils::generateSequence<int64_t>(size, static_cast<int64_t>(0) , 0);
+        for(unsigned i = 0; i < value.size(); ++i)
+            toReturn[i] = value[i];
+        return toReturn;
+    }
+
+    if (value.size() == size)
+        return value;
+
+    throw mv::ArgumentError("QuantizationPass", "extendToK", "parameters for " + tensorName + " dimensions doesn't match size of output_channels or 1",
+                std::to_string(value.size()));
+}
+
+std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
+{
+    std::vector<mv::Data::OpListIterator> sinkOperations;
+    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+    for(auto flowName : flowsNames)
+    {
+        auto df = dataModel.getDataFlow(flowName);
+        sinkOperations.push_back(df.sink());
+    }
+    return sinkOperations;
 }

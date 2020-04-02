@@ -284,6 +284,8 @@ bool mv::attr::AttributeRegistry::checkInstanceTrait(const std::string& trait)
 #include    "src/base/attribute_def/std_vector_int64.cpp"
 #include    "src/base/attribute_def/std_vector_std_size_t.cpp"
 #include    "src/base/attribute_def/std_vector_std_string.cpp"
+#include    "src/base/attribute_def/std_vector_uint8_t.cpp"
 #include    "src/base/attribute_def/std_vector_unsigned.cpp"
+#include    "src/base/attribute_def/uint8_t.cpp"
 #include    "src/base/attribute_def/unsigned_short.cpp"
 #include    "src/base/attribute_def/unsigned.cpp"

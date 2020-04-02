@@ -6,6 +6,7 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_math.hpp"
 #include <math.h>
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -40,48 +41,6 @@ mv::Data::TensorIterator createFakeSparsityMap(mv::OpModel om, mv::Data::OpListI
     return sparsityMap;
 }
 
-uint16_t getWindowSize(uint16_t kx, uint16_t sx, mv::DType dataType)
-{
-    //Find max mpe where if calc window <= 32
-    //return window size for the max mpe
-    uint16_t windowSize, maxMpeWindowSize = 64;
-    int mpe = 1;
-
-    if (dataType == mv::DType("UInt8"))
-    {
-        //mpe in [1,2,4,8,16] for uint8
-        while(mpe <= 16)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
-
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
-
-            mpe *= 2;
-        }
-    }
-    else if (dataType == mv::DType("Float16"))
-    {
-        //mpe in [1,2,4] for float
-        while(mpe <= 4)
-        {
-            if (sx <= kx)
-                windowSize = kx + sx * (mpe - 1);
-            else
-                windowSize = kx * mpe;
-
-            if (windowSize <= 32)
-                maxMpeWindowSize = windowSize;
-
-            mpe *= 2;
-        }
-    }
-
-    return maxMpeWindowSize;
-}
 
 std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_t windowsSize, uint16_t inputChannels)
 {
@@ -122,9 +81,9 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // being it the hackiest operation ever
             bool isElementWise = taskOp == "Eltwise";
 
-            //for max pooling and deptwise convolution (and CM conv, if enabled) we need to 
+            //for max pooling and deptwise convolution (and CM conv, if enabled) we need to
             //generate sparsity data even if those layers do not support sparsity.
-            if (isPooling || isDepthWiseConv || isChannelMajorConv) 
+            if (isPooling || isDepthWiseConv || isChannelMajorConv)
             {
                 uint16_t kernelW, kernelH;
 
@@ -148,6 +107,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 }
 
                 mv::DType dataType = dpuTask->getInputTensor(0)->get<mv::DType>("dType");
+
+                //Temporary workaround to avoid RuntimeCrash for invalid Activation_Windows_Channel_Length calculation based on WindowsSize when DType=Float16 for maxpool
+                //When Mixed precision is enabled/implemented/supported, will need to fix Pass order in CD- VPUNND-2775
+                //KMBQuantizeConversion Pass (Handles DType Conversion but currently comes after GenerateSparsityMapsPopulatedTensor)
+
+                if(dataType.toString() == "Float16" && isPooling == true)
+                    dataType = mv::DType("UInt8");
                 if (!isPooling)
                     dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
 
@@ -165,13 +131,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     perChannelSparsity.resize(static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)) * 16);//allocate once
                     ndims = {16 * static_cast<std::size_t>(std::ceil(bitpattern.size() / 128.0)), 1, 1, inputChannels};
                 }
-                else //isChannelMajorConvolution	
-                {	
-                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));	
-                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window	
-                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));	
-                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once	
-                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};	
+                else //isChannelMajorConvolution
+                {
+                    bitpattern = std::move(createBitPattern(kernelW, kernelH, windowsSize, inputChannels));
+                    auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
+                    auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
+                    perChannelSparsity.resize(NumberOfRowsSparistyBytes * 16);//allocate once
+                    ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
                 }
 
                 int channelLenght = bitpattern.size();

@@ -38,6 +38,7 @@ namespace mv
 
         Data::OpListIterator getSourceOp(Data::TensorIterator tensor);
         void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr);
+        void eraseAttr(Data::OpListIterator op, const std::string& name);
 
         Data::TensorIterator defineOp(const std::string& opType, const std::vector<Data::TensorIterator>& inputs,
             const std::vector<std::pair<std::string, Attribute>>& args, std::string name = "", bool checkInputSize = true, bool checkArgs = true);

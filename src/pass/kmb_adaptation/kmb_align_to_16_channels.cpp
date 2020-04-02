@@ -31,7 +31,6 @@ void alignTo16ChannelsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::DataModel dm(model);
 
     auto globalConfigParams = model.getGlobalConfigParams();
-    int numberClusters = globalConfigParams->get<int>("Number_of_Clusters");
     int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
     auto dpuTasks = om.getOps("DPUTask");
 
@@ -169,8 +168,8 @@ static void alignBiasTensor(mv::Data::OpListIterator &opIt, const mv::Data::Tens
     {
         auto biasTensorQuantizationParams = biasTensor->get<mv::QuantizationParams>("quantParams");
         int64_t zeroPoint = 0;
-        if(biasTensor->isQuantized())
-            zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
+//        if(biasTensor->isQuantized())
+//            zeroPoint = biasTensorQuantizationParams.getZeroPoint()[0];
 
         auto newData = std::vector<mv::DataElement>(biasTensorSizePadded, mv::DataElement(biasTensorDType.isDoubleType(), zeroPoint));
         auto newBiasTensor = dm.defineTensor(mv::createAlignConstantName(biasTensorName), {biasTensorSizePadded}, biasTensorDType, mv::Order("W"), newData);

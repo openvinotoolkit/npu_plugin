@@ -215,7 +215,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
         auto splitList = s.get<std::vector<mv::Element>>("splits");
         for (unsigned i = 0; i < splitList.size(); i++)
         {
-            if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K")))
+            if ((splitList[i].hasAttr("C"))||(splitList[i].hasAttr("H"))||(splitList[i].hasAttr("W"))||(splitList[i].hasAttr("K"))||(splitList[i].hasAttr("N")))
                 hasSpec.push_back(nodeName);
         }
     }
@@ -224,8 +224,8 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
     auto copyElement = streamingStrategyList[0];
     auto copyName = copyElement.get<std::string>("name_filter");
     auto copySplits =  copyElement.get<std::vector<mv::Element>>("splits");
-    for (int i=copySplits.size(); i<4; i++)
-        copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k
+    for (int i=copySplits.size(); i<5; i++)
+        copySplits.push_back(copySplits[0]);    // 4 element vector for streaming strategies c,h,w,k. Now a 5 element vector c, h, w, k, b
     for (auto elem : strategiesToConvert)
     {
         auto& strategy = *elem;
@@ -238,6 +238,7 @@ std::vector<mv::Element> StrategyManager::convertStreamingStrategyToElement(Crit
             copySplits[1].set<int>("H", newStrategy[1]);
             copySplits[2].set<int>("C", newStrategy[2]);
             copySplits[3].set<int>("K", newStrategy[3]);
+            copySplits[4].set<int>("N", newStrategy[4]);
             copyElement.set("splits",copySplits);
             streamingStrategyList.push_back(copyElement);
         }
@@ -419,8 +420,9 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
             continue;
 
         auto outTensor = op->getOutputTensor(0);
+        auto executable = op->hasTypeTrait("executable") ? true : false;
 
-        if(spilling)
+        if(spilling && executable)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
@@ -681,14 +683,12 @@ void StrategyManager::graphParameterOptimizations()
 
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
-    //TODO:: error
-    cout<<"ERROR generateStrategySetForLayer" << endl;
-    return;
+    throw mv::ArgumentError("StrategyManager", "generateStrategySetForLayer", op.toString(), "No strategy for this layer");
 }
 
 double StrategyManager::transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
 {
-    cout<<"ERROR transitionCost" << endl;
+    log(mv::Logger::MessageType::Warning, "No transition cost asssociated with this op:  " + childOp.toString());
     return -1;
 }
 }

@@ -38,6 +38,7 @@ namespace mv
 
         std::size_t ndims() const;
         std::size_t totalSize() const;
+        bool isFlat() const;
         std::size_t& operator[](int ndim);
 
         static Shape broadcast(const Shape& s1, const Shape& s2);

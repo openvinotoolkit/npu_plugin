@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
+                "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -17,6 +17,10 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": true,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -83,6 +87,11 @@
             }
         ]
     },
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize"
+        ]
+    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -90,6 +99,8 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -101,7 +112,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.75},
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -118,7 +129,7 @@
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -177,6 +188,7 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
@@ -198,10 +210,17 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
-    "dma": {
+  "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
@@ -209,7 +228,14 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling"
+            "EnsureSplitStrategiesForSpilling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "control_flows":{
@@ -217,10 +243,6 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "HangingDmaControlFlows",
-                "weights_prefetch": 1
-            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -230,14 +252,17 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "AddDeallocationTasks",
+            { "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
+              "enable_simple_repacking" : true
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "MarkLastNodeForMaxTopologicalCut",
-            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -249,8 +274,11 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
-            "TensorGraphColoring",
-            "RemoveDeallocationTasks",
+            {
+              "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "allocator_mode": true
+            },
             "TransitiveReduction",
             {
                 "name" : "InsertBarrierTasks",
@@ -265,7 +293,14 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "validate": {
@@ -285,6 +320,7 @@
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",

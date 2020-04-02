@@ -4,6 +4,8 @@
 #include "include/mcm/base/element.hpp"
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include <vector>
+#include "include/mcm/computation/model/data_model.hpp"
 
 
 namespace mv
@@ -48,6 +50,9 @@ namespace mv
 
         Shape& getStartCoord() { return start_; }
         void setStartCoord(Shape start) { start_ = start; }
+
+        Shape& getEndCoord() { return start_; }
+        void setEndCoord(Shape start) { start_ = start; }
 
         Shape& getSize() { return size_; }
         void setSize(Shape size) { size_ = size; }
@@ -122,6 +127,11 @@ namespace mv
                 auto weightsShape = weightTensor->getShape();
                 auto kernelDin = (axisToSplit == mv::Shape::getAxis("W")) ? mv::KERNEL_WIDTH : mv::KERNEL_HEIGHT;
                 kernelSize = weightsShape[kernelDin];
+
+                if (opIt->hasAttr("dilationFactor")) {
+                    auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+                    kernelSize = (kernelSize - 1) * dilationFactor + 1;
+                }
             }
             else
             {
@@ -144,23 +154,21 @@ namespace mv
             else
                 padding = {0,0,0,0};
 
-            int padStart,padEnd;
+            int padStart=0,padEnd=0;
 
             if (axisToSplit == mv::Shape::getAxis("W"))
             {
                 padStart = padding[0];
                 padEnd = padding[1];
             }
-            else if (axisToSplit == mv::Shape::getAxis("H"))
+            else if (axisToSplit == mv::Shape::getAxis("H") || axisToSplit == mv::Shape::getAxis("N"))
             {
                 padStart = padding[2];
                 padEnd = padding[3];
             }
 
             int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-            auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-            int newOutputSize = newOutputSizes.first;
-            int remainderOutputSize = newOutputSizes.second;
+            std::vector<size_t> sizes = tileSpatialOutputSize(outputSize, numberOfSplits);
 
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
@@ -171,11 +179,11 @@ namespace mv
                 tileStart[axisToSplit] = startCoord;
 
                 if (split == 0)
-                    tileSize[axisToSplit] = inferInputSize(newOutputSize,padStart,0,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(sizes[split],padStart,0,kernelSize,kernelStride);
                 else if (split == (numberOfSplits-1))
-                    tileSize[axisToSplit] = inferInputSize(remainderOutputSize,0,padEnd,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(sizes[split],0,padEnd,kernelSize,kernelStride);
                 else
-                    tileSize[axisToSplit] = inferInputSize(newOutputSize,0,0,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(sizes[split],0,0,kernelSize,kernelStride);
 
                 mv::Tiling newTile(tileStart, tileSize);
                 setChildTile(newTile, split);
@@ -183,9 +191,9 @@ namespace mv
                 // Compute start coordinates for the next tile
                 // TODO: compute correct formula.
                 if (split == 0)
-                    startCoord += newOutputSize * kernelStride - (inferInputSize(newOutputSize,0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+                    startCoord += sizes[split] * kernelStride - (inferInputSize(sizes[split],0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
                 else
-                    startCoord += newOutputSize * kernelStride;
+                    startCoord += sizes[split] * kernelStride;
             }
         }
     };

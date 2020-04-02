@@ -18,6 +18,7 @@
 #include "lp_scheduler/control_edge_generator.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
+#include "include/mcm/logger/logger.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -213,7 +214,7 @@ class Control_Edge_Set {
               add_control_edge(redirected_consumer_op, sink_op, model);
 
           if (consumer_control_edge) {
-            printf("[ConsumerControl: (%s) -> (%s)]\n",
+            printfInfo("lpSchedulerPass", "[ConsumerControl: (%s) -> (%s)]\n",
                 redirected_consumer_op->getName().c_str(),
                 sink_op->getName().c_str());
           } else {
@@ -303,7 +304,7 @@ class Control_Edge_Set {
           !(cmodel.pathExists(oitr_source, oitr_sink)) &&
           !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
-          printf("[cycle : edge (sink<-source) = (%s <- %s)]\n",
+          printfInfo("lpSchedulerPass", "[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
           fflush(stdout);
         }
@@ -352,7 +353,7 @@ class Control_Edge_Set {
           operation_t child_op = *citr;
           if (!dag.is_dpu_op(child_op)) { continue; }
 
-          printf("[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
+          printfInfo("lpSchedulerPass", "[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
               (child_op->getName()).c_str());
           add_control_edge(op, child_op, model);
         }
@@ -387,7 +388,7 @@ class Control_Edge_Set {
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
-        printf("[redirecting %s to %s]\n", (op->getName()).c_str(),
+        printfInfo("lpSchedulerPass", "[redirecting %s to %s]\n", (op->getName()).c_str(),
               (cop->getName()).c_str());
       }
     }
@@ -442,12 +443,12 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       void print() const {
-        printf("[read_op=%s]->{ ", read_op_->getName().c_str());
+        printfInfo("lpSchedulerPass", "[read_op=%s]->{ ", read_op_->getName().c_str());
         for (auto itr=consumer_list_.begin(); itr!=consumer_list_.end();
               ++itr){
-          printf(" %s ", (*itr)->getName().c_str());
+          printfInfo("lpSchedulerPass", " %s ", (*itr)->getName().c_str());
         }
-        printf(" }\n");
+        printfInfo("lpSchedulerPass", " }\n");
       }
 
       operation_t read_op_;
@@ -478,12 +479,12 @@ class Dynamic_Spill_Node_Inserter {
 
       //Precondition: has_valid_write() //
       void print() const {
-        printf("[write_op=%s]\n", spilled_write_op_->getName().c_str());
+        printfInfo("lpSchedulerPass", "[write_op=%s]\n", spilled_write_op_->getName().c_str());
         for (auto ritr=read_subtrees_.begin(); ritr!=read_subtrees_.end();
               ++ritr) {
           ritr->print();
         }
-        printf("\n");
+        printfInfo("lpSchedulerPass", "\n");
       }
 
       bool has_valid_write() const { return spilled_write_op_ != NULL; }
@@ -612,12 +613,12 @@ class Dynamic_Spill_Node_Inserter {
     void print() const {
       for (auto itr=spilled_op_map_.begin(); itr!=spilled_op_map_.end();
             ++itr) {
-        printf("========================\n");
+        printfInfo("lpSchedulerPass", "========================\n");
         if (!has_redundant_spilled_write(itr)) {
-          printf("[spilled_op=%s]\n", (itr->first)->getName().c_str());
+          printfInfo("lpSchedulerPass", "[spilled_op=%s]\n", (itr->first)->getName().c_str());
           (itr->second).print();
         } 
-        printf("========================\n");
+        printfInfo("lpSchedulerPass", "========================\n");
       }
     }
 
@@ -1791,14 +1792,7 @@ class Repack_Input_DMA_Tasks {
 
           // updated scheduled op //
           if (new_repack_time != repack_time) {
-            printf("[RepackUpdate (%lu) (%lu) ]: original=",
-                  new_repack_time, repack_time);
-            repack_info.print();
-
             repack_info.update(get_original_scheduled_op(new_limiting_op));
-
-            printf("[RepackUpdate]: updated=");
-            repack_info.print();
           }
         }
 

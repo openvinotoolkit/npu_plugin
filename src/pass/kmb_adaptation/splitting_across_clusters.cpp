@@ -9,6 +9,7 @@
 #include "include/mcm/target/kmb/workload_struct.hpp"
 #include "include/mcm/target/kmb/workloads.hpp"
 #include "include/mcm/target/kmb/rectangle.hpp"
+#include "include/mcm/tensor/tiling.hpp"
 
 static const std::vector<mv::DPUModeList> TENSOR_MPE {{{1,1}}, {{16,1}}, {{1,16}}};
 
@@ -20,8 +21,7 @@ static void unpopulatedSplitOverH(const unsigned nWorkloads, std::vector<mv::Wor
                                   const mv::pass::PassEntry& pass, int &success);
 static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Workload> &subTensors, mv::Workloads& Tensor,
                                 const mv::pass::PassEntry& pass, int &success);
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator& tensor);
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads);
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -75,14 +75,14 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         }
         //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
         auto inOutputTensor = om.getInput()->getOutputTensor(0);
-        if(inOutputTensor->get<std::string>("splitStrategy") == "SplitOverH")
+        if((inOutputTensor->get<std::string>("splitStrategy") == "SplitOverH") || (inOutputTensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
         {
             auto inOutputTensorName = inOutputTensor->getName();
             tensorNames.insert(inOutputTensorName);
         }
 
         auto outInputTensor = om.getOutput()->getInputTensor(0);
-        if(outInputTensor->get<std::string>("splitStrategy") == "SplitOverH")
+        if((outInputTensor->get<std::string>("splitStrategy") == "SplitOverH") || (outInputTensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
         {
             auto outInputTensorName = outInputTensor->getName();
             tensorNames.insert(outInputTensorName);
@@ -90,7 +90,7 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
             //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
         }
-        
+
         for (auto tensorName : tensorNames)
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
@@ -162,17 +162,38 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                 std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
-                if (sinkOperators[0]->getOpType() == "DMATask")
-                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                //The sink ops should have the same padding
-                std::array <unsigned short, 4> padding = {0, 0, sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[2],
-                                                       sinkOperators[0]->get<std::array<unsigned short, 4>>("padding")[3]};
-                //Rectangular Heuristc: The workload has only one rectangle in its list, itself
 
-                subTensors = Tensor.overlap_and_clip(padding, tensor->getShape());
+                //Rectangular Heuristc: The workload has only one rectangle in its list, itself
+                //SplitOverHOverlapped happens only for CM Conv in the input layer. Have to step through DMATask and Align layers till we reach the DPUTask op
+                if (sinkOperators[0]->getOpType() == "DMATask" || sinkOperators[0]->getOpType() == "Align")
+                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+
+                //Tiling logic is used to find the workloads with the overlaps
+                //SplitOverHOverlapped - so hardCoding to 'H' for axis
+
+                std::vector<mv::Tiling> childtiles;
+                std::vector<size_t> heightSizes;
+                std::string axis = "H";
+                if (sinkOperators[0]->getOpType() == "DPUTask")
+                {
+                    mv::Tiling masterTile(axis, int(subTensors.size()));
+                    masterTile.setSize(sinkOperators[0]->getInputTensor(0)->getShape());
+                    masterTile.generateSpatialTiling(sinkOperators[0]);
+                    childtiles = masterTile.childTiles();
+
+                    for (unsigned i =0; i < subTensors.size(); i++)
+                    {
+                        auto startCoord = childtiles[i].getStartCoord()[mv::Shape::getAxis(axis)];
+                        auto endCoord = childtiles[i].getSize()[mv::Shape::getAxis(axis)] + startCoord -1;
+                        subTensors[i].MinY = startCoord;
+                        subTensors[i].MaxY = endCoord;
+                    }
+                }
             }
             else
+            {
                 populatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
+            }
             tensor->splitAcrossClusters(subTensors, true, false);
         }
         else if (tensor->get<std::string>("splitStrategy") == "SplitOverK")
@@ -187,7 +208,11 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             //NOTE:Temporary handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
-                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads);
+                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
+                while (sinkOperators[0]->getOpType() != "DPUTask") 
+                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                auto outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                 subTensors.clear();
                 subTensors = newSubTensors;
             }
@@ -235,20 +260,8 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
     return;
 }
 
-static std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
-{
-    std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
-    {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
-    }
-    return sinkOperations;
-}
-
 //TODO re-enable this version
-static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads)
+static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels)
 {
     std::vector<mv::Workload> newSubTensors;
 
@@ -256,8 +269,6 @@ static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Work
     {
         if (subTensors.empty())
         {
-            mv::Shape tensorShape = tensor->getShape();
-            std::size_t outputChannels = tensorShape[mv::IO_CHANNEL_DIMENSION];
             std::size_t quantumofAlignedChannels, equalSlice, remainingSlice = 0;
             if (outputChannels % 16 == 0)
             {
@@ -421,9 +432,9 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             inputTensor->set<std::string>("splitStrategy", opStrategy);
                             inputTensor->cleanSubtensors();
                             outputTensor->cleanSubtensors();
-                            if (possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH)
+                            if ((possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH))
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
-                            else if (possibleCombination == SoHToClustering || possibleCombination == SoHToSoK)
+                            else if ((possibleCombination == SoHToClustering || possibleCombination == SoHToSoK))
                                 inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
                             // ... and splitting has to be done again!!! <- Price for efficiency
                             subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);

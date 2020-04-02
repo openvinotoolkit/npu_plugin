@@ -10,8 +10,6 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -26,18 +24,6 @@ namespace mv
 
     namespace pass
     {
-
-        MV_REGISTER_PASS(TensorsToFP16)
-        .setFunc(tensorsToFP16Fcn)
-        .setDescription(
-            "Replaces full precision tensors with FP16 tensors"
-        );
-
-        MV_REGISTER_PASS(TensorsToU8)
-        .setFunc(tensorsToU8Fcn)
-        .setDescription(
-            "Replaces quantized int8 tensors with U8 tensors"
-        );
 
         MV_REGISTER_PASS(ReplacementOps)
         .setFunc(replacementOpsFcn)
@@ -60,53 +46,11 @@ namespace mv
 
 }
 
-
-mv::Data::OpListIterator linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
-                            mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
-{
-    //Important: do not change the order of this ops
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-    }
-
-    auto paramOp = opIt.leftmostParent();
-    while(paramOp != om.opEnd())
-    {
-        if (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
-                || paramOp->getOpType() == "ConstantDataElement")
-        {
-            auto backUp = paramOp;
-            ++paramOp;
-            om.removeOp(backUp);
-        }
-        else
-            ++paramOp;
-    }
-
-    om.removeOp(opIt);
-    opIt = parentOpIt;
-
-    if(sourceTensor == om.tensorEnd())
-        sourceTensor = parentOpIt->getOutputTensor(0);
-
-    for (unsigned j = 0; j < opsToLink.size(); ++j)
-    {
-        opsToLink[j]->setInputTensor(sourceTensor, inputSlots[j], false);
-        om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
-    }
-
-    return opIt;
-}
-
 void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
 {
     auto inputFlow = task.leftmostInput();
     auto neutralMaxPool = om.maxPool(task->getInputTensor(0), {1,1}, {1,1}, {0, 0, 0, 0},
-                                     false, "", "floor", mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
+                                     false, mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
     auto maxPoolOp = om.getSourceOp(neutralMaxPool);
     maxPoolOp->set<unsigned>("opId", task->get<unsigned>("opId"));
     maxPoolOp->set<bool>("softwareExecuted", true);
@@ -115,98 +59,6 @@ void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
     om.defineFlow(neutralMaxPool, task, 0);
 }
 
-void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    using namespace mv;
-    OpModel om(model);
-
-    auto kernelOp = om.getInput();
-    while (kernelOp != om.opEnd())
-    {
-        if(kernelOp.outputsSize() > 0)
-        {
-            auto outputTensor = kernelOp->getOutputTensor(0);
-            if(outputTensor->get<mv::DType>("dType") == mv::DType("Float64") ||
-               outputTensor->get<mv::DType>("dType") == mv::DType("Float32"))
-            {
-                auto opId = kernelOp->get<unsigned>("opId");
-                if (outputTensor->isPopulated())
-                {
-                    std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
-                    std::vector<int64_t> newData(oldData.size());
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
-                    if(outputTensor->hasAttr("quantParams"))
-                        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-
-                    for(unsigned i = 0; i < oldData.size(); ++i)
-                        newData[i] = mv::fp32_to_fp16(oldData[i]);
-                    auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
-                    auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
-                    //with data flows I am finding where the op was attached to attache the new one!!!
-                    auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
-
-                    auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder, quantParams);
-                    auto newKernelOp = om.getSourceOp(newKernel);
-                    newKernelOp->set<unsigned>("opId", opId);
-                    newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
-                    mv::setOutputDataFlow(om, newKernel, outputDataFlows);
-                }
-                else
-                {
-                    mv::DType newType = mv::DType("Float16");
-                    outputTensor->setDType(newType);
-                    kernelOp->set<mv::DType>("dType",  mv::DType("Float16"));
-                    ++kernelOp;
-                }
-            }
-            else
-                ++kernelOp;
-        }
-        else
-            ++kernelOp;
-    }
-}
-
-// Pass logic:
-// Runtime will handle the input, we uniform all the rest to UInt8
-void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    mv::OpModel om(model);
-
-    int64_t zeroPointShift = 128;
-    auto sourceDType = mv::DType("Int8");
-    auto targetDType = mv::DType("UInt8");
-
-    auto kernelOp = om.getInput();
-    auto inputType = kernelOp->getOutputTensor(0)->getDType();
-    if(inputType == mv::DType("Int8"))
-        throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");
-
-    for (; kernelOp != om.opEnd(); ++kernelOp)
-    {
-        if(kernelOp.outputsSize() > 0)
-        {
-            auto outputTensor = kernelOp->getOutputTensor(0);
-            auto outputTensorDType = outputTensor->get<mv::DType>("dType");
-            if(outputTensorDType == sourceDType)
-            {
-                mv::DType newType = targetDType;
-                auto quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
-                auto quantParamsZp = quantParams.getZeroPoint();
-                for(auto& zp: quantParamsZp)
-                    zp += zeroPointShift;
-                quantParams = mv::QuantizationParams(quantParamsZp, quantParams.getScale(),{},{});
-                outputTensor->setDType(newType);
-                kernelOp->set<mv::DType>("dType",  newType);
-                outputTensor->set<mv::QuantizationParams>("quantParams", quantParams);
-                kernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
-                if (outputTensor->isPopulated())
-                    for(unsigned i = 0; i < outputTensor->size(); ++i)
-                        outputTensor->at(i) += zeroPointShift;
-            }
-        }
-    }
-}
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -411,12 +263,12 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             if (sourceTensor->isQuantized())
             {
                 auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-                avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), quantParams, name + "_AvgPool");
+                avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,  mv::DType("Default"), quantParams, name + "_AvgPool");
             }
             else
             {
                 mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
-                 avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,"","floor",  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
+                 avgPool = om.averagePool(sourceTensor, kSize, stride, {0,0,0,0}, false,  mv::DType("Default"), emptyQuantParams, name + "_AvgPool");
             }
 
             auto avgOp = om.getSourceOp(avgPool);
@@ -484,6 +336,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 
         linkNewOperationsReplacement(parentOpIt, conv2D, om, opIt);
         conv2D->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        convOp->set<bool>("isScaleShift", true);
     }
 }
 
@@ -726,8 +579,6 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
         first_attrs.at("stride") == second_attrs.at("stride") &&
         first_attrs.at("padding") == first_attrs.at("padding") &&
         first_attrs.at("exclude_pad") == second_attrs.at("exclude_pad") &&
-        first_attrs.at("auto_pad") == second_attrs.at("auto_pad") &&
-        first_attrs.at("rounding_type") == second_attrs.at("rounding_type") &&
         first_attrs.at("dType") == second_attrs.at("dType")))
         return false;
 
@@ -746,9 +597,9 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-
     // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
-    const std::vector<std::string> pattern = {"AveragePool", "Reshape", "Reshape", "AveragePool", "Reshape"};
+    //const std::vector<std::string> pattern = {"AveragePool", "Reshape", "Reshape", "AveragePool", "Reshape"};
+    const std::vector<std::string> pattern = {"Reshape", "AveragePool", "Reshape", "Reshape", "AveragePool"};
     auto ops = om.getOps(*pattern.begin());
 
     auto can_replace_pool = [&pattern, &om](mv::Data::OpListIterator opIt) -> bool {
@@ -757,12 +608,11 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
         auto it = opIt;
         for (size_t i = 0; i < pattern.size(); ++i) {
             if (it->getOpType() == "AveragePool") {
-                poolOps.push_back(opIt);
+                poolOps.push_back(it);
             }
 
             it = om.getSourceOp(it->getInputTensor(0));
         }
-
         assert(poolOps.size() == 2);
 
         return canReplaceAveragePool(poolOps[1], poolOps[0], om);
@@ -773,9 +623,9 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
         if (!opIt) {
             continue;
         }
-        if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
-            auto poolingOp = opIt;
 
+        if (matchPattern(pattern, opIt, model) && can_replace_pool(opIt)) {
+            auto poolingOp = om.getSourceOp(opIt->getInputTensor(0));
             auto kernel = std::max(poolingOp->get<std::array<unsigned short, 2>>("kSize")[0], poolingOp->get<std::array<unsigned short, 2>>("kSize")[1]);
             std::array<unsigned short, 2> kSize = {kernel, kernel};
             auto op_attrs =  poolingOp->getAttrs({"kSize"});
@@ -793,8 +643,6 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
                     op_attrs.at("stride"),
                     op_attrs.at("padding"),
                     op_attrs.at("exclude_pad"),
-                    op_attrs.at("auto_pad"),
-                    op_attrs.at("rounding_type"),
                     op_attrs.at("dType"),
                     op_attrs.at("quantParams"));
 
