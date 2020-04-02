@@ -27,6 +27,7 @@
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>
 #include <memory>
+#include <parse_layers_helpers.hpp>
 #include <quantization_helpers.hpp>
 #include <set>
 #include <string>
@@ -1731,8 +1732,13 @@ void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVecto
 
 void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "PriorBox layer is not supported by kmbPlugin";
+    auto boxes = ParseLayersHelpers::computePriorbox(layer);
+    auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
+        initialQuantParams, layer->name + "_const");
+
+    bindOutput(priorbox, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, priorbox->getName());
 }
 
 void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
