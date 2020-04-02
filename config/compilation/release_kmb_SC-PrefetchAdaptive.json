@@ -8,7 +8,7 @@
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
+                "Number_of_DPUs" : 1,
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
@@ -98,7 +98,7 @@
                     "globalConfigs" : [
                         {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
-                        {"name" : "dpuPerCluster",  "value" : 5   },
+                        {"name" : "dpuPerCluster",  "value" : 1   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 1.0},
@@ -110,7 +110,7 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableActivationSparsity",    "value" : true      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
