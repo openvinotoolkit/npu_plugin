@@ -1028,10 +1028,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    // Note: runtime expects odu_offset to be set on the weights input of the eltwise
+    // Note: odu_offset to be set on the "weights" input of the eltwise
     if(opIt->hasAttr("needsODUoffset"))
     {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("odu_ref"));
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
         toBuild->odu_offset = toBuild->output_data->data->storage_element_index - other_elt_input->getStorageElement()->getAddress();;
     }
 
@@ -1165,10 +1165,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    // Note: runtime expects odu_offset to be set on the weights input of the eltwise
-    if(opIt->hasAttr("needsODUoffset") and toBuild->dpu_task_type == MVCNN::DPULayerType_CONV)
+    // Note: odu_offset to be set on the "weights" input of the eltwise
+    if(opIt->hasAttr("needsODUoffset"))
     {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("odu_ref"));
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
         toBuild->odu_offset = toBuild->output_data->data->storage_element_index - other_elt_input->getStorageElement()->getAddress();;
     }
 
