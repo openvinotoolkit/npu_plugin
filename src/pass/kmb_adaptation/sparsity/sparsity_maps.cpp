@@ -209,7 +209,23 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
     return false;
 }
 
+bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
+{
+    auto source = flow.source();
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
 
+    if(!tensor->isPopulated())
+    {
+        if((sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
+                (source->hasAttr("mixedToFloat") && source->get<bool>("mixedToFloat")))
+           return true;
+        if((source->hasAttr("floatPrecision") && source->get<bool>("floatPrecision")) &&
+                (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")))
+           return true;
+    }
+    return false;
+}
 
 // Result of chat with Alessandro:
 // An activation tensor can be sparse if and only if
@@ -219,6 +235,7 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 // An activation tensor MUST be sparse if it's:
 // 1) SplitOverH
 // 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
+// 3) In KMB-A0 float DPU task means that needs to consume sparse tensors.
 
 // In the future, these two conditions could change. We have to sync with runtime.
 
@@ -260,6 +277,11 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
                 tensorNeedsSparsity = true;
                 break;
             }
+            else if (checkA0FloatSparsityBug(flow))
+            {
+                tensorNeedsSparsity = true;
+                break;
+            }
         }
         for(auto& flowStr: flows)
         {
@@ -271,8 +293,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv" ||
-               sink->get<std::string>("splitStrategy") == "SplitOverK")
+               sink->get<std::string>("taskOp") != "Conv")
             {
                 tensorSparsifiable = false;
                 break;
