@@ -46,10 +46,9 @@ static constexpr char platform_message[] = "Optional. Specifies movidius platfor
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of network."
                                                    " Supported values: FP16, U8. Default value: U8.";
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of network."
-                                                    " Supported values: FP16, U8. Default value: FP16.";
+                                                    " Supported values: FP16, U8. Default value: U8.";
 static constexpr char iop_message[] = "Optional. Specifies precision for input/output layers by name.\n"
-"                                             By default all input layers have U8 precision,\n"
-"                                             all output layers have FP16 precision.\n"
+"                                             By default all input and output layers have U8 precision.\n"
 "                                             Available precisions: FP16, U8.\n"
 "                                             Example: -iop \"input:FP16, output:FP16\".\n"
 "                                             Notice that quotes are required.\n"
@@ -71,8 +70,7 @@ DEFINE_bool(GENERATE_JSON, false, dump_blob_as_json_message);
 DEFINE_bool(GENERATE_DOT, false, dump_blob_as_dot_message);
 DEFINE_string(TARGET_DESCRIPTOR, "", mcm_target_descriptor_message);
 
-static const InferenceEngine::Precision defaultInputPrecision = InferenceEngine::Precision::U8;
-static const InferenceEngine::Precision defaultOutputPrecision = InferenceEngine::Precision::FP16;
+static const InferenceEngine::Precision defaultPrecision = InferenceEngine::Precision::U8;
 
 static void showUsage() {
     std::cout << std::endl;
@@ -149,7 +147,6 @@ static std::map<std::string, std::string> configure(const std::string &configFil
     if (!FLAGS_o.empty()) {
         config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
     }
-    config["VPU_COMPILER_ALLOW_NC_OUTPUT"] = CONFIG_VALUE(YES);
     return config;
 }
 
@@ -234,21 +231,15 @@ void setPrecisions(const InferenceEngine::CNNNetwork &network, const std::string
 static void processPrecisions(InferenceEngine::CNNNetwork &network,
                               const std::string &inputs_precision, const std::string &outputs_precision,
                               const std::string &iop) {
-    const auto in_precision = inputs_precision.empty() ? defaultInputPrecision
+    const auto in_precision = inputs_precision.empty() ? defaultPrecision
                                                  : getInputPrecision(inputs_precision);
     for (auto &&layer : network.getInputsInfo()) {
-        layer.second->setLayout(InferenceEngine::Layout::NHWC);
         layer.second->setPrecision(in_precision);
     }
 
-    const auto out_precision = outputs_precision.empty() ? defaultOutputPrecision
+    const auto out_precision = outputs_precision.empty() ? defaultPrecision
             : getOutputPrecision(outputs_precision);
     for (auto &&layer : network.getOutputsInfo()) {
-        if (layer.second->getDims().size() == 2) {
-            layer.second->setLayout(InferenceEngine::Layout::NC);
-        } else {
-            layer.second->setLayout(InferenceEngine::Layout::NHWC);
-        }
         layer.second->setPrecision(out_precision);
     }
 

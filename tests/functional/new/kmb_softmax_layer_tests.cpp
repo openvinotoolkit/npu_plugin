@@ -71,13 +71,10 @@ TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
 
 const std::vector<SoftmaxTestParams> softmaxParams {
         SoftmaxTestParams()
-            .inDims({1, 3, 16, 16})
+            .inDims({1, 1001, 2, 2})
             .axisSet({1}),
         SoftmaxTestParams()
             .inDims({1, 1000, 2, 2})
-            .axisSet({1}),
-        SoftmaxTestParams()
-            .inDims({1, 1001, 2, 2})
             .axisSet({1})
 };
 

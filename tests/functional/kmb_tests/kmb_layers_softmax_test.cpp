@@ -44,8 +44,7 @@ TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("SoftMax", &params, 0, 0, nullptr,
-        InferenceEngine::Precision::FP16,  // output precision
-        InferenceEngine::Precision::U8     // input precision
+        InferenceEngine::Precision::FP16  // output precision
     );
 }
 
