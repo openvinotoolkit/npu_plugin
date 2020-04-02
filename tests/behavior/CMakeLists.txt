@@ -29,7 +29,7 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
 
     target_link_libraries(${TARGET_NAME}
         PRIVATE
-      IE::IEBehaviorSharedTests IE::helpers)
+      IE::IEBehaviorSharedTests IE::ieTestHelpers)
 
     target_include_directories(${TARGET_NAME}
         PRIVATE
