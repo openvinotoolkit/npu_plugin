@@ -3,7 +3,7 @@
 #include <limits>
 #include <include/mcm/op_model.hpp>
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include "eltwise_sparsity.data.inc"
+#include "eltwise_sparsity_pool.data.inc"
 
 void build_pySwigCU(mv::OpModel& model)
 {
