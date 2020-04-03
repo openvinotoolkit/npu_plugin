@@ -35,33 +35,11 @@ static inline float clip_less(float x, float threshold) { return x > threshold ?
 
 }  // namespace
 
-std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
-    if (layer->insData.size() != 2 || layer->outData.empty())
-        THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
-
-    if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
-        layer->insData[1].lock()->getTensorDesc().getDims().size() != 4)
-        THROW_IE_EXCEPTION << "PriorBox supports only 4D blobs!";
-
-    // parse settings for priorbox layer
-    float offset = layer->GetParamAsFloat("offset");
-    float step = layer->GetParamAsFloat("step", 0.f);
-    std::vector<float> min_sizes = layer->GetParamAsFloats("min_size", {});
-    std::vector<float> max_sizes = layer->GetParamAsFloats("max_size", {});
-    bool flip = layer->GetParamAsBool("flip", false);
-    bool clip = layer->GetParamAsBool("clip", false);
-    bool scale_all_sizes = layer->GetParamAsBool("scale_all_sizes", true);
-
-    std::vector<float> fixed_sizes = layer->GetParamAsFloats("fixed_size", {});
-    std::vector<float> fixed_ratios = layer->GetParamAsFloats("fixed_ratio", {});
-    std::vector<float> densitys = layer->GetParamAsFloats("density", {});
-
-    const std::vector<float> src_aspect_ratios = layer->GetParamAsFloats("aspect_ratio", {});
-
+std::vector<double> computePriorbox(const priorBoxParam& param) {
     std::vector<float> dst_aspect_ratios {1.0f};
 
     bool exist = false;
-    for (float src_aspect_ratio : src_aspect_ratios) {
+    for (float src_aspect_ratio : param._src_aspect_ratios) {
         exist = false;
 
         if (std::fabs(src_aspect_ratio) < std::numeric_limits<float>::epsilon()) {
@@ -82,92 +60,80 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
 
         dst_aspect_ratios.push_back(src_aspect_ratio);
 
-        if (flip) {
+        if (param._flip) {
             dst_aspect_ratios.push_back(1.0f / src_aspect_ratio);
         }
     }
 
     int num_priors = 0;
 
-    if (scale_all_sizes) {
-        num_priors = static_cast<int>(dst_aspect_ratios.size() * min_sizes.size());
+    if (param._scale_all_sizes) {
+        num_priors = static_cast<int>(dst_aspect_ratios.size() * param._min_sizes.size());
     } else {
-        num_priors = static_cast<int>(dst_aspect_ratios.size() + min_sizes.size() - 1);
+        num_priors = static_cast<int>(dst_aspect_ratios.size() + param._min_sizes.size() - 1);
     }
 
-    if (fixed_sizes.size() > 0) {
-        num_priors = static_cast<int>(dst_aspect_ratios.size() * fixed_sizes.size());
+    if (param._fixed_sizes.size() > 0) {
+        num_priors = static_cast<int>(dst_aspect_ratios.size() * param._fixed_sizes.size());
     }
 
-    if (densitys.size() > 0) {
-        for (size_t i = 0; i < densitys.size(); ++i) {
-            if (fixed_ratios.size() > 0) {
-                num_priors += (fixed_ratios.size()) * (static_cast<size_t>(pow(densitys[i], 2)) - 1);
+    if (param._densitys.size() > 0) {
+        for (size_t i = 0; i < param._densitys.size(); ++i) {
+            if (param._fixed_ratios.size() > 0) {
+                num_priors += (param._fixed_ratios.size()) * (static_cast<size_t>(pow(param._densitys[i], 2)) - 1);
             } else {
-                num_priors += (dst_aspect_ratios.size()) * (static_cast<size_t>(pow(densitys[i], 2)) - 1);
+                num_priors += (dst_aspect_ratios.size()) * (static_cast<size_t>(pow(param._densitys[i], 2)) - 1);
             }
         }
     }
 
-    for (auto it = max_sizes.begin(); it != max_sizes.end(); it++) {
+    for (auto it = param._max_sizes.begin(); it != param._max_sizes.end(); it++) {
         num_priors += 1;
     }
 
-    const std::vector<float> src_variance = layer->GetParamAsFloats("variance", {});
-
     std::vector<float> dst_variance;
 
-    if (src_variance.size() == 1 || src_variance.size() == 4) {
-        for (float i : src_variance) {
+    if (param._src_variance.size() == 1 || param._src_variance.size() == 4) {
+        for (float i : param._src_variance) {
             if (i < 0) {
                 THROW_IE_EXCEPTION << "Variance must be > 0.";
             }
 
             dst_variance.push_back(i);
         }
-    } else if (src_variance.empty()) {
+    } else if (param._src_variance.empty()) {
         dst_variance.push_back(0.1f);
     } else {
         THROW_IE_EXCEPTION << "Wrong number of variance values. Not less than 1 and more than 4 variance values.";
     }
 
-    auto& dataMemPtr = layer->insData[0];
-    auto& imageMemPtr = layer->insData[1];
-    auto& dstMemPtr = layer->outData[0];
-    SizeVector _data_dims = dataMemPtr.lock()->getTensorDesc().getDims();
-    SizeVector _image_dims = imageMemPtr.lock()->getTensorDesc().getDims();
+    const size_t W = param._data_dims[3];
+    const size_t H = param._data_dims[2];
+    const size_t IW = param._image_dims[3];
+    const size_t IH = param._image_dims[2];
 
-    const int W = _data_dims[3];
-    const int H = _data_dims[2];
-    const int IW = _image_dims[3];
-    const int IH = _image_dims[2];
-
-    int layer_width = layer->insData[0].lock()->getTensorDesc().getDims()[3];
-    int layer_height = layer->insData[0].lock()->getTensorDesc().getDims()[2];
-
-    int img_width = layer->insData[1].lock()->getTensorDesc().getDims()[3];
-    int img_height = layer->insData[1].lock()->getTensorDesc().getDims()[2];
-
-    const int OH = dstMemPtr->getTensorDesc().getDims()[2];
-    const int OW = (dstMemPtr->getTensorDesc().getDims().size() == 3) ? 1 : dstMemPtr->getTensorDesc().getDims()[3];
+    const size_t OH = param._out_dims[2];
+    const size_t OW = (param._out_dims.size() == 3) ? 1 : param._out_dims[3];
 
     float step_x = 0.0f;
     float step_y = 0.0f;
 
-    if (step == 0) {
+    if (param._step == 0) {
         step_x = static_cast<float>(IW) / W;
         step_y = static_cast<float>(IH) / H;
     } else {
-        step_x = step;
-        step_y = step;
+        step_x = param._step;
+        step_y = param._step;
     }
 
     float IWI = 1.0f / static_cast<float>(IW);
     float IHI = 1.0f / static_cast<float>(IH);
 
-    auto dims = layer->outData.front()->getDims();
-
-    std::vector<double> out_boxes(dims[1] * dims[2], 0.);
+    size_t out_size = 1;
+    for (size_t i = 0; i < param._out_dims.size(); ++i) {
+        out_size *= param._out_dims[i];
+    }
+    std::vector<double> out_boxes(out_size, 0.);
     double* dst_data = out_boxes.data();
 
     int idx = 0;
@@ -177,27 +143,27 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
     float box_width;
     float box_height;
 
-    for (int h = 0; h < H; ++h) {
-        for (int w = 0; w < W; ++w) {
-            if (step == 0) {
+    for (size_t h = 0; h < H; ++h) {
+        for (size_t w = 0; w < W; ++w) {
+            if (param._step == 0) {
                 center_x = (w + 0.5f) * step_x;
                 center_y = (h + 0.5f) * step_y;
             } else {
-                center_x = (offset + w) * step;
-                center_y = (offset + h) * step;
+                center_x = (param._offset + w) * param._step;
+                center_y = (param._offset + h) * param._step;
             }
 
-            for (size_t s = 0; s < fixed_sizes.size(); ++s) {
-                size_t fixed_size_ = static_cast<size_t>(fixed_sizes[s]);
+            for (size_t s = 0; s < param._fixed_sizes.size(); ++s) {
+                size_t fixed_size_ = static_cast<size_t>(param._fixed_sizes[s]);
                 box_width = box_height = fixed_size_ * 0.5f;
 
-                if (fixed_ratios.size() > 0) {
-                    for (float ar : fixed_ratios) {
-                        size_t density_ = static_cast<size_t>(densitys[s]);
-                        int shift = static_cast<int>(fixed_sizes[s] / density_);
+                if (param._fixed_ratios.size() > 0) {
+                    for (float ar : param._fixed_ratios) {
+                        size_t density_ = static_cast<size_t>(param._densitys[s]);
+                        int shift = static_cast<int>(param._fixed_sizes[s] / density_);
                         ar = sqrt(ar);
-                        float box_width_ratio = fixed_sizes[s] * 0.5f * ar;
-                        float box_height_ratio = fixed_sizes[s] * 0.5f / ar;
+                        float box_width_ratio = param._fixed_sizes[s] * 0.5f * ar;
+                        float box_height_ratio = param._fixed_sizes[s] * 0.5f / ar;
                         for (size_t r = 0; r < density_; ++r) {
                             for (size_t c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -215,9 +181,9 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
                         }
                     }
                 } else {
-                    if (densitys.size() > 0) {
-                        int density_ = static_cast<int>(densitys[s]);
-                        int shift = static_cast<int>(fixed_sizes[s] / density_);
+                    if (param._densitys.size() > 0) {
+                        int density_ = static_cast<int>(param._densitys[s]);
+                        int shift = static_cast<int>(param._fixed_sizes[s] / density_);
                         for (int r = 0; r < density_; ++r) {
                             for (int c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -240,11 +206,11 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
                             continue;
                         }
 
-                        int density_ = static_cast<int>(densitys[s]);
-                        int shift = static_cast<int>(fixed_sizes[s] / density_);
+                        int density_ = static_cast<int>(param._densitys[s]);
+                        int shift = static_cast<int>(param._fixed_sizes[s] / density_);
                         ar = sqrt(ar);
-                        float box_width_ratio = fixed_sizes[s] * 0.5f * ar;
-                        float box_height_ratio = fixed_sizes[s] * 0.5f / ar;
+                        float box_width_ratio = param._fixed_sizes[s] * 0.5f * ar;
+                        float box_height_ratio = param._fixed_sizes[s] * 0.5f / ar;
                         for (int r = 0; r < density_; ++r) {
                             for (int c = 0; c < density_; ++c) {
                                 float center_x_temp = center_x - fixed_size_ / 2 + shift / 2.f + c * shift;
@@ -263,17 +229,17 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
                 }
             }
 
-            for (size_t msIdx = 0; msIdx < min_sizes.size(); msIdx++) {
-                box_width = min_sizes[msIdx] * 0.5f;
-                box_height = min_sizes[msIdx] * 0.5f;
+            for (size_t msIdx = 0; msIdx < param._min_sizes.size(); msIdx++) {
+                box_width = param._min_sizes[msIdx] * 0.5f;
+                box_height = param._min_sizes[msIdx] * 0.5f;
 
                 dst_data[idx++] = (center_x - box_width) * IWI;
                 dst_data[idx++] = (center_y - box_height) * IHI;
                 dst_data[idx++] = (center_x + box_width) * IWI;
                 dst_data[idx++] = (center_y + box_height) * IHI;
 
-                if (max_sizes.size() > msIdx) {
-                    box_width = box_height = sqrt(min_sizes[msIdx] * max_sizes[msIdx]) * 0.5f;
+                if (param._max_sizes.size() > msIdx) {
+                    box_width = box_height = sqrt(param._min_sizes[msIdx] * param._max_sizes[msIdx]) * 0.5f;
 
                     dst_data[idx++] = (center_x - box_width) * IWI;
                     dst_data[idx++] = (center_y - box_height) * IHI;
@@ -281,16 +247,16 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
                     dst_data[idx++] = (center_y + box_height) * IHI;
                 }
 
-                if (scale_all_sizes || (!scale_all_sizes && (msIdx == min_sizes.size() - 1))) {
-                    size_t sIdx = scale_all_sizes ? msIdx : 0;
+                if (param._scale_all_sizes || (!param._scale_all_sizes && (msIdx == param._min_sizes.size() - 1))) {
+                    size_t sIdx = param._scale_all_sizes ? msIdx : 0;
                     for (float ar : dst_aspect_ratios) {
                         if (fabs(ar - 1.0f) < 1e-6) {
                             continue;
                         }
 
                         ar = sqrt(ar);
-                        box_width = min_sizes[sIdx] * 0.5f * ar;
-                        box_height = min_sizes[sIdx] * 0.5f / ar;
+                        box_width = param._min_sizes[sIdx] * 0.5f * ar;
+                        box_height = param._min_sizes[sIdx] * 0.5f / ar;
 
                         dst_data[idx++] = (center_x - box_width) * IWI;
                         dst_data[idx++] = (center_y - box_height) * IHI;
@@ -302,7 +268,7 @@ std::vector<double> computePriorbox(const InferenceEngine::CNNLayerPtr& layer) {
         }
     }
 
-    if (clip) {
+    if (param._clip) {
         parallel_for((H * W * num_priors * 4), [&](size_t i) {
             dst_data[i] = std::min(std::max(static_cast<float>(dst_data[i]), 0.0f), 1.0f);
         });

@@ -19,10 +19,13 @@ set(TARGET_NAME KmbUnitTests)
 file(GLOB TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
+list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB})
+
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
 target_include_directories(${TARGET_NAME} PRIVATE
-        "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
+        ${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers
+        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
         )
 
 target_compile_options(${TARGET_NAME}
@@ -30,7 +33,8 @@ target_compile_options(${TARGET_NAME}
             -Wall
             -Werror)
 
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmb_utils kmbPlugin_test_static)
+target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmb_utils kmbPlugin_test_static
+    ${KMB_TEST_LIBRARIES})
 
 add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 

@@ -1732,7 +1732,39 @@ void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVecto
 
 void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     UNUSED(inputs);
-    auto boxes = ParseLayersHelpers::computePriorbox(layer);
+
+    if (layer->insData.size() != 2 || layer->outData.empty())
+        THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+
+    if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
+        layer->insData[1].lock()->getTensorDesc().getDims().size() != 4)
+        THROW_IE_EXCEPTION << "PriorBox supports only 4D blobs!";
+    auto& dataMemPtr = layer->insData[0];
+    auto& imageMemPtr = layer->insData[1];
+    auto& dstMemPtr = layer->outData[0];
+    SizeVector data_dims = dataMemPtr.lock()->getTensorDesc().getDims();
+    SizeVector image_dims = imageMemPtr.lock()->getTensorDesc().getDims();
+    SizeVector out_dims = dstMemPtr->getTensorDesc().getDims();
+
+    float offset = layer->GetParamAsFloat("offset");
+    float step = layer->GetParamAsFloat("step", 0.f);
+    std::vector<float> min_sizes = layer->GetParamAsFloats("min_size", {});
+    std::vector<float> max_sizes = layer->GetParamAsFloats("max_size", {});
+    bool flip = layer->GetParamAsBool("flip", false);
+    bool clip = layer->GetParamAsBool("clip", false);
+    bool scale_all_sizes = layer->GetParamAsBool("scale_all_sizes", true);
+
+    std::vector<float> fixed_sizes = layer->GetParamAsFloats("fixed_size", {});
+    std::vector<float> fixed_ratios = layer->GetParamAsFloats("fixed_ratio", {});
+    std::vector<float> densitys = layer->GetParamAsFloats("density", {});
+
+    const std::vector<float> src_aspect_ratios = layer->GetParamAsFloats("aspect_ratio", {});
+    const std::vector<float> src_variance = layer->GetParamAsFloats("variance", {});
+
+    ParseLayersHelpers::priorBoxParam param(offset, step, min_sizes, max_sizes, flip, clip, scale_all_sizes,
+        fixed_sizes, fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
+
+    auto boxes = ParseLayersHelpers::computePriorbox(param);
     auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
         initialQuantParams, layer->name + "_const");
 
