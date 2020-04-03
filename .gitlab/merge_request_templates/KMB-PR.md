@@ -26,3 +26,4 @@
 
 * [ ] [IE-MDK](https://dsp-ci-icv.inn.intel.com/job/IE-MDK/job/manual/job/RunTests-KMB/build)
 * [ ] [TeamCity Build All](https://teamcity01-ir.devtools.intel.com/viewType.html?buildTypeId=DeepLearningSdk_DeepLearningSdk_InferenceEngineUnifiedRepo_BuildAllKeemBayOnly)
+* [ ] [Nets-Validation](https://dsp-ci-icv.inn.intel.com/job/Nets-Validation/job/manual/job/KMB/build)
