@@ -199,6 +199,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
+    std::cout << t->getName() << std::endl;
+
     mv::Control::StageIterator stg = cm.getStage(0);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -601,6 +603,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     }
     else 
     {
+        std::cout << t.getName() << std::endl;
         auto dataPacked = t.getDataPacked();
         toBuild->data = packToInt64(dataPacked, t.getDType());
         toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
@@ -757,8 +760,12 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
         unsigned totalSizeDst = src->getSubTensor(i).getShape().totalSize();
-        if(src->isSparse())
+        
+        if(src->isSparse()) 
+        {
             totalSize = src->getSubTensor(i).dataPackedSize();
+            totalSizeDst = src->getSubTensor(i).dataPackedSize();
+        }
         
         if(src->getSubTensor(i).hasAttr("CompressedSize"))
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
@@ -2295,7 +2302,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                     toSort.push_back(&(*tIt));
             }
             //Serialize SOK weights individually
-            if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
+            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
