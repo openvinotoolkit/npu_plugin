@@ -1466,9 +1466,40 @@ void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& 
 }
 
 void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "DetectionOutput layer is not supported by kmbPlugin";
+    IE_ASSERT(inputs.size() == 3);
+
+    int64_t num_classes = layer->GetParamAsInt("num_classes", 21);
+    int64_t keep_top_k = layer->GetParamAsInt("keep_top_k", 200);
+    double nms_threshold = layer->GetParamAsFloat("nms_threshold", 0.45);
+    int64_t background_label_id = layer->GetParamAsInt("background_label_id", 0);
+    int64_t top_k = layer->GetParamAsInt("top_k", 400);
+    bool variance_encoded_in_target = layer->GetParamAsInt("variance_encoded_in_target", 0);
+    std::string code_type = layer->GetParamAsString("code_type");
+    bool share_location = layer->GetParamAsInt("share_location", 1);
+    double confidence_threshold = layer->GetParamAsFloat("confidence_threshold", 0.01);
+    bool clip_before_nms = 0;
+    bool clip_after_nms = 0;
+    int64_t decrease_label_id = 0;
+    bool normalized = layer->GetParamAsInt("normalized", 1);
+    int64_t input_height = layer->GetParamAsInt("input_height", 1);
+    int64_t input_width = layer->GetParamAsInt("input_width", 1);
+    double objectness_score = 0;
+
+    mv::Data::TensorIterator mvDetectionOutput;
+    std::vector<mv::Data::TensorIterator> detectionInputs;
+
+    detectionInputs.push_back(inputs[0]->getMcmNode());
+    detectionInputs.push_back(inputs[1]->getMcmNode());
+    detectionInputs.push_back(inputs[2]->getMcmNode());
+
+    mvDetectionOutput = _modelMcm.detectionOutput(detectionInputs, num_classes, keep_top_k, nms_threshold,
+        background_label_id, top_k, variance_encoded_in_target, code_type, share_location, confidence_threshold,
+        clip_before_nms, clip_after_nms, decrease_label_id, normalized, input_height, input_width, objectness_score,
+        mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(mvDetectionOutput, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvDetectionOutput->getName());
 }
 
 void FrontEndMcm::parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
