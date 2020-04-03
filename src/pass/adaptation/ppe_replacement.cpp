@@ -240,6 +240,7 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         auto leakyOutputTensor = leakyReluOp->getOutputTensor(0);
         auto leakyReluQuantParams = leakyReluOp->get<mv::QuantizationParams>("quantParams");
         uint8_t branch = 0;
+        uint8_t branchEltwise = 0;
         std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, leakyOutputTensor);
         //NOTE: For now take into account that only the first sink
         //goes to concat but in general this needs to be searched
@@ -251,7 +252,17 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
                     branch = inputId;
             }
         }
-
+        for (std::size_t sinkOperatorsId = 0;sinkOperatorsId < sinkOperators.size(); sinkOperatorsId++)
+        {
+            if (sinkOperators[sinkOperatorsId]->getOpType() == "Eltwise")
+            {
+                for (uint8_t inputId = 0; inputId < sinkOperators[sinkOperatorsId]->getInputTensor().size(); inputId++)
+                {
+                    if (sinkOperators[sinkOperatorsId]->getInputTensor()[inputId]->getName() == leakyOutputTensor->getName())
+                        branchEltwise = inputId;
+                }
+            }
+        }
         mv::Data::OpListIterator relu0, conv0, conv1, depthwise1, relu1;
         for (uint8_t i = 0; i < ADD_INPUT_FLOWS; i++)
         {
@@ -279,11 +290,10 @@ void provideAccuracyinPPEs(mv::ComputationModel& model)
         om.removeOp(parentOp);
         for (std::size_t numberOfSink = 0; numberOfSink < sinkOperators.size(); numberOfSink++)
         {
+            if (sinkOperators[numberOfSink]->getOpType() == "Eltwise")
+                branch = branchEltwise;
             sinkOperators[numberOfSink]->setInputTensor(add0->getOutputTensor(0), branch, false);
             om.defineFlow(add0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
-//            NOTE: These lines are here for the positive branch....
-//            sinkOperators[numberOfSink]->setInputTensor(relu0->getOutputTensor(0), branch, false);
-//            om.defineFlow(relu0->getOutputTensor(0), sinkOperators[numberOfSink], branch);
         }
         leakyRelu++;
     }
