@@ -208,10 +208,15 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             //NOTE:Temporary handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
+                mv::Shape tensorShape = tensor->getShape();
+                std::size_t outputChannels = tensorShape[mv::IO_CHANNEL_DIMENSION];
                 std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
-                while (sinkOperators[0]->getOpType() != "DPUTask") 
-                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                auto outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                if (!sinkOperators.empty())
+                {
+                    while (sinkOperators[0]->getOpType() != "DPUTask")
+                        sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                    outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                }
                 auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                 subTensors.clear();
                 subTensors = newSubTensors;
