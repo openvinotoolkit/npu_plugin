@@ -8,7 +8,6 @@
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/op_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-#include "include/mcm/logger/logger.hpp"
 
 namespace mv {
 
@@ -117,7 +116,7 @@ struct Scheduled_Op {
     return "ORIGINAL";
   }
 
-  bool has_valid_address() const { 
+  bool has_valid_address() const {
     return (cmx_address_start_ <= cmx_address_end_);
   }
 
@@ -204,7 +203,7 @@ class Operation_Dag {
         const_operation_iterator_t()
           : ref_itr_(), master_itr_(), is_ref_type_() {}
 
-        const_operation_iterator_t(const const_ref_op_iterator_t& ref_itr) 
+        const_operation_iterator_t(const const_ref_op_iterator_t& ref_itr)
           : ref_itr_(ref_itr), master_itr_(), is_ref_type_(true) {}
 
         const_operation_iterator_t(
@@ -323,7 +322,7 @@ class Operation_Dag {
     resource_t resource_utility(const operation_t& op) const {
       auto itr = resource_utility_map_.find(op);
       assert(itr != resource_utility_map_.end());
-      return itr->second; 
+      return itr->second;
     }
 
     bool op_has_unit_out_degree(const operation_t& op) const {
@@ -356,7 +355,7 @@ class Operation_Dag {
       // does this have out degree 1 and connected to a DMATask which
       // moves data from CMX2DDR //
 
-      operation_t cop = get_first_child_op(op); 
+      operation_t cop = get_first_child_op(op);
       return is_dma_op_moving_data_from_cmx_to_ddr(cop);
     }
 
@@ -399,7 +398,7 @@ class Operation_Dag {
 
     static bool is_repackable_data_op(const dag_t& dag, const operation_t& op) {
       return dag.is_dma_op(op) &&
-          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) && 
+          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) &&
           dag.op_has_zero_in_degree(op);
     }
 
@@ -497,7 +496,7 @@ class Operation_Dag {
     static bool is_valid_scheduled_op(const scheduled_op_t& op) {
       return op.has_valid_address();
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////
 
     op_itr_t get_op_iterator(operation_t op) const {
@@ -511,7 +510,7 @@ class Operation_Dag {
       const_in_degree_iterator_t itr = in_degree_map_.find(op);
       return (itr == in_degree_map_.end()) ? 0UL : itr->second;
     }
-    
+
     bool is_input_op(operation_t op) const {
       return op->getOpType() == "Input";
     }
@@ -551,11 +550,7 @@ class Operation_Dag {
         curr_op = *citr;
         size_t in_degree;
         if (!(in_degree=operation_in_degree(curr_op))) {
-          printfInfo("operationPrecedenceDag", "zero-degree-node=%s\n", curr_op->getName().c_str());
           bfs_list.push_back(curr_op);
-        } else {
-          printfInfo("operationPrecedenceDag", "non-zero-degree-node=%s in-degree=%lu\n",
-              curr_op->getName().c_str(), in_degree);
         }
       }
 
@@ -646,7 +641,7 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") || 
+      return (op->getOpType() == "ImplicitConcat") ||
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") ||
           (op->getOpType() == "Align");
     }
@@ -674,16 +669,49 @@ class Operation_Dag {
         child_op = *(child_list.front());
       }
 
-      printfInfo("operationPrecedenceDag", "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
-          parent_op->getName().c_str(), op->getName().c_str(),
-          child_op->getName().c_str());
-      fflush(stdout);
+//      printf("[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+//          parent_op->getName().c_str(), op->getName().c_str(),
+//          child_op->getName().c_str());
+//      fflush(stdout);
 
       // remove this op from the DAG //
       remove_op_from_dag(op);
 
       // add an edge between parent_op and child_op //
       return add_directed_edge(parent_op, child_op);
+    }
+
+
+    bool short_circuit_unit_indegree_op(operation_t& op) {
+      operation_t parent_op, child_op;
+      adjacency_map_t::const_iterator adj_rev_itr = adj_map_rev_.find(op);
+      adjacency_map_t::const_iterator adj_itr = adj_map_.find(op);
+
+      if ((adj_rev_itr == adj_map_rev_.end()) ||
+            (adj_itr == adj_map_.end()) ) {
+        return false;
+      }
+
+      const op_ref_list_t& parent_list = adj_rev_itr->second;
+      const op_ref_list_t& child_list = adj_itr->second;
+
+      if (parent_list.size() != 1UL) {
+        return false;
+      }
+
+      parent_op = *(parent_list.front());
+      for (const_ref_op_iterator_t citr=child_list.begin();
+          citr!=child_list.end(); ++citr) {
+        child_op = *(*citr);
+
+//        printf("[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+//            parent_op->getName().c_str(), op->getName().c_str(),
+//            child_op->getName().c_str());
+        if (!add_directed_edge(parent_op, child_op)) { return false; }
+      }
+      // remove this op from the DAG //
+      remove_op_from_dag(op);
+      return true;
     }
 
     bool short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
@@ -700,7 +728,7 @@ class Operation_Dag {
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited =
-            short_circuit_unit_indegree_unit_outdegree_op(*oitr);
+            short_circuit_unit_indegree_op(*oitr);
         assert(short_circuited);
       }
       return true;
@@ -732,17 +760,17 @@ class Operation_Dag {
         color_closure_algo.compute_connected_vertices(pop,
             std::back_inserter(color_closure), implicit_op_color_functor_t() );
 
-        printfInfo("operationPrecedenceDag", "[ColorClosure(%s) : {", (pop->getName()).c_str());
+//        printf("[ColorClosure(%s) : {", (pop->getName()).c_str());
 
         if (!color_closure.empty()) {
           for (auto citr=color_closure.begin(); citr!=color_closure.end();
                 ++citr) {
             const operation_t& cop = *citr;
             add_directed_edge(pop, cop);
-            printfInfo("operationPrecedenceDag", " %s ", (cop->getName()).c_str());
+//            printf(" %s ", (cop->getName()).c_str());
           }
         }
-        printfInfo("operationPrecedenceDag", "}\n");
+//        printf("}\n");
 
       } // foreach implicit op in the input DAG //
 
@@ -752,7 +780,7 @@ class Operation_Dag {
         if (is_implicit_op(pop)) {
           const_operation_iterator_t itr_next = itr;
           ++itr_next;
-          printfInfo("operationPrecedenceDag", "[Removed %s]\n", ((*itr)->getName()).c_str());
+//          printf("[Removed %s]\n", ((*itr)->getName()).c_str());
           remove_op_from_dag(*itr);
           itr = itr_next;
         } else {
@@ -774,12 +802,12 @@ class Operation_Dag {
   private:
 
     template<typename model_t>
-    bool is_aligned_dma_op(model_t& model, operation_t op) const { 
+    bool is_aligned_dma_op(model_t& model, operation_t op) const {
       typedef model_traits<model_t> mtraits;
       typedef typename mtraits::const_child_operation_iterator_t cop_itr_t;
 
       if (is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
-      
+
       op_itr_t pop_itr = model.getOp(op->getName());
 
       // out degree should be one //
@@ -896,7 +924,7 @@ class Operation_Dag {
           adj_map_rev_[child_op].push_back( &(*pop_itr) );
         }
 
-        resource_t resource_utility; 
+        resource_t resource_utility;
 
         if ( !does_the_op_run_on_hardware(op) ||
             is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
@@ -929,7 +957,7 @@ class Operation_Dag {
 
       update_resource_utility_for_aligned_dma_ops(model);
 
-      printfInfo("operationPrecedenceDag", "[Initfrom Model] op count = %lu\n", num_ops);
+//      printf("[Initfrom Model] op count = %lu\n", num_ops);
     }
 
     // Removes the op from the DAG and removes all incoming and outgoing edges
@@ -962,7 +990,7 @@ class Operation_Dag {
         }
 
       }
-        
+
       // STEP-4: Remove this op from the adj_map_rev_ of all its children //
       {
         adjacency_map_t::iterator child_itr = adj_map_.find(op);
@@ -973,7 +1001,7 @@ class Operation_Dag {
           for(op_ref_list_t::const_iterator child=child_list.begin();
                 child!=child_list.end(); ++child) { //foreach child//
 
-            // find the rev-adjacency list of this child and remove op from it 
+            // find the rev-adjacency list of this child and remove op from it
             adjacency_map_t::iterator child_adj_itr =
                 adj_map_rev_.find(*(*child));
             assert(child_adj_itr != adj_map_rev_.end());
@@ -999,12 +1027,12 @@ class Operation_Dag {
       // STEP-1 //
       ops_.erase(op_itr);
       op_name_table_.erase(op->getName().c_str());
-    } 
+    }
 
     void clear_resource_model() { resource_utility_map_.clear(); }
 
   public:
-   
+
     bool add_directed_edge(const std::string& src_op,
           const std::string& sink_op, mv::OpModel& model) {
 
@@ -1080,7 +1108,7 @@ class Operation_Dag {
       }
 
       // add sink_op to adj_list of source_op //
-      op_ref_list_t *child_list_ptr = NULL; 
+      op_ref_list_t *child_list_ptr = NULL;
       {
         adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
         assert(adj_itr != adj_map_.end());
@@ -1129,7 +1157,7 @@ class Operation_Dag {
 
     bool is_dma_op_moving_data_from_cmx_to_ddr(operation_t op) const {
       if ((op->getOpType()) != "DMATask") { return false; }
-      
+
       mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
 
       return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
