@@ -39,10 +39,12 @@ void kmbLayersTests_nightly::setup(
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
+        in.second->setLayout(InferenceEngine::Layout::NHWC);
     }
     _outputsInfo = network.getOutputsInfo();
     for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
+        outputInfo.second->setLayout(InferenceEngine::Layout::NHWC);
     }
 
     std::map<std::string, std::string> config;

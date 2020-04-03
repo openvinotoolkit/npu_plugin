@@ -238,7 +238,8 @@ TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("Pooling", &params, 0, 0, nullptr,
-        Precision::FP16  // output precision
+        Precision::FP16,  // output precision
+        Precision::U8     // input precision
     );
 }
 
