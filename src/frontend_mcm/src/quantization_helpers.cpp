@@ -16,9 +16,13 @@
 
 #include "quantization_helpers.hpp"
 
+#include <precision_utils.h>
+
 #include <algorithm>
 #include <limits>
 #include <vector>
+
+#include "ie_utils.hpp"
 
 #ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
@@ -182,8 +186,9 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
     std::vector<int64_t> newBiasData(biasCount, 0);
     std::vector<double> biasScales;
 
-    if (biasesPrecision == InferenceEngine::Precision::FP32) {
-        auto biasData = biasBlob->buffer().as<float*>();
+    if (biasesPrecision == InferenceEngine::Precision::FP32 || biasesPrecision == InferenceEngine::Precision::FP16) {
+        ie::Blob::Ptr biasBlobFp32 = toFP32(biasBlob);
+        auto biasData = biasBlobFp32->buffer().as<float*>();
         //  ZP = 0
         //  ScaleBias = ActivationScale * WeightsScale
         for (size_t i = 0; i < biasCount; i++) {
@@ -206,10 +211,6 @@ std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
             newBiasData[i] = biasData[i];
         }
         outputQuantParam = initialQuantParams;
-    }
-
-    if (biasesPrecision != InferenceEngine::Precision::FP32 && biasesPrecision != InferenceEngine::Precision::I32) {
-        THROW_IE_EXCEPTION << "Unexpected biases precision";
     }
 
     return newBiasData;
