@@ -44,6 +44,8 @@ namespace vpu {
 
 namespace ie = InferenceEngine;
 
+mv::DType convert_data_type(ie::Precision iePrecision);
+
 class McmNodeObject final : public EnableHandle, public EnableCustomAttributes {
 public:
     explicit McmNodeObject(mv::Data::TensorIterator node, InferenceEngine::TensorDesc desc)

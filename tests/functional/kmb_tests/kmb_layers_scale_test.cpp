@@ -46,8 +46,7 @@ TEST_P(kmbLayersTestsScaleParams, TestsScale) {
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("ScaleShift", &params, weightsSize, biasesSize, weightsBlob,
-        Precision::FP16,  // output precision
-        Precision::U8     // input precision
+        Precision::FP16  // output precision
     );
 }
 

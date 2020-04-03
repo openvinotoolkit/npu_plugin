@@ -223,7 +223,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     int nThreads = _config.throghputStreams();
     int nShaves = 16;
 
-    _logger->info("KmbExecutor::allocateGraph begins");
+    _logger->info("Initiating verification of use case 1");
 
     BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;

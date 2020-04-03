@@ -223,14 +223,6 @@ TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     ModelPooling_Helper modelPoolingHelper;
     const std::string testFileName = "tmp_test.xml";
     std::remove(testFileName.c_str());
-    for (auto&& input : modelPoolingHelper.network.getInputsInfo()) {
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-    }
-    for (auto&& output : modelPoolingHelper.network.getOutputsInfo()) {
-        output.second->setLayout(InferenceEngine::Layout::NHWC);
-        output.second->setPrecision(InferenceEngine::Precision::FP16);
-    }
     network = ie.LoadNetwork(modelPoolingHelper.network, "KMB");
     std::ifstream notExist(testFileName);
     ASSERT_FALSE(notExist.good());
@@ -239,59 +231,4 @@ TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     std::ifstream exists(testFileName);
     ASSERT_TRUE(exists.good());
     std::remove(testFileName.c_str());
-}
-
-TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_NC_OUTPUT) {
-#if defined(__arm__) || defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml";
-    std::string weightsFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin";
-
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(modelFilePath, weightsFilePath);
-    for (auto&& input : cnnNetwork.getInputsInfo()) {
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-    }
-    for (auto&& output : cnnNetwork.getOutputsInfo()) {
-        output.second->setPrecision(InferenceEngine::Precision::FP16);
-        output.second->setLayout(InferenceEngine::Layout::NC);
-    }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, "KMB", {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(NO)}}),
-        InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, "KMB", {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
-}
-
-TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_FP32_OUTPUT) {
-#if defined(__arm__) || defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml";
-    std::string weightsFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin";
-
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(modelFilePath, weightsFilePath);
-    for (auto&& input : cnnNetwork.getInputsInfo()) {
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-    }
-    for (auto&& output : cnnNetwork.getOutputsInfo()) {
-        output.second->setPrecision(InferenceEngine::Precision::FP32);
-        output.second->setLayout(InferenceEngine::Layout::NC);
-    }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, "KMB",
-                     {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(NO)},
-                         {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}),
-        InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, "KMB",
-        {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(YES)}, {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
 }

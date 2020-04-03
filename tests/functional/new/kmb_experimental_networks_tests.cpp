@@ -53,8 +53,7 @@ TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
         TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16)
-            .setUserOutputLayout("output", Layout::NHWC),
+            .setUserOutputPresision("output", Precision::FP16),
         "224x224/cat3.bmp",
         1, 0.5f);
 }

@@ -39,7 +39,7 @@ std::ostream& operator<<(std::ostream& os, const FCTestParams& p) {
 class KmbFullyConnectedLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<FCTestParams> {};
 
 TEST_P(KmbFullyConnectedLayerTests, FakeQuantize_FC) {
-    SKIP_ON("KMB", "Check 'arg0_shape compatible arg1_shape' failed");
+    SKIP_INFER_ON("KMB", "bad results");
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;

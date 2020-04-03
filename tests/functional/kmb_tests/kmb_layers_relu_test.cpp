@@ -227,13 +227,11 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     CNNNetwork network = _net_reader.getNetwork();
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
-        in.second->setPrecision(Precision::U8);
-        in.second->setLayout(Layout::NHWC);
+        in.second->setPrecision(Precision::FP16);
     }
     _outputsInfo = network.getOutputsInfo();
     for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(Precision::FP16);
-        outputInfo.second->setLayout(Layout::NHWC);
     }
     std::map<std::string, std::string> config;
     // LoadNetwork results in 'Null pointer dereference' response
