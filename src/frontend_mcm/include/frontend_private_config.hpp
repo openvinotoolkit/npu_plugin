@@ -33,5 +33,19 @@ namespace VPUConfigParams {
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Add NC layout to the list of supported output layouts
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NC_OUTPUT);
+
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Add FP32 precision to the list of supported output precisions
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_FP32_OUTPUT);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

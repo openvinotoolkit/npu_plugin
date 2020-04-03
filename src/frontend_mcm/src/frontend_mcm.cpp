@@ -110,11 +110,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Const",              &FrontEndMcm::parseConst},
         };
 
-// clang-format on
-
-}  // namespace
-
-mv::DType convert_data_type(ie::Precision iePrecision) {
+mv::DType convert_data_type(const ie::Precision& iePrecision) {
     mv::DType mvType;
     switch (iePrecision) {
     case ie::Precision::UNSPECIFIED:
@@ -143,6 +139,16 @@ mv::DType convert_data_type(ie::Precision iePrecision) {
     }
     return mvType;
 }
+
+mv::Order convert_layout(const ie::Layout& ieLayout) {
+    std::ostringstream layoutToOrder;
+    layoutToOrder << ieLayout;
+    return mv::Order(layoutToOrder.str());
+}
+
+// clang-format on
+
+}  // namespace
 
 void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
     runCommonPasses(network);
@@ -745,6 +751,32 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
 double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
+bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8};
+    return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
+}
+
+bool isInputLayoutSupported(const ie::Layout& inputLayout) {
+    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC};
+    return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
+}
+
+bool isOutputPrecisionSupported(const ie::Precision& outputPrecision, bool allowFP32Output) {
+    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16};
+    if (allowFP32Output) {
+        supportedOutPrecisions.insert(ie::Precision::FP32);
+    }
+    return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
+}
+
+bool isOutputLayoutSupported(const ie::Layout& outputLayout, bool allowNCOutput) {
+    std::set<ie::Layout> supportedOutLayouts = {ie::Layout::NHWC};
+    if (allowNCOutput) {
+        supportedOutLayouts.insert(ie::Layout::NC);
+    }
+    return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
+}
+
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
 
@@ -778,8 +810,17 @@ void FrontEndMcm::parseInputData() {
             inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
         }
 
-        // TODO: MCMCompiler support only U8 inputs, hardcoded for all networks
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(InferenceEngine::Precision::U8), mv::Order("NHWC"),
+        const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
+        if (!isInputLayoutSupported(inputLayout)) {
+            VPU_THROW_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
+        }
+
+        const InferenceEngine::Precision inputPrecision = ieData->getTensorDesc().getPrecision();
+        if (!isInputPrecisionSupported(inputPrecision)) {
+            VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
+        }
+
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision), convert_layout(inputLayout),
             inputQuantParamsOverRide, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
@@ -802,6 +843,9 @@ void FrontEndMcm::parseOutputData() {
         auto name = lastLayerOut->getMcmNode()->getName();
 
         const auto outputPrecision = ieData->getTensorDesc().getPrecision();
+        if (!isOutputPrecisionSupported(outputPrecision, _config.allowFP32Output())) {
+            VPU_THROW_EXCEPTION << "Output data type is not supported: " << outputPrecision;
+        }
 
         // TODO: kmbPlugin already has a function convert_data_type() for matching IE precision to mcm, but
         // in this case we can't use due to limitations on mcm level (not all precisions are supported).
@@ -824,6 +868,12 @@ void FrontEndMcm::parseOutputData() {
             break;
         default:
             VPU_THROW_EXCEPTION << "Data type handling is not implemented" << outputPrecision.name();
+        }
+
+        const InferenceEngine::Layout outputLayout = ieData->getTensorDesc().getLayout();
+        // NC outputs are not supported by MCM, but the output can be casted to NC via VPU_COMPILER_ALLOW_NC_OUTPUT
+        if (!isOutputLayoutSupported(outputLayout, _config.allowNCOutput())) {
+            VPU_THROW_EXCEPTION << "Output layout is not supported: " << outputLayout;
         }
 
         auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}});

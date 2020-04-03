@@ -41,6 +41,7 @@ BlobVector refSoftmax(const TestNetwork::NodePtr& layer, const BlobVector& input
 
     IE_ASSERT(inputPtr != nullptr);
     IE_ASSERT(outputPtr != nullptr);
+    std::memset(outputPtr, 0, output->byteSize());
 
     ngraph::runtime::reference::softmax(inputPtr, outputPtr,
             layer->input(0).get_shape(), ngraph::AxisSet({softmaxLayer->get_axis()}));
