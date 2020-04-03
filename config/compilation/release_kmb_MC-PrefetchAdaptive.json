@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
+                "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -112,7 +112,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : true      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
