@@ -90,7 +90,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% spar
 // KMB : Bad inference results.
 // Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_ON("KMB", "Compiler Error: min > max");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml")
@@ -113,7 +113,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_MobileNet_V2) {
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet-v2-caffe-IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPresision("output", Precision::FP16)
+            .setUserOutputLayout("output", Layout::NHWC),
         "224x224/cat3.bmp",
         3, 1e-5f);
 }
@@ -320,7 +321,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPresision("output", Precision::FP16)
+            .setUserOutputLayout("input", Layout::NHWC),
         TestImageDesc("227x227/cat3.bmp", false),
         1, 0.05f);
 }
@@ -488,7 +490,8 @@ TEST_F(KmbClassifyNetworkTest, squeezenet_v1_1_caffe2_dense_int8_IRv10) {
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPresision("output", Precision::FP32)
+            .setUserOutputLayout("output", Layout::NHWC),
         "227x227/cat3.bmp",
         1, 2.0f);
 }
@@ -689,3 +692,138 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10) {
 //////////////////////////////////////////
 // End of test-set for KMB-beta IRv10
 //////////////////////////////////////////
+
+////////////////////////////////////////////////////////////
+// Start of test-set for IRv10 FP16 to INT8 quantization
+////////////////////////////////////////////////////////////
+
+// C++ exception with description "Layer Power_123537 supports only power = 1
+// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1464
+// [Track number: D#2809]
+TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_ON("KMB", "compile error");
+
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            TestImageDesc("416x416/person.bmp", false),
+            0.6, 0.4, 0.4, false);
+}
+
+TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
+
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            TestImageDesc("416x416/person.bmp", false),
+            0.6, 0.4, 0.4, false);
+}
+
+TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/husky.bmp",
+            1, 0.7f);
+}
+
+TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/watch.bmp",
+            1, 7.0f);
+}
+
+TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/cat3.bmp",
+            1, 0.05f);
+}
+
+TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "299x299/n01537544_28.bmp",
+            1, 0.05f);
+}
+
+TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32)
+                    .setUserOutputLayout("output", Layout::NHWC),
+            "227x227/cat3.bmp",
+            1, 2.0f);
+}
+
+TEST_F(KmbClassifyNetworkTest, googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "299x299/sofa.bmp",
+            1, 0.05f);
+}
+
+TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/resnet-101/resnet_101_caffe_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/cat3.bmp",
+            1, 0.05f);
+}
+
+TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/resnet-152/resnet_152_caffe_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/cat3.bmp",
+            1, 0.05f);
+}
+
+// Compilation time is very long - more than 40 minutes.
+// The same situation as for vgg16_caffe_dense_int8_IRv10
+// [Track number: S#28620]
+TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_ON("KMB", "very long compile time");
+
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
+                    .setUserInputPresision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setUserOutputPresision("output", Precision::FP32),
+            "224x224/cat3.bmp",
+            1, 0.05f);
+}
+////////////////////////////////////////////////////////////
+// End of test-set for IRv10 FP16 to INT8 quantization
+////////////////////////////////////////////////////////////

@@ -32,7 +32,7 @@ static void refNormalizeFromVPU(const Blob::Ptr src,
     IE_ASSERT(Layout::NCHW == src->getTensorDesc().getLayout());
 
     IE_ASSERT(*axes == 1);
-    
+
     auto src_data = src->buffer().as<float*>();
     auto dst_data = dst->buffer().as<float*>();
 
@@ -64,7 +64,7 @@ static void refNormalizeFromVPU(const Blob::Ptr src,
 	        norm = 1.f / std::max(std::sqrt(norm), eps);
 	    } else if(eps_mode == ngraph::op::EpsMode::ADD) {
 	        norm = 1.f / std::sqrt(norm + eps);
-	    } 
+	    }
             for(size_t i = 0; i < dst_ptrs_by_channels.size(); ++i) {
                 *dst_ptrs_by_channels[i] = *src_ptrs_by_channels[i] * norm;
             }

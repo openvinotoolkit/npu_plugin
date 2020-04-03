@@ -23,7 +23,7 @@
 
 struct NormalizeParams final {
     NormalizeParams(double eps, ngraph::op::EpsMode eps_mode) : _eps(eps), _eps_mode(eps_mode){}
-    
+
     double _eps;
     ngraph::op::EpsMode _eps_mode;
 };
