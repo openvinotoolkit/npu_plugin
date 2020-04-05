@@ -116,10 +116,17 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            // Serialize SOK weights individually
-            // Detect if they are weights UIn8 or Int8 dType 
-            if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
+            std::cout << tIt->getName() << std::endl;
+
+            // Weights sparsity new approach: there is a separate constant for
+            // each cluster
+            if(tIt->isSparse())
             {
+                auto sparsityMap = tIt->getSparsityMap();
+                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+                dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
+                sparsityMap->set<unsigned>("graphFileIndex", i++);
+
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t j = 0; j < numClusters; ++j)
@@ -128,16 +135,10 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 else
                     tIt->set<unsigned>("graphFileIndex", i++);
             }
-
-            // Weights sparsity new approach: there is a separate constant for
-            // each cluster
-            else if(tIt->isSparse())
+            // Serialize SOK weights individually
+            // Detect if they are weights UIn8 or Int8 dType 
+            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8")) && !tIt->isSparse())  
             {
-                auto sparsityMap = tIt->getSparsityMap();
-                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-                dm.allocateTensor("GraphFile", stageIt, sparsityMapIterator);
-                sparsityMap->set<unsigned>("graphFileIndex", i++);
-
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
                     for(std::size_t j = 0; j < numClusters; ++j)

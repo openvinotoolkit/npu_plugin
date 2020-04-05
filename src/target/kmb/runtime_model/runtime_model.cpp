@@ -313,6 +313,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
+    mv::OpModel om(cm);
 
     auto subtensor = t->getSubTensor(clusterId);
 
@@ -359,8 +360,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
+            std::cout << t->getName() << std::endl;
+            std::cout << t->get<mv::DType>("dType").toString() << std::endl;
+            auto parentOp = om.getSourceOp(t);
             //SOK dense weight tensors for HDE support
-            if(t->isSplitOverK() && (t->get<mv::DType>("dType") == mv::DType("UInt8") || t->get<mv::DType>("dType") == mv::DType("Int8")))
+            if(t->isSplitOverK() && (t->get<mv::DType>("dType") == mv::DType("UInt8") || t->get<mv::DType>("dType") == mv::DType("Int8")) && (strstr(&t->getName()[0], "_sm") == NULL))
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -581,10 +585,11 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
     //Compress weights
-    if((t.getDType().toString() == "UInt8" || t.getDType().toString() == "Int8") && huffmanCompression) 
+    if((t.getDType().toString() == "UInt8" || t.getDType().toString() == "Int8") && huffmanCompression && (strstr(&t.getName()[0], "_sm") == NULL)) 
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
+        std::cout << weightSizeKb << std::endl;
         //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
             auto compressedData = huffmanCompress(dataPacked, t); 
@@ -2302,7 +2307,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                     toSort.push_back(&(*tIt));
             }
             //Serialize SOK weights individually
-            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
+            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8")) && !tIt->isSparse()) 
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {
@@ -2381,6 +2386,7 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 
 std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& data, mv::Tensor& t) 
 {
+    std::cout << "compression!!!!!!!!!!!!" << std::endl;
     std::vector<uint8_t> uncompressedData(data.begin(),data.end());
     uint32_t uncompressedDataSize = uncompressedData.size();
     auto compressedBufferSize = uncompressedDataSize + 2 * (std::ceil(uncompressedDataSize / 4096.0) + 1);
