@@ -183,6 +183,7 @@ protected:
 
 TEST_P(KmbComputePriorboxTest, TestsPriorBox) {}
 
+#ifndef __aarch64__
 INSTANTIATE_TEST_CASE_P(KmbTestsPriorBox, KmbComputePriorboxTest,
     ::testing::Values(vpu::ParseLayersHelpers::priorBoxParam(0.5, 16, {76.8}, {153.6}, true, false, true, {}, {}, {},
                           {2, 3}, {0.1, 0.1, 0.2, 0.2}, {1, 1024, 32, 32}, {1, 3, 512, 512}, {2, 1, 24576}),
@@ -196,3 +197,4 @@ INSTANTIATE_TEST_CASE_P(KmbTestsPriorBox, KmbComputePriorboxTest,
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 2, 2}, {1, 3, 512, 512}, {2, 1, 64}),
         vpu::ParseLayersHelpers::priorBoxParam(0.5, 512, {460.8}, {537.6}, true, false, true, {}, {}, {}, {2},
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 1, 1}, {1, 3, 512, 512}, {2, 1, 16})));
+#endif
