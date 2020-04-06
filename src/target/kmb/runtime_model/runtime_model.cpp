@@ -7,6 +7,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -582,6 +583,10 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
+    auto dataPacked = t.getDataPacked();
+    auto weightSizeKb = t.computeTotalSize() / 1024;
+    std::cout << "Tensor size " << t.getName() << "  " << weightSizeKb << std::endl;
+
     // Here we use the HDE to compress weights
     // We do not compress sparsity maps
     if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap")) 
@@ -864,7 +869,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
     }
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel<< t.getName() << std::endl;::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     mv::DataModel dm(cm);
 
