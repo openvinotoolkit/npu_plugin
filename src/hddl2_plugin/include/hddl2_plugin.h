@@ -21,6 +21,7 @@
 
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "hddl2_config.h"
+#include "hddl2_metrics.h"
 #include "inference_engine.hpp"
 
 namespace vpu {
@@ -52,6 +53,9 @@ public:
     void QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
         InferenceEngine::QueryNetworkResult& res) const override;
 
+    InferenceEngine::Parameter GetMetric(
+        const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
     /**
      * @brief Create context form param map. Will reuse already created workloadContext (workload
      * context id should be specified in param map)
@@ -61,6 +65,7 @@ public:
 
 private:
     HDDL2Config _parsedConfig;
+    HDDL2Metrics _metrics;
 };
 
 }  //  namespace HDDL2Plugin
