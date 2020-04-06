@@ -311,6 +311,7 @@ void alignInputForChannelMajorConvolution(mv::ComputationModel& model, mv::Data:
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
             opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+            opsToLink[op]->set<bool>("alignWidth", true);
             om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
         }  
     }
@@ -389,6 +390,7 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     for(unsigned op = 0 ; op < opsToLink.size(); ++op)
                     {
                         opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
+                        opsToLink[op]->set<bool>("alignment", true);
                         om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
                     }
                 }
