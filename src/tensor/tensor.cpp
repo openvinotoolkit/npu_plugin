@@ -456,6 +456,7 @@ bool mv::Tensor::setSparse()
     }
     //std::cout << "Total bytes of sparsity map for " << getName() << " " << mapShape.totalSize() * mv::DType("UInt8").getSizeInBits() / 8 << std::endl;
     sparsityMap_ = std::make_shared<Tensor>(createSparsityMapName(getName()), mapShape, mv::DType("UInt8"), Order("NHWC"));
+    sparsityMap_->set<bool>("sparsityMap", true);
     noneZeroElements_ = 0;
 
     //populate sparsity map
@@ -1247,24 +1248,12 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
                 auto order = getOrder();
 
-                // NOTE: Physically copying the data to subtensors is needed only when the tensor is sparse
+                // NOTE: Physically copying the data to subtensors is needed when the tensor is sparse
                 // since we need to sparsify the subtensors to get the kernel data offsets.
-                if (isSparse())
-                {
-                    std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
-                    size_t nOffset = static_cast<size_t>(wlItr->MinY);
-                    size_t cOffset = static_cast<size_t>(wlItr->MinX);
-                    for (size_t n = 0; n < newShape[3]; n++)
-                        for (size_t c = 0; c < newShape[2]; c++)
-                            for (size_t h = 0; h < newShape[1]; h++)
-                                for (size_t w = 0; w < newShape[0]; w++)
-                                    splittedData[order.subToInd(newShape, {w, h, c, n})] = this->at({w , h, c+cOffset, n+nOffset});
-                    subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx),
-                        newShape, getDType(), order, splittedData));
-                }
+
                 // NOTE: Physically copying the data to subtensors is needed for SOK weights
                 // because we need to compress the subtensors indivdually as they are decompressed individually during the DMA to each cluster
-                else if (isSplitOverK() && !isSparse()) 
+                if (isSparse() || isSplitOverK())
                 {
                     std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
                     size_t nOffset = static_cast<size_t>(wlItr->MinY);

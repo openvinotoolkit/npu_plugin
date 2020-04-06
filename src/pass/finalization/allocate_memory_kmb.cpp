@@ -116,10 +116,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            std::cout << tIt->getName() << std::endl;
-
-            // Weights sparsity new approach: there is a separate constant for
-            // each cluster
+            // For weights sparsity there is a seperate constant per cluster, the sub-tensors are sparsified individually to get the kernel data offsets 
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
@@ -135,9 +132,10 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 else
                     tIt->set<unsigned>("graphFileIndex", i++);
             }
-            // Serialize SOK weights individually
-            // Detect if they are weights UIn8 or Int8 dType 
-            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8")) && !tIt->isSparse())  
+            
+            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
+            // Weights have UInt8 or Int8 dType 
+            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8")))  
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {

@@ -1041,7 +1041,7 @@ namespace mv
                 if(enableChannelMajorConv and op.getOpType() == "Conv" and 
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
-
+                
                 //Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
