@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,32 +16,33 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-struct SoftmaxTestParams final {
+struct SoftmaxStressTestParams final {
     SizeVector _inDims;
-    size_t _axisSet = 0;
+    Precision _outPrecision;
 
-    SoftmaxTestParams& inDims(const SizeVector& inDims) {
+    SoftmaxStressTestParams& inDims(const SizeVector& inDims) {
         this->_inDims = inDims;
         return *this;
     }
 
-    SoftmaxTestParams& axisSet(const size_t& axis_set) {
-        this->_axisSet = axis_set;
+    SoftmaxStressTestParams& outPrecision(const Precision& outPrecision) {
+        this->_outPrecision = outPrecision;
         return *this;
     }
 };
-std::ostream& operator<<(std::ostream& os, const SoftmaxTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, axisSet:%v]", p._inDims, p._axisSet);
+
+std::ostream& operator<<(std::ostream& os, const SoftmaxStressTestParams& p) {
+    vpu::formatPrint(os, "[inDims:%v, outPrecision:%v]", p._inDims, p._outPrecision);
     return os;
 }
 
-class KmbSoftmaxLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<SoftmaxTestParams> {};
+class KmbSoftmaxStressTest : public KmbLayerTestBase, public testing::WithParamInterface<SoftmaxStressTestParams> {};
 
-TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
+TEST_P(KmbSoftmaxStressTest, DISABLED_Single_FP32) {
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
-    const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(p._outPrecision, Layout::NHWC);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
 
@@ -58,7 +59,7 @@ TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), Precision::FP32)
-            .addLayer<SoftmaxLayerDef>("softmax", p._axisSet)
+            .addLayer<SoftmaxLayerDef>("softmax", 1)
                 .input("input")
                 .build()
             .addNetOutput(PortInfo("softmax"))
@@ -69,13 +70,25 @@ TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-const std::vector<SoftmaxTestParams> softmaxParams {
-        SoftmaxTestParams()
+const std::vector<SoftmaxStressTestParams> softmaxParams {
+        SoftmaxStressTestParams()
+            .inDims({1, 3, 32, 32})
+            .outPrecision(Precision::FP16),
+        SoftmaxStressTestParams()
+            .inDims({1, 3, 32, 32})
+            .outPrecision(Precision::FP32),
+        SoftmaxStressTestParams()
+            .inDims({1, 3, 16, 16})
+            .outPrecision(Precision::FP16),
+        SoftmaxStressTestParams()
+            .inDims({1, 3, 16, 16})
+            .outPrecision(Precision::FP32),
+        SoftmaxStressTestParams()
             .inDims({1, 1000, 2, 2})
-            .axisSet({1}),
-        SoftmaxTestParams()
+            .outPrecision(Precision::FP32),
+        SoftmaxStressTestParams()
             .inDims({1, 1001, 2, 2})
-            .axisSet({1})
+            .outPrecision(Precision::FP32),
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
+INSTANTIATE_TEST_CASE_P(SomeCase, KmbSoftmaxStressTest, testing::ValuesIn(softmaxParams));

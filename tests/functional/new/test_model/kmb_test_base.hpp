@@ -28,6 +28,7 @@
 #include "kmb_test_softmax_def.hpp"
 #include "kmb_test_fully_connected_def.hpp"
 #include "kmb_test_sigmoid_def.hpp"
+#include "kmb_test_power_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
