@@ -363,8 +363,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             std::cout << t->getName() << std::endl;
             std::cout << t->get<mv::DType>("dType").toString() << std::endl;
             auto parentOp = om.getSourceOp(t);
-            //SOK dense weight tensors for HDE support
-            if(t->isSplitOverK() && (t->get<mv::DType>("dType") == mv::DType("UInt8") || t->get<mv::DType>("dType") == mv::DType("Int8")) && (strstr(&t->getName()[0], "_sm") == NULL))
+
+            // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
+            // Weight tables and sparsity maps are not compressed
+            if(t->isSplitOverK() && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")) 
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -586,7 +588,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 
     // Here we use the HDE to compress weights
     // We do not compress sparsity maps
-    if(huffmanCompression && (t.getDType().toString() == "UInt8" || t.getDType().toString() == "Int8") && !t.hasAttr("sparsityMap")) 
+    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap")) 
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
