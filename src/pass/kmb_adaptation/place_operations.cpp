@@ -70,7 +70,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 for(std::size_t i = 0; i < opIt->inputSlots(); ++i)
                     opIt->getInputTensor(i)->set<mv::DType>("dType", mv::DType("Float16"));
                 opIt->getOutputTensor(0)->set<mv::DType>("dType", mv::DType("Float16"));
-                opIt->set<mv::DType>("dType", mv::DType("Float16"));
+//                opIt->set<mv::DType>("dType", mv::DType("Float16"));
                 bool hasBias = opIt->hasAttr("bias");
 
                 if (opIt->hasWeights())

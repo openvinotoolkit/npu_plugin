@@ -54,6 +54,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
@@ -64,6 +65,55 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
+
+        //NOTE: Temporary hack for the scheduler, can not handle implicit/neutral copy when input is in CMX
+        //Add a DMA and then seems to get handled...
+        else if (opType == "Copy")
+        {
+            if (opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
+
+                auto sinkOps = findSinkLayers(dm, opIt->getInputTensor(0));
+                auto outputFlow = parentOp.leftmostOutput();
+                std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+                std::size_t copyId, dpuId, id = 0;
+                while (outputFlow != om.flowEnd())
+                {
+                    if (outputFlow.sink()->getOpType() == "Copy")
+                        copyId = id;
+                    else
+                        dpuId = id;
+                    flowsToRemove.push_back(outputFlow);
+                    ++outputFlow;
+                    id++;
+                }
+                auto compensatorOutput = om.dMATask(opIt->getInputTensor(0),
+                                                        mv::DmaDirectionEnum::NNCMX2DDR,
+                                                        opIt->getName() + "_copyDMA");
+                compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+                om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+                for (auto sinkOp:sinkOps)
+                {
+                    if (sinkOp->getOpType() != "DPUTask")
+                    {
+                        //NOTE: neutral Copy has only 0
+                        sinkOp->setInputTensor(compensatorOutput,0, false);
+                        om.undefineFlow(flowsToRemove[copyId]);
+                        om.defineFlow(compensatorOutput, sinkOp, copyId);
+                    }
+                    else
+                    {
+                        sinkOp->setInputTensor(compensatorOutput, 0, false);
+                        om.undefineFlow(flowsToRemove[dpuId]);
+                        om.defineFlow(compensatorOutput, sinkOp, dpuId);
+                    }
+                }
+
+            }
+        }
+
 
         if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
         {
