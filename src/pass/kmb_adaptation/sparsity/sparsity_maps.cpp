@@ -337,8 +337,11 @@ static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::Compu
                     {
                         input0->setSparse();
                         input1->setSparse();
-                        // Note: Runtime expects odu_offset to be set on the "weights" input of the eltwise
+                        // Note: odu_offset to be set on the input of the eltwise that results in positive number
                         // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
+                        auto input0_op = om.getSourceOp(input0);
+                        input0_op->set<std::string>("needsODUoffset", input1->getName());
+
                         auto input1_op = om.getSourceOp(input1);
                         input1_op->set<std::string>("needsODUoffset", input0->getName());
                     }
