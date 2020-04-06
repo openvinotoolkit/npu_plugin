@@ -4,8 +4,8 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
-                "verbose": "Error",
+                "recorded_model": true,
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -17,10 +17,10 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": true,
+                "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
-                "PPEAccuracy": false,
+                "PPEAccuracy": true,
                 "split_strategy" :
                 [
                     {
@@ -99,8 +99,22 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/leaky_workaround.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "DecideOutputDataType",
             "PlacementOfOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/placement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -182,7 +196,14 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_streaming.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "kmb_adapt": {
@@ -210,32 +231,53 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-            "UpdateImplicitLayersLocation",
-            "ResolveImplicitOperations",
-            "AddDPUTasksWeightsDMATasks",
-            "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
+                "output": "output/dots/before_crop_implicit.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
- }
+            },
+            "UpdateImplicitLayersLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_crop_implicit.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_implicit.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "AddDPUTasksWeightsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_weights_dma.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "AddUPATasksExtraInputsDMATasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_upa.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -252,6 +294,13 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/final.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -293,14 +342,7 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
@@ -311,6 +353,13 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/blob.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
