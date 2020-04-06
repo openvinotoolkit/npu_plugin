@@ -8,6 +8,7 @@
 #include <ie_blob.h>
 #include <ie_compound_blob.h>
 
+#include <memory>
 #include <opencv2/gapi.hpp>
 #include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <utility>
@@ -20,8 +21,7 @@
 namespace InferenceEngine {
 
 class SIPPPreprocEngine::Priv {
-    cv::GCompiled _lastCompiled;
-    SizeVector _lastInYDims;
+    std::unique_ptr<cv::GComputation> _comp = nullptr;
     unsigned int _shaveFirst;
     unsigned int _shaveLast;
     unsigned int _lpi;
@@ -161,7 +161,7 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
 
     // FIXME: add batch
 
-    if (!_lastCompiled) {
+    if (!_comp) {
         GMat in_y, in_uv, out;
         own::Size out_sz{output.cols, output.rows};
 
@@ -175,19 +175,13 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
             out = gapi::merge3p(resized);
         }
 
-        _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
-                            .compile(own::descr_of(input_y), own::descr_of(input_uv),
-                                compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                    GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
-                                    GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
-    } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
-        cv::GMetaArgs meta(2);
-        meta[0] = own::descr_of(input_y);
-        meta[1] = own::descr_of(input_uv);
-        _lastCompiled.reshape(meta, {});
-        _lastInYDims = y_blob->getTensorDesc().getDims();
+        _comp.reset(new GComputation(GIn(in_y, in_uv), GOut(out)));
     }
-    _lastCompiled(gin(input_y, input_uv), gout(output));
+
+    _comp->apply(gin(input_y, input_uv), gout(output),
+                 compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
+                              GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
+                              GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
 }
 
 SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
