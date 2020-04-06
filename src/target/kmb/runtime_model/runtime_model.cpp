@@ -606,7 +606,6 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     }
     else 
     {
-        std::cout << t.getName() << std::endl;
         auto dataPacked = t.getDataPacked();
         toBuild->data = packToInt64(dataPacked, t.getDType());
         toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
@@ -865,7 +864,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
     }
 }
 
-std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
+std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel<< t.getName() << std::endl;::buildNNDMATaskT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, std::string splitting)
 {
     mv::DataModel dm(cm);
 
@@ -2320,7 +2319,6 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
         graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression));
     }
     // TASKS
