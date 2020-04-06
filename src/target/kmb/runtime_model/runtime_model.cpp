@@ -199,8 +199,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    std::cout << t->getName() << std::endl;
-
     mv::Control::StageIterator stg = cm.getStage(0);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -360,8 +358,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
-            std::cout << t->getName() << std::endl;
-            std::cout << t->get<mv::DType>("dType").toString() << std::endl;
             auto parentOp = om.getSourceOp(t);
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
@@ -797,7 +793,7 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -832,7 +828,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 }
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
+                               bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
                                mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
@@ -893,11 +889,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
-
-    bool compression = false;
-    if(inputTensor->hasAttr("Compression"))
-        compression = inputTensor->get<bool>("Compression"); //This is main tensor for SOK
-        
+ 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
@@ -919,13 +911,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case1MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
+        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, inputTensor, outputTensor);
 
         if(inputTensor->isSparse())
         {
             // NOTE: First usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case1MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
@@ -940,12 +932,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
+        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }

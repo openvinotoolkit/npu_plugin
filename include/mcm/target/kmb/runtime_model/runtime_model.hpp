@@ -138,8 +138,8 @@ namespace mv
             std::vector<int64_t> huffmanCompress(std::vector<int64_t>& inputData, mv::Tensor& t);
             std::vector<uint8_t> huffmanDecompress(std::vector<uint8_t>& compressedData);
             std::shared_ptr<std::vector<char>> getBlob();
-            static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
-            static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
+            static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
+            static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
     };
 }
 
