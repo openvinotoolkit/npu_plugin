@@ -34,8 +34,8 @@ HDDL2Metrics::HDDL2Metrics() {
 
 std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
     if (!HDDL2Metrics::isServiceAvailable()) {
-        // FIXME: should return empty. Workaround for test framework
-        return std::vector<std::string>({"HDDL2"});
+        // return empty device list if service is not available
+        return std::vector<std::string>();
     }
 
     std::vector<HddlUnite::Device> devices;
