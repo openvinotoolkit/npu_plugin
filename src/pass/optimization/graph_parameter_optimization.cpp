@@ -7,6 +7,8 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "contrib/huffman_encoding/include/Huffman.hpp"
 #include "contrib/huffman_encoding/include/huffmanCodec.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_strings.hpp"
 
 
 static void GraphParameterOptimizationFcn(
@@ -46,7 +48,7 @@ namespace mv
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
                 
-                // Get the HDE hardware specs
+                // Load the HDE hardware specs
                 auto hdeDef = td.hdeDef();
                 codec_.reset(new huffmanCodec(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
@@ -99,6 +101,55 @@ namespace mv
                 uint32_t compressedSize = codec_->huffmanCodecCompressArray(uncompressedDataSize, &uncompressedData[0], &compressedDataBuffer[0]);
               
                 return compressedSize;
+            }
+
+            double weightsCompressionRatio(mv::Op layer)
+            {
+                double weightsCompressionRatio = 1;
+                auto inputTensor = layer.getInputTensor(0);
+                auto weightsTensor = layer.getInputTensor(1);
+                auto outputTensor = layer.getOutputTensor(0);
+                auto weightsTensorShape = weightsTensor->getShape();
+                auto inputTensorShape = inputTensor->getShape();
+                auto outputTensorShape = outputTensor->getShape();
+
+                auto globalConfigParams = model_.getGlobalConfigParams();
+                int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+
+                auto alignedInputChannels = ((inputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad- 1) / pad) * pad;
+                auto alignedOutputChannels = ((outputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad - 1) / pad) * pad;
+
+                mv::Shape alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
+                                                alignedInputChannels, alignedOutputChannels});
+
+                // HDE should only compress weights larger than 4 kB
+                if(alignedShape.totalSize() /1024 > 4)             
+                {
+                    // If weights are already aligned to 16 channels, then compute the HDE compression ratio 
+                    if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
+                        weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
+                    {
+                        auto weightsdata = weightsTensor->getIntData();
+                        auto compressedWeightSize =  huffmanCompress(weightsdata);
+                        weightsCompressionRatio = (double)compressedWeightSize / weightsdata.size();
+                        return weightsCompressionRatio;
+                    }
+                    // Else align weights to 16 channels and compute the HDE compression ratio          
+                    else 
+                    {
+                        auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
+                        auto zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
+
+                        auto alignedWeightsdata = weightsTensor->getIntData();
+                        auto weightsAlignmentData = std::vector<int64_t>(alignedShape.totalSize() - alignedWeightsdata.size() , zeroPoint);
+                        alignedWeightsdata.insert(alignedWeightsdata.end(), weightsAlignmentData.begin(), weightsAlignmentData.end());
+
+                        auto compressedWeightsSize =  huffmanCompress(alignedWeightsdata);
+                        weightsCompressionRatio = (double)compressedWeightsSize / alignedWeightsdata.size();
+                        return weightsCompressionRatio;
+                    }
+                }
+                return weightsCompressionRatio;
             }
 
             //TODO:: figure out more efficient and cleaner way to handle these....
@@ -959,28 +1010,31 @@ namespace mv
                     auto streamOverK = parent["streaming"].get<Shape>()["K"];
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
 
-                    //Compressed weight size, tensors are not aligned yet
-                    auto weightData = parentOp.getInputTensor(1)->getIntData();
-                    auto compressedWSize = huffmanCompress(weightData); 
+                    //HDE compression ratio
+                    auto weightscompressionRatio = weightsCompressionRatio(parentOp); 
 
                     if( streamOverK == 1)
-                        execTime1 += (double)WSize / (double)ddrBandwidth;
+                        execTime1 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime1 += ((double)WSize  / (double)ddrBandwidth) * 2;
+                        execTime1 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
-                        execTime1 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
+                        execTime1 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
 
                 if(childOp.getOpType() == "Conv")
                 {
                     auto streamOverK = child["streaming"].get<Shape>()["K"];
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
+
+                    //HDE compression ratio
+                    auto weightscompressionRatio = weightsCompressionRatio(parentOp);
+
                     if( streamOverK == 1)
-                        execTime2 += (double)WSize / (double)ddrBandwidth;
+                        execTime2 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime2 += ((double)WSize  / (double)ddrBandwidth) * 2;
+                        execTime2 += ((double)WSize * weightscompressionRatio  / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
-                        execTime2 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
+                        execTime2 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
 
                 auto parentStreamOverH = parent["streaming"].get<Shape>()["H"];
