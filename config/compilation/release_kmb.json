@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -113,8 +113,22 @@
             "ConvolutionDilation",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/after_conv_dilate_bef_graph_opt.dot",
+                "output": "output/dots/after_conv_dilate_bef_graph_optControlModel.dot",
                 "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_conv_dilate_bef_graph_optOpControlModel.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_conv_dilate_bef_graph_optOpModel.dot",
+                "scope": "OpModel",
                 "content": "full",
                 "html": true
             },
