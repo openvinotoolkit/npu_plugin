@@ -4,7 +4,7 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
+                "recorded_model": false,
                 "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
@@ -99,13 +99,6 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/leaky_workaround.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "DecideOutputDataType",
             "PlacementOfOps",
             {
@@ -154,7 +147,7 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -196,14 +189,7 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_streaming.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
@@ -238,45 +224,10 @@
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_crop_implicit.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "UpdateImplicitLayersLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_crop_implicit.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "ResolveImplicitOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_implicit.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AddDPUTasksWeightsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_weights_dma.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AddUPATasksExtraInputsDMATasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_upa.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -294,16 +245,8 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/final.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "ddr_address_generation" : true,
               "enable_simple_repacking" : true
             },
             {
