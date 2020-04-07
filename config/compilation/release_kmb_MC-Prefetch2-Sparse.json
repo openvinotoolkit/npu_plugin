@@ -191,7 +191,6 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
-            "GenerateSparsityMapsEltwise",
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
@@ -232,6 +231,7 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsEltwise",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",

@@ -190,7 +190,6 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
-            "GenerateSparsityMapsEltwise",
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
@@ -227,6 +226,7 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsEltwise",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/lp_scheduler_input_op_model.dot",
