@@ -35,8 +35,19 @@ const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
     return options;
 }
 
+const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
+    static const std::unordered_set<std::string> options =
+        merge(ParsedConfigBase::getRunTimeOptions(), {
+                                                         CONFIG_KEY(DEVICE_ID),
+                                                     });
+
+    return options;
+}
+
 void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
     MCMConfig::parse(config);
 
+    // TODO This is something incorrect
     setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
+    setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
 }

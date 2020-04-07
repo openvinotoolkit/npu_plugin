@@ -46,7 +46,11 @@ ExecutableNetwork::ExecutableNetwork(
     const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
     _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
     _context = castIEContextToHDDL2(ieContext);
-    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    if (_context == nullptr) {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+    } else {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    }
 
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
@@ -71,7 +75,11 @@ ExecutableNetwork::ExecutableNetwork(
     _context = castIEContextToHDDL2(ieContext);
 
     if (isDaemonAvailable()) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+        if (_context == nullptr) {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+        } else {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+        }
     }
 }
 
@@ -79,8 +87,11 @@ ExecutableNetwork::ExecutableNetwork(
     std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext) {
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
     _context = castIEContextToHDDL2(ieContext);
-    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
-
+    if (_context == nullptr) {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+    } else {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    }
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
