@@ -564,8 +564,8 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
         // NOTE: What are the default values here
-        int8_t ppeMult;
-        uint8_t ppeShift;
+        int8_t ppeMult=1;
+        uint8_t ppeShift=0;
         if (leakyAlpha != 0)
         {
             // HW PRELU MULT is I8, so 7 precision bits are available

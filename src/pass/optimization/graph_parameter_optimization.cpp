@@ -45,18 +45,18 @@ namespace mv
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
             }
 
-            size_t totalClusters;
-            size_t clusterMemoryKb;
-            size_t dpuPerCluster;
-            int ddrBandwidth;
-            int sysClock;
-            bool globalEnableStreaming;
-            bool globalEnableActivationSparsity;
-            bool globalEnableWeightsSparsity;
-            bool globalForceSpilling;
-            bool enableChannelMajorConv;
-            double safetyFactor;
-            double clusterMemory;
+            size_t totalClusters=4;
+            size_t clusterMemoryKb=896;
+            size_t dpuPerCluster=5;
+            int ddrBandwidth=128;
+            int sysClock=500;
+            bool globalEnableStreaming=true;
+            bool globalEnableActivationSparsity=false;
+            bool globalEnableWeightsSparsity=false;
+            bool globalForceSpilling=false;
+            bool enableChannelMajorConv=false;
+            double safetyFactor=1.0;
+            double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp", 
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled", 
             "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels"};
@@ -910,7 +910,7 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
                             return INF;
                     }
-                    if( (parentOp.getOpType() != "Input") and 
+                    if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
                       ( (parentMem.first + parentMem.second) > clusterMemory) )
                     {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString() 

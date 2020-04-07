@@ -281,7 +281,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     repacker.repack(scheduled_ops.begin(), scheduled_ops.end(), 
         std::back_inserter(new_scheduled_ops));
-//    repacker.print();
 
     scheduled_ops = new_scheduled_ops;
     fprintf(fptr, "[Average Repack Level]: %0.5lf\n",

@@ -18,4 +18,6 @@ int main()
     const uint32_t local_data = std::min(max_width, width) * test.local_size[1] * channels * sizeof(half);
 
     test.run("st.elf", {0, 1, 0, channels, width, local_data});
+
+    return 0;
 }

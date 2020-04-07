@@ -1337,7 +1337,7 @@ mv::Shape mv::Tensor::getShape() const
 
 int mv::Tensor::computeAppropriatePadding() const
 {
-    int pad;
+    int pad = 0;
     if (getDType() == mv::DType("Float16"))
         pad = 8;
     else if (getDType() == mv::DType("UInt8"))

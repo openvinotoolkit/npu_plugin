@@ -17,4 +17,6 @@ int main()
     const uint32_t local_data = width * height * channels * sizeof(half);
 
     test.run("ctc.elf", {0, 1, 0, width, height, channels, local_data, local_data});
+
+    return 0;
 }
