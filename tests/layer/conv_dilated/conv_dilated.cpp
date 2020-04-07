@@ -21,7 +21,7 @@ int main()
     //auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{},{}} , "conv");
     om.output(conv0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);
