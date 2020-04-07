@@ -57,26 +57,13 @@ ExecutableNetwork::ExecutableNetwork(
     this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
 
-namespace {
-// TODO: this function should be provided by HDDL Unite API
-bool isHDDLSchedulerAvailable() {
-    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/hddl_scheduler_service");
-
-    std::string specifiedDaemonPath = std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
-    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("bin/hddl_scheduler_service"));
-
-    return specifiedDaemon.good() || defaultDaemon.good();
-}
-
-}  // namespace
-
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
     : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
 
-    if (isHDDLSchedulerAvailable()) {
+    if (HDDL2Metrics::isServiceAvailable()) {
         if (_context == nullptr) {
             _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
         } else {

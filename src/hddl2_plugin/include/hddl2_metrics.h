@@ -33,6 +33,8 @@ public:
     static std::vector<std::string> GetAvailableDevicesNames();
     const std::vector<std::string>& SupportedMetrics() const;
 
+    static bool isServiceAvailable();
+
     ~HDDL2Metrics() = default;
 
 private:
