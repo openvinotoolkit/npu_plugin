@@ -583,12 +583,8 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    auto dataPacked = t.getDataPacked();
-    auto weightSizeKb = t.computeTotalSize() / 1024;
-    std::cout << "Tensor size " << t.getName() << "  " << weightSizeKb << std::endl;
-
     // Here we use the HDE to compress weights
-    // We do not compress sparsity maps
+    // We do not compress sparsity maps yet
     if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap")) 
     {
         auto dataPacked = t.getDataPacked();

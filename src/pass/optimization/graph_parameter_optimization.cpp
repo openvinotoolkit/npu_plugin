@@ -5,6 +5,8 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "contrib/huffman_encoding/include/Huffman.hpp"
+#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
 
 
 static void GraphParameterOptimizationFcn(
@@ -38,13 +40,18 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, const mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                
+                // Get the HDE hardware specs
+                auto hdeDef = td.hdeDef();
+                codec_.reset(new huffmanCodec(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
 
+            std::unique_ptr<huffmanCodec> codec_ = nullptr;
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
@@ -80,6 +87,18 @@ namespace mv
                 globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
+            }
+
+            uint32_t huffmanCompress(std::vector<int64_t>& data) 
+            {
+                std::vector<uint8_t> uncompressedData(data.begin(),data.end());
+                uint32_t uncompressedDataSize = uncompressedData.size();
+                auto compressedBufferSize = uncompressedDataSize + 2 * (std::ceil(uncompressedDataSize / 4096.0) + 1);
+
+                std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
+                uint32_t compressedSize = codec_->huffmanCodecCompressArray(uncompressedDataSize, &uncompressedData[0], &compressedDataBuffer[0]);
+              
+                return compressedSize;
             }
 
             //TODO:: figure out more efficient and cleaner way to handle these....
@@ -926,6 +945,7 @@ namespace mv
                 {
                     for(auto output : parentOp.getOutputTensor())
                         execTime1 += ((double)output->getShape().totalSize()) / ((double)ddrBandwidth);
+
                 }
                 if(child["spilling"].get<bool>())
                 {
@@ -938,6 +958,11 @@ namespace mv
                 {
                     auto streamOverK = parent["streaming"].get<Shape>()["K"];
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
+
+                    //Compressed weight size, tensors are not aligned yet
+                    auto weightData = parentOp.getInputTensor(1)->getIntData();
+                    auto compressedWSize = huffmanCompress(weightData); 
+
                     if( streamOverK == 1)
                         execTime1 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
@@ -1275,12 +1300,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& pass,
     mv::ComputationModel& model,
-    mv::TargetDescriptor&, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
