@@ -104,6 +104,21 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/before_conv_dilate_graph_opt.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            "ConvolutionDilation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_conv_dilate_bef_graph_opt.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
@@ -200,6 +215,27 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AlignTaskWeightsOpControlModel.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AlignTaskWeightsOpModel.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AlignTaskWeights.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
