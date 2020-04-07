@@ -147,11 +147,25 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
             op->getInputTensor(1)->getDType() == getDType(Precision::I8);
 }
 
+bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
+    if(left.size() != right.size()) {
+        return false;
+    }
+
+    for (int i = 0; i < left.size(); i++) {
+        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
+            return  false;
+        }
+    }
+    return true;
+}
+
 bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    return left.getScale() == right.getScale()
-           && left.getZeroPoint() == right.getZeroPoint()
-           && left.getMin() == right.getMin()
-           && left.getMax() == right.getMax();
+    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
+    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
+    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
+    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
 }
 
 mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
