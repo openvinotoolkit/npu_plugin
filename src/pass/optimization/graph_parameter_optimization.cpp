@@ -1027,7 +1027,7 @@ namespace mv
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
 
                     //HDE compression ratio
-                    auto weightscompressionRatio = weightsCompressionRatio(parentOp);
+                    auto weightscompressionRatio = weightsCompressionRatio(childOp);
 
                     if( streamOverK == 1)
                         execTime2 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
