@@ -6,7 +6,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include <vector>
 #include "include/mcm/computation/model/data_model.hpp"
-
+#include "include/mcm/computation/model/iterator/data_context.hpp"
 
 namespace mv
 {
@@ -162,7 +162,9 @@ namespace mv
             }
 
             int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
-            std::vector<size_t> sizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+            auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+//            int newOutputSize = newOutputSizes.first;
+//            int remainderOutputSize = newOutputSizes.second;
 
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
@@ -173,11 +175,11 @@ namespace mv
                 tileStart[axisToSplit] = startCoord;
 
                 if (split == 0)
-                    tileSize[axisToSplit] = inferInputSize(sizes[split],padStart,0,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],padStart,0,kernelSize,kernelStride);
                 else if (split == (numberOfSplits-1))
-                    tileSize[axisToSplit] = inferInputSize(sizes[split],0,padEnd,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],0,padEnd,kernelSize,kernelStride);
                 else
-                    tileSize[axisToSplit] = inferInputSize(sizes[split],0,0,kernelSize,kernelStride);
+                    tileSize[axisToSplit] = inferInputSize(newOutputSizes[split],0,0,kernelSize,kernelStride);
 
                 mv::Tiling newTile(tileStart, tileSize);
                 setChildTile(newTile, split);
@@ -185,9 +187,9 @@ namespace mv
                 // Compute start coordinates for the next tile
                 // TODO: compute correct formula.
                 if (split == 0)
-                    startCoord += sizes[split] * kernelStride - (inferInputSize(sizes[split],0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
+                    startCoord += newOutputSizes[split] * kernelStride - (inferInputSize(newOutputSizes[split],0,0,kernelSize,kernelStride) - tileSize[axisToSplit]);
                 else
-                    startCoord += sizes[split] * kernelStride;
+                    startCoord += newOutputSizes[split] * kernelStride;
             }
         }
 
