@@ -190,6 +190,7 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
+            "GenerateSparsityMapsEltwise",
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
