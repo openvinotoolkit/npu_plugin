@@ -27,13 +27,16 @@ namespace vpu {
 class HDDL2Config final : public MCMConfig {
 public:
     const std::string& platform() const { return _platform; }
+    const std::string& device_id() const { return _device_id; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:
     std::string _platform = "HDDL2";
+    std::string _device_id;
 };
 
 }  // namespace vpu
