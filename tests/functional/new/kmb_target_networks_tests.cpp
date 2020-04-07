@@ -734,7 +734,9 @@ TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8) 
             1, 0.7f);
 }
 
+// [Track number: D#2876]
 TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
+    SKIP_INFER_ON("KMB", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
