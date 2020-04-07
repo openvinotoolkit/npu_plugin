@@ -85,23 +85,27 @@ else()
 endif()
 
 if(ENABLE_MCM_COMPILER)
-    set(MCM_BASE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/movidius/mcmCompiler")
-    set(MCM_BASE_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/movidius/mcmCompiler")
+    set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
 
-    set(MCM_COMPILER_IS_SUBPROJECT TRUE)
-    set(MCM_COMPILER_BUILD_PYTHON OFF CACHE BOOL "" FORCE)
-    set(MCM_COMPILER_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(MCM_COMPILER_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-    add_3rdparty_subdir(movidius/mcmCompiler)
+    add_custom_target(mcm_compiler_copy_libs ALL
+            COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_PROPERTY:cm,LOCATION>
+                                               $<TARGET_PROPERTY:model,LOCATION>
+                                               $<TARGET_PROPERTY:metamodel,LOCATION>
+                                               ${COMPILATION_OUT_DIR}
+            COMMENT "[MCM Compiler] Copy lib files")
 
-    set(COMPILATION_CONFIG_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
     add_custom_target(mcm_compiler_copy_configs ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory "${MCM_BASE_SOURCE_DIR}/config" "${COMPILATION_CONFIG_OUT_DIR}/mcm_config"
-        COMMENT "[MCM Compiler] Copy config files for compilation")
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/config"
+                                                         "${COMPILATION_OUT_DIR}/mcm_config"
+            COMMENT "[MCM Compiler] Copy config files for compilation")
 
     set(MCM_COMPILER_LIBRARY cm CACHE INTERNAL "")
     set(MCM_COMPILER_INCLUDES $<TARGET_PROPERTY:cm,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
+    get_target_property(META_DIR_PATH cm INTERFACE_INCLUDE_DIRECTORIES)
+    set(META_DIR_PATH "${META_DIR_PATH}/mcm/meta" CACHE INTERNAL "")
 else()
     set(MCM_COMPILER_LIBRARY "" CACHE INTERNAL "")
     set(MCM_COMPILER_INCLUDES "" CACHE INTERNAL "")
+    set(META_DIR_PATH "" CACHE INTERNAL "")
 endif()
