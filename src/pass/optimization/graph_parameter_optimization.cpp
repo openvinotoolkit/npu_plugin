@@ -130,8 +130,9 @@ namespace mv
                         weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
                     {
                         auto weightsdata = weightsTensor->getIntData();
-                        auto compressedWeightSize =  huffmanCompress(weightsdata);
-                        weightsCompressionRatio = (double)compressedWeightSize / weightsdata.size();
+                        auto compressedWeightsSize =  huffmanCompress(weightsdata);
+                        weightsCompressionRatio = (double)compressedWeightsSize / weightsdata.size();
+                        layer.set<double>("weightscompressionRatio", weightsCompressionRatio);
                         return weightsCompressionRatio;
                     }
                     // Else align weights to 16 channels and compute the HDE compression ratio          
@@ -146,6 +147,8 @@ namespace mv
 
                         auto compressedWeightsSize =  huffmanCompress(alignedWeightsdata);
                         weightsCompressionRatio = (double)compressedWeightsSize / alignedWeightsdata.size();
+                        layer.set<double>("weightscompressionRatio", weightsCompressionRatio);
+
                         return weightsCompressionRatio;
                     }
                 }
@@ -1011,8 +1014,10 @@ namespace mv
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
 
                     //HDE compression ratio
-                    auto weightscompressionRatio = weightsCompressionRatio(parentOp); 
-
+                    auto weightscompressionRatio = 1;
+                    if(parentOp.hasAttr("weightsCompressionRatio"))
+                        weightscompressionRatio = parentOp.get<double>("weightscompressionRatio");
+                    
                     if( streamOverK == 1)
                         execTime1 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
                     else if( streamOverK == 2)
@@ -1025,9 +1030,11 @@ namespace mv
                 {
                     auto streamOverK = child["streaming"].get<Shape>()["K"];
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
-
+                    
                     //HDE compression ratio
-                    auto weightscompressionRatio = weightsCompressionRatio(childOp);
+                    auto weightscompressionRatio = 1;
+                    if(childOp.hasAttr("weightsCompressionRatio"))
+                        weightscompressionRatio = childOp.get<double>("weightscompressionRatio");
 
                     if( streamOverK == 1)
                         execTime2 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
@@ -1149,6 +1156,13 @@ namespace mv
             {
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
                 
+
+                //Calculate the weights compression ratio
+                auto weightscompressionRatio = 1;
+                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                    if(!op.hasAttr("weightsCompressionRatio"))
+                        weightscompressionRatio = weightsCompressionRatio(op); 
+
                 vector<Attribute> spillingPool;
                 if(globalForceSpilling)
                     spillingPool.push_back(true);

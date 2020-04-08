@@ -585,7 +585,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
 
     // Here we use the HDE to compress weights
     // We do not compress sparsity maps yet
-    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap")) 
+    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap") && t.getDType() != mv::DType("Float16")) 
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
