@@ -34,8 +34,10 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     {
          std::string opType = opIt->getOpType();
 
-        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape" || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
-            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align")
+        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape"
+            || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
+            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align"
+            || opIt->getOpType() ==  "ImplicitOutput")
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
