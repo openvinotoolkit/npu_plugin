@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -20,7 +20,7 @@
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
-                "PPEAccuracy": true,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -101,13 +101,6 @@
             "FusePostOps",
             "DecideOutputDataType",
             "PlacementOfOps",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/placement.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -147,7 +140,7 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -217,7 +210,14 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
   "dma": {
@@ -228,7 +228,14 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling"
+            "EnsureSplitStrategiesForSpilling",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "control_flows":{
@@ -247,6 +254,7 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
               "enable_simple_repacking" : true
             },
             {
@@ -285,7 +293,14 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            "UpdateBarrierRefs",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+ }
         ]
     },
     "validate": {
@@ -296,13 +311,6 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/blob.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
