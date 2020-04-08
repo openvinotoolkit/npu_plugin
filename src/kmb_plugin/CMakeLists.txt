@@ -73,7 +73,9 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT kmb)
 
 if(ENABLE_MCM_COMPILER)
-    install(TARGETS cm metamodel model
+    install(FILES $<TARGET_PROPERTY:cm,IMPORTED_LOCATION_NOCONFIG>
+            $<TARGET_PROPERTY:metamodel,IMPORTED_LOCATION_NOCONFIG>
+            $<TARGET_PROPERTY:model,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
             COMPONENT kmb)
 endif()
