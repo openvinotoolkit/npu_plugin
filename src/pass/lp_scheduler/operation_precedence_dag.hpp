@@ -648,7 +648,7 @@ class Operation_Dag {
     bool is_implicit_op(operation_t op) const {
       return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") ||
-          (op->getOpType() == "Align");
+          (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput");
     }
 
 
