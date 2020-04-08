@@ -165,10 +165,28 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     }
     else if (opType == "Output")
     {
-        if (*output_ == opEnd())
+        // if (*output_ == opEnd())
+        //     *output_ = opNode;
+        // else
+        //     throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
+        bool networkOutput = false;
+        for (auto arg: args)
+        {
+            if (arg.first == "networkOutput")
+            {
+                std::cout << "value of networkOutput = " << arg.second.toString() << std::endl;
+                networkOutput = arg.second;
+            }
+        }
+
+        if (getNumNetworkOutputs() && !networkOutput)
+        {
             *output_ = opNode;
+        }
         else
-            throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
+        {
+            networkOutputs_->push_back(opNode);
+        }
     }
 
     if ((*opNode).outputSlots() > 0)
@@ -322,6 +340,32 @@ mv::Data::OpListIterator mv::BaseOpModel::getInput()
 mv::Data::OpListIterator mv::BaseOpModel::getOutput()
 {
     return *output_;
+}
+
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::getNetworkOutputs()
+{
+    return *networkOutputs_;
+}
+
+mv::Data::OpListIterator mv::BaseOpModel::getNetworkOutput(std::size_t idx)
+{
+    if (idx >= networkOutputs_->size())
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Network output index out of range");
+
+    return (*networkOutputs_)[idx];
+}
+
+size_t mv::BaseOpModel::getNumNetworkOutputs()
+{
+    return networkOutputs_->size();
+}
+
+void mv::BaseOpModel::setOutputNode(Data::OpListIterator output)
+{
+    if (!output)
+        throw ArgumentError(*this, "baseOpModel", "invalid", "input argument is null");
+
+    *output_ = output;
 }
 
 mv::Data::OpListIterator mv::BaseOpModel::opBegin() const

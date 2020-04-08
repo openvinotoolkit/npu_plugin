@@ -32,6 +32,10 @@ namespace mv
 
         Data::OpListIterator getInput();
         Data::OpListIterator getOutput();
+        std::vector<Data::OpListIterator> getNetworkOutputs();
+        mv::Data::OpListIterator getNetworkOutput(std::size_t idx);
+        size_t getNumNetworkOutputs();
+        void setOutputNode(Data::OpListIterator output);
         Data::OpListIterator opBegin() const;
         Data::OpListIterator opEnd() const;
         Data::FlowListIterator flowEnd() const;
