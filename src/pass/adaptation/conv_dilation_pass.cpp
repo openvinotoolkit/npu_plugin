@@ -86,11 +86,14 @@ std::cout<< __FUNCTION__ << ":" << __LINE__ <<std::endl;
                     nonDialtedKernelOp->getName() + "_Dilated");
                 om.removeOp(nonDialtedKernelOp);
 
-                dilatedConstant->set<unsigned>("opId", currentOpId);
-                dilatedConstant->set<mv::QuantizationParams>("quantParams", quantParams);
+                
                 om.defineFlow(dilatedConstant, opIt, 1);
                 opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[0], dilatedKernelShape[1]} );
                 opIt->setInputTensor(dilatedConstant, 1);
+                auto DialtedKernelOp = opIt.rightmostParent();
+                DialtedKernelOp->set<unsigned>("opId", currentOpId);
+                DialtedKernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
+                DialtedKernelOp->getOutputTensor()[0]->set<mv::QuantizationParams>("quantParams", quantParams);
             }
 
         }

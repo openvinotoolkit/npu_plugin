@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Debug",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -99,6 +99,14 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_conv_dilate_bef_graph_optControlModel.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
@@ -106,14 +114,6 @@
             {
                 "name": "GenerateDot",
                 "output": "output/dots/before_conv_dilate_graph_opt.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            "ConvolutionDilation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_conv_dilate_bef_graph_optControlModel.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
