@@ -39,12 +39,10 @@ std::cout<< __FUNCTION__ << ":" << __LINE__ <<std::endl;
 
                 /*Get the kernel attributes*/
                 auto nonDialtedKernel = opIt->getInputTensor(1);
-std::cout<< __FUNCTION__ << ":" << __LINE__ <<std::endl;
-                std::cout << "datatype=" << nonDialtedKernel->getDType().toString() << std::endl;
                 auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
-                auto nonDialtedKernelKernelHeight = nonDialtedKernel->getShape()[1];
-                auto nonDialtedKernelKernelInputChannels = nonDialtedKernel->getShape()[2];
-                auto nonDialtedKernelKernelOutpuChannels = nonDialtedKernel->getShape()[3];
+                auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[1];
+                auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[2];
+                auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[3];
 
 
                 /** Calculate dilated kernel shape
@@ -55,17 +53,17 @@ std::cout<< __FUNCTION__ << ":" << __LINE__ <<std::endl;
                   */
 
                 mv::Shape dilatedKernelShape = mv::Shape({nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
-                                                          nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
-                                                          nonDialtedKernelKernelInputChannels, nonDialtedKernelKernelOutpuChannels});
+                                                          nonDialtedKernelHeight + (nonDialtedKernelHeight - 1) * (dilationFactor - 1),
+                                                          nonDialtedKernelInputChannels, nonDialtedKernelOutpuChannels});
                 /*Populate dilated tensor with zeros*/
                 std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), 0);
 
                 /*Create Tensor*/
                 mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
 
-                for (unsigned oc = 0; oc < nonDialtedKernelKernelOutpuChannels; ++oc)
-                    for (unsigned ic = 0; ic < nonDialtedKernelKernelInputChannels; ++ic)
-                        for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelKernelHeight; ++kcolumn)
+                for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
+                    for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
+                        for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelHeight; ++kcolumn)
                             for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
                                 /*Copy non-dilated weights into the dilated kernel*/
                                 if (krow != 0 || kcolumn != 0)
