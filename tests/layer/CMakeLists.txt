@@ -8,9 +8,6 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
-    add_executable(temporary_yolo temporary_yolo/temporary_yolo.cpp)
-    target_link_libraries(temporary_yolo cm)
-
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
 
