@@ -368,6 +368,17 @@ void mv::BaseOpModel::setOutputNode(Data::OpListIterator output)
     *output_ = output;
 }
 
+void mv::BaseOpModel::replaceNetworkOutputAtIdx(std::size_t idx, mv::Data::OpListIterator replacementOp)
+{
+    if (!replacementOp)
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Input argument is null");
+
+    if (idx >= networkOutputs_->size())
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Invalid network output index");
+
+    (*networkOutputs_)[idx] = replacementOp;
+}
+
 mv::Data::OpListIterator mv::BaseOpModel::opBegin() const
 {
     return dataGraph_.node_begin();
