@@ -33,7 +33,7 @@ namespace HDDL2Plugin {
 //------------------------------------------------------------------------------
 class HDDL2BlobParams {
 public:
-    explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap);
+    explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config);
 
     InferenceEngine::ParamMap getParamMap() const;
     RemoteMemoryFD getRemoteMemoryFD() const;
@@ -43,6 +43,7 @@ protected:
     InferenceEngine::ParamMap _paramMap;
     RemoteMemoryFD _remoteMemoryFd;
     InferenceEngine::ColorFormat _colorFormat;
+    const Logger::Ptr _logger;
 };
 
 //------------------------------------------------------------------------------
@@ -53,7 +54,7 @@ public:
     using Ptr = std::shared_ptr<HDDL2RemoteBlob>;
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params);
+        const InferenceEngine::ParamMap& params, const HDDL2Config& config);
     ~HDDL2RemoteBlob() override = default;
 
     /**
@@ -97,6 +98,9 @@ protected:
 
     std::weak_ptr<HDDL2RemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
+
+    const HDDL2Config& _config;
+    const Logger::Ptr _logger;
 
     void* getHandle() const noexcept override;
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;

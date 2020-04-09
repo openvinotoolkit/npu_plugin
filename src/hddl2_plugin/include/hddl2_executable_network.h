@@ -51,6 +51,8 @@ public:
     void Export(const std::string& modelFileName) override;
 
 private:
+    const HDDL2Config _config;
+    const Logger::Ptr _logger;
     Graph::Ptr _graphPtr = nullptr;
     HddlUniteGraph::Ptr _loadedGraph = nullptr;
     HDDL2RemoteContext::Ptr _context = nullptr;

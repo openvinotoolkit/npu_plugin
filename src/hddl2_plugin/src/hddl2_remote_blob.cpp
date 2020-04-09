@@ -41,7 +41,8 @@ static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
 //------------------------------------------------------------------------------
 //      class HDDL2BlobParams Implementation
 //------------------------------------------------------------------------------
-HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
+HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const HDDL2Config& config)
+    : _logger(std::make_shared<Logger>("HDDL2BlobParams", config.logLevel(), consoleOutput())) {
     if (params.empty()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for blob is empty.";
     }
@@ -61,7 +62,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params) {
 
     auto color_format_iter = params.find(IE::HDDL2_PARAM_KEY(COLOR_FORMAT));
     if (color_format_iter == params.end()) {
-        printf("Color format information is not found.");
+        _logger->warning("Color format information is not found.");
         _colorFormat = IE::ColorFormat::BGR;
     } else {
         try {
@@ -85,8 +86,12 @@ InferenceEngine::ColorFormat HDDL2BlobParams::getColorFormat() const { return _c
 //      class HDDL2RemoteBlob Implementation
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-    const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params)
-    : RemoteBlob(tensorDesc), _params(params), _remoteContextPtr(contextPtr) {
+    const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params, const HDDL2Config& config)
+    : RemoteBlob(tensorDesc),
+      _params(params, config),
+      _remoteContextPtr(contextPtr),
+      _config(config),
+      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
@@ -95,7 +100,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     }
 
     HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
-    printf("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
+    _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
     _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_params.getRemoteMemoryFD(), this->size());
     if (_memoryHandle == nullptr) {

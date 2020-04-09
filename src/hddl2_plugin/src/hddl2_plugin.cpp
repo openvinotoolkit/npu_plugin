@@ -131,8 +131,11 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
-    std::cout << "SetConfig call" << std::endl;
-    UNUSED(config);
+    _parsedConfig.update(config);
+
+    for (const auto& entry : config) {
+        _config[entry.first] = entry.second;
+    }
 }
 
 void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
@@ -144,7 +147,7 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 }
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
-    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map);
+    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map, _parsedConfig);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(

@@ -78,8 +78,12 @@ static void checkOutputsSpecified(
 }
 
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context)
-    : InferRequestInternal(networkInputs, networkOutputs), _loadedGraphPtr(loadedGraph), _context(context) {
+    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
+    : InferRequestInternal(networkInputs, networkOutputs),
+      _loadedGraphPtr(loadedGraph),
+      _context(context),
+      _config(config),
+      _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())) {
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
