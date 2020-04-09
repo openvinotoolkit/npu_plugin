@@ -87,6 +87,27 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 }
 
+bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+{
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
+
+    if(!tensor->isPopulated())
+    {
+        if(sink->hasAttr("splitStrategy"))
+        {
+            std::string splitStrategy = sink->get<std::string>("splitStrategy");
+            if(splitStrategy == "SplitOverH" &&
+               sink->getOpType() == "Conv" &&
+               (sink->getInputTensor(1)->getShape()[0] > 1 ||
+                sink->getInputTensor(1)->getShape()[1] > 1))
+
+                return true;
+        }
+    }
+    return false;
+}
+
 void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -134,6 +155,18 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 opIt->set<bool>("inputActivationSparsity", false);
                 opIt->set<bool>("outputActivationSparsity", false);
                 opIt->set<bool>("weightsSparsity", false);
+            }
+            // Check need for activation sparsity
+            mv::DataModel dm(model);
+            auto flows = opIt->getOutputTensor(0)->get<std::set<std::string>>("flows");
+            for(auto& flowStr: flows)
+            {
+                auto flow = dm.getDataFlow(flowStr);
+                if(checkA0SOHSparsityBug(flow))
+                {
+                    opIt->getOutputTensor(0)->setSparse();
+                    break;
+                }
             }
         }
     }

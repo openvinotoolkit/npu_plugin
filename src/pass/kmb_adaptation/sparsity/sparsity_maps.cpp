@@ -186,7 +186,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
-bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+bool checkA0SOHSparsityBug_sparsity_maps(mv::Data::FlowListIterator flow)
 {
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
@@ -272,7 +272,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow))
+            if(checkA0SOHSparsityBug_sparsity_maps(flow))
             {
                 tensorNeedsSparsity = true;
                 break;
