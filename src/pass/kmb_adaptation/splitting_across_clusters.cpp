@@ -109,7 +109,8 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
     {
         int success;
         UNUSED(success);
-        mv::Workloads Tensor(tensor->getName(), tensor->getShape());
+        auto is_sparse = (tensor->hasAttr("sparse")) ? tensor->get<bool>("sparse") : false;
+        mv::Workloads Tensor(tensor->getName(), tensor->getShape(), is_sparse);
         std::vector<mv::Workload> subTensors;
 
         if (tensor->get<std::string>("splitStrategy") == "SplitOverH")

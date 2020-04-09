@@ -514,6 +514,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto is_sparse = (opIt->getOutputTensor(0)->hasAttr("sparse")) ? opIt->getOutputTensor(0)->get<bool>("sparse") : false;
 
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
@@ -522,6 +523,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
+            if(is_sparse)
+                newTensor->setSparse();
+
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
 
