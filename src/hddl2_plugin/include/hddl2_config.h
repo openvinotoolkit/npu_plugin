@@ -29,6 +29,9 @@ public:
     const std::string& platform() const { return _platform; }
     const std::string& device_id() const { return _device_id; }
 
+    // FIXME [Workaround to change default log lvl]
+    LogLevel logLevel() const;
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -36,6 +39,7 @@ protected:
 
 private:
     std::string _platform = "HDDL2";
+    LogLevel _logLevel = LogLevel::Warning;
     std::string _device_id;
 };
 

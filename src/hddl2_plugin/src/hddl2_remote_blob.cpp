@@ -62,7 +62,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 
     auto color_format_iter = params.find(IE::HDDL2_PARAM_KEY(COLOR_FORMAT));
     if (color_format_iter == params.end()) {
-        _logger->warning("Color format information is not found.");
+        _logger->info("Color format information is not found. Default BGR will be used.");
         _colorFormat = IE::ColorFormat::BGR;
     } else {
         try {

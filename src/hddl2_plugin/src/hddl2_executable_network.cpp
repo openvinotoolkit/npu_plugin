@@ -59,11 +59,11 @@ ExecutableNetwork::ExecutableNetwork(
 
 namespace {
 // TODO: this function should be provided by HDDL Unite API
-bool isDaemonAvailable() {
-    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
+bool isHDDLSchedulerAvailable() {
+    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/hddl_scheduler_service");
 
     std::string specifiedDaemonPath = std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
-    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("/bin/kmbhddldaemon"));
+    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("bin/hddl_scheduler_service"));
 
     return specifiedDaemon.good() || defaultDaemon.good();
 }
@@ -76,12 +76,15 @@ ExecutableNetwork::ExecutableNetwork(
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
 
-    if (isDaemonAvailable()) {
+    if (isHDDLSchedulerAvailable()) {
         if (_context == nullptr) {
             _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
         } else {
             _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
         }
+    } else {
+        _logger->warning("HDDL2 Scheduler service is not available. "
+                         "Please make sure KMB_INSTALL_DIR is specified.");
     }
 }
 

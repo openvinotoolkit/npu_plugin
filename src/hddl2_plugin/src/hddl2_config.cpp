@@ -25,6 +25,7 @@
 #include <vpu/utils/numeric.hpp>
 
 using namespace vpu;
+namespace IE = InferenceEngine;
 
 const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
     // TODO: Add new config header for HDDL2
@@ -47,7 +48,15 @@ const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
 void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
     MCMConfig::parse(config);
 
+    static const std::unordered_map<std::string, LogLevel> logLevels = {{CONFIG_VALUE(LOG_NONE), LogLevel::None},
+        {CONFIG_VALUE(LOG_ERROR), LogLevel::Error}, {CONFIG_VALUE(LOG_WARNING), LogLevel::Warning},
+        {CONFIG_VALUE(LOG_INFO), LogLevel::Info}, {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},
+        {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
+
     // TODO This is something incorrect
     setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
     setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
+    setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
 }
+
+LogLevel HDDL2Config::logLevel() const { return _logLevel; }
