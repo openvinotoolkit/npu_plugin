@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "hddl2_config.h"
 #include "hddl_unite/hddl2_infer_data.h"
 #include "hddl_unite/hddl2_unite_graph.h"
 
@@ -35,7 +36,7 @@ class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
-        const HDDL2RemoteContext::Ptr& context);
+        const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config);
 
     void InferImpl() override;
     void GetPerformanceCounts(
@@ -50,6 +51,8 @@ protected:
     // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
     // need to store it here
     HDDL2RemoteContext::Ptr _context = nullptr;
+    const HDDL2Config& _config;
+    const Logger::Ptr _logger;
 };
 
 }  //  namespace HDDL2Plugin

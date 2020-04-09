@@ -43,7 +43,8 @@ static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
     _context = castIEContextToHDDL2(ieContext);
     if (_context == nullptr) {
@@ -70,7 +71,8 @@ bool isDaemonAvailable() {
 }  // namespace
 
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
 
@@ -84,7 +86,8 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext) {
+    std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
     _context = castIEContextToHDDL2(ieContext);
     if (_context == nullptr) {
@@ -102,7 +105,7 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
         THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
     }
 
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context);
+    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context, _config);
 }
 
 void ExecutableNetwork::ExportImpl(std::ostream& model) {

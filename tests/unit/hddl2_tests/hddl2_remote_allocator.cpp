@@ -33,6 +33,7 @@ public:
     void SetUp() override;
 
     HddlUnite::WorkloadContext::Ptr workloadContextPtr = nullptr;
+    const vpu::HDDL2Config config;
 
 protected:
     WorkloadContext_Helper _workloadContextHelper;
@@ -47,11 +48,11 @@ void HDDL2_RemoteAllocator_UnitTests::SetUp() { workloadContextPtr = _workloadCo
 //      class HDDL2_RemoteAllocator_UnitTests Initiations - constructors
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteAllocator_UnitTests, constructor_CorrectContext_NoThrow) {
-    ASSERT_NO_THROW(HDDL2RemoteAllocator allocator(workloadContextPtr));
+    ASSERT_NO_THROW(HDDL2RemoteAllocator allocator(workloadContextPtr, config));
 }
 
 TEST_F(HDDL2_RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
-    ASSERT_ANY_THROW(HDDL2RemoteAllocator allocator(nullptr));
+    ASSERT_ANY_THROW(HDDL2RemoteAllocator allocator(nullptr, config));
 }
 
 //------------------------------------------------------------------------------
@@ -59,7 +60,7 @@ TEST_F(HDDL2_RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 //------------------------------------------------------------------------------
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_RemoteAllocator_UnitTests, DISABLED_wrapRemoteMemory_IncorrectMemoryFD_ReturnNull) {
-    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
+    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
     const size_t correctSize = MAX_ALLOC_SIZE;
     const int incorrectMemoryFd = INT32_MAX;
@@ -69,7 +70,7 @@ TEST_F(HDDL2_RemoteAllocator_UnitTests, DISABLED_wrapRemoteMemory_IncorrectMemor
 }
 
 TEST_F(HDDL2_RemoteAllocator_UnitTests, wrapRemoteMemory_NegativeMemoryFD_ReturnNull) {
-    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
+    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
     const size_t correctSize = MAX_ALLOC_SIZE;
     const int negativeMemoryFd = -1;
