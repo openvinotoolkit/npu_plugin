@@ -218,7 +218,6 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate)
     ASSERT_NO_FATAL_FAILURE(blob->allocate());
 }
 
-// [Track number: S#28336]
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, DISABLED_CreateBlob_Default_LockedMemoryNotNull) {
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 

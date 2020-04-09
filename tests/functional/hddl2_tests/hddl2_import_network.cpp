@@ -27,8 +27,6 @@
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_ImportNetwork_Tests Declaration
-//------------------------------------------------------------------------------
 class HDDL2_ImportNetwork_Tests : public CoreAPI_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
@@ -45,29 +43,34 @@ void HDDL2_ImportNetwork_Tests::SetUp() {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_ImportNetwork_Tests Initiation - create
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_ImportNetwork_Tests, CanFindPlugin) { ASSERT_NO_THROW(ie.ImportNetwork(blobInfo.graphPath, pluginName)); }
+// [Track number: S#28523]
+TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanFindPlugin) {
+    ASSERT_NO_THROW(ie.ImportNetwork(blobInfo.graphPath, pluginName));
+}
 
-TEST_F(HDDL2_ImportNetwork_Tests, CanCreateExecutableNetwork) {
+// [Track number: S#28523]
+TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetwork) {
     std::map<std::string, std::string> config = {};
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-TEST_F(HDDL2_ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
+// [Track number: S#28523]
+TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
 }
 
-TEST_F(HDDL2_ImportNetwork_Tests, CanCreateInferRequest) {
+// [Track number: S#28523]
+TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-TEST_F(HDDL2_ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
+// [Track number: S#28523]
+TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithStream) {
     const std::map<std::string, std::string> config = {};
 
     std::filebuf blobFile;

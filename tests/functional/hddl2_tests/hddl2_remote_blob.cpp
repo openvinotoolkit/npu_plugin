@@ -58,15 +58,13 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Blob_Tests Initiation
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_Remote_Blob_Tests, CanCreateRemoteBlobUsingContext) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
 
     ASSERT_NO_THROW(remoteContextPtr->CreateBlob(tensorDesc, blobParams));
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromFd_WillNotDestroyRemoteMemory_OnDestruction) {
     auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
 
@@ -109,7 +107,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
     ASSERT_EQ(resultTensorDesc, tensorDesc);
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 
@@ -125,7 +123,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
     ASSERT_TRUE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 
@@ -140,7 +138,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemot
     ASSERT_FALSE(remoteMemoryHelper.isRemoteTheSame(memoryData));
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 

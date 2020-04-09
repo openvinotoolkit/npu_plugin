@@ -162,7 +162,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnNegativeSize_Null
 //------------------------------------------------------------------------------
 //      class HDDL2_Allocator_Manipulations_UnitTests Initiations - lock & unlock
 //------------------------------------------------------------------------------
-// [Track number: S#28336]
+
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
@@ -175,7 +175,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory)
     allocator->unlock(memoryHandle);
 }
 
-// [Track number: S#28336]
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnNull) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
@@ -189,7 +188,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondR
     allocator->unlock(memoryHandle);
 }
 
-// [Track number: S#28336]
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMemoryWillChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
@@ -210,7 +208,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_Re
     ASSERT_EQ(remoteMemoryValue, testValue);
 }
 
-// [Track number: S#28336]
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemoryNotChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
@@ -256,7 +253,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSec
     ASSERT_FALSE(allocator->free(memoryHandle));
 }
 
-// [Track number: S#28336]
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
@@ -269,7 +265,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_Retur
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteAllocator_UnitTests Initiations: Functional - memory change
 //------------------------------------------------------------------------------
-// [Track number: S#28336]
+
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -294,7 +290,6 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_Remot
     ASSERT_EQ(testValue, mem[0]);
 }
 
-// [Track number: S#28336]
 TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
