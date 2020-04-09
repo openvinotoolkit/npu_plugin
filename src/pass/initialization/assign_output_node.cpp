@@ -44,9 +44,14 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     {
         auto inputTensor = networkOutputs[i]->getInputTensor(0);
         // Assumes one input per outputNode
-        outputTensors.push_back(om.implicitOutput(inputTensor));
+        auto implicitOutput = om.implicitOutput(inputTensor);
+        om.getSourceOp(implicitOutput)->set<uint8_t>("outputIndex", i);
+        outputTensors.push_back(implicitOutput);
         outputTensors[i]->set<uint8_t>("outputIndex", i);
         auto inputFlow = networkOutputs[i].leftmostInput();
+        om.replaceNetworkOutputAtIdx(i, om.getSourceOp(implicitOutput));
+
+        // remove all references to the original output nodes
         om.undefineFlow(inputFlow);
         om.removeOp(networkOutputs[i]);
     }
