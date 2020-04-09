@@ -589,12 +589,17 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
+
         //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
             auto compressedData = huffmanCompress(dataPacked, t); 
             toBuild->data = packToInt64(compressedData, t.getDType());
-            int length = t.get<int>("CompressedSize");
-            toBuild->length = length;
+            
+            //sometimes even if the tensor is > 4KB it might not be compressable
+            if(t.hasAttr("CompressedSize"))
+                toBuild->length = t.get<int>("CompressedSize");
+            else
+                toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
             toBuild->underlying_type = MVCNN::DType::DType_U8;         
         }
         else {
@@ -2389,10 +2394,15 @@ std::vector<int64_t> mv::RuntimeModel::huffmanCompress(std::vector<int64_t>& dat
     vector<uint8_t>::iterator endDataIterator = compressedDataBuffer.begin() + compressedSize;
     compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
 
-    t.set<int>("CompressedSize", compressedSize);
-    std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
-       
-    return toReturn;
+    //sometimes even if the tensor is > 4KB it might not be compressable
+    if(compressedSize > uncompressedDataSize)
+        return data;
+    else
+    {
+        t.set<int>("CompressedSize", compressedSize);
+        std::vector<int64_t> toReturn(compressedDataBuffer.begin(),compressedDataBuffer.end());
+        return toReturn;
+    }
 }
 
 std::vector<uint8_t> mv::RuntimeModel::huffmanDecompress(std::vector<uint8_t>& compressedData) 
