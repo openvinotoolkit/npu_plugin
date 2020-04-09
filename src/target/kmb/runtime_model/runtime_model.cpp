@@ -494,8 +494,24 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
 
-    toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+    auto numOutputs = om.getNumNetworkOutputs();
+
+    if (numOutputs == 1)
+    {
+        toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+    }
+    else
+    {
+        auto implicitOutputOps = om.getNetworkOutputs();
+        toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitOutputOps.size());
+        for (size_t i = 0; i < implicitOutputOps.size(); i++)
+        {
+            auto destOp = implicitOutputOps[i].leftmostChild();
+            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
+        }
+    }
+
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
         alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
     auto taskCount = [](mv::OpModel m)
