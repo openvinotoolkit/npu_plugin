@@ -926,10 +926,10 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
     auto outDesc = layerOutput->getTensorDesc();
-    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(3), outDesc.getDims().at(3), kernelSizeX * dilationX,
-        kernelStrideX, padLeft, padRight);
-    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2), kernelSizeY * dilationY,
-        kernelStrideY, padTop, padBottom);
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(3), outDesc.getDims().at(3),
+        kernelSizeX * dilationX - (dilationX - 1), kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(input->origData()->getDims().at(2), outDesc.getDims().at(2),
+        kernelSizeY * dilationY - (dilationY - 1), kernelStrideY, padTop, padBottom);
 
     mv::DType convolutionDataType("Default");
     mv::Data::TensorIterator mvConv;
