@@ -96,6 +96,77 @@ The X86_64 build is needed to get reference results for the tests.
     )
     ```
 
+### Manual MCM Compiler build 
+
+#### Known issues 
+##### libcm.so is not downloaded via git lfs  
+
+You may encounter the following problem: 
+```
+/usr/bin/ld:../../../artifacts/mcmCompilerInstallPackage/lib/libcm.so: file format not recognized; treating as linker script
+/usr/bin/ld:../../../artifacts/mcmCompilerInstallPackage/lib/libcm.so:1: syntax error
+collect2: error: ld returned 1 exit status
+```
+And inside libcm.so you see text like this:  
+```
+version https://git-lfs.github.com/spec/v1
+oid sha256:1246a6fdd15e23f809add06c7c2f76089d177cd4ac386e144778e2d1eadde9d7
+size 6094808
+```
+This, possibly, mean, that you have lfs filter which is not allow you to download *.so files. Please take a look inside /home/$USER/.gitconfig file, and remove or extend filter in it: 
+```sh
+gedit /home/$USER/.gitconfig 
+```
+Filter, which not allow to download .so files
+```
+[lfs]
+	fetchinclude = *.jpg,*.png,*.gif,*.bmp
+```
+
+#### How to build mcmCompiler for kmb-plugin
+1. Clone the repository:
+```sh
+git clone git@github.com:movidius/mcmCompiler.git
+```
+2. Run the following script:
+```sh
+cd mcmCompiler && \
+git checkout <The branch you need> && \
+git submodule update --init --recursive && \
+mkdir build && mkdir install && export MCM_HOME=$(pwd) && git rev-parse HEAD > install/revision.txt && cd build && \
+cmake -DCMAKE_INSTALL_PREFIX=$MCM_HOME/install -DCMAKE_BUILD_TYPE=Release \
+-DMCM_COMPILER_BUILD_PYTHON=OFF -DMCM_COMPILER_BUILD_TESTS=OFF \
+-DMCM_COMPILER_BUILD_EXAMPLES=OFF -DMCM_COMPILER_FORCE_BUILD_LEMON=ON .. && make -j8 && make install
+
+```
+* The built package is located in the "$MCM_HOME/install" folder.
+* The current revision of mcmCompiler is stored in the revision.txt file.
+
+#### How to build kmb-plugin using custom mcmCompiler
+
+* Currently mcmCompiler is a pre-built package.
+* Default path: $KMB_PLUGIN_HOME/artifacts/mcmCompilerInstallPackage.
+* To use a specific package, you do not need to delete the existing default package in kmb-plugin storage.
+
+```
+export KMB_PLUGIN_HOME=<path to kmb-plagin> && \
+export DLDT_HOME=<path to dldt> && \
+export MCM_HOME=<path to mcmCompiler> && \
+mkdir -p $KMB_PLUGIN_HOME/build-x86_64 && \
+cd $KMB_PLUGIN_HOME/build-x86_64 && \
+cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-x86_64 -DmcmCompiler_DIR=$MCM_HOME/install/share/cmake/mcmCompiler/ .. && make -j8
+```
+
+#### How to integrate mcmCompiler to kmb-plugin
+
+```
+export KMB_PLUGIN_HOME=<path to kmb-plagin> && \
+export MCM_HOME=<path to mcmCompiler> && \
+rm -rf $KMB_PLUGIN_HOME/artifacts/mcmCompilerInstallPackage/* && \
+cp -r $MCM_HOME/install/* $KMB_PLUGIN_HOME/artifacts/mcmCompilerInstallPackage/ && \
+git checkout -b <name_of_new_branch> && git add -A && git commit -m "integrate new version mcmCompiler" 
+```
+
 ## Deployment to KMB board
 
 Deploy OpenVINO artifacts to the KMB board:
