@@ -546,7 +546,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }
-            else if (opType == "Copy" || opType == "Align")
+            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
