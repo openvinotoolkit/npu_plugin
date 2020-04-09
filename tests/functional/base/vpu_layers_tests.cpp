@@ -66,19 +66,6 @@ void print_buffer_HWC_fp16(ie_fp16* src_data, int32_t IW, int32_t IH, int32_t IC
 }
 
 void vpuLayersTests::SetUp() {
-    pluginName = "myriadPlugin";
-
-    // TODO: we need another way to enable per-layer tests on HDDL
-    // but for now it is ok because it is the fastest way
-#ifdef USE_HDDL
-    if (auto envVar = std::getenv("IE_VPU_ENABLE_PER_LAYER_TESTS_HDDL")) {
-        if (std::stoi(envVar) != 0) pluginName = "HDDLPlugin";
-    }
-#endif
-#ifdef USE_KMB
-    pluginName = "kmbPlugin";
-#endif
-
     _netInitialized = false;
     _genDataCallback = GenRandomData;
     TestsCommon::SetUp();
@@ -110,13 +97,6 @@ void vpuLayersTests::TearDown() {
             _exeNetwork.Export(blobName);
         }
     }
-}
-
-bool vpuLayersTests::CheckMyriadX() {
-    if (auto envVar = std::getenv("IE_VPU_MYRIADX")) {
-        return std::stoi(envVar) != 0;
-    }
-    return false;
 }
 
 void vpuLayersTests::SetSeed(uint32_t seed) {
