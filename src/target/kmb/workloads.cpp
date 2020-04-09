@@ -9,7 +9,12 @@ mv::Workloads::~Workloads()
 }
 
 mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape):
-    layerName_(name), tensorShape_(tensorShape)
+    layerName_(name), tensorShape_(tensorShape), isSparse_(false)
+{
+}
+
+mv::Workloads::Workloads(const std::string& name, const mv::Shape& tensorShape, const bool& isSparse):
+    layerName_(name), tensorShape_(tensorShape), isSparse_(isSparse)
 {
 }
 
