@@ -34,6 +34,7 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     if (om.getNumNetworkOutputs() == 1)
     {
         om.setOutputNode(om.getNetworkOutput(0));
+        return;
     }
 
     auto networkOutputs = om.getNetworkOutputs();
@@ -44,6 +45,7 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
         auto inputTensor = networkOutputs[i]->getInputTensor(0);
         // Assumes one input per outputNode
         outputTensors.push_back(om.implicitOutput(inputTensor));
+        outputTensors[i]->set<uint8_t>("outputIndex", i);
         auto inputFlow = networkOutputs[i].leftmostInput();
         om.undefineFlow(inputFlow);
         om.removeOp(networkOutputs[i]);
@@ -52,7 +54,7 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     // Flatten outputs if needed
     // Create an implicit concat, connect all network outputs to that concat, and attach;
 
-    auto concat = om.concat(outputTensors);
+    auto concat = om.concat(outputTensors, "N");
     auto output = om.output(concat, false);
 
     // TODO: use this API to assign graph output node. As of now, this is done when
