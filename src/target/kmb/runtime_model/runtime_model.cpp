@@ -404,6 +404,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
+        if (t->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
 
