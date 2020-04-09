@@ -442,10 +442,20 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 for(unsigned i = 0; i < inputSlots; i++)
                 {
+                    auto sourceOp = om.getSourceOp(opIterator->getInputTensor(i));
                     running_concat_offset_LHS.push_back(prev_offset + offset);
-                    prev_offset = prev_offset + offset;
-                    // Calculate for next tensor
-                    offset = opIterator->getInputTensor(i)->getShape()[axis];
+                    std::cout << sourceOp->getOpType() << std::endl;
+                    if (sourceOp->getOpType() == "DMATask" && om.getSourceOp(sourceOp->getInputTensor(0))->getOpType() == "ImplicitOutput")
+                    {
+                        pass.log(mv::Logger::MessageType::Debug, "Tensor " + opIterator->getInputTensor(i)->getName() + ""
+                                " is coming from ImplicitOutput - no offset is added");
+                    }
+                    else
+                    {
+                        prev_offset = prev_offset + offset;
+                        // Calculate for next tensor
+                        offset = opIterator->getInputTensor(i)->getShape()[axis];
+                    }
                     running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
                 }
 
