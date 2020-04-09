@@ -363,7 +363,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
-            if(t->isSplitOverK() && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")) 
+            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")) 
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -2307,7 +2307,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             }
             // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
             // Weights have UInt8 or Int8 dType 
-            else if(tIt->isSplitOverK() && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
+            else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {

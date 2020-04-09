@@ -1253,7 +1253,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
 
                 // NOTE: Physically copying the data to subtensors is needed for SOK weights
                 // because we need to compress the subtensors indivdually as they are decompressed individually during the DMA to each cluster
-                if (isSparse() || isSplitOverK())
+                if (isSparse() || (hasAttr("splitStrategy") && this->get<std::string>("splitStrategy") == "SplitOverK"))
                 {
                     std::vector<mv::DataElement> splittedData(newShape.totalSize(), mv::DataElement(this->isDoubleType()));
                     size_t nOffset = static_cast<size_t>(wlItr->MinY);
