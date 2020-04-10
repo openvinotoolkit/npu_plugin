@@ -137,13 +137,8 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Weights have UInt8 or Int8 dType 
             else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap"))   
             {
-                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
-                {
-                    for(std::size_t j = 0; j < numClusters; ++j)
-                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
-                }
-                else
-                    tIt->set<unsigned>("graphFileIndex", i++);
+                for(std::size_t j = 0; j < numClusters; ++j)
+                    tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
             }
             else
                 tIt->set<unsigned>("graphFileIndex", i++);
