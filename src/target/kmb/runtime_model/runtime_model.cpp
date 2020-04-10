@@ -2309,13 +2309,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // Weights have UInt8 dType 
             else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
             {
-                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
-                {
-                    for(std::size_t i = 0; i < numClusters; ++i)
-                        toSort.push_back(&(tIt->getSubTensor(i)));
-                }
-                else
-                    toSort.push_back(&(*tIt));
+                for(std::size_t i = 0; i < numClusters; ++i)
+                    toSort.push_back(&(tIt->getSubTensor(i)));
             }
             else
                 toSort.push_back(&(*tIt));
