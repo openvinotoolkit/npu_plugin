@@ -100,8 +100,8 @@ namespace mv
              * So execution time calculation could be extended to be:
              * execTime += (WSize * weightscompressionRatio / ddrBandwidth; 
              * 
-             * Emperical testing has found this does not change final strategy section as the same amount of data is
-             * ultimately DMA's to the CMX. So for now the ratio is not used until a more senstive cost function is 
+             * Empirical testing has found this does not change final strategy section as the same amount of data is
+             * ultimately DMA's to the CMX. So for now the ratio is not used until a more sensitive cost function is 
              * developed as it does not warrant the increase in compilation time.  
              */ 
             double calculateWeightsCompressionRatio(mv::Op layer)
@@ -1003,7 +1003,6 @@ namespace mv
                 {
                     for(auto output : parentOp.getOutputTensor())
                         execTime1 += ((double)output->getShape().totalSize()) / ((double)ddrBandwidth);
-
                 }
                 if(child["spilling"].get<bool>())
                 {
@@ -1151,14 +1150,7 @@ namespace mv
             void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
             {
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
-                
-
-                //Calculate the weights compression ratio
-                double weightscompressionRatio = 1;
-                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
-                    if(!op.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = calculateWeightsCompressionRatio(op); 
-
+            
                 vector<Attribute> spillingPool;
                 if(globalForceSpilling)
                     spillingPool.push_back(true);
