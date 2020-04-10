@@ -104,6 +104,7 @@
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
+            "PostTrainingQuantize",
             "FusePostOps",
             "EltwiseToSWEltwise",
             {
