@@ -31,17 +31,28 @@
 
 namespace IE = InferenceEngine;
 
-class InferRequest_Tests : public ExecutableNetwork_Tests {
+// TODO Use ImportNetwork tests as base
+class InferRequest_Tests : public CoreAPI_Tests {
 public:
-    InferenceEngine::InferRequest inferRequest;
+    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
+
+protected:
+    void SetUp() override ;
 };
 
+void InferRequest_Tests::SetUp() {
+    // FIXME Workaround [Track number: S#28523]
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
+}
+
+//------------------------------------------------------------------------------
 TEST_F(InferRequest_Tests, CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_Tests, DISABLED_CanCallInference) {
+TEST_F(InferRequest_Tests, CanCallInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -62,8 +73,7 @@ TEST_F(InferRequest_SetBlob, CanSetInputBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, blob));
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
+TEST_F(InferRequest_SetBlob, CanSetInput_RemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -84,6 +94,7 @@ TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, remoteBlobPtr));
 }
 
+// [Track number: S#30141]
 TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
     inferRequest = executableNetwork.CreateInferRequest();
     ASSERT_EQ(executableNetwork.GetInputsInfo().size(), 1);
@@ -101,8 +112,7 @@ TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
 
 //------------------------------------------------------------------------------
 using InferRequest_GetBlob = InferRequest_Tests;
-// [Track number: S#28336]
-TEST_F(InferRequest_GetBlob, DISABLED_CanGetOutputBlobAfterInference) {
+TEST_F(InferRequest_GetBlob, CanGetOutputBlobAfterInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     inferRequest.Infer();
@@ -112,8 +122,7 @@ TEST_F(InferRequest_GetBlob, DISABLED_CanGetOutputBlobAfterInference) {
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(outputName));
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
+TEST_F(InferRequest_GetBlob, GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -150,8 +159,10 @@ TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithR
     ASSERT_EQ(inputData, resultData);
 }
 
+//------------------------------------------------------------------------------
 using InferRequestCreation_Tests = CoreAPI_Tests;
-TEST_F(InferRequestCreation_Tests, CanCompileButCanNotCreateRequestWithoutDaemon) {
+// [Track number: S#30141]
+TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWithoutDaemon) {
     unsetenv("KMB_INSTALL_DIR");
     ModelPooling_Helper modelPoolingHelper;
     auto cnnNetwork = modelPoolingHelper.network;
@@ -161,20 +172,15 @@ TEST_F(InferRequestCreation_Tests, CanCompileButCanNotCreateRequestWithoutDaemon
 }
 
 //------------------------------------------------------------------------------
-// TODO All tests in this file should use same model
-class Inference_onSpecificDevice : public CoreAPI_Tests {
+class Inference_onSpecificDevice : public InferRequest_Tests {
 public:
-    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
-    int amountOfDevices;
+    int amountOfDevices = 0;
 
 protected:
     void SetUp() override;
 };
 
 void Inference_onSpecificDevice::SetUp() {
-    // FIXME Workaround [Track number: S#28523]
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
     std::vector<HddlUnite::Device> devices;
     getAvailableDevices(devices);
     amountOfDevices = devices.size();
