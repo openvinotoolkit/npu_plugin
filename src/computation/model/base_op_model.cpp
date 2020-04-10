@@ -174,7 +174,6 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
         {
             if (arg.first == "networkOutput")
             {
-                std::cout << "value of networkOutput = " << arg.second.toString() << std::endl;
                 networkOutput = arg.second;
             }
         }

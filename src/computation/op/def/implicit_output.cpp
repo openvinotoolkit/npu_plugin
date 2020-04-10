@@ -21,9 +21,6 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-
-            std::cout << " implicit output outputDefFcn" << std::endl;
-
             if (!inputs[0]->isQuantized())
                 outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), inputs[0]->getDType(), inputs[0]->getOrder()));
             else
