@@ -72,21 +72,7 @@
                     }
                 ]
             },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/beforeAssignOutputNode.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AssignOutputNode",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/afterAssignOutputNode.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
