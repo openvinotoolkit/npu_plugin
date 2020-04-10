@@ -5,8 +5,8 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
-#include "contrib/huffman_encoding/include/Huffman.hpp"
-#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
+#include "include/huffman_encoding/Huffman.hpp"
+#include "include/huffman_encoding/huffmanCodec.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "mcm/utils/custom_strings.hpp"
 
