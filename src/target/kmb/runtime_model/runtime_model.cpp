@@ -2306,8 +2306,8 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                     toSort.push_back(&(*tIt));
             }
             // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
-            // Weights have UInt8 or Int8 dType 
-            else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && (tIt->get<mv::DType>("dType") == mv::DType("UInt8") || tIt->get<mv::DType>("dType") == mv::DType("Int8"))) 
+            // Weights have UInt8 dType 
+            else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                 {

@@ -133,8 +133,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                     tIt->set<unsigned>("graphFileIndex", i++);
             }
             
-            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
-            // Weights have UInt8 or Int8 dType 
+            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE 
             else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap"))   
             {
                 for(std::size_t j = 0; j < numClusters; ++j)
