@@ -2,8 +2,8 @@
 #include "mcm/tensor/order/order.hpp"
 #include "mcm/tensor/dtype/dtype.hpp"
 #include "mcm/target/target_descriptor.hpp"
-#include "contrib/huffman_encoding/include/Huffman.hpp"
-#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
+#include "include/huffman_encoding/Huffman.hpp"
+#include "include/huffman_encoding/huffmanCodec.hpp"
 #include <stdlib.h> 
 #include "gtest/gtest.h"
 

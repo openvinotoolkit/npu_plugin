@@ -1,6 +1,3 @@
-
-#include "contrib/huffman_encoding/include/Huffman.hpp"
-#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
 #include "include/mcm/utils/compression/hde.hpp"
 
 namespace mv

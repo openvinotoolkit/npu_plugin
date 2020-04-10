@@ -227,6 +227,12 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
+
+
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
 )
 
 set(model
@@ -344,11 +350,11 @@ set(compiler
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
 )
 
-set(huffman
-    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
-    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
-)
+# set(huffman
+#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
+#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
+#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
+# )
 
 set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
@@ -382,7 +388,7 @@ if (MSVC)
 
     target_link_libraries(cm PUBLIC metamodel)
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls} ${huffman})
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(model SHARED ${model})
     
     if(TARGET generate-comp-api)

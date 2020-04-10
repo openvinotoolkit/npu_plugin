@@ -2,8 +2,8 @@
 #define HDE_HPP_
 
 #include "include/mcm/tensor/tensor.hpp"
-#include "contrib/huffman_encoding/include/Huffman.hpp"
-#include "contrib/huffman_encoding/include/huffmanCodec.hpp"
+#include "include/huffman_encoding/Huffman.hpp"
+#include "include/huffman_encoding/huffmanCodec.hpp"
 
 
 namespace mv
