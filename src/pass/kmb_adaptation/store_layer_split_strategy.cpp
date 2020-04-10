@@ -164,8 +164,11 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 auto flow = dm.getDataFlow(flowStr);
                 if(checkA0SOHSparsityBug(flow))
                 {
-                    opIt->getInputTensor(0)->set<bool>("needs_splits_aligned", true);
                     opIt->getOutputTensor(0)->setSparse();
+                    if (om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "Input")
+                        opIt->getInputTensor(0)->set<bool>("needs_splits_aligned", true);
+                    else
+                        opIt->getInputTensor(0)->setSparse();
                     break;
                 }
             }
