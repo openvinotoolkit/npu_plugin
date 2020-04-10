@@ -122,7 +122,6 @@ if(CMAKE_CROSSCOMPILING)
     set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
 endif()
 add_subdirectory(contrib/flatbuffers)
-add_subdirectory(contrib/huffman_encoding)
 
 #############################################################################################
 ### Main build
@@ -337,15 +336,18 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-
-
-
 )
 
 set(compiler
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_descriptor"
     "${PROJECT_SOURCE_DIR}/src/compiler/compilation_unit"
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
+)
+
+set(huffman
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
 )
 
 set(syscalls
@@ -380,7 +382,7 @@ if (MSVC)
 
     target_link_libraries(cm PUBLIC metamodel)
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls} ${huffman})
     add_library(model SHARED ${model})
     
     if(TARGET generate-comp-api)
@@ -391,7 +393,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon hde)
+    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
     target_link_libraries(model PRIVATE lemon)
 
     # setup warnings as errors
@@ -442,7 +444,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-install(TARGETS cm model hde
+install(TARGETS cm model 
         EXPORT mcmCompilerTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

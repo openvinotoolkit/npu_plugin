@@ -107,7 +107,7 @@ target_link_libraries(deployer_unit_tests dep)
 endif(VALIDATION)
 
 target_link_libraries(mcm_unit_tests gtest m)
-target_link_libraries(mcm_unit_tests cm hde)
+target_link_libraries(mcm_unit_tests cm)
 target_include_directories(mcm_unit_tests PRIVATE utils
       INTERFACE lp_scheduler lp_scheduler_pass)
 target_link_libraries(mcm_unit_tests lp_scheduler lp_scheduler_pass)
