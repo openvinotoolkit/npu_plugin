@@ -2,11 +2,9 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
-#include "include/huffman_encoding/Huffman.hpp"
-#include "include/huffman_encoding/huffmanCodec.hpp"
+#include "include/mcm/utils/compression/hde.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "mcm/utils/custom_strings.hpp"
 
@@ -50,10 +48,10 @@ namespace mv
                 
                 // Load the HDE hardware specs
                 auto hdeDef = td.hdeDef();
-                codec_.reset(new huffmanCodec(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
+                hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
 
-            std::unique_ptr<huffmanCodec> codec_ = nullptr;
+            std::unique_ptr<Hde> hde_ = nullptr;
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
@@ -90,20 +88,23 @@ namespace mv
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
             }
+            
+            /*
+             * This method calculates a compression ratio of compressed weight size / orignal weight size.
+             * This metric could be used by in the calculation of execution time.
 
-            uint32_t huffmanCompress(std::vector<int64_t>& data) 
-            {
-                std::vector<uint8_t> uncompressedData(data.begin(),data.end());
-                uint32_t uncompressedDataSize = uncompressedData.size();
-                auto compressedBufferSize = uncompressedDataSize + 2 * (std::ceil(uncompressedDataSize / 4096.0) + 1);
+             * Execution time is calculated by this formula and theoretically DMA of compressed data should be 
+             * faster than non compressed data 
+             * execTime += WSize / ddrBandwidth;
 
-                std::vector<uint8_t> compressedDataBuffer (compressedBufferSize, 0); 
-                uint32_t compressedSize = codec_->huffmanCodecCompressArray(uncompressedDataSize, &uncompressedData[0], &compressedDataBuffer[0]);
-              
-                return compressedSize;
-            }
-
-            double weightsCompressionRatio(mv::Op layer)
+             * So execution time calculation could be extended to be:
+             * execTime += (WSize * weightscompressionRatio / ddrBandwidth; 
+             * 
+             * Emperical testing has found this does not change final strategy section as the same amount of data is
+             * ultimately DMA's to the CMX. So for now the ratio is not used until a more senstive cost function is 
+             * developed as it does not warrant the increase in compilation time.  
+             */ 
+            double calculateWeightsCompressionRatio(mv::Op layer)
             {
                 double weightsCompressionRatio = 1;
                 auto inputTensor = layer.getInputTensor(0);
@@ -123,15 +124,18 @@ namespace mv
                                                 alignedInputChannels, alignedOutputChannels});
 
                 // HDE should only compress weights larger than 4 kB
-                if(alignedShape.totalSize() /1024 > 4)             
+                // At this point sparsity has not yet been decided for weights
+                // So using alignedShape.totalSize() is a conservative estimate as it assumes 
+                // non-sparse size 
+                if(alignedShape.totalSize() / 1024 > 4)             
                 {
                     // If weights are already aligned to 16 channels, then compute the HDE compression ratio 
                     if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
                         weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
                     {
                         auto weightsdata = weightsTensor->getIntData();
-                        auto compressedWeightsSize =  huffmanCompress(weightsdata);
-                        weightsCompressionRatio = (double)compressedWeightsSize / weightsdata.size();
+                        auto compressedData =  hde_->hdeCompress(weightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / weightsdata.size();
                         layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
                         return weightsCompressionRatio;
                     }
@@ -145,8 +149,8 @@ namespace mv
                         auto weightsAlignmentData = std::vector<int64_t>(alignedShape.totalSize() - alignedWeightsdata.size() , zeroPoint);
                         alignedWeightsdata.insert(alignedWeightsdata.end(), weightsAlignmentData.begin(), weightsAlignmentData.end());
 
-                        auto compressedWeightsSize =  huffmanCompress(alignedWeightsdata);
-                        weightsCompressionRatio = (double)compressedWeightsSize / alignedWeightsdata.size();
+                        auto compressedData = hde_->hdeCompress(alignedWeightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / alignedWeightsdata.size();
                         layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
 
                         return weightsCompressionRatio;
@@ -1013,35 +1017,27 @@ namespace mv
                     auto streamOverK = parent["streaming"].get<Shape>()["K"];
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
 
-                    //HDE compression ratio
-                    auto weightscompressionRatio = 1;
-                    if(parentOp.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = parentOp.get<double>("weightsCompressionRatio");
-                    
+                    // Technically you could scale weight size here if the weight are compressed
+                    // See technical note at calculateWeightsCompressionRatio() above
                     if( streamOverK == 1)
-                        execTime1 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
+                        execTime1 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime1 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * 2;
+                        execTime1 += ((double)WSize / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
-                        execTime1 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
+                        execTime1 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
 
                 if(childOp.getOpType() == "Conv")
                 {
                     auto streamOverK = child["streaming"].get<Shape>()["K"];
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
-                    
-                    //HDE compression ratio
-                    auto weightscompressionRatio = 1;
-                    if(childOp.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = childOp.get<double>("weightsCompressionRatio");
-
+                
                     if( streamOverK == 1)
-                        execTime2 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
+                        execTime2 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime2 += ((double)WSize * weightscompressionRatio  / (double)ddrBandwidth) * 2;
+                        execTime2 += ((double)WSize / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
-                        execTime2 += ((double)WSize * weightscompressionRatio / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
+                        execTime2 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
 
                 auto parentStreamOverH = parent["streaming"].get<Shape>()["H"];
@@ -1158,10 +1154,10 @@ namespace mv
                 
 
                 //Calculate the weights compression ratio
-                auto weightscompressionRatio = 1;
+                double weightscompressionRatio = 1;
                 if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                     if(!op.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = weightsCompressionRatio(op); 
+                        weightscompressionRatio = calculateWeightsCompressionRatio(op); 
 
                 vector<Attribute> spillingPool;
                 if(globalForceSpilling)

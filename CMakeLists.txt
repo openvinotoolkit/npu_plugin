@@ -350,12 +350,6 @@ set(compiler
     "${PROJECT_SOURCE_DIR}/src/target/kmb/runtime_model/runtime_model.cpp"
 )
 
-# set(huffman
-#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
-#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
-#     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
-# )
-
 set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"

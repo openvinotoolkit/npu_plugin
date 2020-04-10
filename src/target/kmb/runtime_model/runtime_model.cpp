@@ -593,7 +593,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         //Minimum size that can be compressed is 4kB
         if(weightSizeKb > 4) {
             auto compressedData = hde_->hdeCompress(dataPacked, t); 
-            toBuild->data = packToInt64(compressedData, t.getDType());
+            toBuild->data = packToInt64(compressedData.first, t.getDType());
             
             //sometimes even if the tensor is > 4KB it might not be compressable
             if(t.hasAttr("CompressedSize"))
