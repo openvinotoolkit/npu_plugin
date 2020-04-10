@@ -59,8 +59,8 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     // Flatten outputs if needed
     // Create an implicit concat, connect all network outputs to that concat, and attach;
 
-    auto concat = om.concat(outputTensors, "N");
-    auto output = om.output(concat, false);
+    auto outputUnion = om.implicitUnion(outputTensors);
+    auto output = om.output(outputUnion, false);
 
     // TODO: use this API to assign graph output node. As of now, this is done when
     // generating the output node above.

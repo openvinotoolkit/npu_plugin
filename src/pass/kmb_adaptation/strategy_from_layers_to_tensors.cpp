@@ -95,11 +95,19 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             implicitOutput->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitOutput->getInputTensor(0)->get<std::string>("splitStrategy"));
     }
+    auto implicitUnionOps = om.getOps("ImplicitUnion");
+    for (auto implicitUnion : implicitUnionOps)
+    {
+        if (implicitUnion->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitUnion->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitUnion->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
 
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
-        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" || opType == "Concat" || opType == "ImplicitOutput")
+        if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute"
+            || opType == "Concat" || opType == "ImplicitOutput" || opType == "ImplicitUnion")
         {
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
