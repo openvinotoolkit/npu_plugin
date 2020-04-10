@@ -136,7 +136,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
-include_directories(${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/include)
+include_directories(${PROJECT_SOURCE_DIR}/include/huffman_encoding)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
