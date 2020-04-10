@@ -26,6 +26,9 @@ else()
     add_executable(multiple_output_same_size multiple_output_same_size/multiple_output_same_size.cpp)
     target_link_libraries(multiple_output_same_size cm)
 
+    add_executable(multiple_output_different_sizes multiple_output_different_sizes/multiple_output_different_sizes.cpp)
+    target_link_libraries(multiple_output_different_sizes cm)
+
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
