@@ -382,6 +382,11 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
                     if (parentOpIt->hasAttr("splitStrategy"))
                         alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                    if (inputTensor->isSparse() || (inputTensor->hasAttr("needs_splits_aligned") && inputTensor->get<bool>("needs_splits_aligned")))
+                    {
+                        inputTensor->set<bool>("needs_splits_aligned", true);
+                        alignedTensor->set<bool>("needs_splits_aligned", true);
+                    }
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {

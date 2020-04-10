@@ -110,7 +110,8 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
         int success;
         UNUSED(success);
         auto is_sparse = (tensor->hasAttr("sparse")) ? tensor->get<bool>("sparse") : false;
-        mv::Workloads Tensor(tensor->getName(), tensor->getShape(), is_sparse);
+        auto needs_splits_aligned = (tensor->hasAttr("needs_splits_aligned")) ? tensor->get<bool>("needs_splits_aligned") : false;
+        mv::Workloads Tensor(tensor->getName(), tensor->getShape(), is_sparse | needs_splits_aligned);
         std::vector<mv::Workload> subTensors;
 
         if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
