@@ -192,6 +192,7 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",

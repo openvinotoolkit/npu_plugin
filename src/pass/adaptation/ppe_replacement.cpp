@@ -28,7 +28,7 @@ mv::Data::OpListIterator portDepthwise(mv::ComputationModel& model, mv::Data::Te
     weights = om.constantInt(weightsData,
                         {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
                         mv::DType("UInt8"),
-                        mv::Order(mv::Order::getRowMajorID(4)),
+                        mv::Order::getZMajorID(4),
                         weightsQuantParams);
     auto depthwise_conv = om.depthwiseConv(inputTensor, weights, {1,1}, {0,0,0,0}, 1,
                                            mv::DType("UInt8"), quantParams, name + "_PPEDepthwiseConv");

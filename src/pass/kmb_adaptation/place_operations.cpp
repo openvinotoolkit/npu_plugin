@@ -61,8 +61,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (opIt->get<bool>("placeConversionToFloat"))
             {
                 auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
+                std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
                 placeEltwiseDequantize(om, opIt);
-
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
                 //NOTE: Do not care of the data type of input but it will be float so all
@@ -119,7 +119,6 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         double biasOldScale, real_bias;
                         int64_t real_bias_fp16;
                         std::vector<double> weightsScale = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams").getScale();
-                        std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
                         weightsScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], weightsScale, bias->getName());
                         for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                         {

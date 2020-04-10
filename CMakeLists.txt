@@ -281,6 +281,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/place_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/bias_fixed_point_compute.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
