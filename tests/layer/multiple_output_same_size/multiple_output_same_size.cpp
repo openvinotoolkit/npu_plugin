@@ -23,13 +23,13 @@ void build_pySwigCU(mv::OpModel& model)
     const auto output_8_0 = model.conv(conv_0_bias_2_0, output_3_weights_4_0, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "output#8");
     const auto output_3_bias_5weights_0 = model.constantInt(output_3_bias_5weights_0_data, {128}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000012562911252},{-inf},{inf},{0},{1}}, "output#3_bias#5weights");
     const auto output_3_bias_5_0 = model.bias(output_8_0, output_3_bias_5weights_0, mv::DType("UInt8"), {{0},{0.000012562911252},{-inf},{inf},{0},{1}}, "output#3_bias#5");
-    const auto output = model.output(output_3_bias_5_0, true, mv::DType("Default"), {{},{},{},{}}, "");
+    const auto output = model.output(output_3_bias_5_0, mv::DType("Default"), {{},{},{},{}}, true, "");
     //parallel branch
     const auto output_3_weights_4_0_1 = model.constantInt(output_3_weights_4_0_data, {3, 3, 64, 128}, mv::DType("UInt8"), mv::Order("NCHW"), {{131},{0.003203542437404},{-0.420824050903320},{0.396079272031784},{0},{1}}, "output#3_weights#4_1");
     const auto output_8_0_1 = model.conv(conv_0_bias_2_0, output_3_weights_4_0_1, {1, 1}, {1, 1, 1, 1}, 1, 1, mv::DType("UInt8"), {{0},{0.003921568859369},{0.000000000000000},{1.000000000000000},{0},{1}}, "output#8_1");
     const auto output_3_bias_5weights_0_1 = model.constantInt(output_3_bias_5weights_0_data, {128}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000012562911252},{-inf},{inf},{0},{1}}, "output#3_bias#5weights_1");
     const auto output_3_bias_5_0_1 = model.bias(output_8_0_1, output_3_bias_5weights_0_1, mv::DType("UInt8"), {{0},{0.000012562911252},{-inf},{inf},{0},{1}}, "output#3_bias#5_1");
-    const auto output1 = model.output(output_3_bias_5_0_1, true, mv::DType("Default"), {{},{},{},{}}, "");
+    const auto output1 = model.output(output_3_bias_5_0_1, mv::DType("Default"), {{},{},{},{}}, true, "");
 }
 
 int main()

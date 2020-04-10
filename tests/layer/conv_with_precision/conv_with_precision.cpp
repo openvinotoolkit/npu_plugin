@@ -13,7 +13,7 @@ int main()
 
     auto weights0 = om.constantInt(weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getRowMajorID(4), {{0},{1.0},{},{}});
     auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1.0},{},{}} , "conv");
-    om.output(conv0, true, mv::DType("Float16"), {{},{},{},{}});
+    om.output(conv0, mv::DType("Float16"), {{},{},{},{}});
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

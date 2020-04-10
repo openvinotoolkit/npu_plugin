@@ -41,7 +41,7 @@ int main()
 
     auto conv0 = om.conv(input0, weights_fake_quant, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("Default"), {{0},{1.0},{},{}}, "conv");
 
-    om.output(conv0, true, mv::DType("Float16"));
+    om.output(conv0, mv::DType("Float16"));
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

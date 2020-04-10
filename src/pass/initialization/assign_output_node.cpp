@@ -60,7 +60,7 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     // Create an implicit concat, connect all network outputs to that concat, and attach;
 
     auto outputUnion = om.implicitUnion(outputTensors);
-    auto output = om.output(outputUnion, false);
+    auto output = om.output(outputUnion, mv::DType("Default"), {{},{},{},{}}, false);
 
     // TODO: use this API to assign graph output node. As of now, this is done when
     // generating the output node above.

@@ -31,8 +31,8 @@ void build_pySwigCU(mv::OpModel& model)
     const auto conv1_1_conv1_3_bias_5weights_1 = model.constantInt(conv1_1_conv1_3_bias_5weights_1_data, {16}, mv::DType("UInt8"), mv::Order("W"), {{0},{0.000011815900507},{-inf},{inf},{0},{1}}, "conv2b_bias_weights");
     const auto conv1_1_conv1_3_bias_5_1 = model.bias(conv1_1_conv1_8_1, conv1_1_conv1_3_bias_5weights_1, mv::DType("UInt8"), {{0},{0.000011815900507},{-inf},{inf},{0},{1}}, "conv2b_bias");
 
-    const auto output1 = model.output(conv1_1_conv1_3_bias_5_0, true, mv::DType("Default"), {{},{},{},{}}, "");
-    const auto output2 = model.output(conv1_1_conv1_3_bias_5_1, true, mv::DType("Default"), {{},{},{},{}}, "");
+    const auto output1 = model.output(conv1_1_conv1_3_bias_5_0, mv::DType("Default"), {{},{},{},{}}, true, "");
+    const auto output2 = model.output(conv1_1_conv1_3_bias_5_1, mv::DType("Default"), {{},{},{},{}}, true, "");
 }
 
 int main()
