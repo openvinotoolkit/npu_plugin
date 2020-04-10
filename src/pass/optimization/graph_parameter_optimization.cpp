@@ -132,7 +132,7 @@ namespace mv
                         auto weightsdata = weightsTensor->getIntData();
                         auto compressedWeightsSize =  huffmanCompress(weightsdata);
                         weightsCompressionRatio = (double)compressedWeightsSize / weightsdata.size();
-                        layer.set<double>("weightscompressionRatio", weightsCompressionRatio);
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
                         return weightsCompressionRatio;
                     }
                     // Else align weights to 16 channels and compute the HDE compression ratio          
@@ -147,7 +147,7 @@ namespace mv
 
                         auto compressedWeightsSize =  huffmanCompress(alignedWeightsdata);
                         weightsCompressionRatio = (double)compressedWeightsSize / alignedWeightsdata.size();
-                        layer.set<double>("weightscompressionRatio", weightsCompressionRatio);
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
 
                         return weightsCompressionRatio;
                     }
@@ -1016,7 +1016,7 @@ namespace mv
                     //HDE compression ratio
                     auto weightscompressionRatio = 1;
                     if(parentOp.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = parentOp.get<double>("weightscompressionRatio");
+                        weightscompressionRatio = parentOp.get<double>("weightsCompressionRatio");
                     
                     if( streamOverK == 1)
                         execTime1 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
@@ -1034,7 +1034,7 @@ namespace mv
                     //HDE compression ratio
                     auto weightscompressionRatio = 1;
                     if(childOp.hasAttr("weightsCompressionRatio"))
-                        weightscompressionRatio = childOp.get<double>("weightscompressionRatio");
+                        weightscompressionRatio = childOp.get<double>("weightsCompressionRatio");
 
                     if( streamOverK == 1)
                         execTime2 += (double)WSize * weightscompressionRatio / (double)ddrBandwidth;
