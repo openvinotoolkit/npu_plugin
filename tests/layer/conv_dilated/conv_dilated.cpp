@@ -12,9 +12,7 @@ int main()
     std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (16*16*9/2, 1, 0);
     std::vector<int64_t> weightsData1 = mv::utils::generateSequence<int64_t> (16*16*9/2, -1, 0);
     weightsData0.insert(weightsData0.end(), weightsData1.begin(), weightsData1.end());
-    //auto weights0 = om.constantInt(weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});//
     auto weights0 = om.constantInt(weightsData0,{3,3,16,16}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});
-    //const auto weights0 = om.constantInt(weights0, {3, 3, 16, 16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{1.0},{},{},{0},{1}}, "conv1/conv1#0_weights#1");
     //the 2 is dilation factor
     auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 2, 1,  mv::DType("UInt8"),{{0},{1},{},{}} , "conv");
     //dilation 1
