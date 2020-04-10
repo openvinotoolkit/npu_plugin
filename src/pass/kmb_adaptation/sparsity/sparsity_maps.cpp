@@ -186,29 +186,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
-bool checkA0SOHSparsityBug_sparsity_maps(mv::Data::FlowListIterator flow)
-{
-    auto sink = flow.sink();
-    auto tensor = flow->getTensor();
-
-    if(!tensor->isPopulated())
-    {
-        if(sink->hasAttr("splitStrategy"))
-        {
-            std::string splitStrategy = sink->get<std::string>("splitStrategy");
-
-            if(splitStrategy == "SplitOverH" &&
-               sink->getOpType() == "DPUTask" &&
-               sink->get<std::string>("taskOp") == "Conv" &&
-               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
-                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
-
-                return true;
-        }
-    }
-    return false;
-}
-
 bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
 {
     auto source = flow.source();
@@ -272,7 +249,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug_sparsity_maps(flow))
+            if(checkA0SOHSparsityBug(flow))
             {
                 tensorNeedsSparsity = true;
                 break;

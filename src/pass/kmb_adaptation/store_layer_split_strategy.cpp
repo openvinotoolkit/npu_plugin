@@ -1,4 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -85,27 +86,6 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
                         " | strategy = " + opIt->get<std::string>("splitStrategy"));
         }
     }
-}
-
-bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
-{
-    auto sink = flow.sink();
-    auto tensor = flow->getTensor();
-
-    if(!tensor->isPopulated())
-    {
-        if(sink->hasAttr("splitStrategy"))
-        {
-            std::string splitStrategy = sink->get<std::string>("splitStrategy");
-            if(splitStrategy == "SplitOverH" &&
-               sink->getOpType() == "Conv" &&
-               (sink->getInputTensor(1)->getShape()[0] > 1 ||
-                sink->getInputTensor(1)->getShape()[1] > 1))
-
-                return true;
-        }
-    }
-    return false;
 }
 
 void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
