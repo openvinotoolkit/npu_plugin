@@ -6,6 +6,7 @@ option(MCM_COMPILER_BUILD_PYTHON "Build Python wrappers" ON)
 option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
 option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
 option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
+option(MCM_COMPILER_FORCE_BUILD_LEMON "Force build lemon library" OFF)
 
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -100,7 +101,7 @@ add_code_coverage()
 #############################################################################################
 
 find_package(LEMON QUIET)
-if(LEMON_FOUND)
+if(LEMON_FOUND AND NOT MCM_COMPILER_FORCE_BUILD_LEMON)
     message(STATUS "Found LEMON installed on target system : ${LEMON_LIBRARY}")
 
     add_library(lemon UNKNOWN IMPORTED)
@@ -111,9 +112,9 @@ else()
     message(STATUS "LEMON library is not installed on target system, build it from the sources...")
     add_subdirectory(contrib/lemon)
 
-    target_include_directories(lemon INTERFACE
-        "${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon"
-        "${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon")
+    target_include_directories(lemon PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon
+        ${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon)
 endif()
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
@@ -380,7 +381,7 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(model SHARED ${model})
-
+    
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
@@ -389,8 +390,12 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC model metamodel flatbuffers)
-    target_link_libraries(model PUBLIC lemon)
+    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
+    target_link_libraries(model PRIVATE lemon)
+
+    # setup warnings as errors
+    target_compile_options(cm PRIVATE -Wall -Wextra)
+    target_compile_options(model PRIVATE -Wall -Wextra)
 
     if(NOT CMAKE_CROSSCOMPILING)
         if(MCM_COMPILER_BUILD_PYTHON)
@@ -405,16 +410,19 @@ endif()
 add_subdirectory(src/scheduler)
 add_subdirectory(src/pass/lp_scheduler)
 add_dependencies(cm lp_scheduler lp_scheduler_pass)
+
+set(CM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include
+                           ${PROJECT_SOURCE_DIR}
+                           ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
+                           ${META_DIR_PATH})
+
 target_include_directories(cm
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/pass>
-    PUBLIC $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/>)
-
-
-target_include_directories(cm INTERFACE
-    ${PROJECT_SOURCE_DIR}
-    ${PROJECT_SOURCE_DIR}/include
-    ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
-    ${META_DIR_PATH})
+        PUBLIC
+            "$<BUILD_INTERFACE:${CM_INCLUDE_DIRECTORIES}>"
+            "$<INSTALL_INTERFACE:.>"
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}/src/pass
+            ${PROJECT_SOURCE_DIR}/src/)
 
 if (${PROFILER} AND ${UNIX})
     target_link_libraries(cm easy_profiler)
@@ -432,3 +440,35 @@ if(NOT CMAKE_CROSSCOMPILING)
         add_subdirectory(tools)
     endif()
 endif()
+
+install(TARGETS cm model
+        EXPORT mcmCompilerTargets
+        ARCHIVE DESTINATION lib
+        LIBRARY DESTINATION lib
+        RUNTIME DESTINATION lib
+        INCLUDES DESTINATION "include")
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/config
+        DESTINATION "."
+        PATTERN ".gitignore" EXCLUDE)
+
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION "include")
+
+install(DIRECTORY ${META_DIR_PATH}/include
+                  ${META_DIR_PATH}/schema
+        DESTINATION "include/mcm/meta")
+
+install(EXPORT mcmCompilerTargets DESTINATION "share/cmake/mcmCompiler")
+
+include(CMakePackageConfigHelpers)
+
+configure_package_config_file(
+        "${CMAKE_CURRENT_LIST_DIR}/cmake/mcmCompilerConfig.cmake.in"
+        "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
+        INSTALL_DESTINATION "share/cmake/mcmCompiler"
+        NO_SET_AND_CHECK_MACRO
+        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
+
+install(FILES "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
+        DESTINATION "share/cmake/mcmCompiler")

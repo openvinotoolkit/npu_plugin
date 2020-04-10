@@ -946,7 +946,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
     srcStream << "*/" << eol << eol;
 
-    srcStream << "#include \"" << compAPIHeaderPath_ << "\"" << eol << eol;
+    srcStream << "#include \"" << "include/mcm/compositional_model.hpp" << "\"" << eol << eol;
     srcStream << "mv::CompositionalModel::~CompositionalModel()" << eol;
     srcStream << "{" << eol << eol;
     srcStream << "}" << eol << eol;
@@ -965,7 +965,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 
     incStream << "#ifndef MV_OP_MODEL_HPP_" << eol;
     incStream << "#define MV_OP_MODEL_HPP_" << eol << eol;
-    incStream << "#include \"" << compAPIHeaderPath_ << "\"" << eol;
+    incStream << "#include \"" << "include/mcm/compositional_model.hpp" << "\"" << eol;
     incStream << "#include \"include/mcm/computation/model/base_op_model.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/compiler/compilation_profiler.hpp\"" << eol << eol;
 
@@ -1011,7 +1011,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "/*" << eol;
     srcStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
     srcStream << "*/" << eol << eol;
-    srcStream << "#include \"" << opModelHeaderPath_ << "\"" << eol << eol;
+    srcStream << "#include \"" << "include/mcm/op_model.hpp" << "\"" << eol << eol;
 
     srcStream << "mv::OpModel::OpModel(const std::string& name) :" << eol;
     srcStream << "BaseOpModel(name)" << eol;

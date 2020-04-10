@@ -21,4 +21,6 @@ int main()
     // KMBQuantizeConversion adds unwanted input dequantize [U8->FP16]
     test.remove_pass("kmb_adapt", "KMBQuantizeConversion");
     test.run("cvtu8f16.elf", {0, 0, scale, bias, local_src, local_dst});
+
+    return 0;
 }

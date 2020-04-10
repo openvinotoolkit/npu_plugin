@@ -20,4 +20,6 @@ int main()
     const uint32_t local_dst = out_width * test.local_size[1] * channels * sizeof(half);
     test.run("resample_noAA.elf", {0, 0, local_src, local_dst, width, height,
             CustomLayerTest<>::float_as_int(2.0f), out_width, out_height, channels});
+
+    return 0;
 }

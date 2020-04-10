@@ -48,4 +48,6 @@ int main()
     unit.initialize();
     unit.run();
     std::cout << " DONE " << std::endl;
+
+    return 0;
 }

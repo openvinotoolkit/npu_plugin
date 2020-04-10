@@ -161,7 +161,7 @@ static void markCompensatedConcats(std::vector<mv::Data::OpListIterator> &concat
 
 static mv::QuantizationParams computeAlignedQuantParams(mv::Data::OpListIterator &concatIt)
 {
-    std::vector<double> minInputFloats, maxInputFloats = {};
+    std::vector<double> minInputFloats, maxInputFloats;
 
     //NOTE: Compute the min/max of every tensor that goes in the Concat
     for (std::size_t i = 0; i < concatIt->getInputTensor().size(); i++)
@@ -195,7 +195,7 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
 
     // NOTE: For concats that go to concats the solution need to be recursive
     // Covering 2 recursion rounds now
-    std::vector<mv::Data::OpListIterator> childConcats = {};
+    std::vector<mv::Data::OpListIterator> childConcats;
     for(auto& concatIt : concats)
     {
         auto nextOp = findNextConcat(dm, concatIt->getOutputTensor()[0])[0];

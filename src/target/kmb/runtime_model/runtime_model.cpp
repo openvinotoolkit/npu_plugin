@@ -556,7 +556,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<int8_t, int>(toBuild->nce1_blocks, *globalConfigurationParams, "NCE1Mask");
     setIfPresent<uint32_t, int>(toBuild->nce2_blocks, *globalConfigurationParams, "Number_of_DPUs");
     setIfPresent<uint32_t, int>(toBuild->upa_shared_cmx, *globalConfigurationParams, "UPASharedCMX");
-    uint32_t nn_cmx_per_slice;
+    uint32_t nn_cmx_per_slice=0;
     setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
     toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
@@ -617,7 +617,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
-        std::unique_ptr<MVCNN::TaskListT> * listToUse;
+        std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
         std::string opType = opIt->getOpType();
         if(opType.find("DPU") != std::string::npos)
             listToUse = &toBuild[0];
@@ -938,11 +938,6 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
     toBuild->Clamp_High = ppeFixedFunction.getHighClamp();
     toBuild->Lrelu_Mult = ppeFixedFunction.getLReluMult();
     toBuild->Lrelu_Shift = ppeFixedFunction.getLReluShift();
-    if (toBuild->Lrelu_Mult > 1)
-    {
-        auto alpha = toBuild->Lrelu_Mult / pow(2, toBuild->Lrelu_Shift);
-        toBuild->Clamp_Low /= alpha;
-    }
 
     return toBuild;
 }
