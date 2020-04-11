@@ -11,8 +11,7 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>&,
             std::string&) -> std::pair<bool, std::size_t>
         {
-            // mv::Tensor::MemoryLocation outputLocation("OUTPUT", true);
-            // inputs[0]->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
+
             return {true, 0};
 
         };
