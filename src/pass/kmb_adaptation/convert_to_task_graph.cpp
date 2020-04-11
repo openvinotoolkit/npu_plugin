@@ -524,8 +524,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
-            if(is_sparse)
+            if(is_sparse){
+                std::cout << "convert_to_task_graph: set " << newTensor->getName() << "needs_sparse to true" << std::endl;
                 newTensor->set<bool>("needs_sparse", true);
+            }
 
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);

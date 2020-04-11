@@ -144,14 +144,27 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 auto flow = dm.getDataFlow(flowStr);
                 if(checkA0SOHSparsityBug(flow))
                 {
-                    opIt->getOutputTensor(0)->setSparse();
+                    //opIt->getOutputTensor(0)->setSparse();
+                    opIt->getOutputTensor(0)->set<bool>("needs_sparse", true);
                     if (om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "Input")
                         opIt->getInputTensor(0)->set<bool>("needs_splits_aligned", true);
                     else
-                        opIt->getInputTensor(0)->setSparse();
+                        //opIt->getInputTensor(0)->setSparse();
+                        opIt->getInputTensor(0)->set<bool>("needs_sparse", true);
                     break;
                 }
             }
+/*
+            if(source->getOpType() != "DPUTask" ||
+               source->get<std::string>("splitStrategy") == "SplitOverK" ||
+               sink->getOpType() != "DPUTask" ||
+               sink->get<std::string>("taskOp") != "Conv" ||
+               sink->get<std::string>("splitStrategy") == "SplitOverK")
+            {
+                tensorSparsifiable = false;
+                break;
+            }
+*/
         }
     }
 }

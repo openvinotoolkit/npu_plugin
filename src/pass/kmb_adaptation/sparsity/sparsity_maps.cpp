@@ -249,7 +249,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow) || (tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
+            if(checkA0SOHSparsityBug(flow))
             {
                 tensorNeedsSparsity = true;
                 break;
@@ -277,9 +277,24 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             }
         }
 
+        if((tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
+        {
+            if (tensorSparsifiable)
+            {
+                tensorNeedsSparsity = true;
+            }
+            else
+            {
+                std::cout << "tensor not Sparsifiable!  set " << tensor->getName() << "needs_sparse to false" << std::endl;
+                tensor->set<bool>("needs_sparse", false);
+                tensor->set<bool>("needs_splits_aligned", true);                
+            }
+        }
         if(tensorNeedsSparsity && !tensorSparsifiable)
             throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
-        if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
+        if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity){
+            std::cout << "sparsity_maps.cpp: " << tensor->getName() << " setSparse()" << std::endl;
             tensor->setSparse();
+        }
     }
 }

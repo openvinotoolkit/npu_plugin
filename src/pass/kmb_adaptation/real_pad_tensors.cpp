@@ -384,6 +384,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
                     if (inputTensor->isSparse() || (inputTensor->hasAttr("needs_splits_aligned") && inputTensor->get<bool>("needs_splits_aligned")))
                     {
+                        std::cout << "real_pad_tensor: set " << inputTensor->getName() << "needs_splits_aligned to true" << std::endl;
+                        std::cout << "real_pad_tensor: set " << alignedTensor->getName() << "needs_splits_aligned to true" << std::endl;
                         inputTensor->set<bool>("needs_splits_aligned", true);
                         alignedTensor->set<bool>("needs_splits_aligned", true);
                     }
