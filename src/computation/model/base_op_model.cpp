@@ -165,10 +165,6 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     }
     else if (opType == "Output")
     {
-        // if (*output_ == opEnd())
-        //     *output_ = opNode;
-        // else
-        //     throw LogicError(*this, "Attempt of multi-output model definiton - currently unsupported");
         bool networkOutput = false;
         for (auto arg: args)
         {
