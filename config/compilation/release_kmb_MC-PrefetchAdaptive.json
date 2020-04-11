@@ -90,8 +90,8 @@
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
-            "PostTrainingQuantize",
             "FusePostOps",
+            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
