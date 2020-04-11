@@ -249,7 +249,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow))
+            if(checkA0SOHSparsityBug(flow) || (tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
             {
                 tensorNeedsSparsity = true;
                 break;

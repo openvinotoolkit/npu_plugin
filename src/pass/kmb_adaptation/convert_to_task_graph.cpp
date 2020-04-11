@@ -525,7 +525,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
             if(is_sparse)
-                newTensor->setSparse();
+                newTensor->set<bool>("needs_sparse", true);
 
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);

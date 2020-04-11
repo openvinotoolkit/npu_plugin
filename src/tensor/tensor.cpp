@@ -1312,7 +1312,8 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
                 auto is_last_subtensor = (workloads.size() - 1 == idx);
-                if (isSparse() && is_last_subtensor)
+                auto is_sparse = (isSparse() || ((this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse"))));
+                if (is_sparse && is_last_subtensor)
                     subTensors_[idx]->set<bool>("use_sub0_addrs", true);
             }
             else
