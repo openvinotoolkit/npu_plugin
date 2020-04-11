@@ -30,7 +30,7 @@ namespace mv
             "Generates sparsity maps for unpopulated tensors."
         );
 
-        MV_REGISTER_PASS(   )
+        MV_REGISTER_PASS(SetSparsityAttrForUnpopulatedTensors)
         .setFunc(setSparsityAttrForUnpopulatedFnc)
         .setDescription(
             "sets needs sparsity attr for unpopulated tensors."
