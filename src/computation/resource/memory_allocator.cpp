@@ -456,8 +456,8 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
     {
         for (std::size_t i = 0; i < shape.ndims(); ++i)
             if (shape[i] + leftPadding[i] + rightPadding[i] != allocatedShape[i])
-                log(Logger::MessageType::Warning, tensor->getName() + "::paddedShape[" + std::to_string(i) + "] " +
-                    std::to_string(shape[i] + leftPadding[i] + rightPadding[i]) + ". Does not match the dimension " + std::to_string(allocatedShape[i]) +
+                throw ArgumentError(*this, tensor->getName() + "::paddedShape[" + std::to_string(i) + "]",
+                    std::to_string(shape[i] + leftPadding[i] + rightPadding[i]), "Does not match the dimension " + std::to_string(allocatedShape[i]) +
                     " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
     }
 
