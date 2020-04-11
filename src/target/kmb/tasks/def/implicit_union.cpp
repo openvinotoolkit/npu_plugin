@@ -11,10 +11,6 @@ namespace mv
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
-            // Axis be either "N", "C", "D", "H", or "W"
-            auto axisToConcat = args.at("axis").get<std::string>();
-            auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
-
             auto inputShape0 = inputs[0]->getShape();
 
             if (inputShape0.ndims() != 4)
@@ -36,25 +32,6 @@ namespace mv
                     return {false, 0};
                 }
 
-                // // Based on concat axis, the other dimensions should match
-                // for(std::size_t shapeDimension = 0; shapeDimension < inputShape0.ndims(); ++shapeDimension)
-                // {
-                //     if(shapeDimension == numericAxisToConcat)
-                //         continue;
-                //     if (inputShapeI[shapeDimension] != inputShape0[shapeDimension])
-                //     {
-                //         std::ostringstream strm;
-                //         strm
-                //                 << "Invalid shape of the input " << i << " tensor "
-                //                 << "(" << shapeDimension << ":" << inputShapeI[shapeDimension]
-                //                 << " - inconsistent with the dimension of the first input "
-                //                 << "(" << inputShape0[shapeDimension] << ")";
-
-                //         errMsg = strm.str();
-
-                //         return {false, 0};
-                //     }
-                // }
             }
 
             return {true, 0};
@@ -65,19 +42,21 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
-            // Axis be either "N", "C", "D", "H", or "W"
-            auto axisToConcat = args.at("axis").get<std::string>();
-            auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
+            auto batchAxis = mv::Shape::getAxis("N");
 
-            std::vector<std::size_t> inputShape0(inputs[0]->getShape());
+            //NOTE: shape and dtype are not really important here, since implicit union is just to be used to join all outputs into one output node
+            // we use the largest shape and dtype - just to mimic the meaning of union
+
+            mv::Shape inputShapeMax = inputs[0]->getShape();
 
             for (std::size_t i = 1; i < inputs.size(); ++i)
             {
                 auto inputShape = inputs[i]->getShape();
-                inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
+                if (inputShape.totalSize() > inputShapeMax.totalSize())
+                    inputShapeMax = inputShape;
             }
+            inputShapeMax[batchAxis] = inputs.size();
 
-            //NOTE/ASSUMPTION: If input DTypes are different, we concatenate with smallest DType.
             auto dTypeToUse = inputs[0]->getDType();
             for (std::size_t i = 1; i < inputs.size(); ++i)
             {
@@ -88,13 +67,11 @@ namespace mv
             }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder()));
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShapeMax), dTypeToUse, inputs[0]->getOrder()));
             else
-                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", mv::Shape(inputShapeMax), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
         };
 
-        // Default axis is channels (like for Intel Inference Engine)
-        static std::string batch = "N";
     }
 
     namespace op {
@@ -104,7 +81,6 @@ namespace mv
         .setInputs({"inputs"})
         .setOutputs({"output"})
         .setVariableInputNum(true)
-        .setOptionalArg<std::string>("axis", op_implicit_union::batch)
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_implicit_union::inputCheckFcn)
         .setOutputDef(op_implicit_union::outputDefFcn);
