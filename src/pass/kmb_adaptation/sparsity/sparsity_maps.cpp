@@ -11,6 +11,7 @@
 
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -27,6 +28,12 @@ namespace mv
         .setFunc(generateSparsityMapsUnpopulatedTensorsFcn)
         .setDescription(
             "Generates sparsity maps for unpopulated tensors."
+        );
+
+        MV_REGISTER_PASS(   )
+        .setFunc(setSparsityAttrForUnpopulatedFnc)
+        .setDescription(
+            "sets needs sparsity attr for unpopulated tensors."
         );
     }
 }
@@ -218,11 +225,11 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
+    mv::OpModel om(model);
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -277,22 +284,40 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             }
         }
 
-        if((tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
-        {
-            if (tensorSparsifiable)
-            {
-                tensorNeedsSparsity = true;
-            }
-            else
-            {
-                std::cout << "tensor not Sparsifiable!  set " << tensor->getName() << "needs_sparse to false" << std::endl;
-                tensor->set<bool>("needs_sparse", false);
-                tensor->set<bool>("needs_splits_aligned", true);                
-            }
-        }
         if(tensorNeedsSparsity && !tensorSparsifiable)
             throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
-        if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity){
+        if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
+        {
+            tensor->set<bool>("needs_sparse", true);
+
+            //Now that we know tensor will be sparse, mark the input as need subtensor aligned
+            auto sourceOp = om.getSourceOp(tensor);
+            if (sourceOp->getOpType() == "Conv" || sourceOp->getOpType() == "DepthwiseConv")//TODO More??
+            {
+                sourceOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
+            }
+        }
+
+    }
+}
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::DataModel dm(model);
+
+    for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
+    {
+        // Probably an inner tensor, skip
+        if(!tensor->hasAttr("flows"))
+            continue;
+
+        // Populated tensor, skip
+        if(tensor->isPopulated())
+            continue;
+
+        if((tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
+        {
             std::cout << "sparsity_maps.cpp: " << tensor->getName() << " setSparse()" << std::endl;
             tensor->setSparse();
         }
