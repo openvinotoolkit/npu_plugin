@@ -19,7 +19,7 @@ namespace mv
     }
 }
 
-void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void assignOutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -27,7 +27,7 @@ void assignOutputFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
     if (om.getNumNetworkOutputs() == 0)
     {
-        std::cout << "error: zero network outputs specified" << std::endl;
+        pass.log(mv::Logger::MessageType::Error, "zero network outputs specified");
         return;
     }
 
