@@ -485,6 +485,30 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                     lhs_padding, rhs_padding);
                 }
             }
+            else if(opType == "ImplicitUnion")
+            {
+                //In implicit union case, we dont really have 1 master buffer, we are just using it
+                // to have one output for the whole network, so each input to this op will still have
+                // it's own buffer. We create the buffers but do NOT move them like in the other case
+                // no slave/master case.
+                auto outputTensor = opIterator->getOutputTensor(0);
+                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+                mv::Data::BufferIterator outputBuffer;
+
+                if( !outputTensor->hasAttr("allocators"))
+                {
+                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                            " Has no allocator. Will attempt to allocate based on logical location");
+                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+                }
+                else
+                {
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+                }
+
+
+            }
             else if (opType == "Slice" || opType == "Crop")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
@@ -546,7 +570,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }
-            else if (opType == "Copy" || opType == "Align")
+            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
