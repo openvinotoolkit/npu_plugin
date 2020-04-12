@@ -49,7 +49,7 @@ void kmbLayersTests_nightly::setup(
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
 }
 
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params,

@@ -27,7 +27,9 @@
 using namespace InferenceEngine;
 using namespace vpu;
 
-TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
+using KmbPrivateConfigTests = vpuLayersTests;
+
+TEST_F(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -41,7 +43,7 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -101,7 +103,7 @@ static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
     return fakeNHWC;
 }
 
-TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
+TEST_F(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -109,7 +111,7 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}});
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -139,7 +141,7 @@ TEST(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
     ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(referenceBlob), NUMBER_OF_CLASSES));
 }
 
-TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
+TEST_F(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -147,7 +149,7 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_FORCE_2D_TO_NC", CONFIG_VALUE(YES)}});
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_2D_TO_NC", CONFIG_VALUE(YES)}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -177,7 +179,7 @@ TEST(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
 }
 
 // TODO enable when models with FP16 output become available in ModelsPath
-TEST(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
+TEST_F(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
 #endif
@@ -185,7 +187,7 @@ TEST(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(YES)}});
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(YES)}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -213,7 +215,7 @@ TEST(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
 
-TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
+TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
     SKIP();
 #endif
@@ -231,17 +233,17 @@ TEST(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
         output.second->setLayout(InferenceEngine::Layout::NHWC);
         output.second->setPrecision(InferenceEngine::Precision::FP16);
     }
-    network = ie.LoadNetwork(modelPoolingHelper.network, "KMB");
+    network = ie.LoadNetwork(modelPoolingHelper.network, deviceName);
     std::ifstream notExist(testFileName);
     ASSERT_FALSE(notExist.good());
-    network = ie.LoadNetwork(
-        modelPoolingHelper.network, "KMB", {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
+    network = ie.LoadNetwork(modelPoolingHelper.network, deviceName,
+        {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
     std::ifstream exists(testFileName);
     ASSERT_TRUE(exists.good());
     std::remove(testFileName.c_str());
 }
 
-TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_NC_OUTPUT) {
+TEST_F(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_NC_OUTPUT) {
 #if defined(__arm__) || defined(__aarch64__)
     SKIP();
 #endif
@@ -262,12 +264,12 @@ TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_NC_OUTPUT) {
         output.second->setPrecision(InferenceEngine::Precision::FP16);
         output.second->setLayout(InferenceEngine::Layout::NC);
     }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, "KMB", {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(NO)}}),
+    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, deviceName, {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(NO)}}),
         InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, "KMB", {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
+    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, deviceName, {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
 }
 
-TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_FP32_OUTPUT) {
+TEST_F(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_FP32_OUTPUT) {
 #if defined(__arm__) || defined(__aarch64__)
     SKIP();
 #endif
@@ -288,10 +290,10 @@ TEST(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_FP32_OUTPUT) {
         output.second->setPrecision(InferenceEngine::Precision::FP32);
         output.second->setLayout(InferenceEngine::Layout::NC);
     }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, "KMB",
+    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, deviceName,
                      {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(NO)},
                          {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}),
         InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, "KMB",
+    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, deviceName,
         {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(YES)}, {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
 }

@@ -44,12 +44,12 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
     InferenceEngine::ExecutableNetwork network1;
     stringstream network1StrStream;
     network1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/" << get<0>(models) << ".blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(ModelsPath() + network1StrStream.str(), "KMB", {}));
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(ModelsPath() + network1StrStream.str(), deviceName, {}));
 
     stringstream network2StrStream;
     network2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/" << get<1>(models) << ".blob";
     InferenceEngine::ExecutableNetwork network2;
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(ModelsPath() + network2StrStream.str(), "KMB", {}));
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(ModelsPath() + network2StrStream.str(), deviceName, {}));
 
     std::cout << "Created networks\n";
 

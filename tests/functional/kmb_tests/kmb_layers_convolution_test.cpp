@@ -88,7 +88,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
 }
 
 // TODO: Test segfault, when kmb_plugin compile with MCM_COMPILER
@@ -124,7 +124,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
 }
 
 // TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias)
@@ -169,7 +169,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
         clonedNetwork = cloneNet(network);
         details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "KMB", config));
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), deviceName, config));
     }
 }
 
@@ -214,7 +214,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift
         clonedNetwork = cloneNet(network);
         details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
 
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), "KMB", config));
+        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), deviceName, config));
     }
 }
 
@@ -231,7 +231,7 @@ std::vector<convolution_test_desc> convolution_only_fp16 = {
 
 using ConvolutionFP16TestParam = testing::WithParamInterface<convolution_test_desc>;
 
-class ConvolutionFP16Test : public ::testing::Test, public ConvolutionFP16TestParam {
+class ConvolutionFP16Test : public vpuLayersTests, public ConvolutionFP16TestParam {
 public:
     using TestParam = ConvolutionFP16TestParam;
 
@@ -269,7 +269,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, deviceName, config));
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
 #else
 
@@ -416,7 +416,7 @@ TEST_P(ConvolutionTest, DISABLED_fq_convolution_only_manual) {
     setCommonConfig(config);
 
     ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 
     auto refFunc = [&](const Blob::Ptr& inputBlob) {
         auto inputBlobFP32 = ConvertU8ToFP32(inputBlob);
@@ -509,7 +509,7 @@ TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
     Blob::Ptr inputBlob;
@@ -578,7 +578,7 @@ TEST_P(ConvolutionTest, DISABLED_convolution_and_relu_u8) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    (exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    (exeNetwork = ie.LoadNetwork(network, deviceName, config));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
@@ -722,8 +722,8 @@ TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    exeNetwork = ie.LoadNetwork(network, "KMB", config);
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    exeNetwork = ie.LoadNetwork(network, deviceName, config);
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
     Blob::Ptr inputBlob;
@@ -890,7 +890,7 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());

@@ -82,7 +82,7 @@ TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mod
     }
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    exeNetwork = ie.LoadNetwork(network, "KMB");
+    exeNetwork = ie.LoadNetwork(network, deviceName);
 #ifdef __arm__
     int batch = 1;
 
