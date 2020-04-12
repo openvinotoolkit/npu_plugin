@@ -811,7 +811,7 @@ namespace mv {
         unsigned dx = std::ceil(static_cast<double>(W) / X);
         unsigned dy = std::ceil(static_cast<double>(H) / Y);
 
-        if (is_sparse)
+        if (is_sparse && ((dy*dx)%8 != 0))
         {
             dy = std::ceil(static_cast<double>(dy)/8) * 8;
         }
