@@ -292,7 +292,8 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
 
             //Now that we know tensor will be sparse, mark the input as need subtensor aligned
             auto sourceOp = om.getSourceOp(tensor);
-            if (sourceOp->getOpType() == "Conv" || sourceOp->getOpType() == "DepthwiseConv")//TODO More??
+
+            if (sourceOp->getOpType() == "DPUTask" && sourceOp->get<std::string>("taskOp") == "Conv" || sourceOp->get<std::string>("taskOp") == "DepthwiseConv")//TODO More??
             {
                 sourceOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
             }
