@@ -22,10 +22,7 @@
 #include <precision_utils.h>
 
 #include <blob_factory.hpp>
-#include <cnn_network_int8_normalizer.hpp>
 #include <condition_variable>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <mutex>
 #include <regression_tests.hpp>
 #include <test_model/kmb_test_utils.hpp>

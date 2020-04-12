@@ -17,10 +17,7 @@
 #include <file_reader.h>
 
 #include <blob_factory.hpp>
-#include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "kmb_layers_tests.hpp"

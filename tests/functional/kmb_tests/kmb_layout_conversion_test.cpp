@@ -14,10 +14,7 @@
 // stated in the License.
 //
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>

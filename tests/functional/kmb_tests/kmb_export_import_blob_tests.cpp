@@ -14,10 +14,7 @@
 // stated in the License.
 //
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <fstream>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/vpu_compiler_config.hpp>
 
@@ -113,49 +110,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ExportImportBlobToFromFile(deviceName, network, config, "Convolution_After_Scale_Shift");
-}
-
-// Disabled because LoadNetwork fails to initialize device
-// [Track number: S#21379]
-TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragment) {
-    extern std::string full_quant_model;
-
-    std::string model = full_quant_model;
-
-    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
-    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    std::map<std::string, std::string> config;
-    ExecutableNetwork executableNetwork;
-    details::CNNNetworkImplPtr clonedNetwork;
-
-    setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
-    std::size_t weightSize = 147456 + 65536;
-    std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
-    ASSERT_EQ(StatusCode::OK, s);
-
-    if (!pstats->isEmpty()) {
-        clonedNetwork = cloneNet(network);
-        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
-    }
-
-    ExportImportBlobToFromFile(deviceName, CNNNetwork(clonedNetwork), config, "resnet50_int8_fragment");
 }
 
 // Disabled because LoadNetwork fails to initialize device

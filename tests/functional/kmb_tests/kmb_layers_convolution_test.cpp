@@ -17,10 +17,7 @@
 #include <ie_common.h>
 #include <ie_layers.h>
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <kmb_conv_utils.hpp>
 #include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
@@ -125,97 +122,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
-}
-
-// TODO: Test fails. mcmCompiler can not compile the network (Convolution with bias)
-// [Track number: D#1474]
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShift) {
-    const std::string model = full_quant_model;
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    std::map<std::string, std::string> config;
-    details::CNNNetworkImplPtr clonedNetwork;
-
-    setCommonConfig(config);
-
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
-    std::size_t weightSize = 147456 + 65536;
-    std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP32);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
-    ASSERT_EQ(StatusCode::OK, s);
-
-    if (!pstats->isEmpty()) {
-        clonedNetwork = cloneNet(network);
-        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
-
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), deviceName, config));
-    }
-}
-
-//  TODO: mcmCompiler assert: 'extendToK parameters dimensions doesn't match size of output_channels or 1'
-// [Track number: D#1494]
-TEST_F(kmbLayersTests_nightly, DISABLED_TestsQuantizedConvolutionAfterScaleShiftNoBias) {
-    std::string model = full_quant_model;
-
-    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
-    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    std::map<std::string, std::string> config;
-    details::CNNNetworkImplPtr clonedNetwork;
-
-    setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
-    std::size_t weightSize = 147456 + 65536;
-    std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    _inputsInfo = network.getInputsInfo();
-    _inputsInfo["input"]->setPrecision(Precision::FP32);
-
-    _outputsInfo = network.getOutputsInfo();
-    _outputsInfo["conv2"]->setPrecision(Precision::FP32);
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-    ASSERT_EQ(StatusCode::OK, s);
-
-    if (!pstats->isEmpty()) {
-        clonedNetwork = cloneNet(network);
-        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
-
-        ASSERT_NO_THROW(ie.LoadNetwork(CNNNetwork(clonedNetwork), deviceName, config));
-    }
 }
 
 std::vector<convolution_test_desc> convolution_only_fp16 = {
