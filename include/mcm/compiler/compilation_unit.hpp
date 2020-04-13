@@ -22,6 +22,7 @@ namespace mv
 
         static const std::string ma2480DefCompDescPath_;
         static const std::string ma2490DefCompDescPath_;
+        static const std::string ma2490EmulatorCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;

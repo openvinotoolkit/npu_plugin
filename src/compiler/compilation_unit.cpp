@@ -6,6 +6,7 @@ const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/targe
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
+const std::string mv::CompilationUnit::ma2490EmulatorCompDescPath_ = "/contrib/mcm-emulator/config/compilation/emulator_kmb_SC-Prefetch1.json";
 
 template <typename T1, typename T2>
 std::vector<T1> read(const std::string& filepath)
@@ -176,7 +177,6 @@ mv::Element mv::CompilationUnit::run()
         log(Logger::MessageType::Warning, "Could not find 'emulator_results' entry in 'GlobalConfigParams' section. No results generated.");
     }
     
-
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
@@ -247,8 +247,15 @@ void mv::CompilationUnit::generateExpectedResults()
 {   
     //log(mv::Logger::MessageType::Debug, "Initializing emulator...");
     printf("Initializing emulator...");
-    mv::OpModel omEmu(model_->getName());
+    mv::CompilationUnit unit(model_->getName());
+    unit.loadTargetDescriptor(mv::Target::ma2490);
+    std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
+    unit.loadCompilationDescriptor(emuCompPath);
+    mv::OpModel& omEmu = unit.model();
     deepCopy(omEmu);
+
+    unit.initialize();
+    unit.run();
 
     // initialize the Emulator Manager
     mv::emu::Manager emulatorManager(omEmu);
