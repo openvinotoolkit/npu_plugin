@@ -37,16 +37,17 @@ public:
     BlobDescriptor& operator=(const BlobDescriptor&) = delete;
     BlobDescriptor& operator=(const BlobDescriptor&&) = delete;
 
-    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob,
+        bool createRemoteMemoryDescriptor, bool isNeedAllocation);
     virtual ~BlobDescriptor() = default;
 
-    virtual HddlUnite::Inference::BlobDesc create();
-    virtual HddlUnite::Inference::BlobDesc init() = 0;
+    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc();
+    virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
 protected:
-    bool _isRemoteMemory;
-    bool _isNeedAllocation;
+    const bool _createRemoteMemoryDescriptor;
+    const bool _isNeedAllocation;
     bool _isNV12Data;
 
     InferenceEngine::Blob::Ptr _blobPtr = nullptr;
@@ -67,16 +68,12 @@ protected:
 class LocalBlobDescriptor : public BlobDescriptor {
 public:
     explicit LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
-
-    HddlUnite::Inference::BlobDesc init() override;
 };
 
 //------------------------------------------------------------------------------
 class RemoteBlobDescriptor : public BlobDescriptor {
 public:
     explicit RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
-
-    HddlUnite::Inference::BlobDesc init() override;
 };
 }  // namespace HDDL2Plugin
 }  // namespace vpu
