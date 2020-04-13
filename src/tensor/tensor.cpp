@@ -195,7 +195,7 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
     auto dataSize = shape_.totalSize()/blockSize_;
 
     for(std::size_t t=0; t<dataSize; t++){
-        data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, DataElement(true)));
+        data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, data[0].isDouble()));
     }
 
     if (getOrder() != internalOrder_){
