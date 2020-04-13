@@ -429,7 +429,6 @@ void mv::Tensor::setAddress(int64_t address)
         // Handle A0 SOH sparsity addressing
         if (subTensors_[tIdx]->hasAttr("use_sub0_addrs") && subTensors_[tIdx]->get<bool>("use_sub0_addrs"))
         {
-            std::cout << "got here, use_sub0_addrs" << std::endl;
             auto sm_addr = subTensors_[0]->getSparsityMap()->getAddress();
             auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
             subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
@@ -1315,7 +1314,6 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 auto is_last_subtensor = (workloads.size() - 1 == idx);
                 auto is_sparse = (isSparse() || ((this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse"))));
                 if (is_sparse && is_last_subtensor){
-                    std::cout << this->getName() << ": needs_sparse = " << (this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse")) << std::endl;
                     subTensors_[idx]->set<bool>("use_sub0_addrs", true);
                 }
             }

@@ -323,7 +323,6 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
 
         if((tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
         {
-            std::cout << "sparsity_maps.cpp: " << tensor->getName() << " setSparse()" << std::endl;
             tensor->setSparse();
         }
     }
