@@ -296,6 +296,10 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
             if (sourceOp->getOpType() == "DPUTask" && sourceOp->get<std::string>("taskOp") == "Conv" || sourceOp->get<std::string>("taskOp") == "DepthwiseConv")//TODO More??
             {
                 sourceOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
+                // Handle Align op's input tensor split-alignment
+                auto parentOp = om.getSourceOp(sourceOp->getInputTensor()[0]);
+                if (parentOp->getOpType() == "Align")
+                    parentOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
             }
         }
 
