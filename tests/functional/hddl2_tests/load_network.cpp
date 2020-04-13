@@ -24,9 +24,7 @@
 using namespace InferenceEngine;
 
 // [Track number: S#30141]
-TEST_F(LoadNetwork_Tests, DISABLED_CanFindPlugin) {
-    ASSERT_NO_THROW(ie.LoadNetwork(network,pluginName));
-}
+TEST_F(LoadNetwork_Tests, DISABLED_CanFindPlugin) { ASSERT_NO_THROW(ie.LoadNetwork(network, pluginName)); }
 
 // [Track number: S#30141]
 TEST_F(LoadNetwork_Tests, DISABLED_CanCreateExecutable) {

@@ -47,7 +47,7 @@ static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensor
     return blob;
 }
 
-static void checkInputsSpecified(
+static void ensureBlobsExistForInputs(
     const InferenceEngine::InputsDataMap& inputData, const InferenceEngine::BlobMap& inputBlobs) {
     for (const auto& networkInput : inputData) {
         const std::string& inputName = networkInput.first;
@@ -62,7 +62,7 @@ static void checkInputsSpecified(
     }
 }
 
-static void checkOutputsSpecified(
+static void ensureBlobsExistForOutputs(
     const InferenceEngine::OutputsDataMap& outputData, const InferenceEngine::BlobMap& outputBlobs) {
     for (const auto& networkOutput : outputData) {
         const std::string& outputName = networkOutput.first;
@@ -100,8 +100,8 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
 }
 
 void HDDL2InferRequest::InferImpl() {
-    checkInputsSpecified(_networkInputs, _inputs);
-    checkOutputsSpecified(_networkOutputs, _outputs);
+    ensureBlobsExistForInputs(_networkInputs, _inputs);
+    ensureBlobsExistForOutputs(_networkOutputs, _outputs);
 
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needPreProcessing = false;
@@ -125,10 +125,10 @@ void HDDL2InferRequest::InferImpl() {
             const IE::PreProcessDataPtr preprocessData = _preProcData.find(inputName)->second;
             const IE::Blob::Ptr blobForPreprocessing = preprocessData->getRoiBlob();
 
-            _inferDataPtr->prepareInput(blobForPreprocessing, inputDesc);
+            _inferDataPtr->prepareUniteInput(blobForPreprocessing, inputDesc);
         } else {
             const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
-            _inferDataPtr->prepareInput(inputBlobPtr, inputDesc);
+            _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
         }
     }
 
@@ -136,7 +136,7 @@ void HDDL2InferRequest::InferImpl() {
         const std::string outputName = networkOutput.first;
         const IE::Blob::Ptr outputBlobPtr = _outputs.find(outputName)->second;
 
-        _inferDataPtr->prepareOutput(outputBlobPtr, networkOutput.second);
+        _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
     }
 
     _loadedGraphPtr->InferSync(_inferDataPtr);

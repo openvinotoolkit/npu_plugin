@@ -94,7 +94,9 @@ static size_t calculateBlobSizeFromTensor(const IE::TensorDesc& tensorDesc) {
 }
 
 //------------------------------------------------------------------------------
-BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob) {
+BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob,
+    bool createRemoteMemoryDescriptor, bool isNeedAllocation)
+    : _createRemoteMemoryDescriptor(createRemoteMemoryDescriptor), _isNeedAllocation(isNeedAllocation) {
     checkBlobIsValid(blob);
     checkBlobCompatibility(blob);
 
@@ -105,7 +107,7 @@ BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const Infer
     _desc = desc;
 }
 
-HddlUnite::Inference::BlobDesc BlobDescriptor::create() {
+HddlUnite::Inference::BlobDesc BlobDescriptor::createUniteBlobDesc() {
     HddlUnite::Inference::BlobDesc blobDesc;
     HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
 
@@ -118,8 +120,7 @@ HddlUnite::Inference::BlobDesc BlobDescriptor::create() {
         blobSize = _repackedBlob->byteSize();
     }
 
-    _isNeedAllocation = !_blobPtr->is<HDDL2RemoteBlob>();
-    blobDesc = HddlUnite::Inference::BlobDesc(precision, _isRemoteMemory, _isNeedAllocation, blobSize);
+    blobDesc = HddlUnite::Inference::BlobDesc(precision, _createRemoteMemoryDescriptor, _isNeedAllocation, blobSize);
 
     return blobDesc;
 }
@@ -216,43 +217,10 @@ HddlUnite::Inference::NNInputDesc BlobDescriptor::createNNDesc() {
     const size_t blobSize = calculateBlobSizeFromTensor(_desc->getTensorDesc());
     const int batch = 1;
 
-    return HddlUnite::Inference::NNInputDesc(precision, _isRemoteMemory, needAllocation, blobSize, batch);
+    return HddlUnite::Inference::NNInputDesc(precision, _createRemoteMemoryDescriptor, needAllocation, blobSize, batch);
 }
 
-//------------------------------------------------------------------------------
-LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob) {
-    if (blob->is<HDDL2RemoteBlob>()) {
-        THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
-    }
-    _isRemoteMemory = false;
-    _isNeedAllocation = true;
-}
-
-HddlUnite::Inference::BlobDesc LocalBlobDescriptor::init() {
-    HddlUnite::Inference::BlobDesc blobDesc = create();
-    blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
-
-    if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
-        if (_repackedBlob == nullptr) {
-            THROW_IE_EXCEPTION << "Repacked nv12 blob is not created!";
-        }
-        blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
-    }
-
-    setImageFormatToDesc(blobDesc);
-
-    return blobDesc;
-}
-
-//------------------------------------------------------------------------------
-RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob) {
-    _isRemoteMemory = true;
-}
-
-HddlUnite::Inference::BlobDesc RemoteBlobDescriptor::init() {
-    HddlUnite::Inference::BlobDesc blobDesc = create();
+void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc) {
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
         blobDesc.m_fd = getFDFromRemoteBlob(_blobPtr);
     } else {
@@ -265,8 +233,17 @@ HddlUnite::Inference::BlobDesc RemoteBlobDescriptor::init() {
             blobDesc.m_srcPtr = _repackedBlob->buffer().as<void*>();
         }
     }
-
     setImageFormatToDesc(blobDesc);
-
-    return blobDesc;
 }
+
+//------------------------------------------------------------------------------
+LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+    : BlobDescriptor(desc, blob, false, true) {
+    if (blob->is<HDDL2RemoteBlob>()) {
+        THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
+    }
+}
+
+//------------------------------------------------------------------------------
+RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+    : BlobDescriptor(desc, blob, true, !blob->is<HDDL2RemoteBlob>()) {}
