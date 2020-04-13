@@ -17,7 +17,7 @@ set(TARGET gapi_preproc_tests)
 add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
 target_link_libraries(${TARGET}
-    PRIVATE
+        PRIVATE
         gapi_test_computations
         kmbPlugin_test_static
         IE::gtest IE::gtest_main

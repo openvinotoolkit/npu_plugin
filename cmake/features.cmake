@@ -12,4 +12,7 @@ ie_option(ENABLE_HDDL2_SIMULATOR "Enable XLink emulator for HDDL2 Plugin" OFF)
 
 ie_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON)
 
+ie_option(ENABLE_MODELS "download all models required for functional testing" ON)
+ie_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" ON)
+
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)

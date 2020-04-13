@@ -16,29 +16,26 @@
 
 set(TARGET_NAME "FrontendMCMFunctionalTests")
 
-file(GLOB_RECURSE FRONTEND_MCM_TESTS_SOURCES *.cpp)
-
-add_executable(${TARGET_NAME} ${FRONTEND_MCM_TESTS_SOURCES})
-
-target_include_directories(${TARGET_NAME}
-    PRIVATE
-        "../../common_helpers"
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        )
+addIeTargetTest(
+        NAME ${TARGET_NAME}
+        ROOT
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            "../../common_helpers"
+            ${CMAKE_CURRENT_SOURCE_DIR}
+        LINK_LIBRARIES
+            IE::inference_engine
+            IE::IESharedTests
+            frontend_mcm
+            ieModelsHelpersKmb
+        ADD_CPPLINT
+        LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
+            KMB
+            VPU
+)
 
 target_compile_options(${TARGET_NAME}
         PRIVATE
         -Wall
         -Wextra
         -Werror)
-
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
-        IE::inference_engine
-        IE::IESharedTests
-        frontend_mcm
-        )
-
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-endif()

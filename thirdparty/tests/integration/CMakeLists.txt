@@ -36,7 +36,7 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
 
     if (INTEGRATION_TESTS_ENABLE_IE)
         add_definitions(-DINTEGRATION_TESTS_ENABLE_IE)
-        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::ieTestHelpers NN vpusmm)
+        target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gtest_main IE::ieTestHelpers ieModelsHelpersKmb NN vpusmm)
 
     else()
         find_package(GTest REQUIRED)
@@ -44,8 +44,8 @@ function(addVpuTest TARGET_NAME PLUGIN_NAME)
             message(FATAL_ERROR "IE is disabled, but INTEGRATION_TESTS_BLOB_FILE or INTEGRATION_TESTS_INPUT_FILE are undefined")
         endif()
         add_definitions(
-            -DINTEGRATION_TESTS_BLOB_FILE="${INTEGRATION_TESTS_BLOB_FILE}"
-            -DINTEGRATION_TESTS_INPUT_FILE="${INTEGRATION_TESTS_INPUT_FILE}"
+                -DINTEGRATION_TESTS_BLOB_FILE="${INTEGRATION_TESTS_BLOB_FILE}"
+                -DINTEGRATION_TESTS_INPUT_FILE="${INTEGRATION_TESTS_INPUT_FILE}"
         )
         target_link_libraries(${TARGET_NAME} PRIVATE ${GTEST_LIBRARIES} NN vpusmm)
     endif()
