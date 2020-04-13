@@ -17,7 +17,6 @@
 #include "kmb_plugin.h"
 
 #include <cnn_network_impl.hpp>
-#include <cnn_network_ngraph_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <ie_util_internal.hpp>
@@ -51,13 +50,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    std::shared_ptr<ICNNNetwork> clonedNetwork(nullptr);
-
-    if (auto networkNGraph = dynamic_cast<const CNNNetworkNGraphImpl*>(&network)) {
-        clonedNetwork = networkNGraph->cloneNGraphImpl();
-    } else {
-        clonedNetwork = cloneNet(network);
-    }
+    std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
     auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {

@@ -24,8 +24,11 @@
 #include <ie_plugin_config.hpp>
 #include <kmb_executable_network.h>
 #include <net_pass.h>
+#include <generic_ie.hpp>
+#include <convert_function_to_cnn_network.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
+#include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
-#include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_mcm_frontend/frontend.hpp"
 
 // clang-format on
@@ -63,16 +66,14 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     _executor = std::make_shared<KmbExecutor>(_config);
 
     if (_config.useNGraphParser()) {
-        if (const auto cnnNGraphNet = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
-            if (const auto func = cnnNGraphNet->getFunction()) {
-                InputsDataMap inputsInfo;
-                network.getInputsInfo(inputsInfo);
+        if (const auto func = std::const_pointer_cast<ngraph::Function>(network.getFunction())) {
+            InputsDataMap inputsInfo;
+            network.getInputsInfo(inputsInfo);
 
-                OutputsDataMap outputsInfo;
-                network.getOutputsInfo(outputsInfo);
+            OutputsDataMap outputsInfo;
+            network.getOutputsInfo(outputsInfo);
 
-                _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
-            }
+            _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
         }
     }
 
@@ -83,8 +84,16 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
         std::shared_ptr<ICNNNetwork> convertedNetwork;
         auto actualNetwork = &network;
 
-        if (auto networkNGraph = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
-            convertedNetwork = networkNGraph->getCNNNetwork();
+        if (network.getFunction()) {
+            CNNNetwork net(network.getFunction());
+            auto nGraphFunc = std::const_pointer_cast<ngraph::Function>(net.getFunction());
+            // Disable shape inference (WA for generic operations)
+            ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
+
+            // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+            ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
+            ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
+            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
             actualNetwork = convertedNetwork.get();
         }
 
