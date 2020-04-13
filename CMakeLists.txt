@@ -35,6 +35,7 @@ find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(features)
 include(compile_options)
+include(dependencies)
 
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)

@@ -2,46 +2,28 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
-    file(GLOB_RECURSE TEST_INCLUDE
-            ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+set (TARGET_NAME KmbBehaviorTests)
 
-    file(GLOB_RECURSE TEST_SRC
-            ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-            )
-
-    source_group("src" FILES ${TEST_SRC})
-    source_group("include" FILES ${TEST_INCLUDE})
-
-    add_executable(${TARGET_NAME}
-            ${TEST_SRC}
-            ${REGRESSION_TESTS}
-            ${TEST_INCLUDE})
-
-    target_compile_options(${TARGET_NAME}
-            PRIVATE
-            -Wall
-            -Werror)
-
-    target_compile_definitions(${TARGET_NAME} PRIVATE
-            INSTANTIATE_TESTS=1
-            ${FLAG_NAME}=1)
-
-    target_link_libraries(${TARGET_NAME}
-        PRIVATE
-      IE::IEBehaviorSharedTests IE::ieTestHelpers)
-
-    target_include_directories(${TARGET_NAME}
-        PRIVATE
+addIeTargetTest(
+        NAME ${TARGET_NAME}
+        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDES
+            ${CMAKE_CURRENT_SOURCE_DIR}
             ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests
-            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
+        DEFINES
+            INSTANTIATE_TESTS=1
+        LINK_LIBRARIES
+            IE::IEBehaviorSharedTests
+            IE::ieTestHelpers
+            ieModelsHelpersKmb
+        ADD_CPPLINT
+        LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
+            KMB
+)
 
-    add_test(NAME ${TARGET_NAME}
-            COMMAND ${TARGET_NAME})
-
-    if(ENABLE_CLANG_FORMAT)
-        add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-    endif()
-endfunction(enable_vpu)
-
-enable_vpu(KmbBehaviorTests USE_KMB kmbPlugin)
+target_compile_options(${TARGET_NAME}
+        PRIVATE
+        -Wall
+        -Werror
+        )

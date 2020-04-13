@@ -32,6 +32,8 @@
 #include "low_precision_transformations/transformer.hpp"
 #include "tests_timeout.hpp"
 
+#include "test_model_repo.hpp"
+
 #if defined(__arm__) || defined(__aarch64__)
 
 using namespace ::testing;
@@ -71,7 +73,7 @@ TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mod
     TestingNetworkParameters path_to_files = TestParam::GetParam();
     std::string irXmlPath = ModelsPath() + path_to_files.path_to_network;
     std::string weightsPath = ModelsPath() + path_to_files.path_to_weights;
-    std::string inputPath = get_data_path() + path_to_files.path_to_input;
+    std::string inputPath = TestDataHelpers::get_data_path() + path_to_files.path_to_input;
 
     Core ie;
     CNNNetwork network = ie.ReadNetwork(irXmlPath, weightsPath);
