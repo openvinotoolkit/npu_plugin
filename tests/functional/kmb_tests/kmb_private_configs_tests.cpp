@@ -63,7 +63,7 @@ TEST(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     referenceBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
 
-    const size_t NUMBER_OF_CLASSES = 4;
+    const size_t NUMBER_OF_CLASSES = 2;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
 
