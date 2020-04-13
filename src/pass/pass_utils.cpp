@@ -294,20 +294,15 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
             std::string splitStrategy = sink->get<std::string>("splitStrategy");
 
             if(splitStrategy == "SplitOverH" &&
-               sink->getOpType() == "Conv" &&
-               (sink->getInputTensor(1)->getShape()[0] > 1 ||
-                sink->getInputTensor(1)->getShape()[1] > 1)){
-                return true;
-        }
-
-            else if(splitStrategy == "SplitOverH" &&
                sink->getOpType() == "DPUTask" &&
                sink->get<std::string>("taskOp") == "Conv" &&
                (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
-                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1)){
+                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
+
                 return true;
-            }
+
         }
+
     }
     return false;
 }
