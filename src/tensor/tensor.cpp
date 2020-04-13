@@ -401,16 +401,13 @@ void mv::Tensor::populateSparsityMapTensor_()
         // Updating current entry: 1 UInt8 contains 8 bits, so can cover for 8 elements
         // NOTE: NoneZero elements can't be counted here
         // Because we need alignment to 16, which can be obtained only in getPackedData.
-        auto temp_dataTotal = data_.size()*blockSize_;
+        auto idx_order = internalOrder_.subToInd(shape, sub);
+        auto idx = idx_order / blockSize_;
+        auto idx_b = idx_order % blockSize_;
 
-        for(std::size_t i=0; i<temp_dataTotal; ++i){
-            auto idx_order = internalOrder_.subToInd(shape, sub);
-            auto idx = idx_order / blockSize_;
-            auto idx_b = idx_order % blockSize_;
+        if (static_cast<int64_t>(data_[idx]->at(idx_b)) != zeroPoint[sub[channelIndex]])
+            map ^= (1 << shift);
 
-            if (static_cast<int64_t>(data_[idx]->at(idx_b)) != zeroPoint[sub[channelIndex]])
-                map ^= (1 << shift);
-        }
         // Finished one entry, writing it and resetting entry and shift variables
         if (++shift == 8)
             writeMapEntry(sparsityMapData, sparsityMapIdx, map, shift);
