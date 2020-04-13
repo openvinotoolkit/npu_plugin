@@ -9,11 +9,11 @@ BUILD_DIR="${PWD}/../../../build"
 export PATH=$PATH:${BUILD_DIR}/contrib/flatbuffers
 
 mkdir -p ${BUILD_DIR}
-cd ${BUILD_DIR}
-cmake ..
+cd ${BUILD_DIR} || { echo "Failure"; exit 1; }
+cmake -DCMAKE_BUILD_TYPE=Release ..
 make cm -j8
 make gen_blobs
-cd ${TEST_DIR}
+cd ${TEST_DIR} || { echo "Failure"; exit 1; }
 
 TESTS=(
         custom_region_chw
