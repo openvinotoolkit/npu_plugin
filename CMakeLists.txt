@@ -61,18 +61,20 @@ endif()
 
 add_subdirectory(thirdparty)
 
-# TODO Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
+# TODO: Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config
 add_subdirectory(src/frontend_mcm)
 
-add_subdirectory(src/utils)
+add_subdirectory(src)
+
 add_subdirectory(src/kmb_plugin)
 
 if (ENABLE_HDDL2)
     add_subdirectory(src/hddl2_plugin)
 endif()
 
-add_subdirectory(src)
+# It should be called after all plugins to enable registration.
+add_subdirectory(src/utils)
 
 if(ENABLE_TESTS)
     enable_testing()

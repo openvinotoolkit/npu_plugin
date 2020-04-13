@@ -35,3 +35,10 @@ target_include_directories(${TARGET_NAME}
         $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
     SYSTEM PRIVATE
         ${MCM_COMPILER_INCLUDES})
+
+# TODO: choose better MAIN_TARGET?
+ie_register_plugins(
+    MAIN_TARGET
+        kmb_utils
+    POSSIBLE_PLUGINS
+        vpuPlugin kmbPlugin HDDL2Plugin)
