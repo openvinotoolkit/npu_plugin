@@ -31,6 +31,8 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
         const static unsigned jsonParserBufferLength_ = 256;
+        void deepCopy(mv::OpModel& copyTo);
+        void generateExpectedResults();
 
     public:
         std::shared_ptr<std::vector<char> > getBlob() const;

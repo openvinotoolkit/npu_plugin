@@ -123,6 +123,14 @@ if(CMAKE_CROSSCOMPILING)
 endif()
 add_subdirectory(contrib/flatbuffers)
 
+
+# emulator config
+set(EMULATOR_ENABLE_TESTS OFF)
+set(EMULATOR_ENABLE_NETWORK_TESTS OFF)
+set(EMULATOR_ENABLE_UNIT_TESTS OFF)
+set(ENABLE_LAYER_TESTS OFF)
+# add_subdirectory(contrib/mcm-emulator)
+
 #############################################################################################
 ### Main build
 #############################################################################################
@@ -136,6 +144,18 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+
+# emulator includes
+include_directories(${PROJECT_SOURCE_DIR}/contrib)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/include)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/include/emu)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src/op)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src/op/config)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src/run)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src/precompiled)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src/precompiled/lib)
+include(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/cotire.cmake)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
@@ -335,9 +355,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-
-
-
 )
 
 set(compiler
@@ -350,6 +367,69 @@ set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_dot.cpp"
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
+
+
+# emulator variables
+add_definitions(-DEMU_PROJECT_DIR=\"${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/\")
+# add_definitions(-DEMU_BINARY_DIR=\"${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/data/\")
+
+# emulator src files
+set(SOURCE_DIR ${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src)
+set(PRECOMPILED_DIR ${SOURCE_DIR}/precompiled)
+
+set(
+    EMU_LIB
+    ${PRECOMPILED_DIR}/lib/fp16.cpp
+    ${PRECOMPILED_DIR}/lib/moviFloat32.cpp
+    ${PRECOMPILED_DIR}/lib/commonData.cpp)
+set(
+    EMULATOR
+    ${SOURCE_DIR}/configuration.cpp
+    ${SOURCE_DIR}/manager.cpp
+    ${SOURCE_DIR}/runner.cpp
+    ${SOURCE_DIR}/runner_registry.cpp
+    ${SOURCE_DIR}/tensor_manager.cpp)
+set(
+    OPERATION
+    ${SOURCE_DIR}/op/compute.cpp
+    ${SOURCE_DIR}/op/operator/accumulate.cpp
+    ${SOURCE_DIR}/op/operator/post_process.cpp)
+set(
+    RUN
+    ${SOURCE_DIR}/run/conv.cpp
+    ${SOURCE_DIR}/run/depthwise_conv.cpp
+    ${SOURCE_DIR}/run/eltwise.cpp
+    ${SOURCE_DIR}/run/max_pool.cpp
+    ${SOURCE_DIR}/run/parse.cpp
+    ${SOURCE_DIR}/run/software/argmax.cpp
+    ${SOURCE_DIR}/run/software/concat.cpp
+    ${SOURCE_DIR}/run/software/interp.cpp
+    ${SOURCE_DIR}/run/software/norm.cpp
+    ${SOURCE_DIR}/run/software/normalize.cpp
+    ${SOURCE_DIR}/run/software/permute.cpp
+    ${SOURCE_DIR}/run/software/priorbox.cpp
+    ${SOURCE_DIR}/run/software/quantize.cpp
+    ${SOURCE_DIR}/run/software/region_yolo.cpp
+    ${SOURCE_DIR}/run/software/reorg_yolo.cpp
+    ${SOURCE_DIR}/run/software/resample.cpp
+    ${SOURCE_DIR}/run/software/reshape.cpp
+    ${SOURCE_DIR}/run/software/slice.cpp
+    ${SOURCE_DIR}/run/software/softmax.cpp
+    ${SOURCE_DIR}/run/validate.cpp)
+set(
+    UTILS
+    ${PRECOMPILED_DIR}/utils/assert.cpp)
+set(
+    EMULATOR_SOURCES
+    ${CONFIG}
+    ${EMU_LIB}
+    ${EMULATOR}
+    ${OPERATION}
+    ${RUN}
+    ${UTILS}
+)
+
+
 
 if(CMAKE_CROSSCOMPILING)
     find_file(MCM_COMPILER_EXPORT_FILE mcmCompilerExecutables.cmake DOC "Path to the export file from a native build")
@@ -378,9 +458,17 @@ if (MSVC)
 
     target_link_libraries(cm PUBLIC metamodel)
 else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls} ${EMULATOR_SOURCES})
     add_library(model SHARED ${model})
-    
+
+    set_target_properties(
+        cm
+        PROPERTIES
+        COTIRE_CXX_PREFIX_HEADER_INIT
+        ${PRECOMPILED_DIR}/precompiled.hpp)
+
+    cotire(cm)
+
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)

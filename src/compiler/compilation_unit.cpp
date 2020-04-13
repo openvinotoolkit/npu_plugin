@@ -1,10 +1,34 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "emu/manager.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefTargetDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
+
+template <typename T1, typename T2>
+std::vector<T1> read(const std::string& filepath)
+{
+    std::ifstream fileStream(filepath, std::ifstream::binary);
+    if (!fileStream) return {};
+    std::vector<T1> data;
+    T2 aux;
+    while (fileStream.read(&reinterpret_cast<char&>(aux), sizeof(aux))) data.emplace_back(aux);
+    return data;
+}
+
+template <typename T1, typename T2>
+void write(const std::vector<T1>& data, const std::string& filepath)
+{
+    std::ofstream file(filepath, std::ofstream::binary);
+    T2 aux;
+    for (const auto& value: data)
+    {
+        aux = value;
+        file.write(&reinterpret_cast<char&>(aux), sizeof(aux));
+    };
+}
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName))
@@ -142,6 +166,17 @@ mv::Element mv::CompilationUnit::runStep()
 mv::Element mv::CompilationUnit::run()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
+    try 
+    {   // generate emulator results
+        if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "emulator_results"))
+            generateExpectedResults();
+    }
+    catch (mv::AttributeError& e)
+    {
+        log(Logger::MessageType::Warning, "Could not find 'emulator_results' entry in 'GlobalConfigParams' section. No results generated.");
+    }
+    
+
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
@@ -190,4 +225,46 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
         log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
     return rm.getBlob();
+}
+
+/**
+ * Generates a deep copy of the opmodel
+ */
+void mv::CompilationUnit::deepCopy(mv::OpModel& copyTo)
+{
+    for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
+    {
+        // getAttrs() returns map, defineOp() requires vector
+        std::vector<std::pair<std::string, Attribute>> vectAttrs;
+        for (const auto &attr : opIterator->getAttrs())
+            vectAttrs.push_back(attr);
+
+        copyTo.defineOp(opIterator->getOpType(), opIterator->getInputTensor(), vectAttrs, opIterator->getName(), false, false);
+    }
+}
+
+void mv::CompilationUnit::generateExpectedResults()
+{   
+    //log(mv::Logger::MessageType::Debug, "Initializing emulator...");
+    printf("Initializing emulator...");
+    mv::OpModel omEmu(model_->getName());
+    deepCopy(omEmu);
+
+    // initialize the Emulator Manager
+    mv::emu::Manager emulatorManager(omEmu);
+
+    // get input tensor
+    std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
+    const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
+    emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
+    printf("Running emulator...");
+    emulatorManager.run();
+
+    // Dump the output.
+    std::string outputFile = "output/expected_results_mcm.dat";
+    printf("Writing emulator results...");
+    const std::string outputName = omEmu.getOps("Output")[0]->getInputTensor()[0]->getName();
+    const mv::Data::TensorIterator outputTensor = emulatorManager.output(outputName.substr(0, outputName.size() - 2));
+    outputTensor->setOrder(mv::Order::getZMajorID(4));
+    write<std::int64_t, std::uint16_t>(outputTensor->getIntData(), outputFile);
 }
