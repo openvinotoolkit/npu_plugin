@@ -100,14 +100,12 @@ void GenRandomData(InferenceEngine::Blob::Ptr blob);
 
 class vpuLayersTests : public TestsCommon {
 public:
-    std::string pluginName;
     InferenceEngine::Core ie;
     std::map<std::string, std::string> _config;
 
 protected:
     void SetUp() override;
     void TearDown() override;
-    bool CheckMyriadX();
     void dumpPerformance();
     std::string genPorts(const IN_OUT_desc& tensors, size_t* inoutIndex, const std::string& bracketName);
 

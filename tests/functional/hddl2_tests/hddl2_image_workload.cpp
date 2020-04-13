@@ -68,8 +68,8 @@ void ImageWorkload_Tests::printRawBlob(
 
 //------------------------------------------------------------------------------
 using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
-// [Track number: S#28336]
-TEST_F(ImageWorkload_WithoutPreprocessing, DISABLED_SyncInference) {
+
+TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -120,8 +120,7 @@ void ImageWorkload_WithPreprocessing::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
 }
 
-// [Track number: S#28336]
-TEST_F(ImageWorkload_WithPreprocessing, DISABLED_SyncInference) {
+TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 

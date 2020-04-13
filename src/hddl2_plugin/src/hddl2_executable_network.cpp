@@ -43,10 +43,15 @@ static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
     _context = castIEContextToHDDL2(ieContext);
-    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    if (_context == nullptr) {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+    } else {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    }
 
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
@@ -54,11 +59,11 @@ ExecutableNetwork::ExecutableNetwork(
 
 namespace {
 // TODO: this function should be provided by HDDL Unite API
-bool isDaemonAvailable() {
-    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/kmbhddldaemon");
+bool isHDDLSchedulerAvailable() {
+    std::ifstream defaultDaemon("/opt/intel/hddlunite/bin/hddl_scheduler_service");
 
     std::string specifiedDaemonPath = std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
-    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("/bin/kmbhddldaemon"));
+    std::ifstream specifiedDaemon(specifiedDaemonPath + std::string("bin/hddl_scheduler_service"));
 
     return specifiedDaemon.good() || defaultDaemon.good();
 }
@@ -66,21 +71,33 @@ bool isDaemonAvailable() {
 }  // namespace
 
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext) {
+    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
     _context = castIEContextToHDDL2(ieContext);
 
-    if (isDaemonAvailable()) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    if (isHDDLSchedulerAvailable()) {
+        if (_context == nullptr) {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+        } else {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+        }
+    } else {
+        _logger->warning("HDDL2 Scheduler service is not available. "
+                         "Please make sure KMB_INSTALL_DIR is specified.");
     }
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext) {
+    std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
+    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
     _context = castIEContextToHDDL2(ieContext);
-    _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
-
+    if (_context == nullptr) {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+    } else {
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+    }
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
 }
@@ -91,7 +108,7 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
         THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
     }
 
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context);
+    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context, _config);
 }
 
 void ExecutableNetwork::ExportImpl(std::ostream& model) {

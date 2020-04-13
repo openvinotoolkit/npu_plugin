@@ -1,6 +1,3 @@
-[submodule "thirdparty/movidius/mcmCompiler"]
-	path = thirdparty/movidius/mcmCompiler
-	url = git@github.com:movidius/mcmCompiler.git
 [submodule "thirdparty/gapi_sipp"]
 	path = thirdparty/gapi_sipp
 	url = git@gitlab-icv.inn.intel.com:G-API/g-api-vpu.git

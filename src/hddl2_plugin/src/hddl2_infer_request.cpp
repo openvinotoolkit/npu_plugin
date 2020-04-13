@@ -78,8 +78,12 @@ static void checkOutputsSpecified(
 }
 
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context)
-    : InferRequestInternal(networkInputs, networkOutputs), _loadedGraphPtr(loadedGraph), _context(context) {
+    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
+    : InferRequestInternal(networkInputs, networkOutputs),
+      _loadedGraphPtr(loadedGraph),
+      _context(context),
+      _config(config),
+      _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())) {
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
@@ -157,10 +161,23 @@ void HDDL2InferRequest::GetResult() {
     }
     const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
-    const std::string outputData = _inferDataPtr->getOutputData(outputName);
+    const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
 
-    if (outputData.size() != _outputs[outputName]->size()) {
-        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output.";
+    const auto networkOutputPrecision = _networkOutputs.begin()->second->getPrecision();
+    const auto blobOutputPrecision = outputBlobPtr->getTensorDesc().getPrecision();
+
+    if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << "FP32 output is not supported.";
+    }
+
+    if (networkOutputPrecision != blobOutputPrecision) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                           << "Output blob precision is not the same as in network. Conversion is not supported.";
+    }
+
+    if (outputUniteData.size() != _outputs[outputName]->byteSize()) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << outputUniteData.size()
+                           << " and network expected output: " << _outputs[outputName]->byteSize();
     }
 
     {
@@ -170,6 +187,6 @@ void HDDL2InferRequest::GetResult() {
         }
         auto lockedMemory = mblob->rmap();
         void* data = lockedMemory.as<void*>();
-        memcpy(data, outputData.data(), outputData.size());
+        memcpy(data, outputUniteData.data(), outputUniteData.size());
     }
 }

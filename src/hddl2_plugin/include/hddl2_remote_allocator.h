@@ -25,6 +25,7 @@
 #include <mutex>
 #include <vector>
 
+#include "hddl2_config.h"
 #include "ie_remote_context.hpp"
 
 // Emulator limit 4MB
@@ -58,7 +59,7 @@ class HDDL2RemoteAllocator : public InferenceEngine::IAllocator {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
-    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr);
+    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const HDDL2Config& config);
 
     ~HDDL2RemoteAllocator() override = default;
 
@@ -103,6 +104,8 @@ private:
 
     std::map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
     std::mutex memStorageMutex;
+    const HDDL2Config& _config;
+    const Logger::Ptr _logger;
 };
 
 }  // namespace HDDL2Plugin

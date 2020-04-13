@@ -27,7 +27,6 @@ TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) 
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
-    SKIP_INFER_ON("KMB", "sigmoid is not properly supported in mcm compiler");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
             .setUserInputPresision("input", Precision::U8)

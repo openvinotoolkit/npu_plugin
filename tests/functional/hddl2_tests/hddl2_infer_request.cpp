@@ -19,25 +19,40 @@
 #include <hddl2_helpers/helper_remote_memory.h>
 #include <hddl2_helpers/helper_workload_context.h>
 #include <helper_remote_context.h>
+#include <models/precompiled_resnet.h>
 
+#include <chrono>
 #include <ie_core.hpp>
+#include <thread>
 
 #include "creators/creator_blob_nv12.h"
+#include "ie_metric_helpers.hpp"
 #include "models/model_pooling.h"
 
 namespace IE = InferenceEngine;
 
-class InferRequest_Tests : public ExecutableNetwork_Tests {
+// TODO Use ImportNetwork tests as base
+class InferRequest_Tests : public CoreAPI_Tests {
 public:
-    InferenceEngine::InferRequest inferRequest;
+    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
+
+protected:
+    void SetUp() override ;
 };
 
+void InferRequest_Tests::SetUp() {
+    // FIXME Workaround [Track number: S#28523]
+    std::this_thread::sleep_for(std::chrono::seconds(2));
+
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
+}
+
+//------------------------------------------------------------------------------
 TEST_F(InferRequest_Tests, CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_Tests, DISABLED_CanCallInference) {
+TEST_F(InferRequest_Tests, CanCallInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -58,8 +73,7 @@ TEST_F(InferRequest_SetBlob, CanSetInputBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, blob));
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
+TEST_F(InferRequest_SetBlob, CanSetInput_RemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -80,6 +94,7 @@ TEST_F(InferRequest_SetBlob, DISABLED_CanSetInput_RemoteBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, remoteBlobPtr));
 }
 
+// [Track number: S#30141]
 TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
     inferRequest = executableNetwork.CreateInferRequest();
     ASSERT_EQ(executableNetwork.GetInputsInfo().size(), 1);
@@ -97,8 +112,7 @@ TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
 
 //------------------------------------------------------------------------------
 using InferRequest_GetBlob = InferRequest_Tests;
-// [Track number: S#28336]
-TEST_F(InferRequest_GetBlob, DISABLED_CanGetOutputBlobAfterInference) {
+TEST_F(InferRequest_GetBlob, CanGetOutputBlobAfterInference) {
     inferRequest = executableNetwork.CreateInferRequest();
 
     inferRequest.Infer();
@@ -108,8 +122,7 @@ TEST_F(InferRequest_GetBlob, DISABLED_CanGetOutputBlobAfterInference) {
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(outputName));
 }
 
-// [Track number: S#28336]
-TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
+TEST_F(InferRequest_GetBlob, GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemory) {
     WorkloadContext_Helper workloadContextHelper;
     inferRequest = executableNetwork.CreateInferRequest();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -146,12 +159,61 @@ TEST_F(InferRequest_GetBlob, DISABLED_GetBlobWillContainsSameDataAsSetBlob_WithR
     ASSERT_EQ(inputData, resultData);
 }
 
+//------------------------------------------------------------------------------
 using InferRequestCreation_Tests = CoreAPI_Tests;
-TEST_F(InferRequestCreation_Tests, CanCompileButCanNotCreateRequestWithoutDaemon) {
+// [Track number: S#30141]
+TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWithoutDaemon) {
     unsetenv("KMB_INSTALL_DIR");
     ModelPooling_Helper modelPoolingHelper;
     auto cnnNetwork = modelPoolingHelper.network;
 
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(cnnNetwork, pluginName));
     ASSERT_ANY_THROW(inferRequest = executableNetwork.CreateInferRequest());
+}
+
+//------------------------------------------------------------------------------
+class Inference_onSpecificDevice : public InferRequest_Tests {
+public:
+    int amountOfDevices = 0;
+
+protected:
+    void SetUp() override;
+};
+
+void Inference_onSpecificDevice::SetUp() {
+    std::vector<HddlUnite::Device> devices;
+    getAvailableDevices(devices);
+    amountOfDevices = devices.size();
+}
+
+TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {
+    std::vector<std::string> availableDevices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
+    ASSERT_TRUE(!availableDevices.empty());
+
+    const std::string device_name = pluginName + "." + availableDevices[0];
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, device_name));
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+}
+
+TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromGetAllDevices) {
+    if (amountOfDevices <= 1) {
+        GTEST_SKIP() << "Not enough devices for test";
+    }
+    std::vector<std::string> availableDevices = ie.GetAvailableDevices();
+    ASSERT_TRUE(!availableDevices.empty());
+
+    std::vector<std::string> HDDL2Devices;
+    std::copy_if(availableDevices.begin(), availableDevices.end(), std::back_inserter(HDDL2Devices),
+        [this](const std::string& deviceName) {
+            return deviceName.find(pluginName) != std::string::npos;
+        });
+
+    ASSERT_TRUE(!HDDL2Devices.empty());
+
+    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, HDDL2Devices[0]));
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    ASSERT_NO_THROW(inferRequest.Infer());
 }
