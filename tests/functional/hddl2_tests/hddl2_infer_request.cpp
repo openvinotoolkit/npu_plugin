@@ -37,7 +37,7 @@ public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
 
 protected:
-    void SetUp() override ;
+    void SetUp() override;
 };
 
 void InferRequest_Tests::SetUp() {

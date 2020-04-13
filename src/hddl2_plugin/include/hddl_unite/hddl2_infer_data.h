@@ -32,6 +32,9 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
+/**
+ * Carries information necessary for invoking infer request on Unite
+ */
 class HddlUniteInferData {
 public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
@@ -39,8 +42,8 @@ public:
     explicit HddlUniteInferData(
         const bool& needPreProcessing = false, const HDDL2RemoteContext::Ptr& remoteContext = nullptr);
 
-    void prepareInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);
-    void prepareOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
+    void prepareUniteInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);
+    void prepareUniteOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
 
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
 
@@ -53,7 +56,8 @@ private:
     std::map<std::string, BlobDescriptor::Ptr> _inputs;
     std::map<std::string, BlobDescriptor::Ptr> _outputs;
 
-    bool isVideoWorkload = false;
+    const bool _haveRemoteContext;
+    const bool _needPreProcessing;
 };
 
 }  // namespace HDDL2Plugin

@@ -36,13 +36,13 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing, const HDDL2RemoteContext::Ptr& remoteContext) {
+HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing, const HDDL2RemoteContext::Ptr& remoteContext)
+    : _haveRemoteContext(remoteContext != nullptr), _needPreProcessing(needPreProcessing) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
     HddlUnite::WorkloadContext::Ptr workloadContext = nullptr;
-    if (remoteContext != nullptr) {
+    if (_haveRemoteContext) {
         workloadContext = remoteContext->getHddlUniteWorkloadContext();
-        isVideoWorkload = true;
         if (workloadContext == nullptr) {
             THROW_IE_EXCEPTION << "Workload context is null!";
         }
@@ -51,53 +51,53 @@ HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing, const HDDL
     _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext, needPreProcessing);
 
     if (_inferDataPtr.get() == nullptr) {
-        THROW_IE_EXCEPTION << "Failed to create inferData";
+        THROW_IE_EXCEPTION << "Failed to create Unite inferData";
     }
 }
 
-void HddlUniteInferData::prepareInput(const IE::Blob::Ptr& blob, const IE::InputInfo::Ptr& info) {
+void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::InputInfo::Ptr& info) {
     if (!info) {
         THROW_IE_EXCEPTION << "Input blob info is null";
     }
     checkData(info->getInputData());
 
-    const bool isInput = true;
     const std::string name = info->getInputData()->getName();
     IE::DataPtr desc = info->getInputData();
 
     BlobDescriptor::Ptr blobDescriptorPtr;
-    if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
+    if (_haveRemoteContext) {
         blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
     } else {
         blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
-    auto blobDesc = blobDescriptorPtr->create();
+    auto blobDesc = blobDescriptorPtr->createUniteBlobDesc();
+    const bool isInput = true;
     _inferDataPtr->createBlob(name, blobDesc, isInput);
 
-    auto updatedBlobDesc = blobDescriptorPtr->init();
-    _inferDataPtr->getInputBlob(name)->updateBlob(updatedBlobDesc);
+    blobDescriptorPtr->initUniteBlobDesc(blobDesc);
+    _inferDataPtr->getInputBlob(name)->updateBlob(blobDesc);
     _inputs[name] = blobDescriptorPtr;
 
-    if (isVideoWorkload) {
+    if (_needPreProcessing && _haveRemoteContext) {
         auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
         _inferDataPtr->setNNInputDesc(nnBlobDesc);
     }
 }
 
-void HddlUniteInferData::prepareOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
+void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
     checkData(desc);
 
-    const bool isInput = false;
     const std::string name = desc->getName();
 
     BlobDescriptor::Ptr blobDescriptorPtr;
-    if (isVideoWorkload || blob->is<HDDL2RemoteBlob>()) {
+    if (_haveRemoteContext) {
         blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
     } else {
         blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
 
-    _inferDataPtr->createBlob(name, blobDescriptorPtr->create(), isInput);
+    const bool isInput = false;
+    _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(), isInput);
 
     _outputs[name] = blobDescriptorPtr;
 }
