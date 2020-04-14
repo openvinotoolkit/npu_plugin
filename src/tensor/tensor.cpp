@@ -586,6 +586,7 @@ void mv::Tensor::broadcast(const Shape& shape)
     if (s1.ndims() == 0 || s2.ndims() == 0)
         throw ValueError(*this, "Unable to perfom element-wise operation using 0-dimensional tensor");
 
+    //TODO - Currently broadcast function is not being called/utilized but will need to verify the calc below with data_ (vector of vector) when this function is enabled
 
     if (s1 != s2)
     {
@@ -897,7 +898,7 @@ void mv::Tensor::elementWiseInt_(const Tensor& other, const std::function<int64_
 {
     std::size_t firstIdx = 0;
     while (firstIdx < data_.size())
-    {
+    {   //currently this function is not called anywhere, TODO: Transform function to align with data_ instead of blocks_
         for (std::size_t secondIdx = 0; secondIdx < other.data_.size(); ++secondIdx)
         {
             std::transform(blocks_.at(firstIdx), blocks_.at(firstIdx) + blockSize_, other.blocks_.at(secondIdx), blocks_.at(firstIdx), opFunc);
@@ -911,6 +912,7 @@ void mv::Tensor::elementWiseDouble_(const Tensor& other, const std::function<dou
     std::size_t firstIdx = 0;
     while (firstIdx < data_.size())
     {
+        //currently this function is not called anywhere, TODO: Transform function to align with data_ instead of blocks_
         for (std::size_t secondIdx = 0; secondIdx < other.blocks_.size(); ++secondIdx)
         {
             std::transform(blocks_.at(firstIdx), blocks_.at(firstIdx) + blockSize_, other.blocks_.at(secondIdx), blocks_.at(firstIdx), opFunc);
