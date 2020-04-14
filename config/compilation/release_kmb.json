@@ -211,14 +211,7 @@
             "RemoveBiasTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
@@ -229,14 +222,7 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -294,14 +280,7 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
