@@ -652,6 +652,13 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
             }
         }
     }
+
+    if(opIt->hasAttr("leakyAlpha"))
+    {
+        auto alpha = opIt->get<double>("leakyAlpha");
+        clamp /= alpha;
+    }
+
     return clamp;
 }
 

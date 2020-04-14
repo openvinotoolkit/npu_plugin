@@ -270,11 +270,14 @@ std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::str
 std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor)
 {
     std::vector<mv::Data::OpListIterator> sinkOperations;
-    auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
-    for(auto flowName : flowsNames)
+    if ((tensor)->hasAttr("flows"))
     {
-        auto df = dataModel.getDataFlow(flowName);
-        sinkOperations.push_back(df.sink());
+        auto flowsNames = (tensor)->get<std::set<std::string>>("flows");
+        for(auto flowName : flowsNames)
+        {
+            auto df = dataModel.getDataFlow(flowName);
+            sinkOperations.push_back(df.sink());
+        }
     }
     return sinkOperations;
 }

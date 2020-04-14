@@ -351,15 +351,11 @@ void quantizeConst(mv::ComputationModel& model) {
 //NOTE: To quantize bias we use quantization parameters of input op and activations weights;
 // Input-> Activation(e.g. Conv) -> Bias
 // In current mcm approach it doesn't matter which qunat_params were set on bias
-mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator biasOp) {
+mv::Data::OpListIterator quantizeBias(mv::ComputationModel& model, mv::Data::OpListIterator biasOp, mv::QuantizationParams input_quant_params,
+                                      mv::QuantizationParams weights_params) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto tensor_data = biasOp->getInputTensor(1)->getData();
-
-    // TODO: add description
-    auto activationOp = om.getSourceOp(biasOp->getInputTensor(0));
-    auto input_quant_params = getParentQuantParams(om, activationOp);
-
-    auto weights_op = om.getSourceOp(activationOp->getInputTensor(1));
-    auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
 
     bool is_broadcasted = input_quant_params.isScalePerTensor() && weights_params.isScalePerTensor();
 
@@ -395,22 +391,22 @@ mv::Data::OpListIterator quantizeBias(mv::OpModel om, mv::Data::OpListIterator b
         }
 
         auto original_tensor = biasOp->getInputTensor(1);
-        mv::QuantizationParams quant_params = activationOp->get<mv::QuantizationParams>("quantParams");
 
         auto quantized_data = om.constantInt(newBiasData,
                                                 original_tensor->getShape(),
                                                 getDType(Precision::I32),
                                                 original_tensor->getOrder(),
-                                                quant_params,
+                                                input_quant_params,
                                                 om.getSourceOp(biasOp->getInputTensor(1))->getName()+":quantized");
 
         auto quantize_bias_tensor = om.bias(biasOp->getInputTensor(0),
                                                quantized_data,
                                                quantized_data->getDType(),
-                                               quant_params,
+                                               input_quant_params,
                                                biasOp->getName()+":quantized");
 
-        return mv::linkNewOperationsReplacement(om.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, om, biasOp);
+        auto parent_op = mv::linkNewOperationsReplacement(om.getSourceOp(biasOp->getInputTensor(0)), quantize_bias_tensor, om, biasOp);
+        return findSinkLayers(dm, parent_op->getOutputTensor(0)).at(0);
     } else if (bias_dtype == getDType(Precision::I32)) {
         // Do nothing
     } else {
@@ -428,7 +424,13 @@ void quantizeBias(mv::ComputationModel& model) {
         auto parent = om.getSourceOp(biasOp->getInputTensor(0));
 
         if (isOpQuantized(om, parent)) {
-            quantizeBias(om, biasOp);
+            auto activationOp = om.getSourceOp(biasOp->getInputTensor(0));
+            auto input_quant_params = getParentQuantParams(om, activationOp);
+
+            auto weights_op = om.getSourceOp(activationOp->getInputTensor(1));
+            auto weights_params = weights_op->get<mv::QuantizationParams>("quantParams");
+
+            quantizeBias(model, biasOp, input_quant_params, weights_params);
         }
     }
 }
@@ -452,14 +454,49 @@ void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
     }
 }
 
+void quantizeInputScaleShift(mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto input = om.getInput();
+    auto current_op = findSinkLayers(dm, input->getOutputTensor(0)).at(0);
+    if (current_op->getOpType() != "Scale" || !current_op->getInputTensor(1)->isDoubleType()) {
+        return;
+    }
+
+    // Quantize input scale
+    auto scaleTensor = current_op->getInputTensor(1);
+    auto originalConstOp = om.getSourceOp(scaleTensor);
+    auto scaleData = scaleTensor->getDoubleData();
+    auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 1);
+
+    mv::QuantizationParams scalesQuantParams = {{0}, scaleData, {-inf}, {inf}};
+    auto quantized_const_tensor = om.constantInt(quantizedScaleData, scaleTensor->getShape(), getDType(Precision::U8), scaleTensor->getOrder(), scalesQuantParams, originalConstOp->getName()+":quantized");
+    if (originalConstOp->hasAttr("opId")) {
+        unsigned currentOpId = originalConstOp->get<unsigned>("opId");
+        quantized_const_tensor->set<unsigned>("opId", currentOpId);
+        om.getSourceOp(quantized_const_tensor)->set<unsigned>("opId", currentOpId);
+    }
+    mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), quantized_const_tensor, om, originalConstOp);
+
+    setQuantizationParams(current_op, findOutputQuantParams(om, current_op));
+
+    // Quantize input bias
+    current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
+    if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
+        auto bias_op = quantizeBias(model, current_op, initial_quant_params, scalesQuantParams);
+        setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
+    }
+}
+
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
     if (fq_ops.empty())
         return;
-
-    propagateParameters( model);
+    quantizeInputScaleShift(model);
     quantizeIO(model);
+    propagateParameters( model);
     quantizeConst(model);
     quantizeBias(model);
     removeFQ(pass, model);
