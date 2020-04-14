@@ -147,32 +147,61 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
             op->getInputTensor(1)->getDType() == getDType(Precision::I8);
 }
 
-mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
-    //NOTE: we have the case were is assumption is wrong. See PriorBox
-    assert(op->getOutputTensor().size() == 1);
-
-    mv::DataModel dm(model);
-
-    auto current_op = findSinkLayers(dm, op->getOutputTensor(0)).at(0);
-    while(current_op->getOpType() != "FakeQuantize" && current_op->getOpType() != "Output")
-    {
-        current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
-        assert(current_op->getOutputTensor().size() < 2); // < 2 handles output op. Output op outTensor.size() equals 0
+bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
+    if(left.size() != right.size()) {
+        return false;
     }
 
-    if (current_op->getOpType() == "FakeQuantize") {
-        assert(op->getOpType() != "ConstantInt");
-        return extractQuantParams(current_op, op->getOpType() != "Constant");
+    for (int i = 0; i < left.size(); i++) {
+        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
+            return  false;
+        }
     }
-
-    return initial_quant_params;
+    return true;
 }
 
 bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    return left.getScale() == right.getScale()
-        && left.getZeroPoint() == right.getZeroPoint()
-        && left.getMin() == right.getMin()
-        && left.getMax() == right.getMax();
+    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
+    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
+    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
+    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
+}
+
+mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
+    //NOTE: If we have more than one child we have several cases
+    //ALL branches without FQ -> initial quant params and float output
+    //FQ only on one branch -> set this quant_params
+    //FQ on all branches with same quant params ->set this quant params
+    //FQ with different quant params -> assert
+
+    mv::DataModel dm(model);
+    auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
+
+    while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output") {
+        assert(!isQuantizableOp(current_ops[0]));
+        current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
+        assert(current_ops[0]->getOutputTensor().size() < 2);
+    }
+
+    std::vector<mv::QuantizationParams> outQuantParams;
+    for (int i = 0; i < current_ops.size(); i++) {
+        if (current_ops[i]->getOpType() == "FakeQuantize") {
+            outQuantParams.push_back(extractQuantParams(current_ops[0], op->getOpType() != "Constant"));
+        }
+    }
+
+    // NO FQ on branches
+    if (outQuantParams.empty()) {
+        return initial_quant_params;
+    }
+
+    for (int i = 1; i < outQuantParams.size(); i++) {
+        if (!isEqual(outQuantParams[0], outQuantParams[i])) {
+            throw std::runtime_error("Different quant params on branches");
+        }
+    }
+    return outQuantParams[0];
 }
 
 mv::QuantizationParams getParentQuantParams(mv::OpModel& om, const mv::Data::OpListIterator& op, size_t parent_idx = 0) {
@@ -490,6 +519,10 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
 }
 
 void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
+    mv::OpModel om(model);
+    auto fq_ops = om.getOps("FakeQuantize");
+    if (fq_ops.empty())
+        return;
     quantizeInputScaleShift(model);
     quantizeIO(model);
     propagateParameters( model);
