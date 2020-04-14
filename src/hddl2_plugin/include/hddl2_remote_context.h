@@ -53,7 +53,7 @@ public:
     /**
      * @brief Constructor with parameters, to initialize from workload id
      */
-    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap);
+    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config);
 
     /**
      * @brief CreateBlob provide ability to create RemoteBlob from remote memory fd
@@ -76,6 +76,8 @@ protected:
     HDDL2RemoteAllocator::Ptr _allocatorPtr = nullptr;
 
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
+    const HDDL2Config& _config;
+    const Logger::Ptr _logger;
 };
 
 }  // namespace HDDL2Plugin

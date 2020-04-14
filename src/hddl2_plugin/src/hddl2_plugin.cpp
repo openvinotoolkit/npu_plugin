@@ -27,6 +27,7 @@
 #include <fstream>
 #include <generic_ie.hpp>
 #include <ie_icore.hpp>
+#include <ie_metric_helpers.hpp>
 #include <ie_util_internal.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
@@ -34,8 +35,8 @@
 // Plugin include
 #include "hddl2_executable_network.h"
 #include "hddl2_helpers.h"
+#include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
-#include "hddl2_remote_context.h"
 
 using namespace vpu::HDDL2Plugin;
 
@@ -147,8 +148,11 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
-    std::cout << "SetConfig call" << std::endl;
-    UNUSED(config);
+    _parsedConfig.update(config);
+
+    for (const auto& entry : config) {
+        _config[entry.first] = entry.second;
+    }
 }
 
 void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config,
@@ -160,7 +164,17 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 }
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
-    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map);
+    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map, _parsedConfig);
+}
+
+InferenceEngine::Parameter Engine::GetMetric(
+    const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
+    if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, HDDL2Metrics::GetAvailableDevicesNames());
+    } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
+    }
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
 IE_SUPPRESS_DEPRECATED_START

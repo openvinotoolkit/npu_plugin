@@ -41,9 +41,6 @@ include(compile_options)
 set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
                             COMPILE_FLAGS "-Wno-error")
 
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ${TARGET_NAME})
-
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${VPUAL_NN_INCLUDES}
@@ -73,7 +70,9 @@ install(TARGETS ${TARGET_NAME}
         COMPONENT kmb)
 
 if(ENABLE_MCM_COMPILER)
-    install(TARGETS cm metamodel model
+    install(FILES $<TARGET_PROPERTY:cm,IMPORTED_LOCATION_NOCONFIG>
+            $<TARGET_PROPERTY:metamodel,IMPORTED_LOCATION_NOCONFIG>
+            $<TARGET_PROPERTY:model,IMPORTED_LOCATION_NOCONFIG>
             DESTINATION ${IE_CPACK_LIBRARY_PATH}
             COMPONENT kmb)
 endif()

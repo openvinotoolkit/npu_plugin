@@ -50,7 +50,8 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
     ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectFd, 1));
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, WrapSameSize_NoException) {
+// [Track number: S#28523]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSameSize_NoException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
 
@@ -59,7 +60,8 @@ TEST_F(HDDL2_HddlUnite_Tests, WrapSameSize_NoException) {
     ASSERT_NO_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size));
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, WrapSmallerSize_NoException) {
+// [Track number: S#28523]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
     const size_t smallerSizeToWrap = 10;
@@ -90,8 +92,6 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeFd_ThrowException) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests Initiation - getters
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
     std::vector<HddlUnite::Device> devices;
 
@@ -102,8 +102,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanGetAvailableDevices) {
 }
 
 //------------------------------------------------------------------------------
-// [Track number: S#28336]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateAndChangeRemoteMemory) {
+TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -121,8 +120,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateAndChangeRemoteMemory) {
     ASSERT_EQ(resultData, message);
 }
 
-// [Track number: S#28336]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrappedMemoryWillHaveSameData) {
+TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const std::string message = "Hello there\n";
 
@@ -141,7 +139,8 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrappedMemoryWillHaveSameData) {
     ASSERT_EQ(resultData, message);
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
+// [Track number: S#28523]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanSetAndGetRemoteContextUsingId) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
 
@@ -158,12 +157,14 @@ TEST_F(HDDL2_HddlUnite_Tests, CanSetAndGetRemoteContextUsingId) {
     HddlUnite::unregisterWorkloadContext(workloadId);
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, QueryIncorrectWorkloadIdReturnNull) {
+// [Track number: S#28523]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_QueryIncorrectWorkloadIdReturnNull) {
     auto workload_context = HddlUnite::queryWorkloadContext(INT32_MAX);
     ASSERT_EQ(workload_context, nullptr);
 }
 
-TEST_F(HDDL2_HddlUnite_Tests, CanCreateTwoDifferentContextOneAfterAnother) {
+// [Track number: S#28523]
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_CanCreateTwoDifferentContextOneAfterAnother) {
     // Destory default remote context from SetUp
     workloadContextHelper.destroyHddlUniteContext(workloadContextHelper.getWorkloadId());
 
@@ -296,7 +297,7 @@ public:
     const bool needAllocate = true;
 };
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HddlUnite_BlobDescr_LocalMemory_Input, DISABLED_CanCreateAndInfer_WithSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     ASSERT_TRUE(inferDataPtr->createBlob(inputName, blobDesc, isInput));
@@ -319,7 +320,7 @@ public:
 
 // TODO Add same test with remote memory wrapping (needAllocate = false)
 // We want only to allocate remote memory without providing data to it
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, DISABLED_CanCreateAndInfer_WithoutSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
 
@@ -328,7 +329,7 @@ TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, DISABLED_CanCreateAndInfer_Withou
 }
 
 // If src ptr provided, data will be synced with remote memory
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HddlUnite_BlobDescr_RemoteMemory_Input, DISABLED_CanCreateAndInfer_WithSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetInputSize);
     blobDesc.m_srcPtr = (void*)simpleInputData.data();
@@ -348,7 +349,7 @@ public:
 /**
  * After inference memory should be copied manually
  */
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CanCreateAndInfer_WithoutSrcPtr) {
     HddlUnite::Inference::BlobDesc blobDesc(precision, isRemoteMem, needAllocate, resNetOutputSize);
 
@@ -356,7 +357,7 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CanCreateAndInfer_Withou
     ASSERT_NO_THROW(callInferenceOnBlobs());
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(
     HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_WillHaveSaveSizeAsProvided_SizeFromGraph) {
     HddlUnite_Graph_Helper graphHelper;
@@ -412,7 +413,7 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_Wi
     EXPECT_EQ(actualSize, actualSizeInDesc);
 }
 
-// [Track number: S#28336]
+// [Track number: S#28523]
 TEST_F(HddlUnite_BlobDescr, DISABLED_CanInferOnDefaultLocalBlobs) {
     // Inference on default blobs, which will
     ASSERT_NO_THROW(callInferenceOnBlobs());
@@ -421,6 +422,7 @@ TEST_F(HddlUnite_BlobDescr, DISABLED_CanInferOnDefaultLocalBlobs) {
 //------------------------------------------------------------------------------
 using HddlUnite_Stress = HDDL2_HddlUnite_Tests;
 // Stress tests should belong to another test executor
+// [Track number: S#28523]
 TEST_F(HddlUnite_Stress, DISABLED_MultipleAllocations) {
     const size_t amountOfAllocations = 100;
 

@@ -23,13 +23,16 @@
 
 using namespace InferenceEngine;
 
-TEST_F(LoadNetwork_Tests, CanFindPlugin) { ASSERT_NO_THROW(ie.LoadNetwork(network, pluginName)); }
+// [Track number: S#30141]
+TEST_F(LoadNetwork_Tests, DISABLED_CanFindPlugin) { ASSERT_NO_THROW(ie.LoadNetwork(network, pluginName)); }
 
-TEST_F(LoadNetwork_Tests, CanCreateExecutable) {
+// [Track number: S#30141]
+TEST_F(LoadNetwork_Tests, DISABLED_CanCreateExecutable) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
 }
 
-TEST_F(LoadNetwork_Tests, CanCreateWithContext) {
+// [Track number: S#30141]
+TEST_F(LoadNetwork_Tests, DISABLED_CanCreateWithContext) {
     Remote_Context_Helper contextHelper;
 
     auto contextParams = contextHelper.wrapWorkloadIdToMap(contextHelper.getWorkloadId());
@@ -45,7 +48,8 @@ TEST_F(LoadNetwork_Tests, DISABLED_CannotCreateWithNullContext) {
     ASSERT_ANY_THROW(executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-TEST_F(LoadNetwork_Tests, CanCreateInferRequestAfterLoadNetwork) {
+// [Track number: S#30141]
+TEST_F(LoadNetwork_Tests, DISABLED_CanCreateInferRequestAfterLoadNetwork) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }

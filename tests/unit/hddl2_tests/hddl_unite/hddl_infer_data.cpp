@@ -54,37 +54,37 @@ TEST_F(InferData_constructor, withNullContext_NoThrow) {
 }
 
 //------------------------------------------------------------------------------
-using InferData_prepareInput = InferData_UnitTests;
-TEST_F(InferData_prepareInput, monkey_nullBlob_Throw) {
+using InferData_prepareUniteInput = InferData_UnitTests;
+TEST_F(InferData_prepareUniteInput, monkey_nullBlob_Throw) {
     HddlUniteInferData inferData;
 
-    ASSERT_ANY_THROW(inferData.prepareInput(nullptr, inputInfo));
+    ASSERT_ANY_THROW(inferData.prepareUniteInput(nullptr, inputInfo));
 }
 
-TEST_F(InferData_prepareInput, monkey_nullInfo_Throw) {
+TEST_F(InferData_prepareUniteInput, monkey_nullInfo_Throw) {
     HddlUniteInferData inferData;
 
-    ASSERT_ANY_THROW(inferData.prepareInput(blob, nullptr));
+    ASSERT_ANY_THROW(inferData.prepareUniteInput(blob, nullptr));
 }
 
-TEST_F(InferData_prepareInput, monkey_nullDesc_Throw) {
+TEST_F(InferData_prepareUniteInput, monkey_nullDesc_Throw) {
     HddlUniteInferData inferData;
     inputInfo->setInputData(nullptr);
 
-    ASSERT_ANY_THROW(inferData.prepareInput(blob, inputInfo));
+    ASSERT_ANY_THROW(inferData.prepareUniteInput(blob, inputInfo));
 }
 
 //------------------------------------------------------------------------------
-using InferData_prepareOutput = InferData_UnitTests;
-TEST_F(InferData_prepareOutput, monkey_nullBlob_Throw) {
+using InferData_prepareUniteOutput = InferData_UnitTests;
+TEST_F(InferData_prepareUniteOutput, monkey_nullBlob_Throw) {
     HddlUniteInferData inferData;
 
-    ASSERT_ANY_THROW(inferData.prepareOutput(nullptr, outputInfo));
+    ASSERT_ANY_THROW(inferData.prepareUniteOutput(nullptr, outputInfo));
 }
 
-TEST_F(InferData_prepareOutput, monkey_nullDesc_Throw) {
+TEST_F(InferData_prepareUniteOutput, monkey_nullDesc_Throw) {
     HddlUniteInferData inferData;
     InferenceEngine::Blob::Ptr blob;
 
-    ASSERT_ANY_THROW(inferData.prepareOutput(blob, nullptr));
+    ASSERT_ANY_THROW(inferData.prepareUniteOutput(blob, nullptr));
 }

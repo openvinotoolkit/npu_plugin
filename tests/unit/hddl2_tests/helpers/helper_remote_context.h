@@ -35,6 +35,7 @@ public:
     WorkloadID getWorkloadId() const;
 
     HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
+    const vpu::HDDL2Config config;
 
 protected:
     // TODO Use stub instead of creating "default" _workloadContext
@@ -46,7 +47,7 @@ protected:
 //------------------------------------------------------------------------------
 inline RemoteContext_Helper::RemoteContext_Helper() {
     auto param = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
-    remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param);
+    remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param, config);
 }
 
 inline InferenceEngine::ParamMap

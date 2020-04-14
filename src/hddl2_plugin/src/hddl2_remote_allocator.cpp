@@ -21,21 +21,9 @@
 
 using namespace vpu::HDDL2Plugin;
 
-bool static isValidAllocateSize(size_t size) noexcept {
-    if (size <= 0 || size > MAX_ALLOC_SIZE) {
-        printf("%s: Incorrect size!\n", __FUNCTION__);
-        return false;
-    }
-    return true;
-}
+bool static isValidAllocateSize(size_t size) noexcept { return !(size <= 0 || size > MAX_ALLOC_SIZE); }
 
-bool static isValidRemoteMemoryFD(const RemoteMemoryFD& remoteMemoryFd) {
-    if (remoteMemoryFd == UINT64_MAX) {
-        printf("%s: Incorrect memory fd!\n", __FUNCTION__);
-        return false;
-    }
-    return true;
-}
+bool static isValidRemoteMemoryFD(const RemoteMemoryFD& remoteMemoryFd) { return remoteMemoryFd != UINT64_MAX; }
 
 static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     switch (lockOp) {
@@ -51,7 +39,8 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
 HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory)
     : remoteMemory(remoteMemory) {}
 
-HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr) {
+HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const HDDL2Config& config)
+    : _config(config), _logger(std::make_shared<Logger>("HDDL2RemoteAllocator", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Context pointer is null";
     }
@@ -62,6 +51,7 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
     if (!isValidAllocateSize(size)) {
+        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
         return nullptr;
     }
 
@@ -74,10 +64,10 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
 
-        printf("%s: Allocate memory of %d size\n", __FUNCTION__, static_cast<int>(size));
+        _logger->info("%s: Allocate memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
     } catch (const std::exception& ex) {
-        printf("%s: Failed to allocate memory. Error: %s\n", __FUNCTION__, ex.what());
+        _logger->error("%s: Failed to allocate memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
     }
 }
@@ -85,7 +75,13 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
 void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
-    if (!isValidAllocateSize(size) || !isValidRemoteMemoryFD(remoteMemoryFd)) {
+    if (!isValidAllocateSize(size)) {
+        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
+        return nullptr;
+    }
+
+    if (!isValidRemoteMemoryFD(remoteMemoryFd)) {
+        _logger->warning("%s: Incorrect memory fd!\n", __FUNCTION__);
         return nullptr;
     }
 
@@ -97,10 +93,10 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryF
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
 
-        printf("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
+        _logger->info("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
     } catch (const std::exception& ex) {
-        printf("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
+        _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
     }
 }
@@ -109,22 +105,22 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
     if (remoteMemoryHandle == nullptr) {
-        printf("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end()) {
-        printf("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
 
     auto memory = &iterator->second;
     if (memory->isLocked) {
-        printf("%s: Memory %p is locked!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Memory %p is locked!\n", __FUNCTION__, remoteMemoryHandle);
         return false;
     }
 
-    printf("%s: Memory %p found, removing element\n", __FUNCTION__, remoteMemoryHandle);
+    _logger->info("%s: Memory %p found, removing element\n", __FUNCTION__, remoteMemoryHandle);
     _memoryStorage.erase(iterator);
     return true;
 }
@@ -141,16 +137,16 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
 
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end()) {
-        printf("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
-    printf("%s: Locking memory %p \n", __FUNCTION__, remoteMemoryHandle);
+    _logger->info("%s: Locking memory %p \n", __FUNCTION__, remoteMemoryHandle);
 
     auto memory = &iterator->second;
 
     if (memory->isLocked) {
-        printf("%s: Memory %p is already locked!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Memory %p is already locked!\n", __FUNCTION__, remoteMemoryHandle);
         return nullptr;
     }
 
@@ -161,15 +157,15 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
     memory->localMemory.resize(dmaBufSize);
 
     if (dmaBufSize != memory->localMemory.size()) {
-        printf("%s: dmaBufSize(%d) != memory->size(%d)\n", __FUNCTION__, static_cast<int>(dmaBufSize),
+        _logger->info("%s: dmaBufSize(%d) != memory->size(%d)\n", __FUNCTION__, static_cast<int>(dmaBufSize),
             static_cast<int>(memory->localMemory.size()));
         return nullptr;
     }
 
-    printf("%s: LockOp: %s\n", __FUNCTION__, lockOpToStr(lockOp).c_str());
+    _logger->info("%s: LockOp: %s\n", __FUNCTION__, lockOpToStr(lockOp).c_str());
 
     // TODO Do this step only on R+W and R operations, not for Write
-    printf("%s: Sync %d memory from device, remoteMemoryHandle %p, fd %d\n", __FUNCTION__,
+    _logger->info("%s: Sync %d memory from device, remoteMemoryHandle %p, fd %d\n", __FUNCTION__,
         static_cast<int>(memory->localMemory.size()), remoteMemoryHandle, memory->remoteMemory->getDmaBufFd());
 
     HddlStatusCode statusCode =
@@ -187,18 +183,18 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
 
     auto iterator = _memoryStorage.find(remoteMemoryHandle);
     if (iterator == _memoryStorage.end() || !iterator->second.isLocked) {
-        printf("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
         return;
     }
     auto memory = &iterator->second;
 
     if (memory->lockOp == InferenceEngine::LOCK_FOR_WRITE) {
         // Sync memory to device
-        printf("%s: Sync %d memory to device, remoteMemoryHandle %p\n", __FUNCTION__,
+        _logger->info("%s: Sync %d memory to device, remoteMemoryHandle %p\n", __FUNCTION__,
             static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
         memory->remoteMemory->syncToDevice(memory->localMemory.data(), memory->localMemory.size());
     } else {
-        printf("%s: LOCK_FOR_READ, Memory %d will NOT be synced, remoteMemoryHandle %p\n", __FUNCTION__,
+        _logger->warning("%s: LOCK_FOR_READ, Memory %d will NOT be synced, remoteMemoryHandle %p\n", __FUNCTION__,
             static_cast<int>(memory->localMemory.size()), remoteMemoryHandle);
     }
 

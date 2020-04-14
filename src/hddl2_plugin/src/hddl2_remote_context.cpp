@@ -51,12 +51,15 @@ WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
 //------------------------------------------------------------------------------
 //      class HDDL2RemoteContext Implementation
 //------------------------------------------------------------------------------
-HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap): _contextParams(paramMap) {
+HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config)
+    : _contextParams(paramMap),
+      _config(config),
+      _logger(std::make_shared<Logger>("HDDL2RemoteContext", config.logLevel(), consoleOutput())) {
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
     if (_workloadContext == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "context is not found";
     }
-    _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext);
+    _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext, _config);
 }
 
 IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
@@ -64,14 +67,14 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
-        printf("Please use smart ptr to context instead of instance of class\n");
+        _logger->warning("Please use smart ptr to context instead of instance of class\n");
         return nullptr;
     }
     try {
-        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params);
+        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params, _config);
     } catch (const std::exception& ex) {
-        printf("Incorrect parameters for CreateBlob call.\n"
-               "Please make sure remote memory fd is correct.\nError: %s\n",
+        _logger->warning("Incorrect parameters for CreateBlob call.\n"
+                         "Please make sure remote memory fd is correct.\nError: %s\n",
             ex.what());
         return nullptr;
     }

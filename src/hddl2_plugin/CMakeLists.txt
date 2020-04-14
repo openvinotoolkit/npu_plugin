@@ -62,9 +62,6 @@ target_compile_options(${TARGET_NAME}
         -Wextra
         -Werror)
 
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ${TARGET_NAME})
-
 set(HDDL_UNITE_OUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 file( GLOB LIB_XLINKPC_DIR ${HDDL_UNITE}/kmb_hddl/lib/libXLink* )
 

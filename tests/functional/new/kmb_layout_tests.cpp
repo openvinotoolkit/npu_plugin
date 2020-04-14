@@ -99,6 +99,14 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             }
     );
 
+    const auto powerTensorDesc = TensorDesc(Precision::FP32, {1, 1, 1, 1}, Layout::NHWC);
+    registerBlobGenerator(
+            "scale", powerTensorDesc,
+            [&](const TensorDesc& desc) {
+                return makeSingleValueBlob(desc, 1.f);
+            }
+    );
+
     if (!is_supported(userInDesc.getPrecision(), userInDesc.getLayout(), userOutDesc.getPrecision(), userOutDesc.getLayout())) {
         SKIP_INFER_ON("KMB", "Parameters are not supported, no graph to infer");
     }
@@ -112,11 +120,12 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
             .addNetInput("input", userInDesc.getDims(), netPrecision)
-            .addLayer<SoftmaxLayerDef>("softmax", dims.size() > 1 ? 1 : 0)
-                .input("input", 0)
+            .addLayer<PowerLayerDef>("power")
+                .input1("input")
+                .input2(getBlobByName("scale"))
                 .build()
-            .setUserOutput(PortInfo("softmax"), userOutDesc.getPrecision(), userOutDesc.getLayout())
-            .addNetOutput(PortInfo("softmax"))
+            .setUserOutput(PortInfo("power"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .addNetOutput(PortInfo("power"))
             .finalize();
     };
 

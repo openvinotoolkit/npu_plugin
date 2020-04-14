@@ -33,6 +33,8 @@ add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${MCM_COMPILER_INCLUDES}
+        ${MCM_COMPILER_INCLUDES}/include
+        ${META_DIR_PATH}
     PUBLIC
         "include"
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)

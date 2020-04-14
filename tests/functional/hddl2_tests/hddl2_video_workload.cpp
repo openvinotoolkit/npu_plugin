@@ -66,8 +66,7 @@ void VideoWorkload_Tests::SetUp() {
 
 //------------------------------------------------------------------------------
 using VideoWorkload_WithoutPreprocessing = VideoWorkload_Tests;
-// [Track number: S#28336]
-TEST_F(VideoWorkload_WithoutPreprocessing, DISABLED_SyncInferenceOneRemoteFrame) {
+TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
@@ -153,8 +152,7 @@ void VideoWorkload_WithPreprocessing::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
 }
 
-// [Track number: S#28336]
-TEST_F(VideoWorkload_WithPreprocessing, DISABLED_onOneRemoteFrame) {
+TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
