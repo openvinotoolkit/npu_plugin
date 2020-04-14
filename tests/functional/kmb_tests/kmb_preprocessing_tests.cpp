@@ -999,6 +999,108 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
     });
 }
 
+TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
+    if (!KmbTestBase::RUN_INFER) {
+        SKIP();
+    }
+    Core ie;
+
+    std::string detectNetworkPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    InferenceEngine::ExecutableNetwork detectionNetwork = ie.ImportNetwork(detectNetworkPath, "KMB", {});
+
+    std::string classifyNetworkPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, "KMB", {});
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    std::vector<InferenceEngine::InferRequest::Ptr> detectionRequests;
+    std::vector<InferenceEngine::InferRequest::Ptr> classificationRequests;
+    ConstInputsDataMap detectInputInfo = detectionNetwork.GetInputsInfo();
+    ConstInputsDataMap classifyInputInfo = classificationNetwork.GetInputsInfo();
+
+    const size_t imgWidth = 1920;
+    const size_t imgHeight = 1080;
+    const size_t maxParallelRequests = 4;
+
+    std::condition_variable condVar;
+    const char* iterCountStr = std::getenv("IE_VPU_KMB_STRESS_TEST_ITER_COUNT");
+    const size_t iterationCount = (iterCountStr != nullptr) ? std::atoi(iterCountStr) : 10;
+    std::vector<size_t> iterationVec(maxParallelRequests, 0);
+
+    std::string detectInputName = detectInputInfo.begin()->first;
+    std::string detectInputPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-1-1920x1080-nv12.bin";
+    std::string classifyInputName = classifyInputInfo.begin()->first;
+    std::string classifyInputPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-2-1920x1080-nv12.bin";
+
+    std::string detectOutputName = detectionNetwork.GetOutputsInfo().begin()->first;
+    std::string classifyOutputName = classificationNetwork.GetOutputsInfo().begin()->first;
+
+    for (size_t requestNum = 0; requestNum < maxParallelRequests; requestNum++) {
+        InferenceEngine::InferRequest::Ptr detectInferReq = detectionNetwork.CreateInferRequestPtr();
+        setNV12Preproc(detectInputName, detectInputPath, *detectInferReq, kmbAllocator, imgWidth, imgHeight);
+
+        InferenceEngine::InferRequest::Ptr classifyInferReq = classificationNetwork.CreateInferRequestPtr();
+        setNV12Preproc(classifyInputName, classifyInputPath, *classifyInferReq, kmbAllocator, imgWidth, imgHeight);
+
+        auto detectCallback = [requestNum, &iterationVec, iterationCount, &detectionRequests, &classificationRequests,
+                                  detectOutputName, &condVar, maxParallelRequests](void) -> void {
+            size_t reqId = requestNum;
+            iterationVec[reqId]++;
+            std::cout << "Completed " << iterationVec[reqId] << " async request ID " << reqId << std::endl;
+            if (iterationVec[reqId] < iterationCount) {
+                Blob::Ptr detectOutputBlob = detectionRequests.at(reqId)->GetBlob(detectOutputName);
+
+                float confThresh = 0.4f;
+                bool isTiny = true;
+                auto actualOutput = parseOutput(detectOutputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                std::cout << "BBox Top:" << std::endl;
+                for (size_t i = 0; i < actualOutput.size(); ++i) {
+                    const auto& bb = actualOutput[i];
+                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                }
+                for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
+                    classificationRequests.at(classReqIdx)->StartAsync();
+                }
+                detectionRequests.at(reqId)->StartAsync();
+            } else {
+                condVar.notify_one();
+            }
+        };
+
+        auto classifyCallback = [requestNum, &classificationRequests, classifyOutputName](void) -> void {
+            size_t reqId = requestNum;
+            Blob::Ptr classifyOutputBlob = classificationRequests.at(reqId)->GetBlob(classifyOutputName);
+            const float* bufferRawPtr = classifyOutputBlob->cbuffer().as<const float*>();
+            std::vector<float> outputData(classifyOutputBlob->size());
+            std::memcpy(outputData.data(), bufferRawPtr, outputData.size());
+            std::vector<float>::iterator maxElt = std::max_element(outputData.begin(), outputData.end());
+            std::cout << "Top class: " << std::distance(outputData.begin(), maxElt) << std::endl;
+        };
+        detectInferReq->SetCompletionCallback(detectCallback);
+        detectionRequests.push_back(detectInferReq);
+        classifyInferReq->SetCompletionCallback(classifyCallback);
+        classificationRequests.push_back(classifyInferReq);
+    }
+
+    for (const auto& detectReq : detectionRequests) {
+        detectReq->StartAsync();
+    }
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&] {
+        bool allRequestsFinished = true;
+        for (size_t iterNum : iterationVec) {
+            if (iterNum < iterationCount) {
+                allRequestsFinished = false;
+            }
+        }
+        return allRequestsFinished;
+    });
+}
+
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
