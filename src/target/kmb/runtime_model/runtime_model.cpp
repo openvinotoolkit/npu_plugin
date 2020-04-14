@@ -365,7 +365,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
-            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap") && !t->hasAttr("fakeSparsity")) 
+            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")) 
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -608,7 +608,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
      * These should be comprssed for additional performance 
     */ 
 
-    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap") && !t.hasAttr("fakeSparsity") && t.getDType() != mv::DType("Float16")) 
+    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap") && t.getDType() != mv::DType("Float16")) 
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
@@ -2325,6 +2325,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             }
             // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
             // Weights have UInt8 dType 
+            // Fake Sparsity maps also have UInt8 dType  
             else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
             {
                 for(std::size_t i = 0; i < numClusters; ++i)
