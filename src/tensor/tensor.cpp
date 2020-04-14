@@ -727,7 +727,11 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
         // As weights sets are aligned to 16
         if (isSparse())
         {
-            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            //NOTE: Marco used the DType here, but does not seem normal, or better does not work
+            //Weights sets need to be always aligned to 16 no matter the data type, leaving here
+            //for historical reason
+//            auto size = orderedDataPacked.size() * std::ceil(getDType().getSizeInBits()/8.0);
+            auto size = orderedDataPacked.size();
             auto padsize = mv::round_up(size, 16) - size;
             int64_t zeroPointVal = zeroPoint[sub[mv::KERNEL_OUTPUT_CHANNELS]];
             for (std::size_t j = 0; j < padsize; ++j)

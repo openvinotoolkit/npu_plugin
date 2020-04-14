@@ -188,12 +188,12 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
             {
                 memoryLocation = "VPU_DDR_Heap";
             }
-            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
+            pass.log(mv::Logger::MessageType::Debug, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
         }
         else
         {
             memoryLocation = "VPU_DDR_Heap";
-            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
+            pass.log(mv::Logger::MessageType::Debug, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
         }
         return dm.allocateTensor(memoryLocation, stageIt, tensorIt);
     }
@@ -422,7 +422,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
                 }
@@ -461,7 +461,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     // Probably restrictions on a tensor should be attributes of that tensor.
                     if (!inputTensor->hasAttr("allocators"))
                     {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
-                        pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                        pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                                 " Has no allocator. Will attempt to allocate based on logical location");
                     }
                     else
@@ -522,7 +522,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + inputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + inputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -532,7 +532,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if(!outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -582,7 +582,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -593,7 +593,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -642,7 +642,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -653,7 +653,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -671,7 +671,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             else
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
-                pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " has implicit flow but was not assigned an allocator.");
             }
             
