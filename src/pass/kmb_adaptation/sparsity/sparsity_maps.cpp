@@ -168,6 +168,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                 auto fakeSparsityMap = createFakeSparsityMap(om, dpuTask, mv::createFakeSparsityMapName(opName), sparsityShape, sparsityTensor.getIntData());
                 fakeSparsityMap->set<int>("channelLength", channelLenght);
+                fakeSparsityMap->set<bool>("fakeSparsity", true);
+
 
                 dpuTask->set<bool>("fakeSparsity", true);
                 dpuTask->set<size_t>("fakeSparsityIndex", dpuTask->inputSlots()-1);

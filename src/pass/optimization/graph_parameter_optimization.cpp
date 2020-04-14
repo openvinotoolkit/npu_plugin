@@ -91,9 +91,9 @@ namespace mv
             
             /*
              * This method calculates a compression ratio of compressed weight size / orignal weight size.
-             * This metric could be used by in the calculation of execution time.
+             * This ratio could be used by the calculation of execution time.
 
-             * Execution time is calculated by this formula and theoretically DMA of compressed data should be 
+             * Execution time is calculated by this formula and theoretically the DMA of compressed data should be 
              * faster than non compressed data 
              * execTime += WSize / ddrBandwidth;
 
@@ -101,8 +101,8 @@ namespace mv
              * execTime += (WSize * weightscompressionRatio / ddrBandwidth; 
              * 
              * Empirical testing has found this does not change final strategy section as the same amount of data is
-             * ultimately DMA's to the CMX. So for now the ratio is not used until a more sensitive cost function is 
-             * developed as it does not warrant the increase in compilation time.  
+             * ultimately DMA'ed to CMX. So for now the ratio is not used until a more sensitive cost function is 
+             * developed as it does not warrant the increase in compilation time caused by calling the HDE library in strategy manager.  
              */ 
             double calculateWeightsCompressionRatio(mv::Op layer)
             {
