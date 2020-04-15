@@ -16,32 +16,24 @@
 
 set(TARGET_NAME HDDL2UnitTests)
 
-file(GLOB_RECURSE HDDL2_UNIT_TESTS_SOURCES "*.cpp")
-
-add_executable(${TARGET_NAME} ${HDDL2_UNIT_TESTS_SOURCES})
-
-target_include_directories(${TARGET_NAME} PRIVATE
+addIeTargetTest(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDES
         "helpers"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
-        )
-
-target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Werror)
-
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
+    LINK_LIBRARIES
         IE::IESharedTests
         HDDL2Plugin_test_static
         HddlUnite
         IE::gtest
         IE::gtest_main
         frontend_mcm
-        )
+    LINK_LIBRARIES_WHOLE_ARCHIVE
+        kmbTestData
+)
 
-add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
-
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-endif()
+target_compile_options(${TARGET_NAME}
+    PRIVATE
+        -Wall
+        -Werror)

@@ -16,28 +16,27 @@
 
 set(TARGET_NAME KmbUnitTests)
 
-file(GLOB TEST_SOURCES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-
-list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB})
-
-add_executable(${TARGET_NAME} ${TEST_SOURCES})
-
-target_include_directories(${TARGET_NAME} PRIVATE
-        ${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers
-        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        )
+addIeTargetTest(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDES
+        "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+    LINK_LIBRARIES
+        IE::IESharedTests
+        IE::vpu_common_lib
+        IE::ngraph
+        ${VPUSMM_LIB}
+        IE::gtest
+        IE::gmock
+        IE::gtest_main
+        kmb_utils
+        kmbPlugin_test_static
+    LINK_LIBRARIES_WHOLE_ARCHIVE
+        kmbTestData
+)
 
 target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror)
-
-target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmb_utils kmbPlugin_test_static
-    ${KMB_TEST_LIBRARIES})
-
-add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
-
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-endif()
+    PRIVATE
+        -Wall
+        -Werror)

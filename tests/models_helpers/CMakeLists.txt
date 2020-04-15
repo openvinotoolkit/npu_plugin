@@ -2,27 +2,17 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(TARGET_NAME ieModelsHelpersKmb)
-
-file(GLOB HELPERS_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
-
-file (GLOB HELPERS_INCLUDES
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
-        ${CMAKE_CURRENT_BINARY_DIR}/*.hpp
-        )
-
-message("configuring file: ${CMAKE_CURRENT_BINARY_DIR}/get_model_repos.hpp")
 configure_file(get_model_repos.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/get_model_repos.hpp @ONLY)
 
-add_library(${TARGET_NAME} STATIC ${HELPERS_SRC})
-
-target_link_libraries(${TARGET_NAME} PUBLIC IE::ieTestHelpers)
-
-target_include_directories(${TARGET_NAME}
+addIeTarget(
+    NAME kmbTestData
+    TYPE STATIC
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDES ${CMAKE_CURRENT_BINARY_DIR}
+    LINK_LIBRARIES IE::ieTestHelpers
+    DEFINES
+        INSTANTIATE_TESTS=1
         PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}"
-        PRIVATE
-            "${CMAKE_CURRENT_BINARY_DIR}")
+        DATA_PATH=\"${DATA_PATH}\"
+        MODELS_PATH=\"${MODELS_PATH}\"
+)

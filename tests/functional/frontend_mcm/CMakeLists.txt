@@ -27,7 +27,8 @@ addIeTargetTest(
             IE::inference_engine
             IE::IESharedTests
             frontend_mcm
-            ieModelsHelpersKmb
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+            kmbTestData
         ADD_CPPLINT
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
             KMB

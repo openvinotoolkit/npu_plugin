@@ -36,7 +36,8 @@ addIeTargetTest(
             IE::ngraph
             ${VPUSMM_LIB}
             kmb_utils
-            ieModelsHelpersKmb
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+            kmbTestData
         ADD_CPPLINT
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
             KMB

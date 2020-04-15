@@ -16,7 +16,8 @@ addIeTargetTest(
         LINK_LIBRARIES
             IE::IEBehaviorSharedTests
             IE::ieTestHelpers
-            ieModelsHelpersKmb
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+            kmbTestData
         ADD_CPPLINT
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
             KMB
