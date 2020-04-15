@@ -41,11 +41,9 @@ target_link_libraries(${TARGET_NAME}
 
 # install
 
-set(component_name vpu)
-ie_cpack_add_component(${component_name} REQUIRED)
+ie_cpack_add_component(vpu REQUIRED)
 
 install(TARGETS ${TARGET_NAME}
-        RUNTIME DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        ARCHIVE DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH}
-        COMPONENT ${component_name})
+        RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT vpu
+        ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT vpu
+        LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT vpu)
