@@ -16,7 +16,7 @@ int main()
     double spatial_scale = 0.0625;
     size_t spatial_bins_x = 1;
     size_t spatial_bins_y = 1;
-    std::string psroi_pooling_method = "average";
+    size_t psroi_pooling_method = 0; // average
 
     std::vector<uint16_t> weightsData(5*5);
 

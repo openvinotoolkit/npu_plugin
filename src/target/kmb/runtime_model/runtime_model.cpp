@@ -1660,7 +1660,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
     softLayerParamsValue->pooled_h             = opIt->get<std::size_t>("pooled_h");
     softLayerParamsValue->spatial_bin_x        = opIt->get<std::size_t>("spatial_bin_x");
     softLayerParamsValue->spatial_bin_y        = opIt->get<std::size_t>("spatial_bin_y");
-    softLayerParamsValue->psroi_pooling_method = opIt->get<std::string>("psroi_pooling_method");
+    softLayerParamsValue->psroi_pooling_method = opIt->get<std::size_t>("psroi_pooling_method");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 

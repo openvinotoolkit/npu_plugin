@@ -225,19 +225,20 @@ mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::
 mv::Data::TensorIterator convertPSROIPoolingToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
-    auto quantParams        = attrs.at("quantParams").get<mv::QuantizationParams>();
-    auto dtype              = attrs.at("dType").get<mv::DType>();
-    auto output_dim         = attrs.at("output_dim").get<std::size_t>();
-    auto group_size         = attrs.at("group_size").get<std::size_t>();
-    auto spatial_scale      = attrs.at("spatial_scale").get<double>();
-    auto pooled_w           = attrs.at("pooled_w").get<std::size_t>();
-    auto pooled_h           = attrs.at("pooled_h").get<std::size_t>();
-    auto spatial_bin_x      = attrs.at("spatial_bin_x").get<std::size_t>();
-    auto spatial_bin_y      = attrs.at("spatial_bin_y").get<std::size_t>();
-    auto mode               = attrs.at("psroi_pooling_method").get<std::string>();
+    auto quantParams          = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype                = attrs.at("dType").get<mv::DType>();
+    auto output_dim           = attrs.at("output_dim").get<std::size_t>();
+    auto group_size           = attrs.at("group_size").get<std::size_t>();
+    auto spatial_scale        = attrs.at("spatial_scale").get<double>();
+    auto pooled_w             = attrs.at("pooled_w").get<std::size_t>();
+    auto pooled_h             = attrs.at("pooled_h").get<std::size_t>();
+    auto spatial_bin_x        = attrs.at("spatial_bin_x").get<std::size_t>();
+    auto spatial_bin_y        = attrs.at("spatial_bin_y").get<std::size_t>();
+    auto psroi_pooling_method = attrs.at("psroi_pooling_method").get<std::size_t>();
 
-    return om.uPATaskPSROIPooling(inputs, output_dim, group_size, spatial_scale, pooled_w, pooled_h, spatial_bin_x, spatial_bin_y,
-                                  mode, dtype, quantParams, name);
+    return om.uPATaskPSROIPooling(inputs, output_dim, group_size, spatial_scale, pooled_w, pooled_h,
+                                  spatial_bin_x, spatial_bin_y,  psroi_pooling_method, dtype,
+                                  quantParams, name);
 }
 
 mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,

@@ -59,7 +59,7 @@ namespace mv
         .setArg<std::size_t>("pooled_h")
         .setArg<std::size_t>("spatial_bin_x")
         .setArg<std::size_t>("spatial_bin_y")
-        .setArg<std::string>("psroi_pooling_method")
+        .setArg<std::size_t>("psroi_pooling_method")
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_psroi_pooling::inputCheckFcn)
