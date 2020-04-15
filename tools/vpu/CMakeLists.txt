@@ -12,6 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-if(ENABLE_MCM_COMPILER)
+if(mcmCompiler_FOUND)
     add_subdirectory(vpu_compile)
 endif()

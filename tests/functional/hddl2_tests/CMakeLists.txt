@@ -44,7 +44,7 @@ target_link_libraries(${TARGET_NAME} PRIVATE
         frontend_mcm
         )
 
-if(ENABLE_MCM_COMPILER)
+if(mcmCompiler_FOUND)
     add_dependencies(${TARGET_NAME} mcm_compiler_copy_configs)
 endif()
 
