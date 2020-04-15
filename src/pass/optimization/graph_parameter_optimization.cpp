@@ -656,7 +656,7 @@ namespace mv
                 // If Z-major Conv in Float precision then need to have weights Sparsity
                 if(op.getOpType() == "Conv" and
                     op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
-                    op.get<mv::DType>("dType") == mv::DType("Float16"))
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                         return true;
 
                 return false;
@@ -665,7 +665,7 @@ namespace mv
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
-                        and op.get<mv::DType>("dType") == mv::DType("Float16"))
+                        and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                 {
                     return true;
                 }

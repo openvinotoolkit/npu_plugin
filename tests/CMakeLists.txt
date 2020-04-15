@@ -66,9 +66,15 @@ file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/pass/lp_scheduler/*\_test.cpp"
 )
 
+
 file(GLOB hde_unit_tests
   "${CMAKE_SOURCE_DIR}/tests/unit/target/kmb/hde/hde.cpp"
 )
+
+file(GLOB fake_quantize_processing_unit_tests
+    "${CMAKE_SOURCE_DIR}/tests/unit/pass/fake_quantize_processing.cpp"
+)
+
 #file(GLOB runtime_model_unit_tests
 # "${CMAKE_SOURCE_DIR}/tests/unit/runtime_model/runtime_model_test.cpp"
 #)
@@ -91,6 +97,7 @@ add_executable(mcm_unit_tests
     ${hde_unit_tests}
     ${runtime_model_unit_tests}
     ${transitive_reduction_algorithm}
+    ${fake_quantize_processing_unit_tests}
 )
 
 if(VALIDATION)
