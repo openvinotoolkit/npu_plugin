@@ -8,6 +8,12 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(single_conv_hde_SOK single_conv_hde_SOK/single_conv_hde_SOK.cpp)
+    target_link_libraries(single_conv_hde_SOK cm)
+
+    add_executable(single_conv_hde_SOH single_conv_hde_SOH/single_conv_hde_SOH.cpp)
+    target_link_libraries(single_conv_hde_SOH cm)
+
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
 

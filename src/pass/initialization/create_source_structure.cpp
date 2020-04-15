@@ -17,10 +17,10 @@ namespace mv
     }
 }
 
-void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&)
+void CreateSourceStructureFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor& td, mv::Element& compilationDescriptor, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
     rm.buildHeader(model, compilationDescriptor);
 }

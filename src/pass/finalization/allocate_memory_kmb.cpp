@@ -116,8 +116,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            // Weights sparsity new approach: there is a separate constant for
-            // each cluster
+            // For weights sparsity there is a seperate constant per cluster, the sub-tensors are sparsified individually to get the kernel data offsets 
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
@@ -132,6 +131,13 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 }
                 else
                     tIt->set<unsigned>("graphFileIndex", i++);
+            }
+            
+            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE 
+            else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap"))   
+            {
+                for(std::size_t j = 0; j < numClusters; ++j)
+                    tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
             }
             else
                 tIt->set<unsigned>("graphFileIndex", i++);
