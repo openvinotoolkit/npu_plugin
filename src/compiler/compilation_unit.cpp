@@ -188,6 +188,6 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
 {
     if(!completed())
         log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
-    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance();
+    mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
     return rm.getBlob();
 }

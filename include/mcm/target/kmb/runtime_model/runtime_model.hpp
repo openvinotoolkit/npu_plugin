@@ -13,6 +13,8 @@
 #include "include/mcm/target/kmb/ppe_layer_type.hpp"
 #include "include/mcm/target/kmb/ppe_fixed_function.hpp"
 #include "include/mcm/tensor/quantization_params.hpp"
+#include "include/mcm/utils/compression/hde.hpp"
+
 
 namespace mv
 {
@@ -28,7 +30,13 @@ namespace mv
     class RuntimeModel
     {
         private:
-            RuntimeModel() {}
+            RuntimeModel(const mv::TargetDescriptor& td)
+            {
+                auto hdeDef = td.hdeDef();
+                hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
+            }
+            
+            std::unique_ptr<Hde> hde_ = nullptr;
             MVCNN::GraphFileT graphFile_;
             std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
@@ -39,9 +47,9 @@ namespace mv
             static std::vector<unsigned> reduceQuantVector_(std::vector<unsigned> inVec);
 
         public:
-            static RuntimeModel& getInstance()
+            static RuntimeModel& getInstance(const mv::TargetDescriptor& td)
             {
-                static RuntimeModel instance;
+                static RuntimeModel instance(td);
                 return instance;
             }
             RuntimeModel(RuntimeModel const&) = delete;
@@ -63,7 +71,7 @@ namespace mv
             static std::unique_ptr<MVCNN::SummaryHeaderT> buildSummaryHeaderMetaInformations(ComputationModel& cm, mv::Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::VersionT> buildVersionT(ComputationModel&, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::ResourcesT> buildResourcesT(ComputationModel&, Element& compilationDescriptor);
-            static std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, Element&, mv::Tensor& t);
+            std::unique_ptr<MVCNN::BinaryDataT> buildBinaryDataT(ComputationModel&, Element&, mv::Tensor& t, bool huffmanCompression);
             static std::vector<std::unique_ptr<MVCNN::TaskListT>> buildTaskListT(ComputationModel& cm, Element& compilationDescriptor);
             static std::vector<std::unique_ptr<MVCNN::BarrierT>> buildBarrierTable(ComputationModel& cm, Element& compilationDescriptor);
             static std::unique_ptr<MVCNN::BarrierReferenceT> buildBarrierReferenceT(ComputationModel& cm, Element& compilationDescription, BarrierDependencies dep);
@@ -128,8 +136,8 @@ namespace mv
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
             std::shared_ptr<std::vector<char>> getBlob();
-            static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
-            static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
+            static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
+            static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
     };
 }
 

@@ -392,6 +392,17 @@
                 "name": "Clusters",
                 "totalNumber": 4
             }
+        ],
+        "huffman_decode_engine":
+        [
+            {
+                "name": "HDE",
+                "numberOfHDEModules": 1,
+                "bitPerSymbol": 8,
+                "blockSize": 4096,
+                "maxNumberEncodedSymbols": 16,
+                "bypassMode": false
+            }
         ]
     }
 }

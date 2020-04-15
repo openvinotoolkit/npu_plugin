@@ -136,6 +136,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+include_directories(${PROJECT_SOURCE_DIR}/include/huffman_encoding)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
@@ -226,6 +227,11 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
+
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
 )
 
 set(model
@@ -337,9 +343,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-
-
-
 )
 
 set(compiler
@@ -442,7 +445,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-install(TARGETS cm model
+install(TARGETS cm model 
         EXPORT mcmCompilerTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib
