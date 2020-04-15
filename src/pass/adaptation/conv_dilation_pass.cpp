@@ -40,8 +40,10 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 auto nonDialtedKernel = opIt->getInputTensor(1);
                 auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
                 auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[1];
+                auto nonDialtedKernelShape = nonDialtedKernel->getShape();
                 auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[2];
                 auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[3];
+                auto nonDialtedKernelData = nonDialtedKernel->getIntData();
 
 
                 /** Calculate dilated kernel shape
@@ -72,6 +74,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 auto nonDialtedKernelOp = opIt.rightmostParent();
                 auto quantParams = nonDialtedKernelOp->get<mv::QuantizationParams>("quantParams");
                 unsigned currentOpId = nonDialtedKernelOp->get<unsigned>("opId");
+                
 
                 auto dilatedConstant = om.constantDataElement(
                     dilatedKernel.getData(),
@@ -80,6 +83,9 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     dilatedKernel.getOrder(),
                     {{},{},{},{}},
                     nonDialtedKernelOp->getName() + "_Dilated");
+
+                auto DialtedKernelData = dilatedConstant->getIntData();
+
                 om.removeOp(nonDialtedKernelOp);
                     
                 om.defineFlow(dilatedConstant, opIt, 1);

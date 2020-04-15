@@ -56,6 +56,9 @@ else()
     add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
     target_link_libraries(conv_dilated cm)
 
+    add_executable(conv_dilated1 conv_dilated1/conv_dilated1.cpp)
+    target_link_libraries(conv_dilated1 cm)
+
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
 

@@ -92,6 +92,7 @@
             "FusePostOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "ConvolutionDilation",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
