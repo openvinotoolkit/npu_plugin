@@ -28,6 +28,7 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/perf_report.hpp>
 
+#include "ie_utils.hpp"
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
 
@@ -310,32 +311,6 @@ void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const s
     dumper.close();
 }
 
-static Blob::Ptr convertPrecision(
-    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::TensorDesc& targetDesc) {
-    InferenceEngine::TensorDesc sourceTensorDesc = sourceData->getTensorDesc();
-    InferenceEngine::Precision targetPrecision = targetDesc.getPrecision();
-    InferenceEngine::Precision sourcePrecision = sourceTensorDesc.getPrecision();
-    if (sourcePrecision == targetPrecision) {
-        return sourceData;
-    }
-
-    Blob::Ptr target =
-        make_blob_with_precision(TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
-    target->allocate();
-    if (sourcePrecision == InferenceEngine::Precision::FP16 && targetPrecision == InferenceEngine::Precision::FP32) {
-        InferenceEngine::PrecisionUtils::f16tof32Arrays(
-            target->buffer(), sourceData->cbuffer().as<ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
-    } else if (sourcePrecision == InferenceEngine::Precision::FP32 &&
-               targetPrecision == InferenceEngine::Precision::FP16) {
-        InferenceEngine::PrecisionUtils::f32tof16Arrays(
-            target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
-    } else {
-        THROW_IE_EXCEPTION << "Error: output precision conversion from " << sourcePrecision << " to " << targetPrecision
-                           << " is not supported.";
-    }
-    return target;
-}
-
 void KmbInferRequest::GetResult() {
     IE_PROFILING_AUTO_SCOPE(GetResult);
     auto dataName = _networkOutputs.begin()->first;
@@ -378,7 +353,7 @@ void KmbInferRequest::GetResult() {
         void* outputPtr = _blobWithResult->buffer();
         _executor->getResult(outputPtr, output_size_total);
         // do precision conversion when necessary
-        Blob::Ptr blobWithCorrectPrecision = convertPrecision(_blobWithResult, outputTensorDesc);
+        Blob::Ptr blobWithCorrectPrecision = utils::convertPrecision(_blobWithResult, outputTensorDesc.getPrecision());
         // copy blob with correct precision to the output blob
         // copyBlob does layout conversion on its own
         if (!is2DTensor(outputTensorDesc.getDims()) || devicePrecision != outputPrecision) {

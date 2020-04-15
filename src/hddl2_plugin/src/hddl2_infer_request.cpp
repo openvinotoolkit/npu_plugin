@@ -17,6 +17,9 @@
 #include "hddl2_infer_request.h"
 
 #include <InferBlob.h>
+#include <ie_blob.h>
+#include <ie_layouts.h>
+#include <precision_utils.h>
 
 #include <algorithm>
 #include <functional>
@@ -24,6 +27,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+
+#include "ie_utils.hpp"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -149,6 +154,26 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
+static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t size) {
+    if (source == nullptr) {
+        THROW_IE_EXCEPTION << "Source data is nullptr!";
+    }
+    if (dest->byteSize() != size) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
+                           << " and expected output: " << dest->byteSize();
+    }
+    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
+    if (!mblob) {
+        THROW_IE_EXCEPTION << "Failed output blob type!";
+    }
+    auto lockedMemory = mblob->wmap();
+    void* data = lockedMemory.as<void*>();
+    auto result = ie_memcpy(data, dest->byteSize(), source, size);
+    if (result != 0) {
+        THROW_IE_EXCEPTION << "Failed to copy memory.";
+    }
+}
+
 void HDDL2InferRequest::GetResult() {
     if (_networkOutputs.size() != 1) {
         THROW_IE_EXCEPTION << "Only one output is supported!";
@@ -159,34 +184,34 @@ void HDDL2InferRequest::GetResult() {
     if (foundOutputBlob == _outputs.end()) {
         THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
     }
-    const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
+    IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
     const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
 
     const auto networkOutputPrecision = _networkOutputs.begin()->second->getPrecision();
     const auto blobOutputPrecision = outputBlobPtr->getTensorDesc().getPrecision();
 
+    InferenceEngine::TensorDesc networkTensorDesc = _networkOutputs.begin()->second->getTensorDesc();
+    InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
+
     if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << "FP32 output is not supported.";
-    }
+        auto tempUniteOutputTensorDesc = networkTensorDesc;
+        // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
+        tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
 
-    if (networkOutputPrecision != blobOutputPrecision) {
-        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
-                           << "Output blob precision is not the same as in network. Conversion is not supported.";
-    }
-
-    if (outputUniteData.size() != _outputs[outputName]->byteSize()) {
-        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << outputUniteData.size()
-                           << " and network expected output: " << _outputs[outputName]->byteSize();
-    }
-
-    {
-        IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(outputBlobPtr);
-        if (!mblob) {
-            THROW_IE_EXCEPTION << "Failed output blob type!";
+        IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
+        tempFP16Blob->allocate();
+        copyDataToBlob(tempFP16Blob, outputUniteData.data(), outputUniteData.size());
+        if (tempUniteOutputTensorDesc.getPrecision() != blobOutputPrecision) {
+            outputBlobPtr = utils::convertPrecision(tempFP16Blob, outputBlobTensorDesc.getPrecision());
+        } else {
+            outputBlobPtr = tempFP16Blob;
         }
-        auto lockedMemory = mblob->rmap();
-        void* data = lockedMemory.as<void*>();
-        memcpy(data, outputUniteData.data(), outputUniteData.size());
+    } else {
+        if (outputUniteData.size() != outputBlobPtr->byteSize()) {
+            THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
+        }
+        copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
     }
+    _outputs[outputName] = outputBlobPtr;
 }
