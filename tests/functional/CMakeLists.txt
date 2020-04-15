@@ -2,11 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-if (ENABLE_HDDL2 AND ENABLE_HDDL2_TESTS)
+if (ENABLE_HDDL2_TESTS)
     add_subdirectory(hddl2_tests)
 endif()
 
-if (ENABLE_MCM_COMPILER)
+if (mcmCompiler_FOUND)
     add_subdirectory(frontend_mcm)
 endif()
 
@@ -36,7 +36,8 @@ addIeTargetTest(
             IE::ngraph
             ${VPUSMM_LIB}
             kmb_utils
-            ieModelsHelpersKmb
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+            kmbTestData
         ADD_CPPLINT
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
             KMB

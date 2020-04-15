@@ -43,7 +43,7 @@ if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
 endif()
 
-if(ENABLE_MCM_COMPILER)
+if(X86_64)
     if (NOT mcmCompiler_DIR)
         set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
     endif()
@@ -87,7 +87,7 @@ endif()
 
 add_subdirectory(tools)
 
-if(ENABLE_KMB_SAMPLES AND (ARM OR AARCH64))
+if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
 

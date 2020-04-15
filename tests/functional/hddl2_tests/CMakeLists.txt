@@ -16,38 +16,27 @@
 
 set(TARGET_NAME "HDDL2FunctionalTests")
 
-file(GLOB_RECURSE HDDL2_TESTS_SOURCES
-        "*.cpp"
-        )
-
-add_executable(${TARGET_NAME} ${HDDL2_TESTS_SOURCES})
-
-target_include_directories(${TARGET_NAME} PRIVATE
+addIeTargetTest(
+    NAME ${TARGET_NAME}
+    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDES
         "helpers"
         "cases"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
         "${IE_MAIN_SOURCE_DIR}/include"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
-        )
-
-target_compile_options(${TARGET_NAME}
-        PRIVATE
-        -Wall
-        -Wextra
-        -Werror)
-
-target_link_libraries(${TARGET_NAME} PRIVATE
+    LINK_LIBRARIES
         IE::IESharedTests
         HDDL2Plugin
         HddlUnite
         kmb_utils
         frontend_mcm
-        )
+    LINK_LIBRARIES_WHOLE_ARCHIVE
+        kmbTestData
+)
 
-if(ENABLE_MCM_COMPILER)
-    add_dependencies(${TARGET_NAME} mcm_compiler_copy_configs)
-endif()
-
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-endif()
+target_compile_options(${TARGET_NAME}
+    PRIVATE
+        -Wall
+        -Wextra
+        -Werror)

@@ -84,7 +84,7 @@ else()
     set(VPUSMM_LIB "" CACHE INTERNAL "")
 endif()
 
-if(ENABLE_MCM_COMPILER)
+if(mcmCompiler_FOUND)
     set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
 
     add_custom_target(mcm_compiler_copy_libs ALL
