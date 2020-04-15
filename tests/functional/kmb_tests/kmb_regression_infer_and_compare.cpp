@@ -17,10 +17,7 @@
 #include <gtest/gtest.h>
 #include <ie_layers.h>
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <condition_variable>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <mutex>
 #include <regression_tests.hpp>
 #include <vpu/kmb_plugin_config.hpp>
@@ -82,7 +79,7 @@ TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mod
     }
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    exeNetwork = ie.LoadNetwork(network, "KMB");
+    exeNetwork = ie.LoadNetwork(network, deviceName);
 #ifdef __arm__
     int batch = 1;
 

@@ -14,10 +14,7 @@
 // stated in the License.
 //
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <pool_ref.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>
@@ -211,7 +208,7 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTest_manual) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
     Blob::Ptr inputBlob;
@@ -316,7 +313,7 @@ TEST_F(PrecisionConversionTest, DISABLED_precisionConversionTest_manual) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(_network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(_network, deviceName, config));
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
     Blob::Ptr inputBlob;
@@ -386,7 +383,7 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
     Blob::Ptr inputBlob;
@@ -461,7 +458,7 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutAndCompareWithExeNetwork_manual) 
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 
     auto exeNetworkOutputs = exeNetwork.GetOutputsInfo();
     ASSERT_EQ(1, exeNetworkOutputs.size());
@@ -511,12 +508,12 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
-    InferenceEngine::ExecutableNetwork exportNetwork = ie.LoadNetwork(network, "KMB", config);
+    InferenceEngine::ExecutableNetwork exportNetwork = ie.LoadNetwork(network, deviceName, config);
 
     std::string blobPath = "compiled.blob";
     exportNetwork.Export(blobPath);
 
-    InferenceEngine::ExecutableNetwork importNetwork = ie.ImportNetwork(blobPath, "KMB", {});
+    InferenceEngine::ExecutableNetwork importNetwork = ie.ImportNetwork(blobPath, deviceName, {});
     auto exeNetworkOutputs = importNetwork.GetOutputsInfo();
     ASSERT_EQ(1, exeNetworkOutputs.size());
     ASSERT_EQ(exeNetworkOutputs.begin()->second->getTensorDesc().getLayout(), output_layout);

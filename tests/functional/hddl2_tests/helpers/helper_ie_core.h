@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -21,6 +21,6 @@
 class IE_Core_Helper {
 public:
     InferenceEngine::Core ie;
-
-    const std::string pluginName = "HDDL2";
+    IE_Core_Helper();
+    const std::string pluginName;
 };

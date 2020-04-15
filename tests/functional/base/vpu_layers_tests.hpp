@@ -101,7 +101,10 @@ void GenRandomData(InferenceEngine::Blob::Ptr blob);
 class vpuLayersTests : public TestsCommon {
 public:
     InferenceEngine::Core ie;
+    const std::string deviceName;
     std::map<std::string, std::string> _config;
+
+    vpuLayersTests();
 
 protected:
     void SetUp() override;

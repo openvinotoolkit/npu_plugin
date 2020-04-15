@@ -81,7 +81,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTheSameInputToBothPortsNegative_Test)
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 }
 
 // MCM compiler does not support multiple Input layers
@@ -126,7 +126,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 }
 
 static std::vector<eltwise_test_params> test_params = {
@@ -191,7 +191,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
 }
 
 // [Track number: S#23769]
@@ -483,7 +483,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, deviceName, config));
 }
 
 INSTANTIATE_TEST_CASE_P(accuracy, EltwiseTest, ::testing::ValuesIn(test_params));

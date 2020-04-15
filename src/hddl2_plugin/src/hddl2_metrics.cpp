@@ -17,6 +17,7 @@
 #include "hddl2_metrics.h"
 
 #include <algorithm>
+#include <fstream>
 #include <ie_core.hpp>
 #include <ie_metric_helpers.hpp>
 
@@ -32,6 +33,11 @@ HDDL2Metrics::HDDL2Metrics() {
 }
 
 std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
+    if (!HDDL2Metrics::isServiceAvailable()) {
+        // return empty device list if service is not available
+        return std::vector<std::string>();
+    }
+
     std::vector<HddlUnite::Device> devices;
     auto status = getAvailableDevices(devices);
     if (status != HDDL_OK) {
@@ -47,3 +53,13 @@ std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
 }
 
 const std::vector<std::string>& HDDL2Metrics::SupportedMetrics() const { return _supportedMetrics; }
+
+bool HDDL2Metrics::isServiceAvailable() {
+    const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
+
+    const std::string specifiedServicePath =
+        std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
+    const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
+
+    return specifiedService.good() || defaultService.good();
+}

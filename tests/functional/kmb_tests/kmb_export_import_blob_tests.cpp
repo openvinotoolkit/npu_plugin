@@ -14,10 +14,7 @@
 // stated in the License.
 //
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <fstream>
-#include <ie_icnn_network_stats.hpp>
-#include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/vpu_compiler_config.hpp>
 
@@ -64,11 +61,11 @@ FileIOResult isContentOfFilesEqual(const std::string& fileName1, const std::stri
     return FileIOResult ::FilesHaveEqualSize;
 }
 
-void ExportImportBlobToFromFile(
-    const CNNNetwork& network, std::map<std::string, std::string>& config, const std::string& testDescription) {
+void ExportImportBlobToFromFile(std::string deviceName, const CNNNetwork& network,
+    std::map<std::string, std::string>& config, const std::string& testDescription) {
     Core ie;
     ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
 
     std::string blobFileName1 = "TestExportImportBlob_" + testDescription + "_file01.blob";
     ASSERT_NO_THROW(exeNetwork.Export(blobFileName1));
@@ -76,7 +73,7 @@ void ExportImportBlobToFromFile(
     config[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(blobFileName1, "KMB", config));
+    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(blobFileName1, deviceName, config));
     std::string blobFileName2 = "TestExportImportBlob_" + testDescription + "_file02.blob";
     ASSERT_NO_THROW(importedNetwork.Export(blobFileName2));
 
@@ -112,50 +109,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "Convolution_After_Scale_Shift");
-}
-
-// Disabled because LoadNetwork fails to initialize device
-// [Track number: S#21379]
-TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_resnet50_int8_fragment) {
-    extern std::string full_quant_model;
-
-    std::string model = full_quant_model;
-
-    REPLACE_WITH_STR(model, "<biases offset=\"147456\" size=\"256\"/>", " ");
-    REPLACE_WITH_STR(model, "<biases offset=\"213248\" size=\"1024\"/>", " ");
-
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    std::map<std::string, std::string> config;
-    ExecutableNetwork executableNetwork;
-    details::CNNNetworkImplPtr clonedNetwork;
-
-    setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
-    std::size_t weightSize = 147456 + 65536;
-    std::size_t biasSize = 256 + 1024;
-    TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
-
-    ICNNNetworkStats* pstats = nullptr;
-    StatusCode s = ((ICNNNetwork&)network).getStats(&pstats, nullptr);
-
-    ASSERT_EQ(StatusCode::OK, s);
-
-    if (!pstats->isEmpty()) {
-        clonedNetwork = cloneNet(network);
-        details::CNNNetworkInt8Normalizer::NormalizeNetwork(*clonedNetwork, *pstats);
-    }
-
-    ExportImportBlobToFromFile(CNNNetwork(clonedNetwork), config, "resnet50_int8_fragment");
+    ExportImportBlobToFromFile(deviceName, network, config, "Convolution_After_Scale_Shift");
 }
 
 // Disabled because LoadNetwork fails to initialize device
@@ -176,7 +130,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "Pooling");
+    ExportImportBlobToFromFile(deviceName, network, config, "Pooling");
 }
 
 // Disabled because LoadNetwork fails to initialize device
@@ -197,7 +151,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ExportImportBlobToFromFile(network, config, "ReLU");
+    ExportImportBlobToFromFile(deviceName, network, config, "ReLU");
 }
 
 #endif
