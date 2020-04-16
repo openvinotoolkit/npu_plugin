@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "hddl2_remote_blob.h"
+#include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
 
 using namespace vpu::HDDL2Plugin;
@@ -97,6 +98,11 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
 
         _outputs[outputName] = allocateLocalBlob(outputTensorDesc);
     }
+}
+
+void HDDL2InferRequest::Infer() {
+    checkBlobs();
+    InferImpl();
 }
 
 void HDDL2InferRequest::InferImpl() {
@@ -196,4 +202,73 @@ void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
     UNUSED(perfMap);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
+    if (!data->is<HDDL2RemoteBlob>()) {
+        InferenceEngine::InferRequestInternal::SetBlob(name, data);
+        return;
+    }
+
+    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    if (name == nullptr) {
+        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+    }
+    if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+    const bool compoundBlobPassed = data->is<IE::CompoundBlob>();
+
+    IE::InputInfo::Ptr foundInput;
+    IE::DataPtr foundOutput;
+    size_t dataSize = data->size();
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user input precision";
+        }
+
+        const bool preProcRequired = preProcessingRequired(foundInput, data);
+        if (compoundBlobPassed && !preProcRequired) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+
+        if (preProcRequired) {
+            if (_preProcData.find(name) == _preProcData.end()) {
+                _preProcData.emplace(name, IE::CreatePreprocDataHelper());
+            }
+            _preProcData[name]->isApplicable(data, _inputs[name]);
+            _preProcData[name]->setRoiBlob(data);
+        } else {
+            size_t inputSize = InferenceEngine::details::product(foundInput->getTensorDesc().getDims());
+            if (dataSize != inputSize) {
+                THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
+                                   << "!=" << inputSize << ").";
+            }
+            _inputs[name] = data;
+        }
+    } else {
+        if (compoundBlobPassed) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+        size_t outputSize = InferenceEngine::details::product(foundOutput->getDims());
+        if (dataSize != outputSize) {
+            THROW_IE_EXCEPTION << "Output blob size is not equal network output size (" << dataSize
+                               << "!=" << outputSize << ").";
+        }
+        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user output precision";
+        }
+        _outputs[name] = data;
+    }
+}
+
+void HDDL2InferRequest::checkBlobs() {
+    for (auto const& input : _inputs) {
+        if (!input.second->is<HDDL2RemoteBlob>()) checkBlob(input.second, input.first, true);
+    }
+    for (auto const& output : _outputs) {
+        if (!output.second->is<HDDL2RemoteBlob>()) checkBlob(output.second, output.first, false);
+    }
 }

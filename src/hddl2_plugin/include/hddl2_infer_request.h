@@ -40,6 +40,7 @@ public:
         const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
         const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config);
 
+    void Infer() override;
     void InferImpl() override;
     void InferAsync();
     void WaitInferDone();
@@ -49,6 +50,9 @@ public:
     void GetResult();
 
 protected:
+    void checkBlobs() override;
+    void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
+
     HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 
