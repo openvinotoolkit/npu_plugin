@@ -64,7 +64,7 @@ endif()
 
 add_subdirectory(thirdparty)
 
-# TODO: Fronend mcm lib should be built only if mcm compiler enabled, but now we have some
+# TODO: Frontend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config
 add_subdirectory(src/frontend_mcm)
 
