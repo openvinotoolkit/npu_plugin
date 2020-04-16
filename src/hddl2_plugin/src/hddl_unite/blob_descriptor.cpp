@@ -23,6 +23,7 @@
 #include <memory>
 
 #include "converters.h"
+#include "hddl2_params.hpp"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -205,9 +206,16 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
     blobDesc.m_res_width = blobDesc.m_width_stride = dims[W_index];
     blobDesc.m_plane_stride = blobDesc.m_width_stride * blobDesc.m_res_height;
 
-    if (_blobPtr->is<IE::NV12Blob>()) {
-        HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
-        blobDesc.m_rect.push_back(rect0);
+    if (_blobPtr->is<IE::NV12Blob>() || _roiPtr != nullptr) {
+        if (_roiPtr != nullptr) {
+            HddlUnite::Inference::Rectangle roi0 {static_cast<int32_t>(_roiPtr->posX),
+                static_cast<int32_t>(_roiPtr->posY), static_cast<int32_t>(_roiPtr->sizeX),
+                static_cast<int32_t>(_roiPtr->sizeY)};
+            blobDesc.m_rect.push_back(roi0);
+        } else {
+            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
+            blobDesc.m_rect.push_back(rect0);
+        }
     }
 }
 
@@ -246,4 +254,8 @@ LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, c
 
 //------------------------------------------------------------------------------
 RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob, true, !blob->is<HDDL2RemoteBlob>()) {}
+    : BlobDescriptor(desc, blob, true, !blob->is<HDDL2RemoteBlob>()) {
+    if (_blobPtr->is<HDDL2RemoteBlob>()) {
+        _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
+    }
+}
