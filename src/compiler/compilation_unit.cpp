@@ -172,7 +172,7 @@ mv::Element mv::CompilationUnit::run()
         if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "emulator_results"))
             generateExpectedResults();
     }
-    catch (mv::AttributeError& e)
+    catch (mv::RuntimeError& e)
     {
         log(Logger::MessageType::Warning, "Could not find 'emulator_results' entry in 'GlobalConfigParams' section. No results generated.");
     }
@@ -245,13 +245,14 @@ void mv::CompilationUnit::deepCopy(mv::OpModel& copyTo)
 
 void mv::CompilationUnit::generateExpectedResults()
 {   
-    //log(mv::Logger::MessageType::Debug, "Initializing emulator...");
-    printf("Initializing emulator...");
+    log(mv::Logger::MessageType::Debug, "Initializing emulator...");
     mv::CompilationUnit unit(model_->getName());
     unit.loadTargetDescriptor(mv::Target::ma2490);
     std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
+    std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
     unit.loadCompilationDescriptor(emuCompPath);
     mv::OpModel& omEmu = unit.model();
+    compDescriptor_.setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infintie loop
     deepCopy(omEmu);
 
     unit.initialize();
@@ -264,12 +265,10 @@ void mv::CompilationUnit::generateExpectedResults()
     std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
     const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
     emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
-    printf("Running emulator...");
     emulatorManager.run();
 
     // Dump the output.
     std::string outputFile = "output/expected_results_mcm.dat";
-    printf("Writing emulator results...");
     const std::string outputName = omEmu.getOps("Output")[0]->getInputTensor()[0]->getName();
     const mv::Data::TensorIterator outputTensor = emulatorManager.output(outputName.substr(0, outputName.size() - 2));
     outputTensor->setOrder(mv::Order::getZMajorID(4));
