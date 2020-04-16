@@ -1653,14 +1653,24 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
-    softLayerParamsValue->output_dim           = opIt->get<std::size_t>("output_dim");
-    softLayerParamsValue->group_size           = opIt->get<std::size_t>("group_size");
-    softLayerParamsValue->spatial_scale        = static_cast<float>(opIt->get<double>("spatial_scale"));
-    softLayerParamsValue->pooled_w             = opIt->get<std::size_t>("pooled_w");
-    softLayerParamsValue->pooled_h             = opIt->get<std::size_t>("pooled_h");
-    softLayerParamsValue->spatial_bin_x        = opIt->get<std::size_t>("spatial_bin_x");
-    softLayerParamsValue->spatial_bin_y        = opIt->get<std::size_t>("spatial_bin_y");
-    softLayerParamsValue->psroi_pooling_method = opIt->get<std::size_t>("psroi_pooling_method");
+    softLayerParamsValue->output_dim    = opIt->get<std::size_t>("output_dim");
+    softLayerParamsValue->group_size    = opIt->get<std::size_t>("group_size");
+    softLayerParamsValue->spatial_scale = static_cast<float>(opIt->get<double>("spatial_scale"));
+    softLayerParamsValue->pooled_w      = opIt->get<std::size_t>("pooled_w");
+    softLayerParamsValue->pooled_h      = opIt->get<std::size_t>("pooled_h");
+    softLayerParamsValue->spatial_bin_x = opIt->get<std::size_t>("spatial_bin_x");
+    softLayerParamsValue->spatial_bin_y = opIt->get<std::size_t>("spatial_bin_y");
+
+    auto mode = opIt->get<std::string>("mode");
+    if (mode.compare(std::string("average")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_AVERAGE;
+    } else if (mode.compare(std::string("bilinear")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR;
+    } else if (mode.compare(std::string("bilinear_deformable")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR_DEFORMABLE;
+    } else {
+        throw ArgumentError("buildUPAPSROIPoolingTask", "file:content", "invalid", "Invalid mode for PSROIPooling");
+    }
 
     toBuild->softLayerParams.value = softLayerParamsValue;
 
