@@ -45,10 +45,13 @@ public:
     virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 
+    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; };
+
 protected:
     const bool _createRemoteMemoryDescriptor;
     const bool _isNeedAllocation;
     bool _isNV12Data;
+    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
 
     InferenceEngine::Blob::Ptr _blobPtr = nullptr;
 

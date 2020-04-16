@@ -23,6 +23,7 @@
 #pragma once
 
 #include <string>
+#include <ie_blob.h>
 
 namespace InferenceEngine {
 namespace HDDL2ContextParams {
@@ -58,5 +59,10 @@ namespace HDDL2ContextParams {
      * @brief Color format of remote memory
      */
     DECLARE_HDDL2_PARAM_KEY(COLOR_FORMAT, InferenceEngine::ColorFormat);
+
+    /**
+     * @brief ROI of blob
+     */
+    DECLARE_HDDL2_PARAM_KEY(ROI, InferenceEngine::ROI);
 }  // namespace HDDL2ContextParams
 }  // namespace InferenceEngine

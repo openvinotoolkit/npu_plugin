@@ -56,13 +56,14 @@ public:
 private:
     const int _asyncInferenceWaitTimeoutMs = 2000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
+    HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
 
     std::map<std::string, BlobDescriptor::Ptr> _inputs;
     std::map<std::string, BlobDescriptor::Ptr> _outputs;
 
     const bool _haveRemoteContext;
-    const bool _needPreProcessing;
+    const bool _needUnitePreProcessing;
 };
 
 }  // namespace HDDL2Plugin

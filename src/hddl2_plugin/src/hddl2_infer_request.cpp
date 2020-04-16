@@ -28,6 +28,7 @@
 #include <string>
 #include <vector>
 
+#include "hddl2_remote_blob.h"
 #include "ie_utils.hpp"
 
 using namespace vpu::HDDL2Plugin;
@@ -106,17 +107,20 @@ void HDDL2InferRequest::InferImpl() {
 
 void HDDL2InferRequest::InferAsync() {
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
-    bool needPreProcessing = false;
+    bool needUnitePreProcessing = false;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
-            needPreProcessing = true;
+            needUnitePreProcessing = true;
+        }
+        if (inputBlobPtr->is<HDDL2RemoteBlob>()) {
+            needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
         }
     }
 
-    _inferDataPtr = std::make_shared<HddlUniteInferData>(needPreProcessing, _context);
+    _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;

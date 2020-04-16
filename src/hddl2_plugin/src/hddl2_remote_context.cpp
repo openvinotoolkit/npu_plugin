@@ -41,6 +41,7 @@ HDDL2ContextParams::HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map does not contain workload id information";
     }
     _workloadId = workload_ctx_iter->second.as<RemoteMemoryFD>();
+
     _paramMap = paramMap;
 }
 
