@@ -63,6 +63,7 @@ namespace mv
         std::vector<Workload> workloads_;
         std::string layerName_;
         mv::Shape tensorShape_;
+        bool isSparse_;
         std::vector<float> executionCycles_; //Min & Max execution cycles
         float meanExecutionCycles_ = 0;
 
@@ -73,6 +74,7 @@ namespace mv
 
     public:
         Workloads(const std::string& name, const mv::Shape& tensorShape);
+        Workloads(const std::string& name, const mv::Shape& tensorShape, const bool& isSparse);
         ~Workloads();
 
         int partitionTensorWithRectangleHeuristic(const mv::DPUModeList& modes,

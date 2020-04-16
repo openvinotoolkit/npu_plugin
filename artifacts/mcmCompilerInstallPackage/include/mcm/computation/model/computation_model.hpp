@@ -64,6 +64,7 @@ namespace mv
         std::shared_ptr<Control::FlowListIterator> controlFlowEnd_;
         std::shared_ptr<Data::OpListIterator> input_;
         std::shared_ptr<Data::OpListIterator> output_;
+        std::shared_ptr<std::vector<Data::OpListIterator>> networkOutputs_;
 
         std::reference_wrapper<ComputationModel> selfRef_;
 
