@@ -1629,13 +1629,18 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     IE_ASSERT(weightsBlob != nullptr);
 
     auto dims = inputs[0]->desc().getDims();
+    auto weightsSize = weightsBlob->size();
     mv::Shape weightsShape = {1, dims[1], 1, 1};
-    int weightsSize = weightsBlob->size();
 
-    IE_ASSERT(dims[1] == weightsSize);
+    IE_ASSERT((dims[1] == weightsSize) || (channel_shared == 1 && weightsSize == 1));
 
     auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
     auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+    if (channel_shared) {
+        weightsData.assign(dims[1], weightsData[0]);
+        channel_shared = false;
+    }
+
     auto mvWeightsValues = _modelMcm.constant(
         weightsData, weightsShape, mv::DType(convert_data_type(weightsPrecision)), mv::Order::getZMajorID(4));
 
