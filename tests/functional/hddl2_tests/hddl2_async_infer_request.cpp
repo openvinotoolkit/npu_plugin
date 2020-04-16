@@ -235,7 +235,6 @@ void AsyncInferRequest_DifferentInput::SetUp() {
     }
 }
 
-using TESTSSSS = ::testing::Test;
 //------------------------------------------------------------------------------
 TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
     // --- Create requests
