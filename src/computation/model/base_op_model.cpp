@@ -158,10 +158,29 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     // Assumes single input/output
     if (opType == "Input")
     {
-        if (*input_ == opEnd())
+        // if (*input_ == opEnd())
+        //     *input_ = opNode;
+        // else
+        //     throw LogicError(*this, "Attempt of multi-input model definiton - currently unsupported");
+
+        bool networkInput = false;
+        for (auto arg: args)
+        {
+            if (arg.first == "networkInput")
+            {
+                networkInput = arg.second;
+            }
+        }
+
+        if (getNumNetworkInputs() && !networkInput)
+        {
             *input_ = opNode;
+        }
         else
-            throw LogicError(*this, "Attempt of multi-input model definiton - currently unsupported");
+        {
+            networkInputs_->push_back(opNode);
+        }
+
     }
     else if (opType == "Output")
     {
@@ -335,6 +354,43 @@ mv::Data::OpListIterator mv::BaseOpModel::getInput()
 mv::Data::OpListIterator mv::BaseOpModel::getOutput()
 {
     return *output_;
+}
+
+std::vector<mv::Data::OpListIterator> mv::BaseOpModel::getNetworkInputs()
+{
+    return *networkInputs_;
+}
+
+mv::Data::OpListIterator mv::BaseOpModel::getNetworkInput(std::size_t idx)
+{
+    if (idx >= networkInputs_->size())
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Network input index out of range");
+
+    return (*networkInputs_)[idx];
+}
+
+size_t mv::BaseOpModel::getNumNetworkInputs()
+{
+    return networkInputs_->size();
+}
+
+void mv::BaseOpModel::setInputNode(Data::OpListIterator input)
+{
+    if (!input)
+        throw ArgumentError(*this, "baseOpModel", "invalid", "input argument is null");
+
+    *input_ = input;
+}
+
+void mv::BaseOpModel::replaceNetworkInputAtIdx(std::size_t idx, mv::Data::OpListIterator replacementOp)
+{
+    if (!replacementOp)
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Input argument is null");
+
+    if (idx >= networkInputs_->size())
+        throw ArgumentError(*this, "baseOpModel", "invalid", "Invalid network input index");
+
+    (*networkInputs_)[idx] = replacementOp;
 }
 
 std::vector<mv::Data::OpListIterator> mv::BaseOpModel::getNetworkOutputs()
