@@ -2324,10 +2324,13 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
             // Weights have UInt8 dType 
             // Fake Sparsity maps also have UInt8 dType  
-            else if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
+            else if(tIt->hasAttr("splitStrategy") && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
             {
-                for(std::size_t i = 0; i < numClusters; ++i)
-                    toSort.push_back(&(tIt->getSubTensor(i)));
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                    for(std::size_t i = 0; i < numClusters; ++i)
+                        toSort.push_back(&(tIt->getSubTensor(i)));
+                else
+                    toSort.push_back(&(*tIt));
             }
             else
                 toSort.push_back(&(*tIt));
