@@ -917,18 +917,6 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
                             return INF;
                     }
-                    //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
-                    if (parentClustering == "SplitOverH" && childClustering == "SplitOverH" && requiresRealActivationSparsity(childOp, "SplitOverH"))
-                    {
-                        auto H = childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-                        auto W = childOp.getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-                        auto C = childOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                        auto estimatedClusterH = (int)floor((double)H/totalClusters);
-                        if ((estimatedClusterH*W*C)%128 != 0)
-                        {
-                            return INF;
-                        }
-                    }
                 }
 
                 if( childOp.getOpType() == "Conv")

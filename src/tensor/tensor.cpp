@@ -424,7 +424,17 @@ void mv::Tensor::setAddress(int64_t address)
         sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
     }
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+    {
         subTensors_[tIdx]->setAddress(address);
+        // Handle A0 SOH sparsity addressing
+        if (subTensors_[tIdx]->hasAttr("use_sub0_addrs") && subTensors_[tIdx]->get<bool>("use_sub0_addrs"))
+        {
+            auto sm_addr = subTensors_[0]->getSparsityMap()->getAddress();
+            auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
+            subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
+            subTensors_[tIdx]->getStorageElement()->setAddress(se_addr);
+        }
+    }
 }
 
 bool mv::Tensor::setSparse()
@@ -1301,6 +1311,11 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
                 std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+                auto is_last_subtensor = (workloads.size() - 1 == idx);
+                auto is_sparse = (isSparse() || ((this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse"))));
+                if (is_sparse && is_last_subtensor){
+                    subTensors_[idx]->set<bool>("use_sub0_addrs", true);
+                }
             }
             else
             {

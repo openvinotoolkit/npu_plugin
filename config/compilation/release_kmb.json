@@ -211,6 +211,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
