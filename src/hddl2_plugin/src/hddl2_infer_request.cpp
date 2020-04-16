@@ -33,6 +33,9 @@
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
 static void checkNetworkPrecision(const IE::Precision& precision) {
     if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
         precision != IE::Precision::I8) {
@@ -52,36 +55,27 @@ static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensor
     return blob;
 }
 
-static void ensureBlobsExistForInputs(
-    const InferenceEngine::InputsDataMap& inputData, const InferenceEngine::BlobMap& inputBlobs) {
-    for (const auto& networkInput : inputData) {
-        const std::string& inputName = networkInput.first;
-
-        const auto& foundInputBlob = inputBlobs.find(inputName);
-        if (foundInputBlob == inputBlobs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
-        }
-        if (foundInputBlob->second == nullptr) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is null.";
-        }
+static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t size) {
+    if (source == nullptr) {
+        THROW_IE_EXCEPTION << "Source data is nullptr!";
+    }
+    if (dest->byteSize() != size) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
+                           << " and expected output: " << dest->byteSize();
+    }
+    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
+    if (!mblob) {
+        THROW_IE_EXCEPTION << "Failed output blob type!";
+    }
+    auto lockedMemory = mblob->wmap();
+    void* data = lockedMemory.as<void*>();
+    auto result = ie_memcpy(data, dest->byteSize(), source, size);
+    if (result != 0) {
+        THROW_IE_EXCEPTION << "Failed to copy memory.";
     }
 }
 
-static void ensureBlobsExistForOutputs(
-    const InferenceEngine::OutputsDataMap& outputData, const InferenceEngine::BlobMap& outputBlobs) {
-    for (const auto& networkOutput : outputData) {
-        const std::string& outputName = networkOutput.first;
-
-        const auto& foundOutputBlob = outputBlobs.find(outputName);
-        if (foundOutputBlob == outputBlobs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
-        }
-        if (foundOutputBlob->second == nullptr) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is null.";
-        }
-    }
-}
-
+//------------------------------------------------------------------------------
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
     const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
     : InferRequestInternal(networkInputs, networkOutputs),
@@ -105,9 +99,12 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
 }
 
 void HDDL2InferRequest::InferImpl() {
-    ensureBlobsExistForInputs(_networkInputs, _inputs);
-    ensureBlobsExistForOutputs(_networkOutputs, _outputs);
+    InferAsync();
+    WaitInferDone();
+    GetResult();
+}
 
+void HDDL2InferRequest::InferAsync() {
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needPreProcessing = false;
 
@@ -144,35 +141,10 @@ void HDDL2InferRequest::InferImpl() {
         _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
     }
 
-    _loadedGraphPtr->InferSync(_inferDataPtr);
-    GetResult();
+    _loadedGraphPtr->InferAsync(_inferDataPtr);
 }
 
-void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
-    UNUSED(perfMap);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-}
-
-static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t size) {
-    if (source == nullptr) {
-        THROW_IE_EXCEPTION << "Source data is nullptr!";
-    }
-    if (dest->byteSize() != size) {
-        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
-                           << " and expected output: " << dest->byteSize();
-    }
-    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
-    if (!mblob) {
-        THROW_IE_EXCEPTION << "Failed output blob type!";
-    }
-    auto lockedMemory = mblob->wmap();
-    void* data = lockedMemory.as<void*>();
-    auto result = ie_memcpy(data, dest->byteSize(), source, size);
-    if (result != 0) {
-        THROW_IE_EXCEPTION << "Failed to copy memory.";
-    }
-}
+void HDDL2InferRequest::WaitInferDone() { _inferDataPtr->waitInferDone(); }
 
 void HDDL2InferRequest::GetResult() {
     if (_networkOutputs.size() != 1) {
@@ -214,4 +186,10 @@ void HDDL2InferRequest::GetResult() {
         copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
     }
     _outputs[outputName] = outputBlobPtr;
+}
+
+void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
+    UNUSED(perfMap);
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }

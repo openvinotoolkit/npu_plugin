@@ -109,3 +109,10 @@ std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
     }
     return outputBlob->getData();
 }
+
+void HddlUniteInferData::waitInferDone() const {
+    auto status = _inferDataPtr->waitInferDone(_asyncInferenceWaitTimeoutMs);
+    if (status != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to wait for inference result with timeout: " << _asyncInferenceWaitTimeoutMs;
+    }
+}

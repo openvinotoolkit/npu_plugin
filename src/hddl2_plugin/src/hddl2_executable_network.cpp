@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <hddl2_async_infer_request.h>
 #include <hddl2_executable_network.h>
 #include <hddl2_helpers.h>
 #include <hddl2_infer_request.h>
@@ -23,6 +24,7 @@
 #include <fstream>
 #include <memory>
 #include <string>
+#include <threading/ie_executor_manager.hpp>
 #include <vector>
 
 using namespace vpu::HDDL2Plugin;
@@ -112,4 +114,26 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     } else {
         THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export.";
     }
+}
+
+void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
+    auto syncRequestImpl =
+        std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, _loadedGraph, _context, _config);
+
+    syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
+
+    const std::string resultExecutorName = "HDDL2ResultExecutor";
+    auto resultExecutor = IE::ExecutorManager::getInstance()->getExecutor(resultExecutorName);
+
+    const std::string waitExecutorName = "HDDL2WaitExecutor";
+    auto waitExecutor = IE::ExecutorManager::getInstance()->getExecutor(waitExecutorName);
+
+    auto asyncTreadSafeImpl = std::make_shared<HDDL2AsyncInferRequest>(
+        syncRequestImpl, _taskExecutor, resultExecutor, waitExecutor, _callbackExecutor);
+    asyncRequest.reset(
+        new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncTreadSafeImpl),
+        [](InferenceEngine::IInferRequest* p) {
+            p->Release();
+        });
+    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
