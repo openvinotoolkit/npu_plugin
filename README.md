@@ -33,6 +33,22 @@ The following environment variables should be set:
 
 ## Manual build
 
+### Dependencies
+
+1. To figure out dependencies for dldt checkout the script:
+
+    ```https://gitlab-icv.inn.intel.com/inference-engine/dldt/blob/master/build-after-clone.sh```
+
+2. In case of CMake version is too low error use ```sudo snap install --classic cmake``` and binary will be ```/snap/bin/cmake```
+
+    For building ARM64 using cmake from the Yocto SDK is recomended
+
+3. To initialize all submodlues (or reinitialize when branch changes) you have to execute `git submodule update --init --recursive` inside a repo dir
+
+4. Also it could be required to manually initialize `git lfs pull` especially if you have error message:
+
+    `lib**.so: file format not recognized; treating as linker script`
+
 ### Build for X86_64
 
 The X86_64 build is needed to get reference results for the tests.
@@ -90,7 +106,6 @@ The X86_64 build is needed to get reference results for the tests.
         cd $KMB_PLUGIN_HOME/build-aarch64 ; \
         cmake \
             -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-aarch64 \
-            -D MCM_COMPILER_EXPORT_FILE=$KMB_PLUGIN_HOME/build-x86_64/mcmCompilerExecutables.cmake \
             .. ; \
         make -j8 ; \
     )
