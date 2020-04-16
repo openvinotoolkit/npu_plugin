@@ -4,6 +4,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
+#include "include/mcm/computation/flow/implicit_flow.hpp"
 #include <algorithm>
 
 static void addDeallocationTasksFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);
@@ -58,6 +59,52 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
     return false;
 }
 
+static inline bool checkImplicitConditions(mv::Op& inputOp,mv::Op& outputOp)
+{
+    //todo::make it a more pattern-application rather than if-then-else code
+    //implicit layers deallocation is a bit tricky, but it resolves to the following conditions
+    auto isInputImplicit  = inputOp.hasAttr("ImplicitFlow") ? inputOp.get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;
+    auto isOutputImplicit = outputOp.hasAttr("ImplicitFlow") ? outputOp.get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;
+
+    bool implicitCondition = false;
+    if(isInputImplicit && isOutputImplicit)
+    {
+        auto inputFlow = inputOp.get<mv::ImplicitFlow>("ImplicitFlow");
+        auto outputFlow = outputOp.get<mv::ImplicitFlow>("ImplicitFlow");
+        auto inputDirection = inputFlow.getCompensationDirection();
+        auto outputDirection = outputFlow.getCompensationDirection();
+
+        //for example concat/stack followed by slice/crop layers. The concat/stack needs to have the deallocation
+        //aka both ImplicitFlows represent the current tensor as the TOP tensor
+        if(inputDirection == mv::ImplicitFlow::INPUT_IN_OUTPUT && outputDirection == mv::ImplicitFlow::OUTPUT_IN_INPUT)
+            implicitCondition = true;
+        if(inputDirection == mv::ImplicitFlow::OUTPUT_IN_INPUT && outputDirection == mv::ImplicitFlow::INPUT_IN_OUTPUT)
+            implicitCondition = false;// todo:: check if this even possible.
+        //in case concat/stack follows other concat/stack, aka 2 consecutives INPUT_IN_OUTPUT the flow between them does not
+        //need a  deallocation, since the final top tensor will be owned by the output layer
+        //same for 2 consecutive crop/slice/unstack layers the deallocation is owned by the  top producing layer
+    }
+    else if(isInputImplicit)
+    {
+        auto inputFlow = inputOp.get<mv::ImplicitFlow>("ImplicitFlow");
+        auto inputDirection = inputFlow.getCompensationDirection();
+
+        //something like concat -> someExecutableLayer. For the rest is false
+        if(inputDirection == mv::ImplicitFlow::INPUT_IN_OUTPUT && outputOp.hasTypeTrait("executable"))
+            implicitCondition = true;
+    }
+    else if(isOutputImplicit)
+    {
+        auto outputFlow = outputOp.get<mv::ImplicitFlow>("ImplicitFlow");
+        auto outputDirection = outputFlow.getCompensationDirection();
+
+        //something like someExecutable-> slice/copy/crop
+        if(outputDirection == mv::ImplicitFlow::OUTPUT_IN_INPUT && inputOp.hasTypeTrait("executable"))
+            implicitCondition = true;
+    }
+
+    return implicitCondition;
+}
 
 // Pass role: Add deallocation tasks for each Tensor
 void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
@@ -94,11 +141,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
         auto inputTensor = dataFlowIt->getTensor();
         //We just have to check if it was previously deallocated or not.
 
+        auto tensorLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
+        auto inputOpType = inputOp->getOpType();
+
+        bool implicitConditions = (tensorLocation == mv::Tensor::MemoryLocation::NNCMX) ? checkImplicitConditions(*inputOp,*outputOp) : false;
+
         if(!inputTensor->hasAttr("deallocated") &&
-          ((inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX &&
-                outputOp->hasTypeTrait("executable")) ||
-          ((inputOp->getOpType() == "DMATask" || inputOp->getOpType() == "UPATask") &&
-                inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::DDR)))
+           ((tensorLocation == mv::Tensor::MemoryLocation::NNCMX && outputOp->hasTypeTrait("executable")) ||
+           ((inputOpType == "DMATask" || inputOpType == "UPATask") && tensorLocation == mv::Tensor::MemoryLocation::DDR) ||
+           implicitConditions))
         {
 
             auto opType = inputOp->getOpType();
