@@ -134,6 +134,7 @@ TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
     // ---- Load NV12 Image and create blob from it
     auto inputName = executableNetwork.GetInputsInfo().begin()->first;
 
+    // TODO Fix to follow same approach as hello nv12 classification sample
     const size_t image_width = 228;
     const size_t image_height = 228;
     IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(refInputPath, image_width, image_height);

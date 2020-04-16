@@ -42,7 +42,7 @@ public:
     explicit HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID = "");
 
     ~HddlUniteGraph();
-    void InferSync(const HddlUniteInferData::Ptr& data);
+    void InferAsync(const HddlUniteInferData::Ptr& data);
 
 protected:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;

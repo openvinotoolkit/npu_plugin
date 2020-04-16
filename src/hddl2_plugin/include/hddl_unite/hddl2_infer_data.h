@@ -46,10 +46,15 @@ public:
     void prepareUniteOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
 
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
+    void waitInferDone() const;
 
+    /**
+     * @brief Wait when inference is done and get result from HddlUnite
+     */
     std::string getOutputData(const std::string& outputName);
 
 private:
+    const int _asyncInferenceWaitTimeoutMs = 2000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;
 
