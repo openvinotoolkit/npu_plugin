@@ -20,6 +20,11 @@
 
 #include <cstddef>
 
+namespace utils {
+    InferenceEngine::Blob::Ptr convertPrecision(
+            const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision);
+}
+
 namespace ie = InferenceEngine;
 
 ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val);

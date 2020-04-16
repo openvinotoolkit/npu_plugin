@@ -191,7 +191,7 @@ void KmbTestBase::SetUp() {
 
     rd.seed();
 
-    core = PluginCache::get().ie(DEVICE_NAME);
+    core = PluginCache::get().ie();
     if (!LOG_LEVEL.empty()) {
         core->SetConfig({{CONFIG_KEY(LOG_LEVEL), LOG_LEVEL}}, DEVICE_NAME);
     }

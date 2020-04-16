@@ -20,17 +20,17 @@ using namespace ::testing;
 using namespace InferenceEngine;
 using namespace details;
 
-using GetMetricTest = ::testing::Test;
+using GetMetricTest = vpuLayersTests;
 
 TEST_F(GetMetricTest, getAvailableDevices) {
     Core ie;
 
-    std::vector<std::string> kmbSupportedMetrics = ie.GetMetric("KMB", METRIC_KEY(SUPPORTED_METRICS));
+    std::vector<std::string> kmbSupportedMetrics = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
     std::vector<std::string>::const_iterator kmbAvalableDevMetricIter =
         std::find(kmbSupportedMetrics.begin(), kmbSupportedMetrics.end(), METRIC_KEY(AVAILABLE_DEVICES));
     ASSERT_NE(kmbAvalableDevMetricIter, kmbSupportedMetrics.end());
 
-    std::vector<std::string> kmbDeviceIds = ie.GetMetric("KMB", METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> kmbDeviceIds = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
     ASSERT_FALSE(kmbDeviceIds.empty());
     ASSERT_EQ(kmbDeviceIds.size(), 1);
     ASSERT_NE(kmbDeviceIds.begin()->find("Keem Bay"), std::string::npos);

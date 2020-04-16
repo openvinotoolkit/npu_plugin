@@ -44,20 +44,61 @@ using namespace InferenceEngine;
 #   define SKIP_ON(_device_, _reason_)
 #   define SKIP_INFER_ON(_device_, _reason_)
 #else
-#   define SKIP_ON(_device_, _reason_)                                          \
+
+#   define SKIP_ON1(_device0_, _reason_)                                        \
         do {                                                                    \
-            if (DEVICE_NAME == _device_) {                                      \
+            std::set<std::string> devices({_device0_});                         \
+            if (devices.count(DEVICE_NAME) != 0) {                              \
                 SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
             }                                                                   \
         } while (false)
 
-#   define SKIP_INFER_ON(_device_, _reason_)                                            \
+#   define SKIP_ON2(_device0_, _device1_, _reason_)                             \
+        do {                                                                    \
+            std::set<std::string> devices({_device0_, _device1_});              \
+            if (devices.count(DEVICE_NAME) != 0) {                              \
+                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+            }                                                                   \
+        } while (false)
+
+#   define SKIP_ON3(_device0_, _device1_, _device2_, _reason_)                  \
+        do {                                                                    \
+            std::set<std::string> devices({_device0_, _device1_, _device2_,});  \
+            if (devices.count(DEVICE_NAME) != 0) {                              \
+                SKIP() << "Skip on " << DEVICE_NAME << " due to " << _reason_;  \
+            }                                                                   \
+        } while (false)
+
+
+#   define SKIP_INFER_ON1(_device0_, _reason_)                                          \
         do {                                                                            \
-            if (KmbTestBase::RUN_INFER && DEVICE_NAME == _device_) {                    \
+            std::set<std::string> devices({_device0_});                                 \
+            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
+                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+            }                                                                           \
+        } while (false)
+
+#   define SKIP_INFER_ON2(_device0_, _device1_, _reason_)                               \
+        do {                                                                            \
+            std::set<std::string> devices({_device0_, _device1_});                      \
+            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
+                SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
+            }                                                                           \
+        } while (false)
+
+#   define SKIP_INFER_ON3(_device0_, _device1_, _device2_, _reason_)                    \
+        do {                                                                            \
+            std::set<std::string> devices({_device0_, _device1_});                      \
+            if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
                 SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
         } while (false)
 #endif
+
+#define GET_MACRO(_1,_2,_3, _4, NAME,...) NAME
+#define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
+
+#define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
 
 //
 // KmbTestBase

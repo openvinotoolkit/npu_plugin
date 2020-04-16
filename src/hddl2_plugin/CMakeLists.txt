@@ -20,11 +20,7 @@ endif()
 
 set(TARGET_NAME "HDDL2Plugin")
 
-if(ENABLE_HDDL2_SIMULATOR)
-    set(HDDLUNITE_ARCHIVE_VERSION simulator_DEBUG-75d3-03-04-2020)
-else()
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww13)
-endif()
+set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww15)
 
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
@@ -61,6 +57,9 @@ target_compile_options(${TARGET_NAME}
         -Wall
         -Wextra
         -Werror)
+
+ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
+                    POSSIBLE_PLUGINS ${TARGET_NAME})
 
 set(HDDL_UNITE_OUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 file( GLOB LIB_XLINKPC_DIR ${HDDL_UNITE}/kmb_hddl/lib/libXLink* )

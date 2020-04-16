@@ -65,6 +65,10 @@ void print_buffer_HWC_fp16(ie_fp16* src_data, int32_t IW, int32_t IH, int32_t IC
     }
 }
 
+vpuLayersTests::vpuLayersTests()
+    : deviceName(std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "KMB") {
+}
+
 void vpuLayersTests::SetUp() {
     _netInitialized = false;
     _genDataCallback = GenRandomData;

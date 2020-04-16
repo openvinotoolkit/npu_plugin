@@ -77,6 +77,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, "KMB", config));
+    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
 };
 #endif

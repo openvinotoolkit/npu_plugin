@@ -29,7 +29,6 @@ addIeTargetTest(
             frontend_mcm
         LINK_LIBRARIES_WHOLE_ARCHIVE
             kmbTestData
-        ADD_CPPLINT
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
             KMB
             VPU
