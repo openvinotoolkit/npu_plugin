@@ -124,6 +124,18 @@ static mv::Shape kernelSubtensorOffset(mv::Shape& outTensorOffset)
             );
 }
 
+static mv::Shape activationSubtensorShape(mv::Shape& tileShape,mv::Shape inputShape)
+{
+    return mv::Shape(
+                        {
+                            tileShape[mv::IO_WIDTH_DIMENSION],
+                            tileShape[mv::IO_HEIGHT_DIMENSION],
+                            inputShape[mv::IO_CHANNEL_DIMENSION],
+                            tileShape[mv::IO_BATCH_DIMENSION]
+                        }
+            );
+}
+
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         mv::Data::OpListIterator op,
         mv::Tiling& tiling)
@@ -160,18 +172,19 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
     //todo:: get debug, and get rid of this if....
     mv::Data::TensorIterator copyInput;
-    if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::NNCMX)
+//    if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::NNCMX)
         copyInput = om.slice(inputTensor,
                                     mv::Shape({0,0,0,0}),
                                     inputTensor->getShape(),
                                     inputQuantParams,
                                     inputTensor->getName() + "_KStreamCopyIn");
-    else
-        copyInput = inputTensor;
+//    else
+//        copyInput = inputTensor;
 
 //    copyInput = om.copy(inputTensor,inputTensor->get<mv::DType>("dType"),inputQuantParams,inputTensor->getName() + "_KStreamCopyIn");
-//    om.getSourceOp(copyInput)->set<unsigned>("opId", opId);
-//    om.getSourceOp(copyInput)->set<std::string>("splitStrategy", splitStrategy);
+    auto copyInputOp = om.getSourceOp(copyInput);
+    copyInputOp->set<unsigned>("opId", opId);
+    copyInputOp->set<std::string>("splitStrategy", splitStrategy);
 
     for (unsigned split = 0; split < number_of_splits; split++)
     {
@@ -319,7 +332,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
     //in case of non-symmetric stream, we neet to check if at least one op is the last in the chain
     bool atLeastOneOpIsLast = false;
-    for (auto idx = 0 ; idx < number_of_splits ; ++idx)
+    for (unsigned idx = 0 ; idx < number_of_splits ; ++idx)
     {
         auto slice = slices[idx];
         auto newTensor = newTensors[idx];
@@ -361,11 +374,13 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             auto newStreamAxis = childTiles[split].getAxis();
             auto newStreamFunc = streamSplit[newStreamAxis];
 
-            auto out = newStreamFunc(om,om.getSourceOp(newTensors[split]),childTiles[split]);
+            out = newStreamFunc(om,om.getSourceOp(newTensors[split]),childTiles[split]);
             om.removeOp(om.getSourceOp(newTensors[split]));
         }
         else
+        {
             out = newTensors[split];
+        }
         final_outputs[split] = out;
     }
 
@@ -401,7 +416,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
-    std::vector<mv::Data::TensorIterator> slices(number_of_splits);
+    std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
     std::array<unsigned short, 2> kernelStride;
@@ -452,9 +467,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
         {
             auto inputTensor = op->getInputTensor(0);
+
+            auto sliceShape = activationSubtensorShape(childTiles[split].getSize(),inputTensor->getShape());
             mv::Data::TensorIterator slice = om.slice(inputTensor,
                                 childTiles[split].getStartCoord(),
-                                childTiles[split].getSize(),
+                                sliceShape,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceH" + std::to_string(split));
             om.getSourceOp(slice)->set<unsigned>("opId", opId);
@@ -496,7 +513,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
             auto originalDType = op->get<mv::DType>("dType");
-            for (auto i = 0; i < inputSlots; i++)
+            for (unsigned i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
 
@@ -533,29 +550,33 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     // assumption that we are fitting into CMX. The check is assumed to be made by the scheduler. This pass only implements
     // the respective schedule inside the graph.
     // If we are not the last split, we will basically, inherit the location our parent inputTensor;
+    // Unlike Kstream, we may have different number of "newOutputs" than slices, since Ops can have multiple inputs
+    // and the concept of stream is per OP not per tensor // todo:: find way with less duplication of code&logic
+
     auto numChildStreames = tiling.childTiles().size();
-    for (auto idx = 0 ; idx < numChildStreames ; ++idx)
+    for (auto newTensor : newTensors)
     {
-        auto slice = slices[idx];
-        auto newTensor = newTensors[idx];
-        mv::Tensor::MemoryLocation inputLocation(mv::Tensor::MemoryLocation::DEFAULT);
         mv::Tensor::MemoryLocation outputLocation(mv::Tensor::MemoryLocation::DEFAULT);
         if(numChildStreames > 1)
+            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+        else
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
+        newTensor->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+
+    }
+    for (auto slice : slices)
+    {
+        mv::Tensor::MemoryLocation inputLocation(mv::Tensor::MemoryLocation::DEFAULT);
+        if(numChildStreames > 1)
         {
-            //todo::should not be this convoluted to get the parentTensor of a tensor .....
-            //layer may have multiple inputs with different locations (eltwise). Each inputTensor will get a slice layer based on the stream
-            //so, for deciding the location of the slice, we have to check each input of the slice respectively
             auto sliceInputTensor = om.getSourceOp(slice)->getInputTensor(0);
             inputLocation .relocate(sliceInputTensor->get<mv::Tensor::MemoryLocation>("Location"));
-            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
         }
         else
         {
             inputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
-            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
         }
         slice->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
-        newTensor->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
     }
 
 
@@ -567,18 +588,13 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             auto newStreamAxis = childTiles[split].getAxis();
             auto newStreamFunc = streamSplit[newStreamAxis];
 
-            auto out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split]);
+            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split]);
             om.removeOp(om.getSourceOp(newTensors[split]));
         }
         else
             out = newTensors[split];
         final_outputs[split] = out;
     }
-
-//    std::vector<mv::Shape> final_outputs_deb(number_of_splits);
-//
-//    for (std::size_t i=0; i < number_of_splits; ++i)
-//        final_outputs_deb[i] = final_outputs[i]->getShape();
 
     auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
