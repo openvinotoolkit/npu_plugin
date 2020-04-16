@@ -37,7 +37,7 @@ target_include_directories(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        IE::inference_engine ${INTEL_ITT_LIBS} frontend_mcm ${LIBRARIES})
+        IE::inference_engine ${INTEL_ITT_LIBS} frontend_mcm ${LIBRARIES} kmb_utils)
 
 # install
 
