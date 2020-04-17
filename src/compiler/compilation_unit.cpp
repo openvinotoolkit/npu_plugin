@@ -167,20 +167,19 @@ mv::Element mv::CompilationUnit::runStep()
 mv::Element mv::CompilationUnit::run()
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE);
-    try 
-    {   // generate emulator results
-        if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "emulator_results"))
-            generateExpectedResults();
-    }
-    catch (mv::RuntimeError& e)
-    {
-        log(Logger::MessageType::Warning, "Could not find 'emulator_results' entry in 'GlobalConfigParams' section. No results generated.");
-    }
-    
     Element output("CompilationOutput");
     output.set<std::string>("ModelName", model_->getName());
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
+
+    // generate emulator results
+    mv::Element globalParams = passList[0];
+    bool emulator=false;
+    if (globalParams.hasAttr("emulator_results") )
+        emulator = globalParams.get<bool>("emulator_results");
+    
+    if (emulator)
+        generateExpectedResults();
 
     while (!passManager_.completed())
     {
@@ -252,7 +251,7 @@ void mv::CompilationUnit::generateExpectedResults()
     std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
     unit.loadCompilationDescriptor(emuCompPath);
     mv::OpModel& omEmu = unit.model();
-    compDescriptor_.setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infintie loop
+    compDescriptor_.setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
     deepCopy(omEmu);
 
     unit.initialize();
