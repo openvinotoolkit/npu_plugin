@@ -6,7 +6,7 @@
 TEST(target_descriptor, load_from_file)
 {
 
-    std::string descPath = mv::utils::projectRootPath() + std::string("/config/target/ma2490.json");
+    std::string descPath = mv::utils::projectRootPath() + std::string("/config/target/release_kmb.json");
     mv::TargetDescriptor desc;
     ASSERT_TRUE(desc.load(descPath));
     ASSERT_EQ(desc.getTarget(), mv::Target::ma2490);
@@ -15,7 +15,7 @@ TEST(target_descriptor, load_from_file)
 
 class TargetDescriptorTest : public testing::TestWithParam<mv::Target> {};
 
-TEST_Q(TargetDescriptorTest, compose)
+TEST_P(TargetDescriptorTest, compose)
 {
 
     mv::TargetDescriptor desc;
