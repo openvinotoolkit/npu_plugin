@@ -8,7 +8,7 @@
 #include <iostream>
 #include <fstream>
 
-const std::string g_CompilationDescPath = "/config/compilation/release_ma2480.json";
+const std::string g_CompilationDescPath = "/config/compilation/release_kmb.json";
 
 mv::Data::TensorIterator convBatchNormBlock(mv::CompositionalModel& model, mv::Data::TensorIterator input,  mv::Shape kernelShape, std::array<unsigned short, 2> stride, std::array<unsigned short, 4> padding)
 {
@@ -88,7 +88,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_01)
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", true);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     auto compOutput = unit.run();
 
@@ -129,7 +129,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_02)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -172,7 +172,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_03)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -214,7 +214,7 @@ TEST (generate_blob, DISABLED_blob_output_conv_04)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -259,7 +259,7 @@ TEST (generate_blob, DISABLED_blob_blur_edge_05)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -311,7 +311,7 @@ TEST (generate_blob, DISABLED_blob_4_ops)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -384,7 +384,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_add)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -458,7 +458,7 @@ TEST (generate_blob, DISABLED_blob_eltwise_multiply)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -531,7 +531,7 @@ TEST (generate_blob, DISABLED_blob_softmax)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -596,7 +596,7 @@ TEST (generate_blob, DISABLED_blob_convbias_convrelu)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -653,7 +653,7 @@ TEST (generate_blob, DISABLED_blob_scale)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -694,7 +694,7 @@ TEST (generate_blob_WDDM, blob_maxpool1)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -728,7 +728,7 @@ TEST (generate_blob_WDDM, blob_maxpool2)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
 
     unit.initialize();
     auto compOutput = unit.run();
@@ -763,7 +763,7 @@ TEST (generate_blob_WDDM, blob_maxpool3)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -798,7 +798,7 @@ TEST (generate_blob_WDDM, blob_maxpool4)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -833,7 +833,7 @@ TEST (generate_blob_WDDM, blob_avgpool1)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -868,7 +868,7 @@ TEST (generate_blob_WDDM, blob_avgpool2)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -901,7 +901,7 @@ TEST (generate_blob_WDDM, blob_conv1)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -939,7 +939,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_leakyRelu)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -977,7 +977,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_elu)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -1014,7 +1014,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_sigmoid)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -1051,7 +1051,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_tanh)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
 
     auto compOutput = unit.run();
@@ -1089,7 +1089,7 @@ TEST (generate_blob_WDDM, DISABLED_blob_lrn)
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);
     compDesc.setPassArg("MarkHardwareOperations", "disableHardware", true);
 
-    unit.loadTargetDescriptor(mv::Target::ma2480);
+    unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     auto compOutput = unit.run();
 
@@ -1115,7 +1115,7 @@ TEST (generate_blob, DISABLED_runtime_binary_RAM_FILE)
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit
-    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
+    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2490)) << "ERROR: cannot load target descriptor";
 
     std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
     unit.loadCompilationDescriptor(path);
@@ -1185,7 +1185,7 @@ TEST (generate_blob, DISABLED_runtime_binary_RAM)
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit
-    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
+    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2490)) << "ERROR: cannot load target descriptor";
 
     std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
     unit.loadCompilationDescriptor(path);
@@ -1245,7 +1245,7 @@ TEST (generate_blob, DISABLED_runtime_binary_FILE)
     cm.output(pool1);
 
     // Load target descriptor for the selected target to the compilation unit
-    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2480)) << "ERROR: cannot load target descriptor";
+    EXPECT_EQ (true, unit.loadTargetDescriptor(mv::Target::ma2490)) << "ERROR: cannot load target descriptor";
 
     std::string path = mv::utils::projectRootPath() + g_CompilationDescPath;
     unit.loadCompilationDescriptor(path);

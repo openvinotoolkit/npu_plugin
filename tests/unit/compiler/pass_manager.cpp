@@ -125,7 +125,7 @@ TEST(pass_manager, invalid_execution)
     ASSERT_FALSE(pm.validDescriptors());
     ASSERT_ANY_THROW(pm.step());
 
-    targetDesc.setTarget(mv::Target::ma2480);
+    targetDesc.setTarget(mv::Target::ma2490);
     targetDesc.setDType(mv::DType("Float16"));
 
     // Initialize the compilation descriptor, but leave out pass argument.
@@ -169,7 +169,7 @@ TEST(pass_manager, execution)
 
     mv::TargetDescriptor targetDesc;
     mv::CompilationDescriptor compDesc;
-    targetDesc.setTarget(mv::Target::ma2480);
+    targetDesc.setTarget(mv::Target::ma2490);
     targetDesc.setDType(mv::DType("Float16"));
 
     compDesc.addGroup("Adaptation");

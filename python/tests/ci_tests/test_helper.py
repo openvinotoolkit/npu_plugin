@@ -138,7 +138,6 @@ def compile_graphFile(model, nClusters, nDPU, strategyFile, cmx=4*918, emulator=
             self.save_input="InputTensor.bin"
             self.save_output="OutputTensor.bin"
             self.save_weights="weights.caffemodel"
-            self.ma2480=False
             self.cpp=cpp
             self.comp_descriptor=os.environ["MCM_HOME"] + "/config/compilation/debug_ma2490.json"
             self.mcm_loglevel=None

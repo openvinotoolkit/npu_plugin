@@ -48,11 +48,7 @@ import_array();
     {
         mv::Logger::instance().log(mv::Logger::MessageType::Info, "Python SWIG bridge", "Starting MCM Composition Interface for Target Descriptor: " + target + " ...");
         auto unit = new mv::CompilationUnit("pySwigCU");
-        if(target.compare("ma2480") == 0)
-        {            unit->loadTargetDescriptor(mv::Target::ma2480);
-            unit->loadCompilationDescriptor(mv::Target::ma2480);
-        }
-        else if(target.compare("ma2490") == 0)
+        if(target.compare("ma2490") == 0)
         {
             unit->loadTargetDescriptor(mv::Target::ma2490);
             unit->loadCompilationDescriptor(mv::Target::ma2490);
@@ -60,7 +56,7 @@ import_array();
         else
         {
             //Throw an error as unsupported target descriptor type supplied
-            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2480 and ma2490 supported.");
+            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2490 is supported.");
         }
 
         if (unit->compilationDescriptor().getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))

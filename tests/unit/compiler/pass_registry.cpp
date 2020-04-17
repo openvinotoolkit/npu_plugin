@@ -51,7 +51,7 @@ TEST(pass_registry, run_pass)
     mv::CompilationDescriptor compDesc;
     mv::Element compOutput("CompilationOutput");
     ASSERT_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput), mv::ArgumentError);
-    targetDesc.setTarget(mv::Target::ma2480);
+    targetDesc.setTarget(mv::Target::ma2490);
     ASSERT_NO_THROW(mv::pass::PassRegistry::instance().run("__TEST_pass1", model, targetDesc, compDesc, compOutput));
     ASSERT_TRUE(model.getInput()->get<bool>("test"));
     resetPassReg();
