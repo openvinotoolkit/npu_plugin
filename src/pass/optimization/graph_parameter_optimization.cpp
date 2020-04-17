@@ -469,6 +469,7 @@ namespace mv
             {
                 auto opType = op.getOpType();
                 if( (opType == "Input") or
+                    (opType == "ImplicitInput") or
                     (opType == "Output"))
                     return 0;
 
