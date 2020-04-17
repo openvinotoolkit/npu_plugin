@@ -1,9 +1,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
-const std::string mv::CompilationUnit::ma2480DefTargetDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
-const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
@@ -73,11 +71,6 @@ bool mv::CompilationUnit::loadCompilationDescriptor(Target target)
 
     switch (target)
     {
-        case Target::ma2480:
-        {
-            descPath = utils::projectRootPath() + ma2480DefCompDescPath_;
-            break;
-        }
         case Target::ma2490:
         {
             descPath = utils::projectRootPath() + ma2490DefCompDescPath_;
@@ -95,12 +88,6 @@ bool mv::CompilationUnit::loadTargetDescriptor(Target target)
 
     switch (target)
     {
-
-        case Target::ma2480:
-        {
-            std::string descPath = utils::projectRootPath() + ma2480DefTargetDescPath_;
-            return loadTargetDescriptor(descPath);
-        }
 
         case Target::ma2490:
         {

@@ -26,8 +26,8 @@ protected:
 
     std::string testToString(const mv::Target& target)
     {
-        assert(target == mv::Target::ma2480 || target == mv::Target::ma2490);
-        std::string targetName = target == mv::Target::ma2480 ? "ma2480" : "ma2490";
+        assert(target == mv::Target::ma2490);
+        std::string targetName = target == mv::Target::ma2490 ? "ma2490" : "invalid";
         return targetName;
     }
 

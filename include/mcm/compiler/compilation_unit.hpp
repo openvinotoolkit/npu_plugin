@@ -17,10 +17,8 @@ namespace mv
     class CompilationUnit : public LogSender
     {
 
-        static const std::string ma2480DefTargetDescPath_;
         static const std::string ma2490DefTargetDescPath_;
 
-        static const std::string ma2480DefCompDescPath_;
         static const std::string ma2490DefCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
