@@ -35,6 +35,7 @@ target_link_libraries(${TARGET_NAME}
         IE::IESharedTests
         HDDL2Plugin_test_static
         HddlUnite
+        XLink
         IE::gtest
         IE::gtest_main
         frontend_mcm
