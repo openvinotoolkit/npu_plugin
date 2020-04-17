@@ -157,7 +157,7 @@ TEST(pass_manager, invalid_execution)
 }
 
 
-TEST(pass_manager, execution)
+TEST(pass_manager, DISABLED_execution)
 {
 
     setPassReg();

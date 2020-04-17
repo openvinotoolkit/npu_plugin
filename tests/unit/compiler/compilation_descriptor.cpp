@@ -2,7 +2,7 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/compiler/compilation_descriptor.hpp"
 
-TEST(compilation_descriptor, bare)
+TEST(compilation_descriptor, DISABLED_bare)
 {
     mv::CompilationDescriptor compDesc("test_profile");
     compDesc.addGroup("testGroup1");
@@ -120,7 +120,7 @@ TEST(compilation_descriptor, bare)
     ASSERT_EQ(compDesc.getNumGroups(), 0);
 }
 
-TEST (compilation_descriptor, load_from_descriptor)
+TEST (compilation_descriptor, DISABLED_load_from_descriptor)
 {
     std::string descPath = mv::utils::projectRootPath() + "/tests/compiler/test_comp_desc.json";
     std::ifstream compDescFile(descPath);

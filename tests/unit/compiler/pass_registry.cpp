@@ -41,7 +41,7 @@ TEST(pass_registry, initialization)
 
 }
 
-TEST(pass_registry, run_pass)
+TEST(pass_registry, DISABLED_run_pass)
 {
 
     setPassReg();
