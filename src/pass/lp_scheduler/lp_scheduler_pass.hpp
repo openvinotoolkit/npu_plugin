@@ -165,8 +165,8 @@ class Control_Edge_Set {
 
     }
 
-    // TODO(vamsikku): 
-    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2) 
+    // TODO(vamsikku):
+    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2)
     // and their CMX addresses overlap we need to add control edges between
     // all consumers of op1 scheduled between [t1, t2] and op2 //
     template<typename OpDag, typename ScheduledOpIterator>
@@ -194,12 +194,12 @@ class Control_Edge_Set {
 
         add_control_edge(source_op, sink_op, model);
 #if 0
-        //TODO(vamsikku): re-enable consumer control edges to reduce the 
+        //TODO(vamsikku): re-enable consumer control edges to reduce the
         //number of temporal edges.
         if (dag.is_input_op(source_op) ||
             dag.has_edge_between_ops(source_op, sink_op)) { continue; }
 
-        // now for all the ops (non-empty resource) which consume 
+        // now for all the ops (non-empty resource) which consume
         for (typename dag_t::const_operation_iterator_t
               dop_itr=dag.begin_nodes(source_op);
               dop_itr != dag.end_nodes(source_op); ++dop_itr) {
@@ -244,7 +244,7 @@ class Control_Edge_Set {
       if (sbegin == send) { return 0UL; }
 
       std::list<scheduled_op_t> curr_scheduled_real_ops,
-          prev_scheduled_real_ops; 
+          prev_scheduled_real_ops;
       size_t curr_time = (*sbegin).schedule_time_;
       size_t total_temporal_control_edges = 0UL;
 
@@ -265,7 +265,7 @@ class Control_Edge_Set {
         if ( !input_dag.is_implicit_op(curr_op.op_)) {
           curr_scheduled_real_ops.push_back(curr_op);
 
-          if (!zero_indegree_temporal_edges || 
+          if (!zero_indegree_temporal_edges ||
               (in_degree_.find(curr_op.op_) == in_degree_.end()) ) {
             // add control edges between prev scheduled real ops and current
             // real op.
@@ -273,7 +273,7 @@ class Control_Edge_Set {
                   oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
               add_control_edge(oitr->op_, curr_op.op_, model);
               ++total_temporal_control_edges;
-            } 
+            }
           }
         }
       }
@@ -360,7 +360,7 @@ class Control_Edge_Set {
       }
     }
 
-    // Since the DMATasks which copy data from CMX2DDR does not use any 
+    // Since the DMATasks which copy data from CMX2DDR does not use any
     // resource the control edges will be missing. So we detect this case
     // and add control edges.
     template<typename OpDag>
@@ -411,7 +411,7 @@ class Control_Edge_Set {
       clear_all_edges_in_control_model(cmodel);
     }
 
-   
+
     std::set< control_edge_t > control_edge_set_;
     iterator_lookup_t iterator_lookup_;
     relocating_dma_map_t relocating_dma_map_;
@@ -557,13 +557,13 @@ class Dynamic_Spill_Node_Inserter {
             sop.op_ = NULL; // redundant ops are erased //
           }
           continue;
-        } 
+        }
 
         // CASE-2: Handle a spilled read and write op in the schedule.//
         typename spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
         spilled_subtree_t &subtree = itr->second;
         bool is_original_spilled_op_redundant = !(subtree.spilled_write_op_);
-        
+
         if (sop.is_spilled_write()) {
           // spilled write //
 
@@ -578,7 +578,7 @@ class Dynamic_Spill_Node_Inserter {
           // CASE-2.2: Typical case of non-redundant spilled write. //
 
           // Transfer its CMX addresess to generate control edges //
-          const scheduled_op_t &sinfo = spilled_op_schedule[sop.op_]; 
+          const scheduled_op_t &sinfo = spilled_op_schedule[sop.op_];
           sop.cmx_address_start_ = sinfo.cmx_address_start_;
           sop.cmx_address_end_ = sinfo.cmx_address_end_;
           coutput = control_edge_t(sop.op_, subtree.spilled_write_op_);
@@ -595,7 +595,7 @@ class Dynamic_Spill_Node_Inserter {
           }
 
           // add edges from read ops to consumer ops //
-          const op_list_t& consumers = 
+          const op_list_t& consumers =
               (subtree.read_subtrees_).front().consumer_list_;
           for (auto consumer_itr=consumers.begin();
                 consumer_itr != consumers.end(); ++consumer_itr ) {
@@ -617,7 +617,7 @@ class Dynamic_Spill_Node_Inserter {
         if (!has_redundant_spilled_write(itr)) {
           printfInfo("lpSchedulerPass", "[spilled_op=%s]\n", (itr->first)->getName().c_str());
           (itr->second).print();
-        } 
+        }
         printfInfo("lpSchedulerPass", "========================\n");
       }
     }
@@ -656,8 +656,8 @@ class Dynamic_Spill_Node_Inserter {
     //         +------>(cn)
     //
     // New DataFlow:
-    // 
-    //  {c1,c2}, SPILL_WRITE, SPILL_READ, {c4}, SPILL_READ, {c5,c6} ... 
+    //
+    //  {c1,c2}, SPILL_WRITE, SPILL_READ, {c4}, SPILL_READ, {c5,c6} ...
     //
     //  (A)---+------>(c1)
     //        |
@@ -703,13 +703,13 @@ class Dynamic_Spill_Node_Inserter {
           typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
 
           // since spilled write must come before this //
-          assert(itr != spilled_op_map_.end()); 
+          assert(itr != spilled_op_map_.end());
           (itr->second).add_spilled_read(op);
         } else {
           // spilled write op //
 
           typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
-          // since the activation data is not changing we don't need to 
+          // since the activation data is not changing we don't need to
           // write it back to DDR .
           if (itr != spilled_op_map_.end()) { continue; }
 
@@ -719,7 +719,7 @@ class Dynamic_Spill_Node_Inserter {
       } //foreach scheduled op //
     }
 
-    // Creates a spill subtree structure under the given op whose output 
+    // Creates a spill subtree structure under the given op whose output
     // got spilled. Additionally the new write op addresses are added into
     // the substructure
     void create_spill_subtree_structure_in_model(operation_t spilled_op_in,
@@ -757,8 +757,8 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-2: for all the outgoing ops connected to this op determine the 
-      // input tensor indexes 
+      // STEP-2: for all the outgoing ops connected to this op determine the
+      // input tensor indexes
       std::unordered_map<operation_t, size_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
@@ -773,7 +773,7 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and children in 
+      // STEP-3: erase all outgoing flows from the spilled op and children in
       // spill sub tree
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
@@ -808,7 +808,7 @@ class Dynamic_Spill_Node_Inserter {
         read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);
 
         // save the read op //
-        spill_read_itr->read_op_ = &(*read_op_itr); 
+        spill_read_itr->read_op_ = &(*read_op_itr);
 
         // now connect output of this read all ops in this subtree //
         const op_list_t &children = spill_read_itr->consumer_list_;
@@ -831,7 +831,7 @@ class Dynamic_Spill_Node_Inserter {
     //
     //
     //   (read)----->consumer1
-    //          | 
+    //          |
     //          |
     //          ---->consumer2
     //
@@ -855,7 +855,7 @@ class Dynamic_Spill_Node_Inserter {
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-1: get the input tensor corresponding to the original read-op //
-      mv::Data::TensorIterator spilled_op_input_tensor_itr = 
+      mv::Data::TensorIterator spilled_op_input_tensor_itr =
           spilled_op->getInputTensor(0UL);
 
       // A NULL spilled_write_op_ means the write op is redundant//
@@ -863,8 +863,8 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-2: for all the outgoing ops connected to this op determine the 
-      // input tensor indexes 
+      // STEP-2: for all the outgoing ops connected to this op determine the
+      // input tensor indexes
       //
       // TODO(vamsikku): this is a common operations between forest and subtree
       // code it should be a function on its own.
@@ -883,7 +883,7 @@ class Dynamic_Spill_Node_Inserter {
 
       bool is_spilled_read_redundant = false;
       //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and children in 
+      // STEP-3: erase all outgoing flows from the spilled op and children in
       // spill sub tree
       {
         mv::Data::OpListIterator spilled_op_itr =
@@ -908,7 +908,7 @@ class Dynamic_Spill_Node_Inserter {
       //////////////////////////////////////////////////////////////////////////
       // STEP-3.1: postpone erase the of redundant spilled_op to avoid automatic
       // ref-count base removal of the underlying source tensor.
-      
+
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-4: create a new spill read subtrees ops using the input_tensor of
@@ -938,7 +938,7 @@ class Dynamic_Spill_Node_Inserter {
               std::numeric_limits<size_t>::max());
 
         // save the read op //
-        spill_read_itr->read_op_ = &(*read_op_itr); 
+        spill_read_itr->read_op_ = &(*read_op_itr);
 
         // now connect output of this read all ops in this subtree //
         const op_list_t &children = spill_read_itr->consumer_list_;
@@ -1010,7 +1010,7 @@ struct Remove_Redundant_Spill_Writes {
 
 
 //NOTE: to use this class the tensors should have "allocators" attribute. //
-template<typename OpDag> 
+template<typename OpDag>
 class Master_Slave_Buffer_Relations {
   public:
 
@@ -1185,7 +1185,7 @@ class DDR_Address_Generator {
 
     DDR_Address_Generator(mv::ComputationModel& model, dag_t& dag,
           size_t upper_bound=16777216UL) : input_dag_(dag), model_(model),
-    high_watermark_(), upper_bound_(upper_bound) {} 
+    high_watermark_(), upper_bound_(upper_bound) {}
 
 
     void print(FILE *fptr=stdout) const {
@@ -1265,14 +1265,14 @@ class DDR_Address_Generator {
   private:
 
     //Following changes are made to the DAG [ G(V,E) ]:
-    // 
-    // Let {u_1,u_2,...u_t..} be the slaves associated with the master 'm'. 
+    //
+    // Let {u_1,u_2,...u_t..} be the slaves associated with the master 'm'.
     // and u = arg_min{schedule_time(u_i)} (i.e first slave in the schedule)
     //
     // Then change as follows:
     // (1) resource[u] = resource[m]
     //     resource[m] = 0, for other slaves resource[u_i] = 0UL
-    // 
+    //
     // (2) W = { w | (m,w) \in E }
     //     add edges { (u,w) | w \in W } to the set E
     template<typename ScheduleIterator>
@@ -1365,7 +1365,7 @@ struct Schedule_Reader_Writer {
         }
 
         void operator++() {
-          if (!is_valid()) { return;} 
+          if (!is_valid()) { return;}
           next_valid_record();
         }
 
@@ -1446,7 +1446,7 @@ struct Schedule_Reader_Writer {
         operation_t op = traits::scheduled_op(*begin);
         size_t time = traits::scheduled_op_time(*begin);
 
-        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time); 
+        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time);
         ++begin;
       }
       fclose(fptr);
@@ -1462,7 +1462,7 @@ struct Schedule_Reader_Writer {
         stream << op->getName() << " " << time << "\n";
         ++begin;
       }
-      
+
       return true;
     }
 
@@ -1493,17 +1493,17 @@ struct Schedule_Reader_Writer {
 
 // Repack input DMAs (zero-indegree) for the scheduled compute ops to improve
 // the CMX utility:
-// 
+//
 // For each zero-indegree DMA task 'x' starting at 't=i' and having CMX
 // address [a, b] identify all other tasks:
-// 
+//
 // Y = { y | schedule_time(y) < 'i' and (y,x) is a memory control edge between
 //           tasks 'y' and 'x' }
 // NOTE: the CMX address interval for all tasks in Y overlaps [a, b]
-// 
+//
 //
 // Repack this DMA task to new time t_repack defined below:
-// 
+//
 // t_repack = max { schedule_time(z) | (y,z) is an edge in between tasks 'y' and
 //             'z' in the DAG (opmodel) such that schedule_time(z) < 'i' }
 //
@@ -1544,7 +1544,7 @@ class Repack_Input_DMA_Tasks {
       }
 
       bool is_repackable() const {
-        return (traits::scheduled_time(original_op_) - 
+        return (traits::scheduled_time(original_op_) -
                 traits::scheduled_time(limiting_op_) ) > schedule_time_t(1UL);
       }
 
@@ -1636,7 +1636,7 @@ class Repack_Input_DMA_Tasks {
     void repack(ScheduledOpIterator sched_begin,
         ScheduledOpIterator sched_end, BackInsertIterator output) {
 
-      // STEP-0: for each input DMA to an op find the limiting op w.r.t to 
+      // STEP-0: for each input DMA to an op find the limiting op w.r.t to
       // active address range (e.g. CMX address range).
       {
         update_repack_map_t repack_updater(repack_map_, data_op_selector_);
@@ -1662,7 +1662,7 @@ class Repack_Input_DMA_Tasks {
           }
         }
       }
-      
+
       // STEP-2: now adjust limiting ops based on consumers of the limiting op//
       adjust_repack_times();
       remove_non_repackable_ops();
@@ -1726,12 +1726,12 @@ class Repack_Input_DMA_Tasks {
     }
 
     double average_repack_level() const {
-      // (\Sum repack_level(v)) / total_data_ops 
+      // (\Sum repack_level(v)) / total_data_ops
       //  if not repacked repack_level(v) = 1 //
       //  if its repacked then the repack() function updates
       //  average_repack_level_
       return total_data_ops_ ?
-        (double(average_repack_level_ + 
+        (double(average_repack_level_ +
                  double(total_data_ops_-repacked_data_ops_))/
           double(total_data_ops_)) : double(0.0);
     }

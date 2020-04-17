@@ -16,7 +16,7 @@ int main()
 
     auto weights0 = om.constantInt(weightsData0,{1,1,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{0},{0.00392156862745098},{},{}});
     auto conv0 = om.conv(input0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("Default"),{{0},{1},{},{}} , "conv");
-    om.output(conv0, mv::DType("Int32"), {{},{},{},{}}, "output");
+    om.output(conv0, mv::DType("Int32"), {{},{},{},{}}, true, "output");
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

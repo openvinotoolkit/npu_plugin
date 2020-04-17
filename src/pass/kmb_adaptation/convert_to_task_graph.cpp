@@ -522,6 +522,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
 

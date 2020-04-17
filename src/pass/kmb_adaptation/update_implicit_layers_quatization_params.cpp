@@ -34,8 +34,10 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     {
          std::string opType = opIt->getOpType();
 
-        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape" || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
-            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align")
+        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape"
+            || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
+            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align"
+            || opIt->getOpType() ==  "ImplicitOutput")
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
@@ -54,6 +56,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
@@ -61,12 +64,61 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
         if (opType ==  "Slice" || opType ==  "Crop")
         {
-            auto input = opIt->getInputTensor(0);
-            auto output = opIt->getOutputTensor(0);
-
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
+
+        //NOTE: Temporary handle for the scheduler in order to place the required DMA-s for the copy operation
+        else if (opType == "Copy")
+        {
+            if (opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
+                //Sink Ops of the Input of the Copy layer
+                auto sinkOps = findSinkLayers(dm, opIt->getInputTensor(0));
+                auto outputFlow = parentOp.leftmostOutput();
+                std::size_t copyId, dpuId = 0;
+                std::unordered_map<std::string, std::vector<mv::Data::FlowSiblingIterator>> tasks_flows;
+                while (outputFlow != om.flowEnd())
+                {
+                    if (outputFlow.sink()->getOpType() == "Copy")
+                    {
+                        copyId = outputFlow->get<std::size_t>("sinkInput");
+                        tasks_flows["Copy"].push_back(outputFlow);
+                    }
+                    else
+                    {
+                        dpuId = outputFlow->get<std::size_t>("sinkInput");
+                        tasks_flows["DPUTask"].push_back(outputFlow);
+                    }
+                    ++outputFlow;
+                }
+                auto compensatorOutput = om.dMATask(opIt->getInputTensor(0),
+                                                        mv::DmaDirectionEnum::NNCMX2DDR,
+                                                        opIt->getName() + "_copyDMA");
+                compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+                om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+                for (auto sinkOp:sinkOps)
+                {
+                    if (sinkOp->getOpType() == "Copy")
+                    {
+                        //NOTE: neutral Copy has only 0
+                        sinkOp->setInputTensor(compensatorOutput,0, false);
+                        om.undefineFlow(tasks_flows["Copy"][0]);
+                        om.defineFlow(compensatorOutput, sinkOp, copyId);
+                    }
+                    else
+                    {
+                        sinkOp->setInputTensor(compensatorOutput, 0, false);
+                        om.undefineFlow(tasks_flows["DPUTask"][0]);
+                        om.defineFlow(compensatorOutput, sinkOp, dpuId);
+                    }
+                }
+
+            }
+        }
+
 
         if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
         {

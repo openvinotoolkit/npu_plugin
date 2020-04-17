@@ -7,6 +7,7 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -244,6 +245,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
+        if (t->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -311,6 +314,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator t, unsigned clusterId, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
+    mv::OpModel om(cm);
 
     auto subtensor = t->getSubTensor(clusterId);
 
@@ -357,17 +361,30 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
-            unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
-            toBuild->locale_index = std::vector<unsigned int>(1);
-            toBuild->locale_index[0] = graphfileIndex;
+            auto parentOp = om.getSourceOp(t);
 
-            auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-            auto index = t->getOrder().subToInd(t->getShape(), offset);
-            auto byte_index = index * t->getDType().getSizeInBits() / 8;
+            // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
+            // Weight tables and sparsity maps are not compressed
+            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")) 
+            {
+                unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
+                toBuild->locale_index = std::vector<unsigned int>(1);
+                toBuild->locale_index[0] = graphfileIndex;
+                toBuild->data->data_index = 0;
+            }
+            else 
+            {
+                unsigned graphfileIndex = t->get<unsigned>("graphFileIndex");
+                toBuild->locale_index = std::vector<unsigned int>(1);
+                toBuild->locale_index[0] = graphfileIndex;
 
-            toBuild->data->data_index = byte_index;
+                auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+                auto index = t->getOrder().subToInd(t->getShape(), offset);
+                auto byte_index = index * t->getDType().getSizeInBits() / 8;
+                toBuild->data->data_index = byte_index;
+            }
         }
-        else
+        else //Sparse
         {
             // In case data is sparse, packed subtensors are serialiazed. This simplifies our life a lot.
             // No data index to be provided, just have to take the graphfile index from the subtensor
@@ -402,6 +419,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
+        if (t->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
 
@@ -490,8 +509,24 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
     toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
 
-    toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+    auto numOutputs = om.getNumNetworkOutputs();
+
+    if (numOutputs == 1)
+    {
+        toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+    }
+    else
+    {
+        auto implicitOutputOps = om.getNetworkOutputs();
+        toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitOutputOps.size());
+        for (size_t i = 0; i < implicitOutputOps.size(); i++)
+        {
+            auto destOp = implicitOutputOps[i].leftmostChild();
+            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
+        }
+    }
+
     if (paddOutput && om.getOutput()->getInputTensor(0)->hasAttr("alignment"))
         alignTensor(cm, toBuild->net_output[0], *om.getOutput()->getInputTensor(0), IO_CHANNEL_DIMENSION, paddOutput);
     auto taskCount = [](mv::OpModel m)
@@ -560,19 +595,52 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
         for(unsigned j = 0; j < nElementToPack; ++j)
             if ((i*nElementToPack + j) < dataSize)
                 toReturn[i] ^= origData[i*nElementToPack + j] << (j * origDataSize);
-
+            
     return toReturn;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
-    auto dataPacked = t.getDataPacked();
-    // Compression code goes here
-    toBuild->data = packToInt64(dataPacked, t.getDType());
-    toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
-    toBuild->underlying_type = MVCNN::DType::DType_U8;
+    /* Here we use the HDE to compress weights
+     * We do not compress sparsity maps or fake sparsity maps yet
+     * These should be comprssed for additional performance 
+    */ 
+
+    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap") && t.getDType() != mv::DType("Float16")) 
+    {
+        auto dataPacked = t.getDataPacked();
+        auto weightSizeKb = t.computeTotalSize() / 1024;
+
+        //Minimum size that can be compressed is 4kB
+        if(weightSizeKb > 4) {
+            auto compressedData = hde_->hdeCompress(dataPacked, t); 
+            toBuild->data = packToInt64(compressedData.first, t.getDType());
+            
+            //sometimes even if the tensor is > 4KB it might not be compressable
+            if(t.hasAttr("CompressedSize"))
+                toBuild->length = t.get<int>("CompressedSize");
+            else
+                toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+            toBuild->underlying_type = MVCNN::DType::DType_U8;         
+        }
+        else {
+            auto dataPacked = t.getDataPacked();
+            toBuild->data = packToInt64(dataPacked, t.getDType());
+            toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+            toBuild->underlying_type = MVCNN::DType::DType_U8;
+            t.set<bool>("Compression", false);
+        }
+    }
+    else 
+    {
+        auto dataPacked = t.getDataPacked();
+        toBuild->data = packToInt64(dataPacked, t.getDType());
+        toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+        toBuild->underlying_type = MVCNN::DType::DType_U8;
+        t.set<bool>("Compression", false);
+    }
 
     return toBuild;
 }
@@ -722,11 +790,22 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
     if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
-        if(src->isSparse())
+        unsigned totalSizeDst = src->getSubTensor(i).getShape().totalSize();
+        
+        if(src->isSparse()) 
+        {
             totalSize = src->getSubTensor(i).dataPackedSize();
-
-        totalSize *= src->getDType().getSizeInBits() / 8;
+            totalSizeDst = src->getSubTensor(i).dataPackedSize();
+        }
+        
+        if(src->getSubTensor(i).hasAttr("CompressedSize"))
+            totalSize = src->getSubTensor(i).get<int>("CompressedSize");
+        else 
+            totalSize *= src->getDType().getSizeInBits() / 8;
+        
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
+        totalSizeDst *= src->getDType().getSizeInBits() / 8;
+        std::vector<uint32_t> dimensionsdst = {totalSizeDst, 1, 1, 1};
         std::vector<uint32_t> strides = {1, 1, 1, 1, 1};
         auto dtype = MVCNN::DType::DType_U8;
 
@@ -734,14 +813,15 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->strides = strides;
         tmp->src->data_dtype = dtype;
 
-        tmp->dst->dimensions = dimensions;
+
+        tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
     }
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -766,7 +846,9 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     // Passing -1 as subtensor index, will have us get the full tensor
     checkUnstridedDMA(src, -1, tmp);
 
-    tmp->compression = compression;
+    // Check if the HDE engine compressed the weights
+    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+        tmp->compression =  true;
 
     toPush->task.value = tmp;
 
@@ -774,7 +856,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 }
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool compression, bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
+                               bool padFinalOutput, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
                                mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
@@ -798,11 +880,14 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             if (dst->hasAttr("alignWidth")){
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
             }
-        }	        
+        }
 
         checkUnstridedDMA(src, i, tmp);
 
-        tmp->compression =  compression;
+        // Check if the HDE engine compressed the weights
+        if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+            tmp->compression =  true;	  
+
         toPush->task.value = tmp;
         toReturn.push_back(std::move(toPush));
     }
@@ -832,11 +917,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 sourceIsBroadCasted = true;
         }
     }
-
-    bool compression = false;
-    if(opIt->hasAttr("compression"))
-        compression = opIt->get<bool>("compression");
-
+ 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
@@ -858,13 +939,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case1MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
+        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, inputTensor, outputTensor);
 
         if(inputTensor->isSparse())
         {
             // NOTE: First usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case1MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
@@ -879,12 +960,12 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, inputTensor, outputTensor);
+        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, inputTensor, outputTensor);
         if(inputTensor->isSparse())
         {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, compression, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
         }
         return toReturn;
     }
@@ -1393,8 +1474,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
                      opIt->get<std::string>("taskOp") == "ChannelMajorConvolution" ||
                      opIt->get<std::string>("taskOp") == "DepthwiseConv")
                 toBuild->invariant->activation_window->locale_index = locale_index;
-            else if (opIt->get<std::string>("taskOp") == "ElementWise")
-                toBuild->invariant->weights_table->locale_index = locale_index;
 
             auto hash = [](const MVCNN::MPE_Mode &g){ return static_cast<std::size_t>(g); };
             auto comp = [](const MVCNN::MPE_Mode &l, const MVCNN::MPE_Mode &r){ return l == r; };
@@ -2155,7 +2234,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
 
         toReturn *= multiplicator;
     }
-    else if(taskType == "UPATask")
+    else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;
 
     return toReturn;
@@ -2214,6 +2293,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     unsigned numClusters = dm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     auto globalConfigurationParameters = cm.getGlobalConfigParams();
+    auto huffmanCompression = globalConfigurationParameters->get<bool>("HuffmanCompression");
 
     graphFile_.header = buildSummaryHeaderT(cm, compilationDescriptor, std::move(graphFile_.header));
 
@@ -2241,6 +2321,17 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                 else
                     toSort.push_back(&(*tIt));
             }
+            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
+            // Weights have UInt8 dType 
+            // Fake Sparsity maps also have UInt8 dType  
+            else if(tIt->hasAttr("splitStrategy") && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
+            {
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                    for(std::size_t i = 0; i < numClusters; ++i)
+                        toSort.push_back(&(tIt->getSubTensor(i)));
+                else
+                    toSort.push_back(&(*tIt));
+            }
             else
                 toSort.push_back(&(*tIt));
 
@@ -2249,8 +2340,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        //std::cout << "Serializing to binary data section " << tensorIt->getName() << std::endl;
-        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt));
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression));
     }
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
