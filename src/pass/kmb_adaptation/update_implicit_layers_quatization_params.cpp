@@ -62,12 +62,28 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
     {
          std::string opType = opIt->getOpType();
 
-        if (opType ==  "Slice" || opType ==  "Crop")
+        if (opType == "Slice")
         {
+            auto input = opIt->getInputTensor(0);
+            auto output = opIt->getOutputTensor(0);
+
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
-
+        if (opType == "Crop")
+        {
+            // Recursively search for non-implicit output op
+            auto outputOp = opIt.leftmostOutput().sink();
+            while(!(outputOp->hasTypeTrait("executable") || outputOp->hasTypeTrait("exposed")))
+            {
+                outputOp = outputOp.leftmostOutput().sink();
+            }
+            auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
+                    ? mv::Tensor::MemoryLocation::OUTPUT
+                    : mv::Tensor::MemoryLocation::DDR;
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
+        }
         //NOTE: Temporary handle for the scheduler in order to place the required DMA-s for the copy operation
         else if (opType == "Copy")
         {
