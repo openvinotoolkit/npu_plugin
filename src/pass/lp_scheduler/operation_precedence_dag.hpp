@@ -253,8 +253,7 @@ class Operation_Dag {
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
       implicit_op_types_( {"Slice", "Crop", "Align", "ImplicitReshape",
-                            "ImplicitPermute", "ImplicitOutput", "ImplicitUnion",
-                            "ImplicitInput", "ImplicitInputSlice"} ) {
+                            "ImplicitPermute", "ImplicitOutput", "ImplicitInput"} ) {
         init_from_model(model);
     }
 
@@ -567,6 +566,8 @@ class Operation_Dag {
 
         bfs_list.pop_front();
         op_size_table_t::iterator itr = op_size_table.find(curr_op);
+
+        std::cout << "LP scheduler: " << curr_op->getName() << std::endl;
 
 
         resource_t curr_op_utility = resource_utility(curr_op);
