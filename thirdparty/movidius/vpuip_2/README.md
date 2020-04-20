@@ -1,4 +1,4 @@
-Built from https://github.com/movidius/vpuip_2 02826f892bacb16e605360ffbcb4a4a27ddc5ce5
+Built from https://github.com/movidius/vpuip_2 677e8bbcdb429c4626d21ba16f9af34f0c4cc528
 
 ```
 cd vpuip_2/application/vpuFirmware
