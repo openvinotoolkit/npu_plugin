@@ -64,9 +64,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
         if (opType == "Slice")
         {
-            auto input = opIt->getInputTensor(0);
-            auto output = opIt->getOutputTensor(0);
-
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
