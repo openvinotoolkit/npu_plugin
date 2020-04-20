@@ -59,14 +59,16 @@ bool thereIsDependency(mv::ControlModel& cm, const std::vector<mv::Data::OpListI
     return false;
 }
 
-static inline bool checkImplicitConditions(mv::Op& inputOp,mv::Op& outputOp)
+static inline std::pair<bool,bool> checkImplicitConditions(mv::Op& inputOp,mv::Op& outputOp)
 {
     //todo::make it a more pattern-application rather than if-then-else code
     //implicit layers deallocation is a bit tricky, but it resolves to the following conditions
     auto isInputImplicit  = inputOp.hasAttr("ImplicitFlow") ? inputOp.get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;
     auto isOutputImplicit = outputOp.hasAttr("ImplicitFlow") ? outputOp.get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;
 
+    bool isAnyImplicit = isInputImplicit || isOutputImplicit;
     bool implicitCondition = false;
+
     if(isInputImplicit && isOutputImplicit)
     {
         auto inputFlow = inputOp.get<mv::ImplicitFlow>("ImplicitFlow");
@@ -103,9 +105,40 @@ static inline bool checkImplicitConditions(mv::Op& inputOp,mv::Op& outputOp)
             implicitCondition = true;
     }
 
-    return implicitCondition;
+    return std::pair<bool,bool>(isAnyImplicit,implicitCondition);
 }
 
+static inline void flowDownUntilLastImplicit(mv::Data::OpListIterator op,
+                                                std::vector<mv::Data::OpListIterator>* executableChildren,
+                                                mv::DataModel& dm,
+                                                const mv::pass::PassEntry& pass)
+{
+    auto isOpImplicit  = op->hasAttr("ImplicitFlow") ? op->get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;
+    auto direction = isOpImplicit ? op->get<mv::ImplicitFlow>("ImplicitFlow").getCompensationDirection() : mv::ImplicitFlow::UNSPECIFIED;
+
+    if(isOpImplicit)
+    {
+        if(direction == mv::ImplicitFlow::OUTPUT_IN_INPUT)
+        {
+            //can't we get the flows directly from a tensor obj?
+            auto flowsNames = op->getOutputTensor(0)->get<std::set<std::string>>("flows");
+            for(auto flowName : flowsNames)
+            {
+                auto df = dm.getDataFlow(flowName);
+                flowDownUntilLastImplicit(df.sink(),executableChildren,dm,pass);
+            }
+        }
+        else
+        {
+            pass.log(mv::Logger::MessageType::Warning, "Got a DEALLOC layer which flows to a Concat(like) layer. This should not happen");
+
+        }
+    }
+    else
+    {
+        executableChildren->push_back(op);
+    }
+}
 // Pass role: Add deallocation tasks for each Tensor
 void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
@@ -139,17 +172,25 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             continue;
 
         auto inputTensor = dataFlowIt->getTensor();
-        //We just have to check if it was previously deallocated or not.
 
         auto tensorLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
         auto inputOpType = inputOp->getOpType();
 
-        bool implicitConditions = (tensorLocation == mv::Tensor::MemoryLocation::NNCMX) ? checkImplicitConditions(*inputOp,*outputOp) : false;
-
+        //in case of nonCMX tensor we do not care of implicitness(theoretically)
+        std::pair<bool,bool> implicitConditions = (tensorLocation == mv::Tensor::MemoryLocation::NNCMX) ? checkImplicitConditions(*inputOp,*outputOp) : std::pair<bool,bool>(false,false);
+        bool isEitheropImplicit = implicitConditions.first;
+        bool implicitLayerDealloc = implicitConditions.second;
+        bool cmxTensorConsumedByExecutable = tensorLocation == mv::Tensor::MemoryLocation::NNCMX && outputOp->hasTypeTrait("executable");
+        bool ddrTensorProducedByDMAorUPA = (inputOpType == "DMATask" || inputOpType == "UPATask") && tensorLocation == mv::Tensor::MemoryLocation::DDR;
+        //We Have to check if it was previously deallocated or not AND
+        //  if the implicitConditions pass (see comments on  checkImplicitConditions)
+        //  if it's an NNCMX tensor consumed by an executable OP OR
+        //  if it's a DDR tensor created by a DMA or UPA or
+        //
         if(!inputTensor->hasAttr("deallocated") &&
-           ((tensorLocation == mv::Tensor::MemoryLocation::NNCMX && outputOp->hasTypeTrait("executable")) ||
-           ((inputOpType == "DMATask" || inputOpType == "UPATask") && tensorLocation == mv::Tensor::MemoryLocation::DDR) ||
-           implicitConditions))
+                ((isEitheropImplicit && implicitLayerDealloc) ||
+                 (!isEitheropImplicit && (cmxTensorConsumedByExecutable || ddrTensorProducedByDMAorUPA))))
+
         {
 
             auto opType = inputOp->getOpType();
@@ -179,6 +220,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             // coincident with the data flow that carries the memory requirement
             if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
             {
+                //todo::don't check for implicit concat, but for ImplicitFlow attribute with direction of INPUT_IN_OUTPUT
                 if(inputOp->getOpType() != "ImplicitConcat")
                 {
                     if(cm.isFlowAllowed(inputOp, deallocateInputOp))
@@ -212,9 +254,11 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                 }
             }
 
+            auto outputIsImplicit = outputOp->hasAttr("ImplicitFlow") ? outputOp->get<mv::ImplicitFlow>("ImplicitFlow").isImplicit() : false;;
+
             std::vector<mv::Data::OpListIterator> sinkOperations;
-            if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX &&
-                outputOp->hasTypeTrait("executable"))
+            if (tensorLocation == mv::Tensor::MemoryLocation::NNCMX &&
+                (outputOp->hasTypeTrait("executable") || outputIsImplicit))
             {
                 pass.log(mv::Logger::MessageType::Debug, " Collecting Sink Operations for case CMX Dealloc");
 
@@ -228,7 +272,15 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
                     pass.log(mv::Logger::MessageType::Debug, " Checking flow name " + flowName);
 
                     auto df = dm.getDataFlow(flowName);
-                    sinkOperations.push_back(df.sink());
+
+                    auto sinkOp = df.sink();
+                    std::vector<mv::Data::OpListIterator> sinkOps;
+
+                    //in case of implicit children that will not own the tensor dealloc, we will flow down recursively
+                    //until we find one
+                    flowDownUntilLastImplicit(sinkOp,&sinkOps,dm,pass);
+                    for(auto finalSink : sinkOps)
+                        sinkOperations.push_back(finalSink);
                 }
             }
             else
