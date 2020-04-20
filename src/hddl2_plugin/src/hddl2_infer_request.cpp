@@ -177,6 +177,10 @@ void HDDL2InferRequest::GetResult() {
     InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
 
     if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
+        if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
+            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                               << blobOutputPrecision << " is not supported.";
+        }
         auto tempUniteOutputTensorDesc = networkTensorDesc;
         // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
         tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
@@ -190,6 +194,10 @@ void HDDL2InferRequest::GetResult() {
             outputBlobPtr = tempFP16Blob;
         }
     } else {
+        if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
+            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                               << blobOutputPrecision << " is not supported.";
+        }
         if (outputUniteData.size() != outputBlobPtr->byteSize()) {
             THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
         }
