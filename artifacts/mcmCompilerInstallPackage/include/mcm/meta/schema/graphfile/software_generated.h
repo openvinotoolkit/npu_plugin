@@ -57,6 +57,9 @@ struct SoftmaxParamsT;
 struct CustomLayerParams;
 struct CustomLayerParamsT;
 
+struct EdslParams;
+struct EdslParamsT;
+
 struct PassthroughParams;
 struct PassthroughParamsT;
 
@@ -95,6 +98,9 @@ struct FakeQuantizeParamsT;
 
 struct PoolingParams;
 struct PoolingParamsT;
+
+struct TileParams;
+struct TileParamsT;
 
 struct UPALayerTask;
 struct UPALayerTaskT;
@@ -195,11 +201,13 @@ enum SoftwareLayerParams {
   SoftwareLayerParams_SpatialTransformParams = 26,
   SoftwareLayerParams_FakeQuantizeParams = 27,
   SoftwareLayerParams_PoolingParams = 28,
+  SoftwareLayerParams_EdslParams = 29,
+  SoftwareLayerParams_TileParams = 30,
   SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
-  SoftwareLayerParams_MAX = SoftwareLayerParams_PoolingParams
+  SoftwareLayerParams_MAX = SoftwareLayerParams_TileParams
 };
 
-inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[29] {
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[31] {
   static const SoftwareLayerParams values[] = {
     SoftwareLayerParams_NONE,
     SoftwareLayerParams_DummyParams,
@@ -229,7 +237,9 @@ inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[29] {
     SoftwareLayerParams_CTCDecoderParams,
     SoftwareLayerParams_SpatialTransformParams,
     SoftwareLayerParams_FakeQuantizeParams,
-    SoftwareLayerParams_PoolingParams
+    SoftwareLayerParams_PoolingParams,
+    SoftwareLayerParams_EdslParams,
+    SoftwareLayerParams_TileParams
   };
   return values;
 }
@@ -265,13 +275,15 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
     "SpatialTransformParams",
     "FakeQuantizeParams",
     "PoolingParams",
+    "EdslParams",
+    "TileParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_PoolingParams) return "";
+  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_TileParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -390,6 +402,14 @@ template<> struct SoftwareLayerParamsTraits<FakeQuantizeParams> {
 
 template<> struct SoftwareLayerParamsTraits<PoolingParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_PoolingParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<EdslParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_EdslParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<TileParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_TileParams;
 };
 
 struct SoftwareLayerParamsUnion {
@@ -647,6 +667,22 @@ struct SoftwareLayerParamsUnion {
   const PoolingParamsT *AsPoolingParams() const {
     return type == SoftwareLayerParams_PoolingParams ?
       reinterpret_cast<const PoolingParamsT *>(value) : nullptr;
+  }
+  EdslParamsT *AsEdslParams() {
+    return type == SoftwareLayerParams_EdslParams ?
+      reinterpret_cast<EdslParamsT *>(value) : nullptr;
+  }
+  const EdslParamsT *AsEdslParams() const {
+    return type == SoftwareLayerParams_EdslParams ?
+      reinterpret_cast<const EdslParamsT *>(value) : nullptr;
+  }
+  TileParamsT *AsTileParams() {
+    return type == SoftwareLayerParams_TileParams ?
+      reinterpret_cast<TileParamsT *>(value) : nullptr;
+  }
+  const TileParamsT *AsTileParams() const {
+    return type == SoftwareLayerParams_TileParams ?
+      reinterpret_cast<const TileParamsT *>(value) : nullptr;
   }
 };
 
@@ -2499,6 +2535,84 @@ inline flatbuffers::Offset<CustomLayerParams> CreateCustomLayerParams(
 
 flatbuffers::Offset<CustomLayerParams> CreateCustomLayerParams(flatbuffers::FlatBufferBuilder &_fbb, const CustomLayerParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct EdslParamsT : public flatbuffers::NativeTable {
+  typedef EdslParams TableType;
+  uint32_t leonPreambleID;
+  std::unique_ptr<BinaryDataT> kernelData;
+  std::unique_ptr<BinaryDataT> paramData;
+  EdslParamsT()
+      : leonPreambleID(0) {
+  }
+};
+
+struct EdslParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef EdslParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_LEONPREAMBLEID = 4,
+    VT_KERNELDATA = 6,
+    VT_PARAMDATA = 8
+  };
+  uint32_t leonPreambleID() const {
+    return GetField<uint32_t>(VT_LEONPREAMBLEID, 0);
+  }
+  const BinaryData *kernelData() const {
+    return GetPointer<const BinaryData *>(VT_KERNELDATA);
+  }
+  const BinaryData *paramData() const {
+    return GetPointer<const BinaryData *>(VT_PARAMDATA);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_LEONPREAMBLEID) &&
+           VerifyOffset(verifier, VT_KERNELDATA) &&
+           verifier.VerifyTable(kernelData()) &&
+           VerifyOffset(verifier, VT_PARAMDATA) &&
+           verifier.VerifyTable(paramData()) &&
+           verifier.EndTable();
+  }
+  EdslParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EdslParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<EdslParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const EdslParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EdslParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_leonPreambleID(uint32_t leonPreambleID) {
+    fbb_.AddElement<uint32_t>(EdslParams::VT_LEONPREAMBLEID, leonPreambleID, 0);
+  }
+  void add_kernelData(flatbuffers::Offset<BinaryData> kernelData) {
+    fbb_.AddOffset(EdslParams::VT_KERNELDATA, kernelData);
+  }
+  void add_paramData(flatbuffers::Offset<BinaryData> paramData) {
+    fbb_.AddOffset(EdslParams::VT_PARAMDATA, paramData);
+  }
+  explicit EdslParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  EdslParamsBuilder &operator=(const EdslParamsBuilder &);
+  flatbuffers::Offset<EdslParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<EdslParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<EdslParams> CreateEdslParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t leonPreambleID = 0,
+    flatbuffers::Offset<BinaryData> kernelData = 0,
+    flatbuffers::Offset<BinaryData> paramData = 0) {
+  EdslParamsBuilder builder_(_fbb);
+  builder_.add_paramData(paramData);
+  builder_.add_kernelData(kernelData);
+  builder_.add_leonPreambleID(leonPreambleID);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<EdslParams> CreateEdslParams(flatbuffers::FlatBufferBuilder &_fbb, const EdslParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct PassthroughParamsT : public flatbuffers::NativeTable {
   typedef PassthroughParams TableType;
   uint32_t min_delay_us;
@@ -3153,14 +3267,23 @@ flatbuffers::Offset<GRNParams> CreateGRNParams(flatbuffers::FlatBufferBuilder &_
 
 struct CTCDecoderParamsT : public flatbuffers::NativeTable {
   typedef CTCDecoderParams TableType;
-  CTCDecoderParamsT() {
+  bool ctc_merge_repeated;
+  CTCDecoderParamsT()
+      : ctc_merge_repeated(false) {
   }
 };
 
 struct CTCDecoderParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef CTCDecoderParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_CTC_MERGE_REPEATED = 4
+  };
+  bool ctc_merge_repeated() const {
+    return GetField<uint8_t>(VT_CTC_MERGE_REPEATED, 0) != 0;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_CTC_MERGE_REPEATED) &&
            verifier.EndTable();
   }
   CTCDecoderParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -3171,6 +3294,9 @@ struct CTCDecoderParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 struct CTCDecoderParamsBuilder {
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
+  void add_ctc_merge_repeated(bool ctc_merge_repeated) {
+    fbb_.AddElement<uint8_t>(CTCDecoderParams::VT_CTC_MERGE_REPEATED, static_cast<uint8_t>(ctc_merge_repeated), 0);
+  }
   explicit CTCDecoderParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -3184,8 +3310,10 @@ struct CTCDecoderParamsBuilder {
 };
 
 inline flatbuffers::Offset<CTCDecoderParams> CreateCTCDecoderParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
+    flatbuffers::FlatBufferBuilder &_fbb,
+    bool ctc_merge_repeated = false) {
   CTCDecoderParamsBuilder builder_(_fbb);
+  builder_.add_ctc_merge_repeated(ctc_merge_repeated);
   return builder_.Finish();
 }
 
@@ -3536,6 +3664,72 @@ inline flatbuffers::Offset<PoolingParams> CreatePoolingParamsDirect(
 
 flatbuffers::Offset<PoolingParams> CreatePoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const PoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct TileParamsT : public flatbuffers::NativeTable {
+  typedef TileParams TableType;
+  uint32_t axis;
+  uint32_t tiles;
+  TileParamsT()
+      : axis(0),
+        tiles(0) {
+  }
+};
+
+struct TileParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef TileParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_AXIS = 4,
+    VT_TILES = 6
+  };
+  uint32_t axis() const {
+    return GetField<uint32_t>(VT_AXIS, 0);
+  }
+  uint32_t tiles() const {
+    return GetField<uint32_t>(VT_TILES, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_AXIS) &&
+           VerifyField<uint32_t>(verifier, VT_TILES) &&
+           verifier.EndTable();
+  }
+  TileParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TileParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<TileParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct TileParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_axis(uint32_t axis) {
+    fbb_.AddElement<uint32_t>(TileParams::VT_AXIS, axis, 0);
+  }
+  void add_tiles(uint32_t tiles) {
+    fbb_.AddElement<uint32_t>(TileParams::VT_TILES, tiles, 0);
+  }
+  explicit TileParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  TileParamsBuilder &operator=(const TileParamsBuilder &);
+  flatbuffers::Offset<TileParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<TileParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<TileParams> CreateTileParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t axis = 0,
+    uint32_t tiles = 0) {
+  TileParamsBuilder builder_(_fbb);
+  builder_.add_tiles(tiles);
+  builder_.add_axis(axis);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct UPALayerTaskT : public flatbuffers::NativeTable {
   typedef UPALayerTask TableType;
   uint8_t maxShaves;
@@ -3660,6 +3854,12 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const PoolingParams *softLayerParams_as_PoolingParams() const {
     return softLayerParams_type() == SoftwareLayerParams_PoolingParams ? static_cast<const PoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const EdslParams *softLayerParams_as_EdslParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_EdslParams ? static_cast<const EdslParams *>(softLayerParams()) : nullptr;
+  }
+  const TileParams *softLayerParams_as_TileParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_TileParams ? static_cast<const TileParams *>(softLayerParams()) : nullptr;
   }
   const TensorReference *input_data() const {
     return GetPointer<const TensorReference *>(VT_INPUT_DATA);
@@ -3820,6 +4020,14 @@ template<> inline const FakeQuantizeParams *UPALayerTask::softLayerParams_as<Fak
 
 template<> inline const PoolingParams *UPALayerTask::softLayerParams_as<PoolingParams>() const {
   return softLayerParams_as_PoolingParams();
+}
+
+template<> inline const EdslParams *UPALayerTask::softLayerParams_as<EdslParams>() const {
+  return softLayerParams_as_EdslParams();
+}
+
+template<> inline const TileParams *UPALayerTask::softLayerParams_as<TileParams>() const {
+  return softLayerParams_as_TileParams();
 }
 
 struct UPALayerTaskBuilder {
@@ -4027,6 +4235,12 @@ struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const PoolingParams *softLayerParams_as_PoolingParams() const {
     return softLayerParams_type() == SoftwareLayerParams_PoolingParams ? static_cast<const PoolingParams *>(softLayerParams()) : nullptr;
   }
+  const EdslParams *softLayerParams_as_EdslParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_EdslParams ? static_cast<const EdslParams *>(softLayerParams()) : nullptr;
+  }
+  const TileParams *softLayerParams_as_TileParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_TileParams ? static_cast<const TileParams *>(softLayerParams()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
@@ -4149,6 +4363,14 @@ template<> inline const FakeQuantizeParams *SNNLayerTask::softLayerParams_as<Fak
 
 template<> inline const PoolingParams *SNNLayerTask::softLayerParams_as<PoolingParams>() const {
   return softLayerParams_as_PoolingParams();
+}
+
+template<> inline const EdslParams *SNNLayerTask::softLayerParams_as<EdslParams>() const {
+  return softLayerParams_as_EdslParams();
+}
+
+template<> inline const TileParams *SNNLayerTask::softLayerParams_as<TileParams>() const {
+  return softLayerParams_as_TileParams();
 }
 
 struct SNNLayerTaskBuilder {
@@ -5796,6 +6018,38 @@ inline flatbuffers::Offset<CustomLayerParams> CreateCustomLayerParams(flatbuffer
       _paramData);
 }
 
+inline EdslParamsT *EdslParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new EdslParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void EdslParams::UnPackTo(EdslParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = leonPreambleID(); _o->leonPreambleID = _e; };
+  { auto _e = kernelData(); if (_e) _o->kernelData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
+  { auto _e = paramData(); if (_e) _o->paramData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
+}
+
+inline flatbuffers::Offset<EdslParams> EdslParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EdslParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateEdslParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<EdslParams> CreateEdslParams(flatbuffers::FlatBufferBuilder &_fbb, const EdslParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const EdslParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _leonPreambleID = _o->leonPreambleID;
+  auto _kernelData = _o->kernelData ? CreateBinaryData(_fbb, _o->kernelData.get(), _rehasher) : 0;
+  auto _paramData = _o->paramData ? CreateBinaryData(_fbb, _o->paramData.get(), _rehasher) : 0;
+  return MVCNN::CreateEdslParams(
+      _fbb,
+      _leonPreambleID,
+      _kernelData,
+      _paramData);
+}
+
 inline PassthroughParamsT *PassthroughParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = new PassthroughParamsT();
   UnPackTo(_o, _resolver);
@@ -6075,6 +6329,7 @@ inline CTCDecoderParamsT *CTCDecoderParams::UnPack(const flatbuffers::resolver_f
 inline void CTCDecoderParams::UnPackTo(CTCDecoderParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
+  { auto _e = ctc_merge_repeated(); _o->ctc_merge_repeated = _e; };
 }
 
 inline flatbuffers::Offset<CTCDecoderParams> CTCDecoderParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CTCDecoderParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -6085,8 +6340,10 @@ inline flatbuffers::Offset<CTCDecoderParams> CreateCTCDecoderParams(flatbuffers:
   (void)_rehasher;
   (void)_o;
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const CTCDecoderParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _ctc_merge_repeated = _o->ctc_merge_repeated;
   return MVCNN::CreateCTCDecoderParams(
-      _fbb);
+      _fbb,
+      _ctc_merge_repeated);
 }
 
 inline SpatialTransformParamsT *SpatialTransformParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -6198,6 +6455,35 @@ inline flatbuffers::Offset<PoolingParams> CreatePoolingParams(flatbuffers::FlatB
       _pads_end,
       _rounding_type,
       _auto_pad);
+}
+
+inline TileParamsT *TileParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new TileParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void TileParams::UnPackTo(TileParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = axis(); _o->axis = _e; };
+  { auto _e = tiles(); _o->tiles = _e; };
+}
+
+inline flatbuffers::Offset<TileParams> TileParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateTileParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const TileParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _axis = _o->axis;
+  auto _tiles = _o->tiles;
+  return MVCNN::CreateTileParams(
+      _fbb,
+      _axis,
+      _tiles);
 }
 
 inline UPALayerTaskT *UPALayerTask::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -6773,6 +7059,14 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const PoolingParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case SoftwareLayerParams_EdslParams: {
+      auto ptr = reinterpret_cast<const EdslParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SoftwareLayerParams_TileParams: {
+      auto ptr = reinterpret_cast<const TileParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return false;
   }
 }
@@ -6903,6 +7197,14 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const PoolingParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_EdslParams: {
+      auto ptr = reinterpret_cast<const EdslParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SoftwareLayerParams_TileParams: {
+      auto ptr = reinterpret_cast<const TileParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -7021,6 +7323,14 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const PoolingParamsT *>(value);
       return CreatePoolingParams(_fbb, ptr, _rehasher).Union();
     }
+    case SoftwareLayerParams_EdslParams: {
+      auto ptr = reinterpret_cast<const EdslParamsT *>(value);
+      return CreateEdslParams(_fbb, ptr, _rehasher).Union();
+    }
+    case SoftwareLayerParams_TileParams: {
+      auto ptr = reinterpret_cast<const TileParamsT *>(value);
+      return CreateTileParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -7137,6 +7447,14 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_PoolingParams: {
       FLATBUFFERS_ASSERT(false);  // PoolingParamsT not copyable.
+      break;
+    }
+    case SoftwareLayerParams_EdslParams: {
+      FLATBUFFERS_ASSERT(false);  // EdslParamsT not copyable.
+      break;
+    }
+    case SoftwareLayerParams_TileParams: {
+      value = new TileParamsT(*reinterpret_cast<TileParamsT *>(u.value));
       break;
     }
     default:
@@ -7283,6 +7601,16 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_PoolingParams: {
       auto ptr = reinterpret_cast<PoolingParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_EdslParams: {
+      auto ptr = reinterpret_cast<EdslParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_TileParams: {
+      auto ptr = reinterpret_cast<TileParamsT *>(value);
       delete ptr;
       break;
     }
