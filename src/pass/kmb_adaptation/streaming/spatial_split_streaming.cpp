@@ -171,17 +171,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
     //todo:: get debug, and get rid of this if....
-    mv::Data::TensorIterator copyInput;
-//    if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") != mv::Tensor::MemoryLocation::NNCMX)
-        copyInput = om.slice(inputTensor,
-                                    mv::Shape({0,0,0,0}),
-                                    inputTensor->getShape(),
-                                    inputQuantParams,
-                                    inputTensor->getName() + "_KStreamCopyIn");
-//    else
-//        copyInput = inputTensor;
-
-//    copyInput = om.copy(inputTensor,inputTensor->get<mv::DType>("dType"),inputQuantParams,inputTensor->getName() + "_KStreamCopyIn");
+    auto copyInput = om.slice(inputTensor,
+                                mv::Shape({0,0,0,0}),
+                                inputTensor->getShape(),
+                                inputQuantParams,
+                                inputTensor->getName() + "_KStreamCopyIn");
     auto copyInputOp = om.getSourceOp(copyInput);
     copyInputOp->set<unsigned>("opId", opId);
     copyInputOp->set<std::string>("splitStrategy", splitStrategy);
