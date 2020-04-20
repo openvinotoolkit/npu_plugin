@@ -32,8 +32,6 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
-         std::string opType = opIt->getOpType();
-
         if (opIt->isImplicit())
         {
             auto input = opIt->getInputTensor(0);
@@ -68,7 +66,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
         {
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(!(outputOp->isImplicit()))
+            while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
@@ -133,14 +131,14 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             auto input = opIt->getInputTensor(0);
             // Recursively search for non-implicit input op
             auto inputOp = om.getSourceOp(input);
-            while(!(inputOp->isImplicit()))
+            while(inputOp->isImplicit())
             {
                 input = inputOp->getInputTensor(0);
                 inputOp = om.getSourceOp(input);
             }
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(!(outputOp->isImplicit()))
+            while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
