@@ -490,9 +490,22 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
-    // Just one input for now
-    toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+    // Support multiple inputs
+    auto numInputs = om.getNumNetworkInputs();
+    if (numInputs == 1)
+    {
+        toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+        toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+    }
+    else
+    {
+        auto implicitInputOps = om.getNetworkInputs();
+        toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitInputOps.size());
+        for (size_t i = 0; i < implicitInputOps.size(); i++)
+        {
+            toBuild->net_input[i] = buildTensorReferenceT(cm, compilationDescriptor, implicitInputOps[i]->getOutputTensor(0));
+        }
+    }
 
     auto numOutputs = om.getNumNetworkOutputs();
 
