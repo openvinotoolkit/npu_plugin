@@ -37,10 +37,10 @@ class HDDL2BlobParams {
 public:
     explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config);
 
-    InferenceEngine::ParamMap getParamMap() const { return _paramMap; };
-    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; };
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; };
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; };
+    InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
+    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
+    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
@@ -64,7 +64,7 @@ public:
     /**
      * @details Since Remote blob just wrap remote memory, allocation is not required
      */
-    void allocate() noexcept override {};
+    void allocate() noexcept override {}
 
     /**
      * @brief Deallocate local memory
@@ -84,15 +84,15 @@ public:
 
     std::shared_ptr<InferenceEngine::RemoteContext> getContext() const noexcept override;
 
-    InferenceEngine::ParamMap getParams() const override { return _params.getParamMap(); };
+    InferenceEngine::ParamMap getParams() const override { return _params.getParamMap(); }
 
     std::string getDeviceName() const noexcept override;
 
-    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; };
+    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
 
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; };
+    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
 
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; };
+    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
 
     size_t size() const noexcept override;
 

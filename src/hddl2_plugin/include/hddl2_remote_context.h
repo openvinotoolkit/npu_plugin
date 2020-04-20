@@ -71,7 +71,7 @@ public:
     std::string getDeviceName() const noexcept override;
 
     InferenceEngine::ParamMap getParams() const override;
-    const HDDL2ContextParams& getContextParams() const { return _contextParams; };
+    const HDDL2ContextParams& getContextParams() const { return _contextParams; }
     HDDL2RemoteAllocator::Ptr getAllocator();
     HddlUnite::WorkloadContext::Ptr getHddlUniteWorkloadContext() const;
 
