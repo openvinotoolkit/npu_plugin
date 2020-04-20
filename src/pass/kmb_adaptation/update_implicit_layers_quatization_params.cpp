@@ -34,10 +34,7 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     {
          std::string opType = opIt->getOpType();
 
-        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape"
-            || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
-            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align"
-            || opIt->getOpType() ==  "ImplicitOutput")
+        if (opIt->isImplicit())
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
@@ -67,11 +64,11 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
-        if (opType == "Crop")
+        else if (opType == "Crop")
         {
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(!(outputOp->hasTypeTrait("executable") || outputOp->hasTypeTrait("exposed")))
+            while(!(outputOp->isImplicit()))
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
@@ -131,21 +128,19 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
             }
         }
-
-
-        if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
+        else if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
         {
             auto input = opIt->getInputTensor(0);
             // Recursively search for non-implicit input op
             auto inputOp = om.getSourceOp(input);
-            while(!(inputOp->hasTypeTrait("executable") || inputOp->hasTypeTrait("exposed")))
+            while(!(inputOp->isImplicit()))
             {
                 input = inputOp->getInputTensor(0);
                 inputOp = om.getSourceOp(input);
             }
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(!(outputOp->hasTypeTrait("executable") || outputOp->hasTypeTrait("exposed")))
+            while(!(outputOp->isImplicit()))
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
