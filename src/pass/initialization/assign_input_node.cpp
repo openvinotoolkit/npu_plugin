@@ -66,5 +66,7 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
 
 	    linkNewOperationsReplacement(parentOp, implicitInput, om, networkInputOp);
 
+        om.replaceNetworkInputAtIdx(i, om.getSourceOp(implicitInput));
+
     }
 }
