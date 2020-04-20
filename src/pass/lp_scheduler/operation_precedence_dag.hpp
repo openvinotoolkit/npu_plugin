@@ -33,7 +33,7 @@ struct model_traits<mv::ControlModel> {
 
   //TODO(vamsikku): reference to model must be const here //
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getFirst();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -54,7 +54,7 @@ struct model_traits<mv::OpModel> {
 
 
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getInput();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(

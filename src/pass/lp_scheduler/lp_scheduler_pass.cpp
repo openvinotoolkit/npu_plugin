@@ -80,7 +80,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     assert(status);
   }
 
-  for (auto itr=om.getInput(); itr!=om.opEnd(); ++itr) {
+  for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
     mv::Op &op = *itr;
     if (!op.outputSlots()) { continue; }
 
