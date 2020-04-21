@@ -276,6 +276,13 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_scheduler.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
