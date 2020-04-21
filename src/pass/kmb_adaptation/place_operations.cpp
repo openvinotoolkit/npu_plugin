@@ -65,6 +65,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 placeEltwiseDequantize(om, opIt);
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
+                opIt->set<mv::DType>("dType", mv::DType("Float16"));
                 //NOTE: Do not care of the data type of input but it will be float so all
                 //inputs and outputs need to be converted to float, populated need de-quantize!!!
                 for(std::size_t i = 0; i < opIt->inputSlots(); ++i)

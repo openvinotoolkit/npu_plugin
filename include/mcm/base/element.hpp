@@ -34,6 +34,7 @@ namespace mv
         Element(const char* name);
         Element(const Element& other);
         virtual std::map<std::string, Attribute> getAttrs(const std::vector<std::string>& forbiddenKeys = {}) const;
+        virtual std::map<std::string, Attribute> attrsToCopy(const std::vector<std::string>& forbiddenKeys = {}) const;
         void setAttrs(const std::map<std::string, Attribute>& attrs);
 
         /**

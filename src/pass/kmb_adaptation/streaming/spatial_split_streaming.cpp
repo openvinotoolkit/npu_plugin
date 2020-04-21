@@ -192,14 +192,13 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
-    auto inputTensor2Conv = inputTensor ;
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
     bool nestedLayerStreaming = false;
 
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat"
-                                    , "placeConversionToFloat", "Int32Output"});
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat", "dType", "splitStrategy"
+                                    , "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -433,9 +432,10 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
     // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "floatPrecision", "mixedToFloat"
-                                     , "placeConversionToFloat", "Int32Output"});
-    std::vector<mv::Shape> spatial_indexes(number_of_splits);
+    std::vector<std::string> attrs = {"stride", "padding", "shape", "floatPrecision", "mixedToFloat", "dType", "bias", "splitStrategy"
+                                      , "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"};
+//    auto attrsToCopy = op->getAttrs(attrs);
+    auto attrsToCopy = op->attrsToCopy(attrs);
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);

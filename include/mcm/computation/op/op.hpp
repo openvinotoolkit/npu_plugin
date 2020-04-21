@@ -41,6 +41,7 @@ namespace mv
         Data::TensorIterator getOutputTensor(const std::string& label);
         std::vector<Data::TensorIterator> getOutputTensor();
         std::map<std::string, mv::Attribute> getAttrs(const std::vector<std::string>& forbiddenKeys = {}) const;
+        std::map<std::string, mv::Attribute> attrsToCopy(const std::vector<std::string>& forbiddenKeys = {}) const;
 
         std::size_t inputSlots() const;
         std::size_t outputSlots() const;

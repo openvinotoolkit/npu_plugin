@@ -256,6 +256,16 @@ std::map<std::string, mv::Attribute> mv::Element::getAttrs(const std::vector<std
     return toReturn;
 }
 
+std::map<std::string, mv::Attribute> mv::Element::attrsToCopy(const std::vector<std::string>& forbiddenKeys) const
+{
+    std::map<std::string, Attribute> all(attrs_);
+    std::map<std::string, Attribute> toReturn;
+    for(auto& s: forbiddenKeys)
+        if(all.find(s) != all.end())
+            toReturn.emplace(s, all.at(s));
+    return toReturn;
+}
+
 void mv::Element::setAttrs(const std::map<std::string, Attribute>& attrs)
 {
     attrs_.insert(attrs.begin(), attrs.end());

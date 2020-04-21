@@ -6,9 +6,10 @@
 #include "include/mcm/op_model.hpp"
 #include <regex>
 
-static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -16,22 +17,10 @@ namespace mv
     namespace pass
     {
 
-        MV_REGISTER_PASS(StoreLayerSplitStrategy)
-        .setFunc(storeLayerSplitStrategyFcn)
+        MV_REGISTER_PASS(StoreGraphOptimizerDecisions)
+        .setFunc(storeGraphOptimizerDecisions)
         .setDescription(
-            "This pass applies layer splitting strategies."
-        );
-
-        MV_REGISTER_PASS(StoreLayerSparsityStrategy)
-        .setFunc(storeLayerSparsityStrategyFcn)
-        .setDescription(
-            "This pass applies layer sparsity strategies."
-        );
-
-        MV_REGISTER_PASS(StoreTensorPlacement)
-        .setFunc(storeTensorPlacementFcn)
-        .setDescription(
-            "This pass applies the memory location overrides for the Tensors from the JSON file."
+            "This pass stores to the graph the output of graph optimizer."
         );
     }
 }
@@ -54,7 +43,16 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
     }
 }
 
-void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+
+void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    storeLayerSplitStrategyFcn(pass, model);
+    storeLayerSparsityStrategyFcn(pass, model);
+    storeTensorPlacementFcn(pass, model);
+}
+
+void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -88,7 +86,7 @@ void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::Computation
     }
 }
 
-void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -141,10 +139,7 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
 }
 
 void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
-                                mv::ComputationModel& model,
-                                mv::TargetDescriptor&,
-                                mv::Element&,
-                                mv::Element&)
+                                mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

@@ -106,6 +106,13 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/placement.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
@@ -180,9 +187,15 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_graph.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "StreamingOperations",
             "StreamBinaryDataWeights"
         ]
@@ -193,7 +206,21 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_tasks.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "ConvertOpsToTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_tasks.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
@@ -205,6 +232,13 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/populated_sparsity.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",

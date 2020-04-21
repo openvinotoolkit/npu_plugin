@@ -189,6 +189,27 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 if(weightsTensor->setSparse())
                     dm.defineTensor(weightsTensor->getSparsityMap());
             }
+            //NOTE: Here is handled a specific case and this is why is treated seperately
+            if (dpuTask->getOpType() == "DPUTask" && dpuTask->get<std::string>("taskOp") == "Conv")
+            {
+                if (dpuTask->hasAttr("activationSparsityCompilerSolving") && dpuTask->get<bool>("activationSparsityCompilerSolving"))
+                {
+                    auto inputTensor = dpuTask->getInputTensor(0);
+                    //every element of sparsity map describes 8 elements of normal tensor
+                    auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
+                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                                               {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
+                                               {1}});
+                    std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 1);
+                    mv::QuantizationParams quantParams = {{},{},{},{}};
+                    std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
+                    auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
+                    om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                    unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
+                    om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
+                    dpuTask->set<size_t>("unpopulatedSparsityMapIndex", newInputsSize - 1);
+                }
+            }
         }
     }
 }

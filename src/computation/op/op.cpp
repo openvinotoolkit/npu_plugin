@@ -269,6 +269,13 @@ std::map<std::string, mv::Attribute> mv::Op::getAttrs(const std::vector<std::str
     return mv::Element::getAttrs(finalVector);
 }
 
+std::map<std::string, mv::Attribute> mv::Op::attrsToCopy(const std::vector<std::string>& forbiddenKeys) const
+{
+    std::vector<std::string> forbiddenWords = {"name", "opType", "traits"};
+    std::vector<std::string> finalVector(forbiddenKeys);
+    finalVector.insert(finalVector.end(), forbiddenWords.begin(), forbiddenWords.end());
+    return mv::Element::attrsToCopy(finalVector);
+}
 
 std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
 {
