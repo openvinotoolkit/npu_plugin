@@ -1073,6 +1073,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/copy.cpp"
 #include    "src/computation/op/def/constant.cpp"
 #include    "src/computation/op/def/conv.cpp"
+#include    "src/computation/op/def/deconv.cpp"
 #include    "src/computation/op/def/conversion.cpp"
 #include    "src/computation/op/def/crop.cpp"
 #include    "src/computation/op/def/custom.cpp"
