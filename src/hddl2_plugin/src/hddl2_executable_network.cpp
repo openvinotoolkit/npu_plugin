@@ -15,7 +15,7 @@
 //
 
 #include <hddl2_executable_network.h>
-#include <hddl2_helpers.h>
+#include <ie_macro.hpp>
 #include <hddl2_infer_request.h>
 #include <hddl2_metrics.h>
 

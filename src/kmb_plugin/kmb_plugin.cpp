@@ -25,6 +25,8 @@
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "ie_macro.hpp"
+
 using namespace InferenceEngine;
 using namespace vpu::KmbPlugin;
 

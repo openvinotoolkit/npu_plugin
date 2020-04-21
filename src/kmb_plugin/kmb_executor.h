@@ -51,7 +51,7 @@ public:
     //  FIXME: should be removed and handled via network input info
     InferenceEngine::Layout _inputNetworkLayout = InferenceEngine::Layout::NCHW;
     explicit KmbExecutor(const KmbConfig& config);
-    ~KmbExecutor() = default;
+    virtual ~KmbExecutor() = default;
 
     virtual void allocateGraph(const std::vector<char>& graphFileContent);
 

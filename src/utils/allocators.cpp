@@ -23,6 +23,7 @@
 
 #include "allocators.hpp"
 #include "../kmb_plugin/kmb_allocator.h"
+#include "ie_macro.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
 #include "vpusmm.h"

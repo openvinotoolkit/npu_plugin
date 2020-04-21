@@ -15,6 +15,7 @@
 //
 
 #include "kmb_udma_allocator.h"
+#include "ie_macro.hpp"
 
 #include <fcntl.h>
 #include <sys/ioctl.h>

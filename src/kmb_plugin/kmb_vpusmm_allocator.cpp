@@ -15,6 +15,7 @@
 //
 
 #include "kmb_vpusmm_allocator.h"
+#include "ie_macro.hpp"
 
 #include <sys/ioctl.h>
 #include <sys/mman.h>

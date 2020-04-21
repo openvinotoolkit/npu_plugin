@@ -122,8 +122,7 @@ ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config
     ConfigureExecutor("ExecutableNetwork");
 }
 
-void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc* resp) const {
-    UNUSED(resp);
+void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc*) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
     } else {

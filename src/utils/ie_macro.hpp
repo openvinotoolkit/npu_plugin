@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,12 +16,6 @@
 
 #pragma once
 
-namespace vpu {
-namespace HDDL2Plugin {
-
 #ifndef UNUSED
 #define UNUSED(var) (void)var
 #endif
-
-}  //  namespace HDDL2Plugin
-}  //  namespace vpu

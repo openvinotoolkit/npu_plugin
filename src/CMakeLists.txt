@@ -9,7 +9,8 @@ if (AARCH64 OR ARM)
     file(GLOB_RECURSE HEADERS ${CMAKE_CURRENT_SOURCE_DIR}/kmb_plugin/*.hpp ${CMAKE_CURRENT_SOURCE_DIR}/kmb_plugin/*.h)
     set(ENGINE_SOURCE_FILE kmb_plugin/kmb_plugin.cpp)
     set(HEADERS_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/kmb_plugin
-                     ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu)
+                     ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu
+                     ${CMAKE_CURRENT_SOURCE_DIR}/utils)
     set(LIBRARIES ${VPUAL_NN_LIBRARY} ${GAPI_SIPP_LIBRARY} vpusmm)
 elseif(X86 OR X86_64)
     file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/hddl2_plugin/src/*.cpp)

@@ -23,7 +23,7 @@
 
 #include "blob_parser.hpp"
 #include "hddl2_exceptions.h"
-#include "hddl2_helpers.h"
+#include "ie_macro.hpp"
 #include "mcm_adapter.hpp"
 
 using namespace vpu::HDDL2Plugin;
