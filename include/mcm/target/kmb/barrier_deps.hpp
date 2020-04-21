@@ -8,16 +8,40 @@ namespace mv
 {
     class BarrierDependencies : public LogSender
     {
-        int waitBarrier_;
+        //TODO(vamsikku): why is barrierID int and these are unsigned ?
+        std::vector<unsigned> waitBarriers_;
         std::vector<unsigned> updateBarriers_;
+
+        void toStringBarrierVector(const std::vector<unsigned>&,
+              std::string& ) const;
     
     public:
-        BarrierDependencies();
-        void setWaitBarrier(int barrierId);
-        void addUpdateBarrier(int barrierId);
 
-        int getWait();
-        std::vector<unsigned> getUpdate();
+        BarrierDependencies();
+        bool hasWaitBarriers() const { return !(waitBarriers_.empty()); }
+        void addUpdateBarrier(int barrierId);
+        void addWaitBarrier(int barrierId);
+
+        void clear() { waitBarriers_.clear(); updateBarriers_.clear(); }
+
+        const std::vector<unsigned>& getWait();
+        const std::vector<unsigned>& getUpdate();
+
+        bool hasWaitBarrierWithID(unsigned id) const {
+          for (auto itr=waitBarriers_.begin();
+                itr!=waitBarriers_.end(); ++itr) {
+            if (*itr == id) { return true; }
+          }
+          return false;
+        }
+
+        bool hasUpdateBarrierWithID(unsigned id) const {
+          for (auto itr=updateBarriers_.begin();
+                itr!=updateBarriers_.end(); ++itr) {
+            if (*itr == id) { return true; }
+          }
+          return false;
+        }
 
         std::string getLogID() const override;
         std::string toString() const;

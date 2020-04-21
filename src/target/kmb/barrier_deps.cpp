@@ -1,13 +1,23 @@
 #include "include/mcm/target/kmb/barrier_deps.hpp"
 
 mv::BarrierDependencies::BarrierDependencies() :
-waitBarrier_(-1)
+waitBarriers_(), updateBarriers_()
 {}
 
-void mv::BarrierDependencies::setWaitBarrier(int barrierId)
-{
-    waitBarrier_ = barrierId;
+void mv::BarrierDependencies::toStringBarrierVector(
+    const std::vector<unsigned>& in, std::string& output) const {
+
+  if (!in.empty()) {
+    size_t i, n1=(in.size())-1UL;
+
+    for (i=0UL; i<n1; i++) {
+      output += std::to_string(in[i]);
+      output += ", ";
+    }
+    output += std::to_string(in[n1]);
+  }
 }
+
 
 void mv::BarrierDependencies::addUpdateBarrier(int barrierId)
 {
@@ -15,12 +25,17 @@ void mv::BarrierDependencies::addUpdateBarrier(int barrierId)
     updateBarriers_.push_back(barrierId);
 }
 
-int mv::BarrierDependencies::getWait()
+void mv::BarrierDependencies::addWaitBarrier(int barrierId)
 {
-    return waitBarrier_;
+    waitBarriers_.push_back(barrierId);
 }
 
-std::vector<unsigned> mv::BarrierDependencies::getUpdate()
+const std::vector<unsigned>& mv::BarrierDependencies::getWait()
+{
+    return waitBarriers_;
+}
+
+const std::vector<unsigned>& mv::BarrierDependencies::getUpdate()
 {
     return updateBarriers_;
 }
@@ -29,14 +44,12 @@ std::string mv::BarrierDependencies::toString() const
 {
     std::string output = "";
 
-    output += "Wait {" + std::to_string(waitBarrier_) + "} | ";
+    output += "Wait {";
+    this->toStringBarrierVector(waitBarriers_, output); 
+    output += "} | ";
+
     output += "Update {";
-    for (size_t i = 0; i < updateBarriers_.size(); i++)
-    {
-        output += std::to_string(updateBarriers_[i]);
-        if (i < updateBarriers_.size() - 1)
-            output += ", ";
-    }
+    this->toStringBarrierVector(updateBarriers_, output);
     output += "}";
 
     return output;

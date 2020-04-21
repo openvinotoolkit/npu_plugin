@@ -61,6 +61,9 @@ file(GLOB transitive_reduction_algorithm
     "${CMAKE_SOURCE_DIR}/tests/unit/graph/graph_transitive_reduction.cpp"
 )
 
+file(GLOB barrier_deps_test 
+    "${CMAKE_SOURCE_DIR}/tests/unit/target/kmb/barriers_test.cpp"
+)
 file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/scheduler/*\_test.cpp"
   "${CMAKE_SOURCE_DIR}/src/pass/lp_scheduler/*\_test.cpp"
@@ -96,6 +99,7 @@ add_executable(mcm_unit_tests
     ${scheduler_unit_tests}
     ${hde_unit_tests}
     ${runtime_model_unit_tests}
+    ${barrier_deps_test}
     ${transitive_reduction_algorithm}
     ${fake_quantize_processing_unit_tests}
 )

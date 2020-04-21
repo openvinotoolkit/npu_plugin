@@ -6,8 +6,11 @@ mv::Barrier::Barrier(int group, int index) :
 group_(group),
 index_(index),
 barrierID_(barrierCounter_),
+realBarrierIndex_(),
 numProducers_(0),
-numConsumers_(0)
+numConsumers_(0),
+producers_(),
+consumers_()
 {
     barrierCounter_++;
 }
@@ -16,6 +19,7 @@ mv::Barrier::Barrier(int group, int index, std::set<std::string>& producers, std
 group_(group),
 index_(index),
 barrierID_(barrierCounter_),
+realBarrierIndex_(),
 numProducers_(producers.size()),
 numConsumers_(consumers.size()),
 producers_(producers),
@@ -28,6 +32,7 @@ mv::Barrier::Barrier(std::set<std::string>& producers, std::set<std::string>& co
 group_(-1),
 index_(-1),
 barrierID_(barrierCounter_),
+realBarrierIndex_(),
 numProducers_(producers.size()),
 numConsumers_(consumers.size()),
 producers_(producers),
@@ -146,12 +151,12 @@ void mv::Barrier::clear()
     consumers_.clear();
 }
 
-bool mv::Barrier::hasProducers()
+bool mv::Barrier::hasProducers() const
 {
     return !producers_.empty();
 }
 
-bool mv::Barrier::hasConsumers()
+bool mv::Barrier::hasConsumers() const
 {
     return !consumers_.empty();
 }

@@ -75,6 +75,7 @@ class Operation_Dag {
     // resource cost model //
     typedef size_t resource_t;
     typedef std::unordered_map<operation_t, resource_t> resource_cost_model_t;
+    typedef typename resource_cost_model_t::iterator resource_cost_iterator_t;
     typedef std::unordered_set<operation_t> data_op_set_t;
     // delay cost model //
     typedef size_t delay_t;
@@ -230,6 +231,11 @@ class Operation_Dag {
       return const_operation_iterator_t();
     }
 
+    void reset(const adjacency_map_t& adj_map) {
+      adj_map_ = adj_map;
+      init();
+    }
+
     // Precondition: new delay model most have an entry for every op. //
     void reset_delay_model(const delay_cost_model_t& delay_model) {
       delay_cost_model_.clear();
@@ -240,6 +246,12 @@ class Operation_Dag {
     void reset_resource_model(const resource_cost_model_t& resource_model) {
       resource_cost_model_.clear();
       resource_cost_model_ = resource_model;
+    }
+
+    void reset_resource_utility(const operation_t& op, resource_t new_utility) {
+      resource_cost_iterator_t itr = resource_cost_model_.find(op);
+      assert(itr != resource_cost_model_.end());
+      itr->second = new_utility;
     }
 
     const operation_t& get_operation(const std::string& name) const {
