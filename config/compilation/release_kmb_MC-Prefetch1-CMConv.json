@@ -201,8 +201,7 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            "MarkTrailingUPATasks"
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
