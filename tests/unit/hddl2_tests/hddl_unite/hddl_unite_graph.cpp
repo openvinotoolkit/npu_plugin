@@ -49,8 +49,8 @@ TEST_F(HddlUniteGraph_UnitTests, constructor_withContext_NoThrow) {
     ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph, context));
 }
 
-TEST_F(HddlUniteGraph_UnitTests, InferSync_nullData_Throw) {
+TEST_F(HddlUniteGraph_UnitTests, InferAsync_nullData_Throw) {
     HddlUniteGraph hddlUniteGraph(graph);
 
-    ASSERT_ANY_THROW(hddlUniteGraph.InferSync(nullptr));
+    ASSERT_ANY_THROW(hddlUniteGraph.InferAsync(nullptr));
 }

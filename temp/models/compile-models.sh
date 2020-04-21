@@ -33,13 +33,14 @@ else
     fi
 fi
 
+modelsPath="`dirname "$0"`"
 
 IFS=""
 countFailures=0
 countModels=0
 OIFS="$IFS"
 IFS=$'\n'
-for filenameIR in `find . -type f -name "*.xml"`
+for filenameIR in `find $modelsPath -type f -name "*.xml"`
 do
    echo "$vpu2_compilePath -m $filenameIR -op FP16"
    $vpu2_compilePath -m "$filenameIR" -op FP16

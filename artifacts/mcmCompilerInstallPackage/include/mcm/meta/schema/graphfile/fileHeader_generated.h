@@ -433,6 +433,8 @@ struct SummaryHeaderT : public flatbuffers::NativeTable {
   std::vector<ExecutionFlag> options;
   std::unique_ptr<ResourcesT> resources;
   std::unique_ptr<SourceStructureT> original_structure;
+  std::vector<std::unique_ptr<TensorReferenceT>> in_tensor_desc;
+  std::vector<std::unique_ptr<TensorReferenceT>> out_tensor_desc;
   SummaryHeaderT()
       : task_count(0),
         layer_count(0) {
@@ -450,7 +452,9 @@ struct SummaryHeader FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_LAYER_COUNT = 14,
     VT_OPTIONS = 16,
     VT_RESOURCES = 18,
-    VT_ORIGINAL_STRUCTURE = 20
+    VT_ORIGINAL_STRUCTURE = 20,
+    VT_IN_TENSOR_DESC = 22,
+    VT_OUT_TENSOR_DESC = 24
   };
   const Version *version() const {
     return GetPointer<const Version *>(VT_VERSION);
@@ -479,6 +483,12 @@ struct SummaryHeader FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const SourceStructure *original_structure() const {
     return GetPointer<const SourceStructure *>(VT_ORIGINAL_STRUCTURE);
   }
+  const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *in_tensor_desc() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *>(VT_IN_TENSOR_DESC);
+  }
+  const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *out_tensor_desc() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *>(VT_OUT_TENSOR_DESC);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_VERSION) &&
@@ -499,6 +509,12 @@ struct SummaryHeader FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyTable(resources()) &&
            VerifyOffset(verifier, VT_ORIGINAL_STRUCTURE) &&
            verifier.VerifyTable(original_structure()) &&
+           VerifyOffset(verifier, VT_IN_TENSOR_DESC) &&
+           verifier.VerifyVector(in_tensor_desc()) &&
+           verifier.VerifyVectorOfTables(in_tensor_desc()) &&
+           VerifyOffset(verifier, VT_OUT_TENSOR_DESC) &&
+           verifier.VerifyVector(out_tensor_desc()) &&
+           verifier.VerifyVectorOfTables(out_tensor_desc()) &&
            verifier.EndTable();
   }
   SummaryHeaderT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -536,6 +552,12 @@ struct SummaryHeaderBuilder {
   void add_original_structure(flatbuffers::Offset<SourceStructure> original_structure) {
     fbb_.AddOffset(SummaryHeader::VT_ORIGINAL_STRUCTURE, original_structure);
   }
+  void add_in_tensor_desc(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> in_tensor_desc) {
+    fbb_.AddOffset(SummaryHeader::VT_IN_TENSOR_DESC, in_tensor_desc);
+  }
+  void add_out_tensor_desc(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> out_tensor_desc) {
+    fbb_.AddOffset(SummaryHeader::VT_OUT_TENSOR_DESC, out_tensor_desc);
+  }
   explicit SummaryHeaderBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -558,8 +580,12 @@ inline flatbuffers::Offset<SummaryHeader> CreateSummaryHeader(
     uint32_t layer_count = 0,
     flatbuffers::Offset<flatbuffers::Vector<int8_t>> options = 0,
     flatbuffers::Offset<Resources> resources = 0,
-    flatbuffers::Offset<SourceStructure> original_structure = 0) {
+    flatbuffers::Offset<SourceStructure> original_structure = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> in_tensor_desc = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> out_tensor_desc = 0) {
   SummaryHeaderBuilder builder_(_fbb);
+  builder_.add_out_tensor_desc(out_tensor_desc);
+  builder_.add_in_tensor_desc(in_tensor_desc);
   builder_.add_original_structure(original_structure);
   builder_.add_resources(resources);
   builder_.add_options(options);
@@ -582,11 +608,15 @@ inline flatbuffers::Offset<SummaryHeader> CreateSummaryHeaderDirect(
     uint32_t layer_count = 0,
     const std::vector<int8_t> *options = nullptr,
     flatbuffers::Offset<Resources> resources = 0,
-    flatbuffers::Offset<SourceStructure> original_structure = 0) {
+    flatbuffers::Offset<SourceStructure> original_structure = 0,
+    const std::vector<flatbuffers::Offset<TensorReference>> *in_tensor_desc = nullptr,
+    const std::vector<flatbuffers::Offset<TensorReference>> *out_tensor_desc = nullptr) {
   auto identifier__ = identifier ? _fbb.CreateString(identifier) : 0;
   auto net_input__ = net_input ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*net_input) : 0;
   auto net_output__ = net_output ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*net_output) : 0;
   auto options__ = options ? _fbb.CreateVector<int8_t>(*options) : 0;
+  auto in_tensor_desc__ = in_tensor_desc ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*in_tensor_desc) : 0;
+  auto out_tensor_desc__ = out_tensor_desc ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*out_tensor_desc) : 0;
   return MVCNN::CreateSummaryHeader(
       _fbb,
       version,
@@ -597,7 +627,9 @@ inline flatbuffers::Offset<SummaryHeader> CreateSummaryHeaderDirect(
       layer_count,
       options__,
       resources,
-      original_structure);
+      original_structure,
+      in_tensor_desc__,
+      out_tensor_desc__);
 }
 
 flatbuffers::Offset<SummaryHeader> CreateSummaryHeader(flatbuffers::FlatBufferBuilder &_fbb, const SummaryHeaderT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -732,6 +764,8 @@ inline void SummaryHeader::UnPackTo(SummaryHeaderT *_o, const flatbuffers::resol
   { auto _e = options(); if (_e) { _o->options.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->options[_i] = static_cast<ExecutionFlag>(_e->Get(_i)); } } };
   { auto _e = resources(); if (_e) _o->resources = std::unique_ptr<ResourcesT>(_e->UnPack(_resolver)); };
   { auto _e = original_structure(); if (_e) _o->original_structure = std::unique_ptr<SourceStructureT>(_e->UnPack(_resolver)); };
+  { auto _e = in_tensor_desc(); if (_e) { _o->in_tensor_desc.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->in_tensor_desc[_i] = std::unique_ptr<TensorReferenceT>(_e->Get(_i)->UnPack(_resolver)); } } };
+  { auto _e = out_tensor_desc(); if (_e) { _o->out_tensor_desc.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->out_tensor_desc[_i] = std::unique_ptr<TensorReferenceT>(_e->Get(_i)->UnPack(_resolver)); } } };
 }
 
 inline flatbuffers::Offset<SummaryHeader> SummaryHeader::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SummaryHeaderT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -751,6 +785,8 @@ inline flatbuffers::Offset<SummaryHeader> CreateSummaryHeader(flatbuffers::FlatB
   auto _options = _fbb.CreateVectorScalarCast<int8_t>(flatbuffers::data(_o->options), _o->options.size());
   auto _resources = _o->resources ? CreateResources(_fbb, _o->resources.get(), _rehasher) : 0;
   auto _original_structure = _o->original_structure ? CreateSourceStructure(_fbb, _o->original_structure.get(), _rehasher) : 0;
+  auto _in_tensor_desc = _fbb.CreateVector<flatbuffers::Offset<TensorReference>> (_o->in_tensor_desc.size(), [](size_t i, _VectorArgs *__va) { return CreateTensorReference(*__va->__fbb, __va->__o->in_tensor_desc[i].get(), __va->__rehasher); }, &_va );
+  auto _out_tensor_desc = _fbb.CreateVector<flatbuffers::Offset<TensorReference>> (_o->out_tensor_desc.size(), [](size_t i, _VectorArgs *__va) { return CreateTensorReference(*__va->__fbb, __va->__o->out_tensor_desc[i].get(), __va->__rehasher); }, &_va );
   return MVCNN::CreateSummaryHeader(
       _fbb,
       _version,
@@ -761,7 +797,9 @@ inline flatbuffers::Offset<SummaryHeader> CreateSummaryHeader(flatbuffers::FlatB
       _layer_count,
       _options,
       _resources,
-      _original_structure);
+      _original_structure,
+      _in_tensor_desc,
+      _out_tensor_desc);
 }
 
 }  // namespace MVCNN

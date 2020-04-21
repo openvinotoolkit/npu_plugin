@@ -164,58 +164,6 @@ void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::Quan
     outputQuantParams = calculateOutputScalesAndZeroPoint(fakeQuantizeLayer, true);
 }
 
-std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
-    const std::vector<double>& weightsScales, const Blob::Ptr biasBlob, mv::QuantizationParams& outputQuantParam) {
-    auto biasCount = biasBlob->size();
-    const bool isWeightsScalesBroadcasted = weightsScales.size() != biasCount;
-    const bool isActivationScalesBroadcasted = activationScales.size() != biasCount;
-    auto biasesPrecision = biasBlob->getTensorDesc().getPrecision();
-
-    if ((weightsScales.size() != 1) && isWeightsScalesBroadcasted) {
-        THROW_IE_EXCEPTION << "Unexpected input low values count " << weightsScales.size() << " for " << biasCount
-                           << " channels for bias quantization";
-    }
-
-    if ((activationScales.size() != 1) && isActivationScalesBroadcasted) {
-        THROW_IE_EXCEPTION << "Unexpected input high values count " << activationScales.size() << " for " << biasCount
-                           << " channels for bias quantization ";
-    }
-
-    const bool isBiasScalesBroadcasted = isWeightsScalesBroadcasted && isActivationScalesBroadcasted;
-
-    std::vector<int64_t> newBiasData(biasCount, 0);
-    std::vector<double> biasScales;
-
-    if (biasesPrecision == InferenceEngine::Precision::FP32 || biasesPrecision == InferenceEngine::Precision::FP16) {
-        ie::Blob::Ptr biasBlobFp32 = toFP32(biasBlob);
-        auto biasData = biasBlobFp32->buffer().as<float*>();
-        //  ZP = 0
-        //  ScaleBias = ActivationScale * WeightsScale
-        for (size_t i = 0; i < biasCount; i++) {
-            double activationScale = activationScales[isActivationScalesBroadcasted ? 0 : i];
-            double weightsScale = weightsScales[isWeightsScalesBroadcasted ? 0 : i];
-            double biasScale = activationScale * weightsScale;
-            biasScales.push_back(biasScale);
-            newBiasData[i] = std::round(biasData[i] / biasScale);
-        }
-        int64_t biasZp = 0;
-        if (isBiasScalesBroadcasted) {
-            biasScales.resize(1);
-        }
-        outputQuantParam = mv::QuantizationParams({{biasZp}, biasScales, {0}, {1}});
-    }
-
-    if (biasesPrecision == InferenceEngine::Precision::I32) {
-        auto biasData = biasBlob->buffer().as<int32_t*>();
-        for (size_t i = 0; i < biasCount; i++) {
-            newBiasData[i] = biasData[i];
-        }
-        outputQuantParam = initialQuantParams;
-    }
-
-    return newBiasData;
-}
-
 }  // namespace QuantizationHelpers
 }  // namespace vpu
 

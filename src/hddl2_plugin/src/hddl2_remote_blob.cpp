@@ -38,6 +38,7 @@ static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
         THROW_IE_EXCEPTION << "Unsupported color format.";
     }
 }
+
 //------------------------------------------------------------------------------
 //      class HDDL2BlobParams Implementation
 //------------------------------------------------------------------------------
@@ -73,14 +74,18 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
         }
     }
 
+    auto roiIt = params.find(IE::HDDL2_PARAM_KEY(ROI));
+    if (roiIt != params.end()) {
+        try {
+            IE::ROI roi = roiIt->second.as<IE::ROI>();
+            _roiPtr = std::make_shared<IE::ROI>(roi);
+        } catch (...) {
+            THROW_IE_EXCEPTION << CONFIG_ERROR_str << "ROI param have incorrect type information";
+        }
+    }
+
     _paramMap = params;
 }
-
-InferenceEngine::ParamMap HDDL2BlobParams::getParamMap() const { return _paramMap; }
-
-RemoteMemoryFD HDDL2BlobParams::getRemoteMemoryFD() const { return _remoteMemoryFd; }
-
-InferenceEngine::ColorFormat HDDL2BlobParams::getColorFormat() const { return _colorFormat; }
 
 //------------------------------------------------------------------------------
 //      class HDDL2RemoteBlob Implementation
@@ -91,6 +96,10 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
       _params(params, config),
       _remoteContextPtr(contextPtr),
       _config(config),
+      _remoteMemoryFd(_params.getRemoteMemoryFD()),
+      _colorFormat(_params.getColorFormat()),
+      _roiPtr(_params.getROIPtr()),
+
       _logger(std::make_shared<Logger>("HDDL2RemoteBlob", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
@@ -102,7 +111,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_params.getRemoteMemoryFD(), this->size());
+    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemoryFd, this->size());
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }
@@ -149,17 +158,11 @@ std::shared_ptr<InferenceEngine::RemoteContext> HDDL2RemoteBlob::getContext() co
     return _remoteContextPtr.lock();
 }
 
-InferenceEngine::ParamMap HDDL2RemoteBlob::getParams() const { return _params.getParamMap(); }
-
 void* HDDL2RemoteBlob::getHandle() const noexcept { return _memoryHandle; }
 
 const std::shared_ptr<InferenceEngine::IAllocator>& HDDL2RemoteBlob::getAllocator() const noexcept {
     return _allocatorPtr;
 }
-
-RemoteMemoryFD HDDL2RemoteBlob::getRemoteMemoryFD() const { return _params.getRemoteMemoryFD(); }
-
-InferenceEngine::ColorFormat HDDL2RemoteBlob::getColorFormat() const { return _params.getColorFormat(); }
 
 static void getImageSize(IE::TensorDesc tensorDesc, size_t& outWidth, size_t& outHeight) {
     const auto layout = tensorDesc.getLayout();
@@ -178,7 +181,7 @@ static void getImageSize(IE::TensorDesc tensorDesc, size_t& outWidth, size_t& ou
 }
 
 size_t HDDL2RemoteBlob::size() const noexcept {
-    if (_params.getColorFormat() == IE::ColorFormat::NV12) {
+    if (_colorFormat == IE::ColorFormat::NV12) {
         if (tensorDesc.getLayout() == IE::Layout::SCALAR) return 1;
         // FIXME It's a very bad solution
         size_t width, height;
