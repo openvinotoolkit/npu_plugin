@@ -28,11 +28,16 @@
 #include <string>
 #include <vector>
 
+#include "hddl2_remote_blob.h"
+#include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
 static void checkNetworkPrecision(const IE::Precision& precision) {
     if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
         precision != IE::Precision::I8) {
@@ -52,36 +57,27 @@ static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensor
     return blob;
 }
 
-static void ensureBlobsExistForInputs(
-    const InferenceEngine::InputsDataMap& inputData, const InferenceEngine::BlobMap& inputBlobs) {
-    for (const auto& networkInput : inputData) {
-        const std::string& inputName = networkInput.first;
-
-        const auto& foundInputBlob = inputBlobs.find(inputName);
-        if (foundInputBlob == inputBlobs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
-        }
-        if (foundInputBlob->second == nullptr) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is null.";
-        }
+static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t size) {
+    if (source == nullptr) {
+        THROW_IE_EXCEPTION << "Source data is nullptr!";
+    }
+    if (dest->byteSize() != size) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
+                           << " and expected output: " << dest->byteSize();
+    }
+    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
+    if (!mblob) {
+        THROW_IE_EXCEPTION << "Failed output blob type!";
+    }
+    auto lockedMemory = mblob->wmap();
+    void* data = lockedMemory.as<void*>();
+    auto result = ie_memcpy(data, dest->byteSize(), source, size);
+    if (result != 0) {
+        THROW_IE_EXCEPTION << "Failed to copy memory.";
     }
 }
 
-static void ensureBlobsExistForOutputs(
-    const InferenceEngine::OutputsDataMap& outputData, const InferenceEngine::BlobMap& outputBlobs) {
-    for (const auto& networkOutput : outputData) {
-        const std::string& outputName = networkOutput.first;
-
-        const auto& foundOutputBlob = outputBlobs.find(outputName);
-        if (foundOutputBlob == outputBlobs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
-        }
-        if (foundOutputBlob->second == nullptr) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is null.";
-        }
-    }
-}
-
+//------------------------------------------------------------------------------
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
     const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
     : InferRequestInternal(networkInputs, networkOutputs),
@@ -104,22 +100,33 @@ HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, con
     }
 }
 
-void HDDL2InferRequest::InferImpl() {
-    ensureBlobsExistForInputs(_networkInputs, _inputs);
-    ensureBlobsExistForOutputs(_networkOutputs, _outputs);
+void HDDL2InferRequest::Infer() {
+    checkBlobs();
+    InferImpl();
+}
 
+void HDDL2InferRequest::InferImpl() {
+    InferAsync();
+    WaitInferDone();
+    GetResult();
+}
+
+void HDDL2InferRequest::InferAsync() {
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
-    bool needPreProcessing = false;
+    bool needUnitePreProcessing = false;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
-            needPreProcessing = true;
+            needUnitePreProcessing = true;
+        }
+        if (inputBlobPtr->is<HDDL2RemoteBlob>()) {
+            needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
         }
     }
 
-    _inferDataPtr = std::make_shared<HddlUniteInferData>(needPreProcessing, _context);
+    _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
@@ -144,35 +151,10 @@ void HDDL2InferRequest::InferImpl() {
         _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
     }
 
-    _loadedGraphPtr->InferSync(_inferDataPtr);
-    GetResult();
+    _loadedGraphPtr->InferAsync(_inferDataPtr);
 }
 
-void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
-    UNUSED(perfMap);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
-}
-
-static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t size) {
-    if (source == nullptr) {
-        THROW_IE_EXCEPTION << "Source data is nullptr!";
-    }
-    if (dest->byteSize() != size) {
-        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
-                           << " and expected output: " << dest->byteSize();
-    }
-    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
-    if (!mblob) {
-        THROW_IE_EXCEPTION << "Failed output blob type!";
-    }
-    auto lockedMemory = mblob->wmap();
-    void* data = lockedMemory.as<void*>();
-    auto result = ie_memcpy(data, dest->byteSize(), source, size);
-    if (result != 0) {
-        THROW_IE_EXCEPTION << "Failed to copy memory.";
-    }
-}
+void HDDL2InferRequest::WaitInferDone() { _inferDataPtr->waitInferDone(); }
 
 void HDDL2InferRequest::GetResult() {
     if (_networkOutputs.size() != 1) {
@@ -195,6 +177,10 @@ void HDDL2InferRequest::GetResult() {
     InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
 
     if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
+        if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
+            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                               << blobOutputPrecision << " is not supported.";
+        }
         auto tempUniteOutputTensorDesc = networkTensorDesc;
         // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
         tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
@@ -208,10 +194,89 @@ void HDDL2InferRequest::GetResult() {
             outputBlobPtr = tempFP16Blob;
         }
     } else {
+        if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
+            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                               << blobOutputPrecision << " is not supported.";
+        }
         if (outputUniteData.size() != outputBlobPtr->byteSize()) {
             THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
         }
         copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
     }
     _outputs[outputName] = outputBlobPtr;
+}
+
+void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
+    UNUSED(perfMap);
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
+    if (!data->is<HDDL2RemoteBlob>()) {
+        InferenceEngine::InferRequestInternal::SetBlob(name, data);
+        return;
+    }
+
+    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    if (name == nullptr) {
+        THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
+    }
+    if (!data) THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set empty blob with name: \'" << name << "\'";
+    const bool compoundBlobPassed = data->is<IE::CompoundBlob>();
+
+    IE::InputInfo::Ptr foundInput;
+    IE::DataPtr foundOutput;
+    size_t dataSize = data->size();
+    if (findInputAndOutputBlobByName(name, foundInput, foundOutput)) {
+        if (foundInput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user input precision";
+        }
+
+        const bool preProcRequired = preProcessingRequired(foundInput, data);
+        if (compoundBlobPassed && !preProcRequired) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+
+        if (preProcRequired) {
+            if (_preProcData.find(name) == _preProcData.end()) {
+                _preProcData.emplace(name, IE::CreatePreprocDataHelper());
+            }
+            _preProcData[name]->isApplicable(data, _inputs[name]);
+            _preProcData[name]->setRoiBlob(data);
+        } else {
+            size_t inputSize = InferenceEngine::details::product(foundInput->getTensorDesc().getDims());
+            if (dataSize != inputSize) {
+                THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
+                                   << "!=" << inputSize << ").";
+            }
+            _inputs[name] = data;
+        }
+    } else {
+        if (compoundBlobPassed) {
+            THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
+                               << "cannot set compound blob: supported only for input pre-processing";
+        }
+        size_t outputSize = InferenceEngine::details::product(foundOutput->getDims());
+        if (dataSize != outputSize) {
+            THROW_IE_EXCEPTION << "Output blob size is not equal network output size (" << dataSize
+                               << "!=" << outputSize << ").";
+        }
+        if (foundOutput->getPrecision() != data->getTensorDesc().getPrecision()) {
+            THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str
+                               << "Failed to set Blob with precision not corresponding to user output precision";
+        }
+        _outputs[name] = data;
+    }
+}
+
+void HDDL2InferRequest::checkBlobs() {
+    for (auto const& input : _inputs) {
+        if (!input.second->is<HDDL2RemoteBlob>()) checkBlob(input.second, input.first, true);
+    }
+    for (auto const& output : _outputs) {
+        if (!output.second->is<HDDL2RemoteBlob>()) checkBlob(output.second, output.first, false);
+    }
 }

@@ -50,6 +50,8 @@ public:
 
     void Export(const std::string& modelFileName) override;
 
+    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
+
 private:
     const HDDL2Config _config;
     const Logger::Ptr _logger;

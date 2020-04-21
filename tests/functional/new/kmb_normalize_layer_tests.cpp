@@ -23,6 +23,7 @@ struct NormTestParams final {
     Layout _inLayout;
     Layout _outLayout;
     NormalizeParams _normParams;
+    bool _scalesBroadcasting;
 
     NormTestParams& inDims(const SizeVector& inDims) {
         this->_inDims = inDims;
@@ -43,9 +44,15 @@ struct NormTestParams final {
         this->_normParams = normParams;
         return *this;
     }
+
+    NormTestParams& scalesBroadcasting(const bool& broadcasting) {
+        this->_scalesBroadcasting = broadcasting;
+        return *this;
+    }
 };
 std::ostream& operator<<(std::ostream& os, const NormTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, normParams:%v]", p._inDims, p._normParams);
+    vpu::formatPrint(os, "[inDims:%v, normParams:%v , scalesBroadCasting:%v]", p._inDims, p._normParams,
+            p._scalesBroadcasting);
     return os;
 }
 
@@ -69,7 +76,12 @@ TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
             return makeSingleValueBlob(desc, 1l);
         }
     );
-    registerBlobGenerator("scales", TensorDesc(Precision::FP32, {1, p._inDims[1], 1, 1}, Layout::NCHW),[&](const TensorDesc& desc) {
+
+    auto scalesTensorDesc = TensorDesc(Precision::FP32, {1,p._inDims[1], 1, 1}, Layout::NCHW);
+    if (p._scalesBroadcasting) {
+        scalesTensorDesc = TensorDesc(Precision::FP32, {1}, Layout::C);
+    }
+    registerBlobGenerator("scales", scalesTensorDesc, [&](const TensorDesc& desc) {
             return makeSingleValueBlob(desc, 1.f);
         }
     );
@@ -97,11 +109,19 @@ const std::vector<NormTestParams> normParams {
    NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
         .inDims({1, 4, 16, 16})
         .inLayout(Layout::NHWC)
-        .outLayout(Layout::NHWC),
-    NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
+        .outLayout(Layout::NHWC)
+        .scalesBroadcasting(false),
+   NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
+        .inDims({1, 4, 16, 16})
+        .inLayout(Layout::NHWC)
+        .outLayout(Layout::NHWC)
+        .scalesBroadcasting(true),
+   NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
         .inDims({1, 512, 64, 64})
         .inLayout(Layout::NHWC)
         .outLayout(Layout::NHWC)
+        .scalesBroadcasting(false)
+
 };
 
 INSTANTIATE_TEST_CASE_P(Normalize, KmbNormalizeLayerTests, testing::ValuesIn(normParams));

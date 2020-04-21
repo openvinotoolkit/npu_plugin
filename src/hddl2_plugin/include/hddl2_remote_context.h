@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <ie_blob.h>
+
 #include <memory>
 #include <string>
 
@@ -49,6 +51,7 @@ class HDDL2RemoteContext :
     public std::enable_shared_from_this<HDDL2RemoteContext> {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteContext>;
+    using CPtr = std::shared_ptr<const HDDL2RemoteContext>;
 
     /**
      * @brief Constructor with parameters, to initialize from workload id
@@ -68,6 +71,7 @@ public:
     std::string getDeviceName() const noexcept override;
 
     InferenceEngine::ParamMap getParams() const override;
+    const HDDL2ContextParams& getContextParams() const { return _contextParams; }
     HDDL2RemoteAllocator::Ptr getAllocator();
     HddlUnite::WorkloadContext::Ptr getHddlUniteWorkloadContext() const;
 

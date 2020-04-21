@@ -36,19 +36,19 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needPreProcessing, const HDDL2RemoteContext::Ptr& remoteContext)
-    : _haveRemoteContext(remoteContext != nullptr), _needPreProcessing(needPreProcessing) {
+HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing, const HDDL2RemoteContext::Ptr& remoteContext)
+    : _haveRemoteContext(remoteContext != nullptr), _needUnitePreProcessing(needUnitePreProcessing) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
-    HddlUnite::WorkloadContext::Ptr workloadContext = nullptr;
     if (_haveRemoteContext) {
-        workloadContext = remoteContext->getHddlUniteWorkloadContext();
-        if (workloadContext == nullptr) {
+        _workloadContext = remoteContext->getHddlUniteWorkloadContext();
+        if (_workloadContext == nullptr) {
             THROW_IE_EXCEPTION << "Workload context is null!";
         }
     }
 
-    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext, needPreProcessing);
+    // needUnitePreProcessing on Unite includes existence of roi currently
+    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, _needUnitePreProcessing);
 
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "Failed to create Unite inferData";
@@ -70,18 +70,23 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
     } else {
         blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
+
     auto blobDesc = blobDescriptorPtr->createUniteBlobDesc();
     const bool isInput = true;
-    _inferDataPtr->createBlob(name, blobDesc, isInput);
+    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
+        THROW_IE_EXCEPTION << "Error creating Unite Blob";
+    }
 
-    blobDescriptorPtr->initUniteBlobDesc(blobDesc);
-    _inferDataPtr->getInputBlob(name)->updateBlob(blobDesc);
-    _inputs[name] = blobDescriptorPtr;
-
-    if (_needPreProcessing && _haveRemoteContext) {
+    if ((_needUnitePreProcessing || blobDescriptorPtr->getROIPtr() != nullptr) && _haveRemoteContext) {
         auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
         _inferDataPtr->setNNInputDesc(nnBlobDesc);
     }
+
+    blobDescriptorPtr->initUniteBlobDesc(blobDesc);
+    if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
+        THROW_IE_EXCEPTION << "Error updating Unite Blob";
+    }
+    _inputs[name] = blobDescriptorPtr;
 }
 
 void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
@@ -108,4 +113,11 @@ std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
         THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
     }
     return outputBlob->getData();
+}
+
+void HddlUniteInferData::waitInferDone() const {
+    auto status = _inferDataPtr->waitInferDone(_asyncInferenceWaitTimeoutMs);
+    if (status != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to wait for inference result with timeout: " << _asyncInferenceWaitTimeoutMs;
+    }
 }

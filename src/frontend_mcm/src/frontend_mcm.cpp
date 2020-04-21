@@ -308,6 +308,10 @@ template <typename ResultType>
 std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedSize) {
     IE_ASSERT(blobPtr != nullptr);
 
+    if (expectedSize == 0) {
+        expectedSize = blobPtr->size();
+    }
+
     std::vector<ResultType> blobData(expectedSize, 0);
 
     // TODO: Make the ASSERT on equality after correction of blob creation in tests
@@ -1138,49 +1142,28 @@ void FrontEndMcm::parseScaleImpl(
 
     auto input = inputs[0];
 
-    std::vector<int64_t> quantizedWeightsData;
-    std::vector<int64_t> zpScaleWeights = {0};
     std::vector<double> quantizeScale;
 
-    for (size_t i = 0; i < weights.size(); i++) {
-        quantizeScale.push_back(weights[i]);
-    }
-    for (size_t i = 0; i < weights.size(); i++) {
-        quantizedWeightsData.push_back(1);
-    }
-
     mv::Shape weightsShape = {weights.size()};
-    mv::QuantizationParams scalesQuantParams = {zpScaleWeights, quantizeScale, {-inf}, {inf}};
-    auto mvWeights = _modelMcm.constantInt(
-        quantizedWeightsData, weightsShape, mv::DType("UInt8"), mv::Order::getColMajorID(1), scalesQuantParams);
+    auto mvWeights = _modelMcm.constant(
+        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams);
 
-    auto outputQuantParamsOverRide = initialQuantParams;
-    QuantizationHelpers::fillQuntizationActivationParams(layer, outputQuantParamsOverRide);
-    auto mvScale =
-        _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), outputQuantParamsOverRide, layer->name);
+    auto scale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), initialQuantParams, layer->name);
+    auto scaleShift = scale;
 
-    auto mvScaleShift = mvScale;
-    _logger->debug("'%s' layer '%s': Scale part (%s) added to mcmModel", layer->type, layer->name, mvScale->getName());
-
+    std::vector<double> biasData;
     if (biases != nullptr) {
-        auto biasQuantParamsOverRide = initialQuantParams;
-        auto quantizeBiasesData = QuantizationHelpers::quantizeBiases(
-            initialQuantParams.getScale(), scalesQuantParams.getScale(), biases, biasQuantParamsOverRide);
-
+        biasData = packBlobToVector<double>(biases, biases->size());
         mv::Shape shiftShape {biases->size()};
-        auto shiftData = _modelMcm.constantInt(
-            quantizeBiasesData, shiftShape, mv::DType("Int32"), mv::Order::getColMajorID(1), biasQuantParamsOverRide);
-
-        mvScaleShift =
-            _modelMcm.bias(mvScale, shiftData, mv::DType("Default"), outputQuantParamsOverRide, layer->name + ":bias");
-
-        _logger->debug(
-            "'%s' layer '%s': Bias part (%s) added to mcmModel", layer->type, layer->name, mvScaleShift->getName());
+        auto shiftData = _modelMcm.constant(
+            biasData, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams);
+        // TODO: return logging
+        scaleShift = _modelMcm.bias(scale, shiftData, mv::DType("Default"), initialQuantParams, layer->name + ":bias");
     }
 
-    bindOutput(mvScaleShift, layer->outData[0]);
+    bindOutput(scaleShift, layer->outData[0]);
 
-    _logger->debug(FINISH_PARSING_STR, mvScaleShift->getName());
+    _logger->debug(FINISH_PARSING_STR, scaleShift->getName());
 }
 
 void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1603,13 +1586,18 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     IE_ASSERT(weightsBlob != nullptr);
 
     auto dims = inputs[0]->desc().getDims();
+    auto weightsSize = weightsBlob->size();
     mv::Shape weightsShape = {1, dims[1], 1, 1};
-    int weightsSize = weightsBlob->size();
 
-    IE_ASSERT(dims[1] == weightsSize);
+    IE_ASSERT((dims[1] == weightsSize) || (channel_shared == 1 && weightsSize == 1));
 
     auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
     auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+    if (channel_shared) {
+        weightsData.assign(dims[1], weightsData[0]);
+        channel_shared = false;
+    }
+
     auto mvWeightsValues = _modelMcm.constant(
         weightsData, weightsShape, mv::DType(convert_data_type(weightsPrecision)), mv::Order::getZMajorID(4));
 
