@@ -1042,7 +1042,7 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -1050,6 +1050,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
+    tmp->port = port;
 
     if(dmaToDma)
     {
@@ -1082,7 +1083,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
                                bool padFinalOutput, bool dmaToDMA, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
-                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
+                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
     mv::OpModel om(cm);
@@ -1100,6 +1101,8 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             tmp->src->dimensions = tmp->dst->dimensions;
             updateTensorReferenceT(cm, compilationDescriptor, src, dst, i, tmp->src, srcAllocator);
         }
+
+        tmp->port = port;
 
         if (direction != mv::DDR2NNCMX)
         {
@@ -1207,6 +1210,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     }
 
+    std::uint8_t port = opIt->get<std::uint8_t>("port");
+
     // Case 1 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
     // in all clusters, OR populated tensors going into clustering op
     // (which for some reason are not marked as broadcasted).
@@ -1223,7 +1228,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor);
+        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor, port);
 
         if(inputTensor->isSparse())
         {
@@ -1233,7 +1238,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1246,12 +1251,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap);
+                  outputSparsityMap, port);
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable);
+                  outputStorageElementTable, port);
           }
         }
+
         return toReturn;
     }
     // Case 2 of MC DMAs - All cases that are not case 1 or 2. Mostly applied to SOH tensors for activation
@@ -1266,7 +1272,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
-            dmaToDma, toReturn, inputTensor, outputTensor);
+            dmaToDma, toReturn, inputTensor, outputTensor, port);
         // If the input tensor for a DMA task is sparse then we also need to 
         // create DMA tasks which transfer Storage Element (SE) Table and 
         // Sparsity Map (SM).
@@ -1277,7 +1283,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1290,11 +1296,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap);
+                  outputSparsityMap, port);
                 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable);
+                  outputStorageElementTable, port);
           }
         }
         return toReturn;

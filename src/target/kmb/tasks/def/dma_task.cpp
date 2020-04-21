@@ -62,6 +62,7 @@ namespace mv
         .setInputs({"data"})
         .setOutputs({"output"})
         .setArg<mv::DmaDirection>("direction")
+        .setArg<std::uint8_t>("port")
         .setInputCheck(op_dma::inputCheckFcn)
         .setOutputDef(op_dma::outputDefFcn)
         .setTypeTrait({"executable"});
