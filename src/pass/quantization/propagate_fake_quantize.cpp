@@ -466,7 +466,11 @@ void quantizeBias(mv::ComputationModel& model) {
 
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
-    // Do nothing with input. Keep parameters
+    auto inputs = om.getOps("Input");
+    for (int i = 0 ; i < inputs.size(); i++) {
+        auto inputQuantParams = findOutputQuantParams(om, inputs.at(i));
+        setQuantizationParams(inputs.at(i), inputQuantParams);
+    }
 
     assert(om.getOps("Output").size() == 1);
     auto output = om.getOps("Output").at(0);
