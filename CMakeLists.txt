@@ -270,6 +270,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"

@@ -105,6 +105,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
