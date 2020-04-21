@@ -34,19 +34,6 @@ namespace vpu {
 
 namespace QuantizationHelpers {
 
-double inf = std::numeric_limits<double>::infinity();
-mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
-
-static double clamp(const double& v, const double& lo, const double& hi) { return (v < lo) ? lo : (hi < v) ? hi : v; }
-
-bool isPostOp(const InferenceEngine::CNNLayerPtr& layer) {
-    return ((layer->type == "ReLU") || (layer->type == "Clamp") || (layer->type == "ReorgYolo"));
-}
-
-bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer) {
-    return ((layer->type == "Convolution") || (layer->type == "Eltwise") || (layer->type == "FullyConnected"));
-}
-
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision) {
     int64_t zeroPoint = 0;
 
@@ -73,95 +60,6 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     }
 
     return zeroPoint;
-}
-
-mv::QuantizationParams calculateOutputScalesAndZeroPoint(const CNNLayerPtr& fakeQuantizeLayer, bool mergeInOne) {
-    auto quantizationParams = QuantizationDetails::getDetails(*fakeQuantizeLayer);
-    int levels = quantizationParams.levels;
-
-    if (quantizationParams.outputLowValues.size() != quantizationParams.outputHighValues.size()) {
-        THROW_IE_EXCEPTION << "Unsupported case, we expect same size for outputLow and outputHigh. Layer "
-                           << fakeQuantizeLayer->name;
-    }
-
-    std::vector<int64_t> zeroPoints;
-    std::vector<double> scales;
-    std::vector<double> mins;
-    std::vector<double> maxs;
-    mv::QuantizationParams outputQuantParams = initialQuantParams;
-
-    if (mergeInOne) {
-        // NOTE: Now, this branch using only for activation flow. MCM expects U8 activations
-        float outputLowMin = quantizationParams.minOutputLow();
-        float outputHighMax = quantizationParams.maxOutputHigh();
-
-        int64_t zepoPoint = calculateZeroPoint(outputHighMax, outputLowMin, levels, InferenceEngine::Precision::U8);
-
-        scales.push_back(static_cast<double>((outputHighMax - outputLowMin) / (levels - 1)));
-        zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
-        mins.push_back(outputLowMin);
-        maxs.push_back(outputHighMax);
-    } else {
-        // NOTE: Now, this branch using only for weights. MCM expects U8 weights
-        int64_t avgZeroPoints = 0;
-        for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
-            float ol = quantizationParams.outputLowValues[i];
-            float oh = quantizationParams.outputHighValues[i];
-
-            // re-calculate ZP for weights, we use U8 for weights
-            avgZeroPoints += calculateZeroPoint(oh, ol, levels, InferenceEngine::Precision::U8);
-        }
-        avgZeroPoints = std::round(static_cast<double>(avgZeroPoints) / quantizationParams.outputLowValues.size());
-
-        for (size_t i = 0; i < quantizationParams.outputLowValues.size(); i++) {
-            float ol = quantizationParams.outputLowValues[i];
-            float oh = quantizationParams.outputHighValues[i];
-
-            float zpl = oh * avgZeroPoints / (avgZeroPoints - (levels - 1));
-            float zph = ol - ol * (levels - 1) / avgZeroPoints;
-
-            ol = std::min(ol, zpl);
-            oh = std::max(oh, zph);
-
-            scales.push_back(static_cast<double>((oh - ol) / (levels - 1)));
-            zeroPoints.push_back(avgZeroPoints);
-            mins.push_back(ol);
-            maxs.push_back(oh);
-        }
-    }
-    outputQuantParams = {zeroPoints, scales, mins, maxs};
-    return outputQuantParams;
-}
-
-void fillQuntizationActivationParams(const CNNLayerPtr& quantizedLayer, mv::QuantizationParams& outputQuantParams) {
-    std::vector<CNNLayerPtr> children = CNNNetworkHelper::getChildren(*quantizedLayer);
-    CNNLayerPtr fakeQuantizeLayer;
-    // WA for case, when we should attach FQ params to not real quantized layer
-    if ((!isRealQuantizeLayer(quantizedLayer) && children.size() != 1) || (children.size() == 0)) {
-        outputQuantParams = initialQuantParams;
-        return;
-    }
-
-    while (isPostOp(children.front())) {
-        children = CNNNetworkHelper::getChildren(*(children.front()));
-        if (children.size() == 0) {
-            outputQuantParams = initialQuantParams;
-            return;
-        }
-    }
-
-    if (children.size() > 1) {
-        THROW_IE_EXCEPTION << "Unsupported case, we expect only one child";
-    }
-
-    if (children.front()->type == "FakeQuantize") {
-        fakeQuantizeLayer = std::dynamic_pointer_cast<InferenceEngine::QuantizeLayer>(children[0]);
-    } else {
-        outputQuantParams = initialQuantParams;
-        return;
-    }
-
-    outputQuantParams = calculateOutputScalesAndZeroPoint(fakeQuantizeLayer, true);
 }
 
 }  // namespace QuantizationHelpers
