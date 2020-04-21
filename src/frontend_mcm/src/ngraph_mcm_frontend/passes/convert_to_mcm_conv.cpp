@@ -25,6 +25,7 @@
 #include <memory>
 
 bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
+
     if (const auto conv = std::dynamic_pointer_cast<ngraph::op::ConvolutionIE>(node)) {
         const auto mcmConv = std::make_shared<McmConv>(
             conv->input_value(0), conv->input_value(1),
@@ -36,14 +37,11 @@ bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
             ngraph::replace_node(conv, mcmConv);
         } else {
             IE_ASSERT(conv->get_input_size() == 3);
-
             const auto mcmBias = std::make_shared<McmBias>(mcmConv, conv->input_value(2), conv->get_output_element_type(0));
             ngraph::replace_node(conv, mcmBias);
         }
-
         return true;
     }
-
     return false;
 }
 

@@ -17,27 +17,27 @@
 // clang-format off
 #ifdef ENABLE_MCM_COMPILER
 
-#include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
+#include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
+
 #include <memory>
+#include "ngraph/op/add.hpp"
+#include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 
-const ngraph::NodeTypeInfo McmBias::type_info {"McmBias", 0};
 
-McmBias::McmBias(
-        const ngraph::Output<ngraph::Node>& input,
-        const ngraph::Output<ngraph::Node>& bias,
-        const ngraph::element::Type& type)
-            : Op({input, bias}), _type(type) {
-    constructor_validate_and_infer_types();
+bool ReplaceAddWithMcmEltwise::run_on_node(std::shared_ptr<ngraph::Node> node)
+{
+    if (const auto add = std::dynamic_pointer_cast<ngraph::op::v1::Add>(node))
+    {
+        const auto mcmEltwise = std::make_shared<McmEltwise>(
+            add->input_value(0),
+            add->input_value(1),
+            McmEltwise::OperationType::SUM,
+            add->get_output_element_type(0));
+
+        ngraph::replace_node(add, mcmEltwise);
+        return true;
+    }
+    return false;
 }
-
-void McmBias::validate_and_infer_types() {
-    set_output_type(0, _type, get_input_shape(0));
-}
-
-std::shared_ptr<ngraph::Node> McmBias::copy_with_new_args(const ngraph::NodeVector& new_args) const {
-    check_new_args_count(this, new_args);
-    return std::make_shared<McmBias>(new_args.at(0), new_args.at(1), _type);
-}
-
-#endif
+#endif  // ENABLE_MCM_COMPILER
 // clang-format on

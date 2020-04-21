@@ -39,7 +39,7 @@ std::ostream& operator<<(std::ostream& os, const ConvTestParams& p) {
 class KmbConvolutionLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ConvTestParams> {};
 
 // [Track number: S#26002]
-TEST_P(KmbConvolutionLayerTests, ScaleShift_FQ) {
+TEST_P(KmbConvolutionLayerTests, FakeQuantize_ScaleShift) {
     SKIP_INFER_ON("KMB", "bad results");
 
     const auto& p = GetParam();
