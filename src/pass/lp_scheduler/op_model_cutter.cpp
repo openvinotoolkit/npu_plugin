@@ -70,7 +70,7 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   mv::Data::OpListIterator output_op_itr;
 
   //STEP-0: first find the output node and erase it //
-  for (mv::Data::OpListIterator itr = omodel.getInput();
+  for (mv::Data::OpListIterator itr = omodel.opBegin();
         itr!=omodel.opEnd(); ++itr) {
 
     if (itr->getOpType() != "Output") { continue; }
@@ -135,7 +135,7 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
 
   //STEP-3: remove all the ops which are not connected to the cut_op //
   std::list<mv::Data::OpListIterator> disconnected_ops;
-  for (mv::Data::OpListIterator itr = omodel.getInput();
+  for (mv::Data::OpListIterator itr = omodel.opBegin();
         itr!=omodel.opEnd(); ++itr) {
     if (connected_ops.find(&(*itr)) == connected_ops.end()) {
       disconnected_ops.push_back(itr);
