@@ -28,6 +28,7 @@
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
 #include "kmb_vpusmm_allocator.h"
+#include "ie_macro.hpp"
 
 using namespace vpu::KmbPlugin;
 
@@ -37,7 +38,7 @@ void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     return handle;
 }
 
-void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); }
+void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); } //cpplint mark this line as false positive
 
 unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
     auto memoryIt = _allocatedMemory.find(handle);

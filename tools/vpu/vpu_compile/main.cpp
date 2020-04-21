@@ -117,7 +117,7 @@ static bool parseCommandLine(int *argc, char ***argv) {
         message << "Unknown arguments supplied: ";
         for (auto arg = 1; arg < *argc; arg++) {
             message << args[arg];
-            if (arg < *argc) {
+            if (arg + 1 < *argc) {
                 message << " ";
             }
         }

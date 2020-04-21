@@ -39,6 +39,7 @@
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
 #include "kmb_vpusmm_allocator.h"
+#include "ie_macro.hpp"
 
 #ifndef _WIN32
 #include <dlfcn.h>

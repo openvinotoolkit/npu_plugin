@@ -9,6 +9,7 @@
 #include <string>
 
 #include "kmb_allocator.h"
+#include "ie_macro.hpp"
 
 #if defined(__arm__) || defined(__aarch64__)
 #include "kmb_preproc_pool.hpp"

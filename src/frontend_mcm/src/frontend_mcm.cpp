@@ -39,10 +39,6 @@
 
 #include "dims_parser.hpp"
 
-#ifndef UNUSED
-#define UNUSED(var) (void)var
-#endif
-
 #ifdef ENABLE_MCM_COMPILER
 
 #include <include/mcm/tensor/tiling.hpp>
@@ -1465,21 +1461,15 @@ void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, c
     bindOutput(fakeQuantize, layer->outData[0]);
 }
 
-void FrontEndMcm::parseArgMax(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseArgMax(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "ArgMax layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseGRN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseGRN(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "GRN layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseMVN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseMVN(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "MVN layer is not supported by kmbPlugin";
 }
 void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1567,52 +1557,36 @@ void FrontEndMcm::parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector
     _logger->debug(FINISH_PARSING_STR, mvSigmoid->getName());
 }
 
-void FrontEndMcm::parseTanH(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseTanH(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "TanH layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parsePReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parsePReLU(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseBatchNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseBatchNorm(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
+void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr&, const McmNodeVector&) {
     // TODO: Leyer can be with bias
-    UNUSED(layer);
     VPU_THROW_EXCEPTION << "Deconvolution layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseCopy(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseCopy(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Copy layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseELU(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseELU(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "ELU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseCrop(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Crop layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseTile(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseTile(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Tile layer is not supported by kmbPlugin";
 }
 
@@ -1649,51 +1623,35 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     _logger->debug(FINISH_PARSING_STR, mvNormalize->getName());
 }
 
-void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "CTCDecoder layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseInterp(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Interp layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseProposal(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Proposal layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "ROIPooling layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PSROIPooling layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseCustom(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Custom layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseMTCNN(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseMTCNN(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "MTCNN layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parsePad(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parsePad(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Pad layer is not supported by kmbPlugin";
 }
 
@@ -1724,15 +1682,11 @@ void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVecto
     _logger->debug(FINISH_PARSING_STR, resample_result->getName());
 }
 
-void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseLSTMCell(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "LSTMCell layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-
+void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector&) {
     if (layer->insData.size() != 2 || layer->outData.empty())
         THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
 
@@ -1773,15 +1727,11 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
     _logger->debug(FINISH_PARSING_STR, priorbox->getName());
 }
 
-void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PriorBoxClustered layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
+void FrontEndMcm::parseSplit(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
 }
 

@@ -378,8 +378,7 @@ void KmbInferRequest::GetResult() {
     }
 }
 
-void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>& perfMap) const {
-    UNUSED(perfMap);
+void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const {
     THROW_IE_EXCEPTION << "KmbInferRequest::GetPerformanceCounts is not implemented\n";
 }
 
