@@ -29,8 +29,6 @@ namespace vpu {
 namespace QuantizationHelpers {
 
 bool isPostOp(const InferenceEngine::CNNLayerPtr& layer);
-std::vector<float> getBlobValue(const InferenceEngine::CNNLayerPtr& constantLayer);
-bool isWeightableLayerQuantized(const InferenceEngine::CNNLayerPtr& weightableLayer);
 bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer);
 
 mv::QuantizationParams calculateOutputScalesAndZeroPoint(
@@ -41,16 +39,6 @@ void fillQuntizationActivationParams(
 
 // for symmetric case only, using mcm logic
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
-
-InferenceEngine::Blob::Ptr calculateQuntizationWeights(
-    const InferenceEngine::CNNLayerPtr& weightableLayer, mv::QuantizationParams& weightsQuantParams);
-
-mv::QuantizationParams fillQuantizeParamsForU8orI8weights(
-    const InferenceEngine::CNNLayerPtr& weightableLayer, int levels, InferenceEngine::Precision precision);
-
-std::vector<int64_t> quantizeBiases(const std::vector<double>& activationScales,
-    const std::vector<double>& weightsScales, const InferenceEngine::Blob::Ptr biasBlob,
-    mv::QuantizationParams& outputQuantParam);
 
 }  // namespace QuantizationHelpers
 }  // namespace vpu
