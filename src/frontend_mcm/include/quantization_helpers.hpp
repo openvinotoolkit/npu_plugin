@@ -28,15 +28,6 @@ namespace vpu {
 
 namespace QuantizationHelpers {
 
-bool isPostOp(const InferenceEngine::CNNLayerPtr& layer);
-bool isRealQuantizeLayer(const InferenceEngine::CNNLayerPtr& layer);
-
-mv::QuantizationParams calculateOutputScalesAndZeroPoint(
-    const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer, bool mergeInOne = false);
-
-void fillQuntizationActivationParams(
-    const InferenceEngine::CNNLayerPtr& quantizedLayer, mv::QuantizationParams& outputQuantParams);
-
 // for symmetric case only, using mcm logic
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
 

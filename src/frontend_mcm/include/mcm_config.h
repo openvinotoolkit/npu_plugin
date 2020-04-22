@@ -54,8 +54,6 @@ public:
 
     bool concatScalesAlignment() const { return _concatScalesAlignment; }
 
-    bool inputScaleShiftRemoving() const { return _inputScaleShiftRemoving; }
-
     bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
 
     const std::string& serializeCNNBeforeCompileFile() const { return _serializeCNNBeforeCompileFile; }
@@ -88,7 +86,6 @@ private:
 
     bool _eltwiseScalesAlignment = true;
     bool _concatScalesAlignment = true;
-    bool _inputScaleShiftRemoving = true;
     bool _zeroPointsOnWeightsAlignment = true;
     std::string _serializeCNNBeforeCompileFile = "";
 

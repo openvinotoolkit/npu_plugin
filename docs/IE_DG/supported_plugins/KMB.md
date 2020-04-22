@@ -28,7 +28,6 @@ The KMB plugin accepts the following options:
 | `VPU_COMPILER_LOG_LEVEL`    | `LOG_LEVEL_ERROR`/ `LOG_LEVEL_WARNING`/ `LOG_LEVEL_INFO`/ `LOG_LEVEL_TRACE`/ `LOG_LEVEL_NONE` | `LOG_LEVEL_INFO` | Set log level for mcmCompiler |
 | `VPU_COMPILER_ELTWISE_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable eltwise scales alignment |
 | `VPU_COMPILER_CONCAT_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable concat scales alignment |
-| `VPU_COMPILER_INPUT_SCALE_SHIFT_REMOVING`    | `YES`/`NO` | `NO` | Enable or disable Input->ScaleShift pattern removing |
 | `VPU_COMPILER_WEIGHTS_ZERO_POINTS_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable weights zero points alignment |
 | `VPU_KMB_PLATFORM`    | `VPU_2490` | `VPU_2490` | Set the target device |
 | `VPU_KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the umber of threads to use for model execution |
