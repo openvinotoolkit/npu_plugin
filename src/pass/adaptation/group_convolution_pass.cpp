@@ -29,7 +29,7 @@ namespace mv
 
 }
 
-void handleGroupConvolutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
@@ -61,7 +61,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             if (convOp->hasAttr("quantParams"))
                 outputQuantParams = convOp->get<mv::QuantizationParams>("quantParams");
             if (convOp->hasAttr("bias"))
-                biasTensor = dm.getTensor(previousOp->get<std::string>("bias"));
+                biasTensor = dm.getTensor(convOp->get<std::string>("bias"));
             for (unsigned branchId = 0; branchId < group; branchId++)
             {
                 std::string sliceName = "slice" + std::to_string(branchId);
@@ -84,8 +84,18 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry& pass, mv::ComputationM
                                 outputQuantParams,
                                 convName);
                 om.getSourceOp(newConvTensor)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
+                auto sliceConvOp = om.getSourceOp(newConvTensor);
                 if (convOp->hasAttr("bias"))
-                    om.addAttr(convOp, "bias", biasName);
+                {
+                    mv::Data::TensorIterator biasSliceTensor;
+                    std::vector<mv::DataElement> biasData;
+                    for (std::size_t i = branchId * groupSize; i < branchId * groupSize + groupSize; i++)
+                        biasData.push_back(biasTensor->getData()[i]);
+
+                    biasSliceTensor = dm.defineTensor(mv::Tensor(biasName + "slice" + std::to_string(branchId), {groupSize}, biasTensor->getDType(),
+                                        biasTensor->getOrder(), biasData, biasTensor->get<mv::QuantizationParams>("quantParams")));
+                    om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());
+                }
                 convOutputs.push_back(newConvTensor);
             }
             auto concat = om.concat(convOutputs,
