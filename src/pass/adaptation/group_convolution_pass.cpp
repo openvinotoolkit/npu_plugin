@@ -46,6 +46,7 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             auto previousOp = om.getSourceOp(inputTensor);
             auto weightTensor = convOp->getInputTensor(1);
             auto inputChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+            auto outputChannels = outputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/group;
             auto groupSize = inputChannels/group;
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
             mv::Shape groupShape = {inputTensor->getShape()[mv::IO_WIDTH_DIMENSION],
@@ -89,10 +90,10 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 {
                     mv::Data::TensorIterator biasSliceTensor;
                     std::vector<mv::DataElement> biasData;
-                    for (std::size_t i = branchId * groupSize; i < branchId * groupSize + groupSize; i++)
+                    for (std::size_t i = branchId * outputChannels; i < branchId * outputChannels + outputChannels; i++)
                         biasData.push_back(biasTensor->getData()[i]);
 
-                    biasSliceTensor = dm.defineTensor(mv::Tensor(biasName + "slice" + std::to_string(branchId), {groupSize}, biasTensor->getDType(),
+                    biasSliceTensor = dm.defineTensor(mv::Tensor(biasName + "slice" + std::to_string(branchId), {outputChannels}, biasTensor->getDType(),
                                         biasTensor->getOrder(), biasData, biasTensor->get<mv::QuantizationParams>("quantParams")));
                     om.addAttr(sliceConvOp, "bias", biasSliceTensor->getName());
                 }
