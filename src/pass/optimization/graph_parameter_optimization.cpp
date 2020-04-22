@@ -2,6 +2,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/compression/hde.hpp"
@@ -9,8 +10,7 @@
 #include "mcm/utils/custom_strings.hpp"
 
 
-static void GraphParameterOptimizationFcn(
-    const mv::pass::PassEntry& pass,
+static void GraphParameterOptimizationFcn(const mv::pass::PassEntry&,
     mv::ComputationModel& model,
     mv::TargetDescriptor&, mv::Element& passDesc,
     mv::Element&
@@ -92,11 +92,9 @@ namespace mv
             /*
              * This method calculates a compression ratio of compressed weight size / orignal weight size.
              * This ratio could be used by the calculation of execution time.
-
              * Execution time is calculated by this formula and theoretically the DMA of compressed data should be
              * faster than non compressed data
              * execTime += WSize / ddrBandwidth;
-
              * So execution time calculation could be extended to be:
              * execTime += (WSize * weightscompressionRatio / ddrBandwidth;
              *
@@ -240,56 +238,63 @@ namespace mv
                     return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
 
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+            }
 
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
+            {
                 // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
-                // Shape worstStreamPool = streamingPool;
+                Shape worstStreamPool = streamingPool;
 
-                // Shape tensorShape = tensorToSize->getShape();
-                // //update the streamingPool to the worst combination, based on slice sizes
-                // size_t outputSize;
-                // size_t numberOfSplits;
-                // if(streamingPool["H"] > 1) // If streaming over H
-                // {
-                //     outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-                //     numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
-                //     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                //     int newOutputSize = newOutputSizes.first;
+                Shape tensorShape = tensorToSize->getShape();
+                //update the streamingPool to the worst combination, based on slice sizes
+                size_t outputSize;
+                size_t numberOfSplits;
+                if(streamingPool["H"] > 1) // If streaming over H
+                {
+                    outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.front();
 
-                //     int remainderOutputSize = newOutputSizes.second;
-                //     if (remainderOutputSize > newOutputSize)
-                //         newOutputSize = remainderOutputSize;
+                    int remainderOutputSize = newOutputSizes.back();
+                    if (remainderOutputSize > newOutputSize)
+                        newOutputSize = remainderOutputSize;
 
-                //     auto worstNumberOfSplits = outputSize/newOutputSize;
-                //     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-                // }
-                // else if(streamingPool["B"] > 1) // If streaming over N
-                // {
-                //     outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-                //     numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-                //     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                //     int newOutputSize = newOutputSizes.first;
+                    // TODO determine when there will be overlap, for now consider worst case scenario of +2
+                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
 
-                //     int remainderOutputSize = newOutputSizes.second;
-                //     if (remainderOutputSize > newOutputSize)
-                //         newOutputSize = remainderOutputSize;
+                    if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
+                    worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+                }
+                else if(streamingPool["B"] > 1) // If streaming over N
+                {
+                    outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
+                    numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.front();
 
-                //     auto worstNumberOfSplits = outputSize/newOutputSize;
-                //     worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-                // }
+                    int remainderOutputSize = newOutputSizes.back();
+                    if (remainderOutputSize > newOutputSize)
+                        newOutputSize = remainderOutputSize;
 
-                // //TODO add handling for weights case if we dont align it to 16 always
-                // size_t streamDivisor = 1;
-                // for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
-                // {
-                //     streamDivisor = streamDivisor * worstStreamPool[dim];
-                // }
+                    auto worstNumberOfSplits = outputSize/newOutputSize;
+                    worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
+                }
 
-                // if(isCMConv)
-                //     return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
+                //TODO add handling for weights case if we dont align it to 16 always
+                size_t streamDivisor = 1;
+                for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
+                {
+                    streamDivisor = streamDivisor * worstStreamPool[dim];
+                }
 
-                // return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+                if(isCMConv)
+                    return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
+
+                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
+
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig){
                 size_t alignedFullInputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_INPUT_CHANNELS], 16);
@@ -320,10 +325,13 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                         isCMConv = true;
 
-                if(opType != "Input")
-                    inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
-                if(opType != "Output")
-                    outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
+                if(opType != "Input"){
+                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
+                }
+                if(opType != "Output"){
+                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
+                }
+
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 if(opType == "Conv" || opType == "DepthwiseConv")
@@ -471,7 +479,7 @@ namespace mv
 
             unsigned getMaxStreamOverH(const string& clustering,mv::Op& op, vector<size_t> streamsOverK){
                 for(auto k : streamsOverK){
-                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k,1}, true);
+                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k,1}, requiresFakeActivationSparsity(op));
                     auto activationsSize = memH.first;
                     auto weightsSize = memH.second;
 
@@ -501,8 +509,8 @@ namespace mv
             {
                 auto opType = op.getOpType();
 
-                if( opType == "Input" or opType == "Output" )
-                    return vector<size_t>(0);
+                // if( opType == "Input" or opType == "Output" )
+                //     return vector<size_t>(0);
 
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
@@ -523,15 +531,8 @@ namespace mv
                 splits.push_back(1);
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
                 {
-                    bool validSplit = true;
-
-                    if(alignedOutputChannelSize/split < 16)
-                        validSplit = false;
-
-                    if(!validSplit)
-                        continue;
-
-                    splits.push_back(split);
+                    if(!(alignedOutputChannelSize/split < 16))
+                        splits.push_back(split);
                 }
 
                 return splits;
@@ -1084,11 +1085,10 @@ namespace mv
                 {
                     auto streamOverK = child["streaming"].get<Shape>()["K"];
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
-
                     if( streamOverK == 1)
                         execTime2 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime2 += ((double)WSize / (double)ddrBandwidth) * 2;
+                        execTime2 += ((double)WSize  / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
                         execTime2 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
@@ -1211,10 +1211,9 @@ namespace mv
                 else
                     spillingPool = createTStrategyPoolFromBool(op, "forceSpilling");
 
-
                 vector<Attribute> clusteringStrategyPool;
 
-                if(totalClusters == 1)
+                if(totalClusters == 1 or op.hasAttr("forceClustering"))
                     clusteringStrategyPool.push_back(string("Clustering"));
                 else if (totalClusters > 1)
                     clusteringStrategyPool = createStrategyPoolFromStrategySet(op,"clusteringStrategies");
@@ -1289,8 +1288,15 @@ namespace mv
                                     maxSplitOverH = 1;
                                 else
                                     maxSplitOverH = splitsToFit;
+                            
+                                auto fit = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,1},fakeSparsity);
+                                while(fit.first + fit.second > clusterMemory){
+                                    maxSplitOverH = maxSplitOverH + 1;
+                                    fit = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,1},fakeSparsity);
+                                }
                             }
                         }
+                        
                         // Stream over batch, match number of streams over H
                         // unsigned maxSplitOverN = 1;
                         // if(hasStreamOverN and op.getInputTensor(0)->getShape()["N"] > 1)
@@ -1326,7 +1332,7 @@ namespace mv
 
                         vector<size_t> streamsOverC;
                         if (hasStreamOverC)
-                            streamsOverC = {1,2,3,4};
+                            streamsOverC = {1,2,3,4}; // TODO calculate properly
                         else
                             streamsOverC.push_back(1);
 
@@ -1334,14 +1340,16 @@ namespace mv
                         auto maxK = streamsOverK.back();
                         auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n},fakeSparsity);
                         auto memoryMaxK = memK.first + memK.second;
+                        auto memH = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,n},fakeSparsity);
+                        auto memoryMaxH = memH.first + memH.second;
 
 
                         // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
-                        if(hasStreamOverK and hasStreamOverH and ((maxSplitOverH == 1) and (memoryMaxK > clusterMemory))){
-                            //If we're doing nested streaming, only consider SOK for multicluster, hack for decrease compile time
-                            if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
-                                continue;
-                            }
+                        if(hasStreamOverK and hasStreamOverH and ((memoryMaxH > clusterMemory) and (memoryMaxK > clusterMemory))){
+                            // //If we're doing nested streaming, only consider SOK for multicluster, hack for decrease compile time
+                            // if(totalClusters > 1 and clustering.get<string>() != "SplitOverK"){
+                            //     continue;
+                            // }
                             enableNestedStreaming = true;
                             //adjust streamsOverK to remove the smallest K possibilities
                             if(streamsOverK.size() > 2){
@@ -1409,7 +1417,7 @@ namespace mv
 }
 
 static void GraphParameterOptimizationFcn(
-    const mv::pass::PassEntry& pass,
+    const mv::pass::PassEntry& ,
     mv::ComputationModel& model,
     mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&

@@ -2139,9 +2139,9 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildControllerTask
 std::unique_ptr<MVCNN::BarrierReferenceT> mv::RuntimeModel::buildBarrierReferenceT(ComputationModel& , Element& , BarrierDependencies dep)
 {
     std::unique_ptr<MVCNN::BarrierReferenceT> toBuild = std::unique_ptr<MVCNN::BarrierReferenceT>(new MVCNN::BarrierReferenceT());
-    int waitBarrier = dep.getWait();
-    if(waitBarrier != -1)
-        toBuild->wait_barriers = {unsigned(waitBarrier)};
+    if (dep.hasWaitBarriers()) {
+      toBuild->wait_barriers = dep.getWait();
+    }
     toBuild->update_barriers = dep.getUpdate();
     return toBuild;
 }

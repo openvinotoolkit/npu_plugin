@@ -4,24 +4,19 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
-                "verbose": "Error",
+                "recorded_model": true,
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 20971520,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
-                "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": false,
-                "FloatOutput": true,
-                "Int32Output": false,
-                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -90,11 +85,6 @@
             }
         ]
     },
-    "quantization" : {
-        "Singular" : [
-            "FakeQuantize"
-        ]
-    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -102,18 +92,8 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "DecideOutputDataType",
-            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/placement.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -150,8 +130,9 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -189,42 +170,19 @@
                     ]
                 }
             },
-            "StoreGraphOptimizerDecisions",
-            "ComputeSparsitySolution",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_graph.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
+            "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
+            "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights",
-            "StreamCopyOperations"
+            "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_tasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_tasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -235,13 +193,6 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/populated_sparsity.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
@@ -279,17 +230,23 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            { "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "no_temporal_edges" : true
+            },
             {
                 "name": "GenerateDot",
-                "output": "output/dots/before_scheduler.dot",
+                "output": "output/dots/lp_scheduler_output.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
-            { "name": "LpScheduler",
-              "output" : "lp_scheduler_output.txt",
-              "ddr_address_generation" : true,
-              "enable_simple_repacking" : true
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_opmodel_output.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",
@@ -314,20 +271,24 @@
               "allocator_mode": true
             },
             "TransitiveReduction",
-            {
-                "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
-            },
-            "TransitiveReduction",
             "PopulateWeightsTablesPointers"
         ]
     },
     "scheduling": {
         "Singular": [
-            "StoreBarriersNamesInTasks",
-            "GenerateExecutionSchedule",
-            "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            {
+              "name" : "BarrierSchedulerPass",
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
+              "producer_bound" : 256
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "validate": {
@@ -339,15 +300,26 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_control_no_temporal_edges.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
             }
+
         ]
     },
     "root": {
         "Singular": [
             "initialize",
-            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",

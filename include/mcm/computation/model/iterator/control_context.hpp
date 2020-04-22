@@ -23,7 +23,7 @@ namespace mv
         using OpDFSIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_dfs_iterator, Op, ControlFlow>;
         using OpBFSIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_bfs_iterator, Op, ControlFlow>;
         using OpChildIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_child_iterator, Op, ControlFlow>;
-        using OpParentIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_child_iterator, Op, ControlFlow>;
+        using OpParentIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_parent_iterator, Op, ControlFlow>;
         using OpSiblingIterator = IteratorDetail::OpIterator<controlGraph, controlGraph::node_sibling_iterator, Op, ControlFlow>;
         
         using FlowListIterator = IteratorDetail::FlowIterator<controlGraph, controlGraph::edge_list_iterator, ControlFlow, Op>;

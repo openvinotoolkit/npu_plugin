@@ -52,6 +52,9 @@ else()
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 
+    add_executable(group_convolution group_convolution/group_convolution.cpp)
+    target_link_libraries(group_convolution cm)
+
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
 

@@ -76,8 +76,9 @@ TEST(barrier, api)
 TEST(barrier_deps, api)
 {
     mv::BarrierDependencies bdep;
-    bdep.setWaitBarrier(1);
-    ASSERT_EQ(bdep.getWait(), 1);
+    bdep.addWaitBarrier(1);
+    ASSERT_TRUE(bdep.hasWaitBarriers());
+    ASSERT_EQ(bdep.getWait().front(), 1);
 
     bdep.addUpdateBarrier(2);
     bdep.addUpdateBarrier(3);
@@ -99,10 +100,10 @@ TEST(barrier, to_json)
 
     mv::Attribute a(b);
     std::string expected = "{\"attrType\":\"Barrier\",\""
-                            "content\":{\"consumers\":[\"c2\",\"c1\"],"
+                            "content\":{\"consumers\":[\"c1\",\"c2\"],"
                             "\"group\":2,\"index\":1,"
                             "\"numConsumers\":2,\"numProducers\":2"
-                            ",\"producers\":[\"p2\",\"p1\"]}}";
+                            ",\"producers\":[\"p1\",\"p2\"]}}";
 
     ASSERT_EQ(a.toJSON().stringify(), expected);
 }
@@ -110,15 +111,16 @@ TEST(barrier, to_json)
 TEST(barrier_deps, to_json)
 {
     mv::BarrierDependencies bdep;
-    bdep.setWaitBarrier(1);
-    ASSERT_EQ(bdep.getWait(), 1);
+    bdep.addWaitBarrier(1);
+    ASSERT_TRUE(bdep.hasWaitBarriers());
+    ASSERT_EQ(bdep.getWait().front(), 1);
 
     bdep.addUpdateBarrier(2);
     bdep.addUpdateBarrier(3);
 
     mv::Attribute a(bdep);
     std::string expected = "{\"attrType\":\"BarrierDependencies\","
-                            "\"content\":{\"update\":[2,3],\"wait\":1}}";
+                            "\"content\":{\"update\":[2,3],\"wait\":[1]}}";
 
     ASSERT_EQ(a.toJSON().stringify(), expected);
 }

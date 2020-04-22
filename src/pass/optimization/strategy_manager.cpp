@@ -20,7 +20,7 @@ std::atomic<int> StrategyManager::unique_ctr(0);
 StrategyManager::StrategyManager(OpModel& model,mv::Element& passDesc) :
         model_(model),passDesc_(passDesc)
 {
-
+    topologicalModel_ = model_.topologicalSort();
 }
 
 //TODO:: error if the strategy is not there...
@@ -482,40 +482,146 @@ bool StrategyManager::isLinearGraph(mv::Data::OpListIterator opBegin,
     return true;
 }
 
-mv::Data::OpListIterator StrategyManager::naiveLCA(mv::Data::OpListIterator nodeA,mv::Data::OpListIterator nodeB,
-                                                    mv::Data::OpListIterator opEnd)
+int StrategyManager::countInputLayers(mv::Data::OpListIterator op){
+    int inputs = 0;
+    for(auto inputOp = op.leftmostParent(); inputOp != model_.opEnd(); ++inputOp)
+    {
+        auto inputType = inputOp->getOpType();
+        if ((inputType == "Constant") or
+        (inputType == "ConstantInt") or
+        (inputType == "ConstantDataElement") or
+        (inputType == "WeightsTable") or
+        (inputType == "SparsityMap"))
+            continue;
+        inputs++;
+    }
+    return inputs;
+}
+
+// Function to find the lowest common child (LCA) of opBegin
+// 1. Use topological sort of the graph
+// 2. Count opening/closing of branches (like a parser for matching parentheses for example...)
+// 3. If (current count) - (inputs to next node) < 0, found "bottleneck" of graph i.e. end of parallel branches
+// 4. At each step current count gets set to (current count) + (outputs from node) - (inputs to node)
+mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, mv::Data::OpListIterator opEnd)
 {
-    std::set<mv::Op*> nodeAChildren;
+    // cout << "Finding LCA between " << opBegin->getName() << " and " << opEnd->getName() << endl;
+    int preceedingBranches = 0;
+    int followingBranches = 0;
 
-    mv::Data::OpDFSIterator naiveA(nodeA);
-    mv::Data::OpDFSIterator naiveB(nodeB);
+    bool atStart = false;
 
-    do
-    {
-        nodeAChildren.insert( &(*naiveA));
-        ++naiveA;
-    }while(naiveA != opEnd);
-
-    do
-    {
-        if(nodeAChildren.find( &(*naiveB)) != nodeAChildren.end())
-        {
-            return naiveB;
+    for(auto node : topologicalModel_){
+        if(node == opBegin) { // TODO more efficient way to jump to correct place
+            atStart = true; 
+            followingBranches = node.outputsSize() - 1;
+            continue;
         }
-        ++naiveB;
-    }while(naiveB != opEnd);
+        if(!atStart) continue;
+        if(node == opEnd) return opEnd;
 
+        auto opType = node->getOpType();
+        // Skip weights/constants nodes (have already been added to convs/software layers at this point)
+        if ((opType == "Constant") or
+            (opType == "ConstantInt") or
+            (opType == "ConstantDataElement") or
+            (opType == "WeightsTable") or
+            (opType == "SparsityMap") or
+            (opType == "Input") or
+            (opType == "Output") )
+            continue;
+
+        // Get number of input and output to node
+        int input = countInputLayers(node);
+        int output = node.childrenSize();
+
+        // This node can't be a pivot if it has just 1 input and output, skip it
+        if(input == 1 and output == 1)
+            continue;
+
+        preceedingBranches = followingBranches;
+        followingBranches += (output - input);
+
+        // Note: To capture the case of pivot being the end of one parallel section, and 
+        // the start of the next. First we test considering just input (did parallel end here)
+        if((preceedingBranches - input) < 0)
+        {
+            return node;
+        }
+    }
     return opEnd;
 }
 
-mv::Data::OpListIterator StrategyManager::naiveLCA(vector<mv::Data::OpListIterator> children,mv::Data::OpListIterator opEnd)
+// Note: A non-exclusive node is one which we pass through when following different parallel paths,
+// but is not also the lowest common child (lcsa) of those parallel paths
+std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::Data::OpListIterator opBegin, 
+                                                                                mv::Data::OpListIterator opEnd)
 {
-    auto candidate = naiveLCA(children[0],children[1],opEnd);
+    set<std::string> nodesFound;
+    std::vector<mv::Data::OpListIterator> nonExclusiveNodes;
+    // cout << "Getting non-exclusive nodes from " << opBegin->getName() << " to " << opEnd->getName() << endl;
 
-    for( int childIdx = 2; childIdx < children.size(); childIdx++)
-        candidate = naiveLCA(candidate,children[childIdx],opEnd);
+    for(auto child = opBegin.leftmostChild(); child != model_.opEnd(); ++child)
+    {
+        mv::Data::OpBFSIterator it(child);
+        for( ;it != opEnd; ++it ){ // TODO more efficient way than comparing strings?
+            if((nodesFound.find(it->getName()) != nodesFound.end()) and
+                !(it.childrenSize() == countInputLayers(it)) )
+                    nonExclusiveNodes.push_back(it);
+            else
+                nodesFound.insert(it->getName());
+        }
+    }
 
-    return candidate;
+    return nonExclusiveNodes;
+}
+
+// Special handling for non-exclusive branches. These have dependencies that we can't represent yet.
+// 1. For each non-exclusive node, remove all but one input branch (poss immprovement, branch ending in dpu task if exists)
+// 2. Reconnect directly to the LCSA. All nodes affected (non-exclusive node, it's input node, and the lcsa) 
+//    are forced to have clustering strategy in GO.
+// 3. After solving graph these will need to be reconnected to the correct nodes before the pass ends
+//    So remember the flows added/removed appropriately
+void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIterator> nonExclusiveNodes, mv::Data::OpListIterator lcsa)
+{
+    // cout << " Non-Exclusive nodes are : ";
+    // for(auto node : nonExclusiveNodes){
+    //     cout << node->getName() << ", ";
+    // }
+    // cout << endl;
+    for(auto node : nonExclusiveNodes){
+        // Remove all but one input edge and mark source of that edge as clustering required
+        auto input = node.leftmostParent();
+        ++input;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        for(; input != model_.opEnd(); ++input ){
+            input->set<bool>("forceClustering", true);
+            opsToLink.push_back(input);
+            // Find the edge between input and node
+            // cout << "   Removing edge: " << input->getName() << " --> " << node->getName() << endl;
+            flowsToRemove.push_back(input.leftmostOutput());
+        }
+        for(auto flow : flowsToRemove){
+            auto sink = flow.sink();
+            auto source = flow.source();
+            size_t inputIdx = 0;
+            for(size_t idx = 0; idx < sink.parentsSize(); idx++){
+                if(model_.getSourceOp(sink->getInputTensor(idx)) == source)
+                    inputIdx = idx;
+            }
+            removedFlows_.push_back(make_tuple(flow.source(), (size_t) 0, flow.sink(), inputIdx));
+            model_.undefineFlow(flow);
+        }
+        for(auto op : opsToLink){
+            auto flow = model_.defineFlow(op->getOutputTensor(0), lcsa, lcsa.parentsSize());
+            addedFlows_.push_back(flow);
+        }
+        // cout << "  Set forceClustering: " << node->getName() << endl;
+        node->set<bool>("forceClustering", true);
+    }
+    // cout << "Set forceClustering: " << lcsa->getName() << endl;
+    lcsa->set<bool>("forceClustering", true);
 }
 
 shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(mv::Data::OpListIterator opBegin,
@@ -535,7 +641,7 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
 
             sGraphs->push_back( SubGraph(travelingNode,it,{travelingChildren[0]}));
 
-//            cout<<"Traveled linear section " << travelingNode->getName() << " -> " << it->getName() << endl;
+            // cout<<"Traveled linear section " << travelingNode->getName() << " -> " << it->getName() << endl;
             travelingNode = it;
             travelingChildren.clear();
 
@@ -546,9 +652,9 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
         }
         else
         {
-            auto lcsa = naiveLCA(travelingChildren,opEnd);
-//            cout << "Found branching out section " << travelingNode->getName() << "->" << lcsa->getName() << endl;
-
+            auto lcsa = LCA(travelingNode, opEnd);
+            // cout << "Found branching out section " << travelingNode->getName() << "->" << lcsa->getName() << endl;
+// Original Notes from Istvan:
 //             once we have the LCSA (lowest common SINGLE ancestor), we need to check for exclusivity of the branches.
 //             we will do this via DFS-ing each child branch of the branching node, with the ending contition being the lcsa.
 //             if we found a dfs path that exclusive (i.e. only this path touches the nodes), then it means we have a "good" subgraph
@@ -559,6 +665,16 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
 //             TODO:: implement special case handling. If we cannot group children until they become exclusive, then need
 //                    start removing edges until they do
 
+            // Note: Temporarily disable complex graph handling when the leaky relu workaround is enabled
+            auto globalParams = model_.getGlobalConfigParams();
+            bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
+            if(!PPEAccuracy){
+                std::vector<mv::Data::OpListIterator> nonExclusiveNodes = getNonExclusiveNodes(travelingNode, lcsa);
+                if(!nonExclusiveNodes.empty()){
+                    handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
+                }
+            }
+        
             for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
                 sGraphs->push_back( SubGraph(travelingNode,lcsa,{child}));
 
@@ -578,7 +694,7 @@ std::shared_ptr<MetaGraph> StrategyManager::linearGraphSolver(mv::Data::OpDFSIte
                                                                 mv::Data::OpDFSIterator opEnd,
                                                                 mv::Data::OpDFSIterator firstChild)
 {
-//    cout << "Solving Linear Section " << opBegin->getName() << " -> " << opEnd->getName() << " via " << firstChild->getName() << endl;
+    // cout << "Solving Linear Section " << opBegin->getName() << " -> " << opEnd->getName() << " via " << firstChild->getName() << endl;
     auto linearMeta = make_shared<MetaGraph>();
     auto modelEnd = model_.opEnd();
 
@@ -638,6 +754,7 @@ std::shared_ptr<MetaGraph> StrategyManager::recursiveGraphSolver(mv::Data::OpLis
             auto& sGraphChildren = get<2>(sGraph);
 
             auto meta = recursiveGraphSolver(sGraphStart,sGraphEnd,sGraphChildren);
+            //TODO Complexgraph solver here if no children
             childMetas.push_back(meta);
         }
 
@@ -675,10 +792,18 @@ void StrategyManager::graphParameterOptimizations()
     finalMetaGraph->solve();
 
     auto bestPath = finalMetaGraph->getLowestCriticalPathExtended();
+    // Revert changes to the op model now that critical path is calculated
+    for(auto flow : addedFlows_){
+        model_.undefineFlow(flow);
+    }
+    for(auto flow : removedFlows_){
+        model_.defineFlow(get<0>(flow), get<1>(flow), get<2>(flow), get<3>(flow));
+    }
     saveMetaStrategy(*bestPath->nodes);
 
     if(createStrategyDots)
         finalMetaGraph->write(dotFileLocation,true);
+
 }
 
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)

@@ -3,11 +3,12 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/target/kmb/barrier_deps.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 #include "pass/lp_scheduler/lp_scheduler_pass.hpp"
+#include "pass/lp_scheduler/barrier_scheduler_pass.hpp"
 
 typedef mv::scheduler::Operation_Dag<> op_model_dag_t;
-
 
 class Operation_Dag_Test : public ::testing::Test {
   protected:
@@ -27,7 +28,133 @@ class Operation_Dag_Test : public ::testing::Test {
       return three_layer_conv_input_.model();
     }
 
-  private:
+
+    mv::OpModel& get_three_layer_conv_model_control_model() {
+      // clear all control edges //
+      mv::OpModel &om = three_layer_conv_model();
+      mv::ControlModel cm(om);
+
+      mv::Control::FlowListIterator fitr, fitr_next;
+      for (fitr=cm.flowBegin(); fitr!=cm.flowEnd();) {
+        fitr_next = fitr; ++fitr_next;
+        cm.undefineFlow(fitr);
+        fitr = fitr_next;
+      }
+
+      // remove all barrier ops //
+      std::vector<mv::Data::OpListIterator> ops_to_remove;
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!(oitr->getOpType() == "BarrierTask")) { continue; }
+
+        ops_to_remove.push_back(oitr);
+      }
+
+      for (auto ritr=ops_to_remove.begin(); ritr!=ops_to_remove.end(); ++ritr) {
+        om.removeOp(*ritr);
+      }
+
+      // add control edges equal to the edges in the op model //
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+          ++oitr) {
+        mv::Data::OpListIterator source = oitr; 
+        for (mv::Data::OpChildIterator citr=oitr.leftmostChild();
+              citr!=om.opEnd(); ++citr) {
+          mv::Data::OpListIterator sink = om.getOp(citr->getName());
+          assert(sink != om.opEnd());
+          cm.defineFlow(source, sink);
+        }
+      }
+      return om;
+    }
+
+    template<typename op_itr>
+    bool is_barrier_op(op_itr itr) const {
+      return (itr->getOpType() == "BarrierTask");
+    }
+
+    bool has_valid_barrier_in_and_out_references(mv::ControlModel& cm, 
+        mv::Data::OpListIterator op) const {
+      mv::Control::OpListIterator cop_itr = cm.switchContext(op);
+      if (cop_itr == cm.opEnd()) { return true; }
+
+      // check the parents //
+      for (mv::Control::OpParentIterator pitr=cop_itr.leftmostParent();
+          pitr!=cm.opEnd(); ++pitr) {
+        printf("[p] (%s) -> (%s)\n", pitr->getName().c_str(),
+              cop_itr->getName().c_str());
+
+        if (cop_itr->getOpType() == "Output") { continue; }
+        if (is_barrier_op(cop_itr) == is_barrier_op(pitr)) { return false; }
+
+        if (is_barrier_op(cop_itr)) {
+          const mv::Barrier& barrier = cop_itr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              pitr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasUpdateBarrierWithID(barrier.getID())) { return false; }
+        } else {
+          const mv::Barrier& barrier = pitr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              cop_itr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasWaitBarrierWithID(barrier.getID())) { return false; }
+        }
+      }
+
+      // check the children //
+      for (mv::Control::OpChildIterator citr=cop_itr.leftmostChild();
+          citr!=cm.opEnd(); ++citr) {
+        printf("[c] (%s) -> (%s)\n", cop_itr->getName().c_str(),
+              citr->getName().c_str());
+
+        if (citr->getOpType() == "Output") { continue; }
+        if (is_barrier_op(cop_itr) == is_barrier_op(citr)) { return false; }
+
+        if (is_barrier_op(cop_itr)) {
+          const mv::Barrier& barrier = cop_itr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              citr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasWaitBarrierWithID(barrier.getID())) { return false; }
+        } else {
+          const mv::Barrier& barrier = citr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              cop_itr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasUpdateBarrierWithID(barrier.getID())) { return false; }
+        }
+      }
+      return true;
+    }
+
+
+    // Checks if the control edges exists between 
+    bool is_valid_barrier_schedule(mv::ControlModel& cm) const {
+      mv::OpModel om(cm);
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!has_valid_barrier_in_and_out_references(cm, oitr)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // barrier_ids must be in range [0...)
+    bool does_barrier_ids_have_no_gaps(mv::ControlModel& cm) {
+      mv::OpModel om(cm);
+      std::vector<size_t> barrier_ids;
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!(oitr->getOpType() == "BarrierTask")) { continue; }
+        mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
+        barrier_ids.push_back(barrier.getID());
+      }
+
+      std::sort(barrier_ids.begin(), barrier_ids.end());
+      for (size_t i=0; i<barrier_ids.size(); i++) {
+        if (barrier_ids[i] != i) { return false; }
+      }
+      return true;
+    }
+
 
 
     //TODO(vamsikku): remove the external reference to the .json compilation
@@ -407,7 +534,6 @@ TEST_F(Aligned_DMA_Test, is_aligned_dma_op) {
 }
 
 TEST_F(Aligned_DMA_Test, resource_utility) {
-
   mv::OpModel& om = get_aligned_dma_model();
   op_model_dag_t input_dag(om);
 
@@ -423,3 +549,34 @@ TEST_F(Aligned_DMA_Test, resource_utility) {
 }
 
 
+class Barrier_Control_Dag_Test : public Operation_Dag_Test {
+  protected:
+
+    void SetUp() override {
+      std::string prefix(getenv("MCM_HOME"));
+      comp_desc_path_ = prefix + 
+          "/config/compilation/release_kmb_SC-"
+          "PrefetchAdaptive-BarrierScheduler-NoTemporalEdges.json";
+      setup_three_layer_conv_input();
+    }
+}; // class Barrier_Control_Dag_Test //
+
+typedef mv::lp_scheduler::Control_Model_Barrier_Scheduler barrier_scheduler_t;
+typedef typename barrier_scheduler_t::barrier_control_edge_t
+  barrier_control_edge_t;
+TEST_F(Barrier_Control_Dag_Test, barrier_control_dag) {
+  mv::ControlModel cmodel(three_layer_conv_model()); 
+  // the setup already runs the barrier scheduler //
+  EXPECT_TRUE(is_valid_barrier_schedule(cmodel));
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cmodel));
+}
+
+/*
+#include "pass/lp_scheduler/barrier_simulation_pass.hpp"
+typedef mv::lp_scheduler::Dynamic_Barrier_Schedule_Adjuster schedule_adjuster_t;
+TEST_F(Barrier_Control_Dag_Test, basic) {
+  mv::ControlModel cmodel(three_layer_conv_model()); 
+
+  schedule_adjuster_t adjuster(cmodel);
+}
+*/

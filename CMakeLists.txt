@@ -270,6 +270,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
@@ -340,6 +341,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
