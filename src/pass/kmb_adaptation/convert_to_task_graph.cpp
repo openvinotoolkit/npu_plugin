@@ -522,6 +522,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             newTensor = opsFunctors[opType](om, inputs, attrsToCopy, name, software);
 
             newTensor->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
 
@@ -652,6 +653,13 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
             }
         }
     }
+
+    if(opIt->hasAttr("leakyAlpha"))
+    {
+        auto alpha = opIt->get<double>("leakyAlpha");
+        clamp /= alpha;
+    }
+
     return clamp;
 }
 

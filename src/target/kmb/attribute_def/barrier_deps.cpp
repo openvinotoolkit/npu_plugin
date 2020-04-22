@@ -18,7 +18,11 @@ namespace mv
         for (auto u: bdep.getUpdate())
             updateArray.append(static_cast<long long>(u));
 
-        result.emplace("wait", static_cast<long long>(bdep.getWait()));
+        json::Array waitArray;
+        for (auto w: bdep.getWait())
+            waitArray.append(static_cast<long long>(w));
+
+        result.emplace("wait", waitArray);
         result.emplace("update", updateArray);
 
         return result;

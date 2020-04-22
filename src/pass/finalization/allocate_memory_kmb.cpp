@@ -116,8 +116,7 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             // Subtensors are not
             dm.allocateTensor("GraphFile", stageIt, tIt);
 
-            // Weights sparsity new approach: there is a separate constant for
-            // each cluster
+            // For weights sparsity there is a seperate constant per cluster, the sub-tensors are sparsified individually to get the kernel data offsets 
             if(tIt->isSparse())
             {
                 auto sparsityMap = tIt->getSparsityMap();
@@ -132,6 +131,16 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
                 }
                 else
                     tIt->set<unsigned>("graphFileIndex", i++);
+            }
+            
+            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE 
+            else if(tIt->hasAttr("splitStrategy") && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap"))   
+            {
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                    for(std::size_t j = 0; j < numClusters; ++j)
+                        tIt->getSubTensor(j).set<unsigned>("graphFileIndex", i++);
+                else
+                    tIt->set<unsigned>("graphFileIndex", i++); 
             }
             else
                 tIt->set<unsigned>("graphFileIndex", i++);
@@ -188,12 +197,12 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
             {
                 memoryLocation = "VPU_DDR_Heap";
             }
-            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
+            pass.log(mv::Logger::MessageType::Debug, "Tensor " + tensorIt->getName() + " in default location. Allocating to " + memoryLocation + " as specified in json");
         }
         else
         {
             memoryLocation = "VPU_DDR_Heap";
-            pass.log(mv::Logger::MessageType::Warning, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
+            pass.log(mv::Logger::MessageType::Debug, "Tensor " + tensorIt->getName() + " in default location. Allocating to DDR_BSS as safety");
         }
         return dm.allocateTensor(memoryLocation, stageIt, tensorIt);
     }
@@ -422,7 +431,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
                 }
@@ -461,7 +470,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     // Probably restrictions on a tensor should be attributes of that tensor.
                     if (!inputTensor->hasAttr("allocators"))
                     {    inputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,inputTensor);
-                        pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                        pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                                 " Has no allocator. Will attempt to allocate based on logical location");
                     }
                     else
@@ -485,6 +494,30 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                     lhs_padding, rhs_padding);
                 }
             }
+            else if(opType == "ImplicitUnion")
+            {
+                //In implicit union case, we dont really have 1 master buffer, we are just using it
+                // to have one output for the whole network, so each input to this op will still have
+                // it's own buffer. We create the buffers but do NOT move them like in the other case
+                // no slave/master case.
+                auto outputTensor = opIterator->getOutputTensor(0);
+                auto outputLocation = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+
+                mv::Data::BufferIterator outputBuffer;
+
+                if( !outputTensor->hasAttr("allocators"))
+                {
+                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                            " Has no allocator. Will attempt to allocate based on logical location");
+                    outputBuffer = allocateUnpopulatedTensor(pass,dm,stageIt,outputTensor);
+                }
+                else
+                {
+                    outputBuffer = dm.getBuffer(location2Allocator[outputLocation.toString()],stageIt,outputTensor);
+                }
+
+
+            }
             else if (opType == "Slice" || opType == "Crop")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
@@ -498,7 +531,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + inputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + inputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -508,7 +541,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if(!outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -546,7 +579,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }
-            else if (opType == "Copy" || opType == "Align")
+            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);
@@ -558,7 +591,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -569,7 +602,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -618,7 +651,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 if (!inputTensor->hasAttr("allocators"))
                 {
                     inputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, inputTensor);
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() + ""
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() + ""
                             " Has no allocator. Will attempt to allocate based on logical location");
                 }
                 else
@@ -629,7 +662,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 if( !outputTensor->hasAttr("allocators"))
                 {
-                    pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                    pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " Has no allocator. Will attempt to allocate based on logical location");
                     outputBuffer = allocateUnpopulatedTensor(pass, dm, stageIt, outputTensor);
                 }
@@ -647,7 +680,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             else
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
-                pass.log(mv::Logger::MessageType::Warning, "Tensor " + outputTensor->getName() +
+                pass.log(mv::Logger::MessageType::Debug, "Tensor " + outputTensor->getName() +
                             " has implicit flow but was not assigned an allocator.");
             }
             

@@ -64,6 +64,7 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
             {
                 auto flows = inputTensor->get<std::set<std::string>>("flows");
                 mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                inputTensorDma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                 inputTensorDmaOp->set<unsigned>("opId", opId);
 
@@ -72,6 +73,9 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                     auto backupFlow = dm.getDataFlow(flowStr);
                     auto idx = backupFlow->get<std::size_t>("sinkInput");
                     auto sink = backupFlow.sink();
+                    if (sink->getOpType() == "DMATask")
+                        if (sink->get<mv::DmaDirection>("direction") == mv::DDR2NNCMX)
+                            continue;
                     om.undefineFlow(backupFlow);
                     sink->setInputTensor(inputTensorDma, idx, false);
                     om.defineFlow(inputTensorDmaOp, 0, sink, idx);

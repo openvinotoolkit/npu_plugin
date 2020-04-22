@@ -3,6 +3,7 @@
 ## Pull Request Process
 
 1. The header of the PR must be filled out according to the questions.
+   Please be verbose with your description. It helps the reviewer and is used to generate release notes.
 2. There are CI jobs in the template which are run manually. 
    Developer must ensure PR's header contains links to actual test job.
 3. All comments must be addressed and marked resolved. 

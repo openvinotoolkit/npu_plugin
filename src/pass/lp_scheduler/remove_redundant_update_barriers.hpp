@@ -27,7 +27,11 @@ class Remove_Redundant_Update_Barriers {
           old_deps = oitr->get<mv::BarrierDependencies>("BarrierDeps");
         std::vector<std::string> new_producer_tasks;
 
-        new_deps.setWaitBarrier(old_deps.getWait());
+        const std::vector<unsigned>& old_wait = old_deps.getWait();
+        for (auto witr=old_wait.begin(); witr!=old_wait.end(); ++witr) {
+          new_deps.addWaitBarrier(*witr);
+        }
+
         for (auto citr=oitr.leftmostChild(); citr!=cmodel_.opEnd(); ++citr) {
           if ( !(citr->getOpType() == "BarrierTask") ) { continue; }
 

@@ -136,6 +136,7 @@ endif()
 include_directories(${PROJECT_SOURCE_DIR})
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
+include_directories(${PROJECT_SOURCE_DIR}/include/huffman_encoding)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
@@ -226,6 +227,11 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/utils/env_loader.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_math.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/custom_strings.cpp"
+    "${PROJECT_SOURCE_DIR}/src/utils/compression/hde.cpp"
+
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
 )
 
 set(model
@@ -261,8 +267,10 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
@@ -281,6 +289,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/place_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/bias_fixed_point_compute.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/strategy_from_layers_to_tensors.cpp"
@@ -301,6 +310,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/mark_trailing_upatasks.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
@@ -331,13 +341,11 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/graph/tensor_interference_graph.cpp"
-
-
-
 )
 
 set(compiler
@@ -440,7 +448,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-install(TARGETS cm model
+install(TARGETS cm model 
         EXPORT mcmCompilerTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

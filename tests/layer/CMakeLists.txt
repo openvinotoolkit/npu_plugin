@@ -8,6 +8,12 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(single_conv_hde_SOK single_conv_hde_SOK/single_conv_hde_SOK.cpp)
+    target_link_libraries(single_conv_hde_SOK cm)
+
+    add_executable(single_conv_hde_SOH single_conv_hde_SOH/single_conv_hde_SOH.cpp)
+    target_link_libraries(single_conv_hde_SOH cm)
+
     add_executable(argmax_noaxis argmax_noaxis/argmax_noaxis.cpp)
     target_link_libraries(argmax_noaxis cm)
 
@@ -23,6 +29,11 @@ else()
     add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
     target_link_libraries(conv_fakequantize cm)
 
+    add_executable(multiple_output_same_size multiple_output_same_size/multiple_output_same_size.cpp)
+    target_link_libraries(multiple_output_same_size cm)
+
+    add_executable(multiple_output_different_sizes multiple_output_different_sizes/multiple_output_different_sizes.cpp)
+    target_link_libraries(multiple_output_different_sizes cm)
 
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
@@ -40,6 +51,12 @@ else()
 
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
+
+    add_executable(group_convolution group_convolution/group_convolution.cpp)
+    target_link_libraries(group_convolution cm)
+
+    add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
+    target_link_libraries(mixed_mode_eltwise cm)
 
     add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
     target_link_libraries(conv_sparsity cm)
@@ -115,6 +132,9 @@ else()
 
     add_executable(softmax softmax/softmax.cpp)
     target_link_libraries(softmax cm)
+
+    add_executable(trailing_upatasks trailing_upatasks/trailing_upatasks.cpp)
+    target_link_libraries(trailing_upatasks cm)
 
     add_executable(eltwise_fp16 eltwise_fp16/eltwise_fp16.cpp)
     target_link_libraries(eltwise_fp16 cm)
