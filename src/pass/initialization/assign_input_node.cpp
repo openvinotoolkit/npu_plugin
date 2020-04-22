@@ -38,18 +38,24 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
         return;
     }
 
-    // Create the virtual graph input node
+    // Create the virtual graph input node. Size doesn't really matter.
     auto inputTensor = om.input(mv::Shape({64,64,3,1}),  mv::DType("UInt8"), mv::Order("NHWC"), {{},{},{},{}}, false);
-    auto op = om.getSourceOp(inputTensor);
 
-    // Create an implicit Input slice op, connect all network inputs to that op, and attach;
-    auto implicitInputSlice = om.implicitInputSlice(inputTensor);
 
     auto networkInputs = om.getNetworkInputs();
     std::vector<mv::Data::TensorIterator> inputTensors;
     for (size_t i = 0; i < networkInputs.size(); i++)
     {
         auto networkInput = networkInputs[i]->getOutputTensor(0);
+
+        // Create an implicit Input slice op, connect respective network input to that op, and attach.
+        auto implicitInputSlice = om.implicitInputSlice(inputTensor);
+
+        implicitInputSlice->setShape(networkInput->getShape());
+        implicitInputSlice->setDType(networkInput->getDType());
+        implicitInputSlice->setOrder(networkInput->getOrder());
+        implicitInputSlice->set<mv::QuantizationParams>("quantParams", networkInput->get<mv::QuantizationParams>("quantParams"));
+
         auto networkInputOp = om.getSourceOp(networkInput);
         // Assumes one input per outputNode
         auto implicitInput = om.implicitInput(implicitInputSlice,
@@ -69,4 +75,5 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
         om.replaceNetworkInputAtIdx(i, om.getSourceOp(implicitInput));
 
     }
+
 }
