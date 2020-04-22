@@ -27,7 +27,7 @@ include_directories(${META_DIR_PATH})
 
 if (NOT CMAKE_BUILD_TYPE)
     # Due to the current development pace, Debug is default build type
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
