@@ -5,6 +5,9 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/compression/hde.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_strings.hpp"
 
 
 static void GraphParameterOptimizationFcn(
@@ -38,13 +41,18 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, const mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                
+                // Load the HDE hardware specs
+                auto hdeDef = td.hdeDef();
+                hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
 
+            std::unique_ptr<Hde> hde_ = nullptr;
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
@@ -80,6 +88,74 @@ namespace mv
                 globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
+            }
+
+            /*
+             * This method calculates a compression ratio of compressed weight size / orignal weight size.
+             * This ratio could be used by the calculation of execution time.
+             * Execution time is calculated by this formula and theoretically the DMA of compressed data should be 
+             * faster than non compressed data 
+             * execTime += WSize / ddrBandwidth;
+             * So execution time calculation could be extended to be:
+             * execTime += (WSize * weightscompressionRatio / ddrBandwidth; 
+             * 
+             * Empirical testing has found this does not change final strategy section as the same amount of data is
+             * ultimately DMA'ed to CMX. So for now the ratio is not used until a more sensitive cost function is 
+             * developed as it does not warrant the increase in compilation time caused by calling the HDE library in strategy manager.  
+             */ 
+            double calculateWeightsCompressionRatio(mv::Op layer)
+            {
+                double weightsCompressionRatio = 1;
+                auto inputTensor = layer.getInputTensor(0);
+                auto weightsTensor = layer.getInputTensor(1);
+                auto outputTensor = layer.getOutputTensor(0);
+                auto weightsTensorShape = weightsTensor->getShape();
+                auto inputTensorShape = inputTensor->getShape();
+                auto outputTensorShape = outputTensor->getShape();
+
+                auto globalConfigParams = model_.getGlobalConfigParams();
+                int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+
+                auto alignedInputChannels = ((inputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad- 1) / pad) * pad;
+                auto alignedOutputChannels = ((outputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad - 1) / pad) * pad;
+
+                mv::Shape alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
+                                                alignedInputChannels, alignedOutputChannels});
+
+                // HDE should only compress weights larger than 4 kB
+                // At this point sparsity has not yet been decided for weights
+                // So using alignedShape.totalSize() is a conservative estimate as it assumes 
+                // non-sparse size 
+                if(alignedShape.totalSize() / 1024 > 4)             
+                {
+                    // If weights are already aligned to 16 channels, then compute the HDE compression ratio 
+                    if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
+                        weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
+                    {
+                        auto weightsdata = weightsTensor->getIntData();
+                        auto compressedData =  hde_->hdeCompress(weightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / weightsdata.size();
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
+                        return weightsCompressionRatio;
+                    }
+                    // Else align weights to 16 channels and compute the HDE compression ratio          
+                    else 
+                    {
+                        auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
+                        auto zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
+
+                        auto alignedWeightsdata = weightsTensor->getIntData();
+                        auto weightsAlignmentData = std::vector<int64_t>(alignedShape.totalSize() - alignedWeightsdata.size() , zeroPoint);
+                        alignedWeightsdata.insert(alignedWeightsdata.end(), weightsAlignmentData.begin(), weightsAlignmentData.end());
+
+                        auto compressedData = hde_->hdeCompress(alignedWeightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / alignedWeightsdata.size();
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
+
+                        return weightsCompressionRatio;
+                    }
+                }
+                return weightsCompressionRatio;
             }
 
             //TODO:: figure out more efficient and cleaner way to handle these....
@@ -1001,10 +1077,13 @@ namespace mv
                 {
                     auto streamOverK = parent["streaming"].get<Shape>()["K"];
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
+
+                    // Technically you could scale weight size here if the weight are compressed
+                    // See technical note at calculateWeightsCompressionRatio() above
                     if( streamOverK == 1)
                         execTime1 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime1 += ((double)WSize  / (double)ddrBandwidth) * 2;
+                        execTime1 += ((double)WSize / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
                         execTime1 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
@@ -1348,12 +1427,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& pass,
     mv::ComputationModel& model,
-    mv::TargetDescriptor&, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();
