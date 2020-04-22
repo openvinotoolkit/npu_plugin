@@ -18,6 +18,10 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
+static void streamCopyOperationsFcn(const mv::pass::PassEntry&,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
+
 namespace mv
 {
     namespace pass
@@ -31,6 +35,12 @@ namespace mv
         .setFunc(streamBinaryDataWeightsFcn)
         .setDescription(
             "The StreamOverK on Costant Operastions creates Constant + Slice, which is new smaller/fused Constants"
+        );
+
+        MV_REGISTER_PASS(StreamCopyOperations)
+        .setFunc(streamCopyOperationsFcn)
+        .setDescription(
+            "This pass will handle the copy+slice pattern"
         );
     }
 }
@@ -732,7 +742,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     }
 }
 
-
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
                                         mv::ComputationModel& model,
                                         mv::TargetDescriptor& ,
@@ -746,7 +755,6 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
 
         if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
         {
@@ -773,5 +781,34 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
         }
     }
     for (auto& opName:removeConstantsSet)
+        om.removeOp(om.getOp(opName));
+}
+
+static void streamCopyOperationsFcn(const mv::pass::PassEntry& ,
+                                        mv::ComputationModel& model,
+                                        mv::TargetDescriptor& ,
+                                        mv::Element& ,
+                                        mv::Element &)
+{
+    //Need to duplicate the consts to number equal to streams, cause of the binary_data
+    mv::OpModel om(model);
+
+    std::set <std::string> removeCopySet;
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        std::string opType = opIterator->getOpType();
+
+        if (opType == "Slice" && (!opIterator->getInputTensor(0)->isPopulated()))
+        {
+            auto previousOp = om.getSourceOp(opIterator->getInputTensor(0));
+            if (previousOp->getOpType() == "Copy")
+            {
+                opIterator->setInputTensor(previousOp->getInputTensor(0), 0, false);
+                om.defineFlow(previousOp->getInputTensor(0),opIterator , 0);
+                removeCopySet.insert(previousOp->getName());
+            }
+        }
+    }
+    for (auto& opName:removeCopySet)
         om.removeOp(om.getOp(opName));
 }

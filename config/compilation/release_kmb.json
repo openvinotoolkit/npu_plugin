@@ -197,7 +197,8 @@
                 "html": true
             },
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
