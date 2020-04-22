@@ -32,12 +32,7 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     auto sortedOps = om.topologicalSort();
     for(auto opIt : sortedOps)
     {
-         std::string opType = opIt->getOpType();
-
-        if (opIt->getOpType() ==  "ImplicitConcat" || opIt->getOpType() ==  "ImplicitReshape"
-            || opIt->getOpType() ==  "ImplicitPermute" || opIt->getOpType() ==  "Copy" || opIt->getOpType() ==  "Slice"
-            || opIt->getOpType() ==  "Crop" || opIt->getOpType() ==  "Align"
-            || opIt->getOpType() ==  "ImplicitOutput")
+        if (opIt->isImplicit())
         {
             auto input = opIt->getInputTensor(0);
             auto output = opIt->getOutputTensor(0);
@@ -62,12 +57,25 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
     {
          std::string opType = opIt->getOpType();
 
-        if (opType ==  "Slice" || opType ==  "Crop")
+        if (opType == "Slice")
         {
             auto inputMemoryLocation = opIt->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", inputMemoryLocation);
         }
-
+        else if (opType == "Crop")
+        {
+            // Recursively search for non-implicit output op
+            auto outputOp = opIt.leftmostOutput().sink();
+            while(outputOp->isImplicit())
+            {
+                outputOp = outputOp.leftmostOutput().sink();
+            }
+            auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
+                    ? mv::Tensor::MemoryLocation::OUTPUT
+                    : mv::Tensor::MemoryLocation::DDR;
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
+        }
         //NOTE: Temporary handle for the scheduler in order to place the required DMA-s for the copy operation
         else if (opType == "Copy")
         {
@@ -118,21 +126,19 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
             }
         }
-
-
-        if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
+        else if (opType == "ImplicitReshape" || opType == "ImplicitPermute")
         {
             auto input = opIt->getInputTensor(0);
             // Recursively search for non-implicit input op
             auto inputOp = om.getSourceOp(input);
-            while(!(inputOp->hasTypeTrait("executable") || inputOp->hasTypeTrait("exposed")))
+            while(inputOp->isImplicit())
             {
                 input = inputOp->getInputTensor(0);
                 inputOp = om.getSourceOp(input);
             }
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
-            while(!(outputOp->hasTypeTrait("executable") || outputOp->hasTypeTrait("exposed")))
+            while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
