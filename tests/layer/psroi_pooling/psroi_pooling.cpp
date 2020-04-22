@@ -16,7 +16,7 @@ int main()
     double spatial_scale = 0.0625;
     size_t spatial_bins_x = 1;
     size_t spatial_bins_y = 1;
-    size_t psroi_pooling_method = 0; // average
+    std::string mode = "average";
 
     std::vector<uint16_t> weightsData(5*5);
 
@@ -40,7 +40,7 @@ int main()
     inputs.push_back(weights0);
     // Build Model
     auto psroiPooling = om.pSROIPooling(inputs, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
-                                        spatial_bins_x, spatial_bins_y, psroi_pooling_method, mv::DType("Float16"));
+                                        spatial_bins_x, spatial_bins_y, mode, mv::DType("Float16"));
 
     om.output(psroiPooling);
 
