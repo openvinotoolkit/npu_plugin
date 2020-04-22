@@ -24,18 +24,16 @@ int main()
     auto reshape1 = om.reshape(reshape0, {1,1,256,1}, mv::DType("Float16"), {{0},{1.0},{},{}}, "reshape1");
 
     // DPUTask
-    std::vector<int64_t> weightsData1 = mv::utils::readWeightsFromFile<int64_t>(weights_filename);
-    auto weights1 = om.constantInt(weightsData1,{1,1,256,256}, mv::DType("Int8"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}});
-    auto conv1 = om.conv(reshape1, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1.0},{},{}} , "conv1");
+    auto pool0 = om.maxPool(reshape1, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.0},{},{}}, "pool0");
 
     // UPATasks, trailing
-    auto reshape2 = om.reshape(conv1, {8,8,4,1}, mv::DType("Float16"), {{0},{1.0},{},{}}, "reshape2");
+    auto reshape2 = om.reshape(pool0, {8,8,4,1}, mv::DType("Float16"), {{0},{1.0},{},{}}, "reshape2");
     auto reshape3 = om.reshape(reshape2, {1,1,256,1}, mv::DType("Float16"), {{0},{1.0},{},{}}, "reshape3");
 
     // Output
     om.output(reshape3, mv::DType("UInt8"));
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_SC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
