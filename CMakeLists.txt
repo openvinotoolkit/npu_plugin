@@ -123,14 +123,6 @@ if(CMAKE_CROSSCOMPILING)
 endif()
 add_subdirectory(contrib/flatbuffers)
 
-
-# emulator config
-set(EMULATOR_ENABLE_TESTS OFF)
-set(EMULATOR_ENABLE_NETWORK_TESTS OFF)
-set(EMULATOR_ENABLE_UNIT_TESTS OFF)
-set(ENABLE_LAYER_TESTS OFF)
-# add_subdirectory(contrib/mcm-emulator)
-
 #############################################################################################
 ### Main build
 #############################################################################################
@@ -376,7 +368,6 @@ set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-
 # emulator variables
 add_definitions(-DEMU_PROJECT_DIR=\"${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/\")
 # add_definitions(-DEMU_BINARY_DIR=\"${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/data/\")
@@ -436,8 +427,6 @@ set(
     ${RUN}
     ${UTILS}
 )
-
-
 
 if(CMAKE_CROSSCOMPILING)
     find_file(MCM_COMPILER_EXPORT_FILE mcmCompilerExecutables.cmake DOC "Path to the export file from a native build")
