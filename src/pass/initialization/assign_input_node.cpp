@@ -66,6 +66,8 @@ void assignInputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model
                                                 networkInput->getName() + "_implicit");
         
 
+        implicitInput->set<uint8_t>("inputIndex", i);
+
         // connect the output of this implicitInput to be the same as the
         // output of the original input op
         auto parentOp = om.getSourceOp(implicitInputSlice);
