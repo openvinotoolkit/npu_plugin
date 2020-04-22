@@ -131,7 +131,9 @@ TEST(fake_quantize_proc, quantization_on_input)
     mv::TargetDescriptor dummyTargDesc;
     mv::Element compOutput("CompilationOutput");
 
-    mv::pass::PassRegistry::instance().find("FakeQuantize")->run(om, dummyTargDesc, dummyPassDesc, compOutput);
+    auto pass = mv::pass::PassRegistry::instance().find("FakeQuantize");
+    ASSERT_TRUE(pass != nullptr);
+    pass->run(om, dummyTargDesc, dummyPassDesc, compOutput);
 
     auto fq_ops = om.getOps("FakeQuantize");
     ASSERT_TRUE(fq_ops.empty());
