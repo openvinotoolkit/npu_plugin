@@ -157,7 +157,7 @@ DEFINE_bool(progress, false, progress_message);
 /// @brief Define flag for showing performance counters <br>
 DEFINE_bool(pc, false, pc_message);
 
-DEFINE_string(device_id, "0", device_id_message);
+DEFINE_string(device_id, "", device_id_message);
 
 /**
 * @brief This function show a help message

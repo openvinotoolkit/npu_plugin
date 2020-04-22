@@ -19,6 +19,7 @@
 #include <string>
 #include <algorithm>
 #include <limits>
+#include <map>
 
 #include <inference_engine.hpp>
 
@@ -46,6 +47,10 @@ bool ParseAndCheckCommandLine(int argc, char *argv[]) {
 
     if (FLAGS_m.empty()) {
         throw std::logic_error("Parameter -m is not set");
+    }
+
+    if (FLAGS_device_id.empty()) {
+        throw std::logic_error("Device ID is required but not set. Please set -device_id option.");
     }
 
     return true;
@@ -1112,7 +1117,10 @@ int main(int argc, char *argv[]) {
         std::string binFileName = FLAGS_m;
         slog::info << "Loading blob:\t" << binFileName << slog::endl;
 
-        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", {});
+        std::map<std::string, std::string> config;
+        config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_DEBUG);
+        config["VPU_DEVICE_ID"] = FLAGS_device_id;
+        ExecutableNetwork importedNetwork = ie.ImportNetwork(binFileName, "KMB", config);
         // -----------------------------------------------------------------------------------------------------
 
         // --------------------------- 3. Configure input & output ---------------------------------------------

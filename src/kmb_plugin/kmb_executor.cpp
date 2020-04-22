@@ -106,40 +106,40 @@ void KmbExecutor::initVpualObjects() {
 #ifdef ENABLE_VPUAL
     IE_PROFILING_AUTO_SCOPE(initVpualObjects);
     if (!RgnAlloc) {
-        RgnAlloc = make_shared<RgnAllocator>();
+        RgnAlloc = make_shared<RgnAllocator>(_config.VPUSMMSliceIdx());
     }
     if (!HeapAlloc) {
-        HeapAlloc = make_shared<HeapAllocator>();
+        HeapAlloc = make_shared<HeapAllocator>(_config.VPUSMMSliceIdx());
     }
     if (!nnPl) {
-        nnPl = make_shared<NNFlicPlg>();
+        nnPl = make_shared<NNFlicPlg>(_config.VPUSMMSliceIdx());
     }
     if (!gg) {
-        gg = make_shared<GraphManagerPlg>();
+        gg = make_shared<GraphManagerPlg>(_config.VPUSMMSliceIdx());
     }
     if (!plgTensorInput_) {
-        plgTensorInput_ = make_shared<PlgTensorSource>();
+        plgTensorInput_ = make_shared<PlgTensorSource>(_config.VPUSMMSliceIdx());
     }
     if (!plgTensorOutput_) {
-        plgTensorOutput_ = make_shared<PlgStreamResult>();
+        plgTensorOutput_ = make_shared<PlgStreamResult>(_config.VPUSMMSliceIdx());
     }
     if (!plgInferenceInput_) {
-        plgInferenceInput_ = make_shared<PlgInferenceInput>();
+        plgInferenceInput_ = make_shared<PlgInferenceInput>(_config.VPUSMMSliceIdx());
     }
     if (!plgInferenceOutput_) {
-        plgInferenceOutput_ = make_shared<PlgInferenceOutput>();
+        plgInferenceOutput_ = make_shared<PlgInferenceOutput>(_config.VPUSMMSliceIdx());
     }
     if (!plgPoolOutputs) {
-        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
+        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>(_config.VPUSMMSliceIdx());
     }
     if (!plgPoolInferenceMsg) {
-        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>();
+        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>(_config.VPUSMMSliceIdx());
     }
     if (!BHandle) {
         BHandle = make_shared<BlobHandle_t>();
     }
     if (!pipe) {
-        pipe = make_shared<Pipeline>();
+        pipe = make_shared<Pipeline>(_config.VPUSMMSliceIdx());
     }
     if (!_inferenceVirtAddr) {
         _inferenceVirtAddr =

@@ -62,6 +62,10 @@ DEFINE_double(s, DEFAULT_SCALE, scale_message);
 /// @brief message for zero point
 DEFINE_int32(z, DEFAULT_ZERO_POINT, zeropoint_message);
 
+/// @brief device ID to run inference on
+static const char device_id_message[] = "Required. VPU device ID.";
+DEFINE_string(device_id, "", device_id_message);
+
 /**
 * @brief This function show a help message
 */

@@ -330,7 +330,10 @@ int main(int argc, char *argv[]) {
             // ----------------- 7. Loading the model to the device --------------------------------------------------------
             next_step();
             auto startTime = Time::now();
-            exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {{"VPU_DEVICE_ID", FLAGS_device_id}});
+            exeNetwork = ie.ImportNetwork(FLAGS_m, device_name, {
+                {"VPU_DEVICE_ID", FLAGS_device_id},
+                {CONFIG_KEY(LOG_LEVEL), CONFIG_VALUE(LOG_DEBUG)}
+            });
             auto duration_ms = double_to_string(get_total_ms_time(startTime));
             slog::info << "Import network took " << duration_ms << " ms" << slog::endl;
             if (statistics)
