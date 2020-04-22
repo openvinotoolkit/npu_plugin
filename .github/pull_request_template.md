@@ -1,6 +1,6 @@
 ## Summary
 
-(Please add a short summary why your pull request is useful)
+(Add a short summary why your pull request is useful. Please be verbose as you comments are copied to the Release Notes)
 
 ## Related PR's
 
@@ -20,5 +20,5 @@
 Access is through https://ags.intel.com apply for group "MOVIDIUS MIG JENKINS DEVELOPER".)
 
 * [ ] [Fast Top 7 Networks](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/FAST%20Top%207%20Networks/build)
-* [ ] [Openvino Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO/build)
+* [ ] [Openvino v10 Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO-IRv10-WW14/build)
 * [ ] [Software Layer tests](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/Software%20Layer%20Unit%20Tests/build)

@@ -109,7 +109,9 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
     {
         int success;
         UNUSED(success);
-        mv::Workloads Tensor(tensor->getName(), tensor->getShape());
+        auto needs_sparse = (tensor->hasAttr("needs_sparse")) ? tensor->get<bool>("needs_sparse") : false;
+        auto needs_splits_aligned = (tensor->hasAttr("needs_splits_aligned")) ? tensor->get<bool>("needs_splits_aligned") : false;
+        mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);
         std::vector<mv::Workload> subTensors;
 
         if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
@@ -208,10 +210,15 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             //NOTE:Temporary handle for bug in Rectangular Heuristic
             if (subTensors.size() != nWorkloads)
             {
+                mv::Shape tensorShape = tensor->getShape();
+                std::size_t outputChannels = tensorShape[mv::IO_CHANNEL_DIMENSION];
                 std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
-                while (sinkOperators[0]->getOpType() != "DPUTask") 
-                    sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                auto outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                if (!sinkOperators.empty())
+                {
+                    while (sinkOperators[0]->getOpType() != "DPUTask")
+                        sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                    outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                }
                 auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                 subTensors.clear();
                 subTensors = newSubTensors;

@@ -16,6 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
+                "HuffmanCompression": false,
                 "split_strategy" :
                 [
                     {
@@ -72,6 +73,7 @@
                     }
                 ]
             },
+            "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -90,6 +92,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
@@ -196,6 +199,7 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
@@ -227,22 +231,10 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_input_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_input_control_model.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt" 
+              "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
+              "enable_simple_repacking" : true
             },
             {
                 "name": "GenerateDot",
@@ -277,7 +269,7 @@
             "AllocateCMXTensorsKmb",
             {
               "name": "LpScheduler",
-              "output" : "output/lp_scheduler_output.txt",
+              "output" : "lp_scheduler_output.txt",
               "allocator_mode": true
             },
             "TransitiveReduction",
@@ -306,29 +298,8 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization_control.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization_opcontrol.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_after_serialization_control.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             },
             {
                 "name": "ConvertFlatbuffer",

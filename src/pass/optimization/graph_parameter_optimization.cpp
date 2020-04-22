@@ -2,9 +2,11 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
-#include "include/mcm/op_model.hpp"
 #include "include/mcm/pass/graphOptimizations/StrategyManager.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/compression/hde.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
+#include "mcm/utils/custom_strings.hpp"
 
 
 static void GraphParameterOptimizationFcn(
@@ -38,13 +40,18 @@ namespace mv
         {
 
         public:
-            StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
+            StrategyManagerKmb(OpModel& model,mv::Element& passDesc, const mv::TargetDescriptor& td) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
+                
+                // Load the HDE hardware specs
+                auto hdeDef = td.hdeDef();
+                hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
 
+            std::unique_ptr<Hde> hde_ = nullptr;
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
@@ -80,6 +87,76 @@ namespace mv
                 globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
+            }
+            
+            /*
+             * This method calculates a compression ratio of compressed weight size / orignal weight size.
+             * This ratio could be used by the calculation of execution time.
+
+             * Execution time is calculated by this formula and theoretically the DMA of compressed data should be 
+             * faster than non compressed data 
+             * execTime += WSize / ddrBandwidth;
+
+             * So execution time calculation could be extended to be:
+             * execTime += (WSize * weightscompressionRatio / ddrBandwidth; 
+             * 
+             * Empirical testing has found this does not change final strategy section as the same amount of data is
+             * ultimately DMA'ed to CMX. So for now the ratio is not used until a more sensitive cost function is 
+             * developed as it does not warrant the increase in compilation time caused by calling the HDE library in strategy manager.  
+             */ 
+            double calculateWeightsCompressionRatio(mv::Op layer)
+            {
+                double weightsCompressionRatio = 1;
+                auto inputTensor = layer.getInputTensor(0);
+                auto weightsTensor = layer.getInputTensor(1);
+                auto outputTensor = layer.getOutputTensor(0);
+                auto weightsTensorShape = weightsTensor->getShape();
+                auto inputTensorShape = inputTensor->getShape();
+                auto outputTensorShape = outputTensor->getShape();
+
+                auto globalConfigParams = model_.getGlobalConfigParams();
+                int pad = globalConfigParams->hasAttr("VPU2ChannelPadding") ? globalConfigParams->get<int>("VPU2ChannelPadding") : 16;
+
+                auto alignedInputChannels = ((inputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad- 1) / pad) * pad;
+                auto alignedOutputChannels = ((outputTensorShape[mv::IO_CHANNEL_DIMENSION] + pad - 1) / pad) * pad;
+
+                mv::Shape alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
+                                                alignedInputChannels, alignedOutputChannels});
+
+                // HDE should only compress weights larger than 4 kB
+                // At this point sparsity has not yet been decided for weights
+                // So using alignedShape.totalSize() is a conservative estimate as it assumes 
+                // non-sparse size 
+                if(alignedShape.totalSize() / 1024 > 4)             
+                {
+                    // If weights are already aligned to 16 channels, then compute the HDE compression ratio 
+                    if (weightsTensorShape[mv::KERNEL_OUTPUT_CHANNELS] == alignedShape[mv::KERNEL_OUTPUT_CHANNELS] &&
+                        weightsTensorShape[mv::KERNEL_INPUT_CHANNELS] == alignedShape[mv::KERNEL_INPUT_CHANNELS])
+                    {
+                        auto weightsdata = weightsTensor->getIntData();
+                        auto compressedData =  hde_->hdeCompress(weightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / weightsdata.size();
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
+                        return weightsCompressionRatio;
+                    }
+                    // Else align weights to 16 channels and compute the HDE compression ratio          
+                    else 
+                    {
+                        auto weightsTensorQuantizationParams = weightsTensor->get<mv::QuantizationParams>("quantParams");
+                        auto zeroPoint = weightsTensorQuantizationParams.getZeroPoint()[0];
+
+                        auto alignedWeightsdata = weightsTensor->getIntData();
+                        auto weightsAlignmentData = std::vector<int64_t>(alignedShape.totalSize() - alignedWeightsdata.size() , zeroPoint);
+                        alignedWeightsdata.insert(alignedWeightsdata.end(), weightsAlignmentData.begin(), weightsAlignmentData.end());
+
+                        auto compressedData = hde_->hdeCompress(alignedWeightsdata, weightsTensor);
+                        weightsCompressionRatio = (double)compressedData.second / alignedWeightsdata.size();
+                        layer.set<double>("weightsCompressionRatio", weightsCompressionRatio);
+
+                        return weightsCompressionRatio;
+                    }
+                }
+                return weightsCompressionRatio;
             }
 
             //TODO:: figure out more efficient and cleaner way to handle these....
@@ -225,7 +302,7 @@ namespace mv
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
-                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig)
+                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, bool fakeSparsity)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -236,24 +313,25 @@ namespace mv
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
+                auto opType = op.getOpType();
                 auto isCMConv = false;
 
-                if(enableChannelMajorConv and op.getOpType() == "Conv" and 
+                if(enableChannelMajorConv and opType == "Conv" and
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                         isCMConv = true;
 
-                if(op.getOpType() != "Input")
+                if(opType != "Input")
                     inputSize = realTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
-                if(op.getOpType() != "Output")
+                if(opType != "Output")
                     outputSize = realTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
-                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                if(opType == "Conv" || opType == "DepthwiseConv")
                 {
                     size_t alignedFullChannels = mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
                     size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                     weightTableSize = 4 * alignedSplittedChannels;
-                    if (op.getOpType() == "Conv")
+                    if (opType == "Conv")
                     {
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1});
                         //weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
@@ -261,12 +339,12 @@ namespace mv
                     else
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1,1}, isCMConv);
                 }
-                else if(op.getOpType() == "MaxPool")
+                else if(opType == "MaxPool")
                 {
                     weightTableSize = 0;
                     weightSize = 0;
                 }
-                else if(op.getOpType() == "Eltwise" && !software)
+                else if(opType == "Eltwise" && !software)
                 {
                     weightTableSize = 0;
                     weightSize = 0; //TODO think about
@@ -274,6 +352,60 @@ namespace mv
                 }
 
                 //Additional memory footprint for sparsity
+                if(fakeSparsity)
+                {
+                    if (opType != "MaxPool" && opType != "DepthwiseConv" && !isCMConv)
+                    {
+                        //error
+                        throw LogicError(*this, op.getName() + ": Invalid fake Sparsity! Has to be only for MaxPool, DW or CMConv!! opType is " + opType);
+                    }
+                    std::vector<std::size_t> ndims(4);
+                    uint16_t kernelW, kernelH;
+
+
+                    auto strides = op.get<std::array<unsigned short, 2>>("stride");
+
+                    if (op.hasAttr("kSize"))
+                    {
+                        auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
+                        kernelW = kernelShape[0];
+                        kernelH = kernelShape[1];
+                    }
+                    else
+                    {
+                        auto weightsShape = op.getInputTensor(1)->getShape();
+                        kernelW = weightsShape[mv::KERNEL_WIDTH];
+                        kernelH = weightsShape[mv::KERNEL_HEIGHT];
+                    }
+
+                    mv::DType dataType =op.getInputTensor(0)->get<mv::DType>("dType");
+                    if (opType != "MaxPool")
+                        dataType = op.getInputTensor(1)->get<mv::DType>("dType");
+
+                    auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
+                    size_t fakeSparsitySize = 0;
+                    if ((opType == "MaxPool") || (opType == "DepthwiseConv"))
+                    {
+                        //inputChannels = 1
+                        auto bitpatternSize = windowsSize*kernelH;
+                        //ndims = {16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0)), 1, 1, 1};
+                        fakeSparsitySize = 16 * static_cast<std::size_t>(std::ceil(bitpatternSize / 128.0));
+                    }
+                    else if (isCMConv)//isChannelMajorConvolution
+                    {
+                        std::size_t outputChannels =  mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                        outputChannels = mv::round_up(outputChannels/streamConfig["K"], 16);
+                        std::size_t inputChannels = mv::round_up(op.getInputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+
+                        auto windowSparsitySize = static_cast<std::size_t>(std::ceil(windowsSize/8.0)); //how many bytes we need per window
+                        auto NumberOfRowsSparistyBytes = static_cast<std::size_t>(std::ceil((kernelH * inputChannels * windowSparsitySize) / 16.0 ));
+
+                        //ndims = {16, NumberOfRowsSparistyBytes, 1, outputChannels};
+                        fakeSparsitySize = 16*NumberOfRowsSparistyBytes*outputChannels;
+
+                    }
+                    inputSize += fakeSparsitySize;
+                }
                 if(inputActivationSparsity){
                     size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
                     //w*h*c, 1 bit per byte of tensor.
@@ -339,7 +471,7 @@ namespace mv
 
             unsigned getMaxStreamOverH(const string& clustering,mv::Op& op, vector<size_t> streamsOverK){
                 for(auto k : streamsOverK){
-                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k,1});
+                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k,1}, true);
                     auto activationsSize = memH.first;
                     auto weightsSize = memH.second;
 
@@ -513,7 +645,7 @@ namespace mv
                 if(requiresRealActivationSparsity(op, clustering)) 
                     return true;
 
-                if(requiresFakeActivationSparsity(op, clustering)) 
+                if(requiresFakeActivationSparsity(op))
                     return true;
 
                 return false;
@@ -524,7 +656,7 @@ namespace mv
                 // If Z-major Conv in Float precision then need to have weights Sparsity
                 if(op.getOpType() == "Conv" and
                     op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
-                    op.get<mv::DType>("dType") == mv::DType("Float16"))
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                         return true;
 
                 return false;
@@ -533,7 +665,7 @@ namespace mv
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
-                        and op.get<mv::DType>("dType") == mv::DType("Float16"))
+                        and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                 {
                     return true;
                 }
@@ -555,9 +687,9 @@ namespace mv
             }
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
-            bool requiresFakeActivationSparsity(Op& op, string clustering){
-                if(enableChannelMajorConv and 
-                  (op.getOpType() == "Conv") and  
+            bool requiresFakeActivationSparsity(Op& op){
+                if(enableChannelMajorConv and
+                  (op.getOpType() == "Conv") and
                   (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16) )
                 {
                     return true;
@@ -626,7 +758,8 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape);
+                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
+                                    requiresFakeActivationSparsity(op));
                     // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
@@ -784,18 +917,6 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
                             return INF;
                     }
-                    //NOTE: Temporary Hack for InceptionV3...General solution change rectHeuristic
-                    if (parentClustering == "SplitOverH" && childClustering == "SplitOverH" && requiresRealActivationSparsity(childOp, "SplitOverH"))
-                    {
-                        auto H = childOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION];
-                        auto W = childOp.getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION];
-                        auto C = childOp.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                        auto estimatedClusterH = (int)floor((double)H/totalClusters);
-                        if ((estimatedClusterH*W*C)%128 != 0)
-                        {
-                            return INF;
-                        }
-                    }
                 }
 
                 if( childOp.getOpType() == "Conv")
@@ -879,7 +1000,8 @@ namespace mv
                     childInputSparsity = true;
                 }
 
-                if(requiresFakeActivationSparsity(childOp, childClustering)){
+                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
+                if(requiresFakeSparsity){
                     parentOutputSparsity = false;
                     childInputSparsity = true;
                 }
@@ -893,14 +1015,16 @@ namespace mv
                                             false,
                                             parentOutputSparsity,
                                             parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>());
+                                            parent["streaming"].get<Shape>(),
+                                            requiresFakeActivationSparsity(parentOp));
 
                     auto childMem = memorySize(childOp,
                                             childClustering,
                                             childInputSparsity,
                                             false,
                                             child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>());
+                                            child["streaming"].get<Shape>(),
+                                            requiresFakeSparsity);
 
 
                     if( (childOp.getOpType() != "Output") and 
@@ -938,10 +1062,13 @@ namespace mv
                 {
                     auto streamOverK = parent["streaming"].get<Shape>()["K"];
                     auto WSize = parentOp.getInputTensor(1)->getShape().totalSize();
+
+                    // Technically you could scale weight size here if the weight are compressed
+                    // See technical note at calculateWeightsCompressionRatio() above
                     if( streamOverK == 1)
                         execTime1 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime1 += ((double)WSize  / (double)ddrBandwidth) * 2;
+                        execTime1 += ((double)WSize / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
                         execTime1 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
@@ -950,10 +1077,11 @@ namespace mv
                 {
                     auto streamOverK = child["streaming"].get<Shape>()["K"];
                     auto WSize = childOp.getInputTensor(1)->getShape().totalSize();
+                
                     if( streamOverK == 1)
                         execTime2 += (double)WSize / (double)ddrBandwidth;
                     else if( streamOverK == 2)
-                        execTime2 += ((double)WSize  / (double)ddrBandwidth) * 2;
+                        execTime2 += ((double)WSize / (double)ddrBandwidth) * 2;
                     else if( streamOverK > 2)
                         execTime2 += ((double)WSize / (double)ddrBandwidth) * (extra_stream_decay*streamOverK);
                 }
@@ -1041,7 +1169,7 @@ namespace mv
                 if(enableChannelMajorConv and op.getOpType() == "Conv" and 
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
-
+                
                 //Size of weights, actual sparsity of tensor determine speedup
                 auto weightsSize = realTensorSize(op.getInputTensor(1), {1,1,1,1}, false);
 
@@ -1069,7 +1197,7 @@ namespace mv
             void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
             {
                 auto findStrategy = [](vector<Attribute>& vec,const string& str) ->bool { for(const auto elem : vec) if(str==elem.get<string>()) return true; return false;};
-                
+            
                 vector<Attribute> spillingPool;
                 if(globalForceSpilling)
                     spillingPool.push_back(true);
@@ -1127,7 +1255,8 @@ namespace mv
                     {
                         // Make decision about input activation sparsity, depending on clustering strategy
                         bool iAS = inputActivationSparsity;
-                        if (!iAS and requiresActivationSparsity(op, clustering.get<string>())) 
+                        bool fakeSparsity = requiresFakeActivationSparsity(op);
+                        if (!iAS and requiresActivationSparsity(op, clustering.get<string>()))
                             iAS = true;
 
                         // Determine streaming options
@@ -1140,7 +1269,7 @@ namespace mv
                         unsigned maxSplitOverH = 1;
                         if(hasStreamOverH)
                         {
-                            auto memH = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,1,1});
+                            auto memH = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,1,1},fakeSparsity);
                             auto activationsSize = memH.first;
                             auto weightsSize = memH.second;
                             double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -1196,7 +1325,7 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.back();
-                        auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n});
+                        auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n},fakeSparsity);
                         auto memoryMaxK = memK.first + memK.second;
 
 
@@ -1275,12 +1404,12 @@ namespace mv
 static void GraphParameterOptimizationFcn(
     const mv::pass::PassEntry& pass,
     mv::ComputationModel& model,
-    mv::TargetDescriptor&, mv::Element& passDesc,
+    mv::TargetDescriptor& td, mv::Element& passDesc,
     mv::Element&
 )
 {
     mv::OpModel om(model);
-    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc);
+    mv::graphOptimizer::StrategyManagerKmb strategyManager(om,passDesc, td);
 
     strategyManager.updateValuesFromJSON();
     strategyManager.updateDefaultValues();

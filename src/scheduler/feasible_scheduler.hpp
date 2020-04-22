@@ -76,6 +76,9 @@ struct scheduler_traits {
   static void initialize_resource_upper_bound(const resource_t& upper_bound,
       resource_state_t&);
 
+  static void initialize_resource_state(const resource_state_t& start_state,
+      resource_state_t&);
+
   static bool is_empty_demand(const resource_t& demand);
   static bool is_resource_available(const resource_t& demand,
         const resource_state_t&);
@@ -656,6 +659,11 @@ class Feasible_Schedule_Generator {
     heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
     input_ptr_(&in), priority_() { init(resource_bound); }
 
+  Feasible_Schedule_Generator(const dag_t& in, const resource_state_t& rstate)
+    : heap_(), current_time_(0), candidates_(), resource_state_(),
+    heap_ordering_(), schedulable_op_(), in_degree_(), processed_ops_(),
+    input_ptr_(&in), priority_() { init(rstate); }
+
   Feasible_Schedule_Generator() : heap_(), current_time_(0), candidates_(),
     resource_state_(), heap_ordering_(), schedulable_op_(), in_degree_(),
     processed_ops_(), input_ptr_(), priority_() {} 
@@ -692,9 +700,17 @@ class Feasible_Schedule_Generator {
     return candidates_.empty()  && heap_.empty();
   }
 
-  bool init(const resource_t& upper_bound) {
+  void init_resource_state(const resource_t& upper_bound) {
     traits::initialize_resource_upper_bound(upper_bound, resource_state_);
+  }
+  void init_resource_state(const resource_state_t& start_state) {
+    traits::initialize_resource_state(start_state, resource_state_);
+  }
+
+  template<typename T1>
+  bool init(const T1& upper_bound) {
     processed_ops_.clear();
+    init_resource_state(upper_bound);
 
     compute_op_indegree(in_degree_);
 

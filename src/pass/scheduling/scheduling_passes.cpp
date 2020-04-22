@@ -522,7 +522,7 @@ void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mode
                 consumerOp->set<mv::BarrierDependencies>("BarrierDeps", mv::BarrierDependencies());
 
             auto& barrierRef = consumerOp->get<mv::BarrierDependencies>("BarrierDeps");
-            barrierRef.setWaitBarrier(barrier.getIndex());
+            barrierRef.addWaitBarrier(barrier.getIndex());
         }
     }
 }

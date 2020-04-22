@@ -16,8 +16,9 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
+                "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": true,
+                "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
@@ -77,6 +78,7 @@
                     }
                 ]
             },
+            "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -104,6 +106,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -193,6 +196,7 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -209,16 +213,10 @@
             "UpdateImplicitLayersQuantizationParams",
             "PopulateWeightsTablesQuantization",
             "RemoveBiasTensors",
+            "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
@@ -229,14 +227,7 @@
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureSplitStrategiesForSpilling",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
@@ -295,14 +286,7 @@
             "StoreBarriersNamesInTasks",
             "GenerateExecutionSchedule",
             "BarrierIndexAssignment",
-            "UpdateBarrierRefs",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
- }
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {

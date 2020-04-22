@@ -30,6 +30,7 @@ namespace mv
         .setInputs({"data"})
         .setOptionalArg<mv::DType>("precision", mv::DType("Default"))
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+        .setOptionalArg<bool>("networkOutput", true)
         .setInputCheck(op_output::inputCheckFcn)
         .setOutputDef(op_output::outputDefFcn)
         .setTypeTrait({"exposed", "executable"});

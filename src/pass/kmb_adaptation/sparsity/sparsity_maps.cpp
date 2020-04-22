@@ -12,6 +12,7 @@
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -35,6 +36,11 @@ namespace mv
        .setDescription(
            "Generates sparsity maps for unpopulated tensors involved in eltwise operations."
        );
+        MV_REGISTER_PASS(SetSparsityAttrForUnpopulatedTensors)
+        .setFunc(setSparsityAttrForUnpopulatedFnc)
+        .setDescription(
+            "sets needs sparsity attr for unpopulated tensors."
+        );
     }
 }
 
@@ -113,16 +119,15 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     kernelH = weightsShape[mv::KERNEL_HEIGHT];
                 }
 
-                mv::DType dataType = dpuTask->getInputTensor(0)->get<mv::DType>("dType");
+                mv::DType dataType = mv::DType("UInt8");
 
-                //Temporary workaround to avoid RuntimeCrash for invalid Activation_Windows_Channel_Length calculation based on WindowsSize when DType=Float16 for maxpool
-                //When Mixed precision is enabled/implemented/supported, will need to fix Pass order in CD- VPUNND-2775
-                //KMBQuantizeConversion Pass (Handles DType Conversion but currently comes after GenerateSparsityMapsPopulatedTensor)
-
-                if(dataType.toString() == "Float16" && isPooling == true)
-                    dataType = mv::DType("UInt8");
-                if (!isPooling)
-                    dataType = dpuTask->getInputTensor(1)->get<mv::DType>("dType");
+                if (isPooling || isDepthWiseConv)
+                {
+                    if (dpuTask->hasAttr("floatPrecision") && dpuTask->get<bool>("floatPrecision"))
+                    {
+                        dataType = mv::DType("Float16");
+                    }
+                }
 
                 auto windowsSize = getWindowSize(kernelW, strides[0], dataType);
 
@@ -203,30 +208,23 @@ bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
     return false;
 }
 
-bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
 {
+    auto source = flow.source();
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
 
     if(!tensor->isPopulated())
     {
-        if(sink->hasAttr("splitStrategy"))
-        {
-            std::string splitStrategy = sink->get<std::string>("splitStrategy");
-
-            if(splitStrategy == "SplitOverH" &&
-               sink->getOpType() == "DPUTask" &&
-               sink->get<std::string>("taskOp") == "Conv" &&
-               (sink->get<std::array<unsigned short, 2>>("kSize")[0] > 1 ||
-                sink->get<std::array<unsigned short, 2>>("kSize")[1] > 1))
-
-                return true;
-        }
+        if((sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
+                (source->hasAttr("mixedToFloat") && source->get<bool>("mixedToFloat")))
+           return true;
+        if((source->hasAttr("floatPrecision") && source->get<bool>("floatPrecision")) &&
+                (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")))
+           return true;
     }
     return false;
 }
-
-
 
 // Result of chat with Alessandro:
 // An activation tensor can be sparse if and only if
@@ -236,16 +234,17 @@ bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 // An activation tensor MUST be sparse if it's:
 // 1) SplitOverH
 // 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
+// 3) In KMB-A0 float DPU task means that needs to consume sparse tensors.
 
 // In the future, these two conditions could change. We have to sync with runtime.
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
+    mv::OpModel om(model);
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -277,6 +276,11 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
                 tensorNeedsSparsity = true;
                 break;
             }
+            else if (checkA0FloatSparsityBug(flow))
+            {
+                tensorNeedsSparsity = true;
+                break;
+            }
         }
         for(auto& flowStr: flows)
         {
@@ -288,8 +292,7 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv" ||
-               sink->get<std::string>("splitStrategy") == "SplitOverK")
+               sink->get<std::string>("taskOp") != "Conv")
             {
                 tensorSparsifiable = false;
                 break;
@@ -299,7 +302,44 @@ static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&
         if(tensorNeedsSparsity && !tensorSparsifiable)
             throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
         if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
+        {
+            tensor->set<bool>("needs_sparse", true);
+
+            //Now that we know tensor will be sparse, mark the input as need subtensor aligned
+            auto sourceOp = om.getSourceOp(tensor);
+
+            if (sourceOp->getOpType() == "DPUTask" && sourceOp->get<std::string>("taskOp") == "Conv" || sourceOp->get<std::string>("taskOp") == "DepthwiseConv")//TODO More??
+            {
+                sourceOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
+                // Handle Align op's input tensor split-alignment
+                auto parentOp = om.getSourceOp(sourceOp->getInputTensor()[0]);
+                if (parentOp->getOpType() == "Align")
+                    parentOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
+            }
+        }
+
+    }
+}
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::DataModel dm(model);
+
+    for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
+    {
+        // Probably an inner tensor, skip
+        if(!tensor->hasAttr("flows"))
+            continue;
+
+        // Populated tensor, skip
+        if(tensor->isPopulated())
+            continue;
+
+        if((tensor->hasAttr("needs_sparse") && tensor->get<bool>("needs_sparse")))
+        {
             tensor->setSparse();
+        }
     }
 }
 

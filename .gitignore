@@ -1,4 +1,5 @@
 contrib/lemon/install/
+install/*
 build/
 build-debug/
 *.user

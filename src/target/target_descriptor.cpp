@@ -290,6 +290,72 @@ bool mv::TargetDescriptor::load(const std::string& filePath)
             }
         }
 
+ if (jsonDescriptor["resources"]["huffman_decode_engine"].valueType() != json::JSONType::Array)
+        {
+            reset();
+            return false;
+        }
+        else
+        {
+
+            for (std::size_t i = 0; i < jsonDescriptor["resources"]["huffman_decode_engine"].size(); ++i)
+            {
+
+                std::string name;
+                std::size_t numberOfHDEModules;
+                std::size_t bitPerSymbol;
+                std::size_t dataTypeSize;
+                std::size_t blockSize;
+                std::size_t maxNumberEncodedSymbols;
+                bool bypassMode;
+
+
+                if (!jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("name") ||
+                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("numberOfHDEModules") ||
+                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bitPerSymbol") ||
+                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("blockSize") ||
+                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("maxNumberEncodedSymbols") ||
+                    !jsonDescriptor["resources"]["huffman_decode_engine"][i].hasKey("bypassMode"))
+                {
+                    reset();
+                    return false;
+                }
+
+                if (jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].valueType() != json::JSONType::String ||
+                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].valueType() != json::JSONType::NumberInteger ||
+                    jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].valueType() != json::JSONType::Bool)
+                {
+                    reset();
+                    return false;
+                }
+
+                name = jsonDescriptor["resources"]["huffman_decode_engine"][i]["name"].get<std::string>();
+                numberOfHDEModules = jsonDescriptor["resources"]["huffman_decode_engine"][i]["numberOfHDEModules"].get<long long>();
+                bitPerSymbol = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bitPerSymbol"].get<long long>();
+                blockSize = jsonDescriptor["resources"]["huffman_decode_engine"][i]["blockSize"].get<long long>();
+                maxNumberEncodedSymbols = jsonDescriptor["resources"]["huffman_decode_engine"][i]["maxNumberEncodedSymbols"].get<long long>();
+                bypassMode = jsonDescriptor["resources"]["huffman_decode_engine"][i]["bypassMode"].get<bool>();
+
+                if (numberOfHDEModules < 0)
+                {
+                    reset();
+                    return false;
+                }
+
+                hdeDef_.numberOfHDEModules = numberOfHDEModules;
+                hdeDef_.bitPerSymbol = bitPerSymbol;
+                hdeDef_.blockSize = blockSize;
+                hdeDef_.maxNumberEncodedSymbols = maxNumberEncodedSymbols;
+                hdeDef_.bypassMode = bypassMode;
+
+
+            }
+
+        }
+
     }
 
     return true;
@@ -419,6 +485,11 @@ const std::map<std::string, mv::TargetDescriptor::MemoryDescriptor>& mv::TargetD
 const std::map<std::string, mv::TargetDescriptor::NceDescriptor>& mv::TargetDescriptor::nceDefs() const
 {
     return nceDefs_;
+}
+
+const mv::HdeDescriptor& mv::TargetDescriptor::hdeDef() const
+{
+    return hdeDef_;
 }
 
 std::string mv::TargetDescriptor::getLogID() const

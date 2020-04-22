@@ -3,11 +3,12 @@
 #include "gtest/gtest.h"
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/target/kmb/barrier_deps.hpp"
 #include "pass/lp_scheduler/operation_precedence_dag.hpp"
 #include "pass/lp_scheduler/lp_scheduler_pass.hpp"
+#include "pass/lp_scheduler/barrier_scheduler_pass.hpp"
 
 typedef mv::scheduler::Operation_Dag<> op_model_dag_t;
-
 
 class Operation_Dag_Test : public ::testing::Test {
   protected:
@@ -27,7 +28,133 @@ class Operation_Dag_Test : public ::testing::Test {
       return three_layer_conv_input_.model();
     }
 
-  private:
+
+    mv::OpModel& get_three_layer_conv_model_control_model() {
+      // clear all control edges //
+      mv::OpModel &om = three_layer_conv_model();
+      mv::ControlModel cm(om);
+
+      mv::Control::FlowListIterator fitr, fitr_next;
+      for (fitr=cm.flowBegin(); fitr!=cm.flowEnd();) {
+        fitr_next = fitr; ++fitr_next;
+        cm.undefineFlow(fitr);
+        fitr = fitr_next;
+      }
+
+      // remove all barrier ops //
+      std::vector<mv::Data::OpListIterator> ops_to_remove;
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!(oitr->getOpType() == "BarrierTask")) { continue; }
+
+        ops_to_remove.push_back(oitr);
+      }
+
+      for (auto ritr=ops_to_remove.begin(); ritr!=ops_to_remove.end(); ++ritr) {
+        om.removeOp(*ritr);
+      }
+
+      // add control edges equal to the edges in the op model //
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+          ++oitr) {
+        mv::Data::OpListIterator source = oitr; 
+        for (mv::Data::OpChildIterator citr=oitr.leftmostChild();
+              citr!=om.opEnd(); ++citr) {
+          mv::Data::OpListIterator sink = om.getOp(citr->getName());
+          assert(sink != om.opEnd());
+          cm.defineFlow(source, sink);
+        }
+      }
+      return om;
+    }
+
+    template<typename op_itr>
+    bool is_barrier_op(op_itr itr) const {
+      return (itr->getOpType() == "BarrierTask");
+    }
+
+    bool has_valid_barrier_in_and_out_references(mv::ControlModel& cm, 
+        mv::Data::OpListIterator op) const {
+      mv::Control::OpListIterator cop_itr = cm.switchContext(op);
+      if (cop_itr == cm.opEnd()) { return true; }
+
+      // check the parents //
+      for (mv::Control::OpParentIterator pitr=cop_itr.leftmostParent();
+          pitr!=cm.opEnd(); ++pitr) {
+        printf("[p] (%s) -> (%s)\n", pitr->getName().c_str(),
+              cop_itr->getName().c_str());
+
+        if (cop_itr->getOpType() == "Output") { continue; }
+        if (is_barrier_op(cop_itr) == is_barrier_op(pitr)) { return false; }
+
+        if (is_barrier_op(cop_itr)) {
+          const mv::Barrier& barrier = cop_itr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              pitr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasUpdateBarrierWithID(barrier.getID())) { return false; }
+        } else {
+          const mv::Barrier& barrier = pitr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              cop_itr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasWaitBarrierWithID(barrier.getID())) { return false; }
+        }
+      }
+
+      // check the children //
+      for (mv::Control::OpChildIterator citr=cop_itr.leftmostChild();
+          citr!=cm.opEnd(); ++citr) {
+        printf("[c] (%s) -> (%s)\n", cop_itr->getName().c_str(),
+              citr->getName().c_str());
+
+        if (citr->getOpType() == "Output") { continue; }
+        if (is_barrier_op(cop_itr) == is_barrier_op(citr)) { return false; }
+
+        if (is_barrier_op(cop_itr)) {
+          const mv::Barrier& barrier = cop_itr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              citr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasWaitBarrierWithID(barrier.getID())) { return false; }
+        } else {
+          const mv::Barrier& barrier = citr->get<mv::Barrier>("Barrier");
+          const mv::BarrierDependencies& deps =
+              cop_itr->get<mv::BarrierDependencies>("BarrierDeps");
+          if (!deps.hasUpdateBarrierWithID(barrier.getID())) { return false; }
+        }
+      }
+      return true;
+    }
+
+
+    // Checks if the control edges exists between 
+    bool is_valid_barrier_schedule(mv::ControlModel& cm) const {
+      mv::OpModel om(cm);
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!has_valid_barrier_in_and_out_references(cm, oitr)) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    // barrier_ids must be in range [0...)
+    bool does_barrier_ids_have_no_gaps(mv::ControlModel& cm) {
+      mv::OpModel om(cm);
+      std::vector<size_t> barrier_ids;
+      for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
+            ++oitr) {
+        if (!(oitr->getOpType() == "BarrierTask")) { continue; }
+        mv::Barrier &barrier = oitr->get<mv::Barrier>("Barrier");
+        barrier_ids.push_back(barrier.getID());
+      }
+
+      std::sort(barrier_ids.begin(), barrier_ids.end());
+      for (size_t i=0; i<barrier_ids.size(); i++) {
+        if (barrier_ids[i] != i) { return false; }
+      }
+      return true;
+    }
+
 
 
     //TODO(vamsikku): remove the external reference to the .json compilation
@@ -363,7 +490,7 @@ class Aligned_DMA_Test : public ::testing::Test {
     const auto ConstantInt_20_0 = model.constantInt(ConstantInt_20_0_data,
         {1, 1, 24, 144}, mv::DType("UInt8"), mv::Order("NCHW"), {{127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127, 127},{0.001289694919251, 0.001134309684858, 0.001015982124954, 0.000754617736675, 0.001588942250237, 0.000500845897477, 0.001299780327827, 0.000399871671107, 0.000890520983376, 0.001384254079312, 0.000937096949201, 0.000901810824871, 0.000988836283796, 0.000718487601262, 0.001145184971392, 0.000530713470653, 0.000381910533179, 0.001214338000864, 0.000991224544123, 0.001040934934281, 0.001090044854209, 0.001333619817160, 0.001017095986754, 0.001150571159087, 0.001402063644491, 0.000656555057503, 0.001835674745962, 0.002112473128363, 0.000977189862169, 0.002183666918427, 0.001309497980401, 0.000933982315473, 0.000896110315807, 0.001285708392970, 0.001046616467647, 0.002168192993850, 0.001056316075847, 0.001494414638728, 0.001439549378119, 0.001526652136818, 0.001215883181430, 0.001177303842269, 0.000489173980895, 0.001716623315588, 0.000847760762554, 0.001074683852494, 0.000870996038429, 0.001655776053667, 0.001327547011897, 0.000988040235825, 0.001287658815272, 0.001779338344932, 0.001427155919373, 0.000984766753390, 0.001633922685869, 0.002265664050356, 0.001085851690732, 0.001342286588624, 0.001576389535330, 0.000971319444943, 0.001679972396232, 0.000889574934263, 0.000927822024096, 0.000580395804718, 0.000554160564207, 0.001004101242870, 0.001472359057516, 0.001341656548902, 0.001266256440431, 0.000427994207712, 0.001092127640732, 0.000444349250756, 0.001911417231895, 0.001030594925396, 0.001361211063340, 0.001067007542588, 0.001090719713829, 0.000890973024070, 0.001451190444641, 0.000750800012611, 0.000958382675890, 0.001935779233463, 0.002309277886525, 0.001140703330748, 0.002704317914322, 0.001206665416248, 0.000971885863692, 0.000637648859993, 0.000993532361463, 0.001149474410340, 0.000740003073588, 0.000783607014455, 0.001205612556078, 0.001692878664471, 0.001329992315732, 0.001857607625425, 0.001197124249302, 0.000538095890079, 0.000868107017595, 0.000498513458297, 0.001399367465638, 0.001438391162083, 0.001266842475161, 0.000912111834623, 0.001052813953720, 0.001148147624917, 0.000473302992759, 0.001554419985041, 0.001633433043025, 0.001439448446035, 0.001122021698393, 0.001194763113745, 0.000578333332669, 0.001719470950775, 0.001142575056292, 0.001344473101199, 0.002204052871093, 0.000949189474341, 0.001181079074740, 0.001865879399702, 0.001041064155288, 0.001131558790803, 0.000792417908087, 0.001383253256790, 0.001035781693645, 0.000721288030036, 0.001890393788926, 0.000842604553327, 0.000304436631268, 0.000614403106738, 0.000917831668630, 0.000516136758961, 0.000296142854495, 0.001616345020011, 0.001404309645295, 0.000890694209374, 0.000909045105800, 0.001600829651579, 0.000804976967629, 0.001316471607424, 0.002359694335610, 0.001330786151811, 0.001398414373398, 0.001034506829455},{-inf},{inf},{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}}, "");
     const auto Add1_7115_Fused_Add__0 = model.conv(_339_0, ConstantInt_20_0, {1, 1}, {0, 0, 0, 0}, 1, 1, mv::DType("Default"), {{0},{0.018329823389649},{-inf},{inf},{0},{1}}, "Add1_7115/Fused_Add_");
-    const auto output = model.output(Add1_7115_Fused_Add__0, mv::DType("Default"), {{},{},{},{}}, "");
+    const auto output = model.output(Add1_7115_Fused_Add__0, mv::DType("Default"), {{},{},{},{}}, true, "");
       /////////////////////////////////////////////////////////////////////////
 
       std::string compDescPath(comp_desc_path_);
@@ -407,7 +534,6 @@ TEST_F(Aligned_DMA_Test, is_aligned_dma_op) {
 }
 
 TEST_F(Aligned_DMA_Test, resource_utility) {
-
   mv::OpModel& om = get_aligned_dma_model();
   op_model_dag_t input_dag(om);
 
@@ -423,3 +549,34 @@ TEST_F(Aligned_DMA_Test, resource_utility) {
 }
 
 
+class Barrier_Control_Dag_Test : public Operation_Dag_Test {
+  protected:
+
+    void SetUp() override {
+      std::string prefix(getenv("MCM_HOME"));
+      comp_desc_path_ = prefix + 
+          "/config/compilation/release_kmb_SC-"
+          "PrefetchAdaptive-BarrierScheduler-NoTemporalEdges.json";
+      setup_three_layer_conv_input();
+    }
+}; // class Barrier_Control_Dag_Test //
+
+typedef mv::lp_scheduler::Control_Model_Barrier_Scheduler barrier_scheduler_t;
+typedef typename barrier_scheduler_t::barrier_control_edge_t
+  barrier_control_edge_t;
+TEST_F(Barrier_Control_Dag_Test, barrier_control_dag) {
+  mv::ControlModel cmodel(three_layer_conv_model()); 
+  // the setup already runs the barrier scheduler //
+  EXPECT_TRUE(is_valid_barrier_schedule(cmodel));
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cmodel));
+}
+
+/*
+#include "pass/lp_scheduler/barrier_simulation_pass.hpp"
+typedef mv::lp_scheduler::Dynamic_Barrier_Schedule_Adjuster schedule_adjuster_t;
+TEST_F(Barrier_Control_Dag_Test, basic) {
+  mv::ControlModel cmodel(three_layer_conv_model()); 
+
+  schedule_adjuster_t adjuster(cmodel);
+}
+*/
