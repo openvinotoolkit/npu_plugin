@@ -1108,14 +1108,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if(opIt->hasAttr("needsODUoffset"))
     {
         auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->storage_element_index > other_elt_input->getStorageElement()->getAddress())
-        {
-        auto other_elt_input_var = other_elt_input->getAddress();
-        auto this_elt_input_var = opIt->getOutputTensor()[0]->getAddress();
-           
-        //toBuild->odu_offset = toBuild->output_data->data->storage_element_index - other_elt_input->getStorageElement()->getAddress();
-        toBuild->odu_offset = opIt->getOutputTensor()[0]->getAddress() - other_elt_input->getAddress();
-        }
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+           toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
     return toBuild;
@@ -1252,14 +1246,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if(opIt->hasAttr("needsODUoffset"))
     {
         auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->storage_element_index > other_elt_input->getStorageElement()->getAddress())
-        {
-            auto other_elt_input_var = other_elt_input->getAddress();
-            auto this_elt_input_var = opIt->getOutputTensor()[0]->getAddress();
-           
-            //toBuild->odu_offset = toBuild->output_data->data->storage_element_index - other_elt_input->getStorageElement()->getAddress();
-            toBuild->odu_offset = opIt->getOutputTensor()[0]->getAddress() - other_elt_input->getAddress();
-        }
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
     return toBuild;
