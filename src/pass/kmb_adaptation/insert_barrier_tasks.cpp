@@ -191,6 +191,12 @@ void getBarrierForControlModelOp(mv::ControlModel& cm, mv::Control::OpListIterat
                 }
                 else
                 {
+                    // If consecutive trailing UPATasks, skip barrier
+                    if ((parentOp->getOpType() == "UPATask") && (opIt->getOpType() == "UPATask"))
+                        if ((parentOp->hasAttr("trailing")) && (opIt->hasAttr("trailing")))
+                            if ((parentOp->get<bool>("trailing")) && (opIt->get<bool>("trailing")))
+                                continue;
+
                     std::set<std::string> producers;
                     std::set<std::string> consumers;
                     producers.insert(sourceOpName);
@@ -302,6 +308,7 @@ void removeExtraProducers(const mv::pass::PassEntry& pass,
             barrier.removeProducer(p);
     }
 }
+
 
 static void insertBarrierTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
