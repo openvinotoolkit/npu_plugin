@@ -12,14 +12,6 @@ using namespace LayerTestsDefinitions;
 
 namespace {
 
-// Common params
-const std::vector<InferenceEngine::Precision> inputPrecisions = {
-    InferenceEngine::Precision::FP32,
-    //         InferenceEngine::Precision::FP16, // "[NOT_IMPLEMENTED] Input image format FP16 is not supported yet...
-    InferenceEngine::Precision::U8,
-    //         InferenceEngine::Precision::I8 // Too much cases
-};
-
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
@@ -40,13 +32,13 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(ke
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, ConvolutionLayerTest,
-    ::testing::Combine(conv2DParams_ExplicitPadding, ::testing::ValuesIn(inputPrecisions),
+    ::testing::Combine(conv2DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, ConvolutionLayerTest,
-    ::testing::Combine(conv2DParams_AutoPadValid, ::testing::ValuesIn(inputPrecisions),
+    ::testing::Combine(conv2DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConvolutionLayerTest::getTestCaseName);
@@ -68,13 +60,13 @@ const auto conv3DParams_AutoPadValid =
         ::testing::ValuesIn(dilations3d), ::testing::Values(5), ::testing::Values(ngraph::op::PadType::VALID));
 
 INSTANTIATE_TEST_CASE_P(Convolution3D_ExplicitPadding, ConvolutionLayerTest,
-    ::testing::Combine(conv3DParams_ExplicitPadding, ::testing::ValuesIn(inputPrecisions),
+    ::testing::Combine(conv3DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConvolutionLayerTest::getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(Convolution3D_AutoPadValid, ConvolutionLayerTest,
-    ::testing::Combine(conv3DParams_AutoPadValid, ::testing::ValuesIn(inputPrecisions),
+    ::testing::Combine(conv3DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConvolutionLayerTest::getTestCaseName);
