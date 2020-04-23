@@ -11,9 +11,6 @@
 #include <stdint.h>
 #include "swcFrameTypes.h"
 
-// TODO - We only need DevicePtr from here:
-#include "VpuData.h"
-
 #include "Flic.h"
 #include "Message.h"
 
@@ -36,9 +33,14 @@ class PlgXlinkIn : public PluginStub
     MSender<ImgFramePtr> out;
 
     /** Constructor. */
-    PlgXlinkIn() : PluginStub("PlgXlinkIn"),
-                   channelID(XLINK_INVALID_CHANNEL_ID)
+    PlgXlinkIn(uint32_t device_id) : PluginStub("PlgXlinkIn", device_id),
+                   channelID(XLINK_INVALID_CHANNEL_ID),
+                   out{device_id}
                    {};
+
+    // TODO - Might be gcc bug, but we need this declaration to help with initialisation.
+    //        Copy-elision should occur, so we will never use it.
+    PlgXlinkIn(const PlgXlinkIn&); // Declare copy ctor, but don't define.
 
     /** Destructor. */
     ~PlgXlinkIn();
@@ -47,9 +49,16 @@ class PlgXlinkIn : public PluginStub
      * Plugin Create method.
      *
      * @param maxSz maximum size of the XLink Stream.
-     * @param chanId_unused not used anymore.
+     * @param chanId id of the XLink channel.
      */
-    int Create(uint32_t maxSz, uint32_t chanId_unused);
+    int Create(uint32_t maxSz, uint32_t chanId);
+
+    /**
+     * Plugin Stop method.
+     *
+     * Issue a stop message to the VPU plugin.
+     */
+    virtual void Stop();
 
     /**
      * Plugin Delete method.
@@ -68,7 +77,7 @@ class PlgXlinkIn : public PluginStub
      * @param spec - frame spec of the frame to send.
      * @retval int - Status of the write (0 is success).
      */
-    int Push(DevicePtr buff, int size, const frameSpec* spec) const;
+    int Push(uint32_t pAddr, int size, const frameSpec* spec) const;
 };
 
 #endif // __PLG_XLINK_IN_H__

@@ -32,7 +32,7 @@ class PlgXlinkOut : public PluginStub
     SReceiver<ImgFramePtr> in;
 
     /** Constructor. */
-    PlgXlinkOut() : PluginStub("PlgXlinkOut"),
+    PlgXlinkOut(uint32_t device_id) : PluginStub("PlgXlinkOut", device_id),
                     channelID(XLINK_INVALID_CHANNEL_ID)
                     {};
 
@@ -43,9 +43,9 @@ class PlgXlinkOut : public PluginStub
      * Plugin Create method.
      *
      * @param maxSz maximum size of the XLink Stream.
-     * @param chanId_unused not used anymore.
+     * @param channame name of the XLink channel.
      */
-    int Create(uint32_t maxSz, uint32_t chanId_unused);
+    int Create(uint32_t maxSz, uint32_t chanId);
 
     /**
      * Plugin Delete method.

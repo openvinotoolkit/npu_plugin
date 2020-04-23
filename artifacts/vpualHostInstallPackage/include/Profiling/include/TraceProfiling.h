@@ -48,7 +48,7 @@ typedef void (*profilingEventCallback_t)(
  */
 class TraceProfiling : private VpualStub {
   public:
-    TraceProfiling() : VpualStub("TraceProfiling"), callback(nullptr) {};
+    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id), callback(nullptr) {};
 
     void Create(uint32_t pBaseAddr, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint32_t alignment = 64);
     void Delete();

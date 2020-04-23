@@ -59,7 +59,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        ${VPUSMM_LIBRARY}
+        ${VPUSMM_LIB}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
@@ -70,12 +70,6 @@ ie_cpack_add_component(kmb REQUIRED)
 install(TARGETS ${TARGET_NAME}
         DESTINATION ${IE_CPACK_LIBRARY_PATH}
         COMPONENT kmb)
-
-if(ENABLE_MCM_COMPILER)
-    install(TARGETS cm metamodel model
-            DESTINATION ${IE_CPACK_LIBRARY_PATH}
-            COMPONENT kmb)
-endif()
 
 if(ARM OR AARCH64)
     install(FILES $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
@@ -117,7 +111,7 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            ${VPUSMM_LIBRARY}
+            ${VPUSMM_LIB}
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)

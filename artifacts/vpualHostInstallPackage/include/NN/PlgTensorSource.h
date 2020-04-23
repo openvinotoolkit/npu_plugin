@@ -17,13 +17,13 @@
 class PlgTensorSource : public PluginStub
 {
   private:
-    uint16_t channelID = 0;
+    uint16_t channelID;
 
   public:
     MSender<TensorMsgPtr> tensorOut;
 
     /** Constructor. */
-    PlgTensorSource() : PluginStub("PlgTensorSource"){};
+    PlgTensorSource(uint32_t device_id) : PluginStub("PlgTensorSource", device_id), tensorOut{device_id} {}
 
     /** Destructor. */
     ~PlgTensorSource();

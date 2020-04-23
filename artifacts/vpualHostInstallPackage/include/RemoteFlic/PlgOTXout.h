@@ -32,7 +32,7 @@ class PlgOTXout : public PluginStub
     SReceiver<vpuot::OutObjectsPtr> in;
 
     /** Constructor. */
-    PlgOTXout() : PluginStub("PlgOTXout"),
+    PlgOTXout(uint32_t device_id) : PluginStub("PlgOTXout", device_id),
                     channelID(XLINK_INVALID_CHANNEL_ID)
                     {};
 
@@ -43,9 +43,9 @@ class PlgOTXout : public PluginStub
      * Plugin Create method.
      *
      * @param maxSz maximum size of the XLink Stream.
-     * @param chanId_unused not used, just for API to be backward-compatible..
+     * @param channame name of the XLink channel.
      */
-    int Create(uint32_t maxSz, uint32_t chanId_unused);
+    int Create(uint32_t maxSz, uint32_t chanId);
 
     /**
      * Plugin Delete method.

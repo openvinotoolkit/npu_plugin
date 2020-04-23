@@ -194,7 +194,6 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
 }
 
 }  // namespace
-#endif
 
 static std::vector<size_t> filterDimsWithSizeOne(const InferenceEngine::SizeVector& dims) {
     std::vector<size_t> out;
@@ -211,6 +210,7 @@ static std::vector<size_t> filterDimsWithSizeOne(const InferenceEngine::SizeVect
 
     return out;
 }
+#endif
 
 void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     if (!_config.useKmbExecutor()) {

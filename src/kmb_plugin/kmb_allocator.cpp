@@ -24,8 +24,6 @@
 #include <vpusmm.h>
 #endif
 
-#include <iostream>
-#include <string>
 #include <vector>
 
 #include "kmb_allocator.h"

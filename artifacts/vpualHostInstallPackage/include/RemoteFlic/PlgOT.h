@@ -10,7 +10,7 @@
 
 class PlgOT : public PluginStub{
   public:
-    PlgOT() : PluginStub("PlgOT") {}
+    PlgOT(uint32_t device_id) : PluginStub("PlgOT", device_id), out{device_id} {}
 
     SReceiver<ImgFramePtr> in0;
     SReceiver<vpuot::DetectedObjects> in1;
@@ -18,6 +18,6 @@ class PlgOT : public PluginStub{
     MReceiver<vpuot::OutObjectsPtr> in3;
 
     MSender<vpuot::OutObjectsPtr> out;
-    int32_t  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness);
+    void  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness);
 };
 #endif

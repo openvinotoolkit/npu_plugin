@@ -52,7 +52,7 @@ class PlgCropNV12 : public PluginStub
 
   public:
     /** Constructor. */
-    PlgCropNV12() : PluginStub("PlgCropNV12"){};
+    PlgCropNV12(uint32_t device_id) : PluginStub("PlgCropNV12", device_id), out{device_id} {};
 
     /** Create methods. */
     void Create(void);

@@ -52,7 +52,13 @@ typedef int32_t s32;
 typedef uint64_t u64;
 typedef int64_t s64;
 
+#ifdef __PC__
+#include <half.h>
+#endif
+
+#if defined(__sparc_v8__) || defined(__arm__) || defined(__aarch64__)
 typedef int16_t half;
+#endif
 typedef half fp16;
 
 typedef float fp32;

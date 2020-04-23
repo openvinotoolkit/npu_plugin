@@ -17,13 +17,13 @@
 class PlgInferenceInput : public PluginStub
 {
   private:
-    uint16_t channelID = 0;
+    uint16_t channelID;
 
   public:
     MSender<InferenceMsgPtr> inferenceOut;
 
     /** Constructor. */
-    PlgInferenceInput() : PluginStub("PlgInfInput"){};
+    PlgInferenceInput(uint32_t device_id) : PluginStub("PlgInfInput", device_id), inferenceOut{device_id} {}
 
     /** Destructor. */
     ~PlgInferenceInput();
@@ -32,7 +32,7 @@ class PlgInferenceInput : public PluginStub
      * Plugin Create method.
      *
      */
-    void Create(uint32_t maxSz, uint16_t chanId_unused);
+    void Create(uint32_t maxSz, uint16_t chanId);
 
     /**
      * Plugin Stop method.

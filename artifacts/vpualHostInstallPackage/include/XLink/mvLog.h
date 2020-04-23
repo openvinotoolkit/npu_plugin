@@ -128,11 +128,11 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
        lvl < MVLOGLEVEL(default))
         return 0;
 
-    [[maybe_unused]] const char headerFormat[] = "%s [%10" PRId64 "] %s:%d\t";
+    const char headerFormat[] = "%s [%10" PRId64 "] %s:%d\t";
 #ifdef __RTEMS__
-    [[maybe_unused]] uint64_t timestamp = rtems_clock_get_uptime_nanoseconds() / 1000;
+    uint64_t timestamp = rtems_clock_get_uptime_nanoseconds() / 1000;
 #else
-    [[maybe_unused]] uint64_t timestamp = 0;
+    uint64_t timestamp = 0;
 #endif
     va_list args = {};
     va_start (args, format);

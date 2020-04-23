@@ -22,29 +22,9 @@ struct Rect
 
 enum TrackType
 {
-    SHORT_TERM                  = 0,    // Not supported on VPU/ARM
-    SHORT_TERM_KCFVAR           = 1,    // Not supported on VPU/ARM
-    SHORT_TERM_SIAMRPN          = 2,    // Not supported on VPU/ARM
-    SHORT_TERM_IMAGELESS        = 3,
-    ZERO_TERM                   = 4,    // Not supported on VPU/ARM
-    ZERO_TERM_IMAGELESS         = 5,
-    ZERO_TERM_COLOR_HISTOGRAM   = 6
+    ZEROTERM = 0,
+    SHORTTERM = 1
 };
-
-inline const char* ToString(TrackType v)
-{
-    switch (v)
-    {
-        case SHORT_TERM:                return "SHORT_TERM";
-        case SHORT_TERM_KCFVAR:         return "SHORT_TERM_KCFVAR";
-        case SHORT_TERM_SIAMRPN:        return "SHORT_TERM_SIAMRPN";
-        case SHORT_TERM_IMAGELESS:      return "SHORT_TERM_IMAGELESS";
-        case ZERO_TERM:                 return "ZERO_TERM";
-        case ZERO_TERM_IMAGELESS:       return "ZERO_TERM_IMAGELESS";
-        case ZERO_TERM_COLOR_HISTOGRAM: return "ZERO_TERM_COLOR_HISTOGRAM";
-        default:      return "[Unknown TrackType]";
-    }
-}
 
 
 /**
@@ -130,6 +110,6 @@ struct OutObjects : public PoBuf {
 #endif
 typedef PoPtr<OutObjects> OutObjectsPtr;
 
-}  // namespace vpuot
+};  // namespace vpuot
 
 #endif  // __PLG_OTTYPES_H__
