@@ -200,7 +200,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    mv::Control::StageIterator stg = cm.getStage(0);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
@@ -274,6 +273,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
             else
                 toBuild->data->storage_element_index = 0;
+        }
+        if (t->hasAttr("activationSparsityCompilerSolving")
+                            && t->get<bool>("activationSparsityCompilerSolving"))
+        {
+            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -443,6 +448,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
+    }
+
+    if (t->hasAttr("activationSparsityCompilerSolving")
+                        && t->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);

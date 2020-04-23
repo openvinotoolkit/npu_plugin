@@ -11,10 +11,13 @@
 #include <math.h>
 
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
+//cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
+static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void populateWeightsTablesQuantizationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeBiasTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void populateStorageElementPointersFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -39,6 +42,11 @@ namespace mv
         .setFunc(removeBiasTensorsFcn)
         .setDescription(
             "remove bias tensors after been adding to all weight tables"
+        );
+        MV_REGISTER_PASS(PopulateStorageElementPointers)
+        .setFunc(populateStorageElementPointersFcn)
+        .setDescription(
+            "Populate storage element maps for activations"
         );
     }
 }
@@ -318,6 +326,47 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
                 auto weightsTable = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("weightsTableIndex"));
                 populateWeightsTablesDataPointers(weightsTable, dpuTaskOp, model);
                 populateWeightsTablesSparsityPointers(weightsTable, dpuTaskOp, model);
+            }
+        }
+    }
+}
+
+void populateActivationStorageElementMap(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
+{
+    auto input = dpuTaskOp->getInputTensor(0);
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    auto height_width = activationStorageElement->getShape().totalSize();
+
+    std::vector<int64_t> unpopulated_offsets(height_width, 0);
+
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8);
+    for(unsigned i = 0; i < height_width; ++i)
+    {
+        unpopulated_offsets[i] += i * increment;
+        activationStorageElement->at(i) = unpopulated_offsets[i] << SHIFT_FOR_STORAGE_ELEMENT;
+    }
+}
+
+static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    {
+        auto taskOp = dpuTaskOp->getOpType();
+        if (taskOp == "DPUTask")
+        {
+            if(dpuTaskOp->hasAttr("activationSparsityCompilerSolving")
+                    && dpuTaskOp->get<bool>("activationSparsityCompilerSolving"))
+            {
+                auto activationStorageElement
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("storageElementIndex"));
+                auto activationSparsityMap
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("unpopulatedSparsityMapIndex"));
+                dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
+                populateActivationStorageElementMap(activationStorageElement, dpuTaskOp);
             }
         }
     }

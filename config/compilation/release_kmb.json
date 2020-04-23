@@ -200,7 +200,14 @@
             },
             "StreamingOperations",
             "StreamBinaryDataWeights",
-            "StreamCopyOperations"
+            "StreamCopyOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_streaming.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "kmb_adapt": {
@@ -250,6 +257,13 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_quantize.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -319,7 +333,8 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
@@ -338,6 +353,13 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_blob.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

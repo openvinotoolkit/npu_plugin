@@ -207,7 +207,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
 
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat", "dType", "splitStrategy"
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat", "splitStrategy"
                                     , "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
@@ -350,7 +350,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
             std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;
             std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
             std::string newBiasTensorName = mv::createBiasName(op->getName() + "_split_" + std::to_string(split));
-            mv::Data::TensorIterator biasTensor;
             mv::Data::TensorIterator biasTensorX;
             if (originalBiasTensor->hasAttr("quantParams"))
             {
@@ -435,6 +434,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
     auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
+    auto originalDType = op->getOutputTensor(0)->get<mv::DType>("dType");
     std::string splitStrategy = op->get<std::string>("splitStrategy");
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
@@ -442,7 +442,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
     // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    std::vector<std::string> attrs = {"stride", "padding", "shape", "floatPrecision", "mixedToFloat", "dType", "bias", "splitStrategy"
+    std::vector<std::string> attrs = {"stride", "padding", "shape", "floatPrecision", "mixedToFloat", "bias", "splitStrategy"
                                       , "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"};
 //    auto attrsToCopy = op->getAttrs(attrs);
     auto attrsToCopy = op->attrsToCopy(attrs);
@@ -556,7 +556,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         {
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
-            auto originalDType = op->get<mv::DType>("dType");
+
             for (std::size_t i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
@@ -586,7 +586,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                 createSlicesPerStream[streamingOpName] = false;
         }
         auto newOp = om.getSourceOp(newTensor);
-
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
 
@@ -699,7 +698,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             int numberOfSplits = thisOpStrategy[0].numSplits ;
             std::string axisToSplit = thisOpStrategy[0].axis ;
             mv::Tiling masterTile(axisToSplit, numberOfSplits);
-            mv::Shape masterSize;
 
             if (axisToSplit == "K" || axisToSplit == "C")
             {
@@ -712,8 +710,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                 masterTile.generateSpatialTiling(opIt);
             }
 
-            auto sourceTensor = opIt->getInputTensor(0);
-            auto parentOpIt = om.getSourceOp(sourceTensor);
             auto result = (streamSplit[axisToSplit])(om, opIt, masterTile,
                                thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
 
