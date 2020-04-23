@@ -15,10 +15,10 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
+#include "include/mcm/logger/logger.hpp"
 #include "lp_scheduler/control_edge_generator.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
-#include "include/mcm/logger/logger.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -121,6 +121,101 @@ struct Tensor_Allocator_Assignment {
   std::string address_attributes_[2UL];
 }; // struct Tensor_Allocator_Assignment //
 
+template<>
+struct interval_traits<Scheduled_Op> {
+  typedef size_t unit_t;
+  typedef Scheduled_Op interval_t;
+
+  static unit_t interval_begin(const interval_t& interval) {
+    return interval.cmx_address_start_;
+  }
+
+  static unit_t interval_end(const interval_t& interval) {
+    return interval.cmx_address_end_;
+  }
+}; // struct interval_traits<Scheduled_Op> //
+
+template<typename OpDag>
+class ImplicitConcat_Connected_Component {
+  public:
+  //////////////////////////////////////////////////////////////////////////////
+    typedef OpDag dag_t;
+    typedef typename dag_t::operation_t operation_t;
+    typedef typename dag_t::const_operation_iterator_t
+        const_operation_iterator_t;
+    typedef std::unordered_map<operation_t, operation_t> union_find_array_t;
+  //////////////////////////////////////////////////////////////////////////////
+
+    ImplicitConcat_Connected_Component(const dag_t& dag)
+      : dag_(dag), union_find_array_() { build(); }
+
+    operation_t implicit_concat_root(const operation_t& op) const {
+      auto itr = union_find_array_.find(op);
+      if (itr == union_find_array_.end()) { 
+        throw "[ImplicitConcatRoot] missing operation: " + op->getName();
+      }
+      return itr->second;
+    }
+    
+  private:
+
+    void build() {
+      for (const_operation_iterator_t itr=dag_.begin_nodes();
+            itr!=dag_.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        collapsing_find(op);
+      }
+    }
+
+    void collapsing_find(const operation_t& op) {
+      if (!(dag_.is_implicit_op(op))) { return; }
+      std::list<operation_t> path_to_root;
+
+      if (union_find_array_.find(op) != union_find_array_.end() ) {
+        // path already collapsed //
+        return;
+      }
+
+      operation_t curr_op = op;
+      do {
+        path_to_root.push_back(curr_op);
+      } while ((curr_op = implicit_concat_parent(curr_op)) != NULL);
+
+      if (!path_to_root.empty()) {
+        operation_t root = path_to_root.back();
+        for (auto itr=path_to_root.begin(); itr!=path_to_root.end(); ++itr) {
+          union_find_array_[*itr] = root;
+        }
+      }
+    }
+
+    operation_t implicit_concat_parent(const operation_t& op) const {
+      for (const_operation_iterator_t citr=dag_.begin_nodes(op);
+            citr!=dag_.end_nodes(op); ++citr) {
+        operation_t cop = *citr;
+
+        if (dag_.is_implicit_op(cop)) {
+          ++citr;
+          if (citr != dag_.end_nodes(op)) {
+            throw op->getName() + " ImplictConcat has non-unit out degree";
+          }
+          return cop;
+        }
+      }
+      return NULL;
+    }
+
+    bool is_implicit_concat(const operation_t& op) const {
+      return op->getOpType() == "ImplicitConcat";
+    }
+
+
+    const dag_t &dag_;
+    union_find_array_t union_find_array_;
+}; // class ImplicitConcat_Connected_Component //
+
+
+
 
 class Control_Edge_Set {
   public:
@@ -137,6 +232,7 @@ class Control_Edge_Set {
     typedef std::unordered_map<operation_t, operation_t> relocating_dma_map_t;
     typedef std::unordered_map<operation_t, size_t> control_in_degree_map_t;
     typedef typename edge_set_t::const_iterator const_edge_iterator_t;
+    typedef size_t schedule_time_t;
     ////////////////////////////////////////////////////////////////////////////
 
     Control_Edge_Set(mv::ControlModel& cmodel)
@@ -165,8 +261,8 @@ class Control_Edge_Set {
 
     }
 
-    // TODO(vamsikku): 
-    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2) 
+    // TODO(vamsikku):
+    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2)
     // and their CMX addresses overlap we need to add control edges between
     // all consumers of op1 scheduled between [t1, t2] and op2 //
     template<typename OpDag, typename ScheduledOpIterator>
@@ -180,63 +276,119 @@ class Control_Edge_Set {
     template<typename OpDag, typename ScheduledOpIterator>
     void add_edges_to_fresh_control_model(
         const OpDag& dag, mv::ComputationModel& model,
-        ScheduledOpIterator sbegin, ScheduledOpIterator send) {
+        ScheduledOpIterator sbegin, ScheduledOpIterator send,
+        bool generate_temporal_edges=true) {
 
       mv::ControlModel cm(model);
       mv::OpModel om(model);
 
       add_control_edges_between_compute_ops_and_relocating_dmas(dag, model);
-
-      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
-        // control model node iterators //
-        operation_t source_op = get_redirected_source(eitr->source_);
-        operation_t sink_op = eitr->sink_;
-
-        add_control_edge(source_op, sink_op, model);
-#if 0
-        //TODO(vamsikku): re-enable consumer control edges to reduce the 
-        //number of temporal edges.
-        if (dag.is_input_op(source_op) ||
-            dag.has_edge_between_ops(source_op, sink_op)) { continue; }
-
-        // now for all the ops (non-empty resource) which consume 
-        for (typename dag_t::const_operation_iterator_t
-              dop_itr=dag.begin_nodes(source_op);
-              dop_itr != dag.end_nodes(source_op); ++dop_itr) {
-          operation_t consumer_op = *dop_itr;
-          if (!dag.resource_utility(consumer_op)) { continue; }
-
-
-          operation_t redirected_consumer_op =
-              get_redirected_source(consumer_op);
-
-          bool consumer_control_edge =
-              add_control_edge(redirected_consumer_op, sink_op, model);
-
-          if (consumer_control_edge) {
-            printfInfo("lpSchedulerPass", "[ConsumerControl: (%s) -> (%s)]\n",
-                redirected_consumer_op->getName().c_str(),
-                sink_op->getName().c_str());
-          } else {
-
-          }
-        }
-#endif
-
-      }
       add_control_edges_between_inputs_and_compute_ops(dag, model);
-      add_temporal_control_edges(dag, sbegin, send, model,
+
+      if (!generate_temporal_edges) {
+        add_memory_control_edges(dag, model, sbegin, send);
+        add_control_edges_for_implicit_concats(dag, model);
+        add_control_edges_for_upa_tasks(dag, model);
+      } else {
+        add_temporal_control_edges(dag, sbegin, send, model,
             zero_indegree_temporal_control_);
+      }
     }
 
 
   private:
 
+
+    template<typename OpDag, typename ScheduledOpIterator>
+    void add_memory_control_edges(
+        const OpDag& input_dag, mv::ComputationModel& model,
+        ScheduledOpIterator sbegin, ScheduledOpIterator send) {
+
+      typedef OpDag dag_t;
+      typedef std::unordered_map<operation_t, scheduled_op_t>
+          original_schedule_map_t;
+      typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
+          control_edge_generation_algo_t;
+
+      control_edge_generation_algo_t algo;
+
+      control_edge_set_.clear();
+      algo.generate_control_edges(sbegin, send, *this);
+
+
+      original_schedule_map_t original_schedule;
+
+      // STEP-1: save the schedule //
+      for (; sbegin != send; ++sbegin) {
+        const scheduled_op_t& sop = *sbegin;
+        typename original_schedule_map_t::iterator os_itr =
+            original_schedule.find(sop.op_);
+        assert(os_itr == original_schedule.end());
+        original_schedule.insert(std::make_pair(sop.op_, sop));
+      }
+
+
+
+      // STEP-2: for each control edge generated (u, v) do the following
+      //  (a) call add_control_edge(u, v)
+      //  (b) let t_u and t_v be the schedule times of u and v then 
+      //      for all the nodes X = { w | (u, w) \in E and t_u <= t_w < t_v }
+      //      call add_control_edge(x, v) , x \in X.
+
+      for (const_edge_iterator_t eitr=begin(); eitr!=end(); ++eitr) {
+        // control model node iterators //
+        operation_t source_op = eitr->source_;
+        operation_t sink_op = eitr->sink_;
+
+        if (input_dag.is_implicit_op(sink_op) ||
+            input_dag.is_output_op(sink_op)) { continue; }
+
+        add_control_edge(source_op, sink_op, model); // (a) //
+        schedule_time_t source_time, sink_time;
+
+        // source time //
+        typename original_schedule_map_t::const_iterator itr;
+        itr = original_schedule.find(source_op);
+        assert(itr != original_schedule.end());
+        source_time = (itr->second).schedule_time_;
+
+        // sink time //
+        itr = original_schedule.find(sink_op);
+        assert(itr != original_schedule.end());
+        sink_time = (itr->second).schedule_time_;
+
+        for (typename dag_t::const_operation_iterator_t
+            cop_itr =  input_dag.begin_nodes(source_op);
+            cop_itr != input_dag.end_nodes(source_op); ++cop_itr) {
+          const operation_t& child_op = *(cop_itr);
+          itr = original_schedule.find(child_op);
+          schedule_time_t child_time = (itr->second).schedule_time_;
+
+          if ( !( (child_time > source_time) && 
+                  (child_time < sink_time) ) ) { continue; }
+          if (input_dag.is_implicit_op(child_op) ||
+              input_dag.is_output_op(sink_op)) { continue; }
+          // add control edge //
+          add_control_edge(child_op, sink_op, model); // (a) //
+        }
+      }
+    }
+
+    template<typename OpDag, typename ScheduledOpIterator>
+    inline size_t add_temporal_control_edges_only_to_output(
+        const OpDag& input_dag,
+        ScheduledOpIterator sbegin, ScheduledOpIterator send,
+        mv::ComputationModel& model, bool zero_indegree_temporal_edges=false) {
+      return add_temporal_control_edges(input_dag, sbegin, send, model,
+          zero_indegree_temporal_edges, true);
+    }
+
     // The scheduled ops are ordered by their start time //
     template<typename OpDag, typename ScheduledOpIterator>
     size_t add_temporal_control_edges(const OpDag& input_dag,
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
-        mv::ComputationModel& model, bool zero_indegree_temporal_edges=false) {
+        mv::ComputationModel& model, bool zero_indegree_temporal_edges=false,
+        bool add_temporal_edges_only_for_output=false) {
 
       static_assert(std::is_same<typename ScheduledOpIterator::value_type,
           scheduled_op_t>::value, "Invalid ScheduledOpIterator");
@@ -244,7 +396,7 @@ class Control_Edge_Set {
       if (sbegin == send) { return 0UL; }
 
       std::list<scheduled_op_t> curr_scheduled_real_ops,
-          prev_scheduled_real_ops; 
+          prev_scheduled_real_ops;
       size_t curr_time = (*sbegin).schedule_time_;
       size_t total_temporal_control_edges = 0UL;
 
@@ -265,14 +417,17 @@ class Control_Edge_Set {
         if ( !input_dag.is_implicit_op(curr_op.op_)) {
           curr_scheduled_real_ops.push_back(curr_op);
 
-          if (!zero_indegree_temporal_edges || 
+          if (!zero_indegree_temporal_edges ||
               (in_degree_.find(curr_op.op_) == in_degree_.end()) ) {
             // add control edges between prev scheduled real ops and current
             // real op.
             for (auto oitr=prev_scheduled_real_ops.begin();
                   oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
-              add_control_edge(oitr->op_, curr_op.op_, model);
-              ++total_temporal_control_edges;
+              if (!add_temporal_edges_only_for_output || 
+                    ((curr_op.op_)->getOpType() == "Output")) {
+                add_control_edge(oitr->op_, curr_op.op_, model);
+                ++total_temporal_control_edges;
+              }
             } 
           }
         }
@@ -304,7 +459,8 @@ class Control_Edge_Set {
           !(cmodel.pathExists(oitr_source, oitr_sink)) &&
           !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
-          printfInfo("lpSchedulerPass", "[cycle : edge (sink<-source) = (%s <- %s)]\n",
+          printfInfo("LpScheduler:",
+              "[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
           fflush(stdout);
         }
@@ -353,9 +509,90 @@ class Control_Edge_Set {
           operation_t child_op = *citr;
           if (!dag.is_dpu_op(child_op)) { continue; }
 
-          printfInfo("lpSchedulerPass", "[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
+          printfInfo("LpScheduler:",
+              "[AddInputEdges(%s -> %s)]\n", (op->getName()).c_str(),
               (child_op->getName()).c_str());
           add_control_edge(op, child_op, model);
+        }
+      }
+    }
+
+    bool is_valid_task_in_blob(operation_t op) const {
+      bool val = (op->getOpType() == "UPATask") || (op->getOpType() == "DMATask") ||
+        (op->getOpType() == "DPUTask");
+      return val;
+    }
+
+    template<typename OpDag>
+    void add_control_edges_for_upa_tasks(const OpDag& dag,
+        mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!(op->getOpType() == "UPATask")) { continue; }
+
+        for (typename dag_t::const_operation_iterator_t
+            citr=dag.begin_nodes(op); citr != dag.end_nodes(op); ++citr) {
+          operation_t child_op = *citr;
+          if (!is_valid_task_in_blob(child_op)) { continue; }
+          add_control_edge(op, child_op, model);
+        }
+
+        for (typename dag_t::const_operation_iterator_t
+            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
+              ++pitr) {
+          operation_t parent_op = *pitr;
+          if (!is_valid_task_in_blob(parent_op)) { continue; }
+          add_control_edge(parent_op, op, model);
+        }
+      }
+
+    }
+
+
+
+    template<typename OpDag>
+    void add_control_edges_for_implicit_concats(const OpDag& dag,
+        mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+      ImplicitConcat_Connected_Component<dag_t> concat_connected_comp(dag);
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!(op->getOpType() == "ImplicitConcat")) { continue; }
+
+        // add control edges between parents and children //
+        std::vector<operation_t> parents;
+        std::vector<operation_t> children;
+
+        for (typename dag_t::const_operation_iterator_t
+            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
+              ++pitr) {
+          operation_t parent_op = *pitr;
+          if (dag.is_implicit_op(parent_op)) { continue; }
+          parents.push_back(parent_op);
+        }
+
+        operation_t master_op =
+            concat_connected_comp.implicit_concat_root(op);
+
+        for (typename dag_t::const_operation_iterator_t
+            citr=dag.begin_nodes(master_op); citr != dag.end_nodes(master_op);
+            ++citr) {
+          operation_t child_op = *citr;
+          children.push_back(child_op);
+        }
+
+
+        for (size_t p=0; p<parents.size(); p++) {
+          for (size_t c=0; c<children.size(); c++) {
+            printf("ImplicitConcat: (%s,%s)\n",
+                parents[p]->getName().c_str(), children[c]->getName().c_str());
+            add_control_edge(parents[p], children[c], model);
+          }
         }
       }
     }
@@ -388,7 +625,8 @@ class Control_Edge_Set {
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
         // update iterator so that it redirects to cop //
-        printfInfo("lpSchedulerPass", "[redirecting %s to %s]\n", (op->getName()).c_str(),
+        printfInfo("LpScheduler:",
+            "[redirecting %s to %s]\n", (op->getName()).c_str(),
               (cop->getName()).c_str());
       }
     }
@@ -411,7 +649,7 @@ class Control_Edge_Set {
       clear_all_edges_in_control_model(cmodel);
     }
 
-   
+
     std::set< control_edge_t > control_edge_set_;
     iterator_lookup_t iterator_lookup_;
     relocating_dma_map_t relocating_dma_map_;
@@ -443,12 +681,13 @@ class Dynamic_Spill_Node_Inserter {
       }
 
       void print() const {
-        printfInfo("lpSchedulerPass", "[read_op=%s]->{ ", read_op_->getName().c_str());
+        printfInfo("LpScheduler:",
+            "[read_op=%s]->{ ", read_op_->getName().c_str());
         for (auto itr=consumer_list_.begin(); itr!=consumer_list_.end();
               ++itr){
-          printfInfo("lpSchedulerPass", " %s ", (*itr)->getName().c_str());
+          printfInfo("LpScheduler:", " %s ", (*itr)->getName().c_str());
         }
-        printfInfo("lpSchedulerPass", " }\n");
+        printfInfo("LpScheduler:", " }\n");
       }
 
       operation_t read_op_;
@@ -479,12 +718,13 @@ class Dynamic_Spill_Node_Inserter {
 
       //Precondition: has_valid_write() //
       void print() const {
-        printfInfo("lpSchedulerPass", "[write_op=%s]\n", spilled_write_op_->getName().c_str());
+        printfInfo("LpScheduler:",
+            "[write_op=%s]\n", spilled_write_op_->getName().c_str());
         for (auto ritr=read_subtrees_.begin(); ritr!=read_subtrees_.end();
               ++ritr) {
           ritr->print();
         }
-        printfInfo("lpSchedulerPass", "\n");
+        printfInfo("LpScheduler:", "\n");
       }
 
       bool has_valid_write() const { return spilled_write_op_ != NULL; }
@@ -557,13 +797,13 @@ class Dynamic_Spill_Node_Inserter {
             sop.op_ = NULL; // redundant ops are erased //
           }
           continue;
-        } 
+        }
 
         // CASE-2: Handle a spilled read and write op in the schedule.//
         typename spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
         spilled_subtree_t &subtree = itr->second;
         bool is_original_spilled_op_redundant = !(subtree.spilled_write_op_);
-        
+
         if (sop.is_spilled_write()) {
           // spilled write //
 
@@ -578,7 +818,7 @@ class Dynamic_Spill_Node_Inserter {
           // CASE-2.2: Typical case of non-redundant spilled write. //
 
           // Transfer its CMX addresess to generate control edges //
-          const scheduled_op_t &sinfo = spilled_op_schedule[sop.op_]; 
+          const scheduled_op_t &sinfo = spilled_op_schedule[sop.op_];
           sop.cmx_address_start_ = sinfo.cmx_address_start_;
           sop.cmx_address_end_ = sinfo.cmx_address_end_;
           coutput = control_edge_t(sop.op_, subtree.spilled_write_op_);
@@ -595,7 +835,7 @@ class Dynamic_Spill_Node_Inserter {
           }
 
           // add edges from read ops to consumer ops //
-          const op_list_t& consumers = 
+          const op_list_t& consumers =
               (subtree.read_subtrees_).front().consumer_list_;
           for (auto consumer_itr=consumers.begin();
                 consumer_itr != consumers.end(); ++consumer_itr ) {
@@ -613,12 +853,13 @@ class Dynamic_Spill_Node_Inserter {
     void print() const {
       for (auto itr=spilled_op_map_.begin(); itr!=spilled_op_map_.end();
             ++itr) {
-        printfInfo("lpSchedulerPass", "========================\n");
+        printf("========================\n");
         if (!has_redundant_spilled_write(itr)) {
-          printfInfo("lpSchedulerPass", "[spilled_op=%s]\n", (itr->first)->getName().c_str());
+          printfInfo("LpSchedulerPass", "[spilled_op=%s]\n",
+              (itr->first)->getName().c_str());
           (itr->second).print();
         } 
-        printfInfo("lpSchedulerPass", "========================\n");
+        printfInfo("LpSchedulerPass", "========================\n");
       }
     }
 
@@ -656,8 +897,8 @@ class Dynamic_Spill_Node_Inserter {
     //         +------>(cn)
     //
     // New DataFlow:
-    // 
-    //  {c1,c2}, SPILL_WRITE, SPILL_READ, {c4}, SPILL_READ, {c5,c6} ... 
+    //
+    //  {c1,c2}, SPILL_WRITE, SPILL_READ, {c4}, SPILL_READ, {c5,c6} ...
     //
     //  (A)---+------>(c1)
     //        |
@@ -703,13 +944,13 @@ class Dynamic_Spill_Node_Inserter {
           typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
 
           // since spilled write must come before this //
-          assert(itr != spilled_op_map_.end()); 
+          assert(itr != spilled_op_map_.end());
           (itr->second).add_spilled_read(op);
         } else {
           // spilled write op //
 
           typename spilled_op_map_t::iterator itr = spilled_op_map_.find(op);
-          // since the activation data is not changing we don't need to 
+          // since the activation data is not changing we don't need to
           // write it back to DDR .
           if (itr != spilled_op_map_.end()) { continue; }
 
@@ -719,7 +960,7 @@ class Dynamic_Spill_Node_Inserter {
       } //foreach scheduled op //
     }
 
-    // Creates a spill subtree structure under the given op whose output 
+    // Creates a spill subtree structure under the given op whose output
     // got spilled. Additionally the new write op addresses are added into
     // the substructure
     void create_spill_subtree_structure_in_model(operation_t spilled_op_in,
@@ -757,8 +998,8 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-2: for all the outgoing ops connected to this op determine the 
-      // input tensor indexes 
+      // STEP-2: for all the outgoing ops connected to this op determine the
+      // input tensor indexes
       std::unordered_map<operation_t, size_t> input_tensor_index_map;
       {
         mv::Data::OpListIterator spilled_op_itr =
@@ -773,7 +1014,7 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and children in 
+      // STEP-3: erase all outgoing flows from the spilled op and children in
       // spill sub tree
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
@@ -808,7 +1049,7 @@ class Dynamic_Spill_Node_Inserter {
         read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);
 
         // save the read op //
-        spill_read_itr->read_op_ = &(*read_op_itr); 
+        spill_read_itr->read_op_ = &(*read_op_itr);
 
         // now connect output of this read all ops in this subtree //
         const op_list_t &children = spill_read_itr->consumer_list_;
@@ -831,7 +1072,7 @@ class Dynamic_Spill_Node_Inserter {
     //
     //
     //   (read)----->consumer1
-    //          | 
+    //          |
     //          |
     //          ---->consumer2
     //
@@ -855,7 +1096,7 @@ class Dynamic_Spill_Node_Inserter {
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-1: get the input tensor corresponding to the original read-op //
-      mv::Data::TensorIterator spilled_op_input_tensor_itr = 
+      mv::Data::TensorIterator spilled_op_input_tensor_itr =
           spilled_op->getInputTensor(0UL);
 
       // A NULL spilled_write_op_ means the write op is redundant//
@@ -863,8 +1104,8 @@ class Dynamic_Spill_Node_Inserter {
 
 
       //////////////////////////////////////////////////////////////////////////
-      // STEP-2: for all the outgoing ops connected to this op determine the 
-      // input tensor indexes 
+      // STEP-2: for all the outgoing ops connected to this op determine the
+      // input tensor indexes
       //
       // TODO(vamsikku): this is a common operations between forest and subtree
       // code it should be a function on its own.
@@ -883,7 +1124,7 @@ class Dynamic_Spill_Node_Inserter {
 
       bool is_spilled_read_redundant = false;
       //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and children in 
+      // STEP-3: erase all outgoing flows from the spilled op and children in
       // spill sub tree
       {
         mv::Data::OpListIterator spilled_op_itr =
@@ -908,7 +1149,7 @@ class Dynamic_Spill_Node_Inserter {
       //////////////////////////////////////////////////////////////////////////
       // STEP-3.1: postpone erase the of redundant spilled_op to avoid automatic
       // ref-count base removal of the underlying source tensor.
-      
+
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-4: create a new spill read subtrees ops using the input_tensor of
@@ -938,7 +1179,7 @@ class Dynamic_Spill_Node_Inserter {
               std::numeric_limits<size_t>::max());
 
         // save the read op //
-        spill_read_itr->read_op_ = &(*read_op_itr); 
+        spill_read_itr->read_op_ = &(*read_op_itr);
 
         // now connect output of this read all ops in this subtree //
         const op_list_t &children = spill_read_itr->consumer_list_;
@@ -1010,7 +1251,7 @@ struct Remove_Redundant_Spill_Writes {
 
 
 //NOTE: to use this class the tensors should have "allocators" attribute. //
-template<typename OpDag> 
+template<typename OpDag>
 class Master_Slave_Buffer_Relations {
   public:
 
@@ -1185,7 +1426,7 @@ class DDR_Address_Generator {
 
     DDR_Address_Generator(mv::ComputationModel& model, dag_t& dag,
           size_t upper_bound=16777216UL) : input_dag_(dag), model_(model),
-    high_watermark_(), upper_bound_(upper_bound) {} 
+    high_watermark_(), upper_bound_(upper_bound) {}
 
 
     void print(FILE *fptr=stdout) const {
@@ -1265,14 +1506,14 @@ class DDR_Address_Generator {
   private:
 
     //Following changes are made to the DAG [ G(V,E) ]:
-    // 
-    // Let {u_1,u_2,...u_t..} be the slaves associated with the master 'm'. 
+    //
+    // Let {u_1,u_2,...u_t..} be the slaves associated with the master 'm'.
     // and u = arg_min{schedule_time(u_i)} (i.e first slave in the schedule)
     //
     // Then change as follows:
     // (1) resource[u] = resource[m]
     //     resource[m] = 0, for other slaves resource[u_i] = 0UL
-    // 
+    //
     // (2) W = { w | (m,w) \in E }
     //     add edges { (u,w) | w \in W } to the set E
     template<typename ScheduleIterator>
@@ -1365,7 +1606,7 @@ struct Schedule_Reader_Writer {
         }
 
         void operator++() {
-          if (!is_valid()) { return;} 
+          if (!is_valid()) { return;}
           next_valid_record();
         }
 
@@ -1446,7 +1687,7 @@ struct Schedule_Reader_Writer {
         operation_t op = traits::scheduled_op(*begin);
         size_t time = traits::scheduled_op_time(*begin);
 
-        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time); 
+        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time);
         ++begin;
       }
       fclose(fptr);
@@ -1462,7 +1703,7 @@ struct Schedule_Reader_Writer {
         stream << op->getName() << " " << time << "\n";
         ++begin;
       }
-      
+
       return true;
     }
 
@@ -1493,17 +1734,17 @@ struct Schedule_Reader_Writer {
 
 // Repack input DMAs (zero-indegree) for the scheduled compute ops to improve
 // the CMX utility:
-// 
+//
 // For each zero-indegree DMA task 'x' starting at 't=i' and having CMX
 // address [a, b] identify all other tasks:
-// 
+//
 // Y = { y | schedule_time(y) < 'i' and (y,x) is a memory control edge between
 //           tasks 'y' and 'x' }
 // NOTE: the CMX address interval for all tasks in Y overlaps [a, b]
-// 
+//
 //
 // Repack this DMA task to new time t_repack defined below:
-// 
+//
 // t_repack = max { schedule_time(z) | (y,z) is an edge in between tasks 'y' and
 //             'z' in the DAG (opmodel) such that schedule_time(z) < 'i' }
 //
@@ -1544,7 +1785,7 @@ class Repack_Input_DMA_Tasks {
       }
 
       bool is_repackable() const {
-        return (traits::scheduled_time(original_op_) - 
+        return (traits::scheduled_time(original_op_) -
                 traits::scheduled_time(limiting_op_) ) > schedule_time_t(1UL);
       }
 
@@ -1636,7 +1877,7 @@ class Repack_Input_DMA_Tasks {
     void repack(ScheduledOpIterator sched_begin,
         ScheduledOpIterator sched_end, BackInsertIterator output) {
 
-      // STEP-0: for each input DMA to an op find the limiting op w.r.t to 
+      // STEP-0: for each input DMA to an op find the limiting op w.r.t to
       // active address range (e.g. CMX address range).
       {
         update_repack_map_t repack_updater(repack_map_, data_op_selector_);
@@ -1662,7 +1903,7 @@ class Repack_Input_DMA_Tasks {
           }
         }
       }
-      
+
       // STEP-2: now adjust limiting ops based on consumers of the limiting op//
       adjust_repack_times();
       remove_non_repackable_ops();
@@ -1726,12 +1967,12 @@ class Repack_Input_DMA_Tasks {
     }
 
     double average_repack_level() const {
-      // (\Sum repack_level(v)) / total_data_ops 
+      // (\Sum repack_level(v)) / total_data_ops
       //  if not repacked repack_level(v) = 1 //
       //  if its repacked then the repack() function updates
       //  average_repack_level_
       return total_data_ops_ ?
-        (double(average_repack_level_ + 
+        (double(average_repack_level_ +
                  double(total_data_ops_-repacked_data_ops_))/
           double(total_data_ops_)) : double(0.0);
     }

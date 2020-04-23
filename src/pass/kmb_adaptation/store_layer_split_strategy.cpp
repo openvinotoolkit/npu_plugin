@@ -1,4 +1,5 @@
 #include "include/mcm/pass/pass_registry.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
@@ -204,10 +205,10 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     {
         if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
         {
-            pass.log(mv::Logger::MessageType::Warning, "Found InputTensor " +
+            pass.log(mv::Logger::MessageType::Debug, "Found InputTensor " +
                         tensor->getName() + " description location in JSON. Will override with INPUT");
         }
-        pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+        pass.log(mv::Logger::MessageType::Debug,"Found OutputTensor " +
                         tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
         //mark location forced so any adaptation pass will inheret opIt
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("INPUT", true));
@@ -237,10 +238,10 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     {
         if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
         {
-            pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+            pass.log(mv::Logger::MessageType::Debug,"Found OutputTensor " +
                         tensor->getName() + " description location in JSON. Will override with OUTPUT");
         }
-        pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+        pass.log(mv::Logger::MessageType::Debug,"Found OutputTensor " +
                         tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
         //mark location forced so any adaptation pass will inheret opIt
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("OUTPUT", true));
@@ -255,7 +256,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
             if(tensorIt->get<mv::Tensor::MemoryLocation>("Location").isDefault())
             {
                 tensorIt->get<mv::Tensor::MemoryLocation>("Location").relocate(defaultPlace);
-                pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+                pass.log(mv::Logger::MessageType::Debug,"Found OutputTensor " +
                         tensorIt->getName() + " overriding all to default placement " + defaultPlace);
             }
         }

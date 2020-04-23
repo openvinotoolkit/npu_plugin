@@ -1,11 +1,11 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
+#include "include/mcm/logger/logger.hpp"
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/tensor/tensor.hpp"
 #include "lp_scheduler/lp_scheduler_pass.hpp"
 #include "pass/lp_scheduler/control_edge_generator.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-#include "include/mcm/logger/logger.hpp"
 
 
 static void LpSchedulerPass(const mv::pass::PassEntry& , mv::ComputationModel&,
@@ -31,26 +31,6 @@ typedef mv::lp_scheduler::Control_Edge_Set control_edge_set_t;
 typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
 
-namespace mv {
-namespace lp_scheduler {
-
-template<>
-struct interval_traits<scheduled_op_t> {
-  typedef size_t unit_t;
-  typedef scheduled_op_t interval_t;
-
-  static unit_t interval_begin(const interval_t& interval) {
-    return interval.cmx_address_start_;
-  }
-
-  static unit_t interval_end(const interval_t& interval) {
-    return interval.cmx_address_end_;
-  }
-
-}; // struct interval_traits<Scheduled_Op> //
-
-} // namespace lp_scheduler //
-} // namespace mv //
 
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
@@ -96,9 +76,6 @@ void LpSchedulerBuildTimeStamp(FILE *fptr) {
   fprintf(fptr, "[LpScheduler: build %s %s]\n", __DATE__, __TIME__);
 }
 
-
-
-
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
     mv::ComputationModel& model, mv::TargetDescriptor& target,
     mv::Element& passDesc, mv::Element& compOutput) {
@@ -117,7 +94,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   auto params = model.getGlobalConfigParams();
 
   dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
-  printfInfo("lpSchedulerPass", "[upper_bound = %lu]\n", upper_bound);
+  printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
   std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
   assert(fptr);
@@ -130,7 +107,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      printfInfo("lpSchedulerPass", "[exceeding op:] %s resource=%lu\n",
+      printfInfo("LpScheduler:", "[exceeding op:] %s resource=%lu\n",
           (itr->first)->getName().c_str(), (itr->second));
     }
     assert(exceeding_ops.empty());
@@ -216,7 +193,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   std::vector<control_edge_t> dynamic_spill_control_edges;
   if (has_any_dynamic_spill_ops) {
-    printfInfo("lpSchedulerPass", "[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
+    printfInfo("LpScheduler:",
+        "[Dynamic_Spill_Node_Inserter] adding dynamic spill nodes\n");
     mv::lp_scheduler::Dynamic_Spill_Node_Inserter<dag_t> dynamic_spill(
           input_dag, model);
 
@@ -309,6 +287,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
   control_edge_set_t control_edges(cmodel);
+  bool generate_temporal_edges = !passDesc.hasAttr("no_temporal_edges");
   control_edge_generator_t algo;
 
   control_edges.set_zero_indegree_temporal_control(
@@ -334,8 +313,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   { 
     control_edges.add_edges_to_fresh_control_model(input_dag, model, 
-        scheduled_ops.begin(), scheduled_ops.end());
-    printfInfo("lpSchedulerPass", "[Dynamic Spill Control Edge Count]: %lu\n",
+        scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
+    printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());

@@ -6,9 +6,10 @@
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
-#include "include/mcm/op_model.hpp"
-#include "scheduler/feasible_scheduler.hpp"
 #include "include/mcm/logger/logger.hpp"
+#include "include/mcm/op_model.hpp"
+#include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
+#include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
 
@@ -22,6 +23,7 @@ struct model_traits {
   static const_child_operation_iterator_t
       begin_child_operations(const_operation_iterator_t&);
   static const_operation_iterator_t end_operations(model_t& model);
+  static const_operation_iterator_t get_iterator(model_t&, const std::string&);
 }; // struct model traits //
 
 
@@ -44,6 +46,12 @@ struct model_traits<mv::ControlModel> {
   static const_operation_iterator_t end_operations(model_t& model) {
     return model.opEnd();
   }
+
+  static const_operation_iterator_t get_iterator(model_t& model,
+      const std::string& name) {
+    auto op_itr = model.getOp(name);
+    return model.switchContext(op_itr);
+  }
 }; // struct model_traits<mv::ControlModel> //
 
 template<>
@@ -64,6 +72,11 @@ struct model_traits<mv::OpModel> {
 
   static const_operation_iterator_t end_operations(model_t& model) {
     return model.opEnd();
+  }
+
+  static const_operation_iterator_t get_iterator(model_t& model,
+      const std::string& name) {
+    return model.getOp(name);
   }
 }; // struct model_traits<mv::OpModel> //
 
@@ -117,7 +130,7 @@ struct Scheduled_Op {
     return "ORIGINAL";
   }
 
-  bool has_valid_address() const { 
+  bool has_valid_address() const {
     return (cmx_address_start_ <= cmx_address_end_);
   }
 
@@ -204,7 +217,7 @@ class Operation_Dag {
         const_operation_iterator_t()
           : ref_itr_(), master_itr_(), is_ref_type_() {}
 
-        const_operation_iterator_t(const const_ref_op_iterator_t& ref_itr) 
+        const_operation_iterator_t(const const_ref_op_iterator_t& ref_itr)
           : ref_itr_(ref_itr), master_itr_(), is_ref_type_(true) {}
 
         const_operation_iterator_t(
@@ -252,7 +265,7 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Align", "ImplicitReshape",
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
                             "ImplicitPermute", "ImplicitOutput", "ImplicitInput"} ) {
         init_from_model(model);
     }
@@ -264,7 +277,7 @@ class Operation_Dag {
       static_assert(std::is_same<typename OpTypeIterator::value_type,
           std::string>::value, "Invalid OpTypeIterator");
       implicit_op_types_.clear();
-      for (; begin != end; ++begin) { implicit_op_types_.push_back(*begin); }
+      for (; begin != end; ++begin) { implicit_op_types_.insert(*begin); }
     }
 
     const_operation_iterator_t begin_parent_nodes(const operation_t& op) const {
@@ -288,6 +301,11 @@ class Operation_Dag {
     }
     const_operation_iterator_t end_nodes() const {
       return const_operation_iterator_t( ops_.end() );
+    }
+
+    bool is_valid_op(const operation_t& op) const {
+      typename adjacency_map_t::const_iterator itr = adj_map_.find(op);
+      return !(itr == adj_map_.end());
     }
 
     // operations on the outgoing edges //
@@ -324,7 +342,13 @@ class Operation_Dag {
     resource_t resource_utility(const operation_t& op) const {
       auto itr = resource_utility_map_.find(op);
       assert(itr != resource_utility_map_.end());
-      return itr->second; 
+      return itr->second;
+    }
+
+    void set_resource_utility(const operation_t& op, resource_t new_utility) {
+      auto itr = resource_utility_map_.find(op);
+      assert(itr != resource_utility_map_.end());
+      itr->second = new_utility;
     }
 
     bool op_has_unit_out_degree(const operation_t& op) const {
@@ -357,7 +381,7 @@ class Operation_Dag {
       // does this have out degree 1 and connected to a DMATask which
       // moves data from CMX2DDR //
 
-      operation_t cop = get_first_child_op(op); 
+      operation_t cop = get_first_child_op(op);
       return is_dma_op_moving_data_from_cmx_to_ddr(cop);
     }
 
@@ -400,7 +424,7 @@ class Operation_Dag {
 
     static bool is_repackable_data_op(const dag_t& dag, const operation_t& op) {
       return dag.is_dma_op(op) &&
-          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) && 
+          (!(dag.is_dma_op_moving_data_from_cmx_to_ddr(op))) &&
           dag.op_has_zero_in_degree(op);
     }
 
@@ -498,7 +522,7 @@ class Operation_Dag {
     static bool is_valid_scheduled_op(const scheduled_op_t& op) {
       return op.has_valid_address();
     }
-    
+
     ////////////////////////////////////////////////////////////////////////////
 
     op_itr_t get_op_iterator(operation_t op) const {
@@ -512,7 +536,7 @@ class Operation_Dag {
       const_in_degree_iterator_t itr = in_degree_map_.find(op);
       return (itr == in_degree_map_.end()) ? 0UL : itr->second;
     }
-    
+
     bool is_input_op(operation_t op) const {
       return op->getOpType() == "Input";
     }
@@ -552,10 +576,11 @@ class Operation_Dag {
         curr_op = *citr;
         size_t in_degree;
         if (!(in_degree=operation_in_degree(curr_op))) {
-          printfInfo("operationPrecedenceDag", "zero-degree-node=%s\n", curr_op->getName().c_str());
+          printfInfo("LpScheduler:",
+              "zero-degree-node=%s\n", curr_op->getName().c_str());
           bfs_list.push_back(curr_op);
         } else {
-          printfInfo("operationPrecedenceDag", "non-zero-degree-node=%s in-degree=%lu\n",
+          printfInfo("LpScheduler:", "non-zero-degree-node=%s in-degree=%lu\n",
               curr_op->getName().c_str(), in_degree);
         }
       }
@@ -648,6 +673,10 @@ class Operation_Dag {
       return true;
     }
 
+    bool is_output_op(operation_t op) const {
+      return (op->getOpType() == "Output");
+    }
+
     bool is_implicit_op(operation_t op) const {
       return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") ||
@@ -679,16 +708,50 @@ class Operation_Dag {
         child_op = *(child_list.front());
       }
 
-      printfInfo("operationPrecedenceDag", "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+      printfInfo("OperationPrecedenceDAG:",
+          "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
           parent_op->getName().c_str(), op->getName().c_str(),
           child_op->getName().c_str());
-      fflush(stdout);
 
       // remove this op from the DAG //
       remove_op_from_dag(op);
 
       // add an edge between parent_op and child_op //
       return add_directed_edge(parent_op, child_op);
+    }
+
+
+    bool short_circuit_unit_indegree_op(operation_t& op) {
+      operation_t parent_op, child_op;
+      adjacency_map_t::const_iterator adj_rev_itr = adj_map_rev_.find(op);
+      adjacency_map_t::const_iterator adj_itr = adj_map_.find(op);
+
+      if ((adj_rev_itr == adj_map_rev_.end()) ||
+            (adj_itr == adj_map_.end()) ) {
+        return false;
+      }
+
+      const op_ref_list_t& parent_list = adj_rev_itr->second;
+      const op_ref_list_t& child_list = adj_itr->second;
+
+      if (parent_list.size() != 1UL) {
+        return false;
+      }
+
+      parent_op = *(parent_list.front());
+      for (const_ref_op_iterator_t citr=child_list.begin();
+          citr!=child_list.end(); ++citr) {
+        child_op = *(*citr);
+
+        printfInfo("OperationPrecedenceDAG",
+            "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+            parent_op->getName().c_str(), op->getName().c_str(),
+            child_op->getName().c_str());
+        if (!add_directed_edge(parent_op, child_op)) { return false; }
+      }
+      // remove this op from the DAG //
+      remove_op_from_dag(op);
+      return true;
     }
 
     bool short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
@@ -705,7 +768,7 @@ class Operation_Dag {
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited =
-            short_circuit_unit_indegree_unit_outdegree_op(*oitr);
+            short_circuit_unit_indegree_op(*oitr);
         assert(short_circuited);
       }
       return true;
@@ -737,17 +800,18 @@ class Operation_Dag {
         color_closure_algo.compute_connected_vertices(pop,
             std::back_inserter(color_closure), implicit_op_color_functor_t() );
 
-        printfInfo("operationPrecedenceDag", "[ColorClosure(%s) : {", (pop->getName()).c_str());
+        printfInfo("LpScheduler:", "[ColorClosure(%s) : {",
+            (pop->getName()).c_str());
 
         if (!color_closure.empty()) {
           for (auto citr=color_closure.begin(); citr!=color_closure.end();
                 ++citr) {
             const operation_t& cop = *citr;
             add_directed_edge(pop, cop);
-            printfInfo("operationPrecedenceDag", " %s ", (cop->getName()).c_str());
+            printfInfo("LpScheduler:", " %s ", (cop->getName()).c_str());
           }
         }
-        printfInfo("operationPrecedenceDag", "}\n");
+        printfInfo("LpScheduler:", "}\n");
 
       } // foreach implicit op in the input DAG //
 
@@ -757,7 +821,8 @@ class Operation_Dag {
         if (is_implicit_op(pop)) {
           const_operation_iterator_t itr_next = itr;
           ++itr_next;
-          printfInfo("operationPrecedenceDag", "[Removed %s]\n", ((*itr)->getName()).c_str());
+          printfInfo("OperationPrecedenceDAG:", "[Removed %s]\n",
+              ((*itr)->getName()).c_str());
           remove_op_from_dag(*itr);
           itr = itr_next;
         } else {
@@ -779,13 +844,14 @@ class Operation_Dag {
   private:
 
     template<typename model_t>
-    bool is_aligned_dma_op(model_t& model, operation_t op) const { 
+    bool is_aligned_dma_op(model_t& model, operation_t op) const {
       typedef model_traits<model_t> mtraits;
       typedef typename mtraits::const_child_operation_iterator_t cop_itr_t;
 
       if (is_dma_op_moving_data_from_cmx_to_ddr(op)) { return false; }
-      
-      op_itr_t pop_itr = model.getOp(op->getName());
+
+      typename mtraits::const_operation_iterator_t pop_itr =
+        mtraits::get_iterator(model, op->getName());
 
       // out degree should be one //
       size_t out_degree = 0UL;
@@ -802,8 +868,7 @@ class Operation_Dag {
     }
 
     // Precondition: is_aligned_dma_op() //
-    template<typename model_t>
-    size_t get_aligned_dma_op_resource_utility(model_t& model,
+    size_t get_aligned_dma_op_resource_utility(mv::OpModel& model,
           operation_t op) const {
       typedef model_traits<model_t> mtraits;
       typedef typename mtraits::const_operation_iterator_t op_itr_t;
@@ -816,8 +881,20 @@ class Operation_Dag {
       return output_tensor_size(&(*cop_itr));
     }
 
+    //TODO(vamsikku): the control model is used for barrier schedululing
+    //ideally we need to take a functor which decides if the scheduler can
+    //ignore the operation.
+    bool is_operation_ignored(operation_t op,
+          mv::ControlModel& dispatch_tag) const {
+      const std::string& op_type = op->getOpType();
+      return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
+        (op_type == "ImplicitConcat") || 
+        (implicit_op_types_.find(op_type) != implicit_op_types_.end());
+    }
 
-    bool is_operation_ignored(operation_t op) const {
+
+
+    bool is_operation_ignored(operation_t op, mv::OpModel& dispatch_tag) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
     }
@@ -837,24 +914,14 @@ class Operation_Dag {
       }
     }
 
-    void init_from_model(model_t& model) {
-      adj_map_.clear();
-      adj_map_rev_.clear();
-      op_name_table_.clear();
-      ops_.clear();
-      resource_utility_map_.clear();
-      op_to_iterator_lookup_.clear();
-      in_degree_map_.clear();
-      input_op_ = NULL;
-
-      size_t num_ops=0UL;
+    template<typename model_t>
+    void build_adj_tables(model_t& model) {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        if (is_operation_ignored(op)) { continue; }
+        if (is_operation_ignored(op, model)) { continue; }
         if (is_input_op(op)) { input_op_ = op; }
 
-        ++num_ops;
 
         master_op_iterator_t pop_itr = ops_.find(op), cop_itr;
 
@@ -880,7 +947,7 @@ class Operation_Dag {
         for (child_op_itr_t citr = itr.leftmostChild();
               citr != model.opEnd(); ++citr) {
           operation_t child_op = &(*citr);
-          if (is_operation_ignored(child_op)) { continue; }
+          if (is_operation_ignored(child_op, model)) { continue; }
 
           cop_itr = ops_.find(child_op);
           if (cop_itr == ops_.end()) {
@@ -900,7 +967,25 @@ class Operation_Dag {
           adj_list.push_back( &(*cop_itr) );
           adj_map_rev_[child_op].push_back( &(*pop_itr) );
         }
+      }
+    }
 
+    void clear_state() {
+      adj_map_.clear();
+      adj_map_rev_.clear();
+      op_name_table_.clear();
+      ops_.clear();
+      resource_utility_map_.clear();
+      op_to_iterator_lookup_.clear();
+      in_degree_map_.clear();
+      input_op_ = NULL;
+    }
+
+
+    void create_resource_utility_table_for_cmx_scheduling(mv::OpModel& model) {
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
+        operation_t op = &(*itr);
         resource_t resource_utility; 
 
         if ( !does_the_op_run_on_hardware(op) ||
@@ -909,16 +994,44 @@ class Operation_Dag {
         } else {
           resource_utility = output_tensor_size(op);
         }
-
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));
       }
+    }
+
+    void create_resource_utility_table_for_barrier_scheduling(
+        mv::ControlModel& model) {
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
+        operation_t op = &(*itr);
+        resource_t resource_utility = 0UL; 
+        if (does_the_op_run_on_hardware(op)) {
+          resource_utility = 
+            mv::RuntimeModel::countProducerConsumerTasks(model, itr);
+        }
+        // resource utility //
+        resource_utility_map_.insert(std::make_pair(op, resource_utility ));
+      }
+    }
+
+    void init_from_model(mv::ControlModel& model) {
+      clear_state();
+      build_adj_tables(model);
+      create_resource_utility_table_for_barrier_scheduling(model);
+    }
+
+    void init_from_model(mv::OpModel& model) {
+      clear_state();
+      build_adj_tables(model);
+      create_resource_utility_table_for_cmx_scheduling(model);
+
+      // Transform OpModel for scheduling //
 
       // connect all non-unit outdegree DMAS to input //
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        if (is_operation_ignored(op)) { continue; }
+        if (is_operation_ignored(op, model)) { continue; }
         if (!is_dma_op(op)) { continue; }
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
         if (op_has_unit_out_degree(op)) { continue; }
@@ -934,7 +1047,6 @@ class Operation_Dag {
 
       update_resource_utility_for_aligned_dma_ops(model);
 
-      printfInfo("operationPrecedenceDag", "[Initfrom Model] op count = %lu\n", num_ops);
     }
 
     // Removes the op from the DAG and removes all incoming and outgoing edges
@@ -967,7 +1079,7 @@ class Operation_Dag {
         }
 
       }
-        
+
       // STEP-4: Remove this op from the adj_map_rev_ of all its children //
       {
         adjacency_map_t::iterator child_itr = adj_map_.find(op);
@@ -978,7 +1090,7 @@ class Operation_Dag {
           for(op_ref_list_t::const_iterator child=child_list.begin();
                 child!=child_list.end(); ++child) { //foreach child//
 
-            // find the rev-adjacency list of this child and remove op from it 
+            // find the rev-adjacency list of this child and remove op from it
             adjacency_map_t::iterator child_adj_itr =
                 adj_map_rev_.find(*(*child));
             assert(child_adj_itr != adj_map_rev_.end());
@@ -1004,12 +1116,12 @@ class Operation_Dag {
       // STEP-1 //
       ops_.erase(op_itr);
       op_name_table_.erase(op->getName().c_str());
-    } 
+    }
 
     void clear_resource_model() { resource_utility_map_.clear(); }
 
   public:
-   
+
     bool add_directed_edge(const std::string& src_op,
           const std::string& sink_op, mv::OpModel& model) {
 
@@ -1085,7 +1197,7 @@ class Operation_Dag {
       }
 
       // add sink_op to adj_list of source_op //
-      op_ref_list_t *child_list_ptr = NULL; 
+      op_ref_list_t *child_list_ptr = NULL;
       {
         adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
         assert(adj_itr != adj_map_.end());
@@ -1134,7 +1246,7 @@ class Operation_Dag {
 
     bool is_dma_op_moving_data_from_cmx_to_ddr(operation_t op) const {
       if ((op->getOpType()) != "DMATask") { return false; }
-      
+
       mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
 
       return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
@@ -1151,7 +1263,7 @@ class Operation_Dag {
     op_to_iterator_lookup_t op_to_iterator_lookup_;
     in_degree_map_t in_degree_map_;
     operation_t input_op_;
-    std::vector<std::string> implicit_op_types_;
+    std::unordered_set<std::string> implicit_op_types_;
 }; // class Operation_Dag //
 
 
