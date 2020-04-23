@@ -85,8 +85,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
         auto actualNetwork = &network;
 
         if (network.getFunction()) {
-            CNNNetwork net(network.getFunction());
-            auto nGraphFunc = std::const_pointer_cast<ngraph::Function>(net.getFunction());
+            auto nGraphFunc = network.getFunction();
             // Disable shape inference (WA for generic operations)
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
