@@ -385,8 +385,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index = 0;
         }
     }
-    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
-            *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
+    {
+        auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
+        auto byte_index = index * t->getDType().getSizeInBits() / 8;
+
+        toBuild->data->data_index = byte_index;
+
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0];
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
+        if (t->hasAttr("inputIndex"))
+            toBuild->locale_index[0] = t->get<uint8_t>("inputIndex");
+        else if (t->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
+
+        if (leading_offset)
+            toBuild->data->data_index += leading_offset;
+
+    }
+    else if(*tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = t->getOrder().subToInd(t->getShape(), offset);
@@ -408,10 +427,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (t->hasAttr("inputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("inputIndex");
-        else if (t->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
 
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
