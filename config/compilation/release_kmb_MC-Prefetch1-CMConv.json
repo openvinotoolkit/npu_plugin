@@ -74,6 +74,7 @@
                     }
                 ]
             },
+            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
