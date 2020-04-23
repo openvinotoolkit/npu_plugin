@@ -22,12 +22,12 @@ if (NOT(BIN_FOLDER))
     set (BIN_FOLDER ${ARCH})
 endif()
 
-if (NOT(IE_MAIN_SOURCE_DIR))
-    # in case if samples are built out of IE repo
-    set (IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
-else()
+if(OpenVINO_MAIN_SOURCE_DIR)
     # in case if samples are built from IE repo
-    set (IE_MAIN_SAMPLES_DIR ${IE_MAIN_SOURCE_DIR})
+    set(IE_MAIN_SAMPLES_DIR ${OpenVINO_MAIN_SOURCE_DIR})
+else()
+    # in case if samples are built out of IE repo
+    set(IE_MAIN_SAMPLES_DIR ${CMAKE_CURRENT_BINARY_DIR})
 endif()
 
 if(NOT(UNIX))
