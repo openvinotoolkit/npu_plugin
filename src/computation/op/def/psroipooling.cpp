@@ -29,7 +29,7 @@ namespace mv
         {
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
-            auto inputShape = input->getShape();
+            auto inputShape  = input->getShape();
 
             auto N = inputs[1]->getShape()[0];
             auto C = args.at("output_dim").get<std::size_t>();

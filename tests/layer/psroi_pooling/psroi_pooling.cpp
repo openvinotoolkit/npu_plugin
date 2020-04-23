@@ -12,7 +12,7 @@ int main()
     size_t pooled_w = 7;
     size_t pooled_h = 7;
     size_t output_dim = 8;
-    size_t group_size = 2;
+    size_t group_size = 7;
     double spatial_scale = 0.0625;
     size_t spatial_bins_x = 1;
     size_t spatial_bins_y = 1;
@@ -32,7 +32,8 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i)
         weightsData_converted[i] = weightsData[i];
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{},{}}, "weights0");
+    auto weights0 = om.constantInt(weightsData_converted,{5,5,1,1}, mv::DType("Float16"),
+                                   mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{},{}}, "weights0");
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
