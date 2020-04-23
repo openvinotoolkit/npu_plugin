@@ -19,6 +19,7 @@
 #include <HddlUnite.h>
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "hddl2_params.hpp"
@@ -32,6 +33,11 @@ public:
 
     static std::vector<std::string> GetAvailableDevicesNames();
     const std::vector<std::string>& SupportedMetrics() const;
+    static std::string GetFullDevicesNames();
+    const std::vector<std::string>& GetSupportedConfigKeys() const;
+    const std::vector<std::string>& GetOptimizationCapabilities() const;
+    const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
+    const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
     static bool isServiceAvailable();
 
@@ -39,6 +45,10 @@ public:
 
 private:
     std::vector<std::string> _supportedMetrics;
+    std::vector<std::string> _supportedConfigKeys;
+    std::vector<std::string> _optimizationCapabilities;
+    std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests;
+    std::tuple<uint32_t, uint32_t> _rangeForStreams;
 };
 
 }  // namespace HDDL2Plugin

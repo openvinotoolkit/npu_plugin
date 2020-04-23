@@ -43,6 +43,11 @@ public:
     // Accessors
     std::vector<std::string> AvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;
+    static std::string GetFullDevicesNames();
+    const std::vector<std::string>& GetSupportedConfigKeys() const;
+    const std::vector<std::string>& GetOptimizationCapabilities() const;
+    const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
+    const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
     // Destructor
     ~KmbMetrics() = default;
@@ -50,6 +55,10 @@ public:
 private:
     // Data section
     std::vector<std::string> _supportedMetrics;
+    std::vector<std::string> _supportedConfigKeys;
+    std::vector<std::string> _optimizationCapabilities;
+    std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests;
+    std::tuple<uint32_t, uint32_t> _rangeForStreams;
 };
 
 }  // namespace KmbPlugin

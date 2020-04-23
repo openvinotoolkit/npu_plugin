@@ -22,6 +22,7 @@
 #include <ie_metric_helpers.hpp>
 
 #include "hddl2_params.hpp"
+#include "vpu/kmb_plugin_config.hpp"
 
 using namespace vpu::HDDL2Plugin;
 
@@ -29,7 +30,24 @@ HDDL2Metrics::HDDL2Metrics() {
     _supportedMetrics = {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(AVAILABLE_DEVICES),
+        METRIC_KEY(FULL_DEVICE_NAME),
+        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+        METRIC_KEY(RANGE_FOR_STREAMS),
     };
+
+    _supportedConfigKeys = {
+        VPU_KMB_CONFIG_KEY(PLATFORM),
+        CONFIG_KEY(DEVICE_ID),
+        CONFIG_KEY(LOG_LEVEL),
+    };
+
+    _optimizationCapabilities = {METRIC_VALUE(INT8)};
+
+    _rangeForAsyncInferRequests = std::tuple<uint32_t, uint32_t, uint32_t>(3, 6, 1);
+
+    _rangeForStreams = std::tuple<uint32_t, uint32_t>(1, 4);
 }
 
 std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
@@ -63,3 +81,15 @@ bool HDDL2Metrics::isServiceAvailable() {
 
     return specifiedService.good() || defaultService.good();
 }
+
+std::string HDDL2Metrics::GetFullDevicesNames() { return {"ARM Cortex-A53"}; }
+
+const std::vector<std::string>& HDDL2Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
+
+const std::vector<std::string>& HDDL2Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
+
+const std::tuple<uint32_t, uint32_t, uint32_t>& HDDL2Metrics::GetRangeForAsyncInferRequest() const {
+    return _rangeForAsyncInferRequests;
+}
+
+const std::tuple<uint32_t, uint32_t>& HDDL2Metrics::GetRangeForStreams() const { return _rangeForStreams; }
