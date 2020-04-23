@@ -214,10 +214,10 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     }
 
     auto implicitRInputSlice = om.getOps("ImplicitInputSlice");
-    if (implicitRInputSlice.size())
+    for (std::size_t i = 0; i < implicitRInputSlice.size(); i++)
     {
-        auto inputTensors = implicitRInputSlice[0]->getOutputTensor();
-        for (auto tensor : inputTensors)
+        auto inTensors = implicitRInputSlice[i]->getOutputTensor();
+        for (auto tensor : inTensors)
         {
             if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
             {
