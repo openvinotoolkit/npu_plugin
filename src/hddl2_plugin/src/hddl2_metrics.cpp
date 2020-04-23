@@ -22,7 +22,6 @@
 #include <ie_metric_helpers.hpp>
 
 #include "hddl2_params.hpp"
-#include "vpu/kmb_plugin_config.hpp"
 
 using namespace vpu::HDDL2Plugin;
 
@@ -42,12 +41,6 @@ HDDL2Metrics::HDDL2Metrics() {
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(LOG_LEVEL),
     };
-
-    _optimizationCapabilities = {METRIC_VALUE(INT8)};
-
-    _rangeForAsyncInferRequests = std::tuple<uint32_t, uint32_t, uint32_t>(3, 6, 1);
-
-    _rangeForStreams = std::tuple<uint32_t, uint32_t>(1, 4);
 }
 
 std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
@@ -82,7 +75,8 @@ bool HDDL2Metrics::isServiceAvailable() {
     return specifiedService.good() || defaultService.good();
 }
 
-std::string HDDL2Metrics::GetFullDevicesNames() { return {"ARM Cortex-A53"}; }
+// TODO: Need to add the full name
+std::string HDDL2Metrics::GetFullDevicesNames() { return {""}; }
 
 const std::vector<std::string>& HDDL2Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
 

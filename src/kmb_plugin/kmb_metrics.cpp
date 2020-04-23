@@ -50,12 +50,6 @@ KmbMetrics::KmbMetrics() {
         VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
         VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
     };
-
-    _optimizationCapabilities = {METRIC_VALUE(INT8)};
-
-    _rangeForAsyncInferRequests = std::tuple<uint32_t, uint32_t, uint32_t>(3, 6, 1);
-
-    _rangeForStreams = std::tuple<uint32_t, uint32_t>(1, 4);
 }
 
 std::vector<std::string> KmbMetrics::AvailableDevicesNames() const {
