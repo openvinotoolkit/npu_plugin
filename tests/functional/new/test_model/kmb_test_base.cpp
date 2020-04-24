@@ -986,13 +986,13 @@ void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::YoloBBox> &act
                     actualBB.left / imgWidth,
                     actualBB.top / imgHeight,
                     (actualBB.right - actualBB.left) / imgWidth,
-                    (actualBB.top - actualBB.bottom) / imgHeight
+                    (actualBB.bottom - actualBB.top) / imgHeight
             };
             const utils::YoloBox refBox {
                     refBB.left / imgWidth,
                     refBB.top / imgHeight,
                     (refBB.right - refBB.left) / imgWidth,
-                    (refBB.top - refBB.bottom) / imgHeight
+                    (refBB.bottom - refBB.top) / imgHeight
             };
 
             const auto boxIntersection = boxIntersectionOverUnion(actualBox, refBox);
