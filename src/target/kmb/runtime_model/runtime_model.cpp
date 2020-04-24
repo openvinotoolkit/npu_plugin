@@ -522,7 +522,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitOutputOps.size());
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
-            auto destOp = implicitOutputOps[i].leftmostChild();
+            auto destOp = implicitOutputOps[i];
             toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
         }
     }
