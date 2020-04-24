@@ -527,15 +527,15 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, unsigned short newKernel,
+                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
                                                  std::array<unsigned short, 4> padding)
 {
     auto inputShape = sourceTensor->getShape();
 
     // Calculate strides based on new kernel sizes
-    std::array<unsigned short, 2> stride = {newKernel, newKernel};
+    std::array<unsigned short, 2> stride = {newKernel[0], newKernel[1]};
 
-    unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel * newKernel;
+    unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel[0] * newKernel[1];
 
     unsigned short channel_multiplier = 1;
 
@@ -559,7 +559,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 		std::vector<double> weightsData(total_shape, weightsValue);
 		//NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
 		weights = om.constant(weightsData,
-                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
     }
 	else
@@ -569,7 +569,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 		// If the input model is quantized, then the replacement pass needs to create
 		// quantization params for the weights parameter of the depthwise convolution.
 		weights = om.constantInt(weightsData,
-                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
 	}
     // Create depthwise conv
@@ -725,19 +725,28 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
 
         if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
             continue;
-
+        auto kernelSize = kSize[0];
+        auto largeDim = mv::IO_WIDTH_DIMENSION;
+        auto asymmetricCase = false;
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
-            // TODO deal with asymetric kernels too large
-            continue;
+            if ( kSize[0] > MAX_KERNEL and kSize[1] > MAX_KERNEL)
+                continue;
+            // deal with asymetric kernels when one dim is larger than MAX_KERNEL
+            asymmetricCase = true;
+            if (kSize[0] <  kSize[1])
+            {
+                kernelSize = kSize[1];
+                largeDim = mv::IO_HEIGHT_DIMENSION;
+            }
         }
-
         auto name = opIt->getName();
         auto sourceTensor = opIt->getInputTensor(0);
 
         auto parentOpIt = om.getSourceOp(sourceTensor);
 
         auto inputShape = sourceTensor->getShape();
+        auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
 	    std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
         std::pair<unsigned short, unsigned short> factors ;
@@ -746,12 +755,12 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
         // Note: Kernel sizes should be chosen so the output tensor of the second depthwise
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
 
-	    allFactors = getFactors(kSize[0]);
+	    allFactors = getFactors(kernelSize);
 
         if (allFactors.empty()) // Original kernel size IS PRIME
         {
             // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-	        allFactors = getFactors(kSize[0] - 1);
+	        allFactors = getFactors(kernelSize - 1);
 	        factors = allFactors.back(); // Get the most equal factors
 
             // These factors are for ksize - 1, so increase smaller factor by 1
@@ -767,19 +776,34 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
 
 	    if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
-       	     //TODO throw error, unable to split into appropriate size
-             continue;
-	    }
+            //TODO throw error, unable to split into appropriate size
+            continue;
+        }
 
         // Padding relationship is (input size + pad ) / k = output size
         // pad = output*k - input
-        double eachSize = (double) kSize[0] / factors.first;
-        double paddedSize = ceil(eachSize) * factors.first;
-        unsigned short pad = paddedSize - inputShape[mv::IO_HEIGHT_DIMENSION];
+        double eachSize = (double) kernelSize / factors.first;
+        //double paddedSize = ceil(eachSize) * factors.first;
+        double updatedOutput = outputShape[largeDim] * factors.second;
+        unsigned short pad = updatedOutput*factors.first -  inputShape[largeDim];
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
+        std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kSize[0], factors.first, padding);
+        if (asymmetricCase)
+        {
+            if (largeDim == mv::IO_WIDTH_DIMENSION)
+            {
+                padding[3] = 0;
+                newKernel[1] = kSize[1];
+            }
+            else
+            {
+                padding[1] = 0;
+                newKernel[0] = kSize[0];
+            }
+
+        }
+        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",                                                                    kernelSize, newKernel, padding);
 
 	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -803,9 +827,24 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
 		    om.undefineFlow(flowsToRemove[flowIdx]);
 	    }
 
+        newKernel[0] = newKernel[1] = factors.second;
+        auto scaleVal = kSize[0];
+        if (asymmetricCase)
+        {
+            if (largeDim == mv::IO_WIDTH_DIMENSION)
+            {
+                scaleVal = newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
+            }
+            else
+            {
+                scaleVal = newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
+            }
+
+        }
+
 	    // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0});
+                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0});
 
 	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
