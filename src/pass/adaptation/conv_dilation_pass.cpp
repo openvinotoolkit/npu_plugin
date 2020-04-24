@@ -60,6 +60,24 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 /*Populate dilated tensor with zeros*/
                 std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), 0);
 
+                std::array<unsigned short,4> padding = opIt->get<unsigned>("padding");
+                if (padding[0])
+                {
+                    padding[0] = floor(nonDialtedKernelWidth/2);
+                }
+                if (padding[1])
+                {
+                    padding[1] = floor(nonDialtedKernelWidth/2);
+                }
+                if (padding[2])
+                {
+                    padding[2] = floor(nonDialtedKernelHeight/2);
+                }
+                if (padding[3])
+                {
+                    padding[3] = floor(nonDialtedKernelHeight/2);
+                }
+                opIt->set<std::array<unsigned short, 4>>("padding", {padding[0], padding[1], padding[2], padding[3]} );
                 /*Create Tensor*/
                 mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
                 for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
