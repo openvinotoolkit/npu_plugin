@@ -158,11 +158,6 @@ mv::Data::TensorIterator mv::BaseOpModel::defineOp(const std::string& opType, co
     // Assumes single input/output
     if (opType == "Input")
     {
-        // if (*input_ == opEnd())
-        //     *input_ = opNode;
-        // else
-        //     throw LogicError(*this, "Attempt of multi-input model definiton - currently unsupported");
-
         bool networkInput = false;
         for (auto arg: args)
         {
