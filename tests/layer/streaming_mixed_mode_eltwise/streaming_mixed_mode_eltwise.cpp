@@ -16,11 +16,13 @@ int main()
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
+    //input full of 0.5
+    const auto data_0 = model.input({64, 32, 512, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{0.00196078431372549},{-inf},{inf},{0},{1}}, "data");
 
-    const auto data_0 = model.input({64, 64, 512, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{0.00196078431372549},{-inf},{inf},{0},{1}}, "data");
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (73728, 255, 0);
-
-    auto weights0 = model.constantInt(weightsData0,{3,3,512,16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (8192, 255, 0);
+//    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (73728, 255, 0);
+    //weights full of 0.1
+    auto weights0 = model.constantInt(weightsData0,{1,1,512,16}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.0003921568627450981},{},{}});
     auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{1},{-inf},{inf},{0},{1}} , "conv");
 
     model.output(conv0, mv::DType("Float16"), {{},{},{},{}});
