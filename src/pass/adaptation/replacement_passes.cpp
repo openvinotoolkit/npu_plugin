@@ -75,7 +75,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     flattenAsReshapeFcn(pass, model);
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -129,7 +129,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -178,7 +178,7 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
-void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void decideTasksPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //Note: This pass will be dis-abled and enabled only for cases that we want to execute fp16 precision dpu tasks
     //these tasks are marked cause they have no quant params...Important here is that the Z-major Convolution has
@@ -227,7 +227,7 @@ void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
     }
 }
 
-void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void interpAsAvgPoolingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -286,7 +286,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     }
 }
 
-void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void scaleAsDepthwiseFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -342,7 +342,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -430,7 +430,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     }
 }
 
-void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void topKAsArgMaxFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -636,11 +636,11 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
     // This condition handles these cases
     // nx1 -> reshape -> reshape -> nx1
     // nx1 -> reshape -> 1xn
-    return (first_kernel[0] == second_kernel[1] && first_kernel[1] == second_kernel[0] == 1) ||
+    return (first_kernel[0] == second_kernel[1] && first_kernel[1] == 1 && second_kernel[0] == 1) ||
             (first_kernel == second_kernel && first_kernel[0] == 1 && reshape_dims[0] == 1);
 }
 
-void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationModel& model) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
@@ -708,7 +708,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
 // Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
 // depthwise 2x2 kernel, stride 2, scale 1/14
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
