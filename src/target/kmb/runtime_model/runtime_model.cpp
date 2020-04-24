@@ -245,8 +245,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (t->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -406,11 +407,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
         else
         {
-            auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
             starting_address = (*masterBuffer)->getOffset();
         }
 
@@ -419,8 +420,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (t->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
+        if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
 
