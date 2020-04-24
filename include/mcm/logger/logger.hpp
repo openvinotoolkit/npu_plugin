@@ -64,6 +64,7 @@ namespace mv
         static void DebugLog(const std::string& senderName, char* format, ...);
         static void log(MessageType messageType, const std::string& senderName, const std::string &content);
         static void setVerboseLevel(VerboseLevel verboseLevel);
+        static VerboseLevel getVerboseLevel();
         static void enableLogTime();
         static void disableLogTime();
         static void logFilter(std::list<std::regex> filterList, bool filterPositive);

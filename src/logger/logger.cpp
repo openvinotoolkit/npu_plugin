@@ -96,6 +96,11 @@ void mv::Logger::setVerboseLevel(VerboseLevel verboseLevel)
     instance().verboseLevel_ = verboseLevel;
 }
 
+mv::VerboseLevel mv::Logger::getVerboseLevel()
+{
+    return instance().verboseLevel_;
+}
+
 void mv::Logger::enableLogTime()
 {
     instance().logTime_ = true;
