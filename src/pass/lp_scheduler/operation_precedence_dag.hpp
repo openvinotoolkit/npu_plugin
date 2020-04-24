@@ -592,9 +592,6 @@ class Operation_Dag {
         bfs_list.pop_front();
         op_size_table_t::iterator itr = op_size_table.find(curr_op);
 
-        std::cout << "LP scheduler: " << curr_op->getName() << std::endl;
-
-
         resource_t curr_op_utility = resource_utility(curr_op);
 
         if (itr == op_size_table.end()) {
