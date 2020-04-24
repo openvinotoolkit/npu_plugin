@@ -40,9 +40,9 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 auto nonDialtedKernel = opIt->getInputTensor(1);
                 auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
                 auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[1];
-                auto nonDialtedKernelShape = nonDialtedKernel->getShape();
                 auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[2];
                 auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[3];
+                auto nonDialtedKernelShape = nonDialtedKernel->getShape();
                 auto nonDialtedKernelData = nonDialtedKernel->getIntData();
 
 
@@ -51,15 +51,22 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                   * dilatedWidth = kw + (kw - 1)(df - 1)
                   * dilatedHeight = kh + (kh - 1)(df - 1)
                   */
-
                 mv::Shape dilatedKernelShape = mv::Shape({nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
                                                           nonDialtedKernelHeight + (nonDialtedKernelHeight - 1) * (dilationFactor - 1),
                                                           nonDialtedKernelInputChannels, nonDialtedKernelOutpuChannels});
+                auto nonDialtedKernelOp = opIt.rightmostParent();
+                unsigned currentOpId = nonDialtedKernelOp->get<unsigned>("opId");
+                auto quantParams = nonDialtedKernelOp->get<mv::QuantizationParams>("quantParams");
                 /*Populate dilated tensor with zeros*/
                 std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), 0);
 
                 /*Create Tensor*/
                 mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
+                for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
+                    for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
+                        for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelHeight; ++kcolumn)
+                            for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
+                                dilatedKernel.at({krow, kcolumn, ic, oc}) = quantParams.getZeroPoint(oc);
 
                 for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
                     for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
@@ -71,9 +78,6 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                                 else
                                     dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
 
-                auto nonDialtedKernelOp = opIt.rightmostParent();
-                auto quantParams = nonDialtedKernelOp->get<mv::QuantizationParams>("quantParams");
-                unsigned currentOpId = nonDialtedKernelOp->get<unsigned>("opId");
                 
 
                 auto dilatedConstant = om.constantDataElement(
