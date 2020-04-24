@@ -95,11 +95,7 @@ private:
     std::shared_ptr<KmbAllocator> allocator;
     void initVpualObjects();
 
-    int xlinkChannelIn;
-    int xlinkChannelOut;
-
-    int _xlinkChannelInferenceInput;
-    int _xlinkChannelInferenceOutput;
+    const int xlinkChannel = 0;
 
     uint32_t _outTensorLen;
     uint32_t _outTensorAddr;
