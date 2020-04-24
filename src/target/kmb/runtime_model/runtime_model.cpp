@@ -1976,6 +1976,15 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    throw ArgumentError("tools:RuntimeModel", "UPATask", "Unsupported", "topK not implemented yet");
+
+    //TODO
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -2122,6 +2131,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Custom")
         toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "topK")
+        toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
