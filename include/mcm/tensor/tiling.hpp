@@ -128,7 +128,7 @@ namespace mv
             auto parentTileShape = getSize();
             auto axisToSplit =  TILE_DIM_K; // the Size of the tile , is the size of the outputTensor... That is why we ask for "C" in the shape of the outTensor
 
-            int newSize = ceil((double)(parentTileShape[axisToSplit] / numberOfSplits, 16));
+            int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
             int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
 
             if(remainderSize == 0)
