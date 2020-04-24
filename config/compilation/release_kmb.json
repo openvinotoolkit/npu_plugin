@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
@@ -19,7 +19,7 @@
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
-                "FloatOutput": true,
+                "FloatOutput": false,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
@@ -116,7 +116,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 1.0},
+                        {"name" : "FathomSafetyFactor", " value" : 0.95},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -186,7 +186,14 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "kmb_adapt": {
@@ -216,13 +223,27 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/kmb_adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/implicit_dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
