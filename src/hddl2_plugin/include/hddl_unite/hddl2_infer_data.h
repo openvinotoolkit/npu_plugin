@@ -49,6 +49,8 @@ public:
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
     void waitInferDone() const;
 
+    void getHddlUnitePerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
+
     /**
      * @brief Wait when inference is done and get result from HddlUnite
      */
@@ -69,6 +71,8 @@ private:
     // TODO [Workaround] Avoid allocation buffer each time
     std::once_flag _onceFlagInputAllocations;
     std::once_flag _onceFlagOutputAllocations;
+
+    HddlUnite::Inference::InferData::ProfileData _profileData = {};
 };
 
 }  // namespace HDDL2Plugin
