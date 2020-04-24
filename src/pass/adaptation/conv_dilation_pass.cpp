@@ -60,7 +60,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 /*Populate dilated tensor with zeros*/
                 std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), 0);
 
-                std::array<unsigned short,4> padding = opIt->get<unsigned>("padding");
+                std::array<unsigned short,4> padding = opIt->get< std::array<unsigned short,4> >("padding");
                 if (padding[0])
                 {
                     padding[0] = floor(nonDialtedKernelWidth/2);
