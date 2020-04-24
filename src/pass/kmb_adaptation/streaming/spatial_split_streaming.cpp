@@ -124,18 +124,6 @@ static mv::Shape kernelSubtensorOffset(mv::Shape& outTensorOffset)
             );
 }
 
-static mv::Shape activationSubtensorShape(mv::Shape& tileShape,mv::Shape inputShape)
-{
-    return mv::Shape(
-                        {
-                            tileShape[mv::IO_WIDTH_DIMENSION],
-                            tileShape[mv::IO_HEIGHT_DIMENSION],
-                            inputShape[mv::IO_CHANNEL_DIMENSION],
-                            tileShape[mv::IO_BATCH_DIMENSION]
-                        }
-            );
-}
-
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         mv::Data::OpListIterator op,
         mv::Tiling& tiling)
@@ -149,6 +137,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     auto inputTensor = op->getInputTensor(0);
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
+    mv::Shape kernelShape  = kernelTensor->getShape();
 
     mv::QuantizationParams inputQuantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -170,7 +159,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
-    //todo:: get debug, and get rid of this if....
     auto copyInput = om.slice(inputTensor,
                                 mv::Shape({0,0,0,0}),
                                 inputTensor->getShape(),
@@ -183,9 +171,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         mv::Data::TensorIterator slice;
-        auto kernelSliceShape = kernelSubtensorShape(childTiles[split].getSize(),kernelTensor->getShape());
-        auto kernelSliceOffset = kernelSubtensorOffset(childTiles[split].getStartCoord());
-        //todo:: clean this if-then-else quantParams logic... it's just bloatware code
+        auto kernelSliceShape = childTiles[split].getKernelShape();
+        auto kernelSliceStart = childTiles[split].getKernelStart();
+        kernelSliceShape[mv::KERNEL_HEIGHT] = kernelShape[mv::KERNEL_HEIGHT]; //the tiling does not contain KERNEL W/H Info
+        kernelSliceShape[mv::KERNEL_WIDTH] = kernelShape[mv::KERNEL_WIDTH];
+        //todo:: clean this if-then-else quantParams logic
         if (kernelTensor->hasAttr("quantParams"))
         {
             auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
@@ -216,7 +206,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             }
 
             slice = om.slice(kernelTensor,
-                            kernelSliceOffset,
+                            kernelSliceStart,
                             kernelSliceShape,
                             sliceQuantParams,
                             kernelTensor->getName() + inputTensor->getName() + "_sliceK" + std::to_string(split));
@@ -224,7 +214,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         else
         {
             slice = om.slice(kernelTensor,
-                            kernelSliceOffset,
+                            kernelSliceStart,
                             kernelSliceShape,
                             {{}, {}, {}, {}},
                             kernelTensor->getName() + "_sliceK" + std::to_string(split));
@@ -280,7 +270,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         if (op->hasAttr("bias"))
         {
             auto tileSize = kernelSliceShape[axisToSplit];
-            biasStartIndex = kernelSliceOffset[axisToSplit];
+            biasStartIndex = kernelSliceStart[axisToSplit];
             biasEndIndex = biasStartIndex + tileSize;
 
             auto biasTensorName = op->get<std::string>("bias");
@@ -462,9 +452,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         {
             auto inputTensor = op->getInputTensor(0);
 
-            auto sliceShape = activationSubtensorShape(childTiles[split].getSize(),inputTensor->getShape());
+            auto sliceShape = childTiles[split].getActivationShape();
+            auto sliceStart = childTiles[split].getActivationStart();
+
             mv::Data::TensorIterator slice = om.slice(inputTensor,
-                                childTiles[split].getStartCoord(),
+                                sliceStart,
                                 sliceShape,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceH" + std::to_string(split));
@@ -644,8 +636,23 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputShape = outputTensor->getShape();
+        auto inputTensor = opIt->getInputTensor(0);
+        auto inputShape = inputTensor->getShape();
+
         auto zeroStartAxis = mv::Shape({0,0,0,0});
-        mv::Tiling masterTile(zeroStartAxis, outputShape);
+        mv::Tiling masterTile;
+        if((opType == "Conv") || (opType == "DepthwiseConv"))
+        {
+            //op has kernel
+            auto kernelShape = opIt->getInputTensor(1)->getShape();
+            masterTile = mv::Tiling(inputShape,kernelShape);
+        }
+        else
+        {
+            //for multi-input ops, this pass is assuming that all inputs are equalt, and the streams happens simetrically (Eltwise)
+            masterTile = mv::Tiling(inputShape);
+        }
+
         auto splitList = layerNameStrategy.get<std::vector<mv::Element>>("splits");
 
         std::vector<mv::Tiling*> tiles = {&masterTile};
