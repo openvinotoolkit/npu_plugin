@@ -1700,7 +1700,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
         fixed_sizes, fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
 
     auto boxes = ParseLayersHelpers::computePriorbox(param);
-    auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
+    auto priorbox = _modelMcm.constant(boxes, {1, boxes.size() / 2, 2, 1}, mv::DType("Float64"), mv::Order("NHWC"),
         initialQuantParams, layer->name + "_const");
 
     bindOutput(priorbox, layer->outData[0]);
