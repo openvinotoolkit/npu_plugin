@@ -100,6 +100,9 @@ else()
     add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
     target_link_libraries(conv_softmax cm)
 
+    add_executable(depthwise_deconv_fp16 depthwise_deconv_fp16/depthwise_deconv_fp16.cpp)
+    target_link_libraries(depthwise_deconv_fp16 cm)
+
     add_executable(detection_output detection_output/detection_output.cpp)
     target_link_libraries(detection_output cm)
 

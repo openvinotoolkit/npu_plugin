@@ -548,11 +548,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
-<<<<<<< HEAD
     {"Sigmoid", convertSigmoidToUPATask},
-=======
-    {"Deconv", convertDeconvToUPATask},
->>>>>>> [VPUNND-2887] Add deconvolution into compiler
+    {"Deconv", convertDeconvToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)
