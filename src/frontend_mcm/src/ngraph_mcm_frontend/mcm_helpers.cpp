@@ -55,10 +55,33 @@ mv::QuantizationParams makeQuantParams() {
 }
 
 mv::QuantizationParams makeQuantParams(const std::vector<int64_t>& zeroPoints, const std::vector<double>& scales) {
-    IE_ASSERT(zeroPoints.size() == scales.size());
     constexpr double INF_FP64 = std::numeric_limits<double>::infinity();
-    return mv::QuantizationParams(zeroPoints, scales, {-INF_FP64}, {INF_FP64});
+    if (1 == zeroPoints.size() && 1 < scales.size()) {
+        std::vector<int64_t> new_zp(scales.size(), zeroPoints[0]);
+        return mv::QuantizationParams(new_zp, scales, {-INF_FP64}, {INF_FP64});
+    } else {
+        IE_ASSERT(zeroPoints.size() == scales.size());
+        return mv::QuantizationParams(zeroPoints, scales, {-INF_FP64}, {INF_FP64});
+    }
 }
+
+
+mv::DType cvtOutputType(const ngraph::element::Type& elemType)
+{
+    if (ngraph::element::f32 == elemType)
+        return mv::DType("Float16");
+    else if(ngraph::element::f16 == elemType)
+        return mv::DType("Float16");
+    else if (ngraph::element::u8 == elemType)
+        return mv::DType("UInt8");
+    else {
+        std::stringstream msg;
+        msg << "Unsupported output element type: " << elemType;
+        IE_ASSERT(msg.str().c_str());
+        return mv::DType("Default");
+    }
+}
+
 
 mv::Shape cvtShapeToMCM(const ngraph::Shape& shape) {
     std::vector<size_t> dims = shape;

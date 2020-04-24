@@ -41,6 +41,7 @@ mv::Shape cvtShapeToMCM(const ngraph::Shape& shape);
 mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape);
 
 mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType);
+mv::DType cvtOutputType(const ngraph::element::Type& elemType);
 
 struct NodeOutputHash final {
     static size_t hash_combine(size_t seed, size_t val) {

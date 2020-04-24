@@ -1,4 +1,4 @@
-set(TARGET_NAME "vpuPlugin")
+set(TARGET_NAME "VPUXPlugin")
 
 if(ENABLE_LTO)
     ie_enable_lto()
@@ -22,11 +22,11 @@ elseif(X86 OR X86_64)
                    ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu)
     set(LIBRARIES HddlUnite)
 else()
-    message(FATAL_ERROR "Your platform is not supported for VPU Plugin")
+    message(FATAL_ERROR "Your platform is not supported for VPUX Plugin")
 endif()
 
 ie_add_plugin(NAME ${TARGET_NAME}
-    DEVICE_NAME VPU
+    DEVICE_NAME VPUX
     SOURCES ${SOURCES} ${HEADERS}
     VERSION_DEFINES_FOR ${ENGINE_SOURCE_FILE})
 
@@ -42,7 +42,7 @@ target_link_libraries(${TARGET_NAME}
 
 # install
 
-ie_cpack_add_component(vpu REQUIRED)
+ie_cpack_add_component(VPUX REQUIRED)
 
 install(TARGETS ${TARGET_NAME}
         RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT vpu

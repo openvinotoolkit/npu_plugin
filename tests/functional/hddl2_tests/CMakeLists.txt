@@ -16,6 +16,22 @@
 
 set(TARGET_NAME "HDDL2FunctionalTests")
 
+find_library(XLINK_LIBRARY
+        NAMES  XLink
+        HINTS "${TEMP}/hddl_unite/thirdparty/XLink/lib"
+        NO_DEFAULT_PATH)
+
+add_library(XLink SHARED IMPORTED GLOBAL)
+
+set_target_properties(XLink PROPERTIES
+        IMPORTED_LOCATION ${XLINK_LIBRARY}
+        IMPORTED_NO_SONAME TRUE)
+
+file(GLOB_RECURSE HDDL2_TESTS_SOURCES
+        "*.cpp"
+        )
+
+
 addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
@@ -29,6 +45,7 @@ addIeTargetTest(
         IE::IESharedTests
         HDDL2Plugin
         HddlUnite
+        XLink
         kmb_utils
         frontend_mcm
     LINK_LIBRARIES_WHOLE_ARCHIVE

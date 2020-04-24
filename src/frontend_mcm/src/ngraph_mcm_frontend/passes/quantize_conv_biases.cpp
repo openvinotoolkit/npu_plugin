@@ -74,7 +74,7 @@ bool rewrite(ngraph::pattern::Matcher& m) {
     }
 
     // TODO: other types?
-    conv->setElemType(ngraph::element::u8);
+//     conv->setElemType(ngraph::element::u8);
 
     const auto quantizedBiases = std::make_shared<ngraph::op::Constant>(
         ngraph::element::i64, biases->get_shape(), quantizedBiasesData);
