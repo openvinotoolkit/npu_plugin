@@ -75,13 +75,6 @@
             },
             "AssignInputNode",
             "AssignOutputNode",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/afterAssignInputNode.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "ComputeMemory",
             "AssignUniqueOpId",
             {
@@ -90,13 +83,6 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapt_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
             }
         ]
     },
