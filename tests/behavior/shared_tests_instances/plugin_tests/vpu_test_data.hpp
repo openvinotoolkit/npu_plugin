@@ -68,8 +68,6 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT), YES}}),
     BEH_KMB.withConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}}),
     BEH_KMB.withConfig({{"VPU_KMB_FORCE_NCHW_TO_NHWC", YES}}),
-    BEH_KMB.withConfig({{"VPU_KMB_FORCE_2D_TO_NC", YES}}),
-    BEH_KMB.withConfig({{"VPU_KMB_FORCE_FP16_TO_FP32", YES}}),
 };
 
 const std::vector<BehTestParams> withCorrectConfValuesPluginOnly = {};
@@ -88,6 +86,4 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT), "YEP"}}),
     BEH_KMB.withConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "NV12"}}),
     BEH_KMB.withConfig({{"VPU_KMB_FORCE_NCHW_TO_NHWC", "YEP"}}),
-    BEH_KMB.withConfig({{"VPU_KMB_FORCE_2D_TO_NC", "YEAH!"}}),
-    BEH_KMB.withConfig({{"VPU_KMB_FORCE_FP16_TO_FP32", "YEAH!"}}),
 };

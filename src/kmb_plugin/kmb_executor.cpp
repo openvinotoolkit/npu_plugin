@@ -191,29 +191,18 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
     }
     return found->second;
 }
-
-std::vector<size_t> filterDimsWithSizeOne(const InferenceEngine::SizeVector& dims) {
-    std::vector<size_t> out;
-    if (dims.size() == 0) {
-        return out;
-    }
-
-    out.push_back(dims.at(0));  // always push batch size
-    for (size_t idx = 1; idx < dims.size(); idx++) {
-        if (dims.at(idx) > 1) {
-            out.push_back(dims.at(idx));
-        }
-    }
-
-    return out;
-}
-
 }  // namespace
 #endif
 
-void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
+void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const InputsDataMap& networkInputs,
+    const OutputsDataMap& networkOutputs, bool newFormat) {
     if (!_config.useKmbExecutor()) {
         return;
+    }
+
+    if (newFormat) {
+        IE_ASSERT(networkInputs.size() == 1);
+        IE_ASSERT(networkOutputs.size() == 1);
     }
 
 #if defined(__arm__) || defined(__aarch64__)
@@ -304,31 +293,25 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     _logger->info("Output: ");
     tensor_deserializer(descOut);
 
+    const std::string inputName = newFormat ? networkInputs.begin()->first : "input";
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
     InferenceEngine::Layout inputLayout = getIOLayout(descIn);
     InferenceEngine::Precision inputPrecision = getIOPrecision(descIn);
     InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-    InferenceEngine::Data inputData("input", inputDesc);
+    InferenceEngine::Data inputData(inputName, inputDesc);
 
     InferenceEngine::InputInfo inputInfo;
     inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-    _inputNetworkLayout = inputLayout;
+    _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
 
+    const std::string outputName = newFormat ? networkInputs.begin()->first : "output";
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);
-    if (_config.force2DToNC()) {
-        InferenceEngine::SizeVector nonTrivialDims = filterDimsWithSizeOne(outputDims);
-        if (nonTrivialDims.size() == 2) {
-            outputDims = nonTrivialDims;
-            outputLayout = InferenceEngine::Layout::NC;
-        }
-    }
     InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-    InferenceEngine::Data outputData("output", outputDesc);
+    InferenceEngine::Data outputData(outputName, outputDesc);
 
-    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+    _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
     rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {

@@ -415,7 +415,7 @@ TEST_P(LayoutConversionTest, DISABLED_layoutConversionTestPooling_manual) {
 }
 
 // [Track number: S#27237]
-TEST_P(LayoutConversionTest, DISABLED_setLayoutAndCompareWithExeNetwork_manual) {
+TEST_P(LayoutConversionTest, setLayoutAndCompareWithExeNetwork_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};
@@ -466,7 +466,7 @@ TEST_P(LayoutConversionTest, DISABLED_setLayoutAndCompareWithExeNetwork_manual) 
 }
 
 // [Track number: S#24530]
-TEST_P(LayoutConversionTest, DISABLED_setLayoutExportImportAndCompare_manual) {
+TEST_P(LayoutConversionTest, setLayoutExportImportAndCompare_manual) {
     InferenceEngine::Layout input_layout = std::get<0>(GetParam());
     InferenceEngine::Layout output_layout = std::get<1>(GetParam());
     const std::vector<size_t> input_dims = {1, 16, 16, 16};

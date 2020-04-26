@@ -16,19 +16,13 @@
 
 #pragma once
 
-#include "ie_core.hpp"
-#include "mcm_config.h"
+#include <flatbuffers/flatbuffers.h>
+#include <schema/graphfile/graphfile_generated.h>
 
-namespace vpu {
-namespace MCMAdapter {
-bool isMCMCompilerAvailable();
+InferenceEngine::Layout orderToLayout(const std::vector<uint32_t>& tensorOrder);
+InferenceEngine::Precision DTypeToPrecision(const MVCNN::DType& dtype);
 
-void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& outBlob);
-
-std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
-
-std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> deserializeMetaData(
-    const std::vector<char>& outBlob, const MCMConfig& config);
-
-}  // namespace MCMAdapter
-}  // namespace vpu
+#ifdef ENABLE_MCM_COMPILER
+std::vector<uint32_t> layoutToOrder(const InferenceEngine::Layout& tensorLayout);
+MVCNN::DType precisionToDType(const InferenceEngine::Precision& tensorPrecision);
+#endif
