@@ -1287,6 +1287,8 @@ namespace mv
                                 while(fit.first + fit.second > clusterMemory){
                                     maxSplitOverH = maxSplitOverH + 1;
                                     fit = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,1},fakeSparsity);
+                                    if((maxSplitOverH > op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION]) or (maxSplitOverH > op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION]))
+                                        break;
                                 }
                             }
                         }
