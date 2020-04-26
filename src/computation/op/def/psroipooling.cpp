@@ -31,7 +31,7 @@ namespace mv
             auto outputOrder = input->getOrder();
             auto inputShape  = input->getShape();
 
-            auto N = inputs[1]->getShape()[0];
+            auto N = inputs[1]->getShape()[3];
             auto C = args.at("output_dim").get<std::size_t>();
             auto H = args.at("pooled_h").get<std::size_t>();
             auto W = args.at("pooled_w").get<std::size_t>();

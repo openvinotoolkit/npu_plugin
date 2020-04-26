@@ -1655,6 +1655,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
 
     softLayerParamsValue->output_dim    = opIt->get<std::size_t>("output_dim");
     softLayerParamsValue->group_size    = opIt->get<std::size_t>("group_size");
+    softLayerParamsValue->pooled_w    = opIt->get<std::size_t>("pooled_w");
+    softLayerParamsValue->pooled_h    = opIt->get<std::size_t>("pooled_h");
     softLayerParamsValue->spatial_scale = static_cast<float>(opIt->get<double>("spatial_scale"));
     softLayerParamsValue->spatial_bin_x = opIt->get<std::size_t>("spatial_bin_x");
     softLayerParamsValue->spatial_bin_y = opIt->get<std::size_t>("spatial_bin_y");
