@@ -49,14 +49,27 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 
 void ExecutableNetwork::LoadBlob() {
     IE_PROFILING_AUTO_SCOPE(LoadBlob);
-    _executor->allocateGraph(_graphBlob);
-    _networkInputs = _executor->getNetworkInputs();
-    _networkOutputs = _executor->getNetworkOutputs();
+    std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> portsInfo =
+        MCMAdapter::deserializeMetaData(_graphBlob, _config);
+    const InferenceEngine::InputsDataMap& deserializedInputs = portsInfo.first;
+    const InferenceEngine::OutputsDataMap& deserializedOutputs = portsInfo.second;
+    const bool newFormat = (deserializedInputs.size() > 0) && (deserializedOutputs.size() > 0);
+    _executor->allocateGraph(_graphBlob, deserializedInputs, deserializedOutputs, newFormat);
+    _runtimeInputs = _executor->getRuntimeInputs();
+    _runtimeOutputs = _executor->getRuntimeOutputs();
+    if (newFormat) {
+        _networkInputs = deserializedInputs;
+        _networkOutputs = deserializedOutputs;
+    } else {
+        _networkInputs = _runtimeInputs;
+        _networkOutputs = _runtimeOutputs;
+    }
 }
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config): _config(config) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
 
+    _netName = network.getName();
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
@@ -105,7 +118,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
     if (_config.loadNetworkAfterCompilation()) {
         LoadBlob();
-        ConfigureExecutor(network.getName());
+        ConfigureExecutor(_netName);
     }
 }
 
@@ -129,6 +142,18 @@ void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, Re
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
+}
+
+ie::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
+    std::string id = _taskExecutorGetResultIds.front();
+
+    _taskExecutorGetResultIds.pop();
+    _taskExecutorGetResultIds.push(id);
+
+    ie::ExecutorManager* executorManager = ie::ExecutorManager::getInstance();
+    ie::ITaskExecutor::Ptr taskExecutor = executorManager->getExecutor(id);
+
+    return taskExecutor;
 }
 
 }  // namespace KmbPlugin

@@ -35,6 +35,8 @@ target_include_directories(${TARGET_NAME}
         ${MCM_COMPILER_INCLUDES}
         ${MCM_COMPILER_INCLUDES}/include
         ${META_DIR_PATH}
+        "${FLATBUFFERS_INCLUDE_PATH}"
+        "${SCHEMA_INCLUDE_PATH}"
     PUBLIC
         "include"
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)

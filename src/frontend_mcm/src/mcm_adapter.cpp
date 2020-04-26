@@ -28,13 +28,21 @@
 #include <ie_util_internal.hpp>
 
 #include "include/mcm/compiler/compilation_unit.hpp"
+#endif
 
 #if defined(_WIN32)
 #define mkdir(dir, mode) _mkdir(dir)
 #endif
 
+#include <flatbuffers/flatbuffers.h>
+#include <schema/graphfile/graphfile_generated.h>
+
+#include "converters.hpp"
+
 using namespace InferenceEngine;
 using namespace vpu;
+
+#ifdef ENABLE_MCM_COMPILER
 
 static std::string getMcmLogLevel(LogLevel lvl) {
     switch (lvl) {
@@ -58,6 +66,47 @@ static std::string getMcmLogLevel(LogLevel lvl) {
     default:
         return "Silent";
     }
+}
+
+static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
+    const std::string& tensorName, const InferenceEngine::TensorDesc& tensorInfo) {
+    std::unique_ptr<MVCNN::TensorReferenceT> toBuild =
+        std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
+    toBuild->name = tensorName;
+    const InferenceEngine::SizeVector& dimVec = tensorInfo.getDims();
+    for (const size_t& dim : dimVec) {
+        toBuild->dimensions.push_back(dim);
+    }
+    toBuild->strides = layoutToOrder(tensorInfo.getLayout());
+    toBuild->data_dtype = precisionToDType(tensorInfo.getPrecision());
+    toBuild->data = nullptr;
+
+    return toBuild;
+}
+
+static std::vector<char> serializeMetaData(const char* memBlobData, const InferenceEngine::InputsDataMap& inputInfo,
+    const InferenceEngine::OutputsDataMap& outputInfo) {
+    const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(memBlobData);
+    MVCNN::GraphFileT graphFileInstance;
+    graphFilePtr->UnPackTo(&graphFileInstance);
+
+    for (auto inIter = inputInfo.begin(); inIter != inputInfo.end(); ++inIter) {
+        graphFileInstance.header->in_tensor_desc.push_back(
+            buildTensorReference(inIter->first, inIter->second->getTensorDesc()));
+    }
+
+    for (auto outIter = outputInfo.begin(); outIter != outputInfo.end(); ++outIter) {
+        graphFileInstance.header->out_tensor_desc.push_back(
+            buildTensorReference(outIter->first, outIter->second->getTensorDesc()));
+    }
+
+    flatbuffers::FlatBufferBuilder builder;
+    flatbuffers::Offset<MVCNN::GraphFile> offset = MVCNN::CreateGraphFile(builder, &graphFileInstance);
+    MVCNN::FinishGraphFileBuffer(builder, offset);
+    std::vector<char> binaryData(builder.GetSize());
+    std::memcpy(binaryData.data(), builder.GetBufferPointer(), binaryData.size());
+
+    return binaryData;
 }
 
 void MCMAdapter::compileNetwork(
@@ -166,21 +215,29 @@ void MCMAdapter::compileNetwork(
     }
 
     if (config.mcmGenerateBlob()) {
+        InferenceEngine::InputsDataMap inputInfo;
+        network.getInputsInfo(inputInfo);
+
+        InferenceEngine::OutputsDataMap outputInfo;
+        network.getOutputsInfo(outputInfo);
+
         auto memBlob = unit->getBlob();
+        std::vector<char> binaryData;
         if (memBlob == nullptr) {
             std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
             if (blobFile) {
                 std::ostringstream blobContentStream;
                 blobContentStream << blobFile.rdbuf();
                 const std::string& blobContentString = blobContentStream.str();
-                std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
+                binaryData = serializeMetaData(blobContentString.c_str(), inputInfo, outputInfo);
             } else {
                 VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob"
                                     << ". It was not created by mcmCompiler!";
             }
         } else {
-            std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
+            binaryData = serializeMetaData(memBlob->data(), inputInfo, outputInfo);
         }
+        std::copy(binaryData.begin(), binaryData.end(), std::back_inserter(blob));
 
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob"
@@ -221,3 +278,66 @@ std::set<std::string> vpu::MCMAdapter::getSupportedLayers(
 bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
 
 #endif  // ENABLE_MCM_COMPILER
+
+std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::MCMAdapter::deserializeMetaData(
+    const std::vector<char>& outBlob, const MCMConfig& config) {
+    Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
+    const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(outBlob.data());
+    MVCNN::GraphFileT graphFileInstance;
+    graphFilePtr->UnPackTo(&graphFileInstance);
+
+    InferenceEngine::InputsDataMap resultNetworkInputs;
+    size_t inputTensorsCount = graphFileInstance.header->in_tensor_desc.size();
+    logger->debug("inputTensorsCount: %d", inputTensorsCount);
+    for (size_t inputIdx = 0; inputIdx < inputTensorsCount; inputIdx++) {
+        std::unique_ptr<MVCNN::TensorReferenceT>& tensorRef = graphFileInstance.header->in_tensor_desc.at(inputIdx);
+        std::ostringstream inputSerializer;
+        inputSerializer << "Name: " << tensorRef->name << std::endl;
+        InferenceEngine::SizeVector dimVec;
+        std::copy(tensorRef->dimensions.begin(), tensorRef->dimensions.end(), std::back_inserter(dimVec));
+        inputSerializer << "Dims: {";
+        for (const size_t& dim : dimVec) {
+            inputSerializer << " " << dim << " ";
+        }
+        inputSerializer << "}" << std::endl;
+        InferenceEngine::Layout ieLayout = orderToLayout(tensorRef->strides);
+        InferenceEngine::Precision iePrecision = DTypeToPrecision(tensorRef->data_dtype);
+        inputSerializer << "Layout: " << ieLayout << std::endl;
+        inputSerializer << "Precision: " << iePrecision << std::endl;
+
+        InferenceEngine::TensorDesc inputDesc(iePrecision, dimVec, ieLayout);
+        InferenceEngine::Data inputData(tensorRef->name, inputDesc);
+        logger->debug("input info:\n%s\n", inputSerializer.str());
+
+        InferenceEngine::InputInfo inputInfo;
+        inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
+        resultNetworkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+    }
+
+    InferenceEngine::OutputsDataMap resultNetworkOutputs;
+    size_t outputTensorsCount = graphFileInstance.header->out_tensor_desc.size();
+    logger->debug("outputTensorsCount: %d", outputTensorsCount);
+    for (size_t outputIdx = 0; outputIdx < outputTensorsCount; outputIdx++) {
+        std::unique_ptr<MVCNN::TensorReferenceT>& tensorRef = graphFileInstance.header->out_tensor_desc.at(outputIdx);
+        std::ostringstream outputSerializer;
+        outputSerializer << "Name: " << tensorRef->name << std::endl;
+        InferenceEngine::SizeVector dimVec;
+        std::copy(tensorRef->dimensions.begin(), tensorRef->dimensions.end(), std::back_inserter(dimVec));
+        outputSerializer << "Dims: {";
+        for (const size_t& dim : dimVec) {
+            outputSerializer << " " << dim << " ";
+        }
+        outputSerializer << "}" << std::endl;
+        InferenceEngine::Layout ieLayout = orderToLayout(tensorRef->strides);
+        InferenceEngine::Precision iePrecision = DTypeToPrecision(tensorRef->data_dtype);
+        outputSerializer << "Layout: " << ieLayout << std::endl;
+        outputSerializer << "Precision: " << iePrecision << std::endl;
+        logger->debug("output info:\n%s\n", outputSerializer.str());
+
+        InferenceEngine::TensorDesc outputDesc(iePrecision, dimVec, ieLayout);
+        InferenceEngine::Data outputData(tensorRef->name, outputDesc);
+        resultNetworkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+    }
+
+    return {resultNetworkInputs, resultNetworkOutputs};
+}
