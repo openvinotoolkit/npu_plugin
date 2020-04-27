@@ -215,9 +215,16 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                 std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
                 if (!sinkOperators.empty())
                 {
-                    while (sinkOperators[0]->getOpType() != "DPUTask")
+                    // TODO what was the purpose of adding channels to the RH bug fix?
+                    // how should it be handled if no dpu task follows?
+                    while (sinkOperators[0]->getOpType() != "DPUTask"){
+                        if(sinkOperators[0]->getOpType() == "Output") break;
                         sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                    outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    }
+                    if(sinkOperators[0]->getOpType() == "Output")
+                        outputChannels = sinkOperators[0]->getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                    else
+                        outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
                 }
                 auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                 subTensors.clear();

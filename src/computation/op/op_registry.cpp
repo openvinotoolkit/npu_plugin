@@ -1065,6 +1065,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/eltwise.cpp"
 #include    "src/computation/op/def/align.cpp"
 #include    "src/computation/op/def/argmax.cpp"
+#include    "src/computation/op/def/topk.cpp"
 #include    "src/computation/op/def/average_pool.cpp"
 #include    "src/computation/op/def/batch_normalization.cpp"
 #include    "src/computation/op/def/bias.cpp"
