@@ -230,6 +230,24 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("OUTPUT", true));
     }
 
+    auto implicitUnionOps = om.getOps("ImplicitUnion");
+    for ( auto implicitUnion : implicitUnionOps)
+    {
+        auto inTensors = implicitUnion->getInputTensor();
+        for (auto tensor : inTensors)
+        {
+            if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
+            {
+                pass.log(mv::Logger::MessageType::Warning, "Found InputTensor " +
+                            tensor->getName() + " description location in JSON. Will override with OUTPUT");
+            }
+            pass.log(mv::Logger::MessageType::Warning,"Found InputTensor " +
+                            tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
+            //mark location forced so any adaptation pass will inheret opIt
+            tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("OUTPUT", true));
+        }
+    }
+
     //if JSON wants us to override default location for tensors:
     if(globalParams->hasAttr("default_tensor_placement"))
     {
