@@ -108,13 +108,6 @@
             "EltwiseToSWEltwise",
             "HandleGroupConvolution",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/placement.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
@@ -191,23 +184,9 @@
             },
             "StoreGraphOptimizerDecisions",
             "ComputeSparsitySolution",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_graph.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "StreamingOperations",
             "StreamBinaryDataWeights",
-            "StreamCopyOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_streaming.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -216,21 +195,7 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_tasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_tasks.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
@@ -242,13 +207,6 @@
             "CropOrPadFinalOutput",
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/populated_sparsity.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "GenerateWeightsTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
@@ -257,13 +215,6 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_quantize.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -293,13 +244,6 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_scheduler.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -321,13 +265,6 @@
             "AllocateInputOutputTensorsKmb",
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_allocation.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "AllocateCMXTensorsKmb",
             {
               "name": "LpScheduler",
@@ -360,13 +297,6 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_blob.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
