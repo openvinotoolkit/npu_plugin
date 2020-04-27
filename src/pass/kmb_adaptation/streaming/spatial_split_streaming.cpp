@@ -207,9 +207,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
 
 
-//    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat", "splitStrategy"
-//                                    , "weightsSparsity", "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"});
-    //Forbinned Attrs on stream Over K are only the ones below
+    //Forbidden Attrs on stream Over K are only the ones below, we right the attrs that will not be propagated!!!
     auto attrsToCopy = op->getAttrs({"shape", "bias"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};

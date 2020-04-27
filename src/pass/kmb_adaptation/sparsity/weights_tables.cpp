@@ -336,8 +336,6 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
     auto input = dpuTaskOp->getInputTensor(0);
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
     auto height_width = activationStorageElement->getShape().totalSize();
-//    //31 bit is always 1 for storage element
-//    std::int64_t constant_bias = std::pow(2, 31);
 
     std::vector<int64_t> unpopulated_offsets(height_width, 0);
 
