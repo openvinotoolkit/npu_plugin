@@ -55,39 +55,11 @@ using namespace std;
 
 #if defined(__arm__) || defined(__aarch64__)
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
-// XLink channel number to start allocation from
-const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
-
-// Get free XLink channel
-static uint32_t getXlinkChannel(const vpu::Logger::Ptr& _logger) {
-    static std::mutex mutex_;
-    static int XlinkChannel = -1;
-
-    std::unique_lock<std::mutex> lock(mutex_);
-
-    if (XlinkChannel <= 0) {
-        const char* pxc = getenv("IE_VPU_KMB_XC");
-        XlinkChannel = pxc ? atoi(pxc) : IE_VPU_KMB_XC_DEFAULT;
-    }
-    // In this simplified implementation we never reuse the channel
-    uint32_t ret = XlinkChannel++;
-
-    // Skipping "0xA: IP control channel (standard channel)"
-    if (ret == 10) {
-        ret = XlinkChannel++;
-    }
-    _logger->info("Allocated channel = %d", ret);
-    return ret;
-}
 #endif
 
 KmbExecutor::KmbExecutor(const KmbConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-      xlinkChannelIn(0),
-      xlinkChannelOut(0),
-      _xlinkChannelInferenceInput(0),
-      _xlinkChannelInferenceOutput(0),
       _outTensorLen(0),
       _outTensorAddr(0),
       _inferenceVirtAddr(nullptr) {
@@ -334,20 +306,16 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
     _logger->info("Created plgPoolInferenceMsg");
 
-    xlinkChannelIn = getXlinkChannel(_logger);
-    xlinkChannelOut = getXlinkChannel(_logger);
-    plgTensorInput_->Create(descIn.totalSize, xlinkChannelIn, descIn);
+    plgTensorInput_->Create(descIn.totalSize, xlinkChannel, descIn);
     _logger->info("Created plgTensorInput");
 
-    plgTensorOutput_->Create(descOut.totalSize, xlinkChannelOut, descOut);
+    plgTensorOutput_->Create(descOut.totalSize, xlinkChannel, descOut);
     _logger->info("Created plgTensorOutput");
 
-    _xlinkChannelInferenceInput = getXlinkChannel(_logger);
-    _xlinkChannelInferenceOutput = getXlinkChannel(_logger);
-    plgInferenceInput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceInput);
+    plgInferenceInput_->Create(3 * inferenceIDSize, xlinkChannel);
     _logger->info("Created plgInferenceInput_");
 
-    plgInferenceOutput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceOutput);
+    plgInferenceOutput_->Create(3 * inferenceIDSize, xlinkChannel);
     _logger->info("Created plgInferenceOutput_");
 
     _logger->info("Created all Plugins");
@@ -422,10 +390,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
 
-    _logger->info(
-        "KmbExecutor::getResult memcpy started @%d xlinkChannel=%d, %d ", offset, xlinkChannelIn, xlinkChannelOut);
-
-    _logger->info("KmbExecutor::getResult memcpy started");
+    _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
     IE_ASSERT(result_bytes >= len);
     std::memcpy(result_data, data, len);
     std::memset(data, 0, len);

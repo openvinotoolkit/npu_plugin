@@ -41,7 +41,6 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbConfig _config;
 
 protected:
-    InferenceEngine::BlobMap _custom_outputs;
     void checkBlobs();
 
 public:

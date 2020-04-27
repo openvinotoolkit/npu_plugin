@@ -354,17 +354,6 @@ void KmbInferRequest::GetResult() {
         }
     }
 
-    if (!_custom_outputs.empty()) {
-        for (auto& output : _outputs) {
-            auto name = output.first;
-
-            auto custom_outputBlob = _custom_outputs[name];
-            auto outputBlob = output.second;
-
-            copyBlob(outputBlob, custom_outputBlob);
-        }
-    }
-
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
         dumpOutputBlobHelper(outputBlobRef, dumpOutputPathEnv);
@@ -383,13 +372,7 @@ void KmbInferRequest::Infer() {
 
 void KmbInferRequest::checkBlobs() {
     IE_PROFILING_AUTO_SCOPE(checkBlobs);
-    if (_custom_outputs.empty()) {
-        for (auto const& output : _outputs) {
-            checkBlob(output.second, output.first, false);
-        }
-    } else {
-        for (auto const& output : _custom_outputs) {
-            checkBlob(output.second, output.first, false);
-        }
+    for (auto const& output : _outputs) {
+        checkBlob(output.second, output.first, false);
     }
 }
