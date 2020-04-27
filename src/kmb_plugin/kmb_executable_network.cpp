@@ -75,11 +75,10 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
-    const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
-    if (kmb_use_ngraph || _config.useNGraphParser()) {
+    if (_config.useNGraphParser()) {
         if (const auto cnnNGraphNet = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
             if (const auto func = cnnNGraphNet->getFunction()) {
-                std::cout << "Using NGraph parser" << std::endl;
+                _logger->info("Using NGraph parser");
                 InputsDataMap inputsInfo;
                 network.getInputsInfo(inputsInfo);
 
@@ -88,17 +87,17 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
                 _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
             } else {
-                std::cout << "Failed to read NGraph func" << std::endl;
+                _logger->warning("Failed to read NGraph func");
             }
         } else {
-            std::cout << "Failed to read NGraph network" << std::endl;
+            _logger->warning("Failed to read NGraph network");
         }
     } else {
-        std::cout << "NGraph parser disabled" << std::endl;
+        _logger->info("NGraph parser disabled");
     }
 
     if (_graphBlob.empty()) {
-        std::cout << "Network failed to convert using NGraph Parser" << std::endl;
+        _logger->info("Using CNNNetwork parser");
 #ifdef ENABLE_MCM_COMPILER
         // HACK: convert nGraph to old CNNNetwork to fix LP transformations
 
