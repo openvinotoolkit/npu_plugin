@@ -14,6 +14,7 @@ namespace mv
         int group_;
         int index_;
         int barrierID_;
+        int realBarrierIndex_;
         int numProducers_;
         int numConsumers_;
         std::set<std::string> producers_; // names of the input ops
@@ -32,6 +33,11 @@ namespace mv
 
         int getID() const;
         void setID(int id);
+
+        void setRealBarrierIndex(int real_barrier_index) {
+          realBarrierIndex_ = real_barrier_index;
+        }
+        int getRealBarrierIndex(void) const { return realBarrierIndex_; }
 
         int getNumProducers() const;
         int getNumConsumers() const;
@@ -55,9 +61,17 @@ namespace mv
         void removeConsumer(const std::string& consumer);
 
         void clear();
+        //TODO(vamsikku): consolidate clear() and this method after the new 
+        //barrier scheduler is set as default//
+        void clearProducersConsumers() {
+          numProducers_ = 0;
+          numConsumers_ = 0;
+          producers_.clear();
+          consumers_.clear();
+        }
 
-        bool hasProducers();
-        bool hasConsumers();
+        bool hasProducers() const;
+        bool hasConsumers() const;
 
         std::set<std::string> getProducers() const;
         std::set<std::string> getConsumers() const;
