@@ -298,17 +298,6 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/original_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/original_model.dot"
-            },
-            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
             },
