@@ -6,7 +6,7 @@
 #include "include/mcm/op_model.hpp"
 #include <regex>
 
-static void computeSparsitySolution(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void computeSparsitySolutionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -15,14 +15,14 @@ namespace mv
     {
 
         MV_REGISTER_PASS(ComputeSparsitySolution)
-        .setFunc(computeSparsitySolution)
+        .setFunc(computeSparsitySolutionFcn)
         .setDescription(
             "This pass predicts from who the unpopulated sparsity will be solved runtime/compiler."
         );
     }
 }
 
-void computeSparsitySolution(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //IDU OF z-major Conv supports sparsity, so take all the input tensors of convs,
     //see where they are located, if they are on DDR and they need sparsity mark them
@@ -42,7 +42,7 @@ void computeSparsitySolution(const mv::pass::PassEntry& pass, mv::ComputationMod
         if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR"))
         {
             //for now we are going to handle only the case that we have an op flaot16
-            if (convOp->get<bool>("floatPrecision"))
+            if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision"))
             {
                 convOp->set<bool>("activationSparsityCompilerSolving", true);
                 convOp->set<bool>("inputActivationSparsity", true);

@@ -207,8 +207,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
 
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat", "splitStrategy"
-                                    , "weightsSparsity", "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"});
+    //Forbidden Attrs on stream Over K are only the ones below, we right the attrs that will not be propagated!!!
+    auto attrsToCopy = op->getAttrs({"shape", "bias"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -442,10 +442,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
     // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    std::vector<std::string> attrs = {"stride", "padding", "shape", "floatPrecision", "mixedToFloat", "bias", "splitStrategy"
-                                      , "weightsSparsity", "opId", "activationSparsityCompilerSolving", "placeConversionToFloat", "Int32Output"};
-//    auto attrsToCopy = op->getAttrs(attrs);
-    auto attrsToCopy = op->attrsToCopy(attrs);
+
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
