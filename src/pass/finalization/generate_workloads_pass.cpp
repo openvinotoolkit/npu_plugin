@@ -373,6 +373,78 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 /*Get the index of the most optimial workload*/
                 optimalWorkloadIndex = std::distance(workloadsVector.begin(), optimalWorkload);
 
+                if((opIt->getOutputTensor()[0]->hasAttr("asymmetricKernel")))
+                {
+                    size_t wl_index = 0;
+
+                    auto dim = opIt->getOutputTensor()[0]->get<unsigned>("asymmetricKernel");
+                    //find the first optimal workload where the dim needed is divided for one line or row
+                    for (auto wl : workloadsVector)
+                    {
+                        bool found = true;
+                        for (size_t i=0; i< wl.nWorkloads(); i++)
+                        {
+                            if (dim == mv::KERNEL_HEIGHT && wl[i].MinY != wl[i].MaxY)
+                            {
+                                found = false;
+                                break;
+                            }
+                            if (dim == mv::KERNEL_WIDTH && wl[i].MinX != wl[i].MaxX)
+                            {
+                                found = false;
+                                break;
+                            }
+
+                        }
+                        if (found)
+                        {
+                            break;
+                        }
+                        wl_index++;
+                    }
+                    if (wl_index == workloadsVector.size())
+                    {
+                        pass.log(mv::Logger::MessageType::Debug, "Couldnt find a workload for AsymmetricKernel case, adding one");
+
+                        //Add workload that we need (each row in a workload to avoid striding on both dim)
+                        workloadsVector.emplace_back(mv::Workloads(opIt->getName(), subTensorShape));
+                        auto& workloads = workloadsVector[workloadsVectorIndex];
+
+                        for(unsigned a = 0; a < subTensorShape[dim]; ++a)
+                        {
+                            mv::Workload toAdd;
+                            if (dim == mv::KERNEL_HEIGHT)
+                            {
+                                toAdd.MinX = 0;
+                                toAdd.MaxX = subTensorShape[mv::KERNEL_WIDTH]-1;
+                                toAdd.MinY = a;
+                                toAdd.MaxY = a;
+                            }
+                            else
+                            {
+                                toAdd.MinY = 0;
+                                toAdd.MaxY = subTensorShape[mv::KERNEL_HEIGHT]-1;
+                                toAdd.MinX = a;
+                                toAdd.MaxX = a;
+                            }
+
+                            toAdd.MinZ = 0;
+                            toAdd.MaxZ = subTensorShape[2]-1;
+                            toAdd.MPEMode = mv::MPE_Mode::Vector;
+                            workloads.addWorkload(toAdd);
+
+                        }
+                        optimalWorkloadIndex = workloadsVectorIndex;
+                        workloadsVectorIndex++;
+                    }
+                    else
+                    {
+                        optimalWorkloadIndex = wl_index;
+                        //std::cout << " index found " << std::to_string(index) << std::endl;
+                    }
+
+                }
+
                 pass.log(mv::Logger::MessageType::Debug, "Selecting workload at index " + std::to_string(optimalWorkloadIndex) + " as the most optimal workload for subtensor number " + std::to_string(clusterNumber));
 
                 /*set the clusterID field of the most optimial workload*/
