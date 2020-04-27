@@ -748,33 +748,33 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
         auto inputShape = sourceTensor->getShape();
         auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
-	    std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
+        std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
         std::pair<unsigned short, unsigned short> factors ;
 
         // If average pool kernel size is greater than 11, we will turn it in to multiple depthwise convs here
         // Note: Kernel sizes should be chosen so the output tensor of the second depthwise
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
 
-	    allFactors = getFactors(kernelSize);
+        allFactors = getFactors(kernelSize);
 
         if (allFactors.empty()) // Original kernel size IS PRIME
         {
             // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-	        allFactors = getFactors(kernelSize - 1);
-	        factors = allFactors.back(); // Get the most equal factors
+            allFactors = getFactors(kernelSize - 1);
+            factors = allFactors.back(); // Get the most equal factors
 
             // These factors are for ksize - 1, so increase smaller factor by 1
             if( factors.first == factors.second)
                 factors.first++;
             else
                 factors.second++;
-	    }
+        }
         else // Original kernel size NOT PRIME
         {
             factors = allFactors.back(); // Get the most equal factors
         }
 
-	    if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
+        if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
             //TODO throw error, unable to split into appropriate size
             continue;
@@ -803,29 +803,36 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
             }
 
         }
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",                                                                    kernelSize, newKernel, padding);
 
-	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
+        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
+                                                                            kernelSize, newKernel, padding);
 
-	    // Remove old flow, remember to it to put next depthwise into model in correct place
-	    std::vector<mv::Data::OpListIterator> opsToLink;
-	    std::vector<std::size_t> inputSlots;
-	    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
+
+        // Remove old flow, remember to it to put next depthwise into model in correct place
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
         auto depthwiseOp0 = om.getSourceOp(depthwise_conv0);
-	    auto sourceFlowStart = depthwiseOp0.leftmostOutput();
+        auto sourceFlowStart = depthwiseOp0.leftmostOutput();
 
- 	    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-	    {
+        if (asymmetricCase)
+        {
+            depthwiseOp0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimention we need workload to stride over.
+        }
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             flowsToRemove.push_back(sinkFlow);
-	    }
- 	    // Remove old flow before creating new dw
-	    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-	    {
-		    om.undefineFlow(flowsToRemove[flowIdx]);
-	    }
+        }
+        // Remove old flow before creating new dw
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
 
         newKernel[0] = newKernel[1] = factors.second;
         auto scaleVal = kSize[0];
@@ -833,23 +840,25 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
         {
             if (largeDim == mv::IO_WIDTH_DIMENSION)
             {
-                scaleVal = newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
+                scaleVal = kSize[1];
+                newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
             }
             else
             {
-                scaleVal = newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
+                scaleVal = kSize[0];
+                newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
             }
 
         }
 
-	    // Now generate the second depthwise conv
+        // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
                                                                         name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0});
 
-	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
-        	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
+            opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
-	    }
+        }
     } // end for
 }
