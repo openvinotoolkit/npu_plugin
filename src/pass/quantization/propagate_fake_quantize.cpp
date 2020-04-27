@@ -466,7 +466,18 @@ void quantizeBias(mv::ComputationModel& model) {
 
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
-    // Do nothing with input. Keep parameters
+    auto inputs = om.getOps("Input");
+    mv::DataModel dm(om);
+    for (int i = 0; i < inputs.size(); i++) {
+        auto input = inputs.at(i);
+        auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
+
+        mv::QuantizationParams inputQuantParams = initial_quant_params;
+        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
+            inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
+        }
+        setQuantizationParams(input, inputQuantParams);
+    }
 
     assert(om.getOps("Output").size() == 1);
     auto output = om.getOps("Output").at(0);

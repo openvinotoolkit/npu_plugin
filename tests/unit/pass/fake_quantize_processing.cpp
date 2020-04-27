@@ -109,3 +109,38 @@ TEST(fake_quantize_proc1, simple_case_no_fq_after_the_pass)
     fq_ops = om.getOps("FakeQuantize");
     ASSERT_TRUE(fq_ops.empty());
 }
+
+TEST(fake_quantize_proc, quantization_on_input)
+{
+    mv::OpModel om("testModel");
+
+    auto input0 = om.input({16,16,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#170");
+
+    auto fq_min0 = om.constant({0},{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));
+    auto fq_max0 = om.constant({10},{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));
+    auto fq_min1 = om.constant({0},{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));
+    auto fq_max1 = om.constant({10},{1,1,1,1}, mv::DType("Float32"), mv::Order::getRowMajorID(4));
+
+    auto input_fq = om.fakeQuantize(input0, fq_min0, fq_max0, fq_min1, fq_max1, 255);
+
+    auto pool0 = om.maxPool(input_fq, {1, 1}, {1, 1}, {0, 0, 0, 0}, false, mv::DType("Default"), {{0},{1.0},{},{}}, "PoolLayer");
+
+    om.output(pool0, mv::DType("Float16"));
+
+    mv::Element dummyPassDesc("");
+    mv::TargetDescriptor dummyTargDesc;
+    mv::Element compOutput("CompilationOutput");
+
+    auto pass = mv::pass::PassRegistry::instance().find("FakeQuantize");
+    ASSERT_TRUE(pass != nullptr);
+    pass->run(om, dummyTargDesc, dummyPassDesc, compOutput);
+
+    auto fq_ops = om.getOps("FakeQuantize");
+    ASSERT_TRUE(fq_ops.empty());
+
+    auto inputs = om.getOps("Input");
+    for(int i = 0; i < inputs.size(); i++) {
+        auto quant_params = inputs[i]->get<mv::QuantizationParams>("quantParams");
+        ASSERT_TRUE(quant_params.getScale()[0] != 1.0);
+    }
+}
