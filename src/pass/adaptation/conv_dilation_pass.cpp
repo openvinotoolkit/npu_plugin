@@ -58,7 +58,6 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 unsigned currentOpId = nonDialtedKernelOp->get<unsigned>("opId");
                 auto quantParams = nonDialtedKernelOp->get<mv::QuantizationParams>("quantParams");
                 /*Populate dilated tensor with zeros*/
-                std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), 0);
 
                 std::array<unsigned short,4> padding = opIt->get< std::array<unsigned short,4> >("padding");
                 if (padding[0])
@@ -79,12 +78,10 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 }
                 opIt->set<std::array<unsigned short, 4>>("padding", {padding[0], padding[1], padding[2], padding[3]} );
                 /*Create Dilated Kernel Tensor*/
+
+                //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
+                std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
                 mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
-                for (unsigned oc = 0; oc < dilatedKernelShape[3]; ++oc)
-                    for (unsigned ic = 0; ic < dilatedKernelShape[2]; ++ic)
-                        for (unsigned kcolumn = 0; kcolumn < dilatedKernelShape[1]; ++kcolumn)
-                            for (unsigned krow = 0; krow < dilatedKernelShape[0]; ++krow)
-                                dilatedKernel.at({krow, kcolumn, ic, oc}) = quantParams.getZeroPoint(oc);
 
                 for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
                     for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
