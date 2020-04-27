@@ -125,6 +125,8 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     auto dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams,
                                            mv::createDPUTaskName(name));
 
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
 
