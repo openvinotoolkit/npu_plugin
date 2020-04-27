@@ -78,12 +78,12 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     padding[3] = floor(nonDialtedKernelHeight/2);
                 }
                 opIt->set<std::array<unsigned short, 4>>("padding", {padding[0], padding[1], padding[2], padding[3]} );
-                /*Create Tensor*/
+                /*Create Dilated Kernel Tensor*/
                 mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
-                for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
-                    for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
-                        for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelHeight; ++kcolumn)
-                            for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
+                for (unsigned oc = 0; oc < dilatedKernelShape[3]; ++oc)
+                    for (unsigned ic = 0; ic < dilatedKernelShape[2]; ++ic)
+                        for (unsigned kcolumn = 0; kcolumn < dilatedKernelShape[1]; ++kcolumn)
+                            for (unsigned krow = 0; krow < dilatedKernelShape[0]; ++krow)
                                 dilatedKernel.at({krow, kcolumn, ic, oc}) = quantParams.getZeroPoint(oc);
 
                 for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
@@ -95,8 +95,6 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                                     dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
                                 else
                                     dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
-
-                
 
                 auto dilatedConstant = om.constantDataElement(
                     dilatedKernel.getData(),
