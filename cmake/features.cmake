@@ -6,7 +6,6 @@ include(options)
 
 ie_dependent_option(ENABLE_HDDL2 "Enable HDDL2 Plugin" ON "NOT ARM;NOT AARCH64" OFF)
 ie_dependent_option(ENABLE_HDDL2_TESTS "Enable Unit and Functional tests for HDDL2 Plugin" OFF "ENABLE_HDDL2;ENABLE_TESTS" OFF)
-ie_dependent_option(ENABLE_HDDL2_SIMULATOR "Enable XLink emulator for HDDL2 Plugin" OFF "ENABLE_HDDL2;ENABLE_TESTS" OFF)
 
 ie_dependent_option(ENABLE_KMB_SAMPLES "Enable KMB samples" ON "AARCH64" OFF)
 

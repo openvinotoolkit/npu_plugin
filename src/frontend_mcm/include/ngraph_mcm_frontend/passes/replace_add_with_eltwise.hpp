@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -15,23 +15,10 @@
 //
 
 #pragma once
-#include <ie_layers_internal.hpp>
-#include <low_precision_transformations/network_helper.hpp>
-#include <low_precision_transformations/quantization_details.hpp>
-#include <string>
-#include <vector>
 
-#ifdef ENABLE_MCM_COMPILER
-#include <mcm/tensor/quantization_params.hpp>
+#include <ngraph/pass/pass.hpp>
 
-namespace vpu {
-
-namespace QuantizationHelpers {
-
-// for symmetric case only, using mcm logic
-int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
-
-}  // namespace QuantizationHelpers
-}  // namespace vpu
-
-#endif
+class ReplaceAddWithMcmEltwise final : public ngraph::pass::NodePass {
+public:
+    bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
+};

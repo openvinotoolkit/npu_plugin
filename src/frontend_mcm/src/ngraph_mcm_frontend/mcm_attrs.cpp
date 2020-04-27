@@ -22,8 +22,14 @@
 #include <memory>
 #include <algorithm>
 
+#include <iostream>
+
 mv::Order cvtLayoutToMCM(ie::Layout layout) {
     std::ostringstream layoutName;
+    if (ie::Layout::SCALAR == layout) {
+        std::cout << "Unsupported layout " << layout << std::endl;
+        layout = ie::Layout::C;
+    }
     layoutName << layout;
     return mv::Order(layoutName.str());
 }
@@ -61,7 +67,8 @@ const mv::Order& McmOpAttrs::getOrder(std::shared_ptr<ngraph::Node> node, size_t
     }
 
     const auto tensor = node->output(outInd).get_tensor_ptr();
-    const auto order = cvtLayoutToMCM(ie::TensorDesc::getLayoutByDims(tensor->get_shape()));
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(tensor->get_shape());
+    const auto order = cvtLayoutToMCM(ieLayout);
 
     const auto res = attrs._mvOrders.insert({outInd, order});
     IE_ASSERT(res.second);

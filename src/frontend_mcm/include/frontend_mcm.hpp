@@ -177,7 +177,6 @@ private:
     void alignEltwiseScales(ie::CNNNetwork& network);
     void alignConcatScales(ie::CNNNetwork& network);
     void alignZeroPointsOnWeights(ie::CNNNetwork& network);
-    std::map<std::string, LayerQuantParams> _layerToQuantParams;
 
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;

@@ -38,24 +38,31 @@ std::vector<char> compileNGraph(
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_conv.hpp"
-#include "ngraph_mcm_frontend/passes/replace_scale_shift_with_fq.hpp"
-#include "ngraph_mcm_frontend/passes/split_fq.hpp"
-#include "ngraph_mcm_frontend/passes/merge_quantize_with_input.hpp"
-#include "ngraph_mcm_frontend/passes/quantize_constants.hpp"
-#include "ngraph_mcm_frontend/passes/fuse_dequantize.hpp"
-#include "ngraph_mcm_frontend/passes/quantize_conv_biases.hpp"
-#include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
+#include "ngraph_mcm_frontend/passes/convert_to_mcm_fc.hpp"
+#include "ngraph_mcm_frontend/passes/fuse_dequantize.hpp"
+#include "ngraph_mcm_frontend/passes/merge_quantize_with_input.hpp"
+#include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
+#include "ngraph_mcm_frontend/passes/quantize_constants.hpp"
+#include "ngraph_mcm_frontend/passes/quantize_conv_biases.hpp"
+#include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
+#include "ngraph_mcm_frontend/passes/replace_scale_shift_with_fq.hpp"
+#include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
+#include "ngraph_mcm_frontend/passes/split_fq.hpp"
 #include <ie_util_internal.hpp>
 #include <vpu/utils/logger.hpp>
+#include <ngraph/pass/dump_sorted.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
-#include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+
+#include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
+#include <transformations/convert_reduce_to_pooling.hpp>
 #include <transformations/mul_add_squence_fusion.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <include/mcm/compiler/compilation_unit.hpp>
 #include <memory>
 #include <string>
@@ -116,18 +123,13 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvFusion>();
         passManager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
         passManager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+        passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
 
-        passManager.register_pass<AddIOConvertOps>(inputsInfo, outputsInfo);
         passManager.register_pass<ConvertToMcmConv>();
-        passManager.register_pass<ReplaceScaleShiftWithFQ>();
-        passManager.register_pass<SplitFQ>();
-        passManager.register_pass<MergeQuantizeWithInput>();
-        passManager.register_pass<QuantizeConstants>();
-        passManager.register_pass<FuseDequantize>();
-        passManager.register_pass<QuantizeConvBiases>();
-        passManager.register_pass<MergeResultConvert>();
-
+        passManager.register_pass<ConvertToMcmFC>();
+        passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
+        passManager.register_pass<ReplaceAddWithMcmEltwise>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap);
 
         passManager.run_passes(func);

@@ -376,42 +376,6 @@ std::vector<ResultType> packBlobToVector(ie::Blob::Ptr blobPtr, size_t expectedS
 }
 }  // namespace
 
-void FrontEndMcm::removeInputScaleShiftPattern(ie::CNNNetwork& network) {
-    for (auto& layer : network) {
-        if (layer->type == "Input") {
-            auto child = CNNNetworkHelper::getChildren(*layer)[0];
-            if (child->type == "ScaleShift") {
-                auto scaleShiftLayer = std::dynamic_pointer_cast<ie::ScaleShiftLayer>(child);
-
-                auto childrens = CNNNetworkHelper::getChildren(*child);
-                if (childrens.empty()) {
-                    return;
-                }
-                child = childrens[0];
-                if (child->type != "Convolution") {
-                    return;
-                }
-
-                std::vector<float> scaleData =
-                    packBlobToVector<float>(scaleShiftLayer->_weights, scaleShiftLayer->_weights->size());
-                std::vector<float> shiftData =
-                    packBlobToVector<float>(scaleShiftLayer->_biases, scaleShiftLayer->_biases->size());
-
-                float scaleValue = std::accumulate(scaleData.begin(), scaleData.end(), 0.0f);
-                scaleValue /= scaleShiftLayer->_weights->size();
-
-                float shiftValue = std::accumulate(shiftData.begin(), shiftData.end(), 0.0f);
-                shiftValue /= scaleShiftLayer->_biases->size();
-
-                _layerToQuantParams[layer->name] = {scaleValue, shiftValue};
-
-                CNNNetworkHelper::removeLayer(network, scaleShiftLayer);
-                return;
-            }
-        }
-    }
-}
-
 static bool inputsHasSameScales(
     const std::vector<InferenceEngine::CNNLayerPtr>& inputs, const size_t& maxValues, const size_t& maxValuesIdx) {
     for (size_t i = 0; i < inputs.size(); i++) {
@@ -674,9 +638,6 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
 
-    if (_config.inputScaleShiftRemoving()) {
-        removeInputScaleShiftPattern(cnnNet);
-    }
     if (_config.eltwiseScalesAlignment()) {
         alignEltwiseScales(cnnNet);
     }
@@ -796,20 +757,6 @@ void FrontEndMcm::parseInputData() {
         mv::Shape inputShape(getWHCN(dataDesc).getDims());
 
         auto inputLayerPtr = ieData->getCreatorLayer().lock();
-        auto inputQuantParamsOverRide = initialQuantParams;
-        QuantizationHelpers::fillQuntizationActivationParams(inputLayerPtr, inputQuantParamsOverRide);
-
-        // Workaround for Input->ScaleShift->Conv pattern
-        if (_layerToQuantParams.count(inputLayerPtr->name)) {
-            // We have basic assumption that input can only be in uin8_t foramt
-
-            auto scaleShiftOverride = _layerToQuantParams[inputLayerPtr->name];
-            float new_min = std::numeric_limits<uint8_t>::min() * scaleShiftOverride.scale + scaleShiftOverride.bias;
-            float new_max = std::numeric_limits<uint8_t>::max() * scaleShiftOverride.scale + scaleShiftOverride.bias;
-            auto zp = QuantizationHelpers::calculateZeroPoint(new_max, new_min, 256, Precision::U8);
-
-            inputQuantParamsOverRide = {{zp}, {scaleShiftOverride.scale}, {-inf}, {inf}};
-        }
 
         const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
         if (!isInputLayoutSupported(inputLayout)) {
@@ -822,7 +769,7 @@ void FrontEndMcm::parseInputData() {
         }
 
         auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision), convert_layout(inputLayout),
-            inputQuantParamsOverRide, netInput->name());
+            initialQuantParams, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }

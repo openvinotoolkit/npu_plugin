@@ -14,30 +14,34 @@
 // stated in the License.
 //
 
+#pragma once
 // clang-format off
 #ifdef ENABLE_MCM_COMPILER
 
-#include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
 #include <memory>
+#include "ngraph/op/op.hpp"
 
-const ngraph::NodeTypeInfo McmBias::type_info {"McmBias", 0};
+class McmScale final : public ngraph::op::Op {
+public:
+    McmScale(const ngraph::Output<Node>& data_batch,
+             const ngraph::Output<Node>& weights,
+             const ngraph::element::Type& type);
 
-McmBias::McmBias(
-        const ngraph::Output<ngraph::Node>& input,
-        const ngraph::Output<ngraph::Node>& bias,
-        const ngraph::element::Type& type)
-            : Op({input, bias}), _type(type) {
-    constructor_validate_and_infer_types();
-}
+    void setElemType(const ngraph::element::Type& type) {
+        _type = type;
+        validate_and_infer_types();
+    }
 
-void McmBias::validate_and_infer_types() {
-    set_output_type(0, _type, get_input_shape(0));
-}
+    void validate_and_infer_types() override;
 
-std::shared_ptr<ngraph::Node> McmBias::copy_with_new_args(const ngraph::NodeVector& new_args) const {
-    check_new_args_count(this, new_args);
-    return std::make_shared<McmBias>(new_args.at(0), new_args.at(1), _type);
-}
+    std::shared_ptr<ngraph::Node> copy_with_new_args(const ngraph::NodeVector& new_args) const override;
 
-#endif
+    static const ngraph::NodeTypeInfo type_info;
+
+    const ngraph::NodeTypeInfo& get_type_info() const override { return type_info; }
+
+private:
+    ngraph::element::Type _type;
+};
+#endif // ENABLE_MCM_COMPILER
 // clang-format on
