@@ -74,10 +74,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 outputOp = outputOp.leftmostOutput().sink();
             }
             auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
-                    ? mv::Tensor::MemoryLocation::OUTPUT
-                    : mv::Tensor::MemoryLocation::DDR;
-            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputOpMemoryLocation);
         }
         //NOTE: Temporary handle for the scheduler in order to place the required DMA-s for the copy operation
         else if (opType == "Copy")
