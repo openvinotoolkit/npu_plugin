@@ -29,7 +29,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if (opIt->getOpType() == "Conv")
+        if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
         {
             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
 
