@@ -130,88 +130,13 @@ TEST_F(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
     std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
-    Blob::Ptr outputBlob;
-    outputBlob = request.GetBlob(outputName);
+    Blob::Ptr outputBlob = toFP32(request.GetBlob(outputName));
 
     Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
     referenceBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
 
     const size_t NUMBER_OF_CLASSES = 5;
-    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(referenceBlob), NUMBER_OF_CLASSES));
-}
-
-TEST_F(KmbPrivateConfigTests, FORCE_2D_TO_NC) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-
-    Core ie;
-    InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_2D_TO_NC", CONFIG_VALUE(YES)}});
-
-    InferenceEngine::InferRequest request;
-    request = network.CreateInferRequest();
-
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
-    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
-    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-    inputBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
-
-    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
-    request.SetBlob(inputName, inputBlob);
-    request.Infer();
-
-    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
-    Blob::Ptr outputBlob;
-    outputBlob = request.GetBlob(outputName);
-    ASSERT_EQ(outputBlob->getTensorDesc().getLayout(), InferenceEngine::Layout::NC);
-
-    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
-
-    const size_t NUMBER_OF_CLASSES = 5;
-    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(referenceBlob), NUMBER_OF_CLASSES));
-}
-
-// TODO enable when models with FP16 output become available in ModelsPath
-TEST_F(KmbPrivateConfigTests, FORCE_FP16_TO_FP32) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-
-    Core ie;
-    InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_FP16_TO_FP32", CONFIG_VALUE(YES)}});
-
-    InferenceEngine::InferRequest request;
-    request = network.CreateInferRequest();
-
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
-    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
-    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-    inputBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
-
-    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
-    request.SetBlob(inputName, inputBlob);
-    request.Infer();
-
-    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
-    Blob::Ptr outputBlob = request.GetBlob(outputName);
-    ASSERT_EQ(outputBlob->getTensorDesc().getPrecision(), InferenceEngine::Precision::FP32);
-
-    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
-
-    const size_t NUMBER_OF_CLASSES = 1;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
 
@@ -241,59 +166,4 @@ TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     std::ifstream exists(testFileName);
     ASSERT_TRUE(exists.good());
     std::remove(testFileName.c_str());
-}
-
-TEST_F(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_NC_OUTPUT) {
-#if defined(__arm__) || defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml";
-    std::string weightsFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin";
-
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(modelFilePath, weightsFilePath);
-    for (auto&& input : cnnNetwork.getInputsInfo()) {
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-    }
-    for (auto&& output : cnnNetwork.getOutputsInfo()) {
-        output.second->setPrecision(InferenceEngine::Precision::FP16);
-        output.second->setLayout(InferenceEngine::Layout::NC);
-    }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, deviceName, {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(NO)}}),
-        InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, deviceName, {{"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
-}
-
-TEST_F(KmbPrivateConfigTests, IE_VPU_COMPILER_ALLOW_FP32_OUTPUT) {
-#if defined(__arm__) || defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml";
-    std::string weightsFilePath =
-        ModelsPath() +
-        "/KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.bin";
-
-    Core ie;
-    CNNNetwork cnnNetwork = ie.ReadNetwork(modelFilePath, weightsFilePath);
-    for (auto&& input : cnnNetwork.getInputsInfo()) {
-        input.second->setPrecision(InferenceEngine::Precision::U8);
-        input.second->setLayout(InferenceEngine::Layout::NHWC);
-    }
-    for (auto&& output : cnnNetwork.getOutputsInfo()) {
-        output.second->setPrecision(InferenceEngine::Precision::FP32);
-        output.second->setLayout(InferenceEngine::Layout::NC);
-    }
-    ASSERT_THROW(ie.LoadNetwork(cnnNetwork, deviceName,
-                     {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(NO)},
-                         {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}),
-        InferenceEngine::details::InferenceEngineException);
-    ASSERT_NO_THROW(ie.LoadNetwork(cnnNetwork, deviceName,
-        {{"VPU_COMPILER_ALLOW_FP32_OUTPUT", CONFIG_VALUE(YES)}, {"VPU_COMPILER_ALLOW_NC_OUTPUT", CONFIG_VALUE(YES)}}));
 }

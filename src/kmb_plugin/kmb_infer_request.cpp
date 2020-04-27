@@ -87,15 +87,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         }
 
         Blob::Ptr outputBlob = nullptr;
-        if (_config.forceFP16ToFP32() && precision == InferenceEngine::Precision::FP16) {
-            const InferenceEngine::TensorDesc& outDesc = networkOutput.second->getTensorDesc();
-            InferenceEngine::TensorDesc fp32Desc(
-                InferenceEngine::Precision::FP32, outDesc.getDims(), outDesc.getLayout());
-            _logger->warning("VPU_KMB_FORCE_FP16_TO_FP32 is enabled. Need to convert precision.");
-            outputBlob = make_blob_with_precision(fp32Desc, getKmbAllocator());
-        } else {
-            outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
-        }
+        outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
     }
@@ -146,7 +138,7 @@ void KmbInferRequest::InferAsync() {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
     }
 
-    const auto& deviceInputs = _executor->getNetworkInputs();
+    const auto& deviceInputs = _executor->getRuntimeInputs();
     if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
     const auto input = _inputs.begin()->second;
@@ -319,7 +311,7 @@ void KmbInferRequest::GetResult() {
     if (foundInputBlob == _outputs.end()) THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
     // check that output layout is the same as device layout
-    const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getNetworkOutputs();
+    const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getRuntimeOutputs();
     IE_ASSERT(deviceOutputs.size() == 1) << "Networks with " << deviceOutputs.size() << " outputs are not supported. "
                                          << "Only networks with 1 output are supported.";
 
@@ -337,10 +329,7 @@ void KmbInferRequest::GetResult() {
     InferenceEngine::Layout deviceLayout = deviceTensorDesc.getLayout();
     InferenceEngine::Layout outputLayout = outputTensorDesc.getLayout();
 
-    // is2DTensor is a workaround for NHWC -> NC case
-    // TODO: remove when mcm will support different output layout
-    if ((devicePrecision == outputPrecision) &&
-        (deviceLayout == outputLayout || is2DTensor(outputTensorDesc.getDims()))) {
+    if ((devicePrecision == outputPrecision) && (deviceLayout == outputLayout)) {
         // read result directly into output, do not copy blob
         void* outputPtr = outputBlobRef->buffer();
         _executor->getResult(outputPtr, output_size_total);
@@ -356,19 +345,12 @@ void KmbInferRequest::GetResult() {
         Blob::Ptr blobWithCorrectPrecision = utils::convertPrecision(_blobWithResult, outputTensorDesc.getPrecision());
         // copy blob with correct precision to the output blob
         // copyBlob does layout conversion on its own
-        if (!is2DTensor(outputTensorDesc.getDims()) || devicePrecision != outputPrecision) {
-            copyBlob(blobWithCorrectPrecision, _outputs.begin()->second);
-        }
-    }
-
-    if (!_custom_outputs.empty()) {
-        for (auto& output : _outputs) {
-            auto name = output.first;
-
-            auto custom_outputBlob = _custom_outputs[name];
-            auto outputBlob = output.second;
-
-            copyBlob(outputBlob, custom_outputBlob);
+        if (outputLayout == InferenceEngine::Layout::NC) {
+            // NC tensors are copied to blob buffer as is
+            copyBlob(blobWithCorrectPrecision, deviceLayout, outputBlobRef->buffer());
+        } else {
+            // do layout conversion
+            copyBlob(blobWithCorrectPrecision, outputBlobRef);
         }
     }
 
@@ -390,13 +372,7 @@ void KmbInferRequest::Infer() {
 
 void KmbInferRequest::checkBlobs() {
     IE_PROFILING_AUTO_SCOPE(checkBlobs);
-    if (_custom_outputs.empty()) {
-        for (auto const& output : _outputs) {
-            checkBlob(output.second, output.first, false);
-        }
-    } else {
-        for (auto const& output : _custom_outputs) {
-            checkBlob(output.second, output.first, false);
-        }
+    for (auto const& output : _outputs) {
+        checkBlob(output.second, output.first, false);
     }
 }

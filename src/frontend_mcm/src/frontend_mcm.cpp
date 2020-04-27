@@ -723,23 +723,17 @@ bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
 }
 
 bool isInputLayoutSupported(const ie::Layout& inputLayout) {
-    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC};
+    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC, ie::Layout::NCHW};
     return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
 }
 
-bool isOutputPrecisionSupported(const ie::Precision& outputPrecision, bool allowFP32Output) {
-    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16};
-    if (allowFP32Output) {
-        supportedOutPrecisions.insert(ie::Precision::FP32);
-    }
+bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
+    std::set<ie::Precision> supportedOutPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
     return supportedOutPrecisions.find(outputPrecision) != supportedOutPrecisions.end();
 }
 
-bool isOutputLayoutSupported(const ie::Layout& outputLayout, bool allowNCOutput) {
-    std::set<ie::Layout> supportedOutLayouts = {ie::Layout::NHWC};
-    if (allowNCOutput) {
-        supportedOutLayouts.insert(ie::Layout::NC);
-    }
+bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
+    std::set<ie::Layout> supportedOutLayouts = {ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::NC};
     return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
 }
 
@@ -774,8 +768,8 @@ void FrontEndMcm::parseInputData() {
 
         bool networkInput = true;
 
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision), convert_layout(inputLayout),
-            initialQuantParams, networkInput, netInput->name());
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision),
+            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
@@ -797,7 +791,7 @@ void FrontEndMcm::parseOutputData() {
         auto name = lastLayerOut->getMcmNode()->getName();
 
         const auto outputPrecision = ieData->getTensorDesc().getPrecision();
-        if (!isOutputPrecisionSupported(outputPrecision, _config.allowFP32Output())) {
+        if (!isOutputPrecisionSupported(outputPrecision)) {
             VPU_THROW_EXCEPTION << "Output data type is not supported: " << outputPrecision;
         }
 
@@ -825,8 +819,7 @@ void FrontEndMcm::parseOutputData() {
         }
 
         const InferenceEngine::Layout outputLayout = ieData->getTensorDesc().getLayout();
-        // NC outputs are not supported by MCM, but the output can be casted to NC via VPU_COMPILER_ALLOW_NC_OUTPUT
-        if (!isOutputLayoutSupported(outputLayout, _config.allowNCOutput())) {
+        if (!isOutputLayoutSupported(outputLayout)) {
             VPU_THROW_EXCEPTION << "Output layout is not supported: " << outputLayout;
         }
 
@@ -1702,7 +1695,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
         fixed_sizes, fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
 
     auto boxes = ParseLayersHelpers::computePriorbox(param);
-    auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
+    auto priorbox = _modelMcm.constant(boxes, {1, boxes.size() / 2, 2, 1}, mv::DType("Float64"), mv::Order("NHWC"),
         initialQuantParams, layer->name + "_const");
 
     bindOutput(priorbox, layer->outData[0]);
