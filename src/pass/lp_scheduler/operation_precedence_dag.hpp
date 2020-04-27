@@ -266,7 +266,7 @@ class Operation_Dag {
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
-                            "ImplicitPermute", "ImplicitOutput", "ImplicitInput"} ) {
+                            "ImplicitPermute", "ImplicitOutput", "ImplicitInput", "ImplicitInputSlice"} ) {
         init_from_model(model);
     }
 
