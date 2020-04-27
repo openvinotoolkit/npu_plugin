@@ -200,7 +200,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                                                {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
                                                {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
                                                {1}});
-                    std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 1);
+                    std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
                     mv::QuantizationParams quantParams = {{},{},{},{}};
                     std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
                     auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);

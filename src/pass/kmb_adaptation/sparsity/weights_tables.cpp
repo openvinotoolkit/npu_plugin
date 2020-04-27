@@ -336,16 +336,15 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
     auto input = dpuTaskOp->getInputTensor(0);
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
     auto height_width = activationStorageElement->getShape().totalSize();
-    //31 bit is always 1 for storage element
-    std::int64_t constant_bias = std::pow(2, 31) + std::pow(2, 30) + std::pow(2, 32);
+//    //31 bit is always 1 for storage element
+//    std::int64_t constant_bias = std::pow(2, 31);
 
     std::vector<int64_t> unpopulated_offsets(height_width, 0);
 
     long int increment = inputChannels * (input->getDType().getSizeInBits() / 8);
     for(unsigned i = 0; i < height_width; ++i)
-        unpopulated_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT) + constant_bias;
+        unpopulated_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
-    std::cout << " storage done " << std::endl;
 }
 
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
