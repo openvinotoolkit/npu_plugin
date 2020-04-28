@@ -92,9 +92,9 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "ConvolutionDilation",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {

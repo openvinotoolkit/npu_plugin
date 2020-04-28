@@ -93,23 +93,9 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_conv_dilate_graph_opt.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            "ConvolutionDilation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_conv_dilate_bef_graph_opt.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
