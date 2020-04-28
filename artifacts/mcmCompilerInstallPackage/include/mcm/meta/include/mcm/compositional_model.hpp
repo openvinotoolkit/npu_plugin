@@ -43,8 +43,9 @@ namespace mv
         virtual mv::Data::TensorIterator flatten(Data::TensorIterator input, const int64_t& axis = 1, const int64_t& end_axis = 3, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator fullyConnected(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator identity(Data::TensorIterator data, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
+        virtual mv::Data::TensorIterator implicitInput(Data::TensorIterator data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator implicitOutput(Data::TensorIterator data, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
-        virtual mv::Data::TensorIterator input(const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
+        virtual mv::Data::TensorIterator input(const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const bool& networkInput = true, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator interp(Data::TensorIterator data, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height = 0, const unsigned& width = 0, const bool& align_corners = true, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator leakyRelu(Data::TensorIterator data, const double& alpha = 0, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator localResponseNormalization(Data::TensorIterator data, const unsigned& size, const unsigned& bias, const std::string& name = "") = 0;
@@ -72,7 +73,6 @@ namespace mv
         virtual mv::Data::TensorIterator slice(Data::TensorIterator data, const Shape& begin, const Shape& size, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator softmax(Data::TensorIterator data, const std::string& axis = "C", const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator tanh(Data::TensorIterator data, const std::string& name = "") = 0;
-        virtual mv::Data::TensorIterator topK(Data::TensorIterator data, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis = 99, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
 
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
         virtual void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) = 0;

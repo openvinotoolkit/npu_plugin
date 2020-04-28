@@ -63,8 +63,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 1},
-                            {"N" : 1}
+                            {"K" : 1}
                         ]
                     }
                 ],
@@ -78,6 +77,7 @@
                     }
                 ]
             },
+            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
