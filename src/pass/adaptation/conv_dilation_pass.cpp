@@ -37,12 +37,12 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
             {
 
                 /*Get the kernel attributes*/
-                auto nonDialtedKernel = opIt->getInputTensor(1);
-                auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[KERNEL_WIDTH];
-                auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[KERNEL_HEIGHT];
-                auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[KERNEL_INPUT_CHANNELS];
-                auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
-                auto nonDialtedKernelShape = nonDialtedKernel->getShape();
+                auto nonDilatedKernel = opIt->getInputTensor(1);
+                auto nonDilatedKernelWidth = nonDilatedKernel->getShape()[KERNEL_WIDTH];
+                auto nonDilatedKernelHeight = nonDilatedKernel->getShape()[KERNEL_HEIGHT];
+                auto nonDilatedKernelInputChannels = nonDilatedKernel->getShape()[KERNEL_INPUT_CHANNELS];
+                auto nonDilatedKernelOutpuChannels = nonDilatedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
+                auto nonDilatedKernelShape = nonDilatedKernel->getShape();
 
 
                 /** Calculate dilated kernel shape
@@ -50,47 +50,47 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                   * dilatedWidth = kw + (kw - 1)(df - 1)
                   * dilatedHeight = kh + (kh - 1)(df - 1)
                   */
-                mv::Shape dilatedKernelShape = mv::Shape({nonDialtedKernelWidth + (nonDialtedKernelWidth - 1) * (dilationFactor - 1),
-                                                          nonDialtedKernelHeight + (nonDialtedKernelHeight - 1) * (dilationFactor - 1),
-                                                          nonDialtedKernelInputChannels, nonDialtedKernelOutpuChannels});
-                auto nonDialtedKernelOp = opIt.rightmostParent();
-                unsigned currentOpId = nonDialtedKernelOp->get<unsigned>("opId");
-                auto quantParams = nonDialtedKernelOp->get<mv::QuantizationParams>("quantParams");
+                mv::Shape dilatedKernelShape = mv::Shape({nonDilatedKernelWidth + (nonDilatedKernelWidth - 1) * (dilationFactor - 1),
+                                                          nonDilatedKernelHeight + (nonDilatedKernelHeight - 1) * (dilationFactor - 1),
+                                                          nonDilatedKernelInputChannels, nonDilatedKernelOutpuChannels});
+                auto nonDilatedKernelOp = opIt.rightmostParent();
+                unsigned currentOpId = nonDilatedKernelOp->get<unsigned>("opId");
+                auto quantParams = nonDilatedKernelOp->get<mv::QuantizationParams>("quantParams");
                 /*Populate dilated tensor with zeros*/
 
                 std::array<unsigned short,4> padding = opIt->get< std::array<unsigned short,4> >("padding");
                 if (padding[PADDING_LEFT])
                 {
-                    padding[PADDING_LEFT] = floor(nonDialtedKernelWidth/2);
+                    padding[PADDING_LEFT] = floor(nonDilatedKernelWidth/2);
                 }
                 if (padding[PADDING_RIGHT])
                 {
-                    padding[PADDING_RIGHT] = floor(nonDialtedKernelWidth/2);
+                    padding[PADDING_RIGHT] = floor(nonDilatedKernelWidth/2);
                 }
                 if (padding[PADDING_TOP])
                 {
-                    padding[PADDING_TOP] = floor(nonDialtedKernelHeight/2);
+                    padding[PADDING_TOP] = floor(nonDilatedKernelHeight/2);
                 }
                 if (padding[PADDING_BOT])
                 {
-                    padding[PADDING_BOT] = floor(nonDialtedKernelHeight/2);
+                    padding[PADDING_BOT] = floor(nonDilatedKernelHeight/2);
                 }
                 opIt->set<std::array<unsigned short, 4>>("padding", padding );
                 /*Create Dilated Kernel Tensor*/
 
                 //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
                 std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
-                mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDialtedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
+                mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
 
-                for (unsigned oc = 0; oc < nonDialtedKernelOutpuChannels; ++oc)
-                    for (unsigned ic = 0; ic < nonDialtedKernelInputChannels; ++ic)
-                        for (unsigned kcolumn = 0; kcolumn < nonDialtedKernelHeight; ++kcolumn)
-                            for (unsigned krow = 0; krow < nonDialtedKernelWidth; ++krow)
+                for (unsigned oc = 0; oc < nonDilatedKernelOutpuChannels; ++oc)
+                    for (unsigned ic = 0; ic < nonDilatedKernelInputChannels; ++ic)
+                        for (unsigned kcolumn = 0; kcolumn < nonDilatedKernelHeight; ++kcolumn)
+                            for (unsigned krow = 0; krow < nonDilatedKernelWidth; ++krow)
                                 /*Copy non-dilated weights into the dilated kernel*/
                                 if (krow != 0 || kcolumn != 0)
-                                    dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
+                                    dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
                                 else
-                                    dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
+                                    dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
 
                 auto dilatedKernelOp = om.constantDataElement(
                     dilatedKernel.getData(),
@@ -98,15 +98,15 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     dilatedKernel.getDType(),
                     dilatedKernel.getOrder(),
                     quantParams,
-                    nonDialtedKernelOp->getName() + "_Dilated");
+                    nonDilatedKernelOp->getName() + "_Dilated");
 
-                om.removeOp(nonDialtedKernelOp);
+                om.removeOp(nonDilatedKernelOp);
                     
                 om.defineFlow(dilatedKernelOp, opIt, 1);
                 opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
                 opIt->setInputTensor(dilatedKernelOp, 1);
-                auto DialtedKernelOp = opIt.rightmostParent();
-                DialtedKernelOp->set<unsigned>("opId", currentOpId);
+                auto DilatedKernelOpFetched = opIt.rightmostParent();
+                DilatedKernelOpFetched->set<unsigned>("opId", currentOpId);
             }
 
         }
