@@ -708,7 +708,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_i
             0.6, 0.4, 0.4, false);
 }
 
-TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
+TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
 

@@ -150,10 +150,14 @@ void KmbInferRequest::InferAsync() {
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
-    if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+    // TODO: [Track number: S#31121]
+    // Get rid of environment variable USE_SIPP
+    if (_config.useSIPP() && SippPreproc::useSIPP() &&
+        SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
+        _logger->warning("SIPP is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }

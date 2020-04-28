@@ -80,6 +80,7 @@ bool useSIPP();
 #endif
 
 void setCommonConfig(std::map<std::string, std::string>& config);
+std::map<std::string, std::string> getCommonConfig();
 size_t precisionToBytesize(const std::string& precision);
 
 void PrintTo(const tensor_test_params& sz, std::ostream* os);
