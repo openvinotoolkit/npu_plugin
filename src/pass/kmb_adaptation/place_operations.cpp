@@ -53,6 +53,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     mv::DataModel dm(model);
 
     auto convOps = om.getOps("Conv");
+    auto convDepthwiseOps = om.getOps("DepthwiseConv");
+    convOps.insert(convOps.end(),convDepthwiseOps.begin(),convDepthwiseOps.end());
 
     for (auto& opIt : convOps)
     {
