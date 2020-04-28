@@ -112,6 +112,7 @@ void HDDL2InferRequest::InferImpl() {
 }
 
 void HDDL2InferRequest::InferAsync() {
+    IE_PROFILING_AUTO_SCOPE(InferAsync)
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needUnitePreProcessing = false;
 
@@ -126,7 +127,9 @@ void HDDL2InferRequest::InferAsync() {
         }
     }
 
-    _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
+    std::call_once(_onceFlagInferData, [&] {
+        _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
+    });
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
@@ -154,9 +157,13 @@ void HDDL2InferRequest::InferAsync() {
     _loadedGraphPtr->InferAsync(_inferDataPtr);
 }
 
-void HDDL2InferRequest::WaitInferDone() { _inferDataPtr->waitInferDone(); }
+void HDDL2InferRequest::WaitInferDone() {
+    IE_PROFILING_AUTO_SCOPE(WaitInferDone)
+    _inferDataPtr->waitInferDone();
+}
 
 void HDDL2InferRequest::GetResult() {
+    IE_PROFILING_AUTO_SCOPE(GetResult)
     if (_networkOutputs.size() != 1) {
         THROW_IE_EXCEPTION << "Only one output is supported!";
     }

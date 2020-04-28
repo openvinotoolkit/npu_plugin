@@ -61,6 +61,10 @@ protected:
     HDDL2RemoteContext::Ptr _context = nullptr;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
+
+    // TODO [Workaround] Avoid allocation inferData each time. If size of inputs is changed, need
+    //  to recreating (not implemented yet)
+    std::once_flag _onceFlagInferData;
 };
 
 }  //  namespace HDDL2Plugin

@@ -23,6 +23,7 @@
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
     std::string nv12Input, nv12Output;
+    std::string nv12_1080Input, nv12_1080Output;
 };
 
 struct modelTensors {
@@ -33,7 +34,6 @@ namespace PrecompiledResNet_Helper {
     // Old version, u8 output
     // TODO Remote after adding fp16 output support to HDDL2 Plugin
     const std::string resnet_50_dpu_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50-dpu/";
-
     static const modelBlobInfo resnet50_dpu =
             {
                     .graphName = "resnet-50-dpu",
@@ -41,7 +41,9 @@ namespace PrecompiledResNet_Helper {
                     .inputPath = resnet_50_dpu_folder + "input.bin",
                     .outputPath = resnet_50_dpu_folder + "output.bin",
                     .nv12Input = resnet_50_dpu_folder + "input-228x228-nv12.bin",
-                    .nv12Output = resnet_50_dpu_folder + "output-228x228-nv12.bin"
+                    .nv12Output = resnet_50_dpu_folder + "output-228x228-nv12.bin",
+                    .nv12_1080Input = resnet_50_dpu_folder + "input-cat-1080x1080-nv12.bin",
+                    .nv12_1080Output = resnet_50_dpu_folder + "output-cat-1080x1080-nv12.bin"
             };
 
     static const modelTensors resnet50_dpu_tensors =
@@ -67,6 +69,8 @@ namespace PrecompiledResNet_Helper {
                     .outputPath = resnet_50_folder + "output.bin",
                     .nv12Input = resnet_50_folder + "input-228x228-nv12.bin",
                     .nv12Output = resnet_50_folder + "output-228x228-nv12.bin",
+                    .nv12_1080Input= "",
+                    .nv12_1080Output = ""
             };
 
     static const modelTensors resnet50_tensors =
@@ -81,3 +85,4 @@ namespace PrecompiledResNet_Helper {
                     )
             };
 };
+

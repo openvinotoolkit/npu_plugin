@@ -72,15 +72,17 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
     }
 
     auto blobDesc = blobDescriptorPtr->createUniteBlobDesc();
-    const bool isInput = true;
-    if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
-        THROW_IE_EXCEPTION << "Error creating Unite Blob";
-    }
+    std::call_once(_onceFlagInputAllocations, [&] {
+        const bool isInput = true;
+        if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
+            THROW_IE_EXCEPTION << "Error creating Unite Blob";
+        }
 
-    if ((_needUnitePreProcessing || blobDescriptorPtr->getROIPtr() != nullptr) && _haveRemoteContext) {
-        auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
-        _inferDataPtr->setNNInputDesc(nnBlobDesc);
-    }
+        if ((_needUnitePreProcessing || blobDescriptorPtr->getROIPtr() != nullptr) && _haveRemoteContext) {
+            auto nnBlobDesc = blobDescriptorPtr->createNNDesc();
+            _inferDataPtr->setNNInputDesc(nnBlobDesc);
+        }
+    });
 
     blobDescriptorPtr->initUniteBlobDesc(blobDesc);
     if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
@@ -90,21 +92,23 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
 }
 
 void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
-    checkData(desc);
+    std::call_once(_onceFlagOutputAllocations, [&] {
+        checkData(desc);
 
-    const std::string name = desc->getName();
+        const std::string name = desc->getName();
 
-    BlobDescriptor::Ptr blobDescriptorPtr;
-    if (_haveRemoteContext) {
-        blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
-    } else {
-        blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
-    }
+        BlobDescriptor::Ptr blobDescriptorPtr;
+        if (_haveRemoteContext) {
+            blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
+        } else {
+            blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
+        }
 
-    const bool isInput = false;
-    _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(), isInput);
+        const bool isInput = false;
+        _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(), isInput);
 
-    _outputs[name] = blobDescriptorPtr;
+        _outputs[name] = blobDescriptorPtr;
+    });
 }
 
 std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
