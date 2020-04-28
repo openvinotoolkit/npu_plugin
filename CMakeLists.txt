@@ -130,7 +130,8 @@ add_subdirectory(contrib/flatbuffers)
 if (MSVC)
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
 else()
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
+    # add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "-fstack-protector-all")
 endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
@@ -402,6 +403,7 @@ set(
     ${SOURCE_DIR}/run/parse.cpp
     ${SOURCE_DIR}/run/software/argmax.cpp
     ${SOURCE_DIR}/run/software/concat.cpp
+    ${SOURCE_DIR}/run/software/copy.cpp
     ${SOURCE_DIR}/run/software/interp.cpp
     ${SOURCE_DIR}/run/software/norm.cpp
     ${SOURCE_DIR}/run/software/normalize.cpp
@@ -412,6 +414,7 @@ set(
     ${SOURCE_DIR}/run/software/reorg_yolo.cpp
     ${SOURCE_DIR}/run/software/resample.cpp
     ${SOURCE_DIR}/run/software/reshape.cpp
+    ${SOURCE_DIR}/run/software/roi_pooling.cpp
     ${SOURCE_DIR}/run/software/slice.cpp
     ${SOURCE_DIR}/run/software/softmax.cpp
     ${SOURCE_DIR}/run/validate.cpp)
