@@ -23,6 +23,7 @@
 #include <list>
 #include <limits>
 #include <memory>
+#include <sstream>
 
 #include <inference_engine.hpp>
 
@@ -45,6 +46,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <ie_utils.hpp>
+#include <yolo_helpers.hpp>
 
 using namespace InferenceEngine;
 
@@ -173,29 +176,6 @@ Blob::Ptr deQuantize(const Blob::Ptr &quantBlob, float scale, uint8_t zeroPoint)
     for (size_t pos = 0; pos < quantBlob->byteSize(); pos++) {
         outRaw[pos] = (quantRaw[pos] - zeroPoint) * scale;
     }
-
-    return outputBlob;
-}
-
-Blob::Ptr yoloLayer_yolov2tiny(const Blob::Ptr &lastBlob, const SizeVector &inDims, const SizeVector &outDims,
-        std::size_t origImageWidth, std::size_t origImageHeight) {
-    const std::size_t &outWidth = outDims.at(3);
-    const std::size_t &outHeight = outDims.at(2);
-    const std::size_t &outFeatures = outDims.at(1);
-    const TensorDesc quantTensor = lastBlob->getTensorDesc();
-    const TensorDesc outTensor = TensorDesc(InferenceEngine::Precision::FP32,
-        {1, 1, outWidth*outHeight*20*5, 7},
-        lastBlob->getTensorDesc().getLayout());
-    Blob::Ptr outputBlob = make_shared_blob<float>(outTensor);
-    outputBlob->allocate();
-
-    const float *inputRawData = lastBlob->cbuffer().as<const float *>();
-    float *outputRawData = outputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
-
-    std::size_t shape[]={outWidth, outHeight, 5, 25};
-    std::size_t strides[]={outWidth*outFeatures, outFeatures, 25, 1};
-    postprocess::yolov2(inputRawData, shape, strides,
-        0.4f, 0.45f, 20, origImageWidth, origImageHeight, inDims.at(2), inDims.at(3), outputRawData);
 
     return outputBlob;
 }
@@ -367,38 +347,33 @@ int main(int argc, char *argv[]) {
         std::string outfilepath = "./output.dat";
         std::ofstream outfile(outfilepath, std::ios::binary);
         if (outfile.is_open()) {
-            outfile.write(outputBlob->buffer(), outputBlob->size());
+            outfile.write(outputBlob->buffer(), outputBlob->byteSize());
         } else {
             slog::warn << "failed to open '" << outfilepath << "'" << slog::endl;
         }
         outfile.close();
 
         // Real data layer
-        Blob::Ptr dequantOut = deQuantize(outputBlob, scale, zeroPoint);
+        Blob::Ptr regionYoloOutput;
+        slog::info << "De-quantize if necessary" << slog::endl;
+        if (outputBlob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+            regionYoloOutput = deQuantize(outputBlob, scale, zeroPoint);
+        } else {
+            regionYoloOutput = toFP32(outputBlob);
+        }
+        slog::info << "De-quantization done" << slog::endl;
 
-        // Region YOLO layer
-        Blob::Ptr detectResult = yoloLayer_yolov2tiny(dequantOut,
-            inputInfo.begin()->second->getTensorDesc().getDims(),
-            outputInfo.begin()->second->getTensorDesc().getDims(),
-            originalImageHeight, originalImageWidth);
+        const auto imgWidth = originalImageWidth;
+        const auto imgHeight = originalImageHeight;
+
+        bool isTiny = true;
+        float confThresh = 0.4;
+        auto detectionResult = utils::parseYoloOutput(regionYoloOutput, imgWidth, imgHeight, confThresh, isTiny);
 
         // Print result.
-        size_t N = detectResult->getTensorDesc().getDims()[2];
-        if (detectResult->getTensorDesc().getDims()[3] != 7) {
-            throw std::logic_error("Output item should have 7 as a last dimension");
-        }
-        const float *rawData = detectResult->cbuffer().as<const float *>();
-        // imageid,labelid,confidence,x0,y0,x1,y1
-        for (size_t i = 0; i < N; i++) {
-            if (rawData[i*7 + 2] > 0.001) {
-                slog::info << "label = " << postprocess::YOLOV2_TINY_LABELS.at(rawData[i*7 + 1]) << slog::endl;
-                slog::info << "confidence = " << rawData[i*7 + 2] << slog::endl;
-                slog::info << "x0,y0,x1,y1 = " << rawData[i*7 + 3] << ", "
-                    << rawData[i*7 + 4] << ", "
-                    << rawData[i*7 + 5] << ", "
-                    << rawData[i*7 + 6] << slog::endl;
-            }
-        }
+        std::ostringstream resultString;
+        utils::printYoloBBoxOutputs(detectionResult, resultString, postprocess::YOLOV2_TINY_LABELS);
+        slog::info << resultString.str() << slog::endl;
     }
     catch (const std::exception& error) {
         slog::err << "" << error.what() << slog::endl;
