@@ -607,7 +607,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
     {
-        std::cout << "No strategy defined in JSON" << std::endl;
         pass.log(mv::Logger::MessageType::Debug, "No custom streaming strategy provided");
         return;
     }
@@ -624,7 +623,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
         if (!om.checkOp(nodeName))
         {
-            pass.log(mv::Logger::MessageType::Error, nodeName + " is not present in model, skipping streaming");
+            pass.log(mv::Logger::MessageType::Warning, nodeName + " is not present in model, skipping streaming");
             continue;
         }
         auto opIt =  om.getOp(nodeName);
@@ -657,14 +656,16 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
         std::vector<mv::Tiling*> tiles = {&masterTile};
 
-        auto applyTiling = [opIt](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
+        auto applyTiling = [&](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
         {
             //the axis&split are stored in a map with key-> val .....
             //Don't want to if-then-else over all possible values of the axis...
             //the map should have only one key.. this is the draw-back of too generic mv::Element
             auto axis = split.attrsKeys()[0];
             auto numSplits = split.get<int>(axis);
-            std::cout << opIt->getName() << " " << axis << " : " << numSplits << std::endl;
+
+            pass.log(mv::Logger::MessageType::Debug, opIt->getName() +
+                " " + axis + " : " + std::to_string(numSplits));
             if(numSplits > 1)
             {
                 tile.setAxis(axis);
