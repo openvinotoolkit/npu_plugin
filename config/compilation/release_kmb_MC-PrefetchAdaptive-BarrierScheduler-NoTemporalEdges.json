@@ -170,11 +170,11 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -271,7 +271,8 @@
               "allocator_mode": true
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
