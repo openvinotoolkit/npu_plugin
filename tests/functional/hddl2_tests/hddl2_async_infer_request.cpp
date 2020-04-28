@@ -90,6 +90,7 @@ IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(const std::string& pa
 }
 
 //------------------------------------------------------------------------------
+// TODO Refactor create infer request for async inference correctly - use benchmark app approach
 TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
     using Time = std::chrono::high_resolution_clock::time_point;
     Time (&Now)() = std::chrono::high_resolution_clock::now;

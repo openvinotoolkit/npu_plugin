@@ -64,6 +64,10 @@ private:
 
     const bool _haveRemoteContext;
     const bool _needUnitePreProcessing;
+
+    // TODO [Workaround] Avoid allocation buffer each time
+    std::once_flag _onceFlagInputAllocations;
+    std::once_flag _onceFlagOutputAllocations;
 };
 
 }  // namespace HDDL2Plugin

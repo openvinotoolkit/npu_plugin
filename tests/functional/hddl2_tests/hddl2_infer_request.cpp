@@ -41,7 +41,7 @@ protected:
 };
 
 void InferRequest_Tests::SetUp() {
-    // FIXME Workaround [Track number: S#28523]
+    // TODO Workaround [Track number: S#28523]
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
