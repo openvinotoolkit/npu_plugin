@@ -75,7 +75,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 {
                     padding[PADDING_BOT] = floor(nonDialtedKernelHeight/2);
                 }
-                opIt->set<std::array<unsigned short, 4>>("padding", {padding[0], padding[1], padding[2], padding[3]} );
+                opIt->set<std::array<unsigned short, 4>>("padding", padding );
                 /*Create Dilated Kernel Tensor*/
 
                 //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
@@ -92,7 +92,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                                 else
                                     dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDialtedKernel->at({krow, kcolumn, ic, oc});
 
-                auto dilatedConstant = om.constantDataElement(
+                auto dilatedKernelOp = om.constantDataElement(
                     dilatedKernel.getData(),
                     dilatedKernelShape,
                     dilatedKernel.getDType(),
@@ -102,13 +102,11 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 om.removeOp(nonDialtedKernelOp);
                     
-                om.defineFlow(dilatedConstant, opIt, 1);
+                om.defineFlow(dilatedKernelOp, opIt, 1);
                 opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
-                opIt->setInputTensor(dilatedConstant, 1);
+                opIt->setInputTensor(dilatedKernelOp, 1);
                 auto DialtedKernelOp = opIt.rightmostParent();
                 DialtedKernelOp->set<unsigned>("opId", currentOpId);
-                DialtedKernelOp->set<mv::QuantizationParams>("quantParams", quantParams);
-                DialtedKernelOp->getOutputTensor()[0]->set<mv::QuantizationParams>("quantParams", quantParams);
             }
 
         }
