@@ -1597,9 +1597,51 @@ void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector&
 }
 
 void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Proposal layer is not supported by kmbPlugin";
+    auto feat_stride = static_cast<size_t>(layer->GetParamAsInt("feat_stride"));
+    auto base_size = static_cast<size_t>(layer->GetParamAsInt("base_size"));
+    auto min_size = static_cast<size_t>(layer->GetParamAsInt("min_size"));
+    auto pre_nms_topn = layer->GetParamAsInt("pre_nms_topn");
+    auto post_nms_topn = layer->GetParamAsInt("post_nms_topn");
+    auto nms_thresh = layer->GetParamAsFloat("nms_thresh");
+    auto box_coordinate_scale = layer->GetParamAsFloat("box_coordinate_scale", 1.0);
+    auto box_size_scale = layer->GetParamAsFloat("box_size_scale", 1.0);
+    auto scale_data = layer->GetParamAsFloats("scale", {});
+    auto ratio_data = layer->GetParamAsFloats("ratio", {});
+    auto normalize = layer->GetParamAsBool("normalize", false);
+    auto clip_before_nms = layer->GetParamAsBool("clip_before_nms", true);
+    auto clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
+    auto framework = layer->GetParamAsString("framework", "");
+    auto for_deformable = layer->GetParamAsBool("for_deformable", false);
+    // NB: IR doens't contain this parameter
+    float pre_nms_thresh = 0.0f;
+
+    if (framework == "tensorflow" || framework == "caffe") {
+        std::transform(framework.begin(), framework.end(), framework.begin(), ::toupper);
+    } else {
+        VPU_THROW_EXCEPTION << "Proposal layer doesn't support framework: " << framework;
+    }
+
+    std::vector<mv::Data::TensorIterator> proposal_ins;
+    for (const auto& input : inputs) {
+        proposal_ins.push_back(input->getMcmNode());
+    }
+
+    auto scale = _modelMcm.constant(std::vector<double>(scale_data.begin(), scale_data.end()),
+        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        "scale");
+
+    auto ratio = _modelMcm.constant(std::vector<double>(ratio_data.begin(), ratio_data.end()),
+        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        "ratio");
+
+    proposal_ins.push_back(scale);
+    proposal_ins.push_back(ratio);
+
+    auto proposal = _modelMcm.proposal(proposal_ins, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride,
+        min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale,
+        framework, for_deformable, mv::DType("Float16"));
+
+    bindOutput(proposal, layer->outData[0]);
 }
 
 void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
