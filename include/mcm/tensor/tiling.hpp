@@ -8,7 +8,7 @@
 
 namespace mv
 {
-    class Tiling {
+    class Tiling : public LogSender {
     private:
         using TileShape = std::vector<std::size_t>;
 
@@ -19,6 +19,8 @@ namespace mv
         std::string axis_;
         std::vector<Tiling> childTiles_;
 
+        std::size_t alignment_;
+
         void printShape(const TileShape& shape) const
         {
             std::cout<< "{";
@@ -27,11 +29,17 @@ namespace mv
             std::cout<<"}";
         }
 
+        virtual std::string getLogID() const override
+        {
+            return "Tilling";
+        }
+
     public:
 
-        Tiling() : start_({0,0,0,0,0}), size_({0,0,0,0,0}), axis_(""), childTiles_(0) {}
+        Tiling() : start_({0,0,0,0,0}), size_({0,0,0,0,0}),
+                axis_(""), childTiles_(0), alignment_(1) {}
         Tiling(const Shape& actShape, const Shape& kernelShape)
-                : start_({0,0,0,0,0}), axis_(""), childTiles_(0)
+                : start_({0,0,0,0,0}), axis_(""), childTiles_(0), alignment_(1)
         {
             size_.resize(5);
             size_[TILE_DIM_W] = actShape[mv::IO_WIDTH_DIMENSION];
@@ -41,7 +49,7 @@ namespace mv
             size_[TILE_DIM_N] = actShape[mv::IO_BATCH_DIMENSION];
         }
         Tiling(const Shape& actShape)
-                : start_({0,0,0,0,0}),axis_(""), childTiles_(0)
+                : start_({0,0,0,0,0}),axis_(""), childTiles_(0), alignment_(1)
         {
             size_.resize(5);
             size_[TILE_DIM_W] = actShape[mv::IO_WIDTH_DIMENSION];
@@ -52,15 +60,17 @@ namespace mv
         }
 
         Tiling(const TileShape& start, const TileShape& size) :
-                start_(start),size_(size),axis_(""),childTiles_(0) {}
+                start_(start),size_(size),axis_(""),childTiles_(0), alignment_(1) {}
 
         Tiling(const std::string& axis, std::size_t tiles)
-                : start_({0,0,0,0,0}), size_({0,0,0,0,0}), axis_(axis), childTiles_(tiles)
+                : start_({0,0,0,0,0}), size_({0,0,0,0,0}),
+                axis_(axis), childTiles_(tiles), alignment_(1)
         {
         }
 
         Tiling(const Shape& start, Shape& size, std::string axis, std::size_t childTiles)
-                : start_(start), size_(size), axis_(axis), childTiles_(childTiles)
+                : start_(start), size_(size), axis_(axis), childTiles_(childTiles),
+                alignment_(1)
         {
         }
 
@@ -70,11 +80,15 @@ namespace mv
             size_ = other.size_;
             axis_ = other.axis_;
             childTiles_ = other.childTiles_;
+            alignment_ = other.alignment_;
             return *this;
         }
 
         const std::string& getAxis() const { return axis_; }
         void setAxis(const std::string& axis) { axis_ = axis; }
+
+        std::size_t getAlignment() { return alignment_; }
+        void setAlignment(std::size_t alignment) { alignment_ = alignment; }
 
         const TileShape& getStartCoord() const { return start_; }
         void setStartCoord(const TileShape& start) { start_ = start; }
@@ -125,7 +139,7 @@ namespace mv
             auto numberOfSplits = childTiles_.size();
             auto parentTileShape = getSize();
             auto axisToSplit = mv::Shape::getAxis(getAxis());
-            int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
+            int newSize = round_up(parentTileShape[axisToSplit] / numberOfSplits, alignment_);
             int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
 
             if(remainderSize == 0)
@@ -134,6 +148,8 @@ namespace mv
                 numberOfSplits--;
                 childTiles_.pop_back();
                 remainderSize = newSize;
+                this->log(mv::Logger::MessageType::Warning, "Zero remainder size, subtracting number of splits to " +
+                    std::to_string(numberOfSplits) + " each of size " + std::to_string(newSize));
             }
 
             unsigned startCoord = 0;
