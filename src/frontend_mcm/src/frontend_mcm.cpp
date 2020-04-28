@@ -699,7 +699,13 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
     }
 }
 
-std::unordered_map<int, char> DIM_NAMES({{3, 'W'}, {2, 'H'}, {1, 'C'}, {0, 'N'}});
+std::string getDimLabel(int dimIndex, ie::Layout ieLayout) {
+    std::ostringstream ostr;
+    ostr << ieLayout;
+    const auto layoutStr = ostr.str();
+    IE_ASSERT(dimIndex >= 0 && dimIndex < layoutStr.size());
+    return std::string(1, layoutStr[dimIndex]);
+}
 
 constexpr char FINISH_PARSING_STR[] = "Parsed to mcmModel as '%s";
 
@@ -1052,8 +1058,8 @@ void FrontEndMcm::parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[softMaxLayer->axis];
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
+    std::string mcmAxis = getDimLabel(softMaxLayer->axis, ieLayout);
     auto mvSoftmax = _modelMcm.softmax(
         inputs[0]->getMcmNode(), mcmAxis, mv::DType("Default"), initialQuantParams, softMaxLayer->name);
 
@@ -1137,9 +1143,10 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     std::string newOrder;
 
-    //  4d NCHW inputs are supported
+    // 4d NCHW inputs are supported
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
     for (size_t i = 0; i < ieOrder.size(); i++) {
-        newOrder += DIM_NAMES[ieOrder[ieOrder.size() - 1 - i]];
+        newOrder += getDimLabel(ieOrder[ieOrder.size() - 1 - i], ieLayout);
     }
 
     auto mvPerm = _modelMcm.permute(
@@ -1276,10 +1283,10 @@ void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[concatLayer->_axis];
-    std::vector<mv::Data::TensorIterator> concatInputs;
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
+    std::string mcmAxis = getDimLabel(concatLayer->_axis, ieLayout);
 
+    std::vector<mv::Data::TensorIterator> concatInputs;
     for (const auto& input : inputs) {
         concatInputs.push_back(input->getMcmNode());
     }
