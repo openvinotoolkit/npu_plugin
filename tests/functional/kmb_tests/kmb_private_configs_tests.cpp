@@ -64,13 +64,52 @@ TEST_F(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
 
     std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
     Blob::Ptr outputBlob;
-    outputBlob = request.GetBlob(outputName);
+    outputBlob = toFP32(request.GetBlob(outputName));
 
     Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
     referenceBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
 
     const size_t NUMBER_OF_CLASSES = 4;
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+}
+
+TEST_F(KmbPrivateConfigTests, USE_SIPP) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}});
+
+    InferenceEngine::InferRequest request;
+    request = network.CreateInferRequest();
+
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin";
+    const auto inputDims = network.GetInputsInfo().begin()->second->getTensorDesc().getDims();
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> allocator =
+        std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
+    Blob::Ptr inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputPath, 228, 228, allocator);
+
+    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
+    PreProcessInfo preProcInfo;
+    preProcInfo.setColorFormat(ColorFormat::NV12);
+    preProcInfo.setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
+    request.SetBlob(inputName, inputBlob, preProcInfo);
+    request.Infer();
+    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
+
+    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
+    Blob::Ptr outputBlob;
+    outputBlob = toFP32(request.GetBlob(outputName));
+
+    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
+    referenceBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
+
+    const size_t NUMBER_OF_CLASSES = 2;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
 }
 

@@ -62,7 +62,7 @@ public:
 
 class SippPreprocPool {
     static unsigned int firstShave;
-    static constexpr unsigned int defaultFirstShave = 0;
+    static constexpr unsigned int defaultFirstShave = 4;
     static constexpr unsigned int maxPools = 2;
     static constexpr unsigned int pipesPerPool = 1;
 

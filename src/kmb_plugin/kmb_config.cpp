@@ -46,6 +46,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
                                                   VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
                                                   VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
+                                                  VPU_KMB_CONFIG_KEY(USE_SIPP),
                                               });
 
     return options;
@@ -75,4 +76,5 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_outColorFmtSIPP, config, VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), parseColorFormat);
 
     setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
+    setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
 }
