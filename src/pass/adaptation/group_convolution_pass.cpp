@@ -46,19 +46,30 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             auto previousOp = om.getSourceOp(inputTensor);
             auto weightTensor = convOp->getInputTensor(1);
             auto inputChannels = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
-            auto outputChannels = outputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/group;
-            auto groupSize = inputChannels/group;
+            auto outputChannels = outputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+            auto inputGroupSize = inputChannels/group;
+            auto weightsGroupSize = outputChannels/group;
+
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
             mv::Shape groupShape = {inputTensor->getShape()[mv::IO_WIDTH_DIMENSION],
                                    inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION],
-                                   groupSize, 1};
+                                   inputGroupSize, 1};
+
+            mv::Shape weightsGroupShape = {weightTensor->getShape()[mv::KERNEL_WIDTH],
+                                   weightTensor->getShape()[mv::KERNEL_HEIGHT],
+                                   weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightsGroupSize};
             mv::Shape groupBegin = {{0},{0},{0},{0}};
+            mv::Shape weightsGroupBegin = {{0},{0},{0},{0}};
             std::vector< mv::Data::TensorIterator> convOutputs = {};
             mv::Data::TensorIterator biasTensor;
             mv::QuantizationParams inputQuantParams = {{},{},{},{}};
             mv::QuantizationParams outputQuantParams = {{},{},{},{}};
+            mv::QuantizationParams weightQuantParams = {{},{},{},{}};
             if (inputTensor->hasAttr("quantParams"))
                 inputQuantParams = inputTensor->get<mv::QuantizationParams>("quantParams");
+            if (weightTensor->hasAttr("quantParams"))
+                weightQuantParams = weightTensor->get<mv::QuantizationParams>("quantParams");
             if (convOp->hasAttr("quantParams"))
                 outputQuantParams = convOp->get<mv::QuantizationParams>("quantParams");
             if (convOp->hasAttr("bias"))
@@ -66,17 +77,29 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
             for (unsigned branchId = 0; branchId < group; branchId++)
             {
                 std::string sliceName = "slice" + std::to_string(branchId);
+                std::string weightSliceName = "weightSlice" + std::to_string(branchId);
                 std::string convName = convOp->getName() + sliceName;
                 std::string biasName = mv::createBiasName(convName + "bias");
-                groupBegin = {{0},{0},{branchId * groupSize},{0}};
+                groupBegin = {{0},{0},{branchId * inputGroupSize},{0}};
                 mv::Data::TensorIterator slice = om.slice(inputTensor,
                                     groupBegin,
                                     groupShape,
                                     inputQuantParams,
                                     sliceName);
                 om.getSourceOp(slice)->set<unsigned>("opId", convOp->get<unsigned>("opId"));
+
+                weightsGroupBegin = {{0},{0},{0},{branchId * weightsGroupSize}};
+
+                mv::Data::TensorIterator weightsSlice = om.slice(weightTensor,
+                                    weightsGroupBegin,
+                                    weightsGroupShape,
+                                    weightQuantParams,
+                                    weightSliceName);
+
+                om.getSourceOp(weightsSlice)->set<unsigned>("opId", om.getSourceOp(convOp->getInputTensor(1))->get<unsigned>("opId"));
+
                 mv::Data::TensorIterator newConvTensor = om.conv(slice,
-                                weightTensor,
+                                weightsSlice,
                                 convOp->get<std::array<unsigned short, 2>>("stride"),
                                 convOp->get("padding"),
                                 convOp->get<unsigned>("dilationFactor"),
