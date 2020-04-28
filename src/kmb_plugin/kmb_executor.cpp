@@ -56,39 +56,11 @@ using namespace std;
 
 #if defined(__arm__) || defined(__aarch64__)
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
-// XLink channel number to start allocation from
-const uint32_t IE_VPU_KMB_XC_DEFAULT = 3;
-
-// Get free XLink channel
-static uint32_t getXlinkChannel(const vpu::Logger::Ptr& _logger) {
-    static std::mutex mutex_;
-    static int XlinkChannel = -1;
-
-    std::unique_lock<std::mutex> lock(mutex_);
-
-    if (XlinkChannel <= 0) {
-        const char* pxc = getenv("IE_VPU_KMB_XC");
-        XlinkChannel = pxc ? atoi(pxc) : IE_VPU_KMB_XC_DEFAULT;
-    }
-    // In this simplified implementation we never reuse the channel
-    uint32_t ret = XlinkChannel++;
-
-    // Skipping "0xA: IP control channel (standard channel)"
-    if (ret == 10) {
-        ret = XlinkChannel++;
-    }
-    _logger->info("Allocated channel = %d", ret);
-    return ret;
-}
 #endif
 
 KmbExecutor::KmbExecutor(const KmbConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-      xlinkChannelIn(0),
-      xlinkChannelOut(0),
-      _xlinkChannelInferenceInput(0),
-      _xlinkChannelInferenceOutput(0),
       _outTensorLen(0),
       _outTensorAddr(0),
       _inferenceVirtAddr(nullptr) {
@@ -192,29 +164,18 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
     }
     return found->second;
 }
-
-std::vector<size_t> filterDimsWithSizeOne(const InferenceEngine::SizeVector& dims) {
-    std::vector<size_t> out;
-    if (dims.size() == 0) {
-        return out;
-    }
-
-    out.push_back(dims.at(0));  // always push batch size
-    for (size_t idx = 1; idx < dims.size(); idx++) {
-        if (dims.at(idx) > 1) {
-            out.push_back(dims.at(idx));
-        }
-    }
-
-    return out;
-}
-
 }  // namespace
 #endif
 
-void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
+void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const InputsDataMap& networkInputs,
+    const OutputsDataMap& networkOutputs, bool newFormat) {
     if (!_config.useKmbExecutor()) {
         return;
+    }
+
+    if (newFormat) {
+        IE_ASSERT(networkInputs.size() == 1);
+        IE_ASSERT(networkOutputs.size() == 1);
     }
 
 #if defined(__arm__) || defined(__aarch64__)
@@ -305,31 +266,25 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     _logger->info("Output: ");
     tensor_deserializer(descOut);
 
+    const std::string inputName = newFormat ? networkInputs.begin()->first : "input";
     InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
     InferenceEngine::Layout inputLayout = getIOLayout(descIn);
     InferenceEngine::Precision inputPrecision = getIOPrecision(descIn);
     InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-    InferenceEngine::Data inputData("input", inputDesc);
+    InferenceEngine::Data inputData(inputName, inputDesc);
 
     InferenceEngine::InputInfo inputInfo;
     inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-    m_networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-    _inputNetworkLayout = inputLayout;
+    _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
 
+    const std::string outputName = newFormat ? networkInputs.begin()->first : "output";
     InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
     InferenceEngine::Layout outputLayout = getIOLayout(descOut);
-    if (_config.force2DToNC()) {
-        InferenceEngine::SizeVector nonTrivialDims = filterDimsWithSizeOne(outputDims);
-        if (nonTrivialDims.size() == 2) {
-            outputDims = nonTrivialDims;
-            outputLayout = InferenceEngine::Layout::NC;
-        }
-    }
     InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
     InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-    InferenceEngine::Data outputData("output", outputDesc);
+    InferenceEngine::Data outputData(outputName, outputDesc);
 
-    m_networkOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+    _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
     rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
@@ -352,20 +307,16 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
     _logger->info("Created plgPoolInferenceMsg");
 
-    xlinkChannelIn = getXlinkChannel(_logger);
-    xlinkChannelOut = getXlinkChannel(_logger);
-    plgTensorInput_->Create(descIn.totalSize, xlinkChannelIn, descIn);
+    plgTensorInput_->Create(descIn.totalSize, xlinkChannel, descIn);
     _logger->info("Created plgTensorInput");
 
-    plgTensorOutput_->Create(descOut.totalSize, xlinkChannelOut, descOut);
+    plgTensorOutput_->Create(descOut.totalSize, xlinkChannel, descOut);
     _logger->info("Created plgTensorOutput");
 
-    _xlinkChannelInferenceInput = getXlinkChannel(_logger);
-    _xlinkChannelInferenceOutput = getXlinkChannel(_logger);
-    plgInferenceInput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceInput);
+    plgInferenceInput_->Create(3 * inferenceIDSize, xlinkChannel);
     _logger->info("Created plgInferenceInput_");
 
-    plgInferenceOutput_->Create(3 * inferenceIDSize, _xlinkChannelInferenceOutput);
+    plgInferenceOutput_->Create(3 * inferenceIDSize, xlinkChannel);
     _logger->info("Created plgInferenceOutput_");
 
     _logger->info("Created all Plugins");
@@ -440,10 +391,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
 
-    _logger->info(
-        "KmbExecutor::getResult memcpy started @%d xlinkChannel=%d, %d ", offset, xlinkChannelIn, xlinkChannelOut);
-
-    _logger->info("KmbExecutor::getResult memcpy started");
+    _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
     IE_ASSERT(result_bytes >= len);
     std::memcpy(result_data, data, len);
     std::memset(data, 0, len);

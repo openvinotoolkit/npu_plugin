@@ -48,12 +48,11 @@ class KmbExecutor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
-    //  FIXME: should be removed and handled via network input info
-    InferenceEngine::Layout _inputNetworkLayout = InferenceEngine::Layout::NCHW;
     explicit KmbExecutor(const KmbConfig& config);
     virtual ~KmbExecutor() = default;
 
-    virtual void allocateGraph(const std::vector<char>& graphFileContent);
+    virtual void allocateGraph(const std::vector<char>& graphFileContent, const ie::InputsDataMap& networkInputs,
+        const ie::OutputsDataMap& networkOutputs, bool newFormat);
 
     virtual void deallocateGraph();
 
@@ -61,8 +60,8 @@ public:
 
     virtual void getResult(void* result_data, unsigned int result_bytes);
 
-    virtual const InferenceEngine::InputsDataMap& getNetworkInputs() const { return m_networkInputs; }
-    virtual const InferenceEngine::OutputsDataMap& getNetworkOutputs() const { return m_networkOutputs; }
+    virtual const InferenceEngine::InputsDataMap& getRuntimeInputs() const { return _runtimeInputs; }
+    virtual const InferenceEngine::OutputsDataMap& getRuntimeOutputs() const { return _runtimeOutputs; }
 
     const KmbConfig& _config;
 
@@ -89,17 +88,13 @@ private:
 
     std::shared_ptr<Pipeline> pipe;
 #endif
-    InferenceEngine::InputsDataMap m_networkInputs;
-    InferenceEngine::OutputsDataMap m_networkOutputs;
+    InferenceEngine::InputsDataMap _runtimeInputs;
+    InferenceEngine::OutputsDataMap _runtimeOutputs;
 
     std::shared_ptr<KmbAllocator> allocator;
     void initVpualObjects();
 
-    int xlinkChannelIn;
-    int xlinkChannelOut;
-
-    int _xlinkChannelInferenceInput;
-    int _xlinkChannelInferenceOutput;
+    const int xlinkChannel = 0;
 
     uint32_t _outTensorLen;
     uint32_t _outTensorAddr;

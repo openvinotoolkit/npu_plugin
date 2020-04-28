@@ -36,13 +36,13 @@
 
 namespace vpu {
 namespace KmbPlugin {
+namespace ie = InferenceEngine;
 
-class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
-    typedef std::shared_ptr<ExecutableNetwork> Ptr;
+    using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const KmbConfig& config);
-
+    explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config);
     explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config);
 
     ~ExecutableNetwork() {
@@ -56,24 +56,22 @@ public:
         }
     }
 
-    void GetMetric(const std::string& name, InferenceEngine::Parameter& result,
-        InferenceEngine::ResponseDesc* resp) const override;
+    void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
 
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
-        InferenceEngine::InputsDataMap networkInputs, InferenceEngine::OutputsDataMap networkOutputs) override {
+    ie::InferRequestInternal::Ptr CreateInferRequestImpl(
+        ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
         return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs, _stagesMetaData, _config, _executor);
     }
 
-    void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override {
+    void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
         auto syncRequestImpl =
             std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs, _stagesMetaData, _config, _executor);
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncTreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
             syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
-        asyncRequest.reset(new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(
-                               asyncTreadSafeImpl),
-            [](InferenceEngine::IInferRequest* p) {
+        asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(asyncTreadSafeImpl),
+            [](ie::IInferRequest* p) {
                 p->Release();
             });
         asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
@@ -92,6 +90,11 @@ public:
     }
 
 private:
+    void ConfigureExecutor(const std::string& networkName);
+    void LoadBlob();
+
+    ie::ITaskExecutor::Ptr getNextTaskExecutor();
+
     Logger::Ptr _logger;
     KmbExecutor::Ptr _executor;
     std::vector<char> _graphBlob;
@@ -102,20 +105,9 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    void ConfigureExecutor(const std::string& networkName);
-    void LoadBlob();
-
-    InferenceEngine::ITaskExecutor::Ptr getNextTaskExecutor() {
-        std::string id = _taskExecutorGetResultIds.front();
-
-        _taskExecutorGetResultIds.pop();
-        _taskExecutorGetResultIds.push(id);
-
-        InferenceEngine::ExecutorManager* executorManager = InferenceEngine::ExecutorManager::getInstance();
-        InferenceEngine::ITaskExecutor::Ptr taskExecutor = executorManager->getExecutor(id);
-
-        return taskExecutor;
-    }
+    ie::InputsDataMap _runtimeInputs;
+    ie::OutputsDataMap _runtimeOutputs;
+    std::string _netName;
 };
 
 }  // namespace KmbPlugin

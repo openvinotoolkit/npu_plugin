@@ -108,4 +108,7 @@ else()
     set(MCM_COMPILER_LIBRARY "" CACHE INTERNAL "")
     set(MCM_COMPILER_INCLUDES "" CACHE INTERNAL "")
     set(META_DIR_PATH "" CACHE INTERNAL "")
+    # mcmCompiler_DIR is assumed to be pointing at share/cmake/mcmCompiler
+    set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
+    set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
 endif()

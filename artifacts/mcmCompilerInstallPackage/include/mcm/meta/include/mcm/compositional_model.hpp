@@ -72,6 +72,7 @@ namespace mv
         virtual mv::Data::TensorIterator slice(Data::TensorIterator data, const Shape& begin, const Shape& size, const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator softmax(Data::TensorIterator data, const std::string& axis = "C", const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
         virtual mv::Data::TensorIterator tanh(Data::TensorIterator data, const std::string& name = "") = 0;
+        virtual mv::Data::TensorIterator topK(Data::TensorIterator data, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis = 99, const DType& dType = mv::DType("Default"), const mv::QuantizationParams& quantParams = {{},{},{},{}}, const std::string& name = "") = 0;
 
         virtual Data::OpListIterator getSourceOp(Data::TensorIterator tensor) = 0;
         virtual void addAttr(Data::OpListIterator op, const std::string& name, const Attribute& attr) = 0;

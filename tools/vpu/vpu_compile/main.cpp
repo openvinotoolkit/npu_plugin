@@ -149,7 +149,6 @@ static std::map<std::string, std::string> configure(const std::string &configFil
     if (!FLAGS_o.empty()) {
         config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
     }
-    config["VPU_COMPILER_ALLOW_NC_OUTPUT"] = CONFIG_VALUE(YES);
     return config;
 }
 
