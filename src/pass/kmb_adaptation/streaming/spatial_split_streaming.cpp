@@ -623,7 +623,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
         if (!om.checkOp(nodeName))
         {
-            pass.log(mv::Logger::MessageType::Warning, nodeName + " is not present in model, skipping streaming");
+            pass.log(mv::Logger::MessageType::Debug, nodeName + " is not present in model, skipping streaming");
             continue;
         }
         auto opIt =  om.getOp(nodeName);
