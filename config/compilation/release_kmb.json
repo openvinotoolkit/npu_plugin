@@ -116,7 +116,7 @@
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 0.95},
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -186,14 +186,7 @@
             "StoreLayerSparsityStrategy",
             "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
@@ -223,27 +216,13 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/kmb_adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/implicit_dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",
