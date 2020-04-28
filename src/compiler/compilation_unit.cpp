@@ -231,15 +231,15 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
  */
 void mv::CompilationUnit::deepCopy(mv::OpModel& copyTo)
 {
-    std::cout << "Model:" << std::endl;
-    std::cout << "OpsCount: " << model_->opsCount() << std::endl;
-    std::cout << "dataFlows: " << model_->dataFlowsCount() << std::endl;
-    ControlModel cm(*model_);
-    std::cout << "controlFlows: " << cm.controlFlowsCount() << std::endl;
+    // std::cout << "Original Model:" << std::endl;
     DataModel dm(*model_);
-    std::cout << "tensorsCount: " << dm.tensorsCount() << std::endl;
-    std::cout << "populatedSize: " << dm.populatedTotalSize() << std::endl;
-    std::cout << "unpopulatedSize: " << dm.unpopulatedTotalSize() << std::endl;
+    // ControlModel cm(*model_);
+    // std::cout << "OpsCount: " << model_->opsCount() << std::endl;
+    // std::cout << "dataFlows: " << model_->dataFlowsCount() << std::endl;    
+    // std::cout << "controlFlows: " << cm.controlFlowsCount() << std::endl;
+    // std::cout << "tensorsCount: " << dm.tensorsCount() << std::endl;
+    // std::cout << "populatedSize: " << dm.populatedTotalSize() << std::endl;
+    // std::cout << "unpopulatedSize: " << dm.unpopulatedTotalSize() << std::endl;
 
     for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
     {
@@ -251,48 +251,67 @@ void mv::CompilationUnit::deepCopy(mv::OpModel& copyTo)
         copyTo.defineOp(opIterator->getOpType(), opIterator->getInputTensor(), vectAttrs, opIterator->getName(), false, false);
     }
 
-    std::cout << std::endl << "Copy:" << std::endl;
-    std::cout << "OpsCount: " << copyTo.opsCount() << std::endl;
-    std::cout << "dataFlows: " << copyTo.dataFlowsCount() << std::endl;
-    ControlModel cm1(copyTo);
-    std::cout << "controlFlows: " << cm1.controlFlowsCount() << std::endl;
-    DataModel dm1(copyTo);
-    std::cout << "tensorsCount: " << dm1.tensorsCount() << std::endl;
-    std::cout << "populatedSize: " << dm1.populatedTotalSize() << std::endl;
-    std::cout << "unpopulatedSize: " << dm1.unpopulatedTotalSize() << std::endl;
+    // flow attribute is not being set for each operation in copied model. Manually adding...
+    for (Data::FlowListIterator flow = dm.flowBegin(); flow != dm.flowEnd(); ++flow)
+    {
+        std::string tensorName = flow->getTensor()->getName();
+        mv::Data::TensorIterator newTensor = copyTo.getTensor(tensorName);
+
+        if(!newTensor->hasAttr("flows"))
+        {
+            std::set<std::string> toSet;
+            newTensor->set<std::set<std::string>>("flows", toSet);
+        }
+        newTensor->get<std::set<std::string>>("flows").insert(flow->getName());
+    }
 }
 
 void mv::CompilationUnit::generateExpectedResults()
 {   
     log(mv::Logger::MessageType::Debug, "Initializing emulator...");
     std::cout << "Initializing emulator..." << std::endl;
-    mv::CompilationUnit unit(model_->getName());
-    mv::OpModel omEmu = unit.model();
-    deepCopy(omEmu);
+    mv::CompilationUnit emUnit(model_->getName());
+    mv::OpModel& emOM = emUnit.model();
+    deepCopy(emOM);
 
-    unit.loadTargetDescriptor(mv::Target::ma2490);
+    // std::cout << std::endl << "Copied:" << std::endl;
+    // std::cout << "OpsCount: " << emOM.opsCount() << std::endl;
+    // std::cout << "dataFlows: " << emOM.dataFlowsCount() << std::endl;
+    // ControlModel cm1(emOM);
+    // std::cout << "controlFlows: " << cm1.controlFlowsCount() << std::endl;
+    // DataModel dm1(emOM);
+    // std::cout << "tensorsCount: " << dm1.tensorsCount() << std::endl;
+    // std::cout << "populatedSize: " << dm1.populatedTotalSize() << std::endl;
+    // std::cout << "unpopulatedSize: " << dm1.unpopulatedTotalSize() << std::endl;
+
+    emUnit.loadTargetDescriptor(mv::Target::ma2490);
     std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
     std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
-    unit.loadCompilationDescriptor(emuCompPath);
-    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
+    emUnit.loadCompilationDescriptor(emuCompPath);
+    emUnit.compilationDescriptor().setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
 
-    std::cout << "Initializing comp..." << std::endl;
-    unit.initialize();
-    std::cout << "Running comp..." << std::endl;
-    unit.run();
+    emUnit.initialize();
+    emUnit.run();
+    std::cout << "Compilation completed..." << std::endl;
 
     // initialize the Emulator Manager
-    mv::emu::Manager emulatorManager(omEmu);
+    mv::emu::Manager emulatorManager(emOM);
 
-    // get input tensor
+    // set input tensor values
     std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
-    const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
-    emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
+    if (input0Data.empty() ) throw RuntimeError(*this, "Emulator required file 'input.dat' not found in current directory");
+
+    //const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
+    //emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
+    emulatorManager.input("input#170")->populate(input0Data, mv::Order::getZMajorID(4));
+    
+    emulatorManager.initializeTensors();    // copy the source data to emulator
+    std::cout << "Generating results..." << std::endl;
     emulatorManager.run();
 
     // Dump the output.
     std::string outputFile = "output/expected_results_mcm.dat";
-    const std::string outputName = omEmu.getOps("Output")[0]->getInputTensor()[0]->getName();
+    const std::string outputName = emOM.getOps("Output")[0]->getInputTensor()[0]->getName();
     const mv::Data::TensorIterator outputTensor = emulatorManager.output(outputName.substr(0, outputName.size() - 2));
     outputTensor->setOrder(mv::Order::getZMajorID(4));
     write<std::int64_t, std::uint16_t>(outputTensor->getIntData(), outputFile);
