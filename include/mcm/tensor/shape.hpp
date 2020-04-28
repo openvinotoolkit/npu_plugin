@@ -21,6 +21,11 @@ namespace mv
     static const size_t KERNEL_OUTPUT_CHANNELS = 3;
     static const size_t KERNEL_WEIGHT_SETS = 0;
 
+    static const size_t PADDING_LEFT = 0;
+    static const size_t PADDING_RIGHT = 1;
+    static const size_t PADDING_TOP = 2;
+    static const size_t PADDING_BOT = 3;
+
     class Shape : public Printable, public LogSender
     {
     private:

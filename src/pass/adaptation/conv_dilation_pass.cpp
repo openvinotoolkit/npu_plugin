@@ -38,12 +38,11 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 /*Get the kernel attributes*/
                 auto nonDialtedKernel = opIt->getInputTensor(1);
-                auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[0];
-                auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[1];
-                auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[2];
-                auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[3];
+                auto nonDialtedKernelWidth = nonDialtedKernel->getShape()[KERNEL_WIDTH];
+                auto nonDialtedKernelHeight = nonDialtedKernel->getShape()[KERNEL_HEIGHT];
+                auto nonDialtedKernelInputChannels = nonDialtedKernel->getShape()[KERNEL_INPUT_CHANNELS];
+                auto nonDialtedKernelOutpuChannels = nonDialtedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
                 auto nonDialtedKernelShape = nonDialtedKernel->getShape();
-                auto nonDialtedKernelData = nonDialtedKernel->getIntData();
 
 
                 /** Calculate dilated kernel shape
@@ -60,21 +59,21 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 /*Populate dilated tensor with zeros*/
 
                 std::array<unsigned short,4> padding = opIt->get< std::array<unsigned short,4> >("padding");
-                if (padding[0])
+                if (padding[PADDING_LEFT])
                 {
-                    padding[0] = floor(nonDialtedKernelWidth/2);
+                    padding[PADDING_LEFT] = floor(nonDialtedKernelWidth/2);
                 }
-                if (padding[1])
+                if (padding[PADDING_RIGHT])
                 {
-                    padding[1] = floor(nonDialtedKernelWidth/2);
+                    padding[PADDING_RIGHT] = floor(nonDialtedKernelWidth/2);
                 }
-                if (padding[2])
+                if (padding[PADDING_TOP])
                 {
-                    padding[2] = floor(nonDialtedKernelHeight/2);
+                    padding[PADDING_TOP] = floor(nonDialtedKernelHeight/2);
                 }
-                if (padding[3])
+                if (padding[PADDING_BOT])
                 {
-                    padding[3] = floor(nonDialtedKernelHeight/2);
+                    padding[PADDING_BOT] = floor(nonDialtedKernelHeight/2);
                 }
                 opIt->set<std::array<unsigned short, 4>>("padding", {padding[0], padding[1], padding[2], padding[3]} );
                 /*Create Dilated Kernel Tensor*/
@@ -98,15 +97,13 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     dilatedKernelShape,
                     dilatedKernel.getDType(),
                     dilatedKernel.getOrder(),
-                    {{},{},{},{}},
+                    quantParams,
                     nonDialtedKernelOp->getName() + "_Dilated");
-
-                auto DialtedKernelData = dilatedConstant->getIntData();
 
                 om.removeOp(nonDialtedKernelOp);
                     
                 om.defineFlow(dilatedConstant, opIt, 1);
-                opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[0], dilatedKernelShape[1]} );
+                opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
                 opIt->setInputTensor(dilatedConstant, 1);
                 auto DialtedKernelOp = opIt.rightmostParent();
                 DialtedKernelOp->set<unsigned>("opId", currentOpId);
