@@ -39,7 +39,7 @@ int main()
 
     om.output(bias_c0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
 

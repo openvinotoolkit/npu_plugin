@@ -25,7 +25,7 @@ int main()
     auto max0 = om.maximum(min0, lowerBound);
     om.output(max0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-PrefetchAdaptive.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);

@@ -12,7 +12,7 @@ int main()
     auto reorgyolo0 = om.reorgYolo(input0, stride, mv::DType("Float16"));
     om.output(reorgyolo0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "verbose", mv::Attribute(std::string("Silent")));
     unit.compilationDescriptor().addToGroup("serialize", "PrintInfo", "Singular", false);
