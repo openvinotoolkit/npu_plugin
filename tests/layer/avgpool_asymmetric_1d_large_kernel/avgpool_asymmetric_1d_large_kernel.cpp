@@ -4,7 +4,6 @@
 #include <limits>
 #include <include/mcm/op_model.hpp>
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include "templateExampleNew.data.inc"
 
 void build_pySwigCU(mv::OpModel& model)
 {
