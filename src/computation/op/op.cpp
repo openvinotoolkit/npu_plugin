@@ -269,7 +269,6 @@ std::map<std::string, mv::Attribute> mv::Op::getAttrs(const std::vector<std::str
     return mv::Element::getAttrs(finalVector);
 }
 
-
 std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
 {
     return outputs_;

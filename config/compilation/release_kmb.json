@@ -189,18 +189,11 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -305,7 +298,8 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {

@@ -6,12 +6,27 @@ namespace mv
     namespace op_topk
     {
 
+        const std::vector<std::string> MODES = {"min", "max"};
+        const std::vector<std::string> SORT_TYPES = {"value", "index", "none"};
+
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
             [](const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
 
+            auto mode = args.at("mode").get<std::string>();
+            if(std::find(MODES.begin(), MODES.end(), mode) == MODES.end())
+            {
+                errMsg = "Unsupported topk mode";
+                return {false, 1};
+            }
+            auto sort = args.at("sort").get<std::string>();
+            if(std::find(SORT_TYPES.begin(), SORT_TYPES.end(), sort) == SORT_TYPES.end())
+            {
+                errMsg = "Unsupported topk sort";
+                return {false, 1};
+            }
             // Check for valid axis value
             auto axis = args.at("axis").get<int64_t>();
             if (!((axis >= -3) && (axis <= 3)) && (axis != 99))
@@ -75,7 +90,7 @@ namespace mv
             else
                 outputs.push_back(mv::Tensor(":0",  outputShape, dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
-            //TODO, the second output is the indices, dtype is supposed to be unigned int
+            //TODO, the second output is the indices, dtype is supposed to be unsigned int
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":1",  outputShape, dTypeToUse, inputs[0]->getOrder()));
             else
@@ -89,7 +104,8 @@ namespace mv
         MV_REGISTER_OP(TopK)
         .setInputs({"data"})
         .setOutputs({"output"})
-        .setArg<int64_t>("out_max_val")
+        .setArg<std::string>("sort")
+        .setArg<std::string>("mode")
         .setArg<int64_t>("top_k")
         .setOptionalArg<int64_t>("axis", 99)
         .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
