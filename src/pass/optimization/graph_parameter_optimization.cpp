@@ -294,7 +294,7 @@ namespace mv
                     auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize));
 
                     if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-                    worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+                    worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
                 }
 
                 //TODO add handling for weights case if we dont align it to 16 always
