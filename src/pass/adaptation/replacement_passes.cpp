@@ -253,7 +253,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
               (inHeight / outHeight) == inWidth / outWidth)
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto factor = inHeight / outHeight;
+            auto factor = (unsigned short) (inHeight / outHeight);
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             std::array<unsigned short, 2> kSize({factor, factor});
@@ -480,7 +480,7 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
     }
 }
 
-void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void flattenAsReshapeFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
