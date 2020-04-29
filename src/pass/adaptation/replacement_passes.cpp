@@ -746,7 +746,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
 // Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
 // depthwise 2x2 kernel, stride 2, scale 1/14
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
+void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
