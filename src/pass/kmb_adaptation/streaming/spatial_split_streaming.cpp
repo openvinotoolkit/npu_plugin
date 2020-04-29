@@ -94,7 +94,7 @@ streamSplit =
 //    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling},
-//    {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
+    {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
 };
 
 //helper function. A shape of a Tile specifies the OUTPUT shape for it's respective operation

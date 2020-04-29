@@ -126,7 +126,7 @@ namespace mv
         {
             auto numberOfSplits = childTiles_.size();
             auto parentTileShape = getSize();
-            auto axisToSplit =  TILE_DIM_K; // the Size of the tile , is the size of the outputTensor... That is why we ask for "C" in the shape of the outTensor
+            auto axisToSplit = mv::Shape::getAxis(getAxis());
 
             int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
             int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
@@ -247,6 +247,8 @@ namespace mv
                 generateSpatialTiling(opIt);
             else if (axis_ == "W")
                 generateSpatialTiling(opIt);
+            else if (axis_ == "C")
+                generateWeightsTiling();
         }
 
         //TODO::build proper stream out of this
