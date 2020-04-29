@@ -232,9 +232,12 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
                     if (!sinkOperators.empty())
                     {
-                        while (sinkOperators[0]->getOpType() != "DPUTask")
+                        while (sinkOperators[0]->getOpType() != "DPUTask" and 
+                                sinkOperators[0]->getOpType() != "Output"){
                             sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                        outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        }
+                        if(sinkOperators[0]->getOpType() != "Output")
+                            outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
                     }
                     auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                     subTensors.clear();
