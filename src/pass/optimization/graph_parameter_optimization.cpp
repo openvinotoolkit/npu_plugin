@@ -284,7 +284,7 @@ namespace mv
 =======
                 } else if (streamingPool["K"] > 1)
                 {
-                    outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
+                    outputSize = tensorShape[mv::KERNEL_OUTPUT_CHANNELS];
                     numberOfSplits = streamingPool["K"];
                     int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
 
