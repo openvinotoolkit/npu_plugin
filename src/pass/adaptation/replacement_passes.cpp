@@ -518,7 +518,7 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short n)
+std::vector<std::pair<unsigned short, unsigned short>> getFactorsList(unsigned short n)
 {
     std::vector<std::pair<unsigned short, unsigned short>> factors;
     for(int i = 2; i <= sqrt(n); i++)
@@ -530,6 +530,38 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
         }
     }
     return factors;
+}
+
+std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
+{
+    std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactorsList(kernelSize);
+    std::pair<unsigned short, unsigned short> factors;
+    if (allFactors.empty()) // Original kernel size IS PRIME
+    {
+        // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
+        allFactors = getFactorsList(kernelSize - 1);
+        factors = allFactors.back(); // Get the most equal factors
+
+        // These factors are for ksize - 1, so increase smaller factor by 1
+        if( factors.first == factors.second)
+            factors.first++;
+        else
+            factors.second++;
+    }
+    else // Original kernel size NOT PRIME
+    {
+        factors = allFactors.back(); // Get the most equal factors
+    }
+    return factors;
+}
+
+unsigned short getPad(unsigned short kernelSize, std::pair<unsigned short, unsigned short> factors, size_t inputShape, size_t outputShape)
+{
+    double eachSize = (double) kernelSize / factors.first;
+    double updatedOutput = outputShape * factors.second;
+    unsigned short pad = updatedOutput*factors.first -  inputShape;
+
+    return pad;
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
@@ -731,21 +763,27 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
 
         if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
             continue;
+
         auto kernelSize = kSize[0];
-        auto largeDim = mv::IO_WIDTH_DIMENSION;
+        auto largeDim = 0;
         auto asymmetricCase = false;
+        auto asymmetricBothKernelsLarge = false;
+
         if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
         {
-            if ( kSize[0] > MAX_KERNEL and kSize[1] > MAX_KERNEL)
-                continue;
+            if (kSize[0] > MAX_KERNEL and kSize[1] > MAX_KERNEL)
+                asymmetricBothKernelsLarge = true;
+
             // deal with asymetric kernels when one dim is larger than MAX_KERNEL
             asymmetricCase = true;
             if (kSize[0] <  kSize[1])
             {
                 kernelSize = kSize[1];
-                largeDim = mv::IO_HEIGHT_DIMENSION;
+                largeDim = 1;
             }
         }
+
+        pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(largeDim));
         auto name = opIt->getName();
         auto sourceTensor = opIt->getInputTensor(0);
 
@@ -754,60 +792,72 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
         auto inputShape = sourceTensor->getShape();
         auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
-        std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
-        std::pair<unsigned short, unsigned short> factors ;
+        std::vector<std::pair<unsigned short, unsigned short>> allFactors;
+        std::pair<unsigned short, unsigned short> factors;
+        std::pair<unsigned short, unsigned short> factorsDim2;
 
         // If average pool kernel size is greater than 11, we will turn it in to multiple depthwise convs here
         // Note: Kernel sizes should be chosen so the output tensor of the second depthwise
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
 
-        allFactors = getFactors(kernelSize);
-
-        if (allFactors.empty()) // Original kernel size IS PRIME
-        {
-            // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-            allFactors = getFactors(kernelSize - 1);
-            factors = allFactors.back(); // Get the most equal factors
-
-            // These factors are for ksize - 1, so increase smaller factor by 1
-            if( factors.first == factors.second)
-                factors.first++;
-            else
-                factors.second++;
-        }
-        else // Original kernel size NOT PRIME
-        {
-            factors = allFactors.back(); // Get the most equal factors
-        }
-
-        if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
+        factors = getFactors(kernelSize);
+        if (factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
             //TODO throw error, unable to split into appropriate size
+            std::cout << "ERROR: factors are larger the MAX_KERNEL " << std::endl;
             continue;
         }
 
-        // Padding relationship is (input size + pad ) / k = output size
-        // pad = output*k - input
-        double eachSize = (double) kernelSize / factors.first;
-        //double paddedSize = ceil(eachSize) * factors.first;
-        double updatedOutput = outputShape[largeDim] * factors.second;
-        unsigned short pad = updatedOutput*factors.first -  inputShape[largeDim];
+        pass.log(mv::Logger::MessageType::Debug, "factors " +  std::to_string(factors.first) + " , " + std::to_string(factors.second));
+
+        if (asymmetricBothKernelsLarge)
+        {
+            factorsDim2 = getFactors(kSize[1-largeDim]);
+
+            if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
+            {
+                //TODO throw error, unable to split into appropriate size
+                std::cout << "ERROR: factorsDim2 are larger the MAX_KERNEL " << std::endl;
+                continue;
+            }
+            pass.log(mv::Logger::MessageType::Debug, "factors2 " +  std::to_string(factorsDim2.first) + " , " + std::to_string(factorsDim2.second));
+        }
+
+        // Padding relationship is (input size + pad) / k = output size
+        unsigned short pad = getPad(kernelSize, factors, inputShape[largeDim], outputShape[largeDim]);
+
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 
         if (asymmetricCase)
         {
-            if (largeDim == mv::IO_WIDTH_DIMENSION)
+            if (asymmetricBothKernelsLarge)
             {
-                padding[3] = 0;
-                newKernel[1] = kSize[1];
+                unsigned short pad2 = getPad(kSize[1-largeDim], factorsDim2, inputShape[1-largeDim], outputShape[1-largeDim]);
+                if (largeDim == 0)
+                {
+                    padding[3] = pad2;
+                    newKernel[1] = factorsDim2.first;
+                }
+                else
+                {
+                    padding[1] = pad2;
+                    newKernel[0] = factorsDim2.first;
+                }
             }
             else
             {
-                padding[1] = 0;
-                newKernel[0] = kSize[0];
+                if (largeDim == 0)
+                {
+                    padding[3] = 0;
+                    newKernel[1] = kSize[1];
+                }
+                else
+                {
+                    padding[1] = 0;
+                    newKernel[0] = kSize[0];
+                }
             }
-
         }
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
@@ -825,7 +875,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
 
         if (asymmetricCase)
         {
-            depthwiseOp0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimention we need workload to stride over.
+            depthwiseOp0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimension we need workload to stride over.
         }
 
         for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -844,18 +894,35 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& , mv::ComputationModel& m
         auto scaleVal = kSize[0];
         if (asymmetricCase)
         {
-            if (largeDim == mv::IO_WIDTH_DIMENSION)
+            if (asymmetricBothKernelsLarge)
             {
-                scaleVal = kSize[1];
-                newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
+                if (largeDim == 0)
+                {
+                    scaleVal = kSize[1];
+                    newKernel[1] = factorsDim2.second;
+                }
+                else
+                {
+                    scaleVal = kSize[0];
+                    newKernel[0] = factorsDim2.second;
+                }
             }
             else
             {
-                scaleVal = kSize[0];
-                newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
+                if (largeDim == 0)
+                {
+                    scaleVal = kSize[1];
+                    newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
+                }
+                else
+                {
+                    scaleVal = kSize[0];
+                    newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
+                }
             }
 
         }
+        pass.log(mv::Logger::MessageType::Debug, "newKernel " +  std::to_string(newKernel[0]) + " , " + std::to_string(newKernel[1]));
 
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
