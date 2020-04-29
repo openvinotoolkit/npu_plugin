@@ -10,7 +10,7 @@ pool_test_params roi_pool_test_cases[] = {
 };
 
 // [Track number: S#27344]
-INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, ROIPoolingLayerTest, ::testing::ValuesIn(roi_pool_test_cases),
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__BehaviorTest, ROIPoolingLayerTest, ::testing::ValuesIn(roi_pool_test_cases),
     getTestName<pool_test_params>);
 
 memory_test_params memory_test_cases[] = {

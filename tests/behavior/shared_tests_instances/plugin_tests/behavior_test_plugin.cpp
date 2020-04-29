@@ -8,7 +8,7 @@
 #include "vpu_test_data.hpp"
 
 // [Track number: S#27334]
-INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues), getTestCaseName);
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__BehaviorTest, BehaviorPluginTest, ValuesIn(supportedValues), getTestCaseName);
 
 // [Track number: S#27334]
 INSTANTIATE_TEST_CASE_P(

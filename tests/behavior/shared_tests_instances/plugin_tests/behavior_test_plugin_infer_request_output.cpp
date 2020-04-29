@@ -8,5 +8,5 @@
 
 // double free detected
 // [Track number: S#27335]
-INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginTestInferRequestOutput, ValuesIn(allOutputSupportedValues),
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__BehaviorTest, BehaviorPluginTestInferRequestOutput, ValuesIn(allOutputSupportedValues),
     getOutputTestCaseName);
