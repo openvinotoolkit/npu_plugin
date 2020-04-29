@@ -64,6 +64,9 @@ else()
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
 
+    add_executable(streaming_mixed_mode_eltwise streaming_mixed_mode_eltwise/streaming_mixed_mode_eltwise.cpp)
+    target_link_libraries(streaming_mixed_mode_eltwise cm)
+
     add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
     target_link_libraries(conv_sparsity cm)
 
@@ -75,6 +78,9 @@ else()
 
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
+
+    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    target_link_libraries(conv_dilated cm)
 
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)

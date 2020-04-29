@@ -189,6 +189,39 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 if(weightsTensor->setSparse())
                     dm.defineTensor(weightsTensor->getSparsityMap());
             }
+            //NOTE: Here is handled a specific case and this is why is treated seperately
+            if (dpuTask->getOpType() == "DPUTask" && dpuTask->get<std::string>("taskOp") == "Conv")
+            {
+                if (dpuTask->hasAttr("activationSparsityCompilerSolving") && dpuTask->get<bool>("activationSparsityCompilerSolving"))
+                {
+                    auto inputTensor = dpuTask->getInputTensor(0);
+                    //every element of sparsity map describes 8 elements of normal tensor
+                    auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
+                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                                               {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
+                                               {1}});
+                    std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
+                    mv::QuantizationParams quantParams = {{},{},{},{}};
+                    std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
+                    auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
+                    om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                    unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
+                    om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
+                    dpuTask->set<size_t>("unpopulatedSparsityMapIndex", newInputsSize - 1);
+
+                    mv::Shape storageElementShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
+                                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                                                               {1},
+                                                               {1}});
+                    std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
+                    std::string storageElementName = dpuTask->getName() + "storage_element_map";
+                    auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, storageElementName);
+                    om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
+                    unsigned newSize = dpuTask->addInputTensor(storageElement);
+                    om.defineFlow(storageElement, dpuTask, newSize - 1);
+                    dpuTask->set<size_t>("storageElementIndex", newSize - 1);
+                }
+            }
         }
     }
 }
@@ -211,6 +244,28 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
     return false;
 }
 
+bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
+{
+    auto source = flow.source();
+    auto sink = flow.sink();
+    auto tensor = flow->getTensor();
+
+    if(!tensor->isPopulated())
+    {
+        if((sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
+                (source->hasAttr("mixedToFloat") && source->get<bool>("mixedToFloat")) &&
+                (sink->hasAttr("activationSparsityCompilerSolving")
+                 && sink->get<bool>("activationSparsityCompilerSolving")))
+           return true;
+        if((source->hasAttr("floatPrecision") && source->get<bool>("floatPrecision")) &&
+                (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
+                (sink->hasAttr("activationSparsityCompilerSolving")
+                 && sink->get<bool>("activationSparsityCompilerSolving")))
+           return true;
+    }
+    return false;
+}
+
 // Result of chat with Alessandro:
 // An activation tensor can be sparse if and only if
 // 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
@@ -225,7 +280,7 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
 
 // Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
 
-static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
@@ -253,6 +308,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
         // 2) The sink of the activation tensor must be a ZMajor Convolution, the only operation
         //    with an IDU capable of handling sparsity data
         // 3) Runtime doesn't support SOK and activation sparsity neither in input nor output
+        // 4) HACK-Configuration...idu will have 1 case that the compiler generates sparsity info
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
@@ -261,7 +317,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
                 tensorNeedsSparsity = true;
                 break;
             }
-            else if (checkA0FloatSparsityBug(flow))
+            else if (checkA0FloatSparsityBug(flow) && !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
                 break;
@@ -293,7 +349,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
             //Now that we know tensor will be sparse, mark the input as need subtensor aligned
             auto sourceOp = om.getSourceOp(tensor);
 
-            if (sourceOp->getOpType() == "DPUTask" && sourceOp->get<std::string>("taskOp") == "Conv" || sourceOp->get<std::string>("taskOp") == "DepthwiseConv")//TODO More??
+            if (sourceOp->getOpType() == "DPUTask" && (sourceOp->get<std::string>("taskOp") == "Conv" || sourceOp->get<std::string>("taskOp") == "DepthwiseConv"))//TODO More??
             {
                 sourceOp->getInputTensor()[0]->set<bool>("needs_splits_aligned", true);
                 // Handle Align op's input tensor split-alignment
@@ -305,7 +361,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry& pass, mv
 
     }
 }
-static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+static void generateSparsityMapsUnpopulatedTensorsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)

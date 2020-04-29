@@ -57,55 +57,52 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
         if (hasBias)
             biasTensor = dm.getTensor(previousOp->get<std::string>("bias"));
     }
-    std::vector<double> min = {min_inf};
-    std::vector<double> max = {max_inf};
-    auto inputShape = inputTensor->getShape();
-    std::string name = task->getName();
-    std::vector<double> scale(1, 1.0);
-    std::vector<int64_t> zp(1, 0);
-    auto kernelShape = weightsTensor->getShape();
-    std::string constantName;
-    mv::QuantizationParams quantParams = task->get<mv::QuantizationParams>("quantParams");
 
+    auto kernelShape = weightsTensor->getShape();
     double alpha = task->get<double>("alpha");
     std::vector<int64_t> weightsData;
+
+    std::vector<int64_t> zp;
+    std::vector<double> scale;
+    std::vector<double> min;
+    std::vector<double> max;
+
     //Note: Quantization of weights
     if (branch == 0)
     {
-        scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
         zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
+        scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
+        min = weightsTensor->get<mv::QuantizationParams>("quantParams").getMin();
+        max = weightsTensor->get<mv::QuantizationParams>("quantParams").getMax();
         weightsData = weightsTensor->getIntData();
     }
     else
     {
-        int64_t new_zero_point;
-        double new_scale;
-
-        mv::QuantizationParams vectorQuant = {{},{},{},{}};
-        std::vector <double> old_scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
         std::vector <int64_t> old_zp = weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint();
+        std::vector <double> old_scale = weightsTensor->get<mv::QuantizationParams>("quantParams").getScale();
+        std::vector <double> old_min = weightsTensor->get<mv::QuantizationParams>("quantParams").getMin();
+        std::vector <double> old_max = weightsTensor->get<mv::QuantizationParams>("quantParams").getMax();
+
         if (old_scale.size() == 1)
         {
-            std::vector <double> old_scale_vector(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_scale[0]);
-            std::vector <int64_t> old_zero_point(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_zp[0]);
-            vectorQuant = {{old_zero_point},{old_scale_vector},{min_inf},{max_inf}};
+            old_zp = std::vector <int64_t>(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_zp[0]);
+            old_scale = std::vector <double>(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_scale[0]);
+            old_min = std::vector <double>(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_min[0]);
+            old_max = std::vector <double>(kernelShape[mv::KERNEL_OUTPUT_CHANNELS], old_max[0]);
+            mv::QuantizationParams vectorQuant = {old_zp, old_scale, old_min, old_max};
             weightsTensor->set<mv::QuantizationParams>("quantParams", vectorQuant);
-            old_zp = old_zero_point;
-            old_scale = old_scale_vector;
         }
-        //NOTE: The order of the functions was moved in order to validate the per tensor quantization in weights first
-        updateInfMinMaxPerChannel(weightsTensor);
-//        updateInfMinMaxPerTensor(weightsTensor);
+
+        zp.clear();
+        scale.clear();
         min.clear();
         max.clear();
-        scale.clear();
-        zp.clear();
-
         for (size_t k = 0; k < kernelShape[mv::KERNEL_OUTPUT_CHANNELS]; k++)
         {
-            min.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
-            max.push_back(-alpha * weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
-            calcZeroPointAndScalePerTensor(max[k], min[k], new_scale, new_zero_point);
+            zp.push_back(255 - weightsTensor->get<mv::QuantizationParams>("quantParams").getZeroPoint()[k]);
+            scale.push_back(alpha*weightsTensor->get<mv::QuantizationParams>("quantParams").getScale()[k]);
+            min.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMin()[k]);
+            max.push_back(weightsTensor->get<mv::QuantizationParams>("quantParams").getMax()[k]);
 
             for (size_t c = 0; c < kernelShape[mv::KERNEL_INPUT_CHANNELS]; c++)
             {
@@ -114,24 +111,17 @@ mv::Data::OpListIterator portConv(mv::ComputationModel& model, mv::Data::OpListI
                     for (size_t w = 0; w < kernelShape[mv::KERNEL_WIDTH]; w++)
                     {
                         auto currWeight = (int64_t)weightsTensor->at({w,h,c,k});
-                        double real_weight = ((int64_t)currWeight - old_zp[k]) * old_scale[k];
-                        real_weight = -alpha * real_weight;
-                        auto newQuantizedValue = std::round(real_weight/new_scale) + new_zero_point;
-                        if (newQuantizedValue > 255)
-                            newQuantizedValue = 255;
-                        else if (newQuantizedValue < 0)
-                            newQuantizedValue = 0;
-                        weightsData.push_back(newQuantizedValue);
+                        weightsData.push_back(255 - currWeight);
                     }
                 }
             }
-            scale.push_back(new_scale);
-            zp.push_back(new_zero_point);
         }
     }
-    mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
-    constantName = previousOp->getInputTensor()[1]->getName() + std::to_string(branch);
 
+    mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+    mv::QuantizationParams quantParams = task->get<mv::QuantizationParams>("quantParams");
+    std::string constantName = previousOp->getInputTensor()[1]->getName() + std::to_string(branch);
+    std::string name = task->getName();
 
     auto weights = om.constantInt(weightsData,
                         {weightsTensor->getShape()[mv::KERNEL_WIDTH], weightsTensor->getShape()[mv::KERNEL_HEIGHT],
