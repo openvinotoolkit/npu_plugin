@@ -493,10 +493,6 @@ namespace mv
                         if(op.getOpType() == "Conv")
                         {
                             auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
-                            if (op.hasAttr("dilationFactor")) {
-                                auto dilationFactor = op.get<unsigned>("dilationFactor");
-                                kernelSize = (kernelSize - 1) * dilationFactor + 1;
-                            }
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                             if(splitsToFit < dim/kernelSize)
                                 return splitsToFit;
@@ -1322,10 +1318,6 @@ namespace mv
                         {
                             auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                             auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                            if (op.hasAttr("dilationFactor")) {
-                                auto dilationFactor = op.get<unsigned>("dilationFactor");
-                                kernelSize = (kernelSize - 1) * dilationFactor + 1;
-                            }
                             if(maxSplitOverH > dim/kernelSize)
                                 maxSplitOverH = dim/kernelSize;
                             if(maxSplitOverH < 1)
