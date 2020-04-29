@@ -92,6 +92,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "EltwiseToSWEltwise",
             "StoreLayerSplitStrategy",
             "StoreLayerSparsityStrategy",

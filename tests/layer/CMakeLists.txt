@@ -73,6 +73,9 @@ else()
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
 
+    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    target_link_libraries(conv_dilated cm)
+
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
 
