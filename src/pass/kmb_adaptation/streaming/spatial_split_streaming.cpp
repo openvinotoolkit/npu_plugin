@@ -262,7 +262,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
-            om.getSourceOp(sliceInput)->set<unsigned>("opId", opId);
+            auto sliceInputOp = om.getSourceOp(sliceInput);
+            sliceInputOp->set<unsigned>("opId", opId);
+            sliceInputOp->set<std::string>("splitStrategy", splitStrategy);
         }
         om.getSourceOp(conv)->set<unsigned>("opId", opId);
 
