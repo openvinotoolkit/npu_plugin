@@ -280,9 +280,10 @@ namespace mv
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-                } else if (streamingPool["K"] > 1)
+                } 
+                if (streamingPool["K"] > 1)
                 {
-                    outputSize = tensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+                    outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
                     numberOfSplits = streamingPool["K"];
                     int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
 
@@ -311,14 +312,25 @@ namespace mv
             }
 
 
-            size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig){
+            size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, string clustering){
+                auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
                 size_t alignedFullInputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_INPUT_CHANNELS], 16);
 
                 size_t alignedFullOutputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_OUTPUT_CHANNELS], 16);
-                size_t alignedSplittedOutputChannels = mv::round_up(alignedFullOutputChannels/streamConfig["K"], 16);
+                size_t alignedStreamedOutputChannels = mv::round_up(alignedFullOutputChannels/streamConfig["K"], 16);
 
-                return (alignedFullInputChannels * alignedSplittedOutputChannels *
-                    tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT]);
+                if(clustering == "SplitOverK")
+                {
+                    size_t alignedSplittedOutputChannels =alignedStreamedOutputChannels/totalClusters;
+                    return (alignedFullInputChannels * alignedSplittedOutputChannels * 
+                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
+                            * dtypeMultiplier;
+                }
+                else{
+                    return (alignedFullInputChannels * alignedStreamedOutputChannels * 
+                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
+                            * dtypeMultiplier;
+                }
             }
 
             pair<size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
@@ -335,6 +347,7 @@ namespace mv
                 size_t totalActivationSize = 0;
                 auto opType = op.getOpType();
                 auto isCMConv = false;
+                auto clusterStrategy = clustering.get<string>();
 
                 if(enableChannelMajorConv and opType == "Conv" and
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
@@ -344,7 +357,7 @@ namespace mv
                     inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
                 }
                 if(opType != "Output"){
-                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
+                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -356,8 +369,7 @@ namespace mv
                     weightTableSize = 4 * alignedSplittedChannels;
                     if (opType == "Conv")
                     {
-                        weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1});
-                        //weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"]}, isCMConv);
+                        weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1}, clusterStrategy);
                     }
                     else
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1,1}, isCMConv);
@@ -456,8 +468,6 @@ namespace mv
 
                 weightSize += weightTableSize;
 
-                auto clusterStrategy = clustering.get<string>();
-
                 if(clusterStrategy == "Clustering")
                 {
                     totalActivationSize = inputSize + outputSize;
@@ -492,32 +502,50 @@ namespace mv
                 return pair<size_t,size_t>(totalActivationSize,totalWeightsSize);
             }
 
-            unsigned getMaxStreamOverH(const string& clustering,mv::Op& op, vector<size_t> streamsOverK){
-                for(auto k : streamsOverK){
-                    auto memH = memorySize(op,clustering,true,true,true,{1,1,1,k,1}, requiresFakeActivationSparsity(op));
-                    auto activationsSize = memH.first;
-                    auto weightsSize = memH.second;
+unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, bool oSparsity, bool wSparsity, Shape streams, bool fSparsity)
+            {
+                auto memSize = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity);
+                auto activationsSize = memSize.first;
+                auto weightsSize = memSize.second;
+                double availableMemory = (double) clusterMemory - (double) weightsSize;
 
-                    double availableMemory = (double) clusterMemory - (double) weightsSize;
+                unsigned splits = 1;
 
-                    if (availableMemory > 0){ // Weights can fit, determine number of splits for activations
-                        unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
+                if (availableMemory < 0) // Weights don't fit, can't stream over H
+                    return splits;
 
-                        //Special case for convs: Max split over H cannot be higher than dimension/kernel
-                        if(op.getOpType() == "Conv")
-                        {
-                            auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
-                            auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                            if(splitsToFit < dim/kernelSize)
-                                return splitsToFit;
-                            else
-                                return dim/kernelSize; // return this and try to mix with high values of k for viable strategy
-                        }
-                        else //normal case, return just enough splits to fit
-                            return splitsToFit;
-                    }
+                unsigned splitsToFit = ceil((double)activationsSize/availableMemory);
+                if (splitsToFit < 1)
+                    return splits;
+                
+                splits = splitsToFit;
+
+                // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
+                auto inputHeight = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                unsigned upperBoundH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                if(upperBoundH > inputHeight) upperBoundH = inputHeight;
+                upperBoundH = floor(upperBoundH/2); // TODO 
+                if(clustering.toString() == "SplitOverH") upperBoundH = upperBoundH/totalClusters;
+                do
+                {
+                    Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
+                    auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity);
+                    if(memFitCheck.first + memFitCheck.second < clusterMemory) break;
+                    splits++;
+                }while(splits <= upperBoundH);
+
+                // Note: for convolution stream over H cannot be higher than dimension/kernel
+                if(op.getOpType() == "Conv")
+                {
+                    auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
+                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    if(splits > dim/kernelSize)
+                        splits = dim/kernelSize;
+                    if(splits < 1)
+                        splits  = 1;
                 }
-                throw LogicError(*this,"Unable to generate nested streaming strategies for layer " + op.getName() + ". Layer size is unsupported.");
+
+                return splits;
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
@@ -1378,7 +1406,7 @@ namespace mv
                                 streamsOverK.erase(streamsOverK.begin());
                             }
                             // Adjust maxSplitOverH appropriately for nested
-                            maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
+                            // maxSplitOverH = getMaxStreamOverH(clustering.get<string>(),op, streamsOverK);
                         }
 
                     // for(unsigned n = 1; n <= maxSplitOverN; n++)
