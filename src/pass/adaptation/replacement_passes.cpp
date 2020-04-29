@@ -443,19 +443,25 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     for (auto& opIt : topKOps)
     {
         //Check if first output has no data flows
+        //check if mode and sort are different from what is supported by argmax
         auto firstoutput = opIt->getOutputTensor(0);
-        if(firstoutput->hasAttr("flows"))
-            continue;
+        auto attrs = opIt->getAttrs();
+
+        if(firstoutput->hasAttr("flows") ||
+            (attrs.at("mode").get<std::string>().compare("max") != 0) ||
+            (attrs.at("sort").get<std::string>().compare("index") != 0))
+            throw ArgumentError("topKAsArgMaxFcn", "flows", "", "cannot convert topK to argMax");// TODO replace with continue when we add topK support
+
         auto outputMemoryLocation = opIt->getOutputTensor(1)->get<mv::Tensor::MemoryLocation>("Location");
 
         auto sourceTensor = opIt->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(sourceTensor);
         auto inputShape = sourceTensor->getShape();
 
-        auto attrs = opIt->getAttrs();
+
         auto dtype = attrs.at("dType").get<mv::DType>();
         auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
-        auto out_max_val = attrs.at("out_max_val").get<int64_t>();
+        auto out_max_val = 0; //only support this for this conversion
         auto top_k = attrs.at("top_k").get<int64_t>();
         auto axis = attrs.at("axis").get<int64_t>();
 
