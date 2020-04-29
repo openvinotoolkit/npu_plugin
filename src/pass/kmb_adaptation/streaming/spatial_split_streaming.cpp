@@ -18,6 +18,10 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry&,
                                         mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                                         mv::Element&);
 
+static void streamCopyOperationsFcn(const mv::pass::PassEntry&,
+                                        mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
+                                        mv::Element&);
+
 namespace mv
 {
     namespace pass
@@ -31,6 +35,12 @@ namespace mv
         .setFunc(streamBinaryDataWeightsFcn)
         .setDescription(
             "The StreamOverK on Costant Operastions creates Constant + Slice, which is new smaller/fused Constants"
+        );
+
+        MV_REGISTER_PASS(StreamCopyOperations)
+        .setFunc(streamCopyOperationsFcn)
+        .setDescription(
+            "This pass will handle the copy+slice pattern"
         );
     }
 }
@@ -192,14 +202,13 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     //solve SOW/H location
     //TODO:: stop hardcoding index....
     auto inputTensor = op->getInputTensor(0);
-    auto inputTensor2Conv = inputTensor ;
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
     bool nestedLayerStreaming = false;
 
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias", "floatPrecision", "mixedToFloat"
-                                    , "placeConversionToFloat", "Int32Output"});
+    //Forbidden Attrs on stream Over K are only the ones below, we right the attrs that will not be propagated!!!
+    auto attrsToCopy = op->getAttrs({"shape", "bias"});
 
     mv::QuantizationParams quantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -341,7 +350,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
             std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;
             std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
             std::string newBiasTensorName = mv::createBiasName(op->getName() + "_split_" + std::to_string(split));
-            mv::Data::TensorIterator biasTensor;
             mv::Data::TensorIterator biasTensorX;
             if (originalBiasTensor->hasAttr("quantParams"))
             {
@@ -426,6 +434,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
     bool nestedLayerStreaming = false;
     auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
+    auto originalDType = op->getOutputTensor(0)->get<mv::DType>("dType");
     std::string splitStrategy = op->get<std::string>("splitStrategy");
     auto number_of_splits = tiling.childTiles().size();
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
@@ -433,9 +442,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
     // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "floatPrecision", "mixedToFloat"
-                                     , "placeConversionToFloat", "Int32Output"});
-    std::vector<mv::Shape> spatial_indexes(number_of_splits);
+
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
     std::vector<std::vector<mv::Data::TensorIterator>> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> convs(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
@@ -546,7 +554,7 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
         {
             auto inputSlots = op->inputSlots();
             auto eltwiseType = op->get<std::string>("eltwiseType");
-            auto originalDType = op->get<mv::DType>("dType");
+
             for (std::size_t i = 0; i < inputSlots; i++)
             {
                 auto inputTensor = op->getInputTensor(i);
@@ -576,7 +584,6 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                 createSlicesPerStream[streamingOpName] = false;
         }
         auto newOp = om.getSourceOp(newTensor);
-
         newOp->setAttrs(attrsToCopy);
         newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
 
@@ -689,7 +696,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             int numberOfSplits = thisOpStrategy[0].numSplits ;
             std::string axisToSplit = thisOpStrategy[0].axis ;
             mv::Tiling masterTile(axisToSplit, numberOfSplits);
-            mv::Shape masterSize;
 
             if (axisToSplit == "K" || axisToSplit == "C")
             {
@@ -702,8 +708,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                 masterTile.generateSpatialTiling(opIt);
             }
 
-            auto sourceTensor = opIt->getInputTensor(0);
-            auto parentOpIt = om.getSourceOp(sourceTensor);
             auto result = (streamSplit[axisToSplit])(om, opIt, masterTile,
                                thisGraphStrategy, createSlicesPerStream, name_firstStream_sliceOp);
 
@@ -732,7 +736,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     }
 }
 
-
 static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
                                         mv::ComputationModel& model,
                                         mv::TargetDescriptor& ,
@@ -746,7 +749,6 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
 
         if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
         {
@@ -773,5 +775,34 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
         }
     }
     for (auto& opName:removeConstantsSet)
+        om.removeOp(om.getOp(opName));
+}
+
+static void streamCopyOperationsFcn(const mv::pass::PassEntry& ,
+                                        mv::ComputationModel& model,
+                                        mv::TargetDescriptor& ,
+                                        mv::Element& ,
+                                        mv::Element &)
+{
+    //Need to duplicate the consts to number equal to streams, cause of the binary_data
+    mv::OpModel om(model);
+
+    std::set <std::string> removeCopySet;
+    for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
+    {
+        std::string opType = opIterator->getOpType();
+
+        if (opType == "Slice" && (!opIterator->getInputTensor(0)->isPopulated()))
+        {
+            auto previousOp = om.getSourceOp(opIterator->getInputTensor(0));
+            if (previousOp->getOpType() == "Copy")
+            {
+                opIterator->setInputTensor(previousOp->getInputTensor(0), 0, false);
+                om.defineFlow(previousOp->getInputTensor(0),opIterator , 0);
+                removeCopySet.insert(previousOp->getName());
+            }
+        }
+    }
+    for (auto& opName:removeCopySet)
         om.removeOp(om.getOp(opName));
 }

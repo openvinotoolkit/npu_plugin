@@ -64,7 +64,6 @@ void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    pass.log(mv::Logger::MessageType::Debug, "Replacement passes are starting");
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeAvgPoolFcn(pass, model);
