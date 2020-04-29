@@ -1018,6 +1018,13 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                     }
                 }
 
+                //NOTE: IF you have to spill your parent and the child is fp16 you are going to assign clustering on child
+                if(parentOp.getOpType() == "Eltwise" and parent["spilling"].get<bool>() &&
+                    childOp.hasAttr("floatPrecision") && childOp.get<bool>("floatPrecision") && childClustering != "Clustering")
+                {
+                    return INF;
+                }
+
                 //Note: Input clustering strategy should match first layer, if it is Z-major
                 if(parentOp.getOpType() == "Input" and not
                     (childOp.getOpType() == "Conv" and enableChannelMajorConv
