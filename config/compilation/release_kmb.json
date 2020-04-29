@@ -108,6 +108,13 @@
             "EltwiseToSWEltwise",
             "HandleGroupConvolution",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/go_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
