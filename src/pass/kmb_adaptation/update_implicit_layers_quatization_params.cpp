@@ -56,7 +56,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
     for(auto opIt : sortedOps)
     {
          std::string opType = opIt->getOpType();
-         std::cout << "On op " << opIt->getName() << " of type " << opType << std::endl;
 
         if (opType == "Slice")
         {
@@ -121,10 +120,8 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
 
                 for (auto sinkOp:sinkOps)
                 {
-                    std::cout << "Sink op is " << sinkOp->getName() << std::endl;
                     if (sinkOp->getOpType() == "Copy")
                     {
-                        std::cout << " Trying to undefine copy flow " << tasks_flows["Copy"][0]->toString() << std::endl;
                         //NOTE: neutral Copy has only 0
                         sinkOp->setInputTensor(compensatorOutput,0, false);
                         om.undefineFlow(tasks_flows["Copy"][0]);
@@ -132,7 +129,6 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                     }
                     else
                     {
-                        std::cout << " Trying to undefine dpu flow " << tasks_flows["DPUTask"][0]->toString() << std::endl;
                         sinkOp->setInputTensor(compensatorOutput, 0, false);
                         om.undefineFlow(tasks_flows["DPUTask"][0]);
                         om.defineFlow(compensatorOutput, sinkOp, dpuId);
