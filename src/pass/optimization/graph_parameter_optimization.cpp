@@ -292,7 +292,7 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     // TODO determine when there will be overlap
-                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize));
+                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
 
                     if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
