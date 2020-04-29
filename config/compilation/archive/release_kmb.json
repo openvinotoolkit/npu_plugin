@@ -12,7 +12,7 @@
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 20971520,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
@@ -144,9 +144,8 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -248,7 +247,8 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "no_temporal_edges" : true
+              "ddr_address_generation" : true,
+              "enable_simple_repacking" : true
             },
             {
                 "name": "TransitiveReduction",
@@ -273,18 +273,21 @@
               "allocator_mode": true
             },
             "TransitiveReduction",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
+            "TransitiveReduction",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
         "Singular": [
-            {
-              "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 32,
-              "barrier_bound" : 16,
-              "producer_bound" : 256
-            }
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
