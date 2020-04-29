@@ -5,5 +5,5 @@
 
 #include "vpu_test_data.hpp"
 
-INSTANTIATE_TEST_CASE_P(BehaviorTest, BehaviorPluginTestVersion,
+INSTANTIATE_TEST_CASE_P(smoke_BehaviorTest, BehaviorPluginTestVersion,
     ValuesIn(add_element_into_array(supportedValues, BEH_HETERO)), getTestCaseName);

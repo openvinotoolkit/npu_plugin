@@ -6,7 +6,7 @@
 #include "vpu_test_data.hpp"
 
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginTestAllUnsupported, ValuesIn(allUnSupportedValues), getTestCaseName);
+    smoke_BehaviorTest, BehaviorPluginTestAllUnsupported, ValuesIn(allUnSupportedValues), getTestCaseName);
 
 INSTANTIATE_TEST_CASE_P(
-    BehaviorTest, BehaviorPluginTestTypeUnsupported, ValuesIn(typeUnSupportedValues), getTestCaseName);
+    smoke_BehaviorTest, BehaviorPluginTestTypeUnsupported, ValuesIn(typeUnSupportedValues), getTestCaseName);

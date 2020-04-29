@@ -7,7 +7,7 @@
 #include "vpu_test_data.hpp"
 
 // [Track number: S#27339]
-INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginCorrectConfigTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__BehaviorTest, BehaviorPluginCorrectConfigTest,
     ValuesIn(BehTestParams::concat(withCorrectConfValues, withCorrectConfValuesPluginOnly)), getTestCaseName);
 
 // [Track number: S#27339]
@@ -15,7 +15,7 @@ INSTANTIATE_TEST_CASE_P(
     DISABLED_BehaviorTest, BehaviorPluginIncorrectConfigTest, ValuesIn(withIncorrectConfValues), getTestCaseName);
 
 // [Track number: S#27339]
-INSTANTIATE_TEST_CASE_P(DISABLED_BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__BehaviorTest, BehaviorPluginIncorrectConfigTestInferRequestAPI,
     ValuesIn(supportedValues), getTestCaseName);
 
 // [Track number: S#27339]

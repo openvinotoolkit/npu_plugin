@@ -8,7 +8,7 @@
 #include <vector>
 
 // [Track number: S#27332]
-INSTANTIATE_TEST_CASE_P(DISABLED_ReleaseOrderTests, CPP_HoldersTests,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke__ReleaseOrderTests, CPP_HoldersTests,
     testing::Combine(testing::ValuesIn(std::vector<std::vector<int>> {
                          // 0 - plugin
                          // 1 - executable_network
