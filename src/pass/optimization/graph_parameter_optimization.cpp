@@ -1290,8 +1290,14 @@ namespace mv
                                     maxSplitOverH = splitsToFit;
                             
                                 auto fit = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,1},fakeSparsity);
+                                unsigned upperBoundH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                                if(clustering.toString() == "SplitOverH") upperBoundH = upperBoundH/totalClusters;
                                 while(fit.first + fit.second > clusterMemory){
                                     maxSplitOverH = maxSplitOverH + 1;
+                                    if(maxSplitOverH > upperBoundH){
+                                        maxSplitOverH = 1;
+                                        break;
+                                    }
                                     fit = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,1},fakeSparsity);
                                 }
                             }

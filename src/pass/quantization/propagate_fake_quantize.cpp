@@ -466,7 +466,18 @@ void quantizeBias(mv::ComputationModel& model) {
 
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
-    // Do nothing with input. Keep parameters
+    auto inputs = om.getOps("Input");
+    mv::DataModel dm(om);
+    for (int i = 0; i < inputs.size(); i++) {
+        auto input = inputs.at(i);
+        auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
+
+        mv::QuantizationParams inputQuantParams = initial_quant_params;
+        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
+            inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
+        }
+        setQuantizationParams(input, inputQuantParams);
+    }
 
     assert(om.getOps("Output").size() == 1);
     auto output = om.getOps("Output").at(0);
@@ -487,34 +498,36 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto input = om.getInput();
-    auto current_op = findSinkLayers(dm, input->getOutputTensor(0)).at(0);
-    if (current_op->getOpType() != "Scale" || !current_op->getInputTensor(1)->isDoubleType()) {
-        return;
-    }
+    // Quantize all Scale
+    // Extend Scale to whole netwrok, not only for Input, networks e.g.Facenet need it 
+    auto scaleOps = om.getOps("Scale");
+    for (auto& current_op : scaleOps) {
+        if (current_op->getInputTensor(1)->isDoubleType()) {
+            auto scaleTensor = current_op->getInputTensor(1);
+            auto originalConstOp = om.getSourceOp(scaleTensor);
+            auto scaleData = scaleTensor->getDoubleData();
+            auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 1);
 
-    // Quantize input scale
-    auto scaleTensor = current_op->getInputTensor(1);
-    auto originalConstOp = om.getSourceOp(scaleTensor);
-    auto scaleData = scaleTensor->getDoubleData();
-    auto quantizedScaleData = std::vector<int64_t>(scaleData.size(), 1);
+            mv::QuantizationParams scalesQuantParams = {{0}, scaleData, {-inf}, {inf}};
+            auto quantized_const_tensor =
+                om.constantInt(quantizedScaleData, scaleTensor->getShape(), getDType(Precision::U8),
+                    scaleTensor->getOrder(), scalesQuantParams, originalConstOp->getName() + ":quantized");
+            if (originalConstOp->hasAttr("opId")) {
+                unsigned currentOpId = originalConstOp->get<unsigned>("opId");
+                quantized_const_tensor->set<unsigned>("opId", currentOpId);
+                om.getSourceOp(quantized_const_tensor)->set<unsigned>("opId", currentOpId);
+            }
+            mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), quantized_const_tensor, om, originalConstOp);
 
-    mv::QuantizationParams scalesQuantParams = {{0}, scaleData, {-inf}, {inf}};
-    auto quantized_const_tensor = om.constantInt(quantizedScaleData, scaleTensor->getShape(), getDType(Precision::U8), scaleTensor->getOrder(), scalesQuantParams, originalConstOp->getName()+":quantized");
-    if (originalConstOp->hasAttr("opId")) {
-        unsigned currentOpId = originalConstOp->get<unsigned>("opId");
-        quantized_const_tensor->set<unsigned>("opId", currentOpId);
-        om.getSourceOp(quantized_const_tensor)->set<unsigned>("opId", currentOpId);
-    }
-    mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), quantized_const_tensor, om, originalConstOp);
+            setQuantizationParams(current_op, findOutputQuantParams(om, current_op));
 
-    setQuantizationParams(current_op, findOutputQuantParams(om, current_op));
-
-    // Quantize input bias
-    current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
-    if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
-        auto bias_op = quantizeBias(model, current_op, initial_quant_params, scalesQuantParams);
-        setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
+            // Quantize input bias
+            current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
+            if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
+                auto bias_op = quantizeBias(model, current_op, initial_quant_params, scalesQuantParams);
+                setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
+            }
+        }
     }
 }
 
