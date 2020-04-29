@@ -93,6 +93,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -191,6 +192,13 @@
             "AlignPopulatedTensors",
             "RemoveCropAlignInCMX",
             "CropOrPadFinalOutput",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/AlignTaskWeights.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
@@ -261,6 +269,13 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/PopulateWeightsTablesPointers.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "PopulateWeightsTablesPointers"
         ]
     },
