@@ -280,9 +280,10 @@ namespace mv
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-                } else if (streamingPool["K"] > 1)
+                } 
+                if (streamingPool["K"] > 1)
                 {
-                    outputSize = tensorShape[mv::KERNEL_OUTPUT_CHANNELS];
+                    outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
                     numberOfSplits = streamingPool["K"];
                     int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
 
@@ -310,65 +311,9 @@ namespace mv
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
-            size_t NEWTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
-            {
-                                Shape worstStreamPool = streamingPool;
-
-                Shape tensorShape = tensorToSize->getShape();
-                //update the streamingPool to the worst combination, based on slice sizes
-                size_t outputSize;
-                size_t numberOfSplits;
-                if(streamingPool["H"] > 1) // If streaming over H
-                {
-                    outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-                    numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
-                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.front();
-
-                    int remainderOutputSize = newOutputSizes.back();
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
-
-                    // TODO determine when there will be overlap, for now consider worst case scenario of +2
-                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
-
-                    if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-                    worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-                }
-                else if(streamingPool["B"] > 1) // If streaming over N
-                {
-                    outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-                    numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.front();
-
-                    int remainderOutputSize = newOutputSizes.back();
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
-
-                    auto worstNumberOfSplits = outputSize/newOutputSize;
-                    worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-                }
-                else if(streamingPool["K"] > 1)
-                {
-                    
-                }
-
-                //TODO add handling for weights case if we dont align it to 16 always
-                double streamDivisor = 1;
-                for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
-                {
-                    streamDivisor = streamDivisor * worstStreamPool[dim];
-                }
-
-                if(isCMConv)
-                    return ceil((double)tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor);
-
-                return ceil((double)tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor);
-            }
-
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, const Attribute& clustering){
+                auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
                 size_t alignedFullInputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_INPUT_CHANNELS], 16);
 
                 size_t alignedFullOutputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_OUTPUT_CHANNELS], 16);
@@ -378,11 +323,13 @@ namespace mv
                 {
                     size_t alignedSplittedOutputChannels = mv::round_up(alignedStreamedOutputChannels/totalClusters, 16);
                     return (alignedFullInputChannels * alignedSplittedOutputChannels * 
-                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT]);
+                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
+                            * dtypeMultiplier;
                 }
                 else{
                     return (alignedFullInputChannels * alignedStreamedOutputChannels * 
-                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT]);
+                            tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
+                            * dtypeMultiplier;
                 }
             }
 
@@ -409,7 +356,7 @@ namespace mv
                     inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
                 }
                 if(opType != "Output"){
-                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["K"],1,streamConfig["B"]}, isCMConv);
+                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -578,7 +525,10 @@ namespace mv
                 splits = splitsToFit;
 
                 // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
+                auto inputHeight = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                 unsigned upperBoundH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                if(upperBoundH > inputHeight) upperBoundH = inputHeight;
+                upperBoundH = floor(upperBoundH/2); // TODO 
                 if(clustering.toString() == "SplitOverH") upperBoundH = upperBoundH/totalClusters;
                 do
                 {
