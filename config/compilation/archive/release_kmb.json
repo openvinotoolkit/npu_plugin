@@ -144,9 +144,8 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -249,7 +248,7 @@
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
-              "no_temporal_edges" : true
+              "enable_simple_repacking" : true
             },
             {
                 "name": "TransitiveReduction",
@@ -271,8 +270,12 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true,
-              "ddr_control_edges" : true
+              "allocator_mode": true
+            },
+            "TransitiveReduction",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
@@ -281,12 +284,10 @@
     },
     "scheduling": {
         "Singular": [
-            {
-              "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 32,
-              "barrier_bound" : 16,
-              "producer_bound" : 256
-            }
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {

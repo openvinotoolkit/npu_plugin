@@ -127,7 +127,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : true },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [

@@ -59,7 +59,7 @@ int main()
     // Build Model
     auto proposal0 = om.proposal(inputs, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable, mv::DType("Float16"));
     om.output(proposal0);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);
