@@ -78,7 +78,6 @@
                     }
                 ]
             },
-            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -128,7 +127,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true      },
+                        {"name" : "enableWeightsSparsity",    "value" : true },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -249,6 +248,7 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
               "no_temporal_edges" : true
             },
             {
@@ -271,7 +271,8 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
