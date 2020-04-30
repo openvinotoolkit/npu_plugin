@@ -18,8 +18,8 @@
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": false,
-                "FloatOutput": true,
+                "PredictionOfQuantizationOutput": true,
+                "FloatOutput": false,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :

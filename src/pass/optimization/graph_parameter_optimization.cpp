@@ -66,7 +66,7 @@ namespace mv
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp",
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled",
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels"};
+            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight"};
 
 
             void readGlobalConfigs()
@@ -795,6 +795,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
             }
             //Check to see if a given stategy is internally consistent for performance
             //Strategies that can only have infinite edges because they are illegal should never be added to the graph
+            // Note: IF ADDING A NEW FAILURE CASE, must add new description to failure_causes
             int checkForBadStrategy(mv::Op& op,StrategySet& strategy)
             {
                 auto clustering = strategy["clustering"].get<string>();
@@ -895,7 +896,6 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
 
             double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
-
                 //TODO: expose these conditionals more cleanly
                 auto INF = inf_;
 
@@ -911,6 +911,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                         log(mv::Logger::MessageType::Error, "Unsupported kernel/stride combination for DpuTask for \
                             the operation " + parentOp.getName());
                 }
+
                 if(createStrategyDots)
                 {
                     int strategyCheck = checkForBadStrategy(parentOp,parent);
