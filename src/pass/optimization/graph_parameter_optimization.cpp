@@ -321,7 +321,7 @@ namespace mv
 
                 if(clustering == "SplitOverK")
                 {
-                    size_t alignedSplittedOutputChannels =alignedStreamedOutputChannels/totalClusters;
+                    size_t alignedSplittedOutputChannels = ceil(alignedStreamedOutputChannels/totalClusters);
                     return (alignedFullInputChannels * alignedSplittedOutputChannels * 
                             tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
                             * dtypeMultiplier;
