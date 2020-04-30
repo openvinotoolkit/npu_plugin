@@ -141,6 +141,19 @@ struct Scheduled_Op {
   typedef mv::Op const * operation_t;
   operator operation_t() const { return op_; }
 
+  void set_start_address(size_t start_address) {
+    cmx_address_start_ = start_address;
+  }
+
+  void set_end_address(size_t end_address) {
+    cmx_address_end_ = end_address;
+  }
+
+  void invalidate_address() {
+    cmx_address_start_= std::numeric_limits<size_t>::max();
+    cmx_address_end_= std::numeric_limits<size_t>::min();
+  }
+
 
   mv::Op const * op_;
   size_t schedule_time_;
@@ -549,6 +562,10 @@ class Operation_Dag {
 
     bool is_dpu_op(operation_t op) const {
       return op->getOpType() == "DPUTask";
+    }
+
+    bool is_upa_op(operation_t op) const {
+      return op->getOpType() == "UPATask";
     }
 
     bool has_edge_between_ops(operation_t a, operation_t b) const {
@@ -1234,7 +1251,6 @@ class Operation_Dag {
     }
 
 
-  private:
 
 
     bool does_the_op_run_on_hardware(operation_t op) const {
@@ -1249,6 +1265,17 @@ class Operation_Dag {
       return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
           (dma_dir == mv::DmaDirectionEnum::UPACMX2DDR);
     }
+
+    bool is_dma_op_moving_data_from_ddr_to_cmx(operation_t op) const {
+      if ((op->getOpType()) != "DMATask") { return false; }
+
+      mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
+
+      return (dma_dir == mv::DmaDirectionEnum::DDR2NNCMX) ||
+          (dma_dir == mv::DmaDirectionEnum::DDR2UPACMX);
+    }
+
+  private:
 
 
     //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //

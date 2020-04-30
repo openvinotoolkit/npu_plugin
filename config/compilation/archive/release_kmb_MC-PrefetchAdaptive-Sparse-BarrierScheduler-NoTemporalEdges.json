@@ -78,7 +78,6 @@
                     }
                 ]
             },
-            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -128,7 +127,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true      },
+                        {"name" : "enableWeightsSparsity",    "value" : true },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -249,7 +248,22 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "ddr_address_generation" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_opmodel_output.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",
@@ -271,7 +285,8 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
@@ -285,6 +300,13 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
@@ -297,9 +319,21 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_control_no_temporal_edges.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
             }
+
         ]
     },
     "root": {
