@@ -66,6 +66,9 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
         {
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
+
+            if (outputOp->getOpType() == "DMATask") { break; }
+
             while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();

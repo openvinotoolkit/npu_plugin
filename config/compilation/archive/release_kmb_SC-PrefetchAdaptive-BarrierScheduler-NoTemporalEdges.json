@@ -12,7 +12,7 @@
                 "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 0,
-                "DDRScratch": 23068672,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
@@ -234,7 +234,8 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "ddr_address_generation" : true
             },
             {
                 "name": "GenerateDot",
@@ -270,7 +271,8 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",

@@ -53,7 +53,7 @@ int main()
     auto flatten0 = om.flatten(input0, axis, end_axis, mv::DType("Float16"));
     om.output(flatten0);
     
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

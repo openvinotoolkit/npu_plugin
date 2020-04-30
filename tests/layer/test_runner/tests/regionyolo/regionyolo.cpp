@@ -14,7 +14,7 @@ int main()
     std::vector<unsigned> mask;
     auto regionyolo0 = om.regionYolo(input0, coords, classes, do_softmax, num, mask, mv::DType("Float16"));
     om.output(regionyolo0);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().setPassArg("GlobalConfigParams", "verbose", mv::Attribute(std::string("Silent")));
     unit.compilationDescriptor().addToGroup("serialize", "PrintInfo", "Singular", false);

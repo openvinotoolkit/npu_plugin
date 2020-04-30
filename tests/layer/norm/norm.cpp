@@ -23,7 +23,7 @@ int main()
     auto norm0 = om.norm(input0, alpha, beta, region, local_size);
     om.output(norm0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

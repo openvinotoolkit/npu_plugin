@@ -20,7 +20,7 @@ int main()
     auto leakyRelu0 = om.leakyRelu(conv0, alpha, mv::DType("Float16"), {{0},{1},{},{}}, "leakyRelu0");
     om.output(leakyRelu0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GlobalConfigParams", "DPUTasksinFloat", true);
