@@ -8,6 +8,9 @@ std::string mv::TargetDescriptor::toString(Target target)
         case Target::ma2490:
             return "ma2490";
 
+        case Target::ma3100:
+            return "ma3100";
+
         default:
             return "unknown";
 
@@ -18,6 +21,9 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 {
     if (str == "ma2490")
         return Target::ma2490;
+
+    if (str == "ma3100")
+        return Target::ma3100;
 
     return Target::Unknown;
 }
