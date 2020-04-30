@@ -292,7 +292,7 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     // TODO determine when there will be overlap
-                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize));
+                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
 
                     if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
@@ -386,7 +386,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0; //TODO think about
-                    inputSize += realTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv);
+                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv);
                 }
 
                 //Additional memory footprint for sparsity
