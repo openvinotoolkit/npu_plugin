@@ -559,8 +559,8 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
                 size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
 
-                if(clustering == "SplitOverK")
-                    alignedOutputChannelSize = alignedOutputChannelSize / totalClusters;
+                // if(clustering == "SplitOverK")
+                //     alignedOutputChannelSize = alignedOutputChannelSize / totalClusters;
 
                 vector<size_t> splits;
                 size_t maxSplits = 1;
@@ -568,8 +568,8 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 if(globalEnableStreaming)
                     maxSplits = (alignedOutputChannelSize/16);
 
-                if(maxSplits > 64)
-                    maxSplits = 64;
+                // if(maxSplits > 64)
+                //     maxSplits = 64;
 
                 splits.push_back(1);
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
