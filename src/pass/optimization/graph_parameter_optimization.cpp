@@ -556,15 +556,10 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
             {
                 auto opType = op.getOpType();
 
-                // if( opType == "Input" or opType == "Output" )
-                //     return vector<size_t>(0);
 
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
                 size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
-
-                // if(clustering == "SplitOverK")
-                //     alignedOutputChannelSize = alignedOutputChannelSize / totalClusters;
 
                 vector<size_t> splits;
                 size_t maxSplits = 1;
@@ -572,9 +567,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 if(globalEnableStreaming)
                     maxSplits = (alignedOutputChannelSize/16);
 
-                // if(maxSplits > 64)
-                //     maxSplits = 64;
-
+                // TODO refactor to add just 1 split over k for each aligned to 16 channel possibility
                 splits.push_back(1);
                 for(unsigned split = 2; split <= maxSplits; split=split+2)
                 {
@@ -1327,7 +1320,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                         // 3. If no streams over H or K will fit, enable nested streaming
                         // 4. Nested loops over generated streaming options to produce all strategy options
 
-                                                unsigned maxSplitOverH = 1;
+                        unsigned maxSplitOverH = 1;
                         unsigned minSplitOverH = 1;
                         if(hasStreamOverH)
                         {
