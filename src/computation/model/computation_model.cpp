@@ -23,6 +23,7 @@ controlOpEnd_(std::make_shared<Control::OpListIterator>(controlGraph_.node_end()
 controlFlowEnd_(std::make_shared<Control::FlowListIterator>(controlGraph_.edge_end())),
 input_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
 output_(std::make_shared<Data::OpListIterator>(dataGraph_.node_end())),
+networkInputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
 networkOutputs_(std::make_shared<std::vector<Data::OpListIterator>>()),
 selfRef_(*this)
 {
@@ -51,6 +52,7 @@ controlOpEnd_(other.controlOpEnd_),
 controlFlowEnd_(other.controlFlowEnd_),
 input_(other.input_),
 output_(other.output_),
+networkInputs_(other.networkInputs_),
 networkOutputs_(other.networkOutputs_),
 selfRef_(other.selfRef_)
 {

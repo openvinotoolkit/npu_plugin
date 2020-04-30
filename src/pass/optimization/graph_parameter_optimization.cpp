@@ -587,6 +587,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
             {
                 auto opType = op.getOpType();
                 if( (opType == "Input") or
+                    (opType == "ImplicitInput") or
                     (opType == "Output"))
                     return 0;
 

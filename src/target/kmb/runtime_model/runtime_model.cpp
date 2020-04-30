@@ -245,8 +245,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+
+        if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
+        else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
+
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
         // No need to set sparsity_index for input/output tensor of the network
@@ -402,8 +406,29 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index = 0;
         }
     }
-    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput" ||
-            *tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
+    else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
+    {
+        auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+        auto index = t->getOrder().subToInd(t->getShape(), offset);
+        auto byte_index = index * t->getDType().getSizeInBits() / 8;
+
+        toBuild->data->data_index = byte_index;
+
+        auto strides = tensorBufferIt->getStrides();
+        auto leading_offset = strides[0];
+        toBuild->locale_index = std::vector<unsigned int>(1,0);
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
+        if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
+        else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
+
+        if (leading_offset)
+            toBuild->data->data_index += leading_offset;
+
+    }
+    else if(*tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = t->getOrder().subToInd(t->getShape(), offset);
@@ -425,8 +450,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
 
@@ -518,9 +541,22 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
 
-    // Just one input for now
-    toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-    toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+    // Support multiple inputs
+    auto numInputs = om.getNumNetworkInputs();
+    if (numInputs == 1)
+    {
+        toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
+        toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+    }
+    else
+    {
+        auto implicitInputOps = om.getNetworkInputs();
+        toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitInputOps.size());
+        for (size_t i = 0; i < implicitInputOps.size(); i++)
+        {
+            toBuild->net_input[i] = buildTensorReferenceT(cm, compilationDescriptor, implicitInputOps[i]->getOutputTensor(0));
+        }
+    }
 
     auto numOutputs = om.getNumNetworkOutputs();
 

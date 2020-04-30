@@ -865,7 +865,7 @@ TEST(tensor, splitOverH)
     mv::Data::TensorIterator weightRes;
     mv::Data::TensorIterator weightSparsityMapRes;
     mv::Data::TensorIterator weightTableRes;
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "Output")
         {
@@ -1036,7 +1036,7 @@ TEST(tensor, splitOverK)
     mv::Data::TensorIterator weightRes;
     //mv::Data::TensorIterator weightSparsityMapRes;
     mv::Data::TensorIterator weightTableRes;
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "Output")
         {
