@@ -280,8 +280,6 @@ namespace mv
 
                     auto worstNumberOfSplits = outputSize/newOutputSize;
                     worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-<<<<<<< HEAD
-=======
                 } else if (streamingPool["K"] > 1)
                 {
                     outputSize = tensorShape[mv::KERNEL_OUTPUT_CHANNELS];
@@ -297,7 +295,6 @@ namespace mv
 
                     if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
->>>>>>> 03598d4cd... Fix stream over K copy paste error
                 }
 
                 //TODO add handling for weights case if we dont align it to 16 always
