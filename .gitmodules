@@ -1,6 +1,3 @@
-[submodule "thirdparty/movidius/vpualHost"]
-	path = thirdparty/movidius/vpualHost
-	url = git@github.com:movidius/vpualHost.git
 [submodule "thirdparty/movidius/mcmCompiler"]
 	path = thirdparty/movidius/mcmCompiler
 	url = git@github.com:movidius/mcmCompiler.git

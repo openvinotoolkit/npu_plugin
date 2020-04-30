@@ -48,6 +48,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
                                                   VPU_KMB_CONFIG_KEY(FORCE_2D_TO_NC),
                                                   VPU_KMB_CONFIG_KEY(FORCE_FP16_TO_FP32),
+                                                  VPU_CONFIG_KEY(DEVICE_ID),
                                               });
 
     return options;
@@ -79,4 +80,8 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
     setOption(_force2DToNC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_2D_TO_NC));
     setOption(_forceFP16ToFP32, switches, config, VPU_KMB_CONFIG_KEY(FORCE_FP16_TO_FP32));
+    setOption(_VPUSMMSliceIdx, config, VPU_CONFIG_KEY(DEVICE_ID), parseInt);
+    IE_ASSERT(0 <= _VPUSMMSliceIdx && _VPUSMMSliceIdx < 4)
+        << "KmbConfig::parse attempt to set invalid VPUSMM slice index value for SIPP: '" << _VPUSMMSliceIdx
+        << "',  valid values are integers from 0 to 3";
 }

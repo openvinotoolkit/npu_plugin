@@ -21,9 +21,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-#include "vpusmm.h"
-
 #include "allocators.hpp"
+#include "../kmb_plugin/kmb_allocator.h"
+
+#ifdef ENABLE_VPUAL
+#include "vpusmm.h"
+#endif
 
 namespace vpu {
 
@@ -42,19 +45,30 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     return requiredSize;
 }
 
+VPUSMMAllocator::VPUSMMAllocator(int sliceIdx) : _sliceIdx(sliceIdx) {
+    if (_sliceIdx < 0 || _sliceIdx >= VPUSMM_SLICE_COUNT) {
+        std::string sliceIdxStr = std::to_string(_sliceIdx);
+        std::string sliceRangeStr = "[0:" + std::to_string(VPUSMM_SLICE_COUNT) + ")";
+        std::string errorMsg = "VPUSMMAllocator::VPUSMMAllocator: slice index " + sliceIdxStr +
+            " is out of range " + sliceRangeStr;
+        throw std::runtime_error(errorMsg);
+    }
+}
+
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
+#ifdef ENABLE_VPUAL
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
-    int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
+    int fileDesc = vpurm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT, _sliceIdx);
     if (fileDesc < 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_alloc_dmabuf failed");
     }
 
-    unsigned long physAddr = vpusmm_import_dmabuf(fileDesc, VPU_DEFAULT);
+    unsigned long physAddr = vpurm_import_dmabuf(fileDesc, VPU_DEFAULT, _sliceIdx);
     if (physAddr == 0) {
-        throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
+        throw std::runtime_error("VPUSMMAllocator::allocate: vpurm_import_dmabuf failed");
     }
 
-    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
+    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, _sliceIdx);
     if (virtAddr == MAP_FAILED) {
         throw std::runtime_error("VPUSMMAllocator::allocate: mmap failed");
     }
@@ -62,39 +76,62 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
     _memChunks.push_back(memChunk);
 
     return virtAddr;
+#else
+    UNUSED(requestedSize);
+    return nullptr;
+#endif
 }
 
 void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+#ifdef ENABLE_VPUAL
     std::tuple<int, void*, size_t> chunk = _memChunks.at(chunkIndex);
     void* virtAddr = std::get<1>(chunk);
     return virtAddr;
+#else
+    UNUSED(chunkIndex);
+    return nullptr;
+#endif
 }
 
 VPUSMMAllocator::~VPUSMMAllocator() {
+#ifdef ENABLE_VPUAL
     for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
         size_t allocatedSize = std::get<2>(chunk);
-        vpusmm_unimport_dmabuf(fileDesc);
+        vpurm_unimport_dmabuf(fileDesc, _sliceIdx);
         munmap(virtAddr, allocatedSize);
         close(fileDesc);
     }
+#endif
 }
 
 void* NativeAllocator::allocate(size_t requestedSize) {
+#ifdef ENABLE_VPUAL
     uint8_t* allocatedChunk = new uint8_t [requestedSize];
     _memChunks.push_back(allocatedChunk);
     return allocatedChunk;
+#else
+    UNUSED(requestedSize);
+    return nullptr;
+#endif
 }
 
 void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
+#ifdef ENABLE_VPUAL
     return _memChunks.at(chunkIndex);
+#else
+    UNUSED(chunkIndex);
+    return nullptr;
+#endif
 }
 
 NativeAllocator::~NativeAllocator() {
+#ifdef ENABLE_VPUAL
     for (uint8_t* chunk : _memChunks) {
         delete [] chunk;
     }
+#endif
 }
 
 }  // namespace utils

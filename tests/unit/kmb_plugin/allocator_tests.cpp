@@ -175,6 +175,10 @@ INSTANTIATE_TEST_CASE_P(unit, kmbAllocatorDifferentSizeUnitTests, ::testing::Val
     kmbAllocatorDifferentSizeUnitTests::PrintToStringParamName());
 
 TEST_F(kmbAllocatorUnitTests, checkValidPtrOnVpusmm) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
+
     if (!isVPUSMMDriverFound) {
         SKIP() << "vpusmm_driver not found. Please install before running tests";
     }

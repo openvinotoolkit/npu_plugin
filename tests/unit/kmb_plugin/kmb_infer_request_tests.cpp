@@ -186,6 +186,9 @@ private:
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     auto inputName = _inputs.begin()->first.c_str();
 
     ie::Blob::Ptr input;
@@ -197,6 +200,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -217,6 +223,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) 
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -261,6 +270,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPre
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto largeInput = createBlob({dims[0], dims[1], dims[2] * 2, dims[3] * 2});
 
@@ -276,6 +288,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     setenv("IE_VPU_KMB_DUMP_INPUT_PATH", ".", 1 /*overwrite*/);
 
     ie::Blob::Ptr input;
@@ -318,6 +333,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuInput = createVPUBlob(dims);
 
@@ -335,6 +353,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
@@ -378,6 +399,9 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMa
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNotMatchedNetworkInput) {
+#ifndef ENABLE_VPUAL
+    SKIP();
+#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;

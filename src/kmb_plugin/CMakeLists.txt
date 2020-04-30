@@ -44,6 +44,7 @@ ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
 
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
+        ${VPUSMM_INCLUDES}
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
     PUBLIC
@@ -58,10 +59,33 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        vpusmm
+        ${VPUSMM_LIB}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
+
+# install
+ie_cpack_add_component(kmb REQUIRED)
+
+install(TARGETS ${TARGET_NAME}
+        DESTINATION ${IE_CPACK_LIBRARY_PATH}
+        COMPONENT kmb)
+
+if(ARM OR AARCH64)
+    install(FILES $<TARGET_PROPERTY:NN,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:VpualDispatcher,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:sipp_custom,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:XLink,IMPORTED_LOCATION_NOCONFIG>
+                  $<TARGET_PROPERTY:RemoteFlic,IMPORTED_LOCATION_NOCONFIG>
+            DESTINATION ${IE_CPACK_LIBRARY_PATH}
+            COMPONENT kmb)
+
+    install(FILES "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1.0.0"
+                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so.1"
+                  "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/aarch64/libvpusmm.so"
+            DESTINATION "${IE_CPACK_LIBRARY_PATH}"
+            COMPONENT kmb)
+endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
@@ -74,6 +98,7 @@ if(ENABLE_TESTS)
 
     target_include_directories(${TARGET_NAME}_test_static
         SYSTEM PRIVATE
+            ${VPUSMM_INCLUDES}
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
             "${IE_FRONTEND_MCM_INCLUDE_DIR}"
@@ -86,7 +111,7 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            vpusmm
+            ${VPUSMM_LIB}
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)

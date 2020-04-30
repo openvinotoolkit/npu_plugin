@@ -4,6 +4,7 @@
 
 #pragma once
 
+#ifdef ENABLE_VPUAL
 #include <opencv2/gapi.hpp>
 
 namespace InferenceEngine {
@@ -15,3 +16,4 @@ cv::gapi::GKernelPackage kernels();
 }  // namespace preproc
 }  // namespace gapi
 }  // namespace InferenceEngine
+#endif

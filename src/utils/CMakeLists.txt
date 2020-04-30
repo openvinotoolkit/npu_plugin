@@ -26,8 +26,19 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 endif()
 
+set(VPUSMM_ARCH "x86_64")
+
+if(ARM OR AARCH64)
+    set(VPUSMM_ARCH "aarch64")
+endif()
+
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_link_libraries(${TARGET_NAME} PRIVATE vpusmm PUBLIC IE::inference_engine_lp_transformations)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+    ${VPUSMM_LIB}
+    "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/vsi_cmodel/vpusmm/${VPUSMM_ARCH}/libvpusmm.so"
+    PUBLIC
+    IE::inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
