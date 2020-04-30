@@ -42,6 +42,8 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
   if (global_params->hasAttr(reader_t::ddr_address_attribute())) {
     dag_t input_dag(om);
     typename reader_t::schedule_read_iterator_t begin, end;
+    bool add_ddr_control_edges = (passDesc.hasAttr("ddr_control_edges") &&
+        passDesc.get<bool>("ddr_control_edges"));
 
     mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
         msrelations(input_dag, model);
@@ -56,7 +58,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::DDR_Address_Generator<dag_t>
         ddr_address_generator(model, input_dag);
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-          "lp_sched_ddr_address_dump.txt");
+        "lp_sched_ddr_address_dump.txt", add_ddr_control_edges);
     assert(status);
   }
 
@@ -271,7 +273,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   ///////////////Save Schedule for DDR Address Generation///////////////////////
-  if (passDesc.hasAttr("ddr_address_generation")) {
+  if (passDesc.hasAttr("ddr_address_generation") &&
+        passDesc.get<bool>("ddr_address_generation")) {
     typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> writer_t;
     std::ostringstream schedule_state;
 
@@ -313,7 +316,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   { 
-    control_edges.add_edges_to_fresh_control_model(input_dag, model, 
+    control_edges.add_cmx_memory_control_edges(input_dag, model, 
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());

@@ -618,6 +618,7 @@ class Feasible_Schedule_Generator {
   typedef SchedulerTraits traits;
   typedef typename traits::dag_t dag_t;
   typedef typename traits::operation_t operation_t;
+  typedef typename traits::operation_hash_t operation_hash_t;
   typedef const operation_t * const_op_ptr_t;
   typedef typename traits::resource_t resource_t;
   typedef typename traits::resource_state_t resource_state_t;

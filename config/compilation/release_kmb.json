@@ -248,7 +248,7 @@
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
-              "enable_simple_repacking" : true
+              "no_temporal_edges" : true
             },
             {
                 "name": "TransitiveReduction",
@@ -270,12 +270,8 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
-            },
-            "TransitiveReduction",
-            {
-                "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
@@ -284,10 +280,12 @@
     },
     "scheduling": {
         "Singular": [
-            "StoreBarriersNamesInTasks",
-            "GenerateExecutionSchedule",
-            "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            {
+              "name" : "BarrierSchedulerPass",
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
+              "producer_bound" : 256
+            }
         ]
     },
     "validate": {
