@@ -46,7 +46,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
             opType == "ImplicitOutput" || opType == "ImplicitUnion")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-        if (opType == "Slice" || opType == "Crop")
+        if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
         if (opType == "Copy" || opType == "Align")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));

@@ -441,9 +441,10 @@ def buildOM(
         s = layer.getOutputTensors()[0].getShape()  # getShape returns N, C, H, W
         shape = ca.getShape(s[3], s[2], s[1], s[0])
         type_value = type_dict[layer.getOutputTensors()[0].dtype](0.0)
+        network_input = True
 
         output_tensor_name = layer.getOutputTensors()[0].getName().stringifyName()
-        _ref = ca.input(om, shape, type_value, ca.getOrder(mcm_4d_layout[parser]), get_parse_quant(layer.getOutputTensors()[0])[0], output_tensor_name)
+        _ref = ca.input(om, shape, type_value, ca.getOrder(mcm_4d_layout[parser]), get_parse_quant(layer.getOutputTensors()[0])[0], network_input, output_tensor_name)
         
         if (output_file is not None):
             output_file.write(
@@ -469,6 +470,7 @@ def buildOM(
                 '},{' +
                 ', '.join(map(str, get_parse_quant(layer.getOutputTensors()[0])[4])) +
                 '}}, "' +
+                'true, '
                 str(output_tensor_name) +
                 '");\n\n')
             tensor_mapping_dict[output_tensor_name] = 'input0'

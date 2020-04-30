@@ -268,6 +268,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"

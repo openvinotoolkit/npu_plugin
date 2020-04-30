@@ -29,6 +29,12 @@ else()
     add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
     target_link_libraries(conv_fakequantize cm)
 
+    add_executable(multiple_input_same_size multiple_input_same_size/multiple_input_same_size.cpp)
+    target_link_libraries(multiple_input_same_size cm)
+
+    add_executable(multiple_input_different_sizes multiple_input_different_sizes/multiple_input_different_sizes.cpp)
+    target_link_libraries(multiple_input_different_sizes cm)
+
     add_executable(multiple_output_same_size multiple_output_same_size/multiple_output_same_size.cpp)
     target_link_libraries(multiple_output_same_size cm)
 
