@@ -1307,8 +1307,9 @@ void FrontEndMcm::parseRegionYolo(const ie::CNNLayerPtr& layer, const McmNodeVec
     auto classes = layer->GetParamAsUInt("classes");
     auto do_softmax = layer->GetParamAsBool("do_softmax");
     auto num = layer->GetParamAsUInt("num");
+    auto mask = layer->GetParamAsUInts("mask", {});
 
-    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, {},
+    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, mask,
         mv::DType("Default"), initialQuantParams, layer->name);
     bindOutput(region, layer->outData[0]);
 
