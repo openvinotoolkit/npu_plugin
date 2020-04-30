@@ -53,10 +53,15 @@ import_array();
             unit->loadTargetDescriptor(mv::Target::ma2490);
             unit->loadCompilationDescriptor(mv::Target::ma2490);
         }
+        else if(target.compare("ma3100") == 0)
+        {
+            unit->loadTargetDescriptor(mv::Target::ma3100);
+            unit->loadCompilationDescriptor(mv::Target::ma3100);
+        }
         else
         {
             //Throw an error as unsupported target descriptor type supplied
-            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2490 is supported.");
+            PyErr_SetString(PyExc_Exception, "Target descriptor type not supported. Only ma2490 and ma3100 are supported.");
         }
 
         if (unit->compilationDescriptor().getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))

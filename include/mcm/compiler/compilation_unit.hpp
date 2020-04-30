@@ -18,8 +18,10 @@ namespace mv
     {
 
         static const std::string ma2490DefTargetDescPath_;
+        static const std::string ma3100DefTargetDescPath_;
 
         static const std::string ma2490DefCompDescPath_;
+        static const std::string ma3100DefCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;
