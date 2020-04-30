@@ -373,6 +373,9 @@ namespace mv
                     }
                     else
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1,1}, isCMConv);
+                        if(clusterStrategy == "SplitOverK")
+                            weightSize = div(weightSize,totalClusters);
+
                 }
                 else if(opType == "MaxPool")
                 {
@@ -466,7 +469,7 @@ namespace mv
                     weightSize += sparseWeightSize;
                 }
 
-                weightSize += weightTableSize;
+                weightSize += weightTableSize; // todo probably overcounts for sok now
 
                 if(clusterStrategy == "Clustering")
                 {
@@ -481,7 +484,8 @@ namespace mv
                 else if(clusterStrategy == "SplitOverK")
                 {
                     totalActivationSize = inputSize + outputSize;
-                    totalWeightsSize =  div(weightSize,totalClusters);
+                    // totalWeightsSize =  div(weightSize,totalClusters); not precise enough, handled earlier
+                    totalWeightsSize =  weightSize;
                 }
                 else if(clusterStrategy == "HKSwitch")
                 {
