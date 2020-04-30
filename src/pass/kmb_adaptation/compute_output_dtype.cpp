@@ -365,9 +365,12 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
         updateOutputQuantParams(pass, model);
     else
     {
-        auto convs = om.getOps("Conv");
+        auto convOps = om.getOps("Conv");
+        auto convDepthwiseOps = om.getOps("DepthwiseConv");
+        convOps.insert(convOps.end(),convDepthwiseOps.begin(),convDepthwiseOps.end());
+
         bool outputConvHasQuantParams, outputConvHasEmptyQuantParams, outputConvHasNeutralQuantParams;
-        for (auto conv : convs)
+        for (auto conv : convOps)
         {
             inputQuantized = false, weightsQuantized = false;
             outputConvHasQuantParams = conv->getOutputTensor()[0]->hasAttr("quantParams");

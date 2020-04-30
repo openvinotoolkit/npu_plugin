@@ -167,16 +167,20 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 continue;
             }
 
-            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            // Recursively search for non-implicit output op
+            auto outputOp = opIt.leftmostOutput().sink();
+            while(outputOp->isImplicit())
+            {
+                outputOp = outputOp.leftmostOutput().sink();
+            }
             //output of UPATask is ALWAYS in DDR
             // TODO: we can save 2 DMAs by giving the UPATask input in CMX (if previous op is DPUTask) and writing UPATask Output to CMX if next layer is
             // DPU task and it fits in CMX.
-            if(!((outputMemoryLocation == mv::Tensor::MemoryLocation::DDR) || (outputMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)))
-            {
-                auto output = opIt->getOutputTensor(0);
-                output->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-
-            }
+            auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
+                    ? mv::Tensor::MemoryLocation::OUTPUT
+                    : mv::Tensor::MemoryLocation::DDR;
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
         }
         ++opIt;
     }

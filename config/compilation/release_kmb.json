@@ -63,7 +63,8 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 1}
+                            {"K" : 1},
+                            {"N" : 1}
                         ]
                     }
                 ],
@@ -102,6 +103,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
@@ -182,11 +184,11 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -277,7 +279,8 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {

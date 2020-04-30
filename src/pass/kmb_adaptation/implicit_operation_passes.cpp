@@ -32,12 +32,11 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
-void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {

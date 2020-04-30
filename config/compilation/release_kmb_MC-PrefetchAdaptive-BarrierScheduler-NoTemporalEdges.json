@@ -93,6 +93,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ConvolutionDilation",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             {
@@ -171,11 +172,11 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -272,7 +273,8 @@
               "allocator_mode": true
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {

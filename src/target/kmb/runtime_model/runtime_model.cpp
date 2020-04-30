@@ -200,7 +200,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
 
-    mv::Control::StageIterator stg = cm.getStage(0);
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
@@ -245,11 +244,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 //        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
 
-        if (t->hasAttr("inputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("inputIndex");
-        else if (t->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
+        if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
+        else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
 
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
@@ -278,6 +278,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->storage_element_index = t->getStorageElement()->getAddress();
             else
                 toBuild->data->storage_element_index = 0;
+        }
+        if (t->hasAttr("activationSparsityCompilerSolving")
+                            && t->get<bool>("activationSparsityCompilerSolving"))
+        {
+            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
         }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -411,10 +417,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        if (t->hasAttr("inputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("inputIndex");
-        else if (t->hasAttr("outputIndex"))
-            toBuild->locale_index[0] = t->get<uint8_t>("outputIndex");
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
+        if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
+        else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
+            toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
 
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
@@ -429,11 +437,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
         else
         {
-            auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
             starting_address = (*masterBuffer)->getOffset();
         }
 
@@ -442,7 +450,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
 
@@ -465,6 +472,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
+    }
+
+    if (t->hasAttr("activationSparsityCompilerSolving")
+                        && t->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -557,7 +571,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(implicitOutputOps.size());
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
-            auto destOp = implicitOutputOps[i].leftmostChild();
+            auto destOp = implicitOutputOps[i];
             toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
         }
     }
@@ -2011,6 +2025,15 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    throw ArgumentError("tools:RuntimeModel", "UPATask", "Unsupported", "topK not implemented yet");
+
+    //TODO
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPassthroughTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -2157,6 +2180,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAArgmaxTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Custom")
         toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "topK")
+        toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
