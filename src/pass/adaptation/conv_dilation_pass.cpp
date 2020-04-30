@@ -101,16 +101,15 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     nonDilatedKernelOp->getName() + "_Dilated");
 
                 om.removeOp(nonDilatedKernelOp);
-                    
                 om.defineFlow(dilatedKernelOp, opIt, 1);
                 opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
-                opIt->setInputTensor(dilatedKernelOp, 1);
+                opIt->setInputTensor(dilatedKernelOp, 1, false);
                 auto DilatedKernelOpFetched = opIt.rightmostParent();
                 DilatedKernelOpFetched->set<unsigned>("opId", currentOpId);
             }
 
         }
-        
+
     }
-    
+
 }
