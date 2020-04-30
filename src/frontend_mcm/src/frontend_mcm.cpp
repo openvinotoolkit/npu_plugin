@@ -1627,12 +1627,13 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
         proposal_ins.push_back(input->getMcmNode());
     }
 
+    // FIXME mcmCompiler doesn't support std::vector<float> for constant operation
     auto scale = _modelMcm.constant(std::vector<double>(scale_data.begin(), scale_data.end()),
-        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
         "scale");
 
     auto ratio = _modelMcm.constant(std::vector<double>(ratio_data.begin(), ratio_data.end()),
-        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
         "ratio");
 
     proposal_ins.push_back(scale);
@@ -1640,7 +1641,7 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
 
     auto proposal = _modelMcm.proposal(proposal_ins, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride,
         min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale,
-        framework, for_deformable, mv::DType("Float16"));
+        framework, for_deformable, mv::DType("Default"));
 
     bindOutput(proposal, layer->outData[0]);
 }
