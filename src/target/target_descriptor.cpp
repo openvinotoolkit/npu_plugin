@@ -46,6 +46,7 @@ void mv::TargetDescriptor::reset()
     globalDType_ = DType("Float16");
     ops_.clear();
     memoryDefs_.clear();
+    nceDefs_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
