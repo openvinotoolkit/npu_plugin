@@ -17,6 +17,11 @@
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -86,6 +91,11 @@
             }
         ]
     },
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize"
+        ]
+    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -94,8 +104,11 @@
             "TensorsToFP16",
             "FusePostOps",
             "ConvolutionDilation",
+            "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -182,9 +195,11 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -325,6 +340,7 @@
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
