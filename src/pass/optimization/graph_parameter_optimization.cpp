@@ -372,9 +372,11 @@ namespace mv
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1}, clusterStrategy);
                     }
                     else
+                    {
                         weightSize += realTensorSize(op.getInputTensor(1),{1,1,streamConfig["C"],1,1}, isCMConv);
                         if(clusterStrategy == "SplitOverK")
                             weightSize = div(weightSize,totalClusters);
+                    }
 
                 }
                 else if(opType == "MaxPool")
