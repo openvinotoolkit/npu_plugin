@@ -3,15 +3,39 @@
 #include "include/mcm/utils/env_loader.hpp"
 #include <cstdlib>
 
-class TargetDescriptorTest : public testing::TestWithParam<std::tuple<mv::Target, const char*>> {};
+namespace {
+
+std::string getDescPath(mv::Target target)
+{
+    const char* filename;
+
+    switch (target)
+    {
+        case mv::Target::ma2490:
+            filename = "release_kmb.json";
+            break;
+
+        case mv::Target::ma3100:
+            filename = "release_thb.json";
+            break;
+
+        default:
+            ADD_FAILURE() << "Unimplemented target descriptor path";
+            filename = "unimplemented";
+            break;
+    }
+
+    return mv::utils::projectRootPath() + "/config/target/" + filename;
+}
+
+class TargetDescriptorTest : public testing::TestWithParam<mv::Target> {};
 
 TEST_P(TargetDescriptorTest, load_from_file)
 {
 
-    std::string descPath = mv::utils::projectRootPath() + std::string("/config/target/") + std::get<1>(GetParam());
     mv::TargetDescriptor desc;
-    ASSERT_TRUE(desc.load(descPath));
-    ASSERT_EQ(desc.getTarget(), std::get<0>(GetParam()));
+    ASSERT_TRUE(desc.load(getDescPath(GetParam())));
+    ASSERT_EQ(desc.getTarget(), GetParam());
 
 }
 
@@ -20,12 +44,12 @@ TEST_P(TargetDescriptorTest, compose)
 
     mv::TargetDescriptor desc;
     
-    desc.setTarget(std::get<0>(GetParam()));
+    desc.setTarget(GetParam());
     desc.setDType(mv::DType("Float16"));
 
     desc.defineOp("Conv");
 
-    ASSERT_EQ(desc.getTarget(), std::get<0>(GetParam()));
+    ASSERT_EQ(desc.getTarget(), GetParam());
     ASSERT_EQ(desc.getDType(), mv::DType("Float16"));
     ASSERT_TRUE(desc.opSupported("Conv"));
     ASSERT_FALSE(desc.opSupported("UndefinedOp"));
@@ -34,5 +58,16 @@ TEST_P(TargetDescriptorTest, compose)
 
 INSTANTIATE_TEST_SUITE_P(Targets,
                          TargetDescriptorTest,
-                         testing::Values(std::make_tuple(mv::Target::ma2490, "release_kmb.json"),
-                                         std::make_tuple(mv::Target::ma3100, "release_thb.json")));
+                         testing::Values(mv::Target::ma2490, mv::Target::ma3100));
+
+TEST(ThbDmaControllerCount, load_from_file)
+{
+
+    mv::TargetDescriptor desc;
+    ASSERT_TRUE(desc.load(getDescPath(mv::Target::ma3100)));
+    ASSERT_EQ(desc.nceDefs().at("DMAControllers").totalNumber, 2);
+
+}
+
+
+}  // namespace

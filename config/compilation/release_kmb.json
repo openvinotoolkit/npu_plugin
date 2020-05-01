@@ -86,6 +86,23 @@
             "ComputeMemory",
             "AssignUniqueOpId",
             {
+                "name": "ApplyTargetVars",
+                "Vars": [
+                    {
+                        "name": "dmaControllers",
+                        "block": "nce",
+                        "var": "DMAControllers",
+                        "default": 1
+                    },
+                    {
+                        "name": "csramLimit",
+                        "block": "nce",
+                        "var": "CSRAM",
+                        "default": 0
+                    }
+                ]
+            },
+            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 11,
