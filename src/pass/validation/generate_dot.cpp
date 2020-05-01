@@ -67,7 +67,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     {
         OpModel opModel(model);
 
-        for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
+        for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
         {
             if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
                 || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
@@ -151,7 +151,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
             DataModel dataModel(model);
 
-            for (auto opIt = opModel.getInput(); opIt != opModel.opEnd(); ++opIt)
+            for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
             {
                 if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
                     || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
