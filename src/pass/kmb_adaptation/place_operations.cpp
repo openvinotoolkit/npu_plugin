@@ -72,7 +72,7 @@ void changeSoftmaxAxis(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             mv::QuantizationParams inputTensorQuantizationParamsOpAfterSoftmax = inputTensorOpAfterSoftmax->get<mv::QuantizationParams>("quantParams");
             auto inputTensorType1 = inputTensorOpAfterSoftmax->get<mv::DType>("dType");
             auto outputTensorType1 = softmax->getOutputTensor(0)->get<mv::DType>("dType");
-            mv::Shape outputShape1 = {softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
+            mv::Shape outputShape1 = {softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
             auto reshapeAfterSoftmax = om.reshape(inputTensorOpAfterSoftmax, outputShape1, outputTensorType1, inputTensorQuantizationParamsOpAfterSoftmax,  opAfterSoftmax->getName() + "_reshape");
             auto reshapeOpAfterSoftmax = om.getSourceOp(reshapeAfterSoftmax);
             
