@@ -603,6 +603,9 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 
                 splits = splitsToFit;
 
+                if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+                cout << op.getName() << ": Calculating streams over H... weights fit" << endl;
+
                 // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
                 auto inputHeight = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                 unsigned upperBoundH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
@@ -1439,7 +1442,10 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                             // Note: Adjusting maxSplitOverH appropriately for nested is now handled on the fly
                             // for each possible stream over K, a single stream over H option that fits is chosen
                         }
-
+if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+    cout << "Considering {"<< clustering.toString() << "} :"<<endl <<
+    "    max k: " << streamsOverK.back() << ", num k: " << streamsOverK.size() << endl <<
+    "    max h: " << maxSplitOverH << ", min h: " << minSplitOverH << endl;
                     // for(unsigned n = 1; n <= maxSplitOverN; n++)
                     // {
                         for(const auto k : streamsOverK)
