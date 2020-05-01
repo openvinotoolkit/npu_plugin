@@ -4,6 +4,7 @@
 #include "include/mcm/target/target_descriptor.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/target/kmb/workloads.hpp"
+#include <cassert>
 #include <cmath>
 #include <numeric>
 #include <cmath>
@@ -17,6 +18,7 @@ static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void reorderDmasInScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
+static void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -71,6 +73,12 @@ namespace mv
         .setDescription(
             "This pass reorders DMAs emanating from a given barrier task so that a DMA task consumed earlier will \
             get a lower scheduling number"
+        );
+
+        MV_REGISTER_PASS(LayoutDMA)
+        .setFunc(layoutDMAFcn)
+        .setDescription(
+            "This pass optimizes DMA targets and port assignments"
         );
 
     }
@@ -648,4 +656,468 @@ void reorderDmasInScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
         }
 
     }
+}
+
+struct OpInfo {
+    OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_) : op{op_}, latencyNS{latencyNS_}, csramNS{latencyNS_}, isDMA{isDMA_} {}
+    OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_, std::uint64_t csramNS_, std::uint64_t size_) : op{op_}, latencyNS{latencyNS_}, csramNS{csramNS_}, size{size_}, isDMA{isDMA_}
+    {
+        isWeightDMA = op->getInputTensor(0)->hasAttr("graphFileIndex");
+    }
+
+    bool isCSRAMCandidate() const { return isWeightDMA && csramNS < latencyNS; }
+    std::uint64_t completeNS() const { return startNS + latencyNS; }
+    std::uint64_t completeNSUsingCSRAM() const { return startNS + csramNS; }
+
+    mv::Op* op;
+    std::uint64_t latencyNS;
+    std::uint64_t csramNS;
+    std::uint64_t size = 0;
+    std::uint64_t startNS = 0;
+    bool isDMA;
+    bool isWeightDMA = false;
+    int portIdx = 0;
+    mv::BarrierDependencies deps;
+};
+
+OpInfo analyzeOp(mv::Op& op)
+{
+    if (op.getOpType() == "DPUTask")
+    {
+        // TODO: Better models for DPU tasks.
+        //
+        // For now, we assume that DPU tasks execute in time proportional
+        // to their total IO.
+        std::uint64_t ioSize = 0;
+        for (auto& tensor : op.getInputTensor())
+        {
+            ioSize += tensor->dataPackedSize();
+        }
+        for (auto& tensor : op.getOutputTensor())
+        {
+            ioSize += tensor->dataPackedSize();
+        }
+        ioSize /= 100;  // Just a guess -- 10x DDR speed
+        return OpInfo{&op, false, ioSize};
+    }
+
+    if (op.getOpType() == "DMATask")
+    {
+        // TODO: Better models for DMA tasks.
+        //
+        // For now, we assume that DMA tasks execute in time proportional
+        // to the input tensor size, with a multipler dependent on the DMA
+        // direction.
+        std::uint64_t ioSize = 0;
+        for (auto& tensor : op.getInputTensor())
+        {
+            ioSize += tensor->size();
+        }
+
+        // Convert to nanos by dividing by the gbps rate of the transfer.
+        switch (op.get<mv::DmaDirection>("direction"))
+        {
+            case mv::DmaDirectionEnum::DDR2NNCMX:
+                return OpInfo{&op, true, ioSize * 8 / 20, ioSize * 8 / 32, ioSize};
+            case mv::DmaDirectionEnum::NNCMX2DDR:
+                ioSize /= 20;
+                return OpInfo{&op, true, ioSize * 8 / 20};
+            case mv::DmaDirectionEnum::CSRAM2NNCMX:
+                return OpInfo{&op, true, ioSize * 8 / 32};
+            default:
+                return OpInfo{&op, true, 0};  // Don't account for this DMA
+        }
+    }
+
+    return OpInfo{&op, false, 0};  // TODO: What other tasks should we handle here?
+}
+
+void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    // std::cerr << "LayoutDMA: Begin\n";
+
+    auto globalConfig = model.getGlobalConfigParams();
+    if (!globalConfig->hasAttr("csramLimit"))
+    {
+       return;
+    }
+
+    auto csramLimit = globalConfig->get<int>("csramLimit");
+    if (csramLimit <= 0)
+    {
+       return;
+    }
+
+    auto portLimit = globalConfig->get<int>("dmaControllers");
+
+    // std::cerr << "LayoutDMA: csramLimit=" << csramLimit
+    //           << " portLimit=" << portLimit
+    //           << "\n";
+    std::uint64_t csramAvailable = static_cast<std::uint64_t>(csramLimit);
+
+    mv::ControlModel controlModel(model);
+    auto ops = controlModel.schedulingSort();
+
+    // The goal of this pass is to determine a set of weight tensors
+    // to be placed into CSRAM (instead of DDR), with prioritization,
+    // to reduce the overall computation latency.
+    //
+    // So: We have a task list in scheduler order.  Conceptually, these
+    // tasks are going to be evaluated by some number of logical
+    // hardware components, and we can map each task to its hardware
+    // component (in fact, we don't even need to know about the hardware
+    // components in advance, other than the DMA controllers).  Task
+    // serialization by sequential hardware components and barriers
+    // creates dependencies between tasks.
+    //
+    // To reduce the overall latency, we repeatedly replace weights in
+    // DDR with weights in CSRAM, adjusting the corresonding weight
+    // tensor placement and DMA tasks appropriately.
+    //
+    // To select a weight tensor to place into CSRAM: we consider each
+    // weight tensor DMA operation in turn.  For each such operation, we
+    // determine a Cost for moving the weight tensor to CSRAM (the size
+    // of the data to DMA), and a Benefit (the reduction in overall
+    // latency).  We then select the weight tensor DDR DMA task with the
+    // highest benefit and a cost that fits within our remaining CSRAM
+    // budget, and reassign the corresponding weight tensor from DDR to
+    // CSRAM, keeping track of the order in which we move the tensors
+    // (for runtime prioritization in low-resource scenarios).
+    //
+    // (Note that we rebuild our per-barrier start times after each DMA
+    // source reassignment.  The reason is that this can affect port
+    // assignments and downstream barrier times -- so for correctness,
+    // we ought to re-model the entire network forward from each
+    // proposed weight tensor source modification in order to determine
+    // an accurate savings.  We don't do this, simply because the
+    // per-barrier cost approximation is correct for all networks we're
+    // currently optimizing for, and it's expected to produce almost
+    // identical results as the full network remodel.)
+    //
+    // There's a major limitation to this algorithm:
+    //
+    //   Since there may be multiple DMA controllers operating in
+    //   parallel, there will be cases where moving one of two weight
+    //   tensors to CSRAM provides almost no benefit, but where moving
+    //   both tensors provides a substantial benefit.
+    //
+    //   To solve this, a future version of this code might model weight
+    //   tensor groups, trying to identify sets of tensors that, when
+    //   moved to CSRAM together, provide a performance benefit
+    //   commensurate with their cost.
+    //
+    // There's another minor limitation: because we're considering
+    // operations in turn, and because we're unconcerned with loops, we
+    // will underestimate the impact of a weight tensor that's used
+    // multiple times.  In practice, that's not a concern for current
+    // networks we're optimizing for, but we may want to handle that
+    // case correctly in the future.
+
+    unsigned opLimit = 0;
+    unsigned barrierMax = 0;
+    for (auto op : ops)
+    {
+        ++opLimit;
+        auto deps = op->get<mv::BarrierDependencies>("BarrierDeps");
+        for (auto depWait : deps.getWait())
+        {
+            barrierMax = std::max(barrierMax, depWait);
+        }
+        for (auto depUpdate : deps.getUpdate())
+        {
+            barrierMax = std::max(barrierMax, depUpdate);
+        }
+    }
+
+    if (!barrierMax)
+    {
+        // Nothing to do.
+        return;
+    }
+
+    std::vector<OpInfo> opInfos;
+    opInfos.reserve(opLimit);
+
+    // Gather operation infos, including latencies.
+    for (auto op : ops)
+    {
+        auto opInfo = opInfos.emplace(opInfos.end(), analyzeOp(*op));
+        opInfo->deps = op->get<mv::BarrierDependencies>("BarrierDeps");
+        // std::cerr << "LayoutDMA: Found Op=" << op->getName()
+        //           << " ty=" << op->getOpType()
+        //           << ": wait=";
+        // for (auto wait : opInfo->deps.getWait())
+        // {
+        //     std::cerr << wait << " ";
+        // }
+        // std::cerr << " update=";
+        // for (auto update : opInfo->deps.getUpdate())
+        // {
+        //     std::cerr << update << " ";
+        // }
+        // std::cerr << "size=" << opInfo->size
+        //           << " isWeightDMA=" << opInfo->isWeightDMA << "\n"
+        //           << op->toString() << "\n";
+        // if (opInfo->isDMA)
+        // {
+        //     std::cerr << op->getInputTensor(0)->toString() << "\n";
+        // }
+        // std::cerr << "\n";
+    }
+
+    struct BarrierInfo
+    {
+        std::uint64_t startNS;
+        std::vector<OpInfo*> opInfos;
+    };
+
+    std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, {}});
+    for (auto& opInfo : opInfos)
+    {
+        for (auto depUpdate : opInfo.deps.getUpdate())
+        {
+            barrierInfos[depUpdate].opInfos.emplace_back(&opInfo);
+        }
+    }
+
+    struct PortInfo
+    {
+        std::uint64_t busyUntil;
+    };
+
+    std::vector<PortInfo> portInfos(portLimit);
+
+    struct TensorInfo
+    {
+        std::list<OpInfo*> readers;
+        int priority;
+    };
+
+    std::unordered_map<mv::Tensor*, TensorInfo> tensorInfos;
+    for (auto& opInfo : opInfos)
+    {
+        if (!opInfo.isCSRAMCandidate())
+        {
+            continue;
+        }
+        for (auto& tensor : opInfo.op->getInputTensor())
+        {
+            tensorInfos[&*tensor].readers.emplace_back(&opInfo);
+            tensorInfos[&*tensor].priority = -1;
+        }
+    }
+
+    int currentPriority = 0;
+
+    for (;;)
+    {
+        std::fill(portInfos.begin(), portInfos.end(), PortInfo{0});
+        for (auto& barrierInfo : barrierInfos)
+        {
+            barrierInfo.startNS = 0;
+        }
+
+        // Compute per-barrier latencies, including port effects.
+        for (auto& opInfo : opInfos)
+        {
+            // std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
+            //           << " ty=" << opInfo.op->getOpType()
+            //           << ": wait=";
+            // for (auto wait : opInfo->deps.getWait())
+            // {
+            //     std::cerr << wait << " ";
+            // }
+            // std::cerr << " update=";
+            //           << " update=";
+            // for (auto update : opInfo.deps.getUpdate())
+            // {
+            //     std::cerr << update << " ";
+            // }
+            // std::cerr << "LayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
+            opInfo.startNS = 0;
+            for (auto depWait : opInfo.deps.getWait())
+            {
+                opInfo.startNS = std::max(opInfo.startNS, barrierInfos.at(depWait).startNS);
+            }
+            if (opInfo.isDMA)
+            {
+                // Assign the DMA to a port, since our model needs to account
+                // for limited port availability.
+                std::size_t portIdx = 0;
+                for (auto portIdxT = 1; portIdxT < portLimit; ++portIdxT)
+                {
+                    if (portInfos.at(portIdxT).busyUntil < portInfos.at(portIdx).busyUntil)
+                    {
+                        portIdx = portIdxT;
+                    }
+                }
+                opInfo.portIdx = portIdx;
+                opInfo.startNS = std::max(opInfo.startNS, portInfos.at(portIdx).busyUntil);
+                portInfos.at(portIdx).busyUntil = opInfo.completeNS();
+                // std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
+            }
+            // std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
+            // std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
+            for (auto depUpdate : opInfo.deps.getUpdate())
+            {
+                barrierInfos.at(depUpdate).startNS = std::max(barrierInfos.at(depUpdate).startNS, opInfo.completeNS());
+            }
+            // std::cerr << "\n";
+        }
+
+        // std::cerr << "LayoutDMA: csramAvailable = " << csramAvailable << "\n";
+
+        // Compute the benefit for each candidate operation, saving the best we have so far.
+        struct Plan
+        {
+            OpInfo* opInfo;
+            std::uint64_t benefitNS;
+        };
+
+        auto bestPlan = Plan{nullptr, 0};
+        for (auto& opInfo : opInfos)
+        {
+            // std::cerr << "LayoutDMA: Planning Op=" << opInfo.op->getName()
+            //           << " ty=" << opInfo.op->getOpType()
+            //           << ": latency=" << opInfo.latencyNS
+            //           << " csramNS=" << opInfo.csramNS
+            //           << " size=" << opInfo.size
+            //           << " port=" << opInfo.portIdx
+            //           << "\n";
+            if (!opInfo.isCSRAMCandidate() || csramAvailable < opInfo.size)
+            {
+                continue;
+            }
+            std::fill(portInfos.begin(), portInfos.end(), PortInfo{0});
+            auto plan = Plan{&opInfo, 0};
+            for (auto depUpdate : opInfo.deps.getUpdate())
+            {
+                std::uint64_t newStartNS = 0;
+                auto& barrierInfo = barrierInfos.at(depUpdate);
+                for (auto opInfoT : barrierInfo.opInfos)
+                {
+                    std::uint64_t completeNS = (opInfoT == &opInfo
+                                                  ? opInfoT->completeNSUsingCSRAM()
+                                                  : opInfoT->completeNS());
+                    if (opInfoT->isDMA)
+                    {
+                        portInfos.at(opInfoT->portIdx).busyUntil = std::max(portInfos.at(opInfoT->portIdx).busyUntil, completeNS);
+                    }
+                    else
+                    {
+                        newStartNS = std::max(newStartNS, completeNS);
+                    }
+                }
+
+                // TODO: This is the point where it might be useful to
+                // consider additional optimization possibilities -- e.g. if
+                // two DMAs are holding up the barrier, moving either to CSRAM
+                // will not help, but moving both might help substantially.
+                //
+                // One way to do this might be to consider whether the current
+                // operation's port dominates the barrier time; if it does,
+                // but the benefit of moving the current DMA to come from
+                // CSRAM isn't fully realized due to another port, we might
+                // consider scanning the other ports for combinations of
+                // tensors to move.
+
+                for (auto& portInfo : portInfos)
+                {
+                    newStartNS = std::max(newStartNS, portInfo.busyUntil);
+                }
+
+                assert(newStartNS <= barrierInfo.startNS);
+                newStartNS = std::min(newStartNS, barrierInfo.startNS);  // Just being careful
+
+                plan.benefitNS += barrierInfo.startNS - newStartNS;
+            }
+            if (plan.benefitNS > bestPlan.benefitNS)
+            {
+                bestPlan = plan;
+            }
+        }
+
+        if (bestPlan.opInfo)
+        {
+            // std::cerr << "LayoutDMA: Moving to CSRAM: Op=" << bestPlan.opInfo->op->getName()
+            //           << " ty=" << bestPlan.opInfo->op->getOpType()
+            //           << " benefit=" << bestPlan.benefitNS
+            //           << " size=" << bestPlan.opInfo->size
+            //           << "\n";
+            csramAvailable -= bestPlan.opInfo->size;
+
+            for (auto& tensor : bestPlan.opInfo->op->getInputTensor())
+            {
+                tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CSRAM);
+                auto& ti = tensorInfos.at(&*tensor);
+                if (ti.priority < 0)
+                {
+                    ti.priority = currentPriority++;
+                }
+                for (auto updateOpInfo : ti.readers)
+                {
+                    updateOpInfo->latencyNS = updateOpInfo->csramNS;
+                    updateOpInfo->op->set<mv::DmaDirection>("direction", mv::DmaDirectionEnum::CSRAM2NNCMX);
+                }
+            }
+            assert(bestPlan.opInfo->latencyNS == bestPlan.opInfo->csramNS);
+        }
+        else
+        {
+            // std::cerr << "LayoutDMA: No useful tensor optimizations available\n";
+            break;
+        }
+    }
+
+    // At this point, we happen to have pretty good port assignments for
+    // all operations in the opInfos vector, so update all of them.
+    for (auto& opInfo : opInfos)
+    {
+        if (opInfo.isDMA)
+        {
+            opInfo.op->set<std::uint8_t>("port", opInfo.portIdx);
+        }
+    }
+
+    // Rewrite graphFileIndex values.  The DDR tensors are first in
+    // the blob, followed by the CSRAM tensors; CSRAM tensors are
+    // ordered with highest priority (lowest numerical priority) at
+    // the end of the blob.
+    unsigned graphFileTensorLimit = 0;
+    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
+    {
+        if (t->hasAttr("graphFileIndex"))
+        {
+            ++graphFileTensorLimit;
+        }
+    }
+
+    unsigned currentDDRIdx = 0;
+    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
+    {
+        if (t->hasAttr("graphFileIndex"))
+        {
+            unsigned idx;
+            auto ti = tensorInfos.find(&*t);
+            if (ti != tensorInfos.end() && 0 <= ti->second.priority)
+            {
+                idx = graphFileTensorLimit - ti->second.priority - 1;
+            }
+            else
+            {
+                idx = currentDDRIdx++;
+            }
+            t->set("graphFileIndex", idx);
+        }
+    }
+
+    // std::cerr << "LayoutDMA: Final Tensors:\n";
+    // for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
+    // {
+    //     std::cerr << "\n" << ti->toString() << "\n";
+    // }
+
+    // std::cerr << "LayoutDMA: End\n";
 }
