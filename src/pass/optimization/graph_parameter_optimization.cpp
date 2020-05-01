@@ -1443,7 +1443,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                             // for each possible stream over K, a single stream over H option that fits is chosen
                         }
 if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
-    cout << "Considering {"<< clustering.toString() << "} :"<<endl <<
+    cout << "Considering {"<< clustering.toString() << "} : nested: " << enableNestedStreaming<<endl <<
     "    max k: " << streamsOverK.back() << ", num k: " << streamsOverK.size() << endl <<
     "    max h: " << maxSplitOverH << ", min h: " << minSplitOverH << endl;
                     // for(unsigned n = 1; n <= maxSplitOverN; n++)
@@ -1454,6 +1454,8 @@ if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
                             {
                                 maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,k,1},fakeSparsity);
                                 minSplitOverH = maxSplitOverH -1;
+                                if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+                                    cout << " enabled nested streaming... h:" << maxSplitOverH<<endl;
                             }
                             for(unsigned h = minSplitOverH; h <= maxSplitOverH; h++)
                             {
@@ -1487,7 +1489,11 @@ if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
                                     s["streaming"] = streamShape;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
-                                    if(!createStrategyDots and (checkForBadStrategy(op,s) > 0))
+                                    auto strategyCheck = checkForBadStrategy(op,s);
+                                    if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add"){
+                                        cout << " {"<< clustering.toString() << "} : k: " << k << ", h: " << h << " : " << strategyCheck << endl;
+                                    }
+                                    if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
 
                                     strategyVec.push_back(s);
