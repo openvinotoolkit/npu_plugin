@@ -33,7 +33,8 @@ namespace mv
                 OUTPUT = 4,
                 BLOB = 5,
                 VIRTUAL = 6,
-                DEFAULT = 7
+                CSRAM = 7,
+                DEFAULT = 8
             };
         private:
             Location location_;
@@ -48,6 +49,7 @@ namespace mv
                             {"OUTPUT",OUTPUT},
                             {"BLOB",BLOB},
                             {"VIRTUAL",VIRTUAL},
+                            {"CSRAM",CSRAM},
                             {"DEFAULT",DEFAULT}
                     };
             }

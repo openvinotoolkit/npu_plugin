@@ -57,7 +57,8 @@ namespace mv
             void operator=(RuntimeModel const&) = delete;
 
             // CONVERT METHODS (String to enums, enums to strings, enums mapping etc)
-            static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName);
+            static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName,
+                                                                        mv::Tensor::MemoryLocation& tensorLocation);
             static MVCNN::DType convertDtype(const DType& dtype);
             static MVCNN::DPULayerType convertTaskOp(const std::string& opName);
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
