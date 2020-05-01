@@ -400,7 +400,7 @@ set(
     ${SOURCE_DIR}/run/depthwise_conv.cpp
     ${SOURCE_DIR}/run/eltwise.cpp
     ${SOURCE_DIR}/run/max_pool.cpp
-    ${SOURCE_DIR}/run/parse.cpp
+    ${SOURCE_DIR}/run/parsing.cpp
     ${SOURCE_DIR}/run/software/argmax.cpp
     ${SOURCE_DIR}/run/software/concat.cpp
     ${SOURCE_DIR}/run/software/copy.cpp
@@ -417,7 +417,7 @@ set(
     ${SOURCE_DIR}/run/software/roi_pooling.cpp
     ${SOURCE_DIR}/run/software/slice.cpp
     ${SOURCE_DIR}/run/software/softmax.cpp
-    ${SOURCE_DIR}/run/validate.cpp)
+    ${SOURCE_DIR}/run/validation.cpp)
 set(
     UTILS
     ${PRECOMPILED_DIR}/utils/assert.cpp)

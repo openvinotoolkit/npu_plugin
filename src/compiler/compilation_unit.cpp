@@ -303,16 +303,9 @@ void mv::CompilationUnit::generateExpectedResults()
 
     //const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
     //emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
-    emulatorManager.input("input#170")->populate(input0Data, mv::Order::getZMajorID(4));
+    //emulatorManager.input("input#170")->populate(input0Data, mv::Order::getZMajorID(4));
+    emulatorManager.populate(*(emOM.getOps("Input")[0]->getInputTensor()[0]), mv::Order::getZMajorID(4), input0Data);
     
-    emulatorManager.initializeTensors();    // copy the source data to emulator
     std::cout << "Generating results..." << std::endl;
     emulatorManager.run();
-
-    // Dump the output.
-    std::string outputFile = "output/expected_results_mcm.dat";
-    const std::string outputName = emOM.getOps("Output")[0]->getInputTensor()[0]->getName();
-    const mv::Data::TensorIterator outputTensor = emulatorManager.output(outputName.substr(0, outputName.size() - 2));
-    outputTensor->setOrder(mv::Order::getZMajorID(4));
-    write<std::int64_t, std::uint16_t>(outputTensor->getIntData(), outputFile);
 }
