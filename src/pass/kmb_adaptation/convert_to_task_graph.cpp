@@ -570,6 +570,17 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             setOutputDataFlow(om, newTensor, outputDataFlows);
             setInputControlFlow(cm, cm.switchContext(newTensorOp), inputControlFlows);
             setOutputControlFlow(cm, cm.switchContext(newTensorOp), outputControlFlows);
+
+            // Handle dtype for implicit ops following a UPATask
+            if(newTensorOp->getOpType() == "UPATask")
+            {
+                auto outputOp = newTensorOp.leftmostOutput().sink();
+                while(outputOp->getOpType() == "ImplicitOutput" || outputOp->getOpType() == "ImplicitUnion")
+                {
+                    outputOp->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
+                    outputOp = outputOp.leftmostOutput().sink();
+                }
+            }
         }
     }
 }

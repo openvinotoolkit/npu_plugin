@@ -35,7 +35,7 @@ struct model_traits<mv::ControlModel> {
 
   //TODO(vamsikku): reference to model must be const here //
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getFirst();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -62,7 +62,7 @@ struct model_traits<mv::OpModel> {
 
 
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getInput();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -140,6 +140,19 @@ struct Scheduled_Op {
 
   typedef mv::Op const * operation_t;
   operator operation_t() const { return op_; }
+
+  void set_start_address(size_t start_address) {
+    cmx_address_start_ = start_address;
+  }
+
+  void set_end_address(size_t end_address) {
+    cmx_address_end_ = end_address;
+  }
+
+  void invalidate_address() {
+    cmx_address_start_= std::numeric_limits<size_t>::max();
+    cmx_address_end_= std::numeric_limits<size_t>::min();
+  }
 
 
   mv::Op const * op_;
@@ -265,8 +278,8 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Copy", "Align",
-          "ImplicitReshape", "ImplicitPermute", "ImplicitOutput"} ) {
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+                            "ImplicitPermute", "ImplicitOutput", "ImplicitInput", "ImplicitInputSlice"} ) {
         init_from_model(model);
     }
 
@@ -551,6 +564,10 @@ class Operation_Dag {
       return op->getOpType() == "DPUTask";
     }
 
+    bool is_upa_op(operation_t op) const {
+      return op->getOpType() == "UPATask";
+    }
+
     bool has_edge_between_ops(operation_t a, operation_t b) const {
       const_operation_iterator_t citr = begin_nodes(a), citr_end = end_nodes(a);
       for (; citr != citr_end; ++citr) {
@@ -591,7 +608,6 @@ class Operation_Dag {
 
         bfs_list.pop_front();
         op_size_table_t::iterator itr = op_size_table.find(curr_op);
-
 
         resource_t curr_op_utility = resource_utility(curr_op);
 
@@ -676,10 +692,11 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") ||
+      return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
-              (op->getOpType() == "ImplicitUnion");
+          (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
+          (op->getOpType() == "ImplicitInputSlice");
     }
 
 
@@ -1234,7 +1251,6 @@ class Operation_Dag {
     }
 
 
-  private:
 
 
     bool does_the_op_run_on_hardware(operation_t op) const {
@@ -1249,6 +1265,17 @@ class Operation_Dag {
       return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
           (dma_dir == mv::DmaDirectionEnum::UPACMX2DDR);
     }
+
+    bool is_dma_op_moving_data_from_ddr_to_cmx(operation_t op) const {
+      if ((op->getOpType()) != "DMATask") { return false; }
+
+      mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
+
+      return (dma_dir == mv::DmaDirectionEnum::DDR2NNCMX) ||
+          (dma_dir == mv::DmaDirectionEnum::DDR2UPACMX);
+    }
+
+  private:
 
 
     //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //

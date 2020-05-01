@@ -89,6 +89,15 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("weightsSparsity").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
+    .enter("ImplicitInput")
+    .registerSet("streamingStrategies").insert(vector<string>(0))
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering", "SplitOverK", "SplitOverH", "SplitOverHOverlapped"})
+    .registerSet("forceSpilling").insert(false)
+    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("outputActivationSparsity").insert(false)
+    .registerSet("weightsSparsity").insert(false);
+
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Output")
     .registerSet("streamingStrategies").insert(vector<string>(0))
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering", "SplitOverH", "SplitOverK"})

@@ -18,29 +18,16 @@ int main()
     unit.loadTargetDescriptor(mv::Target::ma2490);
 
     const auto data_0 = model.input({27, 27, 96, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{0.00196078431372549},{-inf},{inf},{0},{1}}, "data");
-//    std::vector<int64_t> weightsData0 = {   255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//                                            255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (6144, 0, 0);
 
-    auto weights0 = model.constantInt(weightsData0,{1,1,48,128}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
+    std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (12288, 0, 0);
+
+    auto weights0 = model.constantInt(weightsData0,{1,1,48,256}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
     auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 2,  mv::DType("UInt8"),{{0},{0.00392156862745098},{-inf},{inf},{0},{1}} , "conv");
-
-    model.output(conv0, mv::DType("Float16"), {{},{},{},{}});
+    std::vector<int64_t> biasData0 = mv::utils::generateSequence<int64_t> (256, 0, 0);
+    auto bias0 = model.constantInt(biasData0, {256}, mv::DType("Int32"), mv::Order::getRowMajorID(1), {{0}, {0.000000768935}, {}, {}});
+    auto bias = model.bias(conv0, bias0, mv::DType("UInt8"), {{0}, {0.000000768935}, {}, {}});
+    model.output(bias, mv::DType("Float16"), {{},{},{},{}});
     unit.initialize();
     unit.run();
 }

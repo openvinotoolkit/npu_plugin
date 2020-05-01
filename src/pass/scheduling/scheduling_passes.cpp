@@ -415,15 +415,29 @@ void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
         }
     }
 
+    // Remove trailing UPATasks from availableTasks
+    auto upaTasks = cm.getOps("UPATask");
+    for (auto& task : upaTasks)
+        if (task->hasAttr("trailing") && task->get<bool>("trailing"))
+            availableTasks.erase(task->getName());
+
     std::vector<std::string> scheduling;
     std::unordered_set<std::string> barriersInMemory;
-    if(!generateSchedulingRecursively(model, availableTasks, scheduling, barriersInMemory))
+    if(!availableTasks.empty() && !generateSchedulingRecursively(model, availableTasks, scheduling, barriersInMemory))
         throw "Impossible to schedule";
 
     unsigned i = 0;
     for(auto& task : scheduling)
         model.getOp(task)->set<unsigned>("schedulingNumber", i++);
 
+    // Schedule trailing UPATasks
+    mv::OpModel om(model);
+    for (auto task = om.opBegin(); task != om.opEnd(); ++task)
+    {
+        if (task->hasAttr("trailing") && task->get<bool>("trailing"))
+            if (std::find(scheduling.begin(), scheduling.end(), task->getName()) == scheduling.end())
+                task->set<unsigned>("schedulingNumber", i++);
+    }
 }
 
 void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)

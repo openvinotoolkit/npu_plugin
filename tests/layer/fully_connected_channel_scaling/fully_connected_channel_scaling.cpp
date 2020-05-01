@@ -29,7 +29,7 @@ int main()
     auto fullyConnected = om.fullyConnected(input, weights1, mv::DType("UInt8"), {{0},{1.0},{},{}});
     auto output = om.output(fullyConnected);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);

@@ -268,6 +268,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
@@ -299,7 +300,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_layer_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_sparsity_solution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_operation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/sparsity_maps.cpp"
@@ -310,6 +312,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/streaming/spatial_split_streaming.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/kmb_quantize.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/force_serialize.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/mark_trailing_upatasks.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
@@ -387,7 +390,7 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(model SHARED ${model})
-    
+
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
@@ -447,7 +450,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-install(TARGETS cm model 
+install(TARGETS cm model
         EXPORT mcmCompilerTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

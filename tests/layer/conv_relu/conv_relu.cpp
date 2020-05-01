@@ -18,7 +18,7 @@ int main()
     auto relu = om.relu(conv0,  mv::DType("Int8"), {{0},{1},{},{}}, "relu");
     om.output(relu);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);
