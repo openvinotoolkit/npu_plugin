@@ -240,11 +240,87 @@ namespace mv
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
+            // size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
+            // {
+            //     // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+
+            //     Shape worstStreamPool = streamingPool;
+
+            //     Shape tensorShape = tensorToSize->getShape();
+            //     //update the streamingPool to the worst combination, based on slice sizes
+            //     size_t outputSize;
+            //     size_t numberOfSplits;
+            //     if(streamingPool["H"] > 1) // If streaming over H
+            //     {
+            //         outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+            //         numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+            //         int newOutputSize = newOutputSizes.front();
+
+            //         int remainderOutputSize = newOutputSizes.back();
+            //         if (remainderOutputSize > newOutputSize)
+            //             newOutputSize = remainderOutputSize;
+
+            //         // TODO determine when there will be overlap, for now consider worst case scenario of +2
+            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
+
+            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
+            //         worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
+            //     }
+            //     else if(streamingPool["B"] > 1) // If streaming over N
+            //     {
+            //         outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
+            //         numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
+            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+            //         int newOutputSize = newOutputSizes.front();
+
+            //         int remainderOutputSize = newOutputSizes.back();
+            //         if (remainderOutputSize > newOutputSize)
+            //             newOutputSize = remainderOutputSize;
+
+            //         auto worstNumberOfSplits = outputSize/newOutputSize;
+            //         worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
+            //     } 
+            //     if (streamingPool["K"] > 1)
+            //     {
+            //         outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
+            //         numberOfSplits = streamingPool["K"];
+            //         int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
+
+            //         int remainderOutputSize = outputSize - (newOutputSize*(numberOfSplits -1));
+            //         if (remainderOutputSize > newOutputSize)
+            //             newOutputSize = remainderOutputSize;
+
+            //         // TODO determine when there will be overlap
+            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
+
+            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
+            //         worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
+            //     }
+
+            //     //TODO add handling for weights case if we dont align it to 16 always
+            //     size_t streamDivisor = 1;
+            //     for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
+            //     {
+            //         streamDivisor = streamDivisor * worstStreamPool[dim];
+            //     }
+
+            //     if(isCMConv)
+            //         return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
+
+            //     return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+            // }
+
             size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
-                Shape worstStreamPool = streamingPool;
+                // Shape worstStreamPool = streamingPool;
+                vector<double> worstStreamPool;
+                for(size_t dim = 0; dim <  streamingPool.ndims(); ++dim)
+                {
+                    worstStreamPool.push_back(streamingPool[dim]);
+                }
 
                 Shape tensorShape = tensorToSize->getShape();
                 //update the streamingPool to the worst combination, based on slice sizes
@@ -262,24 +338,26 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     // TODO determine when there will be overlap, for now consider worst case scenario of +2
-                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
+                    double worstNumberOfSplits = ((double)outputSize/(newOutputSize+2));
 
-                    if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
+                    if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
                 }
                 else if(streamingPool["B"] > 1) // If streaming over N
                 {
-                    outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-                    numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-                    int newOutputSize = newOutputSizes.front();
+                    // Note: all streaming over batch must equal size of batch, other not enabled from runtime+workloads
+                    worstStreamPool[mv::IO_BATCH_DIMENSION] = streamingPool["B"];
+                    // outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
+                    // numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
+                    // auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    // int newOutputSize = newOutputSizes.front();
 
-                    int remainderOutputSize = newOutputSizes.back();
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
+                    // int remainderOutputSize = newOutputSizes.back();
+                    // if (remainderOutputSize > newOutputSize)
+                    //     newOutputSize = remainderOutputSize;
 
-                    auto worstNumberOfSplits = outputSize/newOutputSize;
-                    worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
+                    // double worstNumberOfSplits = outputSize/newOutputSize;
+                    // worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
                 } 
                 if (streamingPool["K"] > 1)
                 {
@@ -292,25 +370,24 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     // TODO determine when there will be overlap
-                    auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
+                    double worstNumberOfSplits = (double)outputSize/(newOutputSize+2);
 
-                    if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
+                    if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
                 }
 
                 //TODO add handling for weights case if we dont align it to 16 always
-                size_t streamDivisor = 1;
-                for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
+                double streamDivisor = 1;
+                for(auto stream: worstStreamPool)
                 {
-                    streamDivisor = streamDivisor * worstStreamPool[dim];
+                    streamDivisor = streamDivisor * stream;
                 }
 
                 if(isCMConv)
-                    return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
+                    return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor);
 
-                return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
+                return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor);
             }
-
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, string clustering){
                 auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
@@ -546,12 +623,12 @@ namespace mv
                     auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                     auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     if(splits > dim/kernelSize)
-                        splits = dim/kernelSize;
+                        return dim/kernelSize;
                     if(splits < 1)
-                        splits  = 1;
+                        return 1;
                 }
 
-                return splits;
+                return splits + 1; // consider one extra H stream, just in case
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
@@ -1368,7 +1445,7 @@ namespace mv
                             if(enableNestedStreaming) // generate h on the fly
                             {
                                 maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,k,1},fakeSparsity);
-                                minSplitOverH = maxSplitOverH;
+                                minSplitOverH = maxSplitOverH -1;
                             }
                             for(unsigned h = minSplitOverH; h <= maxSplitOverH; h++)
                             {
