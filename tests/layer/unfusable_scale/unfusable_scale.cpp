@@ -21,7 +21,7 @@ int main()
     auto bias = om.bias(scale, bias0, mv::DType("UInt8"), {{118}, {0.0172290776471}, {}, {}});
     om.output(bias);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.compilationDescriptor().remove("adapt", "PostTrainingQuantize");
     unit.loadTargetDescriptor(mv::Target::ma2490);

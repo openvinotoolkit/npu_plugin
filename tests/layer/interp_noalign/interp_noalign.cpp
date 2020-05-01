@@ -12,7 +12,7 @@ int main()
     auto interp0 = om.interp(input0, 2.0, 0, 0 , 0, 0, false, mv::DType("Float16"));
     om.output(interp0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

@@ -216,7 +216,6 @@ class ImplicitConcat_Connected_Component {
 
 
 
-
 class Control_Edge_Set {
   public:
     ////////////////////////////////////////////////////////////////////////////
@@ -233,11 +232,21 @@ class Control_Edge_Set {
     typedef std::unordered_map<operation_t, size_t> control_in_degree_map_t;
     typedef typename edge_set_t::const_iterator const_edge_iterator_t;
     typedef size_t schedule_time_t;
+
+    template<typename dag_t>
+    struct real_op_selector_t {
+      bool operator()(const dag_t& in, const operation_t& op) const {
+        return !in.is_implicit_op(op) && !in.is_output_op(op);
+      }
+    }; // struct real_op_selector_t //
+
     ////////////////////////////////////////////////////////////////////////////
 
-    Control_Edge_Set(mv::ControlModel& cmodel)
+    Control_Edge_Set(mv::ControlModel& cmodel, bool clear_control_edges=true)
       : control_edge_set_(), iterator_lookup_(), relocating_dma_map_(),
-      in_degree_(), zero_indegree_temporal_control_(false) { init(cmodel); }
+      in_degree_(), zero_indegree_temporal_control_(false) {
+        init(cmodel, clear_control_edges);
+    }
 
     void operator()(const scheduled_op_t& a, const scheduled_op_t& b) {
       control_edge_set_.insert( control_edge_t(a.op_, b.op_) );
@@ -261,20 +270,8 @@ class Control_Edge_Set {
 
     }
 
-    // TODO(vamsikku):
-    // Given two ops (op1, op2) such that op1 (t1) is scheduled before op2 (t2)
-    // and their CMX addresses overlap we need to add control edges between
-    // all consumers of op1 scheduled between [t1, t2] and op2 //
     template<typename OpDag, typename ScheduledOpIterator>
-    void add_consumer_control_edges(ScheduledOpIterator sbegin,
-        ScheduledOpIterator send, operation_t source, operation_t sink) {
-      std::unordered_map<operation_t, size_t> op_schedule_info;
-
-
-    }
-
-    template<typename OpDag, typename ScheduledOpIterator>
-    void add_edges_to_fresh_control_model(
+    void add_cmx_memory_control_edges(
         const OpDag& dag, mv::ComputationModel& model,
         ScheduledOpIterator sbegin, ScheduledOpIterator send,
         bool generate_temporal_edges=true) {
@@ -295,12 +292,69 @@ class Control_Edge_Set {
       }
     }
 
+    template<typename OpDag, typename ScheduledOpIterator>
+    void add_ddr_memory_control_edges(
+        const OpDag& dag, mv::ComputationModel& model,
+        ScheduledOpIterator sbegin, ScheduledOpIterator send, FILE *fptr=NULL) {
+      add_control_edges_between_writes_and_reads(dag, model);
+      add_memory_control_edges(dag, model, sbegin, send, fptr);
+    }
 
   private:
 
 
+    template<typename dag_t> 
+    void add_control_edges_between_writes_and_reads(const dag_t& dag,
+        mv::ComputationModel& model) {
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) { continue; }
+
+        for (typename dag_t::const_operation_iterator_t
+              citr=dag.begin_nodes(op); citr!=dag.end_nodes(op); ++citr) {
+          operation_t cop = *citr;
+          if (dag.is_dma_op_moving_data_from_ddr_to_cmx(cop) ||
+              dag.is_upa_op(cop)) {
+            add_control_edge(op, cop, model);
+          }
+        }
+      }
+    }
+
     template<typename OpDag, typename ScheduledOpIterator>
-    void add_memory_control_edges(
+    void add_memory_control_edges(const OpDag& input_dag,
+        mv::ComputationModel& model,
+        ScheduledOpIterator sbegin, ScheduledOpIterator send, FILE *fptr=NULL) {
+      typedef real_op_selector_t<OpDag> op_selector_t;
+      typedef Memory_Control_Edge_Generator<OpDag, op_selector_t> generator_t;
+      typedef typename generator_t::memory_control_edge_t memory_control_edge_t;
+
+      std::list<memory_control_edge_t> final_control_edges;
+      generator_t generator;
+
+      generator.generate(input_dag, sbegin, send,
+          std::back_inserter(final_control_edges));
+
+      for (auto eitr=final_control_edges.begin();
+            eitr!=final_control_edges.end(); ++eitr) {
+        add_control_edge(eitr->source_, eitr->sink_, model);
+      }
+
+      if (fptr) {
+        for (auto eitr=final_control_edges.begin();
+              eitr!=final_control_edges.end(); ++eitr) {
+          fprintf(fptr, "[MemoryControlEdge] %s -> %s \n",
+              (eitr->source_)->getName().c_str(),
+              (eitr->sink_)->getName().c_str());
+        }
+      }
+    }
+
+
+    template<typename OpDag, typename ScheduledOpIterator>
+    void add_memory_control_edges_old(
         const OpDag& input_dag, mv::ComputationModel& model,
         ScheduledOpIterator sbegin, ScheduledOpIterator send) {
 
@@ -462,9 +516,8 @@ class Control_Edge_Set {
           printfInfo("LpScheduler:",
               "[cycle : edge (sink<-source) = (%s <- %s)]\n",
               sink->getName().c_str(), source->getName().c_str());
-          fflush(stdout);
+          throw "[LpScheduler] unexpected cycle in the control DAG ";
         }
-        assert(!cmodel.pathExists(oitr_sink, oitr_source));
         cmodel.defineFlow(oitr_source, oitr_sink);
         edge_added = true;
       }
@@ -589,8 +642,6 @@ class Control_Edge_Set {
 
         for (size_t p=0; p<parents.size(); p++) {
           for (size_t c=0; c<children.size(); c++) {
-            printf("ImplicitConcat: (%s,%s)\n",
-                parents[p]->getName().c_str(), children[c]->getName().c_str());
             add_control_edge(parents[p], children[c], model);
           }
         }
@@ -638,7 +689,7 @@ class Control_Edge_Set {
           map_itr->second;
     }
 
-    void init(mv::ControlModel& cmodel) {
+    void init(mv::ControlModel& cmodel, bool clear_control_edges) {
       iterator_lookup_.clear();
       for (op_iterator_t itr=mtraits::begin_operations(cmodel);
           itr!=mtraits::end_operations(cmodel); ++itr) {
@@ -646,7 +697,9 @@ class Control_Edge_Set {
         assert(iterator_lookup_.find(op) == iterator_lookup_.end());
         iterator_lookup_.insert(std::make_pair(op, itr));
       }
-      clear_all_edges_in_control_model(cmodel);
+      if (clear_control_edges) {
+        clear_all_edges_in_control_model(cmodel);
+      }
     }
 
 
@@ -1365,6 +1418,7 @@ class DDR_Address_Generator {
   public:
     ////////////////////////////////////////////////////////////////////////////
     typedef OpDag dag_t;
+    typedef typename dag_t::scheduled_op_t scheduled_op_t;
     typedef typename dag_t::operation_t operation_t;
     typedef typename dag_t::resource_utility_map_t resource_utility_map_t;
     typedef typename dag_t::const_operation_iterator_t
@@ -1391,9 +1445,12 @@ class DDR_Address_Generator {
     typedef DAG_Address_Generator<dag_t, size_t, ddr_op_selector_t,
               ddr_op_utility_t> address_generator_t;
     typedef typename address_generator_t::address_info_t address_info_t;
+    typedef std::unordered_map<operation_t, address_info_t> ddr_address_table_t;
 
     struct ddr_address_setter_t {
-      ddr_address_setter_t(FILE *fptr=NULL) : fptr_(fptr) {}
+      ddr_address_setter_t(FILE *fptr=NULL,
+          ddr_address_table_t *address_table_ptr=NULL)
+        : fptr_(fptr), address_table_ptr_(address_table_ptr) {}
 
       bool operator=(const address_info_t& address_info) const {
         mv::Op * const op_ptr = const_cast<mv::Op *>(address_info.op_);
@@ -1406,9 +1463,16 @@ class DDR_Address_Generator {
           fprintf(fptr_, " op=%s ddr=[%lu %lu]\n", (op_ptr->getName()).c_str(),
                 address_info.address_begin_, address_info.address_end_);
         }
+
+        if (address_table_ptr_) {
+          operation_t key = address_info.op_;
+          assert(address_table_ptr_->find(key) == address_table_ptr_->end());
+          (*address_table_ptr_)[key] = address_info;
+        }
         return true;
       }
 
+      ddr_address_table_t *address_table_ptr_;
       FILE *fptr_;
     }; // struct ddr_address_setter_t //
 
@@ -1422,6 +1486,63 @@ class DDR_Address_Generator {
       sched_op_t(operation_t op, size_t time) : op_(op), time_(time) {}
     }; // struct sched_op_t //
     typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
+
+
+    template<typename dag_t>
+    struct real_op_selector_t {
+      bool operator()(const dag_t& in, const operation_t& op) const {
+        return !in.is_implicit_op(op) && !in.is_output_op(op);
+      }
+    }; // struct real_op_selector_t //
+
+    template<typename OrigScheduledOpIterator>
+    struct address_annotated_scheduled_op_iterator_t {
+      typedef OrigScheduledOpIterator orig_sched_op_iterator_t;
+      typedef scheduled_op_t value_type;
+
+      address_annotated_scheduled_op_iterator_t()
+        : begin_(), end_(), table_ptr_(NULL), scheduled_op_() {}
+
+      address_annotated_scheduled_op_iterator_t(orig_sched_op_iterator_t beg,
+          orig_sched_op_iterator_t end, const ddr_address_table_t& table)
+        : begin_(), end_(), table_ptr_(&table), scheduled_op_() {
+          begin_ = beg; end_ = end;
+      }
+
+      // only invalid iterators are equivalent //
+      bool operator==(
+          const address_annotated_scheduled_op_iterator_t& o) const {
+        return !is_valid() && !o.is_valid();
+      }
+
+      bool operator!=(
+          const address_annotated_scheduled_op_iterator_t& o) const {
+        return !(*this == o);
+      }
+
+      //Precondition: is_valid() //
+      void operator++() { ++begin_; }
+
+      bool is_valid() const { return !(begin_ == end_); }
+
+      const scheduled_op_t& operator*() const {
+        scheduled_op_.op_ = begin_->op_;
+        scheduled_op_.schedule_time_ = begin_->time_;
+        auto itr = table_ptr_->find(scheduled_op_.op_);
+        if (itr != table_ptr_->end()) {
+          scheduled_op_.set_start_address((itr->second).address_begin_);
+          scheduled_op_.set_end_address((itr->second).address_end_);
+        } else {
+          scheduled_op_.invalidate_address();
+        }
+        return scheduled_op_;
+      }
+
+      orig_sched_op_iterator_t begin_;
+      orig_sched_op_iterator_t end_;
+      const ddr_address_table_t *table_ptr_;
+      mutable scheduled_op_t scheduled_op_;
+    };
     ////////////////////////////////////////////////////////////////////////////
 
     DDR_Address_Generator(mv::ComputationModel& model, dag_t& dag,
@@ -1458,12 +1579,20 @@ class DDR_Address_Generator {
       }
     }
 
+
+    template<typename ScheduleIterator>
+    bool generate_tensor_addresses(
+        ScheduleIterator sched_begin, ScheduleIterator sched_end,
+        const char *file_name=NULL) { 
+      generate_tensor_addresses(sched_begin, sched_end, file_name, false);
+    }
+
     // Takes a schedule and generates address for tensors which reside in DDR.
     // The address will //
     template<typename ScheduleIterator>
     bool generate_tensor_addresses(
         ScheduleIterator sched_begin, ScheduleIterator sched_end,
-        const char *file_name=NULL) {
+        const char *file_name, bool add_ddr_control_edges) {
 
       // STEP-0: read the schedule into memory //
       std::list<sched_op_t> schedule;
@@ -1478,8 +1607,9 @@ class DDR_Address_Generator {
           msrelations);
 
 
+      ddr_address_table_t ddr_address_table;
       FILE *fptr = file_name ?  fopen(file_name, "w") : NULL;
-      ddr_address_setter_t address_setter(fptr);
+      ddr_address_setter_t address_setter(fptr, &ddr_address_table);
 
 
       // STEP-3: generate addresses using new DAG and resource model //
@@ -1494,6 +1624,13 @@ class DDR_Address_Generator {
         params->set<int>("DDRScratch", (int)(high_watermark_));
       }
 
+
+      if (add_ddr_control_edges) {
+        generate_ddr_memory_control_edges(ddr_address_table,
+          schedule.cbegin(), schedule.cend(), fptr);
+      }
+
+
       if (fptr) {
         fprintf(fptr, "[DDR_Address_Generator] high_watermark=%lu\n",
               high_watermark_);
@@ -1504,6 +1641,21 @@ class DDR_Address_Generator {
     }
 
   private:
+
+    template<typename ScheduledOpIterator>
+    void generate_ddr_memory_control_edges(
+        const ddr_address_table_t& ddr_address_table,
+        ScheduledOpIterator sbegin, ScheduledOpIterator send, FILE *fptr=NULL) {
+     typedef address_annotated_scheduled_op_iterator_t<ScheduledOpIterator>
+        scheduled_op_iterator_t;
+
+     mv::ControlModel cm(model_);
+     Control_Edge_Set ddr_control_edge_set(cm, false /*dont clear CMX edges*/);
+     scheduled_op_iterator_t begin(sbegin, send, ddr_address_table), end;
+
+     ddr_control_edge_set.add_ddr_memory_control_edges(input_dag_, cm,
+         begin, end, fptr);
+    }
 
     //Following changes are made to the DAG [ G(V,E) ]:
     //
@@ -1559,6 +1711,7 @@ class DDR_Address_Generator {
     size_t high_watermark_;
     size_t upper_bound_;
 }; // class DDR_Address_Generator //
+
 
 
 

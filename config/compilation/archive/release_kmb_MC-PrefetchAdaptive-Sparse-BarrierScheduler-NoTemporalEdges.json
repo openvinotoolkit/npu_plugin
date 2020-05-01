@@ -4,19 +4,24 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
-                "verbose": "Info",
+                "recorded_model": false,
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 1,
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "WorkloadCost": 0,
-                "DDRScratch": 23068672,
+                "WorkloadCost": 300,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
                 "split_strategy" :
                 [
                     {
@@ -85,6 +90,11 @@
             }
         ]
     },
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize"
+        ]
+    },
     "adapt": {
         "Singular": [
             "RemoveOps",
@@ -93,13 +103,16 @@
             "TensorsToFP16",
             "FusePostOps",
             "ConvolutionDilation",
+            "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -114,7 +127,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : true },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -181,9 +194,11 @@
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
+            "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "ConvertOpsToTasks",
+            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -233,7 +248,8 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "ddr_address_generation" : true
             },
             {
                 "name": "GenerateDot",
@@ -269,7 +285,8 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
@@ -280,8 +297,8 @@
         "Singular": [
             {
               "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 8,
-              "barrier_bound" : 4,
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
               "producer_bound" : 256
             },
             {
@@ -322,6 +339,7 @@
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
