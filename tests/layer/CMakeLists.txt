@@ -130,6 +130,9 @@ else()
     add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
     target_link_libraries(roi_pooling cm)
 
+    add_executable(psroi_pooling psroi_pooling/psroi_pooling.cpp)
+    target_link_libraries(psroi_pooling cm)
+
     add_executable(slice slice/slice.cpp)
     target_link_libraries(slice cm)
 

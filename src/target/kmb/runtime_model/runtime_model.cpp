@@ -1689,6 +1689,46 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAROIPoolingTask(ComputationModel
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PSROIPoolingParams;
+    auto softLayerParamsValue = new MVCNN::PSROIPoolingParamsT();
+
+    auto input  = opIt->getInputTensor(0);
+    auto coords = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, coords)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    softLayerParamsValue->output_dim    = opIt->get<std::size_t>("output_dim");
+    softLayerParamsValue->group_size    = opIt->get<std::size_t>("group_size");
+    softLayerParamsValue->pooled_w    = opIt->get<std::size_t>("pooled_w");
+    softLayerParamsValue->pooled_h    = opIt->get<std::size_t>("pooled_h");
+    softLayerParamsValue->spatial_scale = static_cast<float>(opIt->get<double>("spatial_scale"));
+    softLayerParamsValue->spatial_bin_x = opIt->get<std::size_t>("spatial_bin_x");
+    softLayerParamsValue->spatial_bin_y = opIt->get<std::size_t>("spatial_bin_y");
+
+    auto mode = opIt->get<std::string>("mode");
+    if (mode.compare(std::string("average")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_AVERAGE;
+    } else if (mode.compare(std::string("bilinear")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR;
+    } else if (mode.compare(std::string("bilinear_deformable")) == 0) {
+        softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR_DEFORMABLE;
+    } else {
+        throw ArgumentError("buildUPAPSROIPoolingTask", "file:content", "invalid", "Invalid mode for PSROIPooling");
+    }
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAInterpTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
 
@@ -2155,6 +2195,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ROIPooling")
         toReturn[0]->task.value = buildUPAROIPoolingTask(cm, compilationDescriptor, opIt);
+    else if (underlyingTask == "PSROIPooling")
+        toReturn[0]->task.value = buildUPAPSROIPoolingTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Quantize")
         toReturn[0]->task.value = buildUPAQuantizeTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Resample")
