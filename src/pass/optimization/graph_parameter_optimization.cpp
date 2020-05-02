@@ -1404,6 +1404,7 @@ namespace mv
                         if(hasStreamOverH)
                         {
                             maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,1,1},fakeSparsity);
+                            if(maxSplitOverH < 1) maxSplitOverH = 1;
                         }
                         
                         // Stream over batch, match number of streams over H
@@ -1448,6 +1449,7 @@ namespace mv
                                 minSplitOverH = maxSplitOverH -1;
                             }
                             if(minSplitOverH < 1) minSplitOverH = 1;
+                            if(maxSplitOverH < 1) maxSplitOverH = 1;
                             for(unsigned h = minSplitOverH; h <= maxSplitOverH; h++)
                             {
                                 for(const auto c : streamsOverC)
