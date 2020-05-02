@@ -1446,8 +1446,8 @@ namespace mv
                             {
                                 maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,k,1},fakeSparsity);
                                 minSplitOverH = maxSplitOverH -1;
-                                if(minSplitOverH < 1) minSplitOverH = 1;
                             }
+                            if(minSplitOverH < 1) minSplitOverH = 1;
                             for(unsigned h = minSplitOverH; h <= maxSplitOverH; h++)
                             {
                                 for(const auto c : streamsOverC)
