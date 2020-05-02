@@ -1467,8 +1467,8 @@ if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
                                         continue;
                                     if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
                                         continue;
-                                    if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
-                                        continue;
+                                    //if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
+                                    //    continue;
                                     if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
                                         continue;
 
