@@ -103,6 +103,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "ChangeSoftmaxAxis",
             "ConvolutionDilation",
             "DecideOutputDataType",
             "PlacementOfOps",
@@ -219,13 +220,27 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/kmb_adapted_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/implicit_dma_model.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",

@@ -468,7 +468,7 @@ namespace mv
                     auto sparseWeightSize = (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]* op.getInputTensor(1)->getShape()[2]) / 8;
                     sparseWeightSize += (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]);
                     sparseWeightSize = mv::round_up(sparseWeightSize, 16);
-                    weightSize += sparseWeightSize;
+                    weightSize += sparseWeightSize; //TODO probably overcounting now if SOK
                 }
 
                 weightSize += weightTableSize; // todo probably overcounts for sok now
@@ -486,8 +486,8 @@ namespace mv
                 else if(clusterStrategy == "SplitOverK")
                 {
                     totalActivationSize = inputSize + outputSize;
-                    // totalWeightsSize =  div(weightSize,totalClusters); not precise enough, handled earlier
-                    totalWeightsSize =  weightSize;
+                    // totalWeightsSize =  div(weightSize,totalClusters); not precise enough, taken into account earlier see alignedweightssize
+                    totalWeightsSize = weightSize;
                 }
                 else if(clusterStrategy == "HKSwitch")
                 {
@@ -508,7 +508,7 @@ namespace mv
                 return pair<size_t,size_t>(totalActivationSize,totalWeightsSize);
             }
 
-unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, bool oSparsity, bool wSparsity, Shape streams, bool fSparsity)
+            unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, bool oSparsity, bool wSparsity, Shape streams, bool fSparsity)
             {
                 auto memSize = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity);
                 auto activationsSize = memSize.first;
@@ -805,7 +805,7 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
-                    // std::cout << op.getName() << ": [" <<clustering << "][" <<streamShape.toString()<<"]    " << fit.first << " + " << fit.second << " = " << fit.first + fit.second << std::endl;
+                    auto name = op.getName();
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
@@ -1271,7 +1271,6 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                 else
                     throw LogicError(*this, "Graph Optimizer unable to determine number of clusters");
 
-
                 vector<Attribute> streamingStrategyPool = createStrategyPoolFromStrategySet(op,"streamingStrategies");
 
                 bool hasStreamOverK = false;
@@ -1364,8 +1363,6 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                             // for each possible stream over K, a single stream over H option that fits is chosen
                         }
 
-                    // for(unsigned n = 1; n <= maxSplitOverN; n++)
-                    // {
                         for(const auto k : streamsOverK)
                         {
                             if(enableNestedStreaming) // generate h on the fly
@@ -1405,16 +1402,18 @@ unsigned getStreamsOverH(mv::Op& op, mv::Attribute clustering, bool iSparsity, b
                                     s["streaming"] = streamShape;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
-                                    if(!createStrategyDots and (checkForBadStrategy(op,s) > 0))
+                                    auto strategyCheck = checkForBadStrategy(op,s);
+                                    // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
+                                    if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
-
+                                    
                                     strategyVec.push_back(s);
                                 }
                             }
                         }
                     }
                 }
-                // }
+
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
             }
