@@ -8,6 +8,9 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
+    target_link_libraries(single_conv_hde cm)
+
     add_executable(single_conv_hde_SOK single_conv_hde_SOK/single_conv_hde_SOK.cpp)
     target_link_libraries(single_conv_hde_SOK cm)
 
@@ -44,7 +47,7 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
-    add_executable(conv_int32_output conv_int32_output/int32_output_conv.cpp)
+    add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
     target_link_libraries(conv_int32_output cm)
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
