@@ -301,10 +301,10 @@ void mv::CompilationUnit::generateExpectedResults()
     std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
     if (input0Data.empty() ) throw RuntimeError(*this, "Emulator required file 'input.dat' not found in current directory");
 
-    //const std::string inputName = omEmu.getOps("Input")[0]->getInputTensor()[0]->getName();
-    //emulatorManager.input(inputName)->populate(input0Data, mv::Order::getZMajorID(4));
-    //emulatorManager.input("input#170")->populate(input0Data, mv::Order::getZMajorID(4));
-    emulatorManager.populate(*(emOM.getOps("Input")[0]->getInputTensor()[0]), mv::Order::getZMajorID(4), input0Data);
+    mv::Data::OpListIterator opIt = emOM.getOps("Input")[0];
+    mv::Data::TensorIterator tensorIt = emOM.getOps("Input")[0]->getOutputTensor()[0];
+    
+    emulatorManager.populate(*(emOM.getOps("Input")[0]->getOutputTensor()[0]), mv::Order::getZMajorID(4), input0Data);
     
     std::cout << "Generating results..." << std::endl;
     emulatorManager.run();
