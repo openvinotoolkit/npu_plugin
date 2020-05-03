@@ -229,13 +229,13 @@ void propagateParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
-
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Eltwise" && op->getOpType() == "Concat") {
+        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
             assert(areAllInputQuantParamsEqual(om, op));
         }
 
-        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
+        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
+            || op->getOpType() == "Interp") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params)) {
