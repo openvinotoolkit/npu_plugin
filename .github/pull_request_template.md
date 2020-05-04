@@ -20,5 +20,5 @@
 Access is through https://ags.intel.com apply for group "MOVIDIUS MIG JENKINS DEVELOPER".)
 
 * [ ] [Fast Top 7 Networks](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/FAST%20Top%207%20Networks/build)
-* [ ] [Openvino v10 Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO-IRv10-WW14/build)
+* [ ] [Openvino v10 Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO-IRv10/build)
 * [ ] [Software Layer tests](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/Software%20Layer%20Unit%20Tests/build)
