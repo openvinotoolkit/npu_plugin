@@ -2,6 +2,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include <cmath>
 
@@ -101,6 +102,7 @@ void replaceKernel(mv::Data::OpListIterator opIt, std::size_t newKernelSize, mv:
 void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize, std::size_t partitions, mv::ComputationModel &model, mv::Data::OpListIterator nextOpIt)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto inputTensor = opIt->getInputTensor(0);
     auto weightTensor = opIt->getInputTensor(1);
     auto initialStride = opIt->get<std::array<unsigned short, 2>>("stride");
@@ -110,9 +112,12 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
     mv::Shape beginInputShape, branchInputSize, beginWeightShape, branchWeightSize;
     std::size_t branchWidth, branchHeight;
-    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, conv;
+    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, conv, bias, newBias;
     std::vector <mv::Data::TensorIterator> convs;
     std::size_t partitionedKenelSize = oldKernelSize;
+    bool hasBias = opIt->hasAttr("bias");
+    if (hasBias)
+        bias =  dm.getTensor(opIt->get<std::string>("bias"));
 
     for (std::size_t branchId = 0; branchId < partitions; branchId++)
     {
@@ -188,8 +193,16 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                             opIt->get<mv::QuantizationParams>("quantParams"),
                             opIt->getName() + std::to_string(branchId));
         convs.push_back(conv);
-
         auto convOp = om.getSourceOp(conv);
+
+        if (hasBias)
+        {
+            std::string biasName = mv::createBiasName(convOp->getName() + "_bias");
+            newBias = dm.defineTensor(mv::Tensor(biasName, bias->getShape(),
+                                         opIt->get<mv::DType>("dType"), bias->getOrder(), bias->getData(), bias->get<mv::QuantizationParams>("quantParams")));
+            om.addAttr(convOp, "bias", biasName);
+        }
+
         auto sliceInputOp = om.getSourceOp(sliceInput);
         auto sliceWeightOp = om.getSourceOp(sliceWeight);
         convOp->set<unsigned>("opId", initialOpId);
