@@ -104,11 +104,13 @@
             "TensorsToFP16",
             "FusePostOps",
             "ConvolutionDilation",
+            "HandleGroupConvolution",
+            "TileOps",
+            "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
