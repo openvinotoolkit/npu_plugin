@@ -194,7 +194,7 @@ namespace mv
             else
                 padding = {0,0,0,0};
 
-            int padStart,padEnd;
+            int padStart=0,padEnd=0;
 
             if (axisToSplit == mv::Shape::getAxis("W"))
             {
@@ -209,8 +209,6 @@ namespace mv
 
             int outputSize =  inferOutputSize(inputShape[axisToSplit],padStart,padEnd,kernelSize,kernelStride);
             auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-//            int newOutputSize = newOutputSizes.first;
-//            int remainderOutputSize = newOutputSizes.second;
 
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)

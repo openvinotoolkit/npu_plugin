@@ -91,38 +91,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Dat
 std::map<std::string, std::function<mv::Data::TensorIterator(mv::ComputationModel&, mv::Data::OpListIterator, mv::Tiling&)>>
 streamSplit =
 {
-//    {"W",solveSpatialTiling},
+    {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling},
     {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
 };
-
-//helper function. A shape of a Tile specifies the OUTPUT shape for it's respective operation
-//for streamOverK, we add slice to WeightOP, whoose shape is in different order of dimensions that
-//activation shapes
-static mv::Shape kernelSubtensorShape(mv::Shape& outTensorShape,mv::Shape kernelShape)
-{
-    return mv::Shape(
-                        {
-                            kernelShape[mv::KERNEL_WIDTH],
-                            kernelShape[mv::KERNEL_HEIGHT],
-                            kernelShape[mv::KERNEL_INPUT_CHANNELS],
-                            outTensorShape[mv::IO_CHANNEL_DIMENSION]
-                        }
-                    );
-}
-
-static mv::Shape kernelSubtensorOffset(mv::Shape& outTensorOffset)
-{
-    return mv::Shape(
-                        {
-                            0,
-                            0,
-                            0,
-                            outTensorOffset[mv::IO_CHANNEL_DIMENSION]
-                        }
-            );
-}
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         mv::Data::OpListIterator op,
@@ -181,7 +154,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
             if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size() > 1)
             {
-                std::size_t outputChannelsofSlice, starting_point;
+                std::size_t outputChannelsofSlice = 0, starting_point = 0;
                 if (op->getOpType() == "Conv")
                 {
                     outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];
@@ -423,13 +396,13 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto middlePad = padding;
     auto currentPad = padding;
 
-//    if (axisToSplit == mv::Shape::getAxis("W"))
-//    {
-//        startPad[1] = 0;
-//        endPad[0] = 0;
-//        middlePad[0] = 0;
-//        middlePad[1] = 0;
-//    }
+    if (axisToSplit == mv::Shape::getAxis("W"))
+    {
+        startPad[1] = 0;
+        endPad[0] = 0;
+        middlePad[0] = 0;
+        middlePad[1] = 0;
+    }
     if (axisToSplit == mv::Shape::getAxis("H"))
     {
         startPad[3] = 0;
@@ -702,9 +675,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             tiles = newChildTiles;
         }
 
-//      helper print for tiling scheme
-//        masterTile.printOut(0);
-
         if(masterTile.childTiles().size() > 1)
         {
             auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
@@ -718,9 +688,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                 inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             }
 
-    //        auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
-    //        auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
-
             om.removeOp(opIt);
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
@@ -728,8 +695,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                 om.defineFlow(result, opsToLink[j], inputSlots[j]);
             }
         }
-//        setInputControlFlow(cm, cm.switchContext(om.getSourceOp(std::get<0>(result))), inputControlFlows);
-//        setOutputControlFlow(cm, cm.switchContext(om.getSourceOp(std::get<1>(result))), outputControlFlows);
 }
 }
 
