@@ -103,7 +103,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "ChangeSoftmaxAxis",
+            "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "DecideOutputDataType",
             "PlacementOfOps",
