@@ -220,27 +220,13 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/kmb_adapted_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/implicit_dma_model.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
             "AddDPUTasksWeightsDMATasks",

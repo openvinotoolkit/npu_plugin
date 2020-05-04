@@ -369,8 +369,10 @@ namespace mv
                     if (remainderOutputSize > newOutputSize)
                         newOutputSize = remainderOutputSize;
 
+                    newOutputSize = mv::round_up(newOutputSize, 16);
+
                     // TODO determine when there will be overlap
-                    double worstNumberOfSplits = (double)outputSize/(newOutputSize+2);
+                    double worstNumberOfSplits = (double)outputSize/(newOutputSize);
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
@@ -390,6 +392,7 @@ namespace mv
             }
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, string clustering){
+                auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
                 auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
                 size_t alignedFullInputChannels = mv::round_up(tensorToSize->getShape()[KERNEL_INPUT_CHANNELS], 16);
 
@@ -398,7 +401,10 @@ namespace mv
 
                 if(clustering == "SplitOverK")
                 {
-                    size_t alignedSplittedOutputChannels = ceil(alignedStreamedOutputChannels/totalClusters);
+                    size_t alignedSplittedOutputChannels = div(alignedStreamedOutputChannels,totalClusters);
+                    if(alignedSplittedOutputChannels < 64)
+                        alignedSplittedOutputChannels = mv::round_up(alignedSplittedOutputChannels, 16);
+                        
                     return (alignedFullInputChannels * alignedSplittedOutputChannels * 
                             tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
                             * dtypeMultiplier;
@@ -882,7 +888,6 @@ namespace mv
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
-                    auto name = op.getName();
                     if(fit.first + fit.second > clusterMemory)
                         return 1;
                 }
