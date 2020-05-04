@@ -554,9 +554,8 @@ std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
     return factors;
 }
 
-unsigned short getPad(unsigned short kernelSize, std::pair<unsigned short, unsigned short> factors, size_t inputShape, size_t outputShape)
+unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t inputShape, size_t outputShape)
 {
-    double eachSize = (double) kernelSize / factors.first;
     double updatedOutput = outputShape * factors.second;
     unsigned short pad = updatedOutput*factors.first -  inputShape;
 
@@ -816,14 +815,13 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
             {
                 //TODO throw error, unable to split into appropriate size
-                std::cout << "ERROR: factorsDim2 are larger the MAX_KERNEL " << std::endl;
                 continue;
             }
             pass.log(mv::Logger::MessageType::Debug, "factors2 " +  std::to_string(factorsDim2.first) + " , " + std::to_string(factorsDim2.second));
         }
 
         // Padding relationship is (input size + pad) / k = output size
-        unsigned short pad = getPad(kernelSize, factors, inputShape[largeDim], outputShape[largeDim]);
+        unsigned short pad = getPad(factors, inputShape[largeDim], outputShape[largeDim]);
 
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
@@ -832,7 +830,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         {
             if (asymmetricBothKernelsLarge)
             {
-                unsigned short pad2 = getPad(kSize[1-largeDim], factorsDim2, inputShape[1-largeDim], outputShape[1-largeDim]);
+                unsigned short pad2 = getPad(factorsDim2, inputShape[1-largeDim], outputShape[1-largeDim]);
                 if (largeDim == 0)
                 {
                     padding[3] = pad2;
