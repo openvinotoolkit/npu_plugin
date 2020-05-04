@@ -179,6 +179,14 @@ mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vec
    return om.uPATaskSoftmax(inputs, axis, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertSigmoidToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+   return om.uPATaskSigmoid(inputs, mv::DType("Float16"), quantParams, name);
+}
+
 mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                                 const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
 {
@@ -488,7 +496,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -518,6 +526,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
+    {"Sigmoid", convertSigmoidToUPATask},
     };
 
     for(auto& opType: opsTypesToConvert)

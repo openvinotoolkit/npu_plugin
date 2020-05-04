@@ -192,7 +192,14 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
     else if (opType == "Sigmoid")
     {
-        if (opIt->hasAttr("quantParams"))
+        // Check for fuseable parentOp; else, execute in software
+        auto optype = parentOpIt->getOpType();
+        if (!(optype == "Conv" || optype == "DepthwiseConv" || optype == "CMConv"))
+        {
+            opIt->set<bool>("softwareExecuted", true);
+            return;
+        }
+        else if (opIt->hasAttr("quantParams"))
             parentOpIt->set<mv::QuantizationParams>("quantParams", opIt->get<mv::QuantizationParams>("quantParams"));
         else
         {

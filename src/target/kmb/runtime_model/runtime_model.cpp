@@ -1570,6 +1570,23 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_PassthroughParams;
+    auto softLayerParamsValue = new MVCNN::PassthroughParamsT();
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -2193,6 +2210,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPADummyTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Softmax")
         toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Sigmoid")
+        toReturn[0]->task.value = buildUPASigmoidTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Proposal")
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ROIPooling")
