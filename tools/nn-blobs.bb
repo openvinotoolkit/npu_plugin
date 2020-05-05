@@ -76,10 +76,10 @@ do_install () {
     install -m 0755 ${S}/fullyolov2_ov/input_ov.dat ${D}/opt/fullyolov2_ov
     install -m 0755 ${S}/fullyolov2_ov/fullyolov2_ov.blob ${D}/opt/fullyolov2_ov
 
-    install -d ${D}/opt/inceptionv4_ov
-    install -m 0755 ${S}/inceptionv4_ov/expected_result_sim_ov.dat ${D}/opt/inceptionv4_ov
-    install -m 0755 ${S}/inceptionv4_ov/input_ov.dat ${D}/opt/inceptionv4_ov
-    install -m 0755 ${S}/inceptionv4_ov/inceptionv4_ov.blob ${D}/opt/inceptionv4_ov
+    install -d ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/expected_result_sim_ov.dat ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/input_ov.dat ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/inception-v4_ov.blob ${D}/opt/inception-v4_ov
     install -d ${D}/opt/resnet-101_ov
     install -m 0755 ${S}/resnet-101_ov/expected_result_sim_ov.dat ${D}/opt/resnet-101_ov
     install -m 0755 ${S}/resnet-101_ov/input_ov.dat ${D}/opt/resnet-101_ov
