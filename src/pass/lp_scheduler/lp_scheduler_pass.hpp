@@ -38,6 +38,14 @@ struct Control_Edge {
   mv::Op const * sink_;
 }; // struct Control_Edge //
 
+inline void dump_exception(const char *str) {
+  FILE *fptr = fopen("scheduler_exceptions.txt", "a");
+  assert(fptr);
+  fprintf(fptr, "%s\n", str);
+  fclose(fptr);
+}
+
+
 template<typename SchedulerType>
 struct Tensor_Address_Assignment {
   typedef SchedulerType scheduler_t;
@@ -154,6 +162,7 @@ class ImplicitConcat_Connected_Component {
     operation_t implicit_concat_root(const operation_t& op) const {
       auto itr = union_find_array_.find(op);
       if (itr == union_find_array_.end()) { 
+        dump_exception("[ImplicitConcatRoot]\n");
         throw "[ImplicitConcatRoot] missing operation: " + op->getName();
       }
       return itr->second;
@@ -164,6 +173,7 @@ class ImplicitConcat_Connected_Component {
       typename slave_concat_reads_t::const_iterator itr =
           slave_concat_reads_.find(op);
       if (itr == slave_concat_reads_.end()) {
+        dump_exception("[ImplicitConcatInvariant]: invalid master concat\n");
         throw "[ImplicitConcatInvariant]: invalid master concat ";
       }
       return itr->second;
@@ -209,9 +219,11 @@ class ImplicitConcat_Connected_Component {
 
         operation_t op = *itr;
         if (!is_implicit_concat(op))  { continue; }
-        typename union_find_array_t::const_iterator uitr = union_find_array_.find(op);
+        typename union_find_array_t::const_iterator uitr =
+            union_find_array_.find(op);
 
         if (uitr == union_find_array_.end()) {
+          dump_exception("build_slave_concat_reads\n");
           throw "[build_slave_concat_reads] : "
               "Invalid concat union-find state\n";
         }
@@ -230,12 +242,28 @@ class ImplicitConcat_Connected_Component {
         for (const_operation_iterator_t citr=dag_.begin_nodes(op);
               citr!=dag_.end_nodes(op); ++citr) {
           operation_t cop = *citr;
-          bool is_read = dag_.is_dma_op_moving_data_from_ddr_to_cmx(op);
-          if (!(is_implicit_concat(cop) || is_read) ) {
+          if (dag_.is_output_op(cop)) { continue; }
+
+          bool is_read_or_upa =
+            (dag_.is_dma_op_moving_data_from_ddr_to_cmx(cop) || 
+              dag_.is_upa_op(cop));
+
+          if (!(is_implicit_concat(cop) || is_read_or_upa) ) {
+            FILE *fptr = fopen("non_reads.txt", "a");
+
+            for (const_operation_iterator_t kitr=dag_.begin_nodes(op); 
+                kitr != dag_.end_nodes(op); ++kitr) {
+              fprintf(fptr, "%s -> %s\n", op->getName().c_str(), 
+                  (*kitr)->getName().c_str());
+            }
+            fclose(fptr);
+
+            dump_exception("[ImplictConcatInvariant]: implict concat reads\n");
             throw "[ImplicitConcatInvariant] : implict concat should only have"
               " dataflow to either concats or reads\n";
           }
-          if (is_read) {
+
+          if (is_read_or_upa) {
             slave_read_list.push_back(cop);
           }
         }
@@ -248,7 +276,6 @@ class ImplicitConcat_Connected_Component {
             citr!=dag_.end_nodes(op); ++citr) {
         operation_t cop = *citr;
         if (is_implicit_concat(cop)) {
-          ++citr;
           return cop;
         }
       }
