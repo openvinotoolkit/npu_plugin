@@ -583,6 +583,30 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
         }
     }
+
+    // Correct concat output dtype when all inputs & output are UPATasks
+    auto concats = om.getOps("ImplicitConcat");
+    for(auto& concatOp : concats)
+    {
+        auto all_inputs_are_fp16 = true;
+        auto inputs = concatOp->getInputTensor();
+        for (auto& input : inputs)
+        {
+            if (!((om.getSourceOp(input)->getOpType() == "UPATask")  && (input->get<mv::DType>("dType") == mv::DType("Float16"))))
+                all_inputs_are_fp16 = false;
+        }
+        if (all_inputs_are_fp16)
+        {
+            auto outputs = concatOp->getOutputTensor();
+            for (auto& output : outputs)
+            {
+                if (output->get<mv::DType>("dType") != mv::DType("Float16"))
+                {
+                    output->set<mv::DType>("dType", mv::DType("Float16"));
+                }
+            }
+        }
+    }
 }
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
