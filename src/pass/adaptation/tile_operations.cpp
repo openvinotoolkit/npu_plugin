@@ -7,6 +7,7 @@
 #include <cmath>
 
 const size_t MAX_LIMIT_KERNEL = 11;
+const size_t MID_LIMIT_KERNEL = 7;
 const size_t NUMBER_OF_PARTITIONS = 4;
 const size_t GROUP_DILATION = 1;
 
@@ -124,7 +125,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         if (branchId == 0)
         {
             beginInputShape = {0,0,0,0};
-            partitionedKenelSize = MAX_LIMIT_KERNEL;
+            partitionedKenelSize = MID_LIMIT_KERNEL;
             branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - (oldKernelSize - partitionedKenelSize);
             branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] - (oldKernelSize - partitionedKenelSize);
             beginWeightShape = {0,0,0,0};
@@ -189,7 +190,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                             padding,
                             GROUP_DILATION,
                             GROUP_DILATION,
-                            opIt->get<mv::DType>("dType"),
+                            opIt->getInputTensor(0)->get<mv::DType>("dType"),
                             opIt->get<mv::QuantizationParams>("quantParams"),
                             opIt->getName() + std::to_string(branchId));
         convs.push_back(conv);
