@@ -43,8 +43,7 @@ using namespace vpu::HDDL2Plugin;
 Engine::Engine() { _pluginName = "HDDL2"; }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
-    const ICore* core, const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-    UNUSED(core);
+    const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
@@ -74,9 +73,8 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, const ICNNNetwork& network,
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network,
     RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
-    UNUSED(core);
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 

@@ -40,7 +40,7 @@ class Engine : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
-    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(const InferenceEngine::ICore* core,
+    InferenceEngine::ExecutableNetworkInternal::Ptr LoadExeNetworkImpl(
         const InferenceEngine::ICNNNetwork& network, const std::map<std::string, std::string>& config) override;
 
     void SetConfig(const std::map<std::string, std::string>& config) override;
