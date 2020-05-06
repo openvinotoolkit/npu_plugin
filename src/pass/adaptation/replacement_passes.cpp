@@ -19,6 +19,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -72,6 +73,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
+    replaceConcatOfPopulatedTensorsFcn(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -818,4 +820,68 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
     } // end for
+}
+
+// Replace concat of populated inputs with single populated input
+void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    auto concats = om.getOps("Concat");
+    for(auto& concat : concats)
+    {
+        auto all_inputs_are_populated = true;
+        auto inputs = concat->getInputTensor();
+        for (auto& input : inputs)
+            if (!input->isPopulated())
+                all_inputs_are_populated = false;
+
+        if (!all_inputs_are_populated)
+            continue;
+
+        // Check for supported params
+        auto axis = concat->get<std::string>("axis");
+        if (axis != "W")
+            throw std::runtime_error("Compiler doesn't support manual concat of axis != W");
+
+        // Manually concat populated tensors
+        auto newShape = concat->getOutputTensor()[0]->getShape();
+        std::vector<double> newData(newShape.totalSize());
+        auto concat_offset = 0;
+        for (unsigned i=0; i<inputs.size(); i++)
+        {
+            auto inputData = inputs[i]->getDoubleData();
+            auto inputShape = inputs[i]->getShape();
+            for (unsigned H=0; H<inputShape[1]; H++)
+            {
+                auto input_start = (H)*inputShape[0];
+                auto input_length = inputShape[0];
+                auto new_start = concat_offset + H*newShape[0];
+                //std::cout << "Move inputData " << input_start << " to " << input_start+input_length << "  to newData offset " << new_start << std::endl;
+                for(unsigned j=0; j<input_length; j++)
+                {
+                    newData[new_start + j] = inputData[input_start + j];
+                }
+            }
+            concat_offset += inputShape[0];
+        }
+
+        // Replace existing Concat'd tensors with a single tensor
+        std::vector<std::string> ops_to_remove;
+        for (unsigned i=0; i<concat->getInputTensor().size(); i++)
+            ops_to_remove.push_back(om.getSourceOp(concat->getInputTensor(i))->getName());
+
+        auto order = concat->getInputTensor(0)->getOrder();
+        auto quantParams = concat->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams");
+        auto newKernel = om.constant(newData, newShape, mv::DType("Float64"), order, quantParams);
+        auto newKernelOp = om.getSourceOp(newKernel);
+        newKernelOp->set<unsigned>("opId", concat->get<unsigned>("opId"));
+        newKernelOp->set<mv::DType>("dType", concat->get<mv::DType>("dType"));
+        auto flows = mv::getOutputDataFlow(om, concat);
+        mv::setOutputDataFlow(om, newKernel, flows);
+
+        for (auto& op_name : ops_to_remove)
+            om.removeOp(om.getOp(op_name));
+    }
 }
