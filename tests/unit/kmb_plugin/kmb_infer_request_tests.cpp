@@ -58,8 +58,8 @@ public:
     MOCK_METHOD2(getResult, void(void*, unsigned int));
     MOCK_METHOD2(queueInference, void(void*, size_t));
 
-    MOCK_CONST_METHOD0(getNetworkInputs, ie::InputsDataMap&());
-    MOCK_CONST_METHOD0(getNetworkOutputs, ie::OutputsDataMap&());
+    MOCK_CONST_METHOD0(getRuntimeInputs, ie::InputsDataMap&());
+    MOCK_CONST_METHOD0(getRuntimeOutputs, ie::OutputsDataMap&());
 };
 
 TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyInputAndOutput) {
@@ -103,7 +103,7 @@ public:
 // FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
 // can be enabled with other allocator
 // [Track number: S#28136]
-#ifdef __arm__
+#if defined(__arm__) || defined(__aarch64__)
 
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
@@ -120,7 +120,7 @@ protected:
         _inputs = setupInputsWithSingleElement();
         _outputs = setupOutputsWithSingleElement();
 
-        ON_CALL(*_executor, getNetworkInputs()).WillByDefault(ReturnRef(_inputs));
+        ON_CALL(*_executor, getRuntimeInputs()).WillByDefault(ReturnRef(_inputs));
 
         _inferRequest = std::make_shared<TestableKmbInferRequest>(
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
@@ -159,9 +159,6 @@ private:
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     auto inputName = _inputs.begin()->first.c_str();
 
     ie::Blob::Ptr input;
@@ -173,9 +170,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     const auto inputDesc = _inputs.begin()->second->getTensorDesc();
     ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
     input->allocate();
@@ -196,9 +190,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) 
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInference) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuBlob = createVPUBlob(dims);
 
@@ -212,13 +203,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInfe
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
-
-    if (!isSIPPEnabled) {
-        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
-    }
-
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -243,9 +227,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPre
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto largeInput = Blob_Creator::createBlob({dims[0], dims[1], dims[2] * 2, dims[3] * 2});
 
@@ -261,9 +242,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     setenv("IE_VPU_KMB_DUMP_INPUT_PATH", ".", 1 /*overwrite*/);
 
     ie::Blob::Ptr input;
@@ -276,12 +254,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) 
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
-    if (!isSIPPEnabled) {
-        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
-    }
-
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -306,9 +278,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto vpuInput = createVPUBlob(dims);
 
@@ -326,9 +295,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
@@ -372,9 +338,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMa
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNotMatchedNetworkInput) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
     auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     dims[2] *= 2;
     dims[3] *= 2;
@@ -396,12 +359,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
 }
 
 TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
-
-    if (!isSIPPEnabled) {
-        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
-    }
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
     auto inputName = _inputs.begin()->first.c_str();
@@ -421,12 +378,6 @@ class kmbInferRequestOutColorFormatSIPPUnitTests :
     public testing::WithParamInterface<const char*> {};
 
 TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
-
-    if (!isSIPPEnabled) {
-        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
-    }
     KmbConfig config;
     const auto configValue = GetParam();
     config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
@@ -459,5 +410,43 @@ TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIs
 
 INSTANTIATE_TEST_CASE_P(
     SupportedColorFormats, kmbInferRequestOutColorFormatSIPPUnitTests, testing::Values("RGB", "BGR"));
+
+class kmbInferRequestSIPPPreprocessing :
+    public kmbInferRequestUseCasesUnitTests,
+    public testing::WithParamInterface<std::string> {};
+
+TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
+    KmbConfig config;
+    const auto param = GetParam();
+    if (param == "config_option") {
+        config.update({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}});
+    } else if (param == "environment_variable") {
+        setenv("USE_SIPP", "0", 1);
+    }
+
+    _inferRequest = std::make_shared<TestableKmbInferRequest>(
+        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
+
+    auto nv12Input = createNV12VPUBlob(1080, 1080);
+
+    auto inputName = _inputs.begin()->first.c_str();
+    auto preProcInfo = _inputs.begin()->second->getPreProcess();
+    preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
+    preProcInfo.setColorFormat(ie::ColorFormat::NV12);
+    _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
+
+    EXPECT_CALL(
+        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execSIPPDataPreprocessing(_, _, _, _, _, _))
+        .Times(0);
+
+    _inferRequest->InferAsync();
+
+    if (param == "environment_variable") {
+        unsetenv("USE_SIPP");
+    }
+}
+
+INSTANTIATE_TEST_CASE_P(
+    WaysToDisableSIPP, kmbInferRequestSIPPPreprocessing, testing::Values("environment_variable", "config_option"));
 
 #endif  //  __arm__
