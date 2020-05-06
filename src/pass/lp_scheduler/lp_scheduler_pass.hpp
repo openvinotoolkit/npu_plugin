@@ -1297,6 +1297,8 @@ class Dynamic_Spill_Node_Inserter {
             std::to_string(read_index++);
         mv::Data::TensorIterator spill_read_tensor_itr = om.dMATask(
             spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
+        if(spill_read_tensor_itr->isSparse())
+          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false);
         Data::OpListIterator read_op_itr =
             om.getSourceOp(spill_read_tensor_itr);
         read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
