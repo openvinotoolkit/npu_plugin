@@ -1459,8 +1459,8 @@ void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNo
     std::string code_type = layer->GetParamAsString("code_type");
     bool share_location = layer->GetParamAsInt("share_location", 1);
     double confidence_threshold = layer->GetParamAsFloat("confidence_threshold", 0.01);
-    bool clip_before_nms = 0;
-    bool clip_after_nms = 0;
+    bool clip_before_nms = layer->GetParamAsInt("clip_before_nms", 0);
+    bool clip_after_nms = layer->GetParamAsInt("clip_after_nms", 0);
     int64_t decrease_label_id = 0;
     bool normalized = layer->GetParamAsInt("normalized", 1);
     int64_t input_height = layer->GetParamAsInt("input_height", 1);
