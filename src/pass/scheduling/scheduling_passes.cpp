@@ -662,7 +662,7 @@ struct OpInfo {
     OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_) : op{op_}, latencyNS{latencyNS_}, csramNS{latencyNS_}, isDMA{isDMA_} {}
     OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_, std::uint64_t csramNS_, std::uint64_t size_) : op{op_}, latencyNS{latencyNS_}, csramNS{csramNS_}, size{size_}, isDMA{isDMA_}
     {
-        isWeightDMA = op->getInputTensor(0)->hasAttr("graphFileIndex");
+        isWeightDMA = op->getInputTensor(0)->get<std::set<std::string>>("allocators").count("GraphFile");
     }
 
     bool isCSRAMCandidate() const { return isWeightDMA && csramNS < latencyNS; }
@@ -736,7 +736,9 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
-    // std::cerr << "LayoutDMA: Begin\n";
+#ifdef DEBUG_LAYOUT_PASS
+    std::cerr << "LayoutDMA: Begin\n";
+#endif
 
     auto globalConfig = model.getGlobalConfigParams();
     if (!globalConfig->hasAttr("csramLimit"))
@@ -752,9 +754,11 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
     auto portLimit = globalConfig->get<int>("dmaControllers");
 
-    // std::cerr << "LayoutDMA: csramLimit=" << csramLimit
-    //           << " portLimit=" << portLimit
-    //           << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+    std::cerr << "LayoutDMA: csramLimit=" << csramLimit
+              << " portLimit=" << portLimit
+              << "\n";
+#endif
     std::uint64_t csramAvailable = static_cast<std::uint64_t>(csramLimit);
 
     mv::ControlModel controlModel(model);
@@ -785,6 +789,20 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // budget, and reassign the corresponding weight tensor from DDR to
     // CSRAM, keeping track of the order in which we move the tensors
     // (for runtime prioritization in low-resource scenarios).
+    //
+    // When computing the Benefit, there may be cases where there's no
+    // latency benefit to be gained by moving a weight tensor to CSRAM
+    // (e.g. there's overlapping compute or other DMAs on the critical
+    // path), but there's still available CSRAM space for a weight
+    // tensor.  In this case, we want to move additional weight
+    // tensors to CSRAM, selecting tensors whose DMAs are close to
+    // being on the critical path -- i.e. cases where we're low on
+    // slack latency, running close to the limit.  So separately from
+    // the latency benefit, we track the "slack" for each potential
+    // update, and if there's no plan that offers a concrete benefit,
+    // we select the plan with the least slack, resolving ties in
+    // favor of the smaller weight tensor (the better to spread slack
+    // latency around the overall computation).
     //
     // (Note that we rebuild our per-barrier start times after each DMA
     // source reassignment.  The reason is that this can affect port
@@ -845,35 +863,38 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     {
         auto opInfo = opInfos.emplace(opInfos.end(), analyzeOp(*op));
         opInfo->deps = op->get<mv::BarrierDependencies>("BarrierDeps");
-        // std::cerr << "LayoutDMA: Found Op=" << op->getName()
-        //           << " ty=" << op->getOpType()
-        //           << ": wait=";
-        // for (auto wait : opInfo->deps.getWait())
-        // {
-        //     std::cerr << wait << " ";
-        // }
-        // std::cerr << " update=";
-        // for (auto update : opInfo->deps.getUpdate())
-        // {
-        //     std::cerr << update << " ";
-        // }
-        // std::cerr << "size=" << opInfo->size
-        //           << " isWeightDMA=" << opInfo->isWeightDMA << "\n"
-        //           << op->toString() << "\n";
-        // if (opInfo->isDMA)
-        // {
-        //     std::cerr << op->getInputTensor(0)->toString() << "\n";
-        // }
-        // std::cerr << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Found Op=" << op->getName()
+                  << " ty=" << op->getOpType()
+                  << ": wait=";
+        for (auto wait : opInfo->deps.getWait())
+        {
+            std::cerr << wait << " ";
+        }
+        std::cerr << " update=";
+        for (auto update : opInfo->deps.getUpdate())
+        {
+            std::cerr << update << " ";
+        }
+        std::cerr << "size=" << opInfo->size
+                  << " isWeightDMA=" << opInfo->isWeightDMA << "\n"
+                  << op->toString() << "\n";
+        if (opInfo->isDMA)
+        {
+            std::cerr << op->getInputTensor(0)->toString() << "\n";
+        }
+        std::cerr << "\n";
+#endif
     }
 
     struct BarrierInfo
     {
         std::uint64_t startNS;
         std::vector<OpInfo*> opInfos;
+        std::vector<std::uint64_t> portSlackNS;
     };
 
-    std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, {}});
+    std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, {}, std::vector<std::uint64_t>(portLimit, 0)});
     for (auto& opInfo : opInfos)
     {
         for (auto depUpdate : opInfo.deps.getUpdate())
@@ -920,22 +941,24 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
 
         // Compute per-barrier latencies, including port effects.
+        std::uint64_t overallLatency = 0;
         for (auto& opInfo : opInfos)
         {
-            // std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
-            //           << " ty=" << opInfo.op->getOpType()
-            //           << ": wait=";
-            // for (auto wait : opInfo->deps.getWait())
-            // {
-            //     std::cerr << wait << " ";
-            // }
-            // std::cerr << " update=";
-            //           << " update=";
-            // for (auto update : opInfo.deps.getUpdate())
-            // {
-            //     std::cerr << update << " ";
-            // }
-            // std::cerr << "LayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
+                      << " ty=" << opInfo.op->getOpType()
+                      << ": wait=";
+            for (auto wait : opInfo.deps.getWait())
+            {
+                std::cerr << wait << " ";
+            }
+            std::cerr << " update=";
+            for (auto update : opInfo.deps.getUpdate())
+            {
+                std::cerr << update << " ";
+            }
+            std::cerr << "\nLayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
+#endif
             opInfo.startNS = 0;
             for (auto depWait : opInfo.deps.getWait())
             {
@@ -956,42 +979,97 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 opInfo.portIdx = portIdx;
                 opInfo.startNS = std::max(opInfo.startNS, portInfos.at(portIdx).busyUntil);
                 portInfos.at(portIdx).busyUntil = opInfo.completeNS();
-                // std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+                std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
+#endif
             }
-            // std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
-            // std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
+            std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
+#endif
             for (auto depUpdate : opInfo.deps.getUpdate())
             {
                 barrierInfos.at(depUpdate).startNS = std::max(barrierInfos.at(depUpdate).startNS, opInfo.completeNS());
             }
-            // std::cerr << "\n";
+            overallLatency = std::max(opInfo.completeNS(), overallLatency);
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "\n";
+#endif
         }
 
-        // std::cerr << "LayoutDMA: csramAvailable = " << csramAvailable << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Computing slack\n";
+#endif
+
+        // Compute per-barrier/per-port slack latencies.
+        for (size_t barrierIdx = 0; barrierIdx < barrierInfos.size(); ++barrierIdx)
+        {
+            auto& barrierInfo = barrierInfos.at(barrierIdx);
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA:   Considering barrier=" << barrierIdx << "; startNS=" << barrierInfo.startNS << "\n";
+#endif
+            for (auto portIdx = 0; portIdx < portLimit; ++portIdx)
+            {
+#ifdef DEBUG_LAYOUT_PASS
+                std::cerr << "LayoutDMA:     Considering portIdx=" << portIdx << "\n";
+#endif
+                std::uint64_t portCompleteNS = 0;
+                for (auto opInfo : barrierInfo.opInfos)
+                {
+                    if (opInfo->isDMA && opInfo->portIdx == portIdx)
+                    {
+                        portCompleteNS = std::max(portCompleteNS, opInfo->completeNS());
+#ifdef DEBUG_LAYOUT_PASS
+                        std::cerr << "LayoutDMA:       Updated port completion to "
+                                  << portCompleteNS << "\n";
+#endif
+                    }
+                }
+#ifdef DEBUG_LAYOUT_PASS
+                std::cerr << "LayoutDMA:       Port[" << portIdx << "].slack="
+                          << barrierInfo.startNS - portCompleteNS << "\n";
+#endif
+                barrierInfo.portSlackNS.at(portIdx) = barrierInfo.startNS - portCompleteNS;
+            }
+        }
+
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: csramAvailable=" << csramAvailable
+                  << " overallLatency=" << overallLatency << "\n";
+#endif
 
         // Compute the benefit for each candidate operation, saving the best we have so far.
         struct Plan
         {
             OpInfo* opInfo;
             std::uint64_t benefitNS;
+            std::uint64_t slackNS;
         };
 
-        auto bestPlan = Plan{nullptr, 0};
+        auto bestPlan = Plan{nullptr, 0, overallLatency};
         for (auto& opInfo : opInfos)
         {
-            // std::cerr << "LayoutDMA: Planning Op=" << opInfo.op->getName()
-            //           << " ty=" << opInfo.op->getOpType()
-            //           << ": latency=" << opInfo.latencyNS
-            //           << " csramNS=" << opInfo.csramNS
-            //           << " size=" << opInfo.size
-            //           << " port=" << opInfo.portIdx
-            //           << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Planning Op=" << opInfo.op->getName()
+                      << " ty=" << opInfo.op->getOpType()
+                      << ": latency=" << opInfo.latencyNS
+                      << " csramNS=" << opInfo.csramNS
+                      << " size=" << opInfo.size
+                      << " port=" << opInfo.portIdx
+                      << "\n";
+#endif
             if (!opInfo.isCSRAMCandidate() || csramAvailable < opInfo.size)
             {
+#ifdef DEBUG_LAYOUT_PASS
+                std::cerr << "LayoutDMA:   not a candidate for CSRAM (isWeightDMA=" << opInfo.isWeightDMA << ")\n";
+#endif
                 continue;
             }
             std::fill(portInfos.begin(), portInfos.end(), PortInfo{0});
-            auto plan = Plan{&opInfo, 0};
+            auto plan = Plan{&opInfo, 0, overallLatency};
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA:   Initial slack=" << plan.slackNS << "\n";
+#endif
             for (auto depUpdate : opInfo.deps.getUpdate())
             {
                 std::uint64_t newStartNS = 0;
@@ -999,11 +1077,15 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 for (auto opInfoT : barrierInfo.opInfos)
                 {
                     std::uint64_t completeNS = (opInfoT == &opInfo
-                                                  ? opInfoT->completeNSUsingCSRAM()
-                                                  : opInfoT->completeNS());
+                                                ? opInfoT->completeNSUsingCSRAM()
+                                                : opInfoT->completeNS());
                     if (opInfoT->isDMA)
                     {
                         portInfos.at(opInfoT->portIdx).busyUntil = std::max(portInfos.at(opInfoT->portIdx).busyUntil, completeNS);
+#ifdef DEBUG_LAYOUT_PASS
+                        std::cerr << "LayoutDMA:   Port " << opInfoT->portIdx << " barrier slack=" << barrierInfo.portSlackNS.at(opInfoT->portIdx) << "\n";
+#endif
+                        plan.slackNS = std::min(barrierInfo.portSlackNS.at(opInfoT->portIdx), plan.slackNS);
                     }
                     else
                     {
@@ -1033,7 +1115,14 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
                 plan.benefitNS += barrierInfo.startNS - newStartNS;
             }
-            if (plan.benefitNS > bestPlan.benefitNS)
+
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA:   benefit=" << plan.benefitNS << " slack=" << plan.slackNS << "\n";
+#endif
+
+            if ((!bestPlan.opInfo)
+                || (plan.benefitNS > bestPlan.benefitNS)
+                || (bestPlan.benefitNS == 0 && plan.slackNS < bestPlan.slackNS))
             {
                 bestPlan = plan;
             }
@@ -1041,11 +1130,14 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
         if (bestPlan.opInfo)
         {
-            // std::cerr << "LayoutDMA: Moving to CSRAM: Op=" << bestPlan.opInfo->op->getName()
-            //           << " ty=" << bestPlan.opInfo->op->getOpType()
-            //           << " benefit=" << bestPlan.benefitNS
-            //           << " size=" << bestPlan.opInfo->size
-            //           << "\n";
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Moving to CSRAM: Op=" << bestPlan.opInfo->op->getName()
+                      << " ty=" << bestPlan.opInfo->op->getOpType()
+                      << " benefit=" << bestPlan.benefitNS
+                      << " slack=" << bestPlan.slackNS
+                      << " size=" << bestPlan.opInfo->size
+                      << "\n";
+#endif
             csramAvailable -= bestPlan.opInfo->size;
 
             for (auto& tensor : bestPlan.opInfo->op->getInputTensor())
@@ -1066,7 +1158,9 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
         else
         {
-            // std::cerr << "LayoutDMA: No useful tensor optimizations available\n";
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: No useful tensor optimizations available\n";
+#endif
             break;
         }
     }
@@ -1097,27 +1191,30 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     unsigned currentDDRIdx = 0;
     for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
     {
-        if (t->hasAttr("graphFileIndex"))
+        if (!t->get<std::set<std::string>>("allocators").count("GraphFile"))
         {
-            unsigned idx;
-            auto ti = tensorInfos.find(&*t);
-            if (ti != tensorInfos.end() && 0 <= ti->second.priority)
-            {
-                idx = graphFileTensorLimit - ti->second.priority - 1;
-            }
-            else
-            {
-                idx = currentDDRIdx++;
-            }
-            t->set("graphFileIndex", idx);
+            continue;
         }
+        unsigned idx;
+        auto ti = tensorInfos.find(&*t);
+        if (ti != tensorInfos.end() && 0 <= ti->second.priority)
+        {
+            idx = graphFileTensorLimit - ti->second.priority - 1;
+        }
+        else
+        {
+            idx = currentDDRIdx++;
+        }
+        t->set("graphFileIndex", idx);
     }
 
-    // std::cerr << "LayoutDMA: Final Tensors:\n";
-    // for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
-    // {
-    //     std::cerr << "\n" << ti->toString() << "\n";
-    // }
+#ifdef DEBUG_LAYOUT_PASS
+    std::cerr << "LayoutDMA: Final Tensors:\n";
+    for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
+    {
+        std::cerr << "\n" << ti->toString() << "\n";
+    }
 
-    // std::cerr << "LayoutDMA: End\n";
+    std::cerr << "LayoutDMA: End\n";
+#endif
 }
