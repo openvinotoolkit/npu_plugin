@@ -392,6 +392,16 @@
                 "name": "Clusters",
                 "totalNumber": 4
             }
+
+            {
+                "name": "DMAControllers",
+                "totalNumber": 2
+            },
+
+            {
+                "name": "CSRAM",
+                "totalNumber": 6291456
+            }
         ],
         "huffman_decode_engine":
         [
