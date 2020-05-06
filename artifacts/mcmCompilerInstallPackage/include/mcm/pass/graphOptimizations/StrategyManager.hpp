@@ -156,11 +156,6 @@ public:
     OpModel& model_;
     mv::Element& passDesc_;
 
-    std::vector<mv::Data::OpListIterator> topologicalModel_;
-    std::vector<Data::FlowListIterator> addedFlows_;
-    using RemovedFlow = tuple<Data::OpListIterator, std::size_t, Data::OpListIterator, std::size_t>;
-    std::vector<RemovedFlow> removedFlows_;
-
     string dotFileLocation;
     bool createStrategyDots=false;
     string jsonOutFileName;
@@ -195,10 +190,8 @@ public:
     //Graph parsing methods
     void initLayerStrategySets();
     bool isLinearGraph(mv::Data::OpListIterator opBegin,mv::Data::OpListIterator opEnd,vector<mv::Data::OpListIterator> children);
-    mv::Data::OpListIterator LCA(mv::Data::OpListIterator opBegin, mv::Data::OpListIterator opEnd);
-    int countInputLayers(mv::Data::OpListIterator op);
-    std::vector<mv::Data::OpListIterator> getNonExclusiveNodes(mv::Data::OpListIterator startOp, mv::Data::OpListIterator endOp);
-    void handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIterator> nonExclusiveNodes, mv::Data::OpListIterator lcsa);
+    mv::Data::OpListIterator naiveLCA(vector<mv::Data::OpListIterator> children,mv::Data::OpListIterator opEnd);
+    mv::Data::OpListIterator naiveLCA(mv::Data::OpListIterator nodeA,mv::Data::OpListIterator nodeB,mv::Data::OpListIterator opEnd);
     shared_ptr<vector<SubGraph>> extractSubgraphs(mv::Data::OpListIterator opBegin,mv::Data::OpListIterator opEnd,std::vector<mv::Data::OpListIterator> childIdx);
     std::shared_ptr<MetaGraph> linearGraphSolver(mv::Data::OpDFSIterator opBegin,mv::Data::OpDFSIterator opEnd,mv::Data::OpDFSIterator firstChild);
     std::shared_ptr<MetaGraph> recursiveGraphSolver(mv::Data::OpListIterator opBegin, mv::Data::OpListIterator opEnd);

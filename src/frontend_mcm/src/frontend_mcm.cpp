@@ -774,8 +774,8 @@ void FrontEndMcm::parseInputData() {
 
         bool networkInput = true;
 
-        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision), convert_layout(inputLayout),
-            initialQuantParams, networkInput, netInput->name());
+        auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision),
+            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
