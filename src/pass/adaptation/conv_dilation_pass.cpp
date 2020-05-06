@@ -58,24 +58,6 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 auto quantParams = nonDilatedKernelOp->get<mv::QuantizationParams>("quantParams");
                 /*Populate dilated tensor with zeros*/
 
-                std::array<unsigned short,4> padding = opIt->get< std::array<unsigned short,4> >("padding");
-                if (padding[PADDING_LEFT])
-                {
-                    padding[PADDING_LEFT] = floor(nonDilatedKernelWidth/2);
-                }
-                if (padding[PADDING_RIGHT])
-                {
-                    padding[PADDING_RIGHT] = floor(nonDilatedKernelWidth/2);
-                }
-                if (padding[PADDING_TOP])
-                {
-                    padding[PADDING_TOP] = floor(nonDilatedKernelHeight/2);
-                }
-                if (padding[PADDING_BOT])
-                {
-                    padding[PADDING_BOT] = floor(nonDilatedKernelHeight/2);
-                }
-                opIt->set<std::array<unsigned short, 4>>("padding", padding );
                 /*Create Dilated Kernel Tensor*/
 
                 //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
@@ -104,7 +86,8 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     
                 om.defineFlow(dilatedKernelOp, opIt, 1);
                 opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
-                opIt->setInputTensor(dilatedKernelOp, 1);
+                opIt->setInputTensor(dilatedKernelOp, 1, false);
+                opIt->set<unsigned>("dilationFactor", 1);
                 auto DilatedKernelOpFetched = opIt.rightmostParent();
                 DilatedKernelOpFetched->set<unsigned>("opId", currentOpId);
             }

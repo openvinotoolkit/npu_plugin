@@ -1556,6 +1556,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
         softLayerParamsValue->axis = 1;
     else if (axis.compare(std::string("H")) == 0)
         softLayerParamsValue->axis = 2;
+    else if (axis.compare(std::string("W")) == 0)
+        throw std::runtime_error("UPA softmax layer does not support softmax oepration on the W axis. \
+            The solution to this is to reshape the tensor before and after the softmax operation. This \
+            should of been handled in the pass AddReshapesToChangeSoftmaxAxis");
+
     toBuild->softLayerParams.value = softLayerParamsValue;
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
