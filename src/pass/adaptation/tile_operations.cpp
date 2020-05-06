@@ -200,7 +200,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         {
             std::string biasName = mv::createBiasName(convOp->getName() + "_bias");
             newBias = dm.defineTensor(mv::Tensor(biasName, bias->getShape(),
-                                         opIt->get<mv::DType>("dType"), bias->getOrder(), bias->getData(), bias->get<mv::QuantizationParams>("quantParams")));
+                                         inputTensor->get<mv::DType>("dType"), bias->getOrder(), bias->getData(), bias->get<mv::QuantizationParams>("quantParams")));
             om.addAttr(convOp, "bias", biasName);
         }
 
