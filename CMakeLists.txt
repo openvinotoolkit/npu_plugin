@@ -272,10 +272,12 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/tile_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/tile_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/ppe_replacement.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
