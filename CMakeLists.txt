@@ -339,6 +339,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/emulation/decide_precision.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
