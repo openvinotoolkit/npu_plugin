@@ -35,13 +35,13 @@ static void applyTargetVarsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
     for (std::size_t idx = 0; idx < vars.size(); ++idx)
     {
         auto& v = vars[idx];
-        if (!v.hasAttr("name") || !v.hasAttr("block") || !v.hasAttr("var") || !v.hasAttr("default"))
+        if (!v.hasAttr("block") || !v.hasAttr("var") || !v.hasAttr("default"))
         {
             // TODO: Consider emitting a diagnostic
             continue;
         }
 
-        if (globalConfig->hasAttr(v.get<std::string>("name")))
+        if (globalConfig->hasAttr(v.getName()))
         {
             continue;
         }
@@ -58,6 +58,6 @@ static void applyTargetVarsFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         }
         // TODO: Consider emitting a diagnostic if none of the block cases matched.
         
-        globalConfig->set<int>(v.get<std::string>("name"), value);
+        globalConfig->set<int>(v.getName(), value);
     }
 }
