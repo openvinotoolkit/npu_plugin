@@ -1570,6 +1570,24 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASoftmaxTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPASigmoidTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_UnaryOpParams;
+    auto softLayerParamsValue = new MVCNN::UnaryOpParamsT();
+
+    softLayerParamsValue->nested_params.type = MVCNN::UnaryOpNestedParams_SigmoidParams;
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPANormalizeTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     auto input = opIt->getInputTensor(0);
@@ -1963,17 +1981,18 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(Computation
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     // Fill in required params
+    std::string code_type = "CENTER_SIZE";
     softLayerParamsValue->num_classes = opIt->get<int64_t>("num_classes");
     softLayerParamsValue->keep_top_k = opIt->get<int64_t>("keep_top_k");
     softLayerParamsValue->nms_threshold = static_cast<float>(opIt->get<double>("nms_threshold"));
     softLayerParamsValue->background_label_id = opIt->get<int64_t>("background_label_id");
     softLayerParamsValue->top_k = opIt->get<int64_t>("top_k");
     softLayerParamsValue->variance_encoded_in_target = opIt->get<bool>("variance_encoded_in_target");
-    softLayerParamsValue->code_type = opIt->get<std::string>("code_type");
+    softLayerParamsValue->code_type = code_type;
     softLayerParamsValue->share_location = opIt->get<bool>("share_location");
     softLayerParamsValue->confidence_threshold = static_cast<float>(opIt->get<double>("confidence_threshold"));
     softLayerParamsValue->clip_before_nms = opIt->get<bool>("clip_before_nms");
-    softLayerParamsValue->clip_after_nms = opIt->get<bool>("clip_after_nms");
+    softLayerParamsValue->clip_after_nms = 1;
     softLayerParamsValue->decrease_label_id = opIt->get<int64_t>("decrease_label_id");
     softLayerParamsValue->normalized = opIt->get<bool>("normalized");
     softLayerParamsValue->input_height = opIt->get<int64_t>("input_height");
@@ -2193,6 +2212,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPADummyTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Softmax")
         toReturn[0]->task.value = buildUPASoftmaxTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Sigmoid")
+        toReturn[0]->task.value = buildUPASigmoidTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Proposal")
         toReturn[0]->task.value = buildUPAProposalTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "ROIPooling")
