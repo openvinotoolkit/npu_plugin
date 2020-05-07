@@ -1129,7 +1129,10 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
         while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
           spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
         }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
@@ -1147,7 +1150,10 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
         std::vector<mv::Data::FlowListIterator> flows;
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
         while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
           spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
         }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
