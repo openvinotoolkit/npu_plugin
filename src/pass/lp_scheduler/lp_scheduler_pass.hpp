@@ -1288,6 +1288,7 @@ class Dynamic_Spill_Node_Inserter {
       mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
       spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
       std::string dma_op_name;
+      mv::Data::TensorIterator spill_read_tensor_itr;
 
       for (typename spilled_read_subtrees_t::iterator
             spill_read_itr=read_subtrees.begin();
@@ -1295,10 +1296,10 @@ class Dynamic_Spill_Node_Inserter {
 
         dma_op_name = spilled_op->getName() + "_spilledReadForest" +
             std::to_string(read_index++);
-        mv::Data::TensorIterator spill_read_tensor_itr = om.dMATask(
+        spill_read_tensor_itr = om.dMATask(
             spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
         if(spill_read_tensor_itr->isSparse())
-          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false);
+          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false) 
         Data::OpListIterator read_op_itr =
             om.getSourceOp(spill_read_tensor_itr);
         read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
@@ -1332,7 +1333,8 @@ class Dynamic_Spill_Node_Inserter {
         redundant_spill_map_.insert(
             std::make_pair(spilled_op, spilled_op->getName()));
         om.removeOp(spilled_op_itr);
-      }
+        spill_read_tensor_itr->set<bool>("allocateSparsityMap", true); // If the original DMA Op is considered redundant and removed
+      }                                                                // then we want the 'new' spilled DMA to allocate the sparsity map
     }
 
     bool has_its_output_spilled(operation_t op) const {
