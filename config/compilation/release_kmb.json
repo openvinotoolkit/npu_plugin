@@ -301,7 +301,11 @@
     },
     "serialize": {
         "Singular": [
-            "RemoveRedundantUpdateBarriers"
+            "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            }
         ]
     },
     "root": {
