@@ -87,6 +87,7 @@ struct opStreamingSplitDef
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
 mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
+mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model, mv::Data::OpListIterator op, mv::Tiling& tiling);
 
 std::map<std::string, std::function<mv::Data::TensorIterator(mv::ComputationModel&, mv::Data::OpListIterator, mv::Tiling&)>>
 streamSplit =
@@ -94,7 +95,8 @@ streamSplit =
     {"W",solveSpatialTiling},
     {"H",solveSpatialTiling},
     {"K",solveWeightsTiling},
-    {"C",solveWeightsTiling} //NOTE::Only Convolution/Depthwise is supported for SoK now
+    {"C",solveWeightsTiling}, //NOTE::Only Convolution/Depthwise is supported for SoK now
+    {"N",solveBatchTiling}
 };
 
 mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
@@ -492,6 +494,191 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                     originalDType,
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     op->getName() + "_streamH" + std::to_string(split));
+        }
+
+        auto newOp = om.getSourceOp(newTensor);
+
+        newOp->setAttrs(attrsToCopy);
+        newOp->set<bool>("splitted", true);//TODO::temporary hack. To remove once the iteration conditions are updated
+
+        newTensors[split] = newTensor;
+
+        bool enableSerialStreaming = true;
+        if ((split > 0) && enableSerialStreaming)
+            cm.defineFlow(om.getSourceOp(newTensors[split-1]), om.getSourceOp(newTensors[split]));
+    }
+
+    // decide on the location of the I/O Tensors of the conv;
+    // basically, for each operation, if we are the last inside the recursive splitting schema, then we can make the
+    // assumption that we are fitting into CMX. The check is assumed to be made by the scheduler. This pass only implements
+    // the respective schedule inside the graph.
+    // If we are not the last split, we will basically, inherit the location our parent inputTensor;
+    // Unlike Kstream, we may have different number of "newOutputs" than slices, since Ops can have multiple inputs
+    // and the concept of stream is per OP not per tensor // todo:: find way with less duplication of code&logic
+
+    auto numChildStreames = tiling.childTiles().size();
+    for (auto newTensor : newTensors)
+    {
+        mv::Tensor::MemoryLocation outputLocation(mv::Tensor::MemoryLocation::DEFAULT);
+        if(numChildStreames > 1)
+            outputLocation.relocate(outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+        else
+            outputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
+        newTensor->set<mv::Tensor::MemoryLocation>("Location",outputLocation);
+
+    }
+    for (auto slice : slices)
+    {
+        mv::Tensor::MemoryLocation inputLocation(mv::Tensor::MemoryLocation::DEFAULT);
+        if(numChildStreames > 1)
+        {
+            auto sliceInputTensor = om.getSourceOp(slice)->getInputTensor(0);
+            inputLocation .relocate(sliceInputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+        }
+        else
+        {
+            inputLocation.relocate(mv::Tensor::MemoryLocation::NNCMX);
+        }
+        slice->set<mv::Tensor::MemoryLocation>("Location",inputLocation);
+    }
+
+
+    for (unsigned split = 0; split < number_of_splits; split++)
+    {
+        mv::Data::TensorIterator out;
+        if (childTiles[split].childTiles().size() > 1)
+        {
+            auto newStreamAxis = childTiles[split].getAxis();
+            auto newStreamFunc = streamSplit[newStreamAxis];
+
+            out = newStreamFunc(om, om.getSourceOp(newTensors[split]), childTiles[split]);
+            om.removeOp(om.getSourceOp(newTensors[split]));
+        }
+        else
+            out = newTensors[split];
+        final_outputs[split] = out;
+    }
+
+    auto concat = om.concat(final_outputs,
+                    tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
+                    op->get<mv::QuantizationParams>("quantParams"),
+                    op->getName() + "concat_");
+    om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
+    concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
+
+    return concat;
+}
+
+mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
+                    mv::Data::OpListIterator op,
+                    mv::Tiling& tiling)
+{
+    mv::OpModel om(model);
+    mv::ControlModel cm(model);
+
+    auto outputTensor = op->getOutputTensor("output");
+    auto opId = op->get<unsigned>("opId");
+    auto number_of_splits = tiling.childTiles().size();
+    auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
+    auto childTiles = tiling.childTiles();
+
+    // NOTE: In the streaming case, we can't just blindly copy everything like we
+    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
+    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+    std::string splitStrategy = op->get<std::string>("splitStrategy");
+
+    std::vector<mv::Data::TensorIterator> slices;
+    std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
+    std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
+    std::array<unsigned short, 2> kernelStride;
+    if (op->hasAttr("stride"))
+        kernelStride = op->get<std::array<unsigned short, 2>>("stride");
+    else
+        kernelStride = {1,1};//fake stride
+
+    //NOTE: assuming order of paddings: left,right,top,bottom
+    std::array<unsigned short, 4> padding;
+    if (op->hasAttr("padding"))
+        padding = op->get<std::array<unsigned short, 4>>("padding");
+    else
+        padding = {0, 0, 0, 0};
+
+    for (unsigned split = 0; split < number_of_splits; split++)
+    {
+        mv::Data::TensorIterator newTensor;
+        std::string opType = op->getOpType();
+        std::string streamingOpName = op->getName() + "_stream" + tiling.getAxis() + std::to_string(split);
+        if (opType == "MaxPool" || opType == "Conv" || opType == "DepthwiseConv")
+        {
+            auto inputTensor = op->getInputTensor(0);
+
+            auto sliceShape = childTiles[split].getActivationShape();
+            auto sliceStart = childTiles[split].getActivationStart();
+
+            mv::Data::TensorIterator slice = om.slice(inputTensor,
+                                sliceStart,
+                                sliceShape,
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_slice" + tiling.getAxis() + std::to_string(split));
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+
+            if (opType == "MaxPool")
+                newTensor = om.maxPool(slice,
+                                op->get<std::array<unsigned short, 2UL>>("kSize"),
+                                kernelStride,
+                                padding,
+                                op->get<const bool>("exclude_pad"),
+                                op->get<mv::DType>("dType"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                streamingOpName);
+
+            if (opType == "DepthwiseConv")
+                newTensor = om.depthwiseConv(slice,
+                                op->getInputTensor(1),
+                                kernelStride,
+                                padding,
+                                1, //this is already taken care of, dont want to change kernel size again
+                                op->get<mv::DType>("dType"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                streamingOpName);
+
+            if (opType == "Conv")
+                newTensor = om.conv(slice,
+                                op->getInputTensor(1),
+                                kernelStride,
+                                padding,
+                                1, //this is already taken care of, dont want to change kernel size again
+                                op->get<unsigned>("group"),
+                                op->get<mv::DType>("dType"),
+                                op->get<mv::QuantizationParams>("quantParams"),
+                                streamingOpName);
+            slices.push_back(slice);
+        }
+        else if (opType == "Eltwise")
+        {
+            auto inputSlots = op->inputSlots();
+            auto eltwiseType = op->get<std::string>("eltwiseType");
+            auto originalDType = op->get<mv::DType>("dType");
+            for (unsigned i = 0; i < inputSlots; i++)
+            {
+                auto inputTensor = op->getInputTensor(i);
+
+                auto slice = om.slice(inputTensor,
+                                childTiles[split].getStartCoord(),
+                                childTiles[split].getSize(),
+                                inputTensor->get<mv::QuantizationParams>("quantParams"),
+                                op->getName() + "_slice"  + tiling.getAxis() + std::to_string(split) + "_" + std::to_string(i));
+                om.getSourceOp(slice)->set<unsigned>("opId", opId);
+                slices.push_back(slice);
+            }
+
+            newTensor = om.eltwise(slices,
+                                    eltwiseType,
+                                    originalDType,
+                                    op->get<mv::QuantizationParams>("quantParams"),
+                                    op->getName() + "_stream" + tiling.getAxis() + std::to_string(split));
         }
 
         auto newOp = om.getSourceOp(newTensor);

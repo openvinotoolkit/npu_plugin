@@ -27,7 +27,7 @@ namespace mv
         void printShape(const tileShape& shape) const
         {
             std::cout<< "{";
-            for(size_t i = 0; i < TILE_DIM_N; ++i)
+            for(size_t i = 0; i <= TILE_DIM_N; ++i)
                 std::cout<< shape[i] << "," ;
             std::cout<<"}";
         }
@@ -237,6 +237,33 @@ namespace mv
             }
         }
 
+        void generateBatchTiling()
+        {
+            auto numberOfSplits = childTiles().size();
+            auto inputShape = getSize();
+            // MV::Shape considers N(batches) at the same index as K(out channels for weight sets)
+            // which won't work with our tiling logic where N and K sizes jave separate entries
+            auto axisToSplit =  TILE_DIM_N;
+
+            auto newInputSizes = tileSpatialOutputSize(inputShape[axisToSplit], numberOfSplits);
+
+            unsigned startCoord = 0;
+            for (std::size_t split = 0; split < numberOfSplits; split++)
+            {
+                tileShape tileStart({0,0,0,0,0});
+                tileShape tileSize = inputShape;
+
+                tileStart[axisToSplit] = startCoord;
+                tileSize[axisToSplit] = newInputSizes[split];
+
+                mv::Tiling newTile(tileStart, tileSize);
+                setChildTile(newTile, split);
+
+                // Compute start coordinates for the next tile
+                startCoord += newInputSizes[split];
+            }
+        }
+
         void generateTiling(mv::Data::OpListIterator opIt)
         {
             if(axis_ == "K")
@@ -247,6 +274,8 @@ namespace mv
                 generateSpatialTiling(opIt);
             else if (axis_ == "C")
                 generateWeightsTiling();
+            else if (axis_ == "N")
+                generateBatchTiling();
         }
 
         //TODO::build proper stream out of this
