@@ -40,7 +40,7 @@ static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
 bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData,
     InputsDataMap& networkInputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    if (inputs.size() != 1) return false;
+    if (inputs.size() != 1 || preprocData.empty()) return false;
 
     for (auto& input : inputs) {
         const auto& blobName = input.first;
