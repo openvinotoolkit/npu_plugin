@@ -69,6 +69,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeAvgPoolFcn(pass, model);
+    replaceLargeStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
@@ -927,6 +928,8 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                                    branchInputSize,
                                    sourceTensor->get<mv::QuantizationParams>("quantParams"),
                                    opIt->getName() + "_slice_Input" + std::to_string(branchId));*/
+                i=0;
+                j=0;
             } while( i || j ); //i,j non zero means we need to slice
         }
     }
