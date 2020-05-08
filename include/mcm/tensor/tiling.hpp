@@ -6,25 +6,20 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 
-#define TILE_DIM_W 0
-#define TILE_DIM_H 1
-#define TILE_DIM_C 2
-#define TILE_DIM_K 3
-#define TILE_DIM_N 4
-
 namespace mv
 {
     class Tiling {
     private:
-        using tileShape = std::vector<std::size_t>;
+        using TileShape = std::vector<std::size_t>;
 
-        tileShape start_;
-        tileShape size_;
+        enum TileDim { TILE_DIM_W, TILE_DIM_H, TILE_DIM_C, TILE_DIM_K, TILE_DIM_N };
+        TileShape start_;
+        TileShape size_;
 
         std::string axis_;
         std::vector<Tiling> childTiles_;
 
-        void printShape(const tileShape& shape) const
+        void printShape(const TileShape& shape) const
         {
             std::cout<< "{";
             for(size_t i = 0; i <= TILE_DIM_N; ++i)
@@ -34,8 +29,8 @@ namespace mv
 
     public:
 
-        Tiling() :start_({0,0,0,0,0}), size_({0,0,0,0,0}), axis_(""), childTiles_(0) {}
-        Tiling( Shape& actShape, Shape& kernelShape)
+        Tiling() : start_({0,0,0,0,0}), size_({0,0,0,0,0}), axis_(""), childTiles_(0) {}
+        Tiling(const Shape& actShape, const Shape& kernelShape)
                 : start_({0,0,0,0,0}), axis_(""), childTiles_(0)
         {
             size_.resize(5);
@@ -45,7 +40,7 @@ namespace mv
             size_[TILE_DIM_K] = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
             size_[TILE_DIM_N] = actShape[mv::IO_BATCH_DIMENSION];
         }
-        Tiling( Shape& actShape)
+        Tiling(const Shape& actShape)
                 : start_({0,0,0,0,0}),axis_(""), childTiles_(0)
         {
             size_.resize(5);
@@ -56,16 +51,15 @@ namespace mv
             size_[TILE_DIM_N] = actShape[mv::IO_BATCH_DIMENSION];
         }
 
-        Tiling(tileShape& start,tileShape& size) :
+        Tiling(const TileShape& start, const TileShape& size) :
                 start_(start),size_(size),axis_(""),childTiles_(0) {}
 
-        Tiling( std::string& axis, std::size_t tiles)
+        Tiling(const std::string& axis, std::size_t tiles)
                 : start_({0,0,0,0,0}), size_({0,0,0,0,0}), axis_(axis), childTiles_(tiles)
         {
-
         }
 
-        Tiling( Shape& start, Shape& size, std::string axis, std::size_t childTiles)
+        Tiling(const Shape& start, Shape& size, std::string axis, std::size_t childTiles)
                 : start_(start), size_(size), axis_(axis), childTiles_(childTiles)
         {
         }
@@ -79,17 +73,21 @@ namespace mv
             return *this;
         }
 
-        std::string& getAxis() { return axis_; }
-        void setAxis(const std::string axis) { axis_ = axis; }
+        const std::string& getAxis() const { return axis_; }
+        void setAxis(const std::string& axis) { axis_ = axis; }
 
-        tileShape& getStartCoord() { return start_; }
-        void setStartCoord(tileShape start) { start_ = start; }
+        const TileShape& getStartCoord() const { return start_; }
+        void setStartCoord(const TileShape& start) { start_ = start; }
 
-        tileShape& getSize() { return size_; }
-        void setSize(tileShape size) { size_ = size; }
+        const TileShape& getSize() const { return size_; }
+        void setSize(const TileShape& size) { size_ = size; }
 
+        // TODO: This method requires const correctness, but it can't be changed because 
+        // spatial_split_streaming has already started using it. Will be replaced by
+        // getChildTiles().
         std::vector<Tiling>& childTiles() { return childTiles_; }
-        void setChildTile(Tiling& tile, unsigned index) { childTiles_[index] = tile; }
+        const std::vector<Tiling>& getChildTiles() const { return childTiles_; }
+        void setChildTile(const Tiling& tile, unsigned index) { childTiles_[index] = tile; }
 
         void resizeNumberOfTiles(std::size_t children) { childTiles_.resize(children); }
 
@@ -110,13 +108,13 @@ namespace mv
             return mv::Shape({0,0,start_[TILE_DIM_C],start_[TILE_DIM_K]});
         }
 
-        static inline int inferInputSize( int outputSize, int padding_start, int padding_end,int kernel_size,int kernel_stride)
+        static inline int inferInputSize(int outputSize, int padding_start, int padding_end, int kernel_size, int kernel_stride)
         {
             int inputSize =  ((outputSize -1) * kernel_stride)  -padding_start - padding_end + kernel_size;
             return inputSize;
         }
 
-        static inline int inferOutputSize( int inputSize, int padding_start, int padding_end,int kernel_size, int kernel_stride)
+        static inline int inferOutputSize(int inputSize, int padding_start, int padding_end, int kernel_size, int kernel_stride)
         {
             int outputSize = ( inputSize + padding_start + padding_end - kernel_size) / kernel_stride + 1;
             return outputSize;
@@ -144,8 +142,8 @@ namespace mv
 
             for(std::size_t split = 0; split < numberOfSplits; split++)
             {
-                tileShape tileStart({0,0,0,0,0});
-                tileShape tileSize = parentTileShape;
+                TileShape tileStart({0,0,0,0,0});
+                TileShape tileSize = parentTileShape;
 
                 tileStart[axisToSplit] = startCoord;
                 startCoord += newSize;
@@ -213,8 +211,8 @@ namespace mv
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {
-                tileShape tileStart({0,0,0,0,0});
-                tileShape tileSize = inputShape;
+                TileShape tileStart({0,0,0,0,0});
+                TileShape tileSize = inputShape;
 
                 tileStart[axisToSplit] = startCoord;
 
@@ -250,8 +248,8 @@ namespace mv
             unsigned startCoord = 0;
             for (std::size_t split = 0; split < numberOfSplits; split++)
             {
-                tileShape tileStart({0,0,0,0,0});
-                tileShape tileSize = inputShape;
+                TileShape tileStart({0,0,0,0,0});
+                TileShape tileSize = inputShape;
 
                 tileStart[axisToSplit] = startCoord;
                 tileSize[axisToSplit] = newInputSizes[split];
@@ -266,32 +264,35 @@ namespace mv
 
         void generateTiling(mv::Data::OpListIterator opIt)
         {
-            if(axis_ == "K")
+            if(axis_ == "K" || axis_ == "C")
                 generateWeightsTiling();
-            else if (axis_ == "H")
+            else if (axis_ == "H" || axis_ == "W")
                 generateSpatialTiling(opIt);
-            else if (axis_ == "W")
-                generateSpatialTiling(opIt);
-            else if (axis_ == "C")
-                generateWeightsTiling();
             else if (axis_ == "N")
                 generateBatchTiling();
         }
 
-        //TODO::build proper stream out of this
-        void printOut(unsigned depth) const
-        {
-            std::cout << "Master : "; printShape(size_) ; std::cout << std::endl;
-
-            for (auto& tile : childTiles_)
+        void print(std::ostream& o, const Tiling& tiling, int depth = 0) const {
+            o << std::string(depth, '\t') << "{";
+            for (std::size_t i = 0; i < tiling.getSize().size(); ++i)
             {
-                for (unsigned tab = 0; tab < depth; tab++)
-                    std::cout<<"\t";
-
-                std::cout << "\tChild: ";
-                tile.printOut(depth+1);\
+                if (i != 0) o << ",";
+                o << tiling.getSize()[i];
+            }
+            o << "}" << std::endl;
+            for (const auto& childTile : tiling.getChildTiles())
+            {
+                print(o, childTile, depth + 1);
             }
         }
     };
+    // TODO: This currently leads to compile errors due to way in which the tiling.hpp
+    // gets included. Uncomment this once this is resolved.
+    /*
+    std::ostream& operator<<(std::ostream& o, const Tiling& t) {
+        t.print(o, t);
+        return o;
+    }
+    */
 }
 #endif
