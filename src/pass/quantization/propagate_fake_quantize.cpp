@@ -166,7 +166,7 @@ bool isVectorsEqual(const std::vector<double> left, const std::vector<double> ri
         return false;
     }
 
-    for (int i = 0; i < left.size(); i++) {
+    for (size_t i = 0; i < left.size(); i++) {
         if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
             return  false;
         }
@@ -199,7 +199,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     }
 
     std::vector<mv::QuantizationParams> outQuantParams;
-    for (int i = 0; i < current_ops.size(); i++) {
+    for (size_t i = 0; i < current_ops.size(); i++) {
         if (current_ops[i]->getOpType() == "FakeQuantize") {
             outQuantParams.push_back(extractQuantParamsO(current_ops[0], op->getOpType() != "Constant"));
         }
@@ -210,7 +210,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
         return initial_quant_params;
     }
 
-    for (int i = 1; i < outQuantParams.size(); i++) {
+    for (size_t i = 1; i < outQuantParams.size(); i++) {
         if (!isEqual(outQuantParams[0], outQuantParams[i])) {
             throw std::runtime_error("Different quant params on branches");
         }
@@ -475,7 +475,7 @@ void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
     mv::DataModel dm(om);
-    for (int i = 0; i < inputs.size(); i++) {
+    for (size_t i = 0; i < inputs.size(); i++) {
         auto input = inputs.at(i);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 

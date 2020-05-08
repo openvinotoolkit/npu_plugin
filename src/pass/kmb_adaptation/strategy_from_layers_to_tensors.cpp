@@ -157,7 +157,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         if (opType == "ImplicitInputSlice")
         {
             auto numOutputs = layer->outputSlots();
-            for (auto i = 0; i < numOutputs; i++)
+            for (std::size_t i = 0; i < numOutputs; i++)
             {
                 auto outputTensor = layer->getOutputTensor(i);
                 // Oh ... the many assumptions here!
