@@ -310,9 +310,8 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
         1, 2.f);
 }
 
-// KMB : Inference hangs.
-// [Track number: D#2476]
-TEST_F(KmbClassifyNetworkTest, INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
+// [Track number: D#3052]
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
 
     runTest(

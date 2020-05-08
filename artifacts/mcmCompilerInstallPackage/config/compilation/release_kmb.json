@@ -78,6 +78,7 @@
                     }
                 ]
             },
+            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -102,6 +103,8 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "AddReshapesToChangeSoftmaxAxis",
+            "ConvolutionDilation",
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
@@ -143,8 +146,9 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -182,11 +186,11 @@
                     ]
                 }
             },
-            "StoreLayerSplitStrategy",
-            "StoreLayerSparsityStrategy",
-            "StoreTensorPlacement",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
             "StreamingOperations",
-            "StreamBinaryDataWeights"
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -247,7 +251,7 @@
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
-              "enable_simple_repacking" : true
+              "no_temporal_edges" : true
             },
             {
                 "name": "TransitiveReduction",
@@ -269,23 +273,22 @@
             {
               "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
-            {
-                "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
-            },
-            "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
         "Singular": [
-            "StoreBarriersNamesInTasks",
-            "GenerateExecutionSchedule",
-            "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            {
+              "name" : "BarrierSchedulerPass",
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
+              "producer_bound" : 256
+            }
         ]
     },
     "validate": {

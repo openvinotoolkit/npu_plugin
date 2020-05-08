@@ -772,8 +772,10 @@ void FrontEndMcm::parseInputData() {
             VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
         }
 
+        bool networkInput = true;
+
         auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision),
-            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, netInput->name());
+            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }

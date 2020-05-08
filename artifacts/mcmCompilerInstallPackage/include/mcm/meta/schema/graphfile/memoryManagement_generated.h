@@ -26,11 +26,12 @@ enum MemoryLocation {
   MemoryLocation_VPU_CMX_NN = 5,
   MemoryLocation_VPU_CMX_UPA = 6,
   MemoryLocation_VPU_DDR_BSS = 7,
+  MemoryLocation_VPU_CSRAM = 8,
   MemoryLocation_MIN = MemoryLocation_NULL,
-  MemoryLocation_MAX = MemoryLocation_VPU_DDR_BSS
+  MemoryLocation_MAX = MemoryLocation_VPU_CSRAM
 };
 
-inline const MemoryLocation (&EnumValuesMemoryLocation())[8] {
+inline const MemoryLocation (&EnumValuesMemoryLocation())[9] {
   static const MemoryLocation values[] = {
     MemoryLocation_NULL,
     MemoryLocation_ProgrammableInput,
@@ -39,7 +40,8 @@ inline const MemoryLocation (&EnumValuesMemoryLocation())[8] {
     MemoryLocation_GraphFile,
     MemoryLocation_VPU_CMX_NN,
     MemoryLocation_VPU_CMX_UPA,
-    MemoryLocation_VPU_DDR_BSS
+    MemoryLocation_VPU_DDR_BSS,
+    MemoryLocation_VPU_CSRAM
   };
   return values;
 }
@@ -54,13 +56,14 @@ inline const char * const *EnumNamesMemoryLocation() {
     "VPU_CMX_NN",
     "VPU_CMX_UPA",
     "VPU_DDR_BSS",
+    "VPU_CSRAM",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMemoryLocation(MemoryLocation e) {
-  if (e < MemoryLocation_NULL || e > MemoryLocation_VPU_DDR_BSS) return "";
+  if (e < MemoryLocation_NULL || e > MemoryLocation_VPU_CSRAM) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMemoryLocation()[index];
 }

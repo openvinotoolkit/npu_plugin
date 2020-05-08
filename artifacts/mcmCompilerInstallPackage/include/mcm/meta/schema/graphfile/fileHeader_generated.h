@@ -173,6 +173,7 @@ struct ResourcesT : public flatbuffers::NativeTable {
   uint32_t nn_cmx_per_slice;
   uint32_t nn_cmx_slice_amount;
   uint32_t ddr_scratch;
+  uint32_t csram_storage;
   uint32_t arm_freq;
   uint32_t lnn_freq;
   uint32_t lupa_freq;
@@ -192,6 +193,7 @@ struct ResourcesT : public flatbuffers::NativeTable {
         nn_cmx_per_slice(0),
         nn_cmx_slice_amount(0),
         ddr_scratch(0),
+        csram_storage(0),
         arm_freq(0),
         lnn_freq(0),
         lupa_freq(0),
@@ -216,17 +218,18 @@ struct Resources FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_NN_CMX_PER_SLICE = 12,
     VT_NN_CMX_SLICE_AMOUNT = 14,
     VT_DDR_SCRATCH = 18,
-    VT_ARM_FREQ = 20,
-    VT_LNN_FREQ = 22,
-    VT_LUPA_FREQ = 24,
-    VT_DPU_FREQ = 26,
-    VT_CSRAM_FREQ = 28,
-    VT_NNCMX_TO_DDR_BW = 30,
-    VT_DDR_TO_NNCMX_BW = 32,
-    VT_NNCMX_TO_UPACMX_BW = 34,
-    VT_UPACMX_TO_NNCMX_BW = 36,
-    VT_NNCMX_TO_DPU_BW = 38,
-    VT_DPU_TO_NNCMX_BW = 40
+    VT_CSRAM_STORAGE = 20,
+    VT_ARM_FREQ = 22,
+    VT_LNN_FREQ = 24,
+    VT_LUPA_FREQ = 26,
+    VT_DPU_FREQ = 28,
+    VT_CSRAM_FREQ = 30,
+    VT_NNCMX_TO_DDR_BW = 32,
+    VT_DDR_TO_NNCMX_BW = 34,
+    VT_NNCMX_TO_UPACMX_BW = 36,
+    VT_UPACMX_TO_NNCMX_BW = 38,
+    VT_NNCMX_TO_DPU_BW = 40,
+    VT_DPU_TO_NNCMX_BW = 42
   };
   uint32_t upa_shaves() const {
     return GetField<uint32_t>(VT_UPA_SHAVES, 0);
@@ -248,6 +251,9 @@ struct Resources FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   uint32_t ddr_scratch() const {
     return GetField<uint32_t>(VT_DDR_SCRATCH, 0);
+  }
+  uint32_t csram_storage() const {
+    return GetField<uint32_t>(VT_CSRAM_STORAGE, 0);
   }
   uint32_t arm_freq() const {
     return GetField<uint32_t>(VT_ARM_FREQ, 0);
@@ -291,6 +297,7 @@ struct Resources FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyField<uint32_t>(verifier, VT_NN_CMX_PER_SLICE) &&
            VerifyField<uint32_t>(verifier, VT_NN_CMX_SLICE_AMOUNT) &&
            VerifyField<uint32_t>(verifier, VT_DDR_SCRATCH) &&
+           VerifyField<uint32_t>(verifier, VT_CSRAM_STORAGE) &&
            VerifyField<uint32_t>(verifier, VT_ARM_FREQ) &&
            VerifyField<uint32_t>(verifier, VT_LNN_FREQ) &&
            VerifyField<uint32_t>(verifier, VT_LUPA_FREQ) &&
@@ -332,6 +339,9 @@ struct ResourcesBuilder {
   }
   void add_ddr_scratch(uint32_t ddr_scratch) {
     fbb_.AddElement<uint32_t>(Resources::VT_DDR_SCRATCH, ddr_scratch, 0);
+  }
+  void add_csram_storage(uint32_t csram_storage) {
+    fbb_.AddElement<uint32_t>(Resources::VT_CSRAM_STORAGE, csram_storage, 0);
   }
   void add_arm_freq(uint32_t arm_freq) {
     fbb_.AddElement<uint32_t>(Resources::VT_ARM_FREQ, arm_freq, 0);
@@ -387,6 +397,7 @@ inline flatbuffers::Offset<Resources> CreateResources(
     uint32_t nn_cmx_per_slice = 0,
     uint32_t nn_cmx_slice_amount = 0,
     uint32_t ddr_scratch = 0,
+    uint32_t csram_storage = 0,
     uint32_t arm_freq = 0,
     uint32_t lnn_freq = 0,
     uint32_t lupa_freq = 0,
@@ -410,6 +421,7 @@ inline flatbuffers::Offset<Resources> CreateResources(
   builder_.add_lupa_freq(lupa_freq);
   builder_.add_lnn_freq(lnn_freq);
   builder_.add_arm_freq(arm_freq);
+  builder_.add_csram_storage(csram_storage);
   builder_.add_ddr_scratch(ddr_scratch);
   builder_.add_nn_cmx_slice_amount(nn_cmx_slice_amount);
   builder_.add_nn_cmx_per_slice(nn_cmx_per_slice);
@@ -685,6 +697,7 @@ inline void Resources::UnPackTo(ResourcesT *_o, const flatbuffers::resolver_func
   { auto _e = nn_cmx_per_slice(); _o->nn_cmx_per_slice = _e; };
   { auto _e = nn_cmx_slice_amount(); _o->nn_cmx_slice_amount = _e; };
   { auto _e = ddr_scratch(); _o->ddr_scratch = _e; };
+  { auto _e = csram_storage(); _o->csram_storage = _e; };
   { auto _e = arm_freq(); _o->arm_freq = _e; };
   { auto _e = lnn_freq(); _o->lnn_freq = _e; };
   { auto _e = lupa_freq(); _o->lupa_freq = _e; };
@@ -713,6 +726,7 @@ inline flatbuffers::Offset<Resources> CreateResources(flatbuffers::FlatBufferBui
   auto _nn_cmx_per_slice = _o->nn_cmx_per_slice;
   auto _nn_cmx_slice_amount = _o->nn_cmx_slice_amount;
   auto _ddr_scratch = _o->ddr_scratch;
+  auto _csram_storage = _o->csram_storage;
   auto _arm_freq = _o->arm_freq;
   auto _lnn_freq = _o->lnn_freq;
   auto _lupa_freq = _o->lupa_freq;
@@ -733,6 +747,7 @@ inline flatbuffers::Offset<Resources> CreateResources(flatbuffers::FlatBufferBui
       _nn_cmx_per_slice,
       _nn_cmx_slice_amount,
       _ddr_scratch,
+      _csram_storage,
       _arm_freq,
       _lnn_freq,
       _lupa_freq,
