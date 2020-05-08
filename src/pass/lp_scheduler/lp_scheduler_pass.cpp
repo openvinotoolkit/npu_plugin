@@ -64,7 +64,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::DDR_Address_Generator<dag_t>
         ddr_address_generator(model, input_dag);
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-        lp_sched_ddr_address_dump_filename);
+        lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
     assert(status);
   }
 
