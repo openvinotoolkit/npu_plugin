@@ -52,17 +52,20 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       global_params->get<std::string>(reader_t::ddr_address_attribute());
     assert(!stringfile.empty());
 
+    const char *lp_sched_ddr_address_dump_filename = nullptr;
     if (mv::Logger::getVerboseLevel() != mv::VerboseLevel::Error &&
-        mv::Logger::getVerboseLevel() != mv::VerboseLevel::Silent) {
-      begin = reader_t::begin_read(stringfile, om);
-      end = reader_t::end_read();
-
-      mv::lp_scheduler::DDR_Address_Generator<dag_t>
-          ddr_address_generator(model, input_dag);
-      bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-            "lp_sched_ddr_address_dump.txt");
-      assert(status);
+        mv::Logger::getVerboseLevel() != mv::VerboseLevel::Silent)
+    {
+      lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
+    begin = reader_t::begin_read(stringfile, om);
+    end = reader_t::end_read();
+
+    mv::lp_scheduler::DDR_Address_Generator<dag_t>
+        ddr_address_generator(model, input_dag);
+    bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
+        lp_sched_ddr_address_dump_filename);
+    assert(status);
   }
 
   for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
