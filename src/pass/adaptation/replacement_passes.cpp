@@ -908,13 +908,26 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
             auto name = opIt->getName();
             auto sourceTensor = opIt->getInputTensor(0);//input
-
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             auto inputShape = sourceTensor->getShape();
+            auto width = inputShape[mv::KERNEL_WIDTH];
+            auto height = inputShape[mv::KERNEL_HEIGHT];
 
             //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
             //for ()
             std::cout << "Strides : horizontal=" << stride[mv::STRIDE_HORIZONTAL] << ", vertical=" << stride[mv::STRIDE_VERTICAL] << std::endl;
+            unsigned int i = (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) ? 0 : width/stride[mv::STRIDE_HORIZONTAL];
+            unsigned int j = (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ? 0: height/stride[mv::STRIDE_VERTICAL];
+            const unsigned int hslices = i;
+            const unsigned int vslices = j;
+            do {
+                /*auto sliceInput = om.slice(sourceTensor,
+                                   {},
+                                   branchInputSize,
+                                   sourceTensor->get<mv::QuantizationParams>("quantParams"),
+                                   opIt->getName() + "_slice_Input" + std::to_string(branchId));*/
+            } while( i || j ); //i,j non zero means we need to slice
         }
+    }
 }
