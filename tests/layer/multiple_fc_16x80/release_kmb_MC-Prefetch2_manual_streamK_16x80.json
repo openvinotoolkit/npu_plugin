@@ -1,0 +1,382 @@
+{
+    "initialize": {
+        "Singular": [
+            {
+                "name" : "GlobalConfigParams",
+                "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
+                "recorded_model": false,
+                "verbose": "Warning",
+                "weights_form": "None",
+                "barrier_index_assignment" : "Dynamic",
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
+                "UpaShaves": 1,
+                "WorkloadCost": 300,
+                "DDRScratch": 16777216,
+                "MemoryHack": false,
+                "cmx": 917504,
+                "enable_channel_major_conv": false,
+                "HuffmanCompression": false,
+                "DPUTasksinFloat": false,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
+                "Int32Output": false,
+                "PPEAccuracy": false,
+                "split_strategy" :
+                [
+                    {
+                        "name_filter" : "Example",
+                        "cluster_filter" : 0,
+                        "strategy" : "Example"
+                    },
+                    {
+                        "name_filter": "Input_0",
+                        "strategy": "SplitOverH"
+                    },
+                    {
+                        "name_filter" : "fc_0",
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : "fc_1",
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : "fc_2",
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter" : "fc_3",
+                        "strategy" : "SplitOverH"
+                    },
+                    {
+                        "name_filter": "Output_0",
+                        "strategy": "SplitOverH"
+                    }
+                ],
+                "default_tensor_placement" : "NNCMX",
+                "tensor_placement_override" :
+                [
+                    {
+                        "name_filter" : ".*_ddr_.*",
+                        "mem_location" : "DDR"
+                    },
+                    {
+                        "name_filter" : ".*_cmx_.*",
+                        "mem_location" : "CMX"
+                    },
+                    {
+                        "name_filter" : ".*_input_.*",
+                        "mem_location" : "INPUT"
+                    },
+                    {
+                        "name_filter" : ".*_output_.*",
+                        "mem_location" : "OUTPUT"
+                    },
+                    {
+                        "name_filter" : ".*weights.*",
+                        "mem_location" : "BLOB"
+                    },
+                    {
+                        "mem_location": "NNCMX",
+                        "name_filter": "fc_0"
+                    },
+                    {
+                        "mem_location": "NNCMX",
+                        "name_filter": "fc_1"
+                    },
+                    {
+                        "mem_location": "NNCMX",
+                        "name_filter": "fc_2"
+                    },
+                    {
+                        "mem_location": "NNCMX",
+                        "name_filter": "fc_3"
+                    },
+                    {
+                        "mem_location": "DDR",
+                        "name_filter": "Input_0"
+                    }
+                ],
+                "streaming_strategy" :
+                [
+                    {
+                        "name_filter" : "Example",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter" : "Input_0",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter" : "fc_0",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 8}
+                        ]
+                    },
+                    {
+                        "name_filter" : "fc_1",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 4}
+                        ]
+                    },
+                    {
+                        "name_filter" : "fc_2",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter" : "fc_3",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 1}
+                        ]
+                    },
+                    {
+                        "name_filter" : "Output_0",
+                        "splits" : [
+                            {"W" : 1},
+                            {"H" : 1},
+                            {"C" : 1},
+                            {"K" : 1}
+                        ]
+                    }
+                ],
+                "sparsity_strategy" :
+                [
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "Output_0",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    },
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "fc_0",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    },
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "fc_1",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    },
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "fc_2",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    },
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "fc_3",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    },
+                    {
+                        "inputActivationSparsity": false,
+                        "name_filter": "Input_0",
+                        "outputActivationSparsity": false,
+                        "weightsSparsity": false
+                    }
+                ]
+            },
+            "AssignInputNode",
+            "AssignOutputNode",
+            "ComputeMemory",
+            "AssignUniqueOpId",
+            {
+                "name": "CreateSourceStructure",
+                "VersionMajor": 3,
+                "VersionMinor": 11,
+                "VersionPatch": 0,
+                "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
+            }
+        ]
+    },
+    "adapt": {
+        "Singular": [
+            "RemoveOps",
+            "ReplacementOps",
+            "TensorsToU8",
+            "TensorsToFP16",
+            "FusePostOps",
+            "ConvolutionDilation",
+            "DecideOutputDataType",
+            "PlacementOfOps",
+            "PostTrainingQuantize",
+            "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
+            "StoreGraphOptimizerDecisions",
+            "ComputeSparsitySolution",
+            "StreamingOperations",
+            "StreamBinaryDataWeights",
+            "StreamCopyOperations"
+        ]
+    },
+    "kmb_adapt": {
+        "Singular": [
+            "ConcatAsImplicit",
+            "PermuteAsImplicit",
+            "ReshapeAsImplicit",
+            "StoreWorkloadStrategy",
+            "ConvertOpsToTasks",
+            "AdaptFixedPointCompute",
+            "SetUpPPETasks",
+            "ForceSerialize",
+            "KMBOrderConversion",
+            "AlignUnpopulatedTensors",
+            "AddAlignOpForInputTensors",
+            "AlignPopulatedTensors",
+            "RemoveCropAlignInCMX",
+            "CropOrPadFinalOutput",
+            "AlignTaskWeights",
+            "GenerateSparsityMapsPopulatedTensors",
+            "GenerateWeightsTables",
+            "StrategyLayersToTensors",
+            "ComputeTensorsQuantParams",
+            "UpdateImplicitLayersQuantizationParams",
+            "PopulateWeightsTablesQuantization",
+            "RemoveBiasTensors",
+            "SetSparsityAttrForUnpopulatedTensors",
+            "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion",
+            "ConfigureOutputPrecision"
+        ]
+    },
+    "dma": {
+        "Singular" : [
+            "SetDpuTasksMemoryLocation",
+            "SetUPATasksMemoryLocation",
+            "UpdateImplicitLayersLocation",
+            "ResolveImplicitOperations",
+            "AddDPUTasksWeightsDMATasks",
+            "AddUPATasksExtraInputsDMATasks",
+            "EnsureSplitStrategiesForSpilling"
+        ]
+    },
+    "control_flows":{
+        "Singular" : [
+            "TaskControlFlows",
+            "TransitiveReduction",
+            "LayerNumbering",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 2
+            },
+            "TransitiveReduction",
+            "LayerNumbering",
+            "NNCMX2DDRControlFlows",
+            "TransitiveReduction"
+        ]
+    },
+    "finalize": {
+        "Singular": [
+            "GenerateSparsityMapsUnpopulatedTensors",
+            "AddDeallocationTasks",
+            {
+                "name": "TransitiveReduction",
+                "filter": "MemoryRequirement"
+            },
+            "MarkLastNodeForMaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
+            "TransitiveReduction",
+            {
+                "name": "GenerateWorkloads",
+                "costfunction": "greedy",
+                "TensorSplitAlgorithms": "Rectangle, Z-Tiling",
+                "_comment": "Supported CostFunctions are: balanced | criticalpath | minmax | greedy. Supported TensorSplitAlgorithms are Rectangle, Z-Tiling"
+            },
+            "ArrangeKmbExecution",
+            "AllocateInputOutputTensorsKmb",
+            "AllocateGraphfileTensorsKmb",
+            "ReAllocateImplicitOperationsKmb",
+            "AllocateCMXTensorsKmb",
+            "TensorGraphColoring",
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
+            {
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
+            },
+            "TransitiveReduction",
+            "PopulateWeightsTablesPointers"
+        ]
+    },
+    "scheduling": {
+        "Singular": [
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs"
+        ]
+    },
+    "validate": {
+        "Singular": [
+            "CheckTensors"
+        ]
+    },
+    "serialize": {
+        "Singular": [
+            "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
+            }
+
+        ]
+    },
+    "root": {
+        "Singular": [
+            "initialize",
+            "adapt",
+            "kmb_adapt",
+            "dma",
+            "control_flows",
+            "finalize",
+            "scheduling",
+            {
+                "name": "GenerateDot",
+                "output": "output/controlModel_MC_pref2.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/opControlModel_MC_pref2.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+            },
+            "serialize"
+        ]
+    }
+}
