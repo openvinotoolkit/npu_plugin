@@ -743,13 +743,19 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     auto globalConfig = model.getGlobalConfigParams();
     if (!globalConfig->hasAttr("csramLimit"))
     {
-       return;
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: No CSRAM attr\n";
+#endif
+        return;
     }
 
     auto csramLimit = globalConfig->get<int>("csramLimit");
     if (csramLimit <= 0)
     {
-       return;
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: CSRAM=" << csramLimit << "\n";
+#endif
+        return;
     }
 
     auto portLimit = globalConfig->get<int>("dmaControllers");
@@ -1182,7 +1188,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     unsigned graphFileTensorLimit = 0;
     for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
     {
-        if (t->hasAttr("graphFileIndex"))
+        if (t->get<std::set<std::string>>("allocators").count("GraphFile"))
         {
             ++graphFileTensorLimit;
         }
