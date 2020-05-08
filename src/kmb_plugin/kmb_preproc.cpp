@@ -19,9 +19,10 @@ namespace InferenceEngine {
 namespace SippPreproc {
 bool useSIPP() {
 #if defined(__arm__) || defined(__aarch64__)
-    static const bool USE_SIPP = [](const char* str) -> bool {
+    const bool USE_SIPP = [](const char* str) -> bool {
         std::string var(str ? str : "");
-        return var == "Y" || var == "YES" || var == "ON" || var == "1";
+        // we consider if USE_SIPP is not defined then SIPP is enabled
+        return var == "Y" || var == "YES" || var == "ON" || var == "1" || var == "";
     }(std::getenv("USE_SIPP"));
 
     return USE_SIPP;
@@ -39,7 +40,7 @@ static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
 bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData,
     InputsDataMap& networkInputs) {
 #if defined(__arm__) || defined(__aarch64__)
-    if (inputs.size() != 1) return false;
+    if (inputs.size() != 1 || preprocData.empty()) return false;
 
     for (auto& input : inputs) {
         const auto& blobName = input.first;
