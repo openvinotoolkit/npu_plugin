@@ -470,6 +470,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         else if (opType == "Eltwise")
         {
             auto inputSlots = op->inputSlots();
+            std::vector<mv::Data::TensorIterator> eltwiseSlices;
             auto eltwiseType = op->get<std::string>("eltwiseType");
             auto originalDType = op->get<mv::DType>("dType");
             for (unsigned i = 0; i < inputSlots; i++)
@@ -486,9 +487,10 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->getName() + "_sliceH" + std::to_string(split) + "_" + std::to_string(i));
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
                 slices.push_back(slice);
+                eltwiseSlices.push_back(slice);
             }
 
-            newTensor = om.eltwise(slices,
+            newTensor = om.eltwise(eltwiseSlices,
                                     eltwiseType,
                                     originalDType,
                                     op->get<mv::QuantizationParams>("quantParams"),
