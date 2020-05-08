@@ -216,16 +216,12 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         }
         else if (op->getOpType() == "DepthwiseConv")
         {
-            //Note the Channel dimensions for weights will always be the same with the input
-            std::size_t start_width = 0;
-            std::size_t start_height = 0;
-            std::size_t start_channels = childTiles[split].getStartCoord()[mv::KERNEL_INPUT_CHANNELS];
-            std::size_t size_width = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION];
-            std::size_t size_height = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
-            std::size_t size_channels =  childTiles[split].getSize()[mv::KERNEL_INPUT_CHANNELS];
+            auto sliceShape = childTiles[split].getActivationShape();
+            auto sliceStart = childTiles[split].getActivationStart();
+
             mv::Data::TensorIterator sliceInput = om.slice(copyInput,
-                                {start_width, start_height, start_channels, 0}, //childTiles[split].getStartCoord()
-                                {size_width, size_height, size_channels, 1}, //childTiles[split].getSize()
+                                sliceStart,
+                                sliceShape,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceHK_" + std::to_string(split));
 
@@ -480,9 +476,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             {
                 auto inputTensor = op->getInputTensor(i);
 
+                auto sliceShape = childTiles[split].getActivationShape();
+                auto sliceStart = childTiles[split].getActivationStart();
+
                 auto slice = om.slice(inputTensor,
-                                childTiles[split].getStartCoord(),
-                                childTiles[split].getSize(),
+                                sliceStart,
+                                sliceShape,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceH" + std::to_string(split) + "_" + std::to_string(i));
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
@@ -581,7 +580,6 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     auto outputTensor = op->getOutputTensor("output");
     auto opId = op->get<unsigned>("opId");
     auto number_of_splits = tiling.childTiles().size();
-    auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
     // NOTE: In the streaming case, we can't just blindly copy everything like we
@@ -665,9 +663,12 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
             {
                 auto inputTensor = op->getInputTensor(i);
 
+                auto sliceShape = childTiles[split].getActivationShape();
+                auto sliceStart = childTiles[split].getActivationStart();
+
                 auto slice = om.slice(inputTensor,
-                                childTiles[split].getStartCoord(),
-                                childTiles[split].getSize(),
+                                sliceStart,
+                                sliceShape,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_slice"  + tiling.getAxis() + std::to_string(split) + "_" + std::to_string(i));
                 om.getSourceOp(slice)->set<unsigned>("opId", opId);
