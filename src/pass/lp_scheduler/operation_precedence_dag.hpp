@@ -947,9 +947,7 @@ class Operation_Dag {
           pop_itr = (ops_.insert(op)).first;
           // op should have an unique name //
           const char * const op_name = op->getName().c_str();
-          op_name_table_t::iterator nitr =
-              op_name_table_.find(op->getName().c_str());
-          assert(nitr == op_name_table_.end());
+          assert(op_name_table_.find(op_name) == op_name_table_.end());
           op_name_table_.insert(std::make_pair(op_name, op));
         }
         op_to_iterator_lookup_.insert(std::make_pair(op, itr));
@@ -971,9 +969,7 @@ class Operation_Dag {
           if (cop_itr == ops_.end()) {
             cop_itr = (ops_.insert(child_op)).first;
             const char * const child_op_name = child_op->getName().c_str();
-            op_name_table_t::iterator nitr =
-                op_name_table_.find(child_op->getName().c_str());
-            assert(nitr == op_name_table_.end());
+            assert(op_name_table_.find(child_op_name) == op_name_table_.end());
             op_name_table_.insert(std::make_pair(child_op_name, child_op));
           }
 

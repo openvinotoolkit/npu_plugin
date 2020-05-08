@@ -761,10 +761,7 @@ class Control_Edge_Set {
         // add a control edge between op and cop //
         add_control_edge(op, cop, model);
 
-        relocating_dma_map_t::const_iterator map_itr =
-            relocating_dma_map_.find(op);
-
-        assert(map_itr == relocating_dma_map_.end());
+        assert(relocating_dma_map_.find(op) == relocating_dma_map_.end());
 
         relocating_dma_map_.insert(std::make_pair(op, cop));
 

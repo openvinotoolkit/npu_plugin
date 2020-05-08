@@ -299,9 +299,7 @@ class Memory_Control_Edge_Generator {
       // STEP-2: save the schedule //
       for (; sbegin != send; ++sbegin) {
         const scheduled_op_t& sop = *sbegin;
-        typename original_schedule_map_t::iterator os_itr =
-            original_schedule.find(sop.op_);
-        assert(os_itr == original_schedule.end());
+        assert(original_schedule.find(sop.op_) == original_schedule.end());
         original_schedule.insert(std::make_pair(sop.op_, sop));
       }
 

@@ -5,6 +5,7 @@
 #include <map>
 #include <unordered_map>
 #include <utility>
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 namespace lp_scheduler { 
@@ -248,6 +249,7 @@ class Runtime_Barrier_Simulation_Checker {
             (out_itr != out_degree_map_.end()));
 
       active_barrier_table_iterator_t aitr = active_barrier_table_.find(btask);
+      UNUSED(aitr);
       assert(aitr == active_barrier_table_.end());
 
       active_barrier_table_.insert(std::make_pair(btask,

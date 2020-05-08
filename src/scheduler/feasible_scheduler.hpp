@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 
@@ -1785,6 +1786,7 @@ class Feasible_Memory_Schedule_Generator {
               active_result.demand_index_);
 
         bool unassigned = memory_state_.unassign_resources(demand_key);
+        UNUSED(unassigned);
         assert(unassigned);
       }
       active_resource_table_.erase(aitr);
@@ -1804,6 +1806,7 @@ class Feasible_Memory_Schedule_Generator {
       assert(traits::is_compute_operation(*input_ptr_, op));
 
       typename op_output_table_t::iterator out_itr = op_output_table_.find(op);
+      UNUSED(out_itr);
       assert(out_itr == op_output_table_.end());
 
       //////////////////////////////////////////////////////////////////////////
@@ -1979,6 +1982,7 @@ class Feasible_Memory_Schedule_Generator {
                   active_result.demand_index_);
 
             bool unassigned = memory_state_.unassign_resources(demand_key);
+            UNUSED(unassigned);
             assert(unassigned);
           }
 
