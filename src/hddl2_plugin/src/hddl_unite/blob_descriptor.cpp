@@ -202,9 +202,9 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
         THROW_IE_EXCEPTION << "Failed to create blob description for " << layout << " layout.";
     }
 
-    blobDesc.m_res_height = dims[H_index];
-    blobDesc.m_res_width = blobDesc.m_width_stride = dims[W_index];
-    blobDesc.m_plane_stride = blobDesc.m_width_stride * blobDesc.m_res_height;
+    blobDesc.m_resHeight = dims[H_index];
+    blobDesc.m_resWidth = blobDesc.m_widthStride = dims[W_index];
+    blobDesc.m_planeStride = blobDesc.m_widthStride * blobDesc.m_resHeight;
 
     if (_blobPtr->is<IE::NV12Blob>() || _roiPtr != nullptr) {
         if (_roiPtr != nullptr) {
@@ -213,7 +213,7 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
                 static_cast<int32_t>(_roiPtr->sizeY)};
             blobDesc.m_rect.push_back(roi0);
         } else {
-            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
+            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_resWidth, blobDesc.m_resHeight};
             blobDesc.m_rect.push_back(rect0);
         }
     }

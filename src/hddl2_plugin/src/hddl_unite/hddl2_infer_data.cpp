@@ -47,8 +47,7 @@ HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing, const
         }
     }
 
-    // needUnitePreProcessing on Unite includes existence of roi currently
-    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, _needUnitePreProcessing);
+    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext);
 
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "Failed to create Unite inferData";
@@ -83,6 +82,9 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
             _inferDataPtr->setNNInputDesc(nnBlobDesc);
         }
     });
+
+    // needUnitePreProcessing on Unite includes existence of roi currently
+    _inferDataPtr->setPPFlag(_needUnitePreProcessing);
 
     blobDescriptorPtr->initUniteBlobDesc(blobDesc);
     if (!_inferDataPtr->getInputBlob(name)->updateBlob(blobDesc)) {
@@ -122,6 +124,6 @@ std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
 void HddlUniteInferData::waitInferDone() const {
     auto status = _inferDataPtr->waitInferDone(_asyncInferenceWaitTimeoutMs);
     if (status != HDDL_OK) {
-        THROW_IE_EXCEPTION << "Failed to wait for inference result with timeout: " << _asyncInferenceWaitTimeoutMs;
+        THROW_IE_EXCEPTION << "Failed to wait for inference result with error: " << status;
     }
 }

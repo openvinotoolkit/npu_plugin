@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "InferData.h"
 #include "InferGraph.h"
 #include "blob_descriptor.h"
 #include "hddl2_remote_context.h"
