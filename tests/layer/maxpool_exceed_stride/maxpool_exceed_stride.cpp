@@ -11,7 +11,7 @@ int main()
     static const auto inf = std::numeric_limits<double>::infinity();
 
     //Input
-    auto data_0 = om.input({24,24,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4) /*NHWC*/,  {{127},{0.007874016},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input");
+    auto data_0 = om.input({30,30,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4) /*NHWC*/,  {{127},{0.007874016},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input");
 
     const std::array<unsigned short, 2UL> maxpoolKSize = {3,3};
     const std::array<unsigned short, 2UL> maxpoolStride = {10 ,10};
