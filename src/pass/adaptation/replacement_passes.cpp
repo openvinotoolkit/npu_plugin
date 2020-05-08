@@ -18,6 +18,7 @@ static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
@@ -884,4 +885,36 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Com
         for (auto& op_name : ops_to_remove)
             om.removeOp(om.getOp(op_name));
     }
+}
+
+void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    const auto MAX_STRIDE = 8; // hardware limitation
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)	
+    {
+        //zm ops except eltwise
+        if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv" || opIt->getOpType() == "MaxPool" || opIt->getOpType() == "AveragePool")
+        {
+            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+            if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
+                continue;
+
+
+            auto name = opIt->getName();
+            auto sourceTensor = opIt->getInputTensor(0);//input
+
+            auto parentOpIt = om.getSourceOp(sourceTensor);
+
+            auto inputShape = sourceTensor->getShape();
+
+            //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
+            //for ()
+            std::cout << "Strides : horizontal=" << stride[mv::STRIDE_HORIZONTAL] << ", vertical=" << stride[mv::STRIDE_VERTICAL] << std::endl;
+        }
 }
