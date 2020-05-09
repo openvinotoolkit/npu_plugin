@@ -1980,8 +1980,14 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(Computation
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
+    // Parse code_type
+    std::string code_type = "CORNER";
+    if(opIt->get<std::string>("code_type").compare(std::string("caffe.PriorBoxParameter.CORNER_SIZE")) == 0)
+        code_type = "CORNER_SIZE";
+    else if(opIt->get<std::string>("code_type").compare(std::string("caffe.PriorBoxParameter.CENTER_SIZE")) ==  0)
+        code_type = "CENTER_SIZE";
+
     // Fill in required params
-    std::string code_type = "CENTER_SIZE";
     softLayerParamsValue->num_classes = opIt->get<int64_t>("num_classes");
     softLayerParamsValue->keep_top_k = opIt->get<int64_t>("keep_top_k");
     softLayerParamsValue->nms_threshold = static_cast<float>(opIt->get<double>("nms_threshold"));
@@ -1992,7 +1998,7 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADetectionOutputTask(Computation
     softLayerParamsValue->share_location = opIt->get<bool>("share_location");
     softLayerParamsValue->confidence_threshold = static_cast<float>(opIt->get<double>("confidence_threshold"));
     softLayerParamsValue->clip_before_nms = opIt->get<bool>("clip_before_nms");
-    softLayerParamsValue->clip_after_nms = 1;
+    softLayerParamsValue->clip_after_nms = opIt->get<bool>("clip_after_nms");
     softLayerParamsValue->decrease_label_id = opIt->get<int64_t>("decrease_label_id");
     softLayerParamsValue->normalized = opIt->get<bool>("normalized");
     softLayerParamsValue->input_height = opIt->get<int64_t>("input_height");
