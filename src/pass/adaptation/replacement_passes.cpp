@@ -712,6 +712,39 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
+void linkFlowsRemoveFlowsInsertOps(mv::OpModel om, mv::Data::TensorIterator operationToRemove, std::vector<mv::Data::TensorIterator> operationToReplace, std::vector<mv::Data::TensorIterator> operationsToInsert)
+{
+    
+    // Remove old flow, remember to it to put next depthwise into model in correct place
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+    auto originOp = om.getSourceOp(operationToRemove);
+    auto sourceFlowStart = originOp.leftmostOutput();
+    linkNewOperationsReplacement(originOp, (operationToReplace), om, originOp);
+    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+    // Remove old flow before creating new dw
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+    {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+    {
+        for (auto opToInsert = operationsToInsert.begin();opToInsert != operationsToInsert.end(); opToInsert++ )
+        {
+            opsToLink[op]->setInputTensor(*opToInsert, inputSlots[op], false);
+            om.defineFlow(*opToInsert, opsToLink[op], inputSlots[op]);
+        }
+    }
+}
+
+
 // Check for average pooling layers with kernels bigger than supported by hardware (11x11)
 // and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
@@ -821,6 +854,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
+        //linkFlowsReplaceRemoveInsertOps(om, opIt, depthwise_conv0, {depthwise_conv1})
     } // end for
 }
 
@@ -911,6 +945,7 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
     //sliced op iteratively and the vector
     mv::Data::TensorIterator op;
     std::vector <std::vector <mv::Data::TensorIterator>> ops;
+    std::vector <mv::Data::TensorIterator> opsSlices;
 
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
     mv::Data::TensorIterator opConcat;
@@ -941,7 +976,7 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
             auto sliceInputOp = om.getSourceOp(sliceInput);
             sliceInputOp->set<unsigned>("opId", initialOpId);
             auto parentOpIt = om.getSourceOp(inputTensor);
-	        linkNewOperationsReplacement(parentOpIt, sliceInput, om, operation);
+	        
             if (operation->getOpType() == "AveragePool")
             {
                 op = om.averagePool(sliceInput,
@@ -987,11 +1022,11 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
                     operation->get<mv::QuantizationParams>("quantParams"),
                     operation->getName() + sliceInput->getName());
             }
-            ops[j].push_back(op);
-
             auto sliceInputOp = om.getSourceOp(sliceInput);
             op->set<unsigned>("opId", initialOpId);
             sliceInputOp->set<unsigned>("opId", initialOpId);
+            opsSlices.push_back(op);
+            ops[j].push_back(op);
 
             i++;
         } while (i < hslices);
@@ -1009,20 +1044,25 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
         i = hslices;//reiterate the horizontal slices for the next vertical slice
     } while( j < vslices); //i,j non zero means we need to slice
     opConcat = om.concat(opsSlicesConcatHorizontally,
-                                "H",
-                                operation->getInputTensor(0)->get<mv::DType>("dType"),
-                                operation->get<mv::QuantizationParams>("quantParams"),
-                                operation->getName() + "fullconcat");
+                            "H",
+                            operation->getInputTensor(0)->get<mv::DType>("dType"),
+                            operation->get<mv::QuantizationParams>("quantParams"),
+                            operation->getName() + "fullconcat");
     opConcat->set<unsigned>("opId", initialOpId);
     auto opConcatSlice = om.getSourceOp(opConcat);
     opConcatSlice->set<unsigned>("opId", initialOpId);
 
     //recircuit the flow
-    auto operationOp = om.getSourceOp(operation->getInputTensor(0));
-    auto sourceFlowStart = operationOp.leftmostOutput();
-    om.removeOp(om.getSourceOp(operation->getInputTensor(0)));
-    auto inputFlow = operation.leftmostInput();
-    om.undefineFlow(inputFlow);
+
+    auto neutralMaxPool = om.maxPool(operation->getInputTensor(0),
+                                            {1,1},//neutral kernel
+                                            {1,1},//neutral stride
+                                            {0, 0, 0, 0},
+                                            false,  
+                                            operation->getInputTensor(0)->get<mv::DType>("dType"),
+                                            operation->get<mv::QuantizationParams>("quantParams"),
+                                            operation->getName() + "MaxPool");
+    linkFlowsRemoveFlowsInsertOps(om, operation->getInputTensor(0), {neutralMaxPool}, opsSlices);
     om.removeOp(operation);
 }
 
