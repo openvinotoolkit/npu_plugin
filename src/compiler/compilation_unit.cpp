@@ -231,81 +231,29 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
  */
 void mv::CompilationUnit::deepCopy(mv::OpModel& copyModel)
 {
-    // std::cout << "Original Model:" << std::endl;
-    DataModel dm(*model_);
-    // ControlModel cm(*model_);
-    // std::cout << "OpsCount: " << model_->opsCount() << std::endl;
-    // std::cout << "dataFlows: " << model_->dataFlowsCount() << std::endl;    
-    // std::cout << "controlFlows: " << cm.controlFlowsCount() << std::endl;
-    // std::cout << "tensorsCount: " << dm.tensorsCount() << std::endl;
-    // std::cout << "populatedSize: " << dm.populatedTotalSize() << std::endl;
-    // std::cout << "unpopulatedSize: " << dm.unpopulatedTotalSize() << std::endl;
-
+    // store all the copied tensors
     std::map<std::string, mv::Data::TensorIterator> copiedTensorIterators;
-    // std::map<std::string, std::shared_ptr<mv::Tensor>> tensorsCopy;
     for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
     {
-        std::cout << "Adding " << opIterator->getName() << std::endl;
+        // std::cout << "Adding " << opIterator->getName() << std::endl;
         // getAttrs() returns map, defineOp() requires vector
         std::vector<std::pair<std::string, mv::Attribute>> vectAttrs;
         for (const auto &attr : opIterator->getAttrs())
             vectAttrs.push_back(attr);
 
-        // Weights Op? Add the data...
-        // if ( opIterator->getOutputTensor()[0]->isPopulated() )
-        // {
-        //     if (opIterator->getOutputTensor()[0]->getDType().isDoubleType() )
-        //         vectAttrs.insert(vectAttrs.begin(), std::make_pair<std::string, mv::Attribute>("data", opIterator->getOutputTensor()[0]->getDoubleData()) );
-        //     else
-        //         vectAttrs.insert(vectAttrs.begin(), std::make_pair<std::string, mv::Attribute>("data", opIterator->getOutputTensor()[0]->getIntData()) );
-        // }
-
-        // Get references to input tensors
-        std::vector<mv::Data::TensorIterator> inputTensorsToOp;
-        // for (auto tensIt = opIterator->getInputTensor().begin(); tensIt != opIterator->getInputTensor().end(); ++tensIt)
-        std::vector<mv::Data::TensorIterator> inputTensors = opIterator->getInputTensor();
-        for (auto tensIt = inputTensors.begin(); tensIt != inputTensors.end(); ++tensIt)
+        // Get references to input tensors for this Op
+        std::vector<mv::Data::TensorIterator> copiedInputTensorsToOp;
+        std::vector<mv::Data::TensorIterator> originalInputTensors = opIterator->getInputTensor();
+        for (auto tensIt = originalInputTensors.begin(); tensIt != originalInputTensors.end(); ++tensIt)
         {
             mv::Data::TensorIterator originalTensorIt = *tensIt;
-            std::cout << " |- input: " << originalTensorIt->getName() << std::endl;
-            mv::Data::TensorIterator copiedTensorIt = copiedTensorIterators.at(originalTensorIt->getName());
-            inputTensorsToOp.push_back(copiedTensorIt);
-
-            // mv::Tensor tempTensor = *tempTensorIt;
-
-            // mv::Tensor tempTensor = **tensIt;
-            // std::shared_ptr<mv::Tensor> pTensor = std::make_shared<mv::Tensor>(tempTensor);
-            // std::shared_ptr<mv::Tensor> pTensor = std::make_shared<mv::Tensor>(tempTensor.getName(), tempTensor.getShape(), tempTensor.getDType(), tempTensor.getOrder());
-            
-            //std::shared_ptr<mv::Tensor> pTensor = std::make_shared<mv::Tensor>(tempTensorIt->getName(), tempTensorIt->getShape(), tempTensorIt->getDType(), tempTensorIt->getOrder());
-            // if (tempTensor.isPopulated())
-
-            //if (tempTensorIt->isPopulated())
-            //    pTensor->populate(tempTensorIt->getData());
-
-            // auto result = tensorsCopy.emplace(tempTensorIt->getName(), pTensor);
-            // mv::Data::TensorIterator inputTensor = result.first;
-            // inputTensorsToOp.push_back(inputTensor);
+            mv::Data::TensorIterator copiedTensorIt = copiedTensorIterators.at(originalTensorIt->getName().substr(0, originalTensorIt->getName().length() -2) );
+            copiedInputTensorsToOp.push_back(copiedTensorIt);
         }
 
-        mv::Data::TensorIterator returnIt = copyModel.defineOp(opIterator->getOpType(), inputTensorsToOp, vectAttrs, opIterator->getName());
+        mv::Data::TensorIterator returnIt = copyModel.defineOp(opIterator->getOpType(), copiedInputTensorsToOp, vectAttrs, opIterator->getName(), false, false);
         copiedTensorIterators.emplace(opIterator->getName(), returnIt);
-        //opIterator->set<std::string>("sourceOp", opIterator->getName());
     }
-
-    // flow attribute is not being set for each operation in copied model. Manually adding...
-    // for (Data::FlowListIterator flow = dm.flowBegin(); flow != dm.flowEnd(); ++flow)
-    // {
-    //     std::string tensorName = flow->getTensor()->getName();
-    //     mv::Data::TensorIterator newTensor = copyModel.getTensor(tensorName);
-
-    //     if(!newTensor->hasAttr("flows"))
-    //     {
-    //         std::set<std::string> toSet;
-    //         newTensor->set<std::set<std::string>>("flows", toSet);
-    //     }
-    //     newTensor->get<std::set<std::string>>("flows").insert(flow->getName());
-    // }
 }
 
 void mv::CompilationUnit::generateExpectedResults()
@@ -315,16 +263,6 @@ void mv::CompilationUnit::generateExpectedResults()
     mv::CompilationUnit emUnit(model_->getName());
     mv::OpModel& emOM = emUnit.model();
     deepCopy(emOM);
-
-    // std::cout << std::endl << "Copied:" << std::endl;
-    // std::cout << "OpsCount: " << emOM.opsCount() << std::endl;
-    // std::cout << "dataFlows: " << emOM.dataFlowsCount() << std::endl;
-    // ControlModel cm1(emOM);
-    // std::cout << "controlFlows: " << cm1.controlFlowsCount() << std::endl;
-    // DataModel dm1(emOM);
-    // std::cout << "tensorsCount: " << dm1.tensorsCount() << std::endl;
-    // std::cout << "populatedSize: " << dm1.populatedTotalSize() << std::endl;
-    // std::cout << "unpopulatedSize: " << dm1.unpopulatedTotalSize() << std::endl;
 
     emUnit.loadTargetDescriptor(mv::Target::ma2490);
     std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
