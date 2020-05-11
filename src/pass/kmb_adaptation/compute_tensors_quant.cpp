@@ -296,7 +296,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                  std::vector <float> S3(outputChannels, 1);
                  std::vector <float> floatScale(outputChannels, std::pow(2, -16));
-                 std::vector <int32_t> zeroPoint(outputChannels, 0);
+                 std::vector <int64_t> zeroPoint(outputChannels, 0);
                  bool outputOfAccWithBias = true;
                  mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
                  if (!(output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32")))
@@ -321,7 +321,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  if (isPooling)
                  {
                      auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint(), input->getName());
-                     std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
+                     std::vector<int64_t> inputZeroPoint(inZP.begin(), inZP.end());
                      std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
                  }
 
@@ -371,10 +371,10 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  //quantized to 13-bits, then runtime uses a LUT to correspond to 8-bit
                  if (opIt->hasAttr("postOpTypes"))
                  {
-                     auto ppeSigmoidIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                     auto ppeIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
                                                opIt->get<std::vector<std::string>>("postOpTypes").end(),
                                                "Sigmoid");
-                     if (ppeSigmoidIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+                     if (ppeIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
                      {
                         //  Force quantization to match the one from the hw table
                         std::fill(S3.begin(), S3.end(), 0.000980392156862745);
@@ -412,7 +412,7 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
                  std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                  std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
-                 outputQuantization.quantize(ser_shift, ser_scale);
+                 outputQuantization.quantize(ser_shift, ser_scale, zeroPoint);
                  if (opIt->hasAttr("postOpTypes"))
                  {
                      signed postShift = 0;

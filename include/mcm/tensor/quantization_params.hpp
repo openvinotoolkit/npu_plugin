@@ -70,6 +70,7 @@ namespace mv
         }
 
         void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
+        void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult, std::vector<int64_t> zp);
         void setScale(std::vector<double> scale_);
         void setZeroPoint(std::vector<int64_t> zeroPoint_);
         void setPostShift(signed postShift_);

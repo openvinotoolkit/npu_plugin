@@ -200,7 +200,7 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
             return;
         }
         else if (opIt->hasAttr("quantParams"))
-            parentOpIt->set<mv::QuantizationParams>("quantParams", {{0},{0.00392156862745098},{0},{1.0}});
+            parentOpIt->set<mv::QuantizationParams>("quantParams", {{3},{0.004016064257028112},{0},{1.0}});
         else
         {
             if (!parentOpIt->hasAttr("quantParams"))

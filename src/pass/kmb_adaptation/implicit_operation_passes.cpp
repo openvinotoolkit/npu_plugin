@@ -108,7 +108,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
-                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
+                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(),
+                        inQuantParams.getMult(), inQuantParams.getZeroPoint());
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
                     auto sinkIdx = sourceFlow->get<std::size_t>("sinkInput");
@@ -175,7 +176,8 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                         opIt->getName() + "_copy" + std::to_string(ctr));
 
                 if (compensatorOutput->hasAttr("quantParams"))
-                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(), outQuantParams.getMult());
+                    compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(outQuantParams.getShift(),
+                        outQuantParams.getMult(), outQuantParams.getZeroPoint());
 
                 pass.log(mv::Logger::MessageType::Debug,"Adding new DMA OP: # " + compensatorOutput->getName() +
                                                             " as output to # " + opIt->getName());
