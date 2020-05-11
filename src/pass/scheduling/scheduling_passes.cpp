@@ -1151,6 +1151,9 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 auto& ti = tensorInfos.at(&*tensor);
                 if (ti.priority < 0)
                 {
+#ifdef DEBUG_LAYOUT_PASS
+                    std::cerr << "LayoutDMA: Allocating CSRAM tensor priority=" << currentPriority << "\n";
+#endif
                     ti.priority = currentPriority++;
                 }
                 for (auto updateOpInfo : ti.readers)
@@ -1179,20 +1182,10 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
     }
 
-    // Rewrite graphFileIndex values.  The DDR tensors are first in
-    // the blob, followed by the CSRAM tensors; CSRAM tensors are
+    // Rewrite graphFileIndex values.  The CSRAM tensors are first in
+    // the blob, followed by the DDR tensors; CSRAM tensors are
     // ordered with highest priority (lowest numerical priority) at
-    // the end of the blob.
-    unsigned graphFileTensorLimit = 0;
-    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
-    {
-        if (t->get<std::set<std::string>>("allocators").count("GraphFile"))
-        {
-            ++graphFileTensorLimit;
-        }
-    }
-
-    unsigned currentDDRIdx = 0;
+    // the front of the blob.
     for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
     {
         if (!t->get<std::set<std::string>>("allocators").count("GraphFile"))
@@ -1200,14 +1193,17 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             continue;
         }
         unsigned idx;
-        auto ti = tensorInfos.find(&*t);
-        if (ti != tensorInfos.end() && 0 <= ti->second.priority)
+        auto tensor_ti = tensorInfos.find(&*t);
+        if (tensor_ti != tensorInfos.end() && 0 <= tensor_ti->second.priority)
         {
-            idx = graphFileTensorLimit - ti->second.priority - 1;
+            idx = tensor_ti->second.priority;
         }
         else
         {
-            idx = currentDDRIdx++;
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Allocating DDR tensor priority=" << currentPriority << "\n";
+#endif
+            idx = currentPriority++;
         }
         t->set("graphFileIndex", idx);
     }
