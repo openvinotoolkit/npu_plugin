@@ -712,7 +712,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
-void linkFlowsRemoveFlowsInsertOps(mv::OpModel om, mv::Data::TensorIterator operationToRemove, std::vector<mv::Data::TensorIterator> operationToReplace, std::vector<mv::Data::TensorIterator> operationsToInsert)
+void linkFlowsRemoveFlowsInsertOps(mv::OpModel om, mv::Data::TensorIterator operationToRemove, mv::Data::TensorIterator operationToReplace, std::vector<mv::Data::TensorIterator> operationsToInsert)
 {
     
     // Remove old flow, remember to it to put next depthwise into model in correct place
@@ -722,7 +722,7 @@ void linkFlowsRemoveFlowsInsertOps(mv::OpModel om, mv::Data::TensorIterator oper
 
     auto originOp = om.getSourceOp(operationToRemove);
     auto sourceFlowStart = originOp.leftmostOutput();
-    linkNewOperationsReplacement(originOp, (operationToReplace), om, originOp);
+    linkNewOperationsReplacement(originOp, operationToReplace, om, originOp);
     for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
     {
         opsToLink.push_back(sinkFlow.sink());
@@ -963,7 +963,7 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
             branchWidth = stride[mv::STRIDE_HORIZONTAL] + (!initialPadding[mv::PADDING_LEFT]) ? 0 : (i == 0) || (i == hslices) ? kSize[mv::KERNEL_WIDTH]/2 :  std::floor(kSize[mv::KERNEL_WIDTH]/2)*2;
             branchHeight = stride[mv::STRIDE_VERTICAL] + (!initialPadding[mv::PADDING_TOP]) ? 0 : (j == 0) || (j == vslices) ? kSize[mv::KERNEL_HEIGHT]/2 :  std::floor(kSize[mv::KERNEL_HEIGHT]/2)*2;
             branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};//no overlap calculations
-            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT],
+            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT] : 0,
                         (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
                         (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
                         (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
@@ -1021,10 +1021,8 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
                     operation->getInputTensor(0)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
                     operation->getName() + sliceInput->getName());
-            }
-            auto sliceInputOp = om.getSourceOp(sliceInput);
+            }            
             op->set<unsigned>("opId", initialOpId);
-            sliceInputOp->set<unsigned>("opId", initialOpId);
             opsSlices.push_back(op);
             ops[j].push_back(op);
 
