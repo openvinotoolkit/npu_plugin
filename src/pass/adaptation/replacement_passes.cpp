@@ -888,6 +888,144 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Com
     }
 }
 
+std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv::OpModel om, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice)
+{
+    auto inputTensor = operation->getInputTensor(0);//input
+    unsigned initialOpId = operation->get<unsigned>("opId");
+    auto inputShape = inputTensor->getShape();
+    auto width = inputShape[mv::IO_WIDTH_DIMENSION];
+    auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
+    std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> kSize = operation->get<std::array<unsigned short, 2>>("kSize");
+
+    auto initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
+    std::array<unsigned short, 4> padding = initialPadding;
+    std::size_t branchWidth, branchHeight;
+    mv::Shape beginInputShape, branchInputSize; //coordinates to slice
+    //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
+
+    branchWidth = stride[mv::STRIDE_HORIZONTAL];//no overlap
+    branchHeight = stride[mv::STRIDE_VERTICAL];//no overlap
+    branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
+    padding = {0, 0, 0, 0};
+    //sliced op iteratively and the vector
+    mv::Data::TensorIterator op;
+    std::vector <std::vector <mv::Data::TensorIterator>> ops;
+
+    //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
+    mv::Data::TensorIterator opConcat;
+    std::vector <mv::Data::TensorIterator> opsSlicesConcatHorizontally;
+    const unsigned int hslices = width/widthSlice;
+    const unsigned int vslices = height/heightSlice;
+
+    unsigned int i = 0; //counts the slices on the 0x axis
+    unsigned int j = 0; //counts the slices on the 0y axis
+    do {
+        do {
+            beginInputShape = { (unsigned long)( (i)*stride[mv::STRIDE_HORIZONTAL] - ( initialPadding[mv::PADDING_LEFT] && (i > 0) ) ? kSize[mv::KERNEL_WIDTH]/2 : 0 ),  // overlap horizontal from previous slice
+                                (unsigned long)( (j)*stride[mv::STRIDE_VERTICAL] - ( initialPadding[mv::PADDING_TOP] && (j > 0)) ? kSize[mv::KERNEL_HEIGHT]/2 : 0 ), // overlap vertical from previous slice
+                                0, 0};
+            branchWidth = stride[mv::STRIDE_HORIZONTAL] + (!initialPadding[mv::PADDING_LEFT]) ? 0 : (i == 0) || (i == hslices) ? kSize[mv::KERNEL_WIDTH]/2 :  std::floor(kSize[mv::KERNEL_WIDTH]/2)*2;
+            branchHeight = stride[mv::STRIDE_VERTICAL] + (!initialPadding[mv::PADDING_TOP]) ? 0 : (j == 0) || (j == vslices) ? kSize[mv::KERNEL_HEIGHT]/2 :  std::floor(kSize[mv::KERNEL_HEIGHT]/2)*2;
+            branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};//no overlap calculations
+            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT],
+                        (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
+                        (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
+                        (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
+
+            auto sliceInput = om.slice(inputTensor,
+                            beginInputShape,
+                            branchInputSize,
+                            inputTensor->get<mv::QuantizationParams>("quantParams"),
+                            operation->getName() + "_slice_Input[" + std::to_string(i) + "][" + std::to_string(j)+ "]");
+            auto sliceInputOp = om.getSourceOp(sliceInput);
+            sliceInputOp->set<unsigned>("opId", initialOpId);
+            auto parentOpIt = om.getSourceOp(inputTensor);
+	        linkNewOperationsReplacement(parentOpIt, sliceInput, om, operation);
+            if (operation->getOpType() == "AveragePool")
+            {
+                op = om.averagePool(sliceInput,
+                    kSize,
+                    {1,1},
+                    padding,
+                    true,//exclude pad
+                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            else if (operation->getOpType() == "DepthwiseConv")
+            {
+                op  = om.depthwiseConv(sliceInput,
+                    operation->getInputTensor(1),
+                    {1,1},//no stride
+                    padding,
+                    operation->get<unsigned>("dilationFactor"),
+                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName()+ sliceInput->getName());
+            }
+            else if (operation->getOpType()== "Conv")
+            {
+                op = om.conv(sliceInput,
+                    operation->getInputTensor(1),
+                    {1,1},
+                    padding,
+                    operation->get<unsigned>("dilationFactor"),
+                    1,//no group dilation
+                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            else if (operation->getOpType()== "MaxPool")
+            {
+                op = om.maxPool(sliceInput,
+                    kSize,
+                    {1,1},
+                    padding,
+                    true,//exclude pad
+                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            ops[j].push_back(op);
+
+            auto sliceInputOp = om.getSourceOp(sliceInput);
+            op->set<unsigned>("opId", initialOpId);
+            sliceInputOp->set<unsigned>("opId", initialOpId);
+
+            i++;
+        } while (i < hslices);
+        j++;
+
+        opConcat = om.concat(ops[j],
+                                "W",
+                                operation->getInputTensor(0)->get<mv::DType>("dType"),
+                                operation->get<mv::QuantizationParams>("quantParams"),
+                                operation->getName() + "concat line" + std::to_string(j));
+        auto opConcatSlice = om.getSourceOp(opConcat);
+        opConcatSlice->set<unsigned>("opId", initialOpId);
+        opConcat->set<unsigned>("opId", initialOpId);
+        opsSlicesConcatHorizontally.emplace_back(opConcat);
+        i = hslices;//reiterate the horizontal slices for the next vertical slice
+    } while( j < vslices); //i,j non zero means we need to slice
+    opConcat = om.concat(opsSlicesConcatHorizontally,
+                                "H",
+                                operation->getInputTensor(0)->get<mv::DType>("dType"),
+                                operation->get<mv::QuantizationParams>("quantParams"),
+                                operation->getName() + "fullconcat");
+    opConcat->set<unsigned>("opId", initialOpId);
+    auto opConcatSlice = om.getSourceOp(opConcat);
+    opConcatSlice->set<unsigned>("opId", initialOpId);
+
+    //recircuit the flow
+    auto operationOp = om.getSourceOp(operation->getInputTensor(0));
+    auto sourceFlowStart = operationOp.leftmostOutput();
+    om.removeOp(om.getSourceOp(operation->getInputTensor(0)));
+    auto inputFlow = operation.leftmostInput();
+    om.undefineFlow(inputFlow);
+    om.removeOp(operation);
+}
+
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -905,32 +1043,9 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
-
-
-            auto name = opIt->getName();
-            auto sourceTensor = opIt->getInputTensor(0);//input
-            auto parentOpIt = om.getSourceOp(sourceTensor);
-
-            auto inputShape = sourceTensor->getShape();
-            auto width = inputShape[mv::KERNEL_WIDTH];
-            auto height = inputShape[mv::KERNEL_HEIGHT];
-
-            //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
-            //for ()
-            std::cout << "Strides : horizontal=" << stride[mv::STRIDE_HORIZONTAL] << ", vertical=" << stride[mv::STRIDE_VERTICAL] << std::endl;
-            unsigned int i = (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) ? 0 : width/stride[mv::STRIDE_HORIZONTAL];
-            unsigned int j = (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ? 0: height/stride[mv::STRIDE_VERTICAL];
-            const unsigned int hslices = i;
-            const unsigned int vslices = j;
-            do {
-                /*auto sliceInput = om.slice(sourceTensor,
-                                   {},
-                                   branchInputSize,
-                                   sourceTensor->get<mv::QuantizationParams>("quantParams"),
-                                   opIt->getName() + "_slice_Input" + std::to_string(branchId));*/
-                i=0;
-                j=0;
-            } while( i || j ); //i,j non zero means we need to slice
+            auto ops = splitOperationSlicingFixedWidthHeight (om, opIt, 
+                                stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                stride[mv::STRIDE_VERTICAL] > MAX_STRIDE ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION]);
         }
     }
 }
