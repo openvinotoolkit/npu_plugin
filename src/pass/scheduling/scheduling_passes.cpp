@@ -1148,7 +1148,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
             for (auto& tensor : bestPlan.opInfo->op->getInputTensor())
             {
-                tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::CSRAM);
                 auto& ti = tensorInfos.at(&*tensor);
                 if (ti.priority < 0)
                 {
@@ -1157,7 +1156,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 for (auto updateOpInfo : ti.readers)
                 {
                     updateOpInfo->latencyNS = updateOpInfo->csramNS;
-                    updateOpInfo->op->set<mv::DmaDirection>("direction", mv::DmaDirectionEnum::CSRAM2NNCMX);
                 }
             }
             assert(bestPlan.opInfo->latencyNS == bestPlan.opInfo->csramNS);
