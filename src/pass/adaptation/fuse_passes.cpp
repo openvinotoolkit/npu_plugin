@@ -199,13 +199,6 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
             opIt->set<bool>("softwareExecuted", true);
             return;
         }
-        else if (opIt->hasAttr("quantParams"))
-            parentOpIt->set<mv::QuantizationParams>("quantParams", {{3},{0.004016064257028112},{0},{1.0}});
-        else
-        {
-            if (!parentOpIt->hasAttr("quantParams"))
-                parentOpIt->set<mv::QuantizationParams>("quantParams", {{}, {}, {}, {}});
-        }
     }
     std::vector<std::string> postOpTypes;
     if (parentOpIt->hasAttr("postOpTypes"))
@@ -218,11 +211,6 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     opIt = linkNewOperationsFuse(parentOpIt, sourceTensor, om, opIt);
     if (ppeOutputMemoryLocation.isForced())
         opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", ppeOutputMemoryLocation);
-
-    auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-    for (size_t outputTensor = 0; outputTensor < opIt->outputSlots(); outputTensor ++) {
-        opIt->getOutputTensor(outputTensor)->set<mv::QuantizationParams>("quantParams", quantParams);
-    }
 }
 
 void fuseEltwiseFcn(mv::Data::OpListIterator &opIt1, mv::ComputationModel &model, std::string opType)

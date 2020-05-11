@@ -379,6 +379,11 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                         //  Force quantization to match the one from the hw table
                         std::fill(S3.begin(), S3.end(), 0.000980392156862745);
                         std::fill(zeroPoint.begin(), zeroPoint.end(), 0);
+
+                        auto quantParams = mv::QuantizationParams({3}, {0.004016064257028112}, {0}, {1.0});
+                        for (size_t outputTensor = 0; outputTensor < opIt->outputSlots(); outputTensor ++) {
+                                opIt->getOutputTensor(outputTensor)->set<mv::QuantizationParams>("quantParams", quantParams);
+                        }
                      }
                 }
                  // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
