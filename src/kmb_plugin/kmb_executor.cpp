@@ -109,7 +109,8 @@ void KmbExecutor::initVpualObjects() {
         RgnAlloc = make_shared<RgnAllocator>(_config.VPUSMMSliceIdx());
     }
     if (!HeapAlloc) {
-        HeapAlloc = make_shared<HeapAllocator>(_config.VPUSMMSliceIdx());
+        constexpr size_t heapAllocAlignment = 64;
+        HeapAlloc = make_shared<HeapAllocator>(heapAllocAlignment, _config.VPUSMMSliceIdx());
     }
     if (!nnPl) {
         nnPl = make_shared<NNFlicPlg>(_config.VPUSMMSliceIdx());
@@ -139,7 +140,8 @@ void KmbExecutor::initVpualObjects() {
         BHandle = make_shared<BlobHandle_t>();
     }
     if (!pipe) {
-        pipe = make_shared<Pipeline>(_config.VPUSMMSliceIdx());
+        constexpr size_t maxPluginsPerPipeline = 32;
+        pipe = make_shared<Pipeline>(maxPluginsPerPipeline, _config.VPUSMMSliceIdx());
     }
     if (!_inferenceVirtAddr) {
         _inferenceVirtAddr =
