@@ -201,6 +201,7 @@ static InferenceEngine::Precision getInputPrecision(const std::string &value) {
 
 static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
     static const supported_precisions_t supported_precisions = {
+            { "FP32", InferenceEngine::Precision::FP32 },
             { "FP16", InferenceEngine::Precision::FP16 },
             { "U8",   InferenceEngine::Precision::U8 }
     };
