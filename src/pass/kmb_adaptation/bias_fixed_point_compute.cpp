@@ -62,15 +62,12 @@ static void adaptFixedPointComputeFcn(const mv::pass::PassEntry&, mv::Computatio
         }
         };
 
-    auto dpuTasks = om.getOps("DPUTask");
-
-    for(auto& opIt : dpuTasks)
+    for (auto& opIt : om.getOps("DPUTask"))
     {
-        auto hasBias = opIt->hasAttr("bias");
         //NOTE: The order of the hardware is mult_acc->bias->mult/shift
         //So when there is fp16 input there should be s16.16 bias
         auto accDtype = opIt->getInputTensor(0)->getDType();
-        if(hasBias && accDtype == mv::DType("Float16"))
+        if (opIt->hasAttr("bias") && accDtype == mv::DType("Float16") && opIt->hasFloatPrecision())
         {
             auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
 
