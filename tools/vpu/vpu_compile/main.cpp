@@ -46,10 +46,10 @@ static constexpr char platform_message[] = "Optional. Specifies movidius platfor
 static constexpr char inputs_precision_message[] = "Optional. Specifies precision for all input layers of network."
                                                    " Supported values: FP16, U8. Default value: U8.";
 static constexpr char outputs_precision_message[] = "Optional. Specifies precision for all output layers of network."
-                                                    " Supported values: FP16, U8. Default value: FP16.";
+                                                    " Supported values: FP16, U8. Default value: FP32.";
 static constexpr char iop_message[] = "Optional. Specifies precision for input/output layers by name.\n"
 "                                             By default all input layers have U8 precision,\n"
-"                                             all output layers have FP16 precision.\n"
+"                                             all output layers have FP32 precision.\n"
 "                                             Available precisions: FP16, U8.\n"
 "                                             Example: -iop \"input:FP16, output:FP16\".\n"
 "                                             Notice that quotes are required.\n"
@@ -72,7 +72,7 @@ DEFINE_bool(GENERATE_DOT, false, dump_blob_as_dot_message);
 DEFINE_string(TARGET_DESCRIPTOR, "", mcm_target_descriptor_message);
 
 static const InferenceEngine::Precision defaultInputPrecision = InferenceEngine::Precision::U8;
-static const InferenceEngine::Precision defaultOutputPrecision = InferenceEngine::Precision::FP16;
+static const InferenceEngine::Precision defaultOutputPrecision = InferenceEngine::Precision::FP32;
 
 static void showUsage() {
     std::cout << std::endl;
@@ -201,6 +201,7 @@ static InferenceEngine::Precision getInputPrecision(const std::string &value) {
 
 static InferenceEngine::Precision getOutputPrecision(const std::string &value) {
     static const supported_precisions_t supported_precisions = {
+            { "FP32", InferenceEngine::Precision::FP32 },
             { "FP16", InferenceEngine::Precision::FP16 },
             { "U8",   InferenceEngine::Precision::U8 }
     };
