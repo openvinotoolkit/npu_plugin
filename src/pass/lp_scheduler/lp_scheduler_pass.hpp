@@ -361,6 +361,7 @@ class Control_Edge_Set {
       add_control_edges_between_inputs_and_compute_ops(dag, model);
 
       if (!generate_temporal_edges) {
+        add_control_edges_between_compute_ops_and_writes(dag, model);
         add_memory_control_edges(dag, model, sbegin, send);
         add_control_edges_for_implicit_concats(dag, model);
         add_control_edges_for_upa_tasks(dag, model);
@@ -717,6 +718,26 @@ class Control_Edge_Set {
           }
         }
 
+      }
+    }
+
+    template<typename OpDag>
+    void add_control_edges_between_compute_ops_and_writes(
+        const OpDag& dag, mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!dag.is_dpu_op(op)) { continue; }
+
+        for (typename dag_t::const_operation_iterator_t 
+              citr=dag.begin_nodes(op); citr!=dag.end_nodes(op); ++citr) {
+          operation_t cop = *citr;
+          if (dag.is_dma_op_moving_data_from_cmx_to_ddr(cop)) {
+            add_control_edge(op, cop, model);
+          }
+        }
       }
     }
 
