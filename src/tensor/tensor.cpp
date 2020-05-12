@@ -686,7 +686,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
     std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size()*blockSize_;
-
+    temp_dataTotal = shape_.totalSize();
     for (std::size_t i = 0; i < temp_dataTotal; ++i)
     {
         auto t = i/blockSize_;

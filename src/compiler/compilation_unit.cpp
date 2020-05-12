@@ -1,10 +1,35 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
+#include "emu/manager.hpp"
 
 const std::string mv::CompilationUnit::ma2480DefTargetDescPath_ = "/config/target/ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";
 const std::string mv::CompilationUnit::ma2480DefCompDescPath_ = "/config/compilation/release_ma2480.json";
 const std::string mv::CompilationUnit::ma2490DefCompDescPath_ = "/config/compilation/release_kmb.json";
+const std::string mv::CompilationUnit::ma2490EmulatorCompDescPath_ = "/contrib/mcm-emulator/config/compilation/emulator_kmb_SC-Prefetch1.json";
+
+template <typename T1, typename T2>
+std::vector<T1> read(const std::string& filepath)
+{
+    std::ifstream fileStream(filepath, std::ifstream::binary);
+    if (!fileStream) return {};
+    std::vector<T1> data;
+    T2 aux;
+    while (fileStream.read(&reinterpret_cast<char&>(aux), sizeof(aux))) data.emplace_back(aux);
+    return data;
+}
+
+template <typename T1, typename T2>
+void write(const std::vector<T1>& data, const std::string& filepath)
+{
+    std::ofstream file(filepath, std::ofstream::binary);
+    T2 aux;
+    for (const auto& value: data)
+    {
+        aux = value;
+        file.write(&reinterpret_cast<char&>(aux), sizeof(aux));
+    };
+}
 
 mv::CompilationUnit::CompilationUnit(const std::string& modelName) :
 model_(new OpModel(modelName))
@@ -147,6 +172,15 @@ mv::Element mv::CompilationUnit::run()
     std::vector<mv::Element> passList = compDescriptor_.serializePassList();
     passManager_.loadPassList(passList);
 
+    // generate emulator results
+    mv::Element globalParams = passList[0];
+    bool emulator=false;
+    if (globalParams.hasAttr("emulator_results") )
+        emulator = globalParams.get<bool>("emulator_results");
+    
+    if (emulator)
+        generateExpectedResults();
+
     while (!passManager_.completed())
     {
         MV_PROFILE_VIRTUAL_MEM;
@@ -190,4 +224,68 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
         log(Logger::MessageType::Warning, "Getting a blob from compilation unit before completion");
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
     return rm.getBlob();
+}
+
+/**
+ * Generates a deep copy of the opmodel
+ */
+void mv::CompilationUnit::deepCopy(mv::OpModel& copyModel)
+{
+    // store all the copied tensors
+    std::map<std::string, mv::Data::TensorIterator> copiedTensorIterators;
+    for(auto opIterator = model_->opBegin(); opIterator != model_->opEnd(); ++opIterator)
+    {
+        // std::cout << "Adding " << opIterator->getName() << std::endl;
+        // getAttrs() returns map, defineOp() requires vector
+        std::vector<std::pair<std::string, mv::Attribute>> vectAttrs;
+        for (const auto &attr : opIterator->getAttrs())
+            vectAttrs.push_back(attr);
+
+        // Get references to input tensors for this Op
+        std::vector<mv::Data::TensorIterator> copiedInputTensorsToOp;
+        std::vector<mv::Data::TensorIterator> originalInputTensors = opIterator->getInputTensor();
+        for (auto tensIt = originalInputTensors.begin(); tensIt != originalInputTensors.end(); ++tensIt)
+        {
+            mv::Data::TensorIterator originalTensorIt = *tensIt;
+            mv::Data::TensorIterator copiedTensorIt = copiedTensorIterators.at(originalTensorIt->getName().substr(0, originalTensorIt->getName().length() -2) );
+            copiedInputTensorsToOp.push_back(copiedTensorIt);
+        }
+
+        mv::Data::TensorIterator returnIt = copyModel.defineOp(opIterator->getOpType(), copiedInputTensorsToOp, vectAttrs, opIterator->getName(), false, false);
+        copiedTensorIterators.emplace(opIterator->getName(), returnIt);
+    }
+}
+
+void mv::CompilationUnit::generateExpectedResults()
+{   
+    log(mv::Logger::MessageType::Debug, "Initializing emulator...");
+    std::cout << "Initializing emulator..." << std::endl;
+    mv::CompilationUnit emUnit(model_->getName());
+    mv::OpModel& emOM = emUnit.model();
+    deepCopy(emOM);
+
+    emUnit.loadTargetDescriptor(mv::Target::ma2490);
+    std::string emuCompPath = utils::projectRootPath() + ma2490EmulatorCompDescPath_;
+    std::cout <<  "loading Comp desc: " << emuCompPath << std::endl;
+    emUnit.loadCompilationDescriptor(emuCompPath);
+    emUnit.compilationDescriptor().setPassArg("GlobalConfigParams", "emulator_results", false); // prevent infinite loop
+
+    emUnit.initialize();
+    emUnit.run();
+    std::cout << "Compilation completed..." << std::endl;
+
+    // initialize the Emulator Manager
+    mv::emu::Manager emulatorManager(emOM);
+
+    // set input tensor values
+    std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
+    if (input0Data.empty() ) throw RuntimeError(*this, "Emulator required file 'input.dat' not found in current directory");
+
+    mv::Data::OpListIterator opIt = emOM.getOps("Input")[0];
+    mv::Data::TensorIterator tensorIt = emOM.getOps("Input")[0]->getOutputTensor()[0];
+    
+    emulatorManager.populate(*(emOM.getOps("Input")[0]->getOutputTensor()[0]), mv::Order::getZMajorID(4), input0Data);
+    
+    std::cout << "Generating results..." << std::endl;
+    emulatorManager.run();
 }
