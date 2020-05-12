@@ -1755,9 +1755,70 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
 }
 
 void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "PriorBoxClustered layer is not supported by kmbPlugin";
+    if (layer->insData.size() != 2 || layer->outData.empty()) {
+        THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+    }
+
+    if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
+        layer->insData[1].lock()->getTensorDesc().getDims().size() != 4) {
+        THROW_IE_EXCEPTION << "PriorBoxClustered supports only 4D blobs!";
+    }
+
+    if (layer->outData.size() != 1) {
+        THROW_IE_EXCEPTION << "PriorBoxClustered must have only one output";
+    }
+
+    const int clip = layer->GetParamAsInt("clip");
+    const int img_h = layer->GetParamAsInt("img_h", 0);
+    const int img_w = layer->GetParamAsInt("img_w", 0);
+    std::vector<float> widths = layer->GetParamAsFloats("width", {});
+    std::vector<float> heights = layer->GetParamAsFloats("height", {});
+    const float step = layer->GetParamAsFloat("step", 0);
+    const float offset = layer->GetParamAsFloat("offset");
+
+    float step_w = layer->GetParamAsFloat("step_w", step);
+    float step_h = layer->GetParamAsFloat("step_h", step);
+
+    int img_width = layer->insData[1].lock()->getTensorDesc().getDims()[3];
+    int img_height = layer->insData[1].lock()->getTensorDesc().getDims()[2];
+    img_width = img_w == 0 ? img_width : img_w;
+    img_height = img_h == 0 ? img_height : img_h;
+
+    int layer_width = layer->insData[0].lock()->getTensorDesc().getDims()[3];
+    int layer_height = layer->insData[0].lock()->getTensorDesc().getDims()[2];
+
+    IE_ASSERT(widths.size() == heights.size());
+    int num_priors = widths.size();
+
+    std::vector<float> variance = layer->GetParamAsFloats("variance", {});
+    if (variance.empty()) {
+        variance.push_back(0.1f);
+    }
+
+    if (step_w == 0 && step_h == 0) {
+        if (step == 0) {
+            step_w = static_cast<float>(img_width) / layer_width;
+            step_h = static_cast<float>(img_height) / layer_height;
+        } else {
+            step_w = step;
+            step_h = step;
+        }
+    }
+
+    const auto& dims = layer->outData.front()->getDims();
+
+    IE_ASSERT(dims.size() == 3);
+    int size = dims[0] * dims[1] * dims[2];
+
+    ParseLayersHelpers::priorBoxClusteredParam param {offset, clip, step_w, step_h, layer_width, layer_height,
+        img_width, img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
+
+    auto boxes = computePriorboxClustered(param);
+
+    auto priorboxClustered =
+        _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"));
+
+    bindOutput(priorboxClustered, layer->outData[0]);
 }
 
 void FrontEndMcm::parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

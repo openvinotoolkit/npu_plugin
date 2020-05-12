@@ -290,5 +290,45 @@ std::vector<double> computePriorbox(const priorBoxParam& param) {
     return out_boxes;
 }
 
+std::vector<double> computePriorboxClustered(const priorBoxClusteredParam& param) {
+    std::vector<double> boxes(param._size);
+    for (int h = 0; h < param._layer_height; ++h) {
+        for (int w = 0; w < param._layer_width; ++w) {
+            float center_x = (w + param._offset) * param._step_w;
+            float center_y = (h + param._offset) * param._step_h;
+            int plane_shift = param._size / 2;
+            int var_size = param._variance.size();
+
+            for (int s = 0; s < param._num_priors; ++s) {
+                float box_width = param._widths[s];
+                float box_height = param._heights[s];
+
+                float xmin = (center_x - box_width / 2.0f) / param._img_width;
+                float ymin = (center_y - box_height / 2.0f) / param._img_height;
+                float xmax = (center_x + box_width / 2.0f) / param._img_width;
+                float ymax = (center_y + box_height / 2.0f) / param._img_height;
+
+                if (param._clip) {
+                    xmin = (std::min)((std::max)(xmin, 0.0f), 1.0f);
+                    ymin = (std::min)((std::max)(ymin, 0.0f), 1.0f);
+                    xmax = (std::min)((std::max)(xmax, 0.0f), 1.0f);
+                    ymax = (std::min)((std::max)(ymax, 0.0f), 1.0f);
+                }
+
+                boxes[h * param._layer_width * param._num_priors * 4 + w * param._num_priors * 4 + s * 4 + 0] = xmin;
+                boxes[h * param._layer_width * param._num_priors * 4 + w * param._num_priors * 4 + s * 4 + 1] = ymin;
+                boxes[h * param._layer_width * param._num_priors * 4 + w * param._num_priors * 4 + s * 4 + 2] = xmax;
+                boxes[h * param._layer_width * param._num_priors * 4 + w * param._num_priors * 4 + s * 4 + 3] = ymax;
+
+                for (int j = 0; j < var_size; j++) {
+                    boxes[plane_shift + h * param._layer_width * param._num_priors * var_size +
+                          w * param._num_priors * var_size + s * var_size + j] = param._variance[j];
+                }
+            }
+        }
+    }
+    return boxes;
+}
+
 }  // namespace ParseLayersHelpers
 }  // namespace vpu

@@ -62,8 +62,24 @@ struct priorBoxParam {
     InferenceEngine::SizeVector _image_dims;
     InferenceEngine::SizeVector _out_dims;
 };
+struct priorBoxClusteredParam {
+    float _offset;
+    int _clip;
+    float _step_w;
+    float _step_h;
+    int _layer_width;
+    int _layer_height;
+    int _img_width;
+    int _img_height;
+    int _num_priors;
+    std::vector<float> _widths;
+    std::vector<float> _heights;
+    std::vector<float> _variance;
+    int _size;
+};
 
 std::vector<double> computePriorbox(const priorBoxParam& param);
+std::vector<double> computePriorboxClustered(const priorBoxClusteredParam& param);
 
 }  // namespace ParseLayersHelpers
 }  // namespace vpu
