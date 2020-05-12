@@ -18,6 +18,6 @@ class PlgOT : public PluginStub{
     MReceiver<vpuot::OutObjectsPtr> in3;
 
     MSender<vpuot::OutObjectsPtr> out;
-    void  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness);
+    int32_t  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness);
 };
 #endif

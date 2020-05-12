@@ -23,7 +23,7 @@ class PlgInferenceOutput : public PluginStub
     SReceiver<InferenceMsgPtr> inferenceIn;
 
     /** Constructor. */
-    PlgInferenceOutput(uint32_t device_id) : PluginStub("PlgInfOutput", device_id){};
+    PlgInferenceOutput(uint32_t device_id = 0) : PluginStub("PlgInfOutput", device_id){}
 
     /** Destructor. */
     ~PlgInferenceOutput();
@@ -32,7 +32,7 @@ class PlgInferenceOutput : public PluginStub
      * Plugin Create method.
      *
      */
-    void Create(uint32_t maxSz, uint16_t chanId);
+    void Create(uint32_t maxSz, uint16_t chanId_unused);
 
     /**
      * Plugin Delete method.

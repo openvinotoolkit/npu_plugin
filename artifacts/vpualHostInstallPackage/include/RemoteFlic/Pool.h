@@ -32,7 +32,7 @@ class PlgPool : public PluginStub
 
   public:
     /** Constructor declaration (definition is type dependant). */
-    PlgPool(uint32_t device_id);
+    PlgPool(uint32_t device_id = 0);
 
   public:
     /**

@@ -51,7 +51,7 @@ class MSender : private VpualStub, public Message
     /** Constructor declaration (definition is type dependant). */
     MSender(uint32_t device_id);
 
-    // TODO - Might be gcc bug, but we need this declaration to help with initialisation.
+    // TODO - May be gcc bug, but we need this declaration to help with initialisation.
     //        Copy-elision should occur, so we will never use it.
     MSender(const MSender&); // Declare copy ctor, but don't define.
 

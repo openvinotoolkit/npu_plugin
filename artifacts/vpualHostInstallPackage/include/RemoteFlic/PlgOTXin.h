@@ -58,16 +58,10 @@ class PlgOTXin : public PluginStub
      * Plugin Create method.
      *
      * @param maxSz maximum size of the XLink Stream.
-     * @param chanId id of the XLink channel.
+     * @param chanId_unused  not used, just for API to be backward-compatible.
      */
-    int Create(uint32_t maxSz, uint32_t chanId);
+    int Create(uint32_t maxSz, uint32_t chanId_unused);
 
-    /**
-     * Plugin Stop method.
-     *
-     * Issue a stop message to the VPU plugin.
-     */
-    virtual void Stop();
 
     /**
      * Plugin Delete method.
@@ -85,7 +79,6 @@ class PlgOTXin : public PluginStub
      * @param size - size to send.
      * @retval int - Status of the write (0 is success).
      */
-//    int Push(uint32_t pAddr, int size, void* usrData, uint32_t usrDataSize);
     int Push(const InputDescriptor* header);
 };
 

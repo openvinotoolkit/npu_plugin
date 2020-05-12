@@ -24,7 +24,7 @@ class GraphManagerPlg : public VpualStub {
   public:
 
     /** Constructor. */
-    GraphManagerPlg(uint32_t device_id) : VpualStub("GraphMPDecoder", device_id){};
+    GraphManagerPlg(uint32_t device_id = 0) : VpualStub("GraphMPDecoder", device_id){};
     // ~GraphManagerPlg();
 
     void Create();

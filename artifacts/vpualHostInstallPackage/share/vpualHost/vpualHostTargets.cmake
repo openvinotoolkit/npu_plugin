@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget XLink VpualDispatcher sipp_custom RemoteFlic NN Profiling)
+foreach(_expectedTarget VpualDispatcher RemoteFlic NN OSD sipp_custom Profiling XLink)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -49,27 +49,12 @@ if(_IMPORT_PREFIX STREQUAL "/")
   set(_IMPORT_PREFIX "")
 endif()
 
-# Create imported target XLink
-add_library(XLink SHARED IMPORTED)
-
-set_target_properties(XLink PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/XLink"
-)
-
 # Create imported target VpualDispatcher
 add_library(VpualDispatcher SHARED IMPORTED)
 
 set_target_properties(VpualDispatcher PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/Dispatcher"
-  INTERFACE_LINK_LIBRARIES "XLink;vpusmm;pthread"
-)
-
-# Create imported target sipp_custom
-add_library(sipp_custom SHARED IMPORTED)
-
-set_target_properties(sipp_custom PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/sipp_custom"
-  INTERFACE_LINK_LIBRARIES "RemoteFlic;VpualDispatcher"
+  INTERFACE_LINK_LIBRARIES "XLink;pthread;vpusmm"
 )
 
 # Create imported target RemoteFlic
@@ -88,12 +73,35 @@ set_target_properties(NN PROPERTIES
   INTERFACE_LINK_LIBRARIES "XLink;RemoteFlic;VpualDispatcher"
 )
 
+# Create imported target OSD
+add_library(OSD SHARED IMPORTED)
+
+set_target_properties(OSD PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/OSD"
+  INTERFACE_LINK_LIBRARIES "VpualDispatcher"
+)
+
+# Create imported target sipp_custom
+add_library(sipp_custom SHARED IMPORTED)
+
+set_target_properties(sipp_custom PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/sipp_custom"
+  INTERFACE_LINK_LIBRARIES "RemoteFlic;VpualDispatcher"
+)
+
 # Create imported target Profiling
 add_library(Profiling SHARED IMPORTED)
 
 set_target_properties(Profiling PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/Profiling"
   INTERFACE_LINK_LIBRARIES "VpualDispatcher"
+)
+
+# Create imported target XLink
+add_library(XLink SHARED IMPORTED)
+
+set_target_properties(XLink PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/XLink"
 )
 
 if(CMAKE_VERSION VERSION_LESS 2.8.12)
