@@ -79,13 +79,6 @@ void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<u
     set<std::vector<unsigned>>("mult", mult);
 }
 
-void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<unsigned> mult, std::vector<int64_t> zp)
-{
-    set<std::vector<unsigned>>("shift", shift);
-    set<std::vector<unsigned>>("mult", mult);
-    set<std::vector<int64_t>>("zeroPoint", zp);
-}
-
 void mv::QuantizationParams::setScale(std::vector<double> scale_)
 {
     set<std::vector<double>>("scale", scale_);
