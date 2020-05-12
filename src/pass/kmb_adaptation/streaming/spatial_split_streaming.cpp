@@ -138,7 +138,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 mv::Shape({0,0,0,0}),
                                 inputTensor->getShape(),
                                 inputQuantParams,
-                                inputTensor->getName() + "_KStreamCopyIn");
+                                inputTensor->getName() + op->getName() + "_KStreamCopyIn_");
     auto copyInputOp = om.getSourceOp(copyInput);
     copyInputOp->set<unsigned>("opId", opId);
     copyInputOp->set<std::string>("splitStrategy", splitStrategy);
