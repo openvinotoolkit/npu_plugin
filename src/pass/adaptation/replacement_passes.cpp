@@ -945,6 +945,7 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
     //sliced op iteratively and the vector
     mv::Data::TensorIterator op;
     std::vector <std::vector <mv::Data::TensorIterator>> ops;
+    ops.push_back(std::vector <mv::Data::TensorIterator>());//add first line to the operations vector
     std::vector <mv::Data::TensorIterator> opsSlices;
 
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
@@ -957,12 +958,18 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
     unsigned int j = 0; //counts the slices on the 0y axis
     do {
         do {
-            beginInputShape = { (unsigned long)( (i)*stride[mv::STRIDE_HORIZONTAL] - ( initialPadding[mv::PADDING_LEFT] && (i > 0) ) ? kSize[mv::KERNEL_WIDTH]/2 : 0 ),  // overlap horizontal from previous slice
-                                (unsigned long)( (j)*stride[mv::STRIDE_VERTICAL] - ( initialPadding[mv::PADDING_TOP] && (j > 0)) ? kSize[mv::KERNEL_HEIGHT]/2 : 0 ), // overlap vertical from previous slice
+            std::cout << "i=" << i << ", j=" << j << std::endl;
+            std::cout.flush();
+            beginInputShape = { (unsigned long)( (i)*widthSlice - ( initialPadding[mv::PADDING_LEFT] && (i > 0) ) ? kSize[mv::KERNEL_WIDTH]/2 : 0 ),  // overlap horizontal from previous slice
+                                (unsigned long)( (j)*heightSlice - ( initialPadding[mv::PADDING_TOP] && (j > 0)) ? kSize[mv::KERNEL_HEIGHT]/2 : 0 ), // overlap vertical from previous slice
                                 0, 0};
-            branchWidth = stride[mv::STRIDE_HORIZONTAL] + (!initialPadding[mv::PADDING_LEFT]) ? 0 : (i == 0) || (i == hslices) ? kSize[mv::KERNEL_WIDTH]/2 :  std::floor(kSize[mv::KERNEL_WIDTH]/2)*2;
-            branchHeight = stride[mv::STRIDE_VERTICAL] + (!initialPadding[mv::PADDING_TOP]) ? 0 : (j == 0) || (j == vslices) ? kSize[mv::KERNEL_HEIGHT]/2 :  std::floor(kSize[mv::KERNEL_HEIGHT]/2)*2;
-            branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};//no overlap calculations
+            branchWidth = widthSlice + (!initialPadding[mv::PADDING_LEFT] ? 0 : (i == 0) || (i == hslices) ? kSize[mv::KERNEL_WIDTH]/2 :  std::floor(kSize[mv::KERNEL_WIDTH]/2)*2);
+            branchHeight = heightSlice + (!initialPadding[mv::PADDING_TOP] ? 0 : (j == 0) || (j == vslices) ? kSize[mv::KERNEL_HEIGHT]/2 :  std::floor(kSize[mv::KERNEL_HEIGHT]/2)*2);
+            branchInputSize = {branchWidth,
+                                branchHeight,
+                                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
+                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
+
             padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT] : 0,
                         (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
                         (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
@@ -1024,22 +1031,25 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
             }            
             op->set<unsigned>("opId", initialOpId);
             opsSlices.push_back(op);
+
             ops[j].push_back(op);
 
             i++;
         } while (i < hslices);
         j++;
 
-        opConcat = om.concat(ops[j],
+        opConcat = om.concat(opsSlices,
                                 "W",
                                 operation->getInputTensor(0)->get<mv::DType>("dType"),
                                 operation->get<mv::QuantizationParams>("quantParams"),
                                 operation->getName() + "concat line" + std::to_string(j));
+        opsSlices.empty();
+        ops.push_back(std::vector <mv::Data::TensorIterator>()); //add another line to the operations vector
         auto opConcatSlice = om.getSourceOp(opConcat);
         opConcatSlice->set<unsigned>("opId", initialOpId);
         opConcat->set<unsigned>("opId", initialOpId);
         opsSlicesConcatHorizontally.emplace_back(opConcat);
-        i = hslices;//reiterate the horizontal slices for the next vertical slice
+        i = 0;//reiterate the horizontal slices for the next vertical slice
     } while( j < vslices); //i,j non zero means we need to slice
     opConcat = om.concat(opsSlicesConcatHorizontally,
                             "H",
