@@ -142,6 +142,52 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
     return opIt;
 }
 
+mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                                                      std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
+
+    auto paramOp = opIt.leftmostParent();
+    for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
+    {
+        while(paramOp != om.opEnd())
+        {
+            if (paramOp->getOutputTensor(0) != *sourceTensorIt && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+                || paramOp->getOpType() == "ConstantDataElement"))
+            {
+                auto backUp = paramOp;
+                ++paramOp;
+                om.removeOp(backUp);
+            }
+            else
+                ++paramOp;
+        }
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+    for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
+    {
+        if(*sourceTensorIt == om.tensorEnd())
+            *sourceTensorIt = parentOpIt->getOutputTensor(0);
+
+        for (unsigned j = 0; j < opsToLink.size(); ++j)
+        {
+            opsToLink[j]->setInputTensor(*sourceTensorIt, inputSlots[j], false);
+            om.defineFlow(*sourceTensorIt, opsToLink[j], inputSlots[j]);
+        }
+    }
+
+    return opIt;
+}
+
 void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp)
 {
     outScale = (outputMax - outputMin)/255;
