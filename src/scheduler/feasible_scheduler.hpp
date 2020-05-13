@@ -1804,10 +1804,7 @@ class Feasible_Memory_Schedule_Generator {
     // Precondition: is_ready_compute_operation_schedulable(op) is true
     bool schedule_compute_op(const operation_t& op) {
       assert(traits::is_compute_operation(*input_ptr_, op));
-
-      typename op_output_table_t::iterator out_itr = op_output_table_.find(op);
-      UNUSED(out_itr);
-      assert(out_itr == op_output_table_.end());
+      assert(op_output_table_.find(op) == op_output_table_.end());
 
       //////////////////////////////////////////////////////////////////////////
       //STEP-1: add to the output result table. //
