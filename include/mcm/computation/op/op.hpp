@@ -14,6 +14,11 @@
 
 namespace mv
 {
+    static const unsigned short IO_TENSOR_INPUT =  0;
+    static const unsigned short IO_TENSOR_WEIGHTS_SET = 1;
+    static const unsigned short IO_TENSOR_WEIGHTS_TABLE = 2;
+
+    static const unsigned short IO_TENSOR_OUTPUT =  0;
 
     class Op : public ModelElement
     {
@@ -22,9 +27,6 @@ namespace mv
         std::vector<Data::TensorIterator> outputs_;
 
     public:
-        const unsigned short IO_TENSOR_INPUT =  0;
-        const unsigned short IO_TENSOR_WEIGHTS_SET = 1;
-        const unsigned short IO_TENSOR_WEIGHTS_TABLE = 2;
         Op(ComputationModel& model, const std::string& opType, const std::string& name,
             const std::vector<Data::TensorIterator>& inputs, const std::vector<std::pair<std::string, Attribute>> & args, bool checkInputSize = true, bool checkArgs = true);
 
