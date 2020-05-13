@@ -123,7 +123,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
+    // Attributes query based on blacklist
+    // Weights K || C (depthwise ops) stream, need only overwrite shape and bias
+    auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
@@ -371,9 +373,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
-    // NOTE: In the streaming case, we can't just blindly copy everything like we
-    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+    // Attributes query based on blacklist
+    // Spatial H || W stream, need only overwrite shape, padding
+    auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
@@ -591,9 +593,9 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     auto number_of_splits = tiling.childTiles().size();
     auto childTiles = tiling.childTiles();
 
-    // NOTE: In the streaming case, we can't just blindly copy everything like we
-    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+    // Attributes query based on blacklist
+    // Batch stream, need only overwrite shape
+    auto attrsToCopy = op->getAttrs({"shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Data::TensorIterator> slices;
