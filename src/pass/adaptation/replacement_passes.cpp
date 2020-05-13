@@ -944,8 +944,7 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
     padding = {0, 0, 0, 0};
     //sliced op iteratively and the vector
     mv::Data::TensorIterator op;
-    std::vector <std::vector <mv::Data::TensorIterator>> ops;
-    ops.push_back(std::vector <mv::Data::TensorIterator>());//add first line to the operations vector
+    std::vector <mv::Data::TensorIterator> ops;
     std::vector <mv::Data::TensorIterator> opsSlices;
 
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
@@ -1032,24 +1031,25 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
             op->set<unsigned>("opId", initialOpId);
             opsSlices.push_back(op);
 
-            ops[j].push_back(op);
+            ops.push_back(op);
 
             i++;
         } while (i < hslices);
-        j++;
 
         opConcat = om.concat(opsSlices,
                                 "W",
                                 operation->getInputTensor(0)->get<mv::DType>("dType"),
                                 operation->get<mv::QuantizationParams>("quantParams"),
                                 operation->getName() + "concat line" + std::to_string(j));
-        opsSlices.empty();
-        ops.push_back(std::vector <mv::Data::TensorIterator>()); //add another line to the operations vector
+        std::cout << "x=" << opConcat->getShape()[mv::IO_WIDTH_DIMENSION] << ", y=" << opConcat->getShape()[mv::IO_HEIGHT_DIMENSION] << std::endl;
+        opsSlices.clear();
+
         auto opConcatSlice = om.getSourceOp(opConcat);
         opConcatSlice->set<unsigned>("opId", initialOpId);
         opConcat->set<unsigned>("opId", initialOpId);
         opsSlicesConcatHorizontally.emplace_back(opConcat);
         i = 0;//reiterate the horizontal slices for the next vertical slice
+        j++;
     } while( j < vslices); //i,j non zero means we need to slice
     opConcat = om.concat(opsSlicesConcatHorizontally,
                             "H",
@@ -1061,17 +1061,8 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight (mv
     opConcatSlice->set<unsigned>("opId", initialOpId);
 
     //recircuit the flow
-
-    auto neutralMaxPool = om.maxPool(operation->getInputTensor(0),
-                                            {1,1},//neutral kernel
-                                            {1,1},//neutral stride
-                                            {0, 0, 0, 0},
-                                            false,  
-                                            operation->getInputTensor(0)->get<mv::DType>("dType"),
-                                            operation->get<mv::QuantizationParams>("quantParams"),
-                                            operation->getName() + "MaxPool");
-    linkFlowsRemoveFlowsInsertOps(om, operation->getInputTensor(0), {neutralMaxPool}, opsSlices);
-    om.removeOp(operation);
+    //linkFlowsRemoveFlowsInsertOps(om, operation->getInputTensor(0), neutralMaxPool, ops.front());
+    linkNewMultipleOperationsReplacement(om.getSourceOp(operation->getInputTensor(0)),ops,om,operation);
 }
 
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
