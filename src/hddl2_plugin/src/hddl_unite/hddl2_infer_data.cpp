@@ -138,9 +138,11 @@ void HddlUniteInferData::getHddlUnitePerfCounters(
     info.realTime_uSec = 0;
 
     info.realTime_uSec = _profileData.infer.time;
+    IE_ASSERT(info.realTime_uSec != 0);
     retPerfCounters["1. Total scoring time"] = info;
 
     info.realTime_uSec = _profileData.nn.time;
+    IE_ASSERT(info.realTime_uSec != 0);
     retPerfCounters["2. Total scoring time on inference"] = info;
 
     info.realTime_uSec = _profileData.pp.time;

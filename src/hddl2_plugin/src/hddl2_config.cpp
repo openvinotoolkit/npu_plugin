@@ -58,7 +58,7 @@ void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
     setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
     setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
     setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
-    _performance_counting = CONFIG_KEY(PERF_COUNT) == CONFIG_VALUE(YES);
+    setOption(_performance_counting, switches, config, CONFIG_KEY(PERF_COUNT));
 }
 
 LogLevel HDDL2Config::logLevel() const { return _logLevel; }
