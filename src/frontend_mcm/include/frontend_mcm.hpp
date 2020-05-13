@@ -134,6 +134,7 @@ public:
     void parsePad(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseResample(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseArgMax(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseTopK(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
