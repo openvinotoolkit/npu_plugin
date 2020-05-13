@@ -29,8 +29,6 @@ if (X86 OR X86_64)
     add_dependencies(${TARGET_NAME} HDDL2Plugin VPUXPlugin)
 endif()
 
-add_definitions(-DKMB_ALPHA_TESTS_DATA_PATH="${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/temp/models")
-
 target_compile_options(${TARGET_NAME}
     PRIVATE
         -Wall
