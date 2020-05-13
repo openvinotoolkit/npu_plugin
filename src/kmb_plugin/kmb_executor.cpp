@@ -447,7 +447,6 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     // FIXME output->Pull gives only the length of the first tensor
     // result_bytes size has to be used here in order to copy data from subsequent tensors
     std::memcpy(result_data, data, result_bytes);
-    std::memset(data, 0, result_bytes);
     _logger->info("KmbExecutor::getResult memcpy finished");
 #else
     UNUSED(result_data);

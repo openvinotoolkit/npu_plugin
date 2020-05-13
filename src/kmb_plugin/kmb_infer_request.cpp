@@ -49,10 +49,8 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
     const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
-      _deviceLayout(Layout::NHWC),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
-      _blobWithResult(nullptr),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())),
       _inputBuffer(nullptr, deallocateHelper),
       _outputBuffer(nullptr, deallocateHelper) {
@@ -76,8 +74,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         _inputs[networkInput.first] = inputBlob;
         inputsTotalSize += inputBlob->byteSize();
     }
-    uint8_t* inputsRawPtr = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(inputsTotalSize));
-    _inputBuffer.reset(inputsRawPtr);
+    if (_networkInputs.size() > 1) {
+        uint8_t* inputsRawPtr = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(inputsTotalSize));
+        _inputBuffer.reset(inputsRawPtr);
+    }
 
     size_t outputsTotalSize = 0;
     for (auto& networkOutput : _networkOutputs) {
@@ -149,7 +149,7 @@ void KmbInferRequest::InferAsync() {
     if (deviceInputs.size() != _inputs.size()) THROW_IE_EXCEPTION << "DeviceInputs and _inputs sizes are different.";
 
     if (_inputs.size() == 1) {
-        // FIXME this is a hack to avoid memory copy for single input
+        // avoid memory copy for single input
         const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
         const auto input = _inputs.begin()->second;
         auto updatedInput = prepareInputForInference(input, deviceInputDesc);

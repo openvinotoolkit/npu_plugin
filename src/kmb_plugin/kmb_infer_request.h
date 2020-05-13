@@ -36,7 +36,6 @@ namespace KmbPlugin {
 
 class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbExecutor::Ptr _executor;
-    InferenceEngine::Layout _deviceLayout;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
 
@@ -76,7 +75,6 @@ protected:
     void dumpOutputBlobHelper(const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst);
 
 private:
-    InferenceEngine::Blob::Ptr _blobWithResult;
     Logger::Ptr _logger;
 
     InferenceEngine::Blob::Ptr prepareInputForInference(
