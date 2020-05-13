@@ -924,7 +924,7 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Com
 //pass slicing horizontally by the provided width also slicing vertically by the provided height
 //original operation  is performed per small partitions, 
 //result concatenated per each line (horizontally) and at the end concatening the  1 column of results vertically
-std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
+void splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
@@ -1063,7 +1063,10 @@ std::vector <mv::Data::TensorIterator> splitOperationSlicingFixedWidthHeight ( m
 
     //recircuit the graph flow
     om.defineFlow(opConcat, nextOpIt,mv::IO_TENSOR_INPUT);
-    //the slice operation  is totally replaced can be removed
+    //replace the operation with the operations on little slices?
+    //op
+    //linkNewOperationsReplacement(om.getSourceOp(operation->getInputTensor(mv::IO_TENSOR_INPUT)), op, om, operation);
+
     om.removeOp(operation);
 }
 
@@ -1085,7 +1088,7 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-            auto ops = splitOperationSlicingFixedWidthHeight (om, opIt, 
+            splitOperationSlicingFixedWidthHeight (om, opIt, 
                                 stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
                                 stride[mv::STRIDE_VERTICAL] > MAX_STRIDE ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                 nextOp);
