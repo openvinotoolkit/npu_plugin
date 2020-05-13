@@ -197,14 +197,14 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
         std::string streamingOpName = op->getName() + "_streamK" + std::to_string(split);
-        mv::Data::TensorIterator conv;
+        mv::Data::TensorIterator newTensor;
         //todo:: clean this if-then-else conv/DpthwiseConv logic... it's just bloatware code
 
         if (op->getOpType() == "Conv")
         {
             //todo:: place it in a more generic location
 
-            conv = om.conv(copyInput,
+            newTensor = om.conv(copyInput,
                                     slice,
                                     op->get("stride"),
                                     op->get("padding"),
@@ -225,7 +225,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceHK_" + std::to_string(split));
 
-            conv = om.depthwiseConv(sliceInput,
+            newTensor = om.depthwiseConv(sliceInput,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
@@ -237,7 +237,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             sliceInputOp->set<unsigned>("opId", opId);
             sliceInputOp->set<std::string>("splitStrategy", splitStrategy);
         }
-        om.getSourceOp(conv)->set<unsigned>("opId", opId);
+
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
+        om.getSourceOp(newTensor)->set<unsigned>("opId", opId);
 
         //todo: clean this if-then-else bias logic.... bloatware code....
         if (op->hasAttr("bias"))
@@ -265,15 +269,15 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             }
             else
                 biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tileSize}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData));
-            om.addAttr(om.getSourceOp(conv), "bias", biasTensorX->getName());
+            om.addAttr(om.getSourceOp(newTensor), "bias", biasTensorX->getName());
         }
-        auto newOp = om.getSourceOp(conv);
+        auto newOp = om.getSourceOp(newTensor);
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->setAttrs(attrsToCopy);
 
         slices[split] = slice;
-        newTensors[split] = conv;
+        newTensors[split] = newTensor;
 
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
@@ -497,6 +501,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                     op->getName() + "_streamH" + std::to_string(split));
         }
 
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
 
         newOp->setAttrs(attrsToCopy);
@@ -684,6 +691,9 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
                                     op->getName() + "_stream" + tiling.getAxis() + std::to_string(split));
         }
 
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
 
         newOp->setAttrs(attrsToCopy);
