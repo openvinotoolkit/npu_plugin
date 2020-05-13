@@ -272,13 +272,13 @@ void mv::CompilationUnit::generateExpectedResults()
 
     emUnit.initialize();
     emUnit.run();
-    std::cout << "Compilation completed..." << std::endl;
+    std::cout << "Emulator Compilation completed..." << std::endl;
 
     // initialize the Emulator Manager
     mv::emu::Manager emulatorManager(emOM);
 
     // set input tensor values
-    std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input.dat");
+    std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input_cpu_nhwc_rgb.bin");
     if (input0Data.empty() ) throw RuntimeError(*this, "Emulator required file 'input.dat' not found in current directory");
 
     mv::Data::OpListIterator opIt = emOM.getOps("Input")[0];
@@ -288,4 +288,5 @@ void mv::CompilationUnit::generateExpectedResults()
     
     std::cout << "Generating results..." << std::endl;
     emulatorManager.run();
+    std::cout << "Results complete. Generating blob..." << std::endl;
 }
