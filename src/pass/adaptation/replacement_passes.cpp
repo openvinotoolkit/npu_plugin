@@ -948,7 +948,7 @@ void splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Da
     padding = {0, 0, 0, 0};
     //sliced op iteratively and the vector
     mv::Data::TensorIterator op;
-    std::vector <mv::Data::TensorIterator> opsHorizontal;
+    std::vector <mv::Data::TensorIterator> opsGlobalMatrix,opsHorizontal;
 
     //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
     mv::Data::TensorIterator opConcat;
@@ -958,8 +958,8 @@ void splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Da
 
     unsigned int i = 0; //counts the slices on the 0x axis
     unsigned int j = 0; //counts the slices on the 0y axis
-    do {
-        do {
+    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
+        do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis 
             std::cout << "i=" << i << ", j=" << j << std::endl;
             std::cout.flush();
             beginInputShape = { (unsigned long)( (i)*widthSlice - ( initialPadding[mv::PADDING_LEFT] && (i > 0) ) ? kSize[mv::KERNEL_WIDTH]/2 : 0 ),  // overlap horizontal from previous slice
@@ -1033,6 +1033,7 @@ void splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Da
             }            
             op->set<unsigned>("opId", initialOpId);
             opsHorizontal.push_back(op);
+            opsGlobalMatrix.push_back(op);
 
             i++;
         } while (i < hslices);
@@ -1063,11 +1064,8 @@ void splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Da
 
     //recircuit the graph flow
     om.defineFlow(opConcat, nextOpIt,mv::IO_TENSOR_INPUT);
-    //replace the operation with the operations on little slices?
-    //op
-    //linkNewOperationsReplacement(om.getSourceOp(operation->getInputTensor(mv::IO_TENSOR_INPUT)), op, om, operation);
-
-    om.removeOp(operation);
+    //replace the bit operation with the operations on little slices
+    linkNewMultipleOperationsReplacement(om.getSourceOp(operation->getInputTensor(mv::IO_TENSOR_INPUT)), opsGlobalMatrix, om, operation);
 }
 
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
