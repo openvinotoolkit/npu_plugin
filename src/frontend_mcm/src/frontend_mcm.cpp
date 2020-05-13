@@ -107,6 +107,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Pad",                &FrontEndMcm::parsePad},
                 {"Resample",           &FrontEndMcm::parseResample},
                 {"ArgMax",             &FrontEndMcm::parseArgMax},
+                {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
                 {"Const",              &FrontEndMcm::parseConst},
         };
@@ -1396,6 +1397,23 @@ void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, c
     auto fakeQuantize = _modelMcm.fakeQuantize(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(),
         inputs[2]->getMcmNode(), inputs[3]->getMcmNode(), inputs[4]->getMcmNode(), levels);
     bindOutput(fakeQuantize, layer->outData[0]);
+}
+
+void FrontEndMcm::parseTopK(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 2);
+    logParsingStartHelper(_logger, layer, inputs);
+    auto axis = layer->GetParamAsUInt("axis");
+    auto mode = layer->GetParamAsString("mode");
+    auto sort = layer->GetParamAsString("sort");
+    int32_t k = inputs[1]->getMcmNode()->getIntData()[0];
+    _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[1]->getMcmNode()));
+
+    auto topK = _modelMcm.topK(
+        inputs[0]->getMcmNode(), sort, mode, k, axis, mv::DType("Default"), initialQuantParams, layer->name);
+    bindOutput(topK, layer->outData[0]);
+    auto topKOp = _modelMcm.getSourceOp(topK);
+    if (topKOp->outputSlots() > 1) bindOutput(topKOp->getOutputTensor(1), layer->outData[1]);
+    _logger->debug(FINISH_PARSING_STR, topK->getName());
 }
 
 void FrontEndMcm::parseArgMax(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
