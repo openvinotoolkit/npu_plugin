@@ -32,6 +32,11 @@ typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
 
 
+static bool is_scheduler_output_enabled() {
+  const auto level = mv::Logger::getVerboseLevel();
+  return (mv::VerboseLevel::Error != level && mv::VerboseLevel::Silent != level);
+}
+
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
   typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
@@ -53,8 +58,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     assert(!stringfile.empty());
 
     const char *lp_sched_ddr_address_dump_filename = nullptr;
-    if (mv::Logger::getVerboseLevel() != mv::VerboseLevel::Error &&
-        mv::Logger::getVerboseLevel() != mv::VerboseLevel::Silent)
+    if (is_scheduler_output_enabled())
     {
       lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
@@ -105,8 +109,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
 
   FILE *fptr = nullptr;
-  if (mv::Logger::getVerboseLevel() != mv::VerboseLevel::Error &&
-      mv::Logger::getVerboseLevel() != mv::VerboseLevel::Silent) {
+  if (is_scheduler_output_enabled()) {
     const std::string output_file = passDesc.get<std::string>("output");
     fptr = fopen(output_file.c_str(), "w");
     assert(fptr);
