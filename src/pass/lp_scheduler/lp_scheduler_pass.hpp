@@ -361,6 +361,7 @@ class Control_Edge_Set {
       add_control_edges_between_inputs_and_compute_ops(dag, model);
 
       if (!generate_temporal_edges) {
+        add_control_edges_between_compute_ops_and_writes(dag, model);
         add_memory_control_edges(dag, model, sbegin, send);
         add_control_edges_for_implicit_concats(dag, model);
         add_control_edges_for_upa_tasks(dag, model);
@@ -717,6 +718,26 @@ class Control_Edge_Set {
           }
         }
 
+      }
+    }
+
+    template<typename OpDag>
+    void add_control_edges_between_compute_ops_and_writes(
+        const OpDag& dag, mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!dag.is_dpu_op(op)) { continue; }
+
+        for (typename dag_t::const_operation_iterator_t 
+              citr=dag.begin_nodes(op); citr!=dag.end_nodes(op); ++citr) {
+          operation_t cop = *citr;
+          if (dag.is_dma_op_moving_data_from_cmx_to_ddr(cop)) {
+            add_control_edge(op, cop, model);
+          }
+        }
       }
     }
 
@@ -1129,6 +1150,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           size_t idx = outputFlow->get<size_t>("sinkInput");
@@ -1144,6 +1171,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
         std::vector<mv::Data::FlowListIterator> flows;
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           operation_t sink_op = &(*(outputFlow.sink()));
@@ -1288,6 +1321,7 @@ class Dynamic_Spill_Node_Inserter {
       mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
       spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
       std::string dma_op_name;
+      mv::Data::TensorIterator spill_read_tensor_itr;
 
       for (typename spilled_read_subtrees_t::iterator
             spill_read_itr=read_subtrees.begin();
@@ -1295,8 +1329,10 @@ class Dynamic_Spill_Node_Inserter {
 
         dma_op_name = spilled_op->getName() + "_spilledReadForest" +
             std::to_string(read_index++);
-        mv::Data::TensorIterator spill_read_tensor_itr = om.dMATask(
+        spill_read_tensor_itr = om.dMATask(
             spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
+        if(spill_read_tensor_itr->isSparse())
+          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false) 
         Data::OpListIterator read_op_itr =
             om.getSourceOp(spill_read_tensor_itr);
         read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
@@ -1330,7 +1366,8 @@ class Dynamic_Spill_Node_Inserter {
         redundant_spill_map_.insert(
             std::make_pair(spilled_op, spilled_op->getName()));
         om.removeOp(spilled_op_itr);
-      }
+        spill_read_tensor_itr->set<bool>("allocateSparsityMap", true); // If the original DMA Op is considered redundant and removed
+      }                                                                // then we want the 'new' spilled DMA to allocate the sparsity map
     }
 
     bool has_its_output_spilled(operation_t op) const {

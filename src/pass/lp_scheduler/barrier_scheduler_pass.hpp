@@ -2,6 +2,8 @@
 #include "pass/lp_scheduler/barrier_schedule_generator.hpp"
 #include "pass/lp_scheduler/barrier_simulator.hpp"
 
+namespace mv_unit_testing { class Barrier_Control_Dag_Test; }
+
 namespace mv {
 namespace lp_scheduler {
 
@@ -9,6 +11,7 @@ namespace lp_scheduler {
 // NOTE: the scheduler will set the real barrier index in
 // Barrier::realBarrierIndex_ //
 class Control_Model_Barrier_Scheduler {
+  friend class mv_unit_testing::Barrier_Control_Dag_Test;
   public:
     ////////////////////////////////////////////////////////////////////////////
     typedef scheduler::Operation_Dag<mv::ControlModel> control_op_dag_t;
@@ -234,7 +237,8 @@ class Control_Model_Barrier_Scheduler {
           return barrier_new;
         }
 
-        bool is_barrier_task(op_iterator_t op_itr) const {
+        template<typename T>
+        bool is_barrier_task(T op_itr) const {
           return (op_itr->getOpType()) == "BarrierTask";
         }
 
@@ -372,7 +376,142 @@ class Control_Model_Barrier_Scheduler {
       return btask_count;
     }
 
+    void remove_barriers_in_upa_chain_connected_to_output() {
+      mv::ControlModel &cm = control_model_;
+      mv::OpModel om(cm);
+      std::list<operation_t> upa_chain;
+
+      get_tailing_upa_chain(std::back_inserter(upa_chain));
+
+      if (!upa_chain.empty() && is_barrier_op(upa_chain.back())) {
+        upa_chain.pop_back();
+      }
+      if (upa_chain.empty()) { return; }
+     
+      operation_t prev_upa_op = NULL, curr_upa_op = NULL, curr_op;
+
+      for (auto ritr=upa_chain.rbegin(); ritr!=upa_chain.rend(); ++ritr) {
+        curr_op = *ritr;
+        assert( is_upa_op(curr_op) || is_barrier_op(curr_op) );
+
+        if (is_upa_op(curr_op)) {
+          // add control edge prev_upa->curr_upa //
+          if (prev_upa_op) {
+            auto prev_upa_itr = om.getOp(prev_upa_op->getName());
+            auto curr_upa_itr = om.getOp(curr_op->getName());
+            cm.defineFlow(prev_upa_itr, curr_upa_itr);
+          }
+          prev_upa_op = curr_op;
+        } else {
+          // remove the barrier //
+          om.removeOp(om.getOp(curr_op->getName()));
+        }
+      }
+      renumberBarrierTasks(om);
+      recomputeProducerConsumerCounts();
+    }
+
   private:
+    
+    template<typename T>
+    bool is_barrier_op(T op_itr) const { 
+      return op_itr->getOpType() == "BarrierTask";
+    }
+
+
+    bool has_zero_out_degree(control_op_iterator_t itr) const {
+      return itr.leftmostChild() ==  control_model_.opEnd();
+    }
+
+    bool has_in_degree_equal_to_k(control_op_iterator_t itr, size_t k) const {
+      control_op_iterator_t pitr=itr.leftmostParent(),
+                            pitr_end=control_model_.opEnd();
+      size_t degree=0UL; 
+      for (;(pitr!=pitr_end) && (degree < k); ++pitr, ++degree) {}
+
+      return degree == k;
+    }
+
+    bool has_unit_in_degree(control_op_iterator_t itr) const {
+      return has_in_degree_equal_to_k(itr, 1UL);
+    }
+
+    bool has_non_zero_in_degree(control_op_iterator_t itr) const {
+      return itr.leftmostParent() !=  control_model_.opEnd();
+    }
+
+    template<typename T>
+    bool is_upa_op(T itr) const {
+      return itr->getOpType() == "UPATask";
+    }
+
+    bool is_input_or_output_op(control_op_iterator_t itr) const {
+      return (itr->getOpType() == "Input") || (itr->getOpType() == "Output");
+    }
+
+    // returns in the order of tail -> head //
+    template<typename OutputIterator>
+    void get_tailing_upa_chain(OutputIterator output) const {
+      typedef std::unordered_map<operation_t, operation_t>
+          unit_in_degree_parent_t;
+
+      mv::ControlModel &cm = control_model_;
+      unit_in_degree_parent_t unit_in_degree_parent;
+      std::unordered_set<operation_t> non_zero_out_degree_set;
+
+      for (mv::Control::FlowListIterator eitr=cm.flowBegin();
+            eitr!=cm.flowEnd(); ++eitr ) {
+        mv::Control::OpListIterator src_itr = eitr.source();
+        mv::Control::OpListIterator sink_itr = eitr.sink();
+
+        operation_t source = &(*src_itr);
+        operation_t sink = &(*sink_itr);
+
+        auto parent_itr = unit_in_degree_parent.find(sink);
+        if (parent_itr == unit_in_degree_parent.end()) {
+          unit_in_degree_parent.insert(std::make_pair(sink, source)); 
+        } else {
+          parent_itr->second = NULL;
+        }
+
+        non_zero_out_degree_set.insert(source);
+      }
+
+      operation_t tail = NULL;
+      // locate the task with zero outdegree and in-degree = 1 //
+      for (control_op_iterator_t op_itr=cm.opBegin(); op_itr!=cm.opEnd();
+            ++op_itr) {
+        operation_t op = &(*op_itr);
+
+        if ( !(is_upa_op(op) || is_barrier_op(op)) ) { continue; }
+        if (non_zero_out_degree_set.find(op) != non_zero_out_degree_set.end()){
+          continue;
+        }
+
+        auto parent_itr = unit_in_degree_parent.find(op);
+        if ((parent_itr != unit_in_degree_parent.end()) &&
+              (parent_itr->second != NULL)) {
+          tail = op; 
+          break;
+        }
+      }
+
+      if (tail == NULL) { return; } 
+
+      output = tail; 
+
+      operation_t curr_op = tail;
+      auto parent_itr = unit_in_degree_parent.find(curr_op);
+      while ( (parent_itr != unit_in_degree_parent.end()) &&
+          (parent_itr->second != NULL) ) {
+        curr_op = parent_itr->second;
+        if ( !(is_upa_op(curr_op) || is_barrier_op(curr_op)) ) { break; }
+        output = curr_op;
+        parent_itr = unit_in_degree_parent.find(curr_op);
+      }
+    }
+
+
 
     // mostly barriers connected to output //
     size_t removeBarriersWithNoConsumers(
@@ -412,13 +551,14 @@ class Control_Model_Barrier_Scheduler {
         mv::Control::OpListIterator bar_itr, op_itr;
 
         assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
+        if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
 
-        if (src_itr->getOpType() == "BarrierTask") {
-          assert(sink_itr->getOpType() != "BarrierTask");
+        if (is_barrier_op(src_itr)) {
+          assert(!is_barrier_op(sink_itr));
           bar_itr = src_itr;
           op_itr = sink_itr;
         } else {
-          assert(sink_itr->getOpType() == "BarrierTask");
+          assert(is_barrier_op(sink_itr));
           bar_itr = sink_itr;
           op_itr = src_itr;
         }
@@ -452,8 +592,11 @@ class Control_Model_Barrier_Scheduler {
         mv::Control::OpListIterator sink_itr = fitr.sink(); 
         assert( (src_itr != cm.opEnd()) && (sink_itr != cm.opEnd()) );
 
-        if (src_itr->getOpType() == "BarrierTask") {
-          assert(sink_itr->getOpType() != "BarrierTask");
+        if (!is_barrier_op(src_itr) && !is_barrier_op(sink_itr)) { continue; }
+
+        if (is_barrier_op(src_itr)) {
+          assert(!is_barrier_op(sink_itr));
+
           mv::Barrier& barrier = src_itr->get<mv::Barrier>("Barrier");
           mv::BarrierDependencies& barrierRef =
             sink_itr->get<mv::BarrierDependencies>("BarrierDeps");
@@ -462,7 +605,7 @@ class Control_Model_Barrier_Scheduler {
           barrierRef.addWaitBarrier(barrier.getIndex());
           barrier.addConsumer(sink_itr->getName());
         } else {
-          assert(src_itr->getOpType() != "BarrierTask");
+          assert(!is_barrier_op(src_itr));
 
           mv::Barrier& barrier = sink_itr->get<mv::Barrier>("Barrier");
           mv::BarrierDependencies& barrierRef =
@@ -658,8 +801,6 @@ class Save_Restore_Control_Model {
         fitr = fitr_next;
       }
     }
-
-
 
     mv::ControlModel &cmodel_;
     control_edge_list_t saved_control_edges_;
