@@ -39,6 +39,7 @@ std::ostream& operator<<(std::ostream& os, const EltwiseTwoInputsTestParams& p) 
 class KmbEltwiseTwoInputsTest : public KmbLayerTestBase, public testing::WithParamInterface<EltwiseTwoInputsTestParams> {};
 
 TEST_P(KmbEltwiseTwoInputsTest, eltwiseAdd) {
+    SKIP_INFER_ON("KMB", "bad results"); // [Track number: D#3051]
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);

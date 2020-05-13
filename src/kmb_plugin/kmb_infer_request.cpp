@@ -148,20 +148,28 @@ void KmbInferRequest::InferAsync() {
     if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     if (deviceInputs.size() != _inputs.size()) THROW_IE_EXCEPTION << "DeviceInputs and _inputs sizes are different.";
 
-    size_t inputBufferOffset = 0;
-    for (const auto& inferInput : _inputs) {
-        std::string inputName = inferInput.first;
-        const auto deviceInputDesc = deviceInputs.at(inputName)->getTensorDesc();
-        const auto input = inferInput.second;
-
+    if (_inputs.size() == 1) {
+        // FIXME this is a hack to avoid memory copy for single input
+        const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
+        const auto input = _inputs.begin()->second;
         auto updatedInput = prepareInputForInference(input, deviceInputDesc);
-        // TODO implement memory copy inside prepareInputForInference
-        std::memcpy(
-            _inputBuffer.get() + inputBufferOffset, updatedInput->buffer().as<uint8_t*>(), updatedInput->byteSize());
+        _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
+    } else {
+        size_t inputBufferOffset = 0;
+        for (const auto& inferInput : _inputs) {
+            std::string inputName = inferInput.first;
+            const auto deviceInputDesc = deviceInputs.at(inputName)->getTensorDesc();
+            const auto input = inferInput.second;
 
-        inputBufferOffset += updatedInput->byteSize();
+            auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+            // TODO implement memory copy inside prepareInputForInference
+            std::memcpy(_inputBuffer.get() + inputBufferOffset, updatedInput->buffer().as<uint8_t*>(),
+                updatedInput->byteSize());
+
+            inputBufferOffset += updatedInput->byteSize();
+        }
+        _executor->queueInference(_inputBuffer.get(), inputBufferOffset);
     }
-    _executor->queueInference(_inputBuffer.get(), inputBufferOffset);
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {

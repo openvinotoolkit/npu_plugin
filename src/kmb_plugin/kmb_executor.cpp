@@ -163,6 +163,31 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
     }
     return found->second;
 }
+
+// DataMapType expected to be either InputsDataMap or OutputsDataMap
+// useNewFormat basically means that graph header doesn't have meta-data
+// defaultNamePrefix is used only with old format
+// dataIdx is the position of input/output in FLIC pipeline internal data structure
+template <typename DataMapType>
+InferenceEngine::Data flicTensorDescToIEData(const flicTensorDescriptor_t& flicTensorDesc, bool useNewFormat,
+    const DataMapType& dataMap, const size_t& dataIdx, const std::string& defaultNamePrefix) {
+    InferenceEngine::SizeVector ieDims({flicTensorDesc.n, flicTensorDesc.c, flicTensorDesc.h, flicTensorDesc.w});
+    InferenceEngine::Layout ieLayout = getIOLayout(flicTensorDesc);
+    InferenceEngine::Precision iePrecision = getIOPrecision(flicTensorDesc);
+    InferenceEngine::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+    std::string ieDataName = "";
+    if (useNewFormat) {
+        // FIXME data maps have lexicographical order. however, runtime inputs and outputs are not ordered by name
+        // find a better way to map names
+        typename DataMapType::const_iterator dataMapIter = dataMap.begin();
+        std::advance(dataMapIter, dataIdx);
+        ieDataName = dataMapIter->first;
+    } else {
+        ieDataName = defaultNamePrefix + std::to_string(dataIdx);
+    }
+    InferenceEngine::Data ieData(ieDataName, ieDesc);
+    return ieData;
+}
 }  // namespace
 #endif
 
@@ -272,22 +297,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
         _logger->info("Input: %d", inputIdx);
         tensor_deserializer(descIn);
 
-        InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
-        InferenceEngine::Layout inputLayout = getIOLayout(descIn);
-        InferenceEngine::Precision inputPrecision = getIOPrecision(descIn);
-        InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-        std::string inputName = "";
-        if (newFormat) {
-            // FIXME InputsDataMap has lexicographical order. however, runtime inputs are not ordered by name
-            // find a better way to map input names
-            InputsDataMap::const_iterator inputIter = networkInputs.begin();
-            std::advance(inputIter, inputIdx);
-            inputName = inputIter->first;
-        } else {
-            inputName = "input" + std::to_string(inputIdx);
-        }
-        InferenceEngine::Data inputData(inputName, inputDesc);
-
+        InferenceEngine::Data inputData = flicTensorDescToIEData(descIn, newFormat, networkInputs, inputIdx, "input");
         InferenceEngine::InputInfo inputInfo;
         inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
         _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
@@ -314,20 +324,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
         _logger->info("Output: %d", outputIdx);
         tensor_deserializer(descOut);
 
-        InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
-        InferenceEngine::Layout outputLayout = getIOLayout(descOut);
-        InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
-        InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-        std::string outputName = "";
-        if (newFormat) {
-            // FIXME OutputsDataMap has lexicographical order as well. find a better way to map output names
-            OutputsDataMap::const_iterator outputIter = networkOutputs.begin();
-            std::advance(outputIter, outputIdx);
-            outputName = outputIter->first;
-        } else {
-            outputName = "output" + std::to_string(outputIdx);
-        }
-        InferenceEngine::Data outputData(outputName, outputDesc);
+        InferenceEngine::Data outputData =
+            flicTensorDescToIEData(descOut, newFormat, networkOutputs, outputIdx, "output");
         _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
         sumSizeTensorDescOut.totalSize += descOut.totalSize;
