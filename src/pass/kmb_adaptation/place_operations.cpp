@@ -92,7 +92,7 @@ void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task)
 
     std::vector<mv::Data::TensorIterator> andInputs = {task->getInputTensor(0), neutralCopy};
     auto placeEltwiseDequantize = om.eltwise(andInputs, "And",
-                                    mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "AND_Conversion");
+                                    mv::DType("Default"), {{0}, {1.0f}, {}, {}}, task->getName() + "AND_Conversion");
     auto placeEltwiseDequantizeOp = om.getSourceOp(placeEltwiseDequantize);
 
     placeEltwiseDequantizeOp->getInputTensor(0)->set<mv::DType>("dType", mv::DType("UInt8"));
