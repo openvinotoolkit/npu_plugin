@@ -208,7 +208,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     slice,
                                     op->get("stride"),
                                     op->get("padding"),
-                                    op->get<unsigned>("dilationFactor"),
+                                    1, //this is already taken care of, dont want to change kernel size again
                                     op->get<unsigned>("group"),
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
@@ -229,7 +229,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
-                                op->get<unsigned>("dilationFactor"),
+                                1, //this is already taken care of, dont want to change kernel size again
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
