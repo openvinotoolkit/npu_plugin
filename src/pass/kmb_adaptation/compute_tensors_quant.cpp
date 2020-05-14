@@ -243,12 +243,15 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     }
 }
 
+template <typename K, typename V, typename H = std::hash<K>>
+using map = std::unordered_map<K, V, H>;
+using pwlFixedQuantEntry = std::vector<mv::QuantizationParams>;
+
 void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterator& op) {
 
     // The preprogrammed hw PWL functions have fixed quantization requirements
     // on input and output of the activation function
-    const std::unordered_map<std::string, std::unordered_map<std::string,
-        std::vector<mv::QuantizationParams>>> pwlFixedQuantization =
+    const map<std::string, map<std::string, pwlFixedQuantEntry>> pwlFixedQuantization =
         {
         {
             "Sigmoid",
@@ -256,14 +259,14 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterato
             {
                 "UInt8",
                 {
-                mv::QuantizationParams({0}, {0.000980392156862745}, {-4.0}, {4.0}),
+                mv::QuantizationParams({0}, {0.000980392156862745}, {-4.0}, {4.0}, {0}, {1}, {4}),
                 mv::QuantizationParams({3}, {0.004016064257028112}, {0}, {1.0})
                 }
             },
             {
                 "Float16",
                 {
-                mv::QuantizationParams({0}, {0.015625}, {-4.0}, {4.0}),
+                mv::QuantizationParams({0}, {0.015625}, {-4.0}, {4.0}, {0}, {1}, {-4}),
                 mv::QuantizationParams({0}, {1.0}, {0}, {1.0})
                 }
             }
@@ -275,14 +278,14 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterato
             {
                 "UInt8",
                 {
-                mv::QuantizationParams({0}, {0.000980392156862745}, {-4.0}, {4.0}),
+                mv::QuantizationParams({0}, {0.000980392156862745}, {-4.0}, {4.0}, {0}, {1}, {5}),
                 mv::QuantizationParams({128}, {0.007874015748031496}, {-1.0}, {1.0})
                 }
             },
             {
                 "Float16",
                 {
-                mv::QuantizationParams({0}, {0.015625}, {-4.0}, {4.0}),
+                mv::QuantizationParams({0}, {0.015625}, {-4.0}, {4.0}, {0}, {1}, {-4}),
                 mv::QuantizationParams({0}, {1.0}, {-1.0}, {1.0})
                 }
             }
@@ -310,16 +313,16 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterato
                     continue;
                 }
 
-                auto typedFixedQuant = fixedQuant.second.find(actDType);
+                auto typedFixedQuantIt = fixedQuant.second.find(actDType);
 
-                if (typedFixedQuant == fixedQuant.second.end()) {
+                if (typedFixedQuantIt == fixedQuant.second.end()) {
                     pass.log(mv::Logger::MessageType::Error,
                         "No fixed quantization scheme associated for " +
                         fixedQuant.first + " with datatype " + actDType);
                 }
 
-                auto pwlInputQuant = typedFixedQuant->second[0];
-                auto pwlOutputQuant = typedFixedQuant->second[1];
+                auto pwlInputQuant = typedFixedQuantIt->second[0];
+                auto pwlOutputQuant = typedFixedQuantIt->second[1];
 
                 // Use the pwl input scale to futher compute mult and shift
                 op->set<mv::QuantizationParams>("pwlQuantParams", pwlInputQuant);
