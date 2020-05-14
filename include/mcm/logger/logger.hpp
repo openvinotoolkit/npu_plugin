@@ -61,7 +61,7 @@ namespace mv
     public:
 
         static Logger& instance();
-        static void DebugLog(const std::string& senderName, char* format, ...);
+        static void DebugLog(const std::string& senderName, const char* const format, ...);
         static void log(MessageType messageType, const std::string& senderName, const std::string &content);
         static void setVerboseLevel(VerboseLevel verboseLevel);
         static VerboseLevel getVerboseLevel();

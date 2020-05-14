@@ -1,7 +1,7 @@
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/base/printable.hpp"
 
-void mv::Logger::DebugLog(const std::string& senderName, char* format, ...) {
+void mv::Logger::DebugLog(const std::string& senderName, const char* const format, ...) {
     va_list args;
     va_start(args, format);
     char buffer[256];

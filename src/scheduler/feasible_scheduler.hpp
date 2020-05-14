@@ -1633,14 +1633,14 @@ class Feasible_Memory_Schedule_Generator {
     size_t schedule_all_possible_ready_ops_gen(ReadyListIterator ritr,
         ReadyListIterator ritr_end, BackInsertIterator output) {
       size_t scheduled_ops_count = 0UL;
-      bool scheduled = false;
 
       for (; ritr != ritr_end; ++ritr) {
         const operation_t& op = *ritr;
         if (is_ready_compute_operation_schedulable(op)) {
           // schedule_compute_op() will also allocate resources for all missing
           // inputs for this compute op.
-          scheduled = schedule_compute_op(op);
+          const bool scheduled = schedule_compute_op(op);
+          UNUSED(scheduled);
           assert(scheduled);
           scheduled_ops_count++;
           output = op;

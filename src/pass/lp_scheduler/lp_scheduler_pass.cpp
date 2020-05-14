@@ -69,6 +69,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
         ddr_address_generator(model, input_dag);
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
         lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
+    UNUSED(status);
     assert(status);
   }
 
@@ -89,8 +90,8 @@ void LpSchedulerBuildTimeStamp(FILE *fptr) {
 }
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
-    mv::Element& passDesc, mv::Element& compOutput) {
+    mv::ComputationModel& model, mv::TargetDescriptor&,
+    mv::Element& passDesc, mv::Element&) {
   typedef mv::lp_scheduler::mv_memory_scheduler_with_spilling_t scheduler_t;
   typedef typename scheduler_t::scheduled_op_info_t scheduled_op_info_t;
   typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
@@ -304,6 +305,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     bool status = writer_t::write_to_stringstream(schedule_state,
           scheduled_ops.begin(), scheduled_ops.end());
+    UNUSED(status);
     assert(status);
     // save the schedule state in global params //
     auto global_params = model.getGlobalConfigParams();

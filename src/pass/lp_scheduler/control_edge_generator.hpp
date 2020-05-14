@@ -3,7 +3,7 @@
 
 #include "scheduler/disjoint_interval_set.hpp"
 #include "scheduler/feasible_scheduler.hpp"
-
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -57,7 +57,6 @@ class Control_Edge_Generator {
       size_t edge_count = 0UL;
       unit_t curr_beg = traits::interval_begin(curr_interval);
       unit_t curr_end = traits::interval_end(curr_interval);
-      bool status = false;
       assert(curr_beg <= curr_end);
 
       query_iterator_t qitr = interval_tree_.query(curr_beg, curr_end);
@@ -106,7 +105,8 @@ class Control_Edge_Generator {
 
         if (!rcount) {
           // no xor intervals //
-          status = interval_tree_.insert(inter_beg, inter_end, curr_interval);
+          const bool status = interval_tree_.insert(inter_beg, inter_end, curr_interval);
+          UNUSED(status);
           assert(status);
         } else {
           // NOTE: that first XOR interval comes before the second if there
@@ -171,8 +171,9 @@ class Control_Edge_Generator {
 
       if (curr_rem_beg <= curr_rem_end) {
         // process the trailing part this also covers the trailing case.//
-        status = interval_tree_.insert(curr_rem_beg, curr_rem_end,
+        const bool status = interval_tree_.insert(curr_rem_beg, curr_rem_end,
               curr_interval);
+        UNUSED(status);
         assert(status);
       }
 

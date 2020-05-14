@@ -491,7 +491,7 @@ void quantizeIO(mv::ComputationModel& model) {
     setQuantizationParams(output, {{}, {}, {}, {}});
 }
 
-void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+void removeFQ(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
 
@@ -538,7 +538,7 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
     }
 }
 
-void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
+void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
     if (fq_ops.empty())
