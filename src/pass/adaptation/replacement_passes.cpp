@@ -932,7 +932,12 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     auto width = inputShape[mv::IO_WIDTH_DIMENSION];
     auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
     std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
-    std::array<unsigned short, 2> kSize = operation->get<std::array<unsigned short, 2>>("kSize");
+    std::array<unsigned short, 2> kSize;
+    if ( operation->hasAttr("kSize") )
+        kSize = operation->get<std::array<unsigned short, 2>>("kSize");
+    else
+        kSize = {operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH],
+                    operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT] };
 
     auto initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 4> padding = initialPadding;
