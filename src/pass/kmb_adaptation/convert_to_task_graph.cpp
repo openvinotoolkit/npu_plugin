@@ -666,7 +666,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto inputs = concatOp->getInputTensor();
         for (auto& input : inputs)
         {
-            if (!((om.getSourceOp(input)->getOpType() == "UPATask")  && (input->get<mv::DType>("dType") == mv::DType("Float16"))))
+            if (!((om.getSourceOp(input)->getOpType() == "UPATask" || om.getSourceOp(input)->getOpType() == "ImplicitReshape")  &&
+                (input->get<mv::DType>("dType") == mv::DType("Float16"))))
                 all_inputs_are_fp16 = false;
         }
         if (all_inputs_are_fp16)
