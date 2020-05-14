@@ -24,6 +24,7 @@
 
 #include "converters.h"
 #include "hddl2_params.hpp"
+#include "ie_memcpy.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -168,8 +169,8 @@ void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& bl
         auto repackedBlobMemory = repackedBlobLockedMemory.as<uint8_t*>();
         if (repackedBlobMemory == nullptr) THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
 
-        memcpy(repackedBlobMemory, yPlaneMemory, yPlane->size());
-        memcpy(repackedBlobMemory + yPlane->size(), uvPlaneMemory, uvPlane->size());
+        ie_memcpy(repackedBlobMemory, yPlane->size(), yPlaneMemory, yPlane->size());
+        ie_memcpy(repackedBlobMemory + yPlane->size(), uvPlane->size(), uvPlaneMemory, uvPlane->size());
     }
     _repackedBlob = repackedBlob;
 }
