@@ -43,9 +43,9 @@ class PlgXlinkOut : public PluginStub
      * Plugin Create method.
      *
      * @param maxSz maximum size of the XLink Stream.
-     * @param channame name of the XLink channel.
+     * @param chanId_unused not used anymore.
      */
-    int Create(uint32_t maxSz, uint32_t chanId);
+    int Create(uint32_t maxSz, uint32_t chanId_unused);
 
     /**
      * Plugin Delete method.

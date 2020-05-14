@@ -18,13 +18,6 @@ inline static int memcpy_s(void * dest, size_t destsz, const void * const src, s
     if (destsz < count) { memset(dest, 0, destsz); return ERANGE; }
     if (src == NULL) { memset(dest, 0, destsz); return EINVAL; } // src should not be a NULL ptr
 
-    // Copying shall not take place between regions that overlap.
-    if( ((dest > src) && (dest < (src+count))) ||
-        ((src > dest) && (src < (dest+destsz))) ) {
-        memset(dest, 0, destsz);
-        return ERANGE;
-    }
-
     memcpy(dest, src, count);
     return 0;
 }

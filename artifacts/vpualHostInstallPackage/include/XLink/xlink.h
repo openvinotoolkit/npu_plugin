@@ -58,7 +58,8 @@ enum xlink_error {
 	X_LINK_COMMUNICATION_UNKNOWN_ERROR,
 	X_LINK_DEVICE_NOT_FOUND,
 	X_LINK_TIMEOUT,
-	X_LINK_ERROR
+	X_LINK_ERROR,
+	X_LINK_CHAN_FULL
 };
 
 enum xlink_channel_status {

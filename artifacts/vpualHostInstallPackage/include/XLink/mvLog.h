@@ -110,7 +110,7 @@ static const char mvLogHeader[MVLOG_LAST][30] =
 // #ifdef __shave__
 // __attribute__((section(".laststage")))
 // #endif
-unsigned int __attribute__ ((weak)) MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
+unsigned int MVLOGLEVEL(MVLOG_UNIT_NAME) = MVLOG_INFO;
 
 // #ifdef __shave__
 // __attribute__((section(".laststage")))
@@ -128,11 +128,11 @@ logprintf(enum mvLog_t lvl, const char * func, const int line,
        lvl < MVLOGLEVEL(default))
         return 0;
 
-    const char headerFormat[] = "%s [%10" PRId64 "] %s:%d\t";
+    [[maybe_unused]] const char headerFormat[] = "%s [%10" PRId64 "] %s:%d\t";
 #ifdef __RTEMS__
-    uint64_t timestamp = rtems_clock_get_uptime_nanoseconds() / 1000;
+    [[maybe_unused]] uint64_t timestamp = rtems_clock_get_uptime_nanoseconds() / 1000;
 #else
-    uint64_t timestamp = 0;
+    [[maybe_unused]] uint64_t timestamp = 0;
 #endif
     va_list args = {};
     va_start (args, format);

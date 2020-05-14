@@ -9,24 +9,27 @@
 #define __VPUAL_DISPATCHER_H__
 
 #include <stdint.h>
-#include <thread>
-
+#include <string>
 #include "VpualMessage.h"
 #include "xlink.h"
 
-// Maximum length of a decoder's type name.
-#define DECODER_NAME_MAX_LENGTH (20)
-// Ensure the correct resources are opened/closed when needed.
+/** Ensure the correct resources are opened/closed when needed. */
 class VpualDispatcherResource {
+  private:
+    uint32_t device_id;
+
   public:
     VpualDispatcherResource (uint32_t device_id);
     ~VpualDispatcherResource ();
 };
 
-VpualDispatcherResource& initVpualDispatcherResource(uint32_t device_id);  // static initializer for every translation unit*/
+/** Initialise the dispatcher if uninitialised. */
+VpualDispatcherResource& initVpualDispatcherResource(uint32_t device_id);
 
 /**
  * Get the XLink device handle for VPUAL dispatcher.
+ *
+ * @param[uint32_t] device_id Slice for which to retrieve XLink device handle.
  *
  * @return - XLink device handle.
  */
@@ -37,45 +40,52 @@ xlink_handle getXlinkDeviceHandle(uint32_t device_id);
  *
  * Handles construction, destruction, and dispatching messages to a
  * corresponding decoder on the device.
- *
- * TODO maybe delete some operations like copy-constructor.
  */
 class VpualStub
 {
   private:
-  	uint32_t device_id;
-  	uint32_t channel;
+    uint32_t device_id;
+    uint32_t channel;
 
     // protected: // TODO, should really be protected, some child classes should then be listed as "friends" of each other
   public:
     uint32_t stubID; /*< ID of the stub and matching decoder. */
 
   public:
+    /** Delete copy constructor and assignment operator. */
+    VpualStub(const VpualStub&) = delete;
+    VpualStub& operator=(const VpualStub&) = delete;
+
     /**
 	 * Constructor.
 	 * Construct this stub and create a corresponding decoder on the device.
 	 *
 	 * @param type the string name of the decoder type to create.
 	 */
-    VpualStub(const char type[DECODER_NAME_MAX_LENGTH], uint32_t device_id);
+    VpualStub(std::string type, uint32_t device_id);
 
     /**
 	 * Destructor.
 	 * Destroy this stub and the corresponding decoder on the device.
 	 */
-    virtual ~VpualStub();
+    virtual ~VpualStub() noexcept(false);
 
     /**
-	 * Dispatch.
-	 * Dispatch a command to the corresponding decoder on the device and wait
-	 * for a response.
-	 *
-	 * @param cmd The "command" message to dispatch to the decoder.
-	 * @param rep The "response" message containing the reply from the decoder.
-	 */
+     * Dispatch.
+     * Dispatch a command to the corresponding decoder on the device and wait
+     * for a response.
+     *
+     * @param cmd The "command" message to dispatch to the decoder.
+     * @param rep The "response" message containing the reply from the decoder.
+     */
     // TODO[OB] - Is it alright to call this method const?
     void VpualDispatch(const VpualMessage *const cmd, VpualMessage *rep) const;
 
+    /**
+     * Get device ID.
+     *
+     * @return device_id
+     */
     uint32_t getDeviceId() const;
 };
 

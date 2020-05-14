@@ -41,7 +41,6 @@ typedef enum {
     #define SHAVE_CORE
 #endif
 
-__attribute__((no_instrument_function)) 
 static inline swcProcessorType swcWhoAmI(void);
 
 static inline swcProcessorType swcWhoAmI(void)

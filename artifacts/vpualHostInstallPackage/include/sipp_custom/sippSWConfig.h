@@ -6,6 +6,7 @@
 /// @brief     This file lists the configuration structures for SIPP SW filters.
 ///
 
+#include <swcFrameTypes.h>
 
 /**
  * Parameter structure of the box filter.
@@ -191,6 +192,34 @@ typedef struct
     UInt16 cMat[5];
 }
 Conv1x5Param;
+
+/**
+ * Parameter structure of the convolution 1x7 filter.
+ *
+ * This filter performs a convolution on the input image using the given 1x7
+ * matrix.
+ *
+ * Identifier: svuConv1x7
+ */
+typedef struct
+{
+    UInt16 cMat[7];
+}
+Conv1x7Param;
+
+/**
+ * Parameter structure of the convolution 1x9 filter.
+ *
+ * This filter performs a convolution on the input image using the given 1x9
+ * matrix.
+ *
+ * Identifier: svuConv1x9
+ */
+typedef struct
+{
+    UInt16 cMat[9];
+}
+Conv1x9Param;
 
 /**
  * Parameter structure of the convolution 1x5Fp16ToFp16 filter.
@@ -423,6 +452,20 @@ Conv7x1Param;
 
 
 /**
+ * Parameter structure of the convolution 7x7 filter.
+ *
+ * This filter performs a convolution on the input image using the given 7x7
+ * matrix.
+ *
+ * Identifier: svuConv7x7
+ */
+typedef struct
+{
+    UInt16 cMat[49];
+}
+Conv7x7Param;
+
+/**
  * Parameter structure of the convolution 7x7 fp16 to u8 filter.
  *
  * This filter performs a convolution on the input image using the given 7x7
@@ -560,6 +603,30 @@ typedef struct
 }
 ConvSeparable9x9Param;
 
+/**
+ * Parameter structure of the cvt color Luma N12 filter.
+ *
+ * Identifier: svucvtColorLumaNV12
+ */typedef struct
+{
+    float coefsMat[9];
+    float offset[3];
+}
+cvtColorLumaNV12Param;
+
+
+/**
+ * Parameter structure of the cvt color Chroma N12 filter.
+ *
+ * Identifier: svucvtColorChromaNV12
+ */
+typedef struct
+{
+    float coefsMat[9];
+    float offset[3];
+}
+cvtColorChromaNV12Param;
+
 
 /**
  * Parameter structure of the dilate7x7 filter.
@@ -625,6 +692,19 @@ positionKernelParam;
 
 
 /**
+ * Parameter structure of the scale bilinear filter.
+ *
+ * Identifier: svuScaleBilinear
+ */
+typedef struct
+{
+    UInt32 nChan;
+    UInt32 firstSlice;
+}
+ScaleBilinearParams;
+
+
+/**
  * Parameter structure of the scale bilinear planar filter.
  *
  * Identifier: svuScaleBilinearPlanar
@@ -681,3 +761,404 @@ typedef struct
     UInt8 threshold;
 }
 ThresholdBinaryU8Param;
+
+
+/**
+ * Parameter structure of the Conv3x3s2xhhx filter.
+ *
+ * This filter performs a convolution on the input image using the given 3x3
+ * matrix.
+ *
+ * Identifier: svuConvolution3x3s2xhhx
+ */
+typedef struct
+{
+    UInt16 cMat[9];
+}
+Conv3x3s2xhhxParam;
+
+
+/**
+ * Parameter structure of the scale Fp16 filter.
+ *
+ * Identifier: svuScaleFp16
+ */
+typedef struct
+{
+    UInt16 scale;
+} ScaleFp16Param;
+
+
+/**
+ * Parameter structure of the Conv7x7s3hhhh filter.
+ *
+ * This filter performs a convolution on the input image using the given 7x7
+ * matrix.
+ *
+ * Identifier: svuConvolution7x7s3hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[49];
+}
+Conv7x7s3hhhhParam;
+
+
+/**
+ * Parameter structure of the convolution 3x3 Fp16ToFp16 filter.
+ *
+ * This filter performs a convolution on the input image using the given 3x3
+ * matrix.
+ *
+ * Identifier: svuConv3x3Fp16ToFp16 
+  */
+typedef struct
+{
+
+    UInt16 cMat[9];
+}
+Conv3x3Fp16ToFp16Param;
+
+/**
+ * Parameter structure of the convolution 5x5 Fp16ToFp16 filter.
+ *
+ * This filter performs a convolution on the input image using the given 5x5
+ * matrix.
+ *
+ * Identifier: svuConv5x5Fp16ToFp16 
+  */
+typedef struct
+{
+
+    UInt16 cMat[25];
+}
+Conv5x5Fp16ToFp16Param;
+
+/**
+ * Parameter structure of the convolution 7x1 Fp16ToFp16 filter.
+ *
+ * This filter performs a convolution on the input image using the given 7x1
+ * matrix.
+ *
+ * Identifier: svuConv7x1Fp16ToFp16 
+  */
+typedef struct
+{
+
+    UInt16 cMat[7];
+}
+Conv7x1Fp16ToFp16Param;
+
+/**
+ * Parameter structure of the convolution 7x7 Fp16ToFp16 filter.
+ *
+ * This filter performs a convolution on the input image using the given 7x7
+ * matrix.
+ *
+ * Identifier: svuConv7x7Fp16ToFp16 
+  */
+typedef struct
+{
+
+    UInt16 cMat[49];
+}
+Conv7x7ParamFp16ToFp16;
+
+
+/**
+ * Parameter structure of the convolution 1x15 filter.
+ *
+ * This filter performs a convolution on the input image using the given 1x15
+ * matrix.
+ *
+ * Identifier: svuConv1x15
+ */
+typedef struct
+{
+    UInt16 cMat[15];
+}
+Conv1x15Param;
+
+
+/**
+ * Parameter structure of the convolution 9x1 filter.
+ *
+ * This filter performs a convolution on the input image using the given 9x1
+ * matrix.
+ *
+ * Identifier: svuConv9x1
+ */
+typedef struct
+{
+    UInt16 cMat[9];
+}
+Conv9x1Param;
+
+
+/**
+ * Parameter structure of the convolution 15x1 filter.
+ *
+ * This filter performs a convolution on the input image using the given 15x1
+ * matrix.
+ *
+ * Identifier: svuConv15x1
+ */
+typedef struct
+{
+    UInt16 cMat[15];
+}
+Conv15x1Param;
+
+
+/**
+ * Parameter structure of the dilate5x5 filter.
+ *
+ * This filter performs a dilate on the source image using
+ * the specified structuring element.
+ *
+ * Identifier: svuDilate5x5
+ */
+typedef struct
+{
+    UInt32 dMat[10];
+}
+Dilate5x5Param;
+
+
+/**
+ * Parameter structure of the randNoiseFp16 filter.
+ *
+ * This filter generates random noise using high speed algorithm.
+ *
+ * Identifier: svuGenNoiseFp16
+ */
+typedef struct
+{
+    float strength;
+}
+RandNoiseFp16Param;
+
+
+
+/**
+ * Parameter structure of the erode7x7 filter.
+ *
+ * This filter applies the erode filter on the source image using the specified structuring element.
+ *
+ * Identifier: svuErode7x7
+ */
+typedef struct
+{
+    UInt32 dMat[14];
+}
+Erode7x7Param;
+
+
+/**
+ * Parameter structure of the bilinearInterpolation filter.
+ *
+ * This kernel does bilinear interpolation when there is a pattern between bilinear factors
+ * if the horizontal scalefactor(srcWidth/destWidth) has one decimal point precision
+ *
+ * Identifier: svuBilinearInterpolation
+ */
+typedef struct
+{
+    uint16_t precalcPos[10];
+    uint16_t lut[40];
+    int stopW;
+    int accesPatternStep;
+}
+BilinearInterpolationParam;
+
+
+/**
+ * Parameter structure of the minMaxPos filter.
+ *
+ * This filter computes the minimum and the maximum value of a given input line and their position.
+ *
+ * Identifier: svuMinMaxPos
+ */
+typedef struct
+{
+    UInt8 Mask[80];
+}
+MinMaxPosParam;
+
+
+/**
+ * Parameter structure of the MinMaxValue filter.
+ *
+ * This filter computes the minimum and the maximum value of a given input image.
+ *
+ * Identifier: svuMinMaxValue
+ */
+typedef struct
+{
+    UInt8 maskAddr[80];
+}
+minMaxValParam;
+
+/**
+ * Parameter structure of the Pad_kernelu8 filter.
+ *
+ *  This kernel calculates mean and standard deviation of an array of elements
+ *
+ * Identifier: svuPadKernel_u8
+ */
+enum
+{
+    Left         = 0,
+    Right        = 1,
+    LeftAndRight = 2,
+};
+
+enum
+{
+    AllZero    = 0,
+    AllOne     = 1,
+    Mirror     = 2,
+    BlackPixel = 3,
+    WhitePixel = 4,
+    PixelValue = 5,
+};
+
+typedef struct
+{
+    UInt32 padSz;
+    UInt32 padMode;
+    UInt32 padType;
+    UInt8  pixValue;
+}
+PadKernel_u8Param;
+
+/**
+ * Parameter structure of the Pad_kernelu16 filter.
+ *
+ *  This kernel calculates mean and standard deviation of an array of elements
+ *
+ * Identifier: svuPadKernel_u16
+ */
+enum
+{
+    Left_u16         = 0,
+    Right_u16        = 1,
+    LeftAndRight_u16 = 2,
+};
+
+enum
+{
+    AllZero_u16    = 0,
+    AllOne_u16     = 1,
+    Mirror_u16     = 2,
+    BlackPixel_u16 = 3,
+    WhitePixel_u16 = 4,
+    PixelValue_u16 = 5,
+};
+
+typedef struct
+{
+    UInt32 padSz;
+    UInt32 padMode;
+    UInt32 padType;
+    UInt16 pixValue;
+}
+PadKernel_u16Param;
+
+/**
+ * Parameter structure of the dilate3x3 filter.
+ *
+ * This filter performs a dilate on the source image using
+ * the specified structuring element.
+ *
+ * Identifier: svuDilate3x3
+ */
+typedef struct
+{
+    UInt32 dMat[3];
+}
+Dilate3x3Param;
+
+
+/**
+ * Parameter structure of the calcEpipolarDistance filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges using the Canny algorithm.
+ *
+ * Identifier: svuCalcEpipolarDistance
+ */
+typedef struct
+{
+    UInt32 nPoints;
+    float  RANSAC_dist_threshold;
+    float  fm[9];
+}
+calcEpipolarDistanceParam;
+
+
+/**
+ * Parameter structure of the calcG filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges.
+ *
+ * Identifier: svuCalcG
+ */
+typedef struct
+{
+    UInt32 isz[2];
+    UInt32 jsz[2];
+    UInt32 minI[2];
+    UInt32 minJ[2];
+}
+calcGParam;
+
+
+/**
+ * Parameter structure of the calcBxBy filter.
+ *
+ * The filter finds edges in the input image and marks them
+ * in the output map edges.
+ *
+ * Identifier: svuCalcBxBy
+ */
+typedef struct
+{
+    UInt32 isz[2];
+    UInt32 jsz[2];
+    UInt32 minI[2];
+    UInt32 minJ[2];
+}
+calcBxByParam;
+
+
+/**
+ * Parameter structure of the cvtColorChromaYUVToNV12 filter.
+ *
+ * This filter performs conversion from YUV image format to NV12
+ * for the chroma part only. The luma part is identical between
+ * these two formats and needs to be copied separately.
+ *
+ * Identifier: svuCvtColorChromaYUVToNV12
+ */
+typedef struct
+{
+    frameType inputFrameType;
+    UInt8 needs2Parents;
+}
+CvtColorChromaYUVToNV12Param;
+
+
+/**
+ * Parameter structure of the hammingDistance filter.
+ *
+ * This HammingDistance kernel finds matches between two descriptors
+ *
+ * Identifier: svuHammingDistance
+ */
+typedef struct
+{
+    int descriptor_size;
+}
+HammingDistanceParam;

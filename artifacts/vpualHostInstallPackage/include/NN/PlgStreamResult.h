@@ -23,7 +23,7 @@ class PlgStreamResult : public PluginStub
     SReceiver<TensorMsgPtr> dataIn;
 
     /** Constructor. */
-    PlgStreamResult(uint32_t device_id) : PluginStub("PlgStreamResult", device_id){};
+    PlgStreamResult(uint32_t device_id = 0) : PluginStub("PlgStreamResult", device_id){};
 
     /** Destructor. */
     ~PlgStreamResult();

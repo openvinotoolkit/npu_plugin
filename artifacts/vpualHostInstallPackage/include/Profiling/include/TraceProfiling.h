@@ -9,6 +9,8 @@
 #define __TRACE_PROFILING__
 
 #include "VpualDispatcher.h"
+#include <atomic>
+#include <thread>
 
 #define MINIMUM_PROFILING_BUFFER_SIZE (2490368)
 
@@ -43,14 +45,20 @@ typedef void (*profilingEventCallback_t)(
     ProfilingEvent event
 );
 
+struct buffer_t {
+    uint32_t paddr;
+    uint8_t* vaddr;
+    uint32_t size;
+};
+
 /**
  * Trace Profiling Stub Class.
  */
 class TraceProfiling : private VpualStub {
   public:
-    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id), callback(nullptr) {};
+    TraceProfiling(uint32_t device_id) : VpualStub("TraceProfiling", device_id) {};
 
-    void Create(uint32_t pBaseAddr, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint32_t alignment = 64);
+    void Create(uint32_t pBaseAddr0, uint32_t size, uint32_t pBaseAddr1, uint32_t size1, uint8_t *vAddr0, uint8_t *vAddr1, uint32_t alignment = 64);
     void Delete();
 
     // TODO - check return types
@@ -86,33 +94,28 @@ class TraceProfiling : private VpualStub {
      */
     void set_profiler_component_trace_level(Components component, ProfileLevel level) const;
 
+    // TODO - not sure if this one is needed. May replace with a simple function to read the buffers.
+    //void get_profiler_current_buffer_fill_level(size_t *buffer_filled) const;
+
+  private:
+
+    buffer_t buffer0;
+    buffer_t buffer1;
+
+    std::thread thread_object;
+    std::atomic_bool alive {true};
+
+    /**
+     * Read and action XLink messages from host on dedicated profiling channel.
+     */
+    void CheckXlinkMessageFunc();
+
     /**
      * Save profiling data contained in specified buffer to file.
      *
      * @param address - Address of profiling buffer.
      */
-    void save_profiler_data_to_file(unsigned char* address);
-
-    // TODO - not sure if this one is needed. May replace with a simple function to read the buffers.
-    //void get_profiler_current_buffer_fill_level(size_t *buffer_filled) const;
-
-    // TODO - callback functionality to be completed.
-    //void register_event_callback(profilingEventCallback_t);
-
-  private:
-
-    profilingEventCallback_t callback;
-
-    void setCallback(profilingEventCallback_t cb){
-        this->callback = cb;
-    }
-
-    static void* CheckXlinkMessage(void* This);
-    void* CheckXlinkMessageFunc(void* info);
-
-    // Static members
-    static uint16_t asyncChannelId;
-    static pthread_t  asyncChanThread;
+    void save_profiler_data_to_file(unsigned char* address, uint32_t size);
 };
 
 extern TraceProfiling TProfile;
