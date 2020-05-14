@@ -1035,7 +1035,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
 
             i++;
         } while (i < hslices);
-        opConcatHorizontal = om.concat(opsHorizontal,
+        if (opsHorizontal.size() == 1)
+            opConcatHorizontal = mv::Data::TensorIterator(*opsHorizontal.begin());
+        else
+            opConcatHorizontal = om.concat(opsHorizontal,
                                 "W",
                                 operation->getInputTensor(0)->get<mv::DType>("dType"),
                                 operation->get<mv::QuantizationParams>("quantParams"),
@@ -1049,7 +1052,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
         i = 0;//reiterate the horizontal slices for the next vertical slice
         j++;
     } while( j < vslices); //i,j non zero means we need to slice
-    opConcat = om.concat(opsSlicesConcatHorizontally,
+    if (opsSlicesConcatHorizontally.size() == 1)
+        opConcat = mv::Data::TensorIterator(*opsSlicesConcatHorizontally.begin());
+    else
+        opConcat = om.concat(opsSlicesConcatHorizontally,
                             "H",
                             operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                             operation->get<mv::QuantizationParams>("quantParams"),
