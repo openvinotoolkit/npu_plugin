@@ -123,7 +123,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape", "bias"});
+    // Attributes query based on blacklist
+    // Weights K || C (depthwise ops) stream, need only overwrite shape and bias
+    auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
@@ -197,18 +199,18 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
         std::string streamingOpName = op->getName() + "_streamK" + std::to_string(split);
-        mv::Data::TensorIterator conv;
+        mv::Data::TensorIterator newTensor;
         //todo:: clean this if-then-else conv/DpthwiseConv logic... it's just bloatware code
 
         if (op->getOpType() == "Conv")
         {
             //todo:: place it in a more generic location
 
-            conv = om.conv(copyInput,
+            newTensor = om.conv(copyInput,
                                     slice,
                                     op->get("stride"),
                                     op->get("padding"),
-                                    op->get<unsigned>("dilationFactor"),
+                                    1, //this is already taken care of, dont want to change kernel size again
                                     op->get<unsigned>("group"),
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
@@ -225,11 +227,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 inputTensor->get<mv::QuantizationParams>("quantParams"),
                                 op->getName() + "_sliceHK_" + std::to_string(split));
 
-            conv = om.depthwiseConv(sliceInput,
+            newTensor = om.depthwiseConv(sliceInput,
                                 slice,
                                 op->get("stride"),
                                 op->get("padding"),
-                                op->get<unsigned>("dilationFactor"),
+                                1, //this is already taken care of, dont want to change kernel size again
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
@@ -237,7 +239,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             sliceInputOp->set<unsigned>("opId", opId);
             sliceInputOp->set<std::string>("splitStrategy", splitStrategy);
         }
-        om.getSourceOp(conv)->set<unsigned>("opId", opId);
+
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
+        om.getSourceOp(newTensor)->set<unsigned>("opId", opId);
 
         //todo: clean this if-then-else bias logic.... bloatware code....
         if (op->hasAttr("bias"))
@@ -265,15 +271,15 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             }
             else
                 biasTensorX = dm.defineTensor(mv::Tensor(newBiasTensorName, {tileSize}, originalBiasTensor->getDType(), originalBiasTensor->getOrder(), subBiasData));
-            om.addAttr(om.getSourceOp(conv), "bias", biasTensorX->getName());
+            om.addAttr(om.getSourceOp(newTensor), "bias", biasTensorX->getName());
         }
-        auto newOp = om.getSourceOp(conv);
+        auto newOp = om.getSourceOp(newTensor);
 
         newOp->set<bool>("splitted",true);//TODO::temporary hack. To remove once the iteration conditions are updated
         newOp->setAttrs(attrsToCopy);
 
         slices[split] = slice;
-        newTensors[split] = conv;
+        newTensors[split] = newTensor;
 
         bool enableSerialStreaming = true;
         if ((split>0)&&(enableSerialStreaming))
@@ -367,9 +373,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto axisToSplit =  mv::Shape::getAxis(tiling.getAxis());
     auto childTiles = tiling.childTiles();
 
-    // NOTE: In the streaming case, we can't just blindly copy everything like we
-    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+    // Attributes query based on blacklist
+    // Spatial H || W stream, need only overwrite shape, padding
+    auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Shape> spatial_indexes(number_of_splits);
@@ -497,6 +503,9 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                     op->getName() + "_streamH" + std::to_string(split));
         }
 
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
 
         newOp->setAttrs(attrsToCopy);
@@ -584,9 +593,9 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
     auto number_of_splits = tiling.childTiles().size();
     auto childTiles = tiling.childTiles();
 
-    // NOTE: In the streaming case, we can't just blindly copy everything like we
-    // do in the DPUTask conversion case. We have to overwrite shape, padding, etc.
-    auto attrsToCopy = op->getAttrs({"stride", "padding", "shape"});
+    // Attributes query based on blacklist
+    // Batch stream, need only overwrite shape
+    auto attrsToCopy = op->getAttrs({"shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
     std::vector<mv::Data::TensorIterator> slices;
@@ -684,6 +693,9 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
                                     op->getName() + "_stream" + tiling.getAxis() + std::to_string(split));
         }
 
+        // Restore original out dtype, to account for mixed precision cases
+        // where we don't want the same datatype for output as the input tensors
+        newTensor->setDType(op->getOutputTensor(0)->getDType());
         auto newOp = om.getSourceOp(newTensor);
 
         newOp->setAttrs(attrsToCopy);
