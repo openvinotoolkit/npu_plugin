@@ -1216,6 +1216,9 @@ void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT
     auto quantScale = pwlQuant.getScale();
     toBuild->output_data->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
     toBuild->parent_output_tensor->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+    auto quantPostShift = pwlQuant.getPostShift();
+    toBuild->output_data->quant_post_shift_right = quantPostShift;
+    toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
 }
 
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
