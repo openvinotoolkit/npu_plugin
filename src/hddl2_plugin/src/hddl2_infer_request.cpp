@@ -118,7 +118,11 @@ void HDDL2InferRequest::InferAsync() {
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
-        const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+        auto foundInputBlob = _inputs.find(inputName);
+        if (foundInputBlob == _inputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
             needUnitePreProcessing = true;
         }
@@ -142,14 +146,22 @@ void HDDL2InferRequest::InferAsync() {
 
             _inferDataPtr->prepareUniteInput(blobForPreprocessing, inputDesc);
         } else {
-            const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+            auto foundInputBlob = _inputs.find(inputName);
+            if (foundInputBlob == _inputs.end()) {
+                THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+            }
+            const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
             _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
         }
     }
 
     for (const auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
-        const IE::Blob::Ptr outputBlobPtr = _outputs.find(outputName)->second;
+        auto foundOutputBlob = _outputs.find(outputName);
+        if (foundOutputBlob == _outputs.end()) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
         _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
     }

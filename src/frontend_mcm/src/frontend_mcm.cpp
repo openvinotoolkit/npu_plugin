@@ -1362,7 +1362,11 @@ mv::Shape calculateMcmShape(const SizeVector dims) {
 
 void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(layer->type == "Const");
-    const auto constBlob = layer->blobs.begin()->second;
+    auto foundBlob = layer->blobs.begin();
+    if (foundBlob == layer->blobs.end()) {
+        VPU_THROW_EXCEPTION << "Const layer blob is not supportied";
+    }
+    const auto constBlob = foundBlob->second;
     auto blobPrecision = constBlob->getTensorDesc().getPrecision();
     auto mcmShape = calculateMcmShape(layer->outData.front()->getDims());
     if (isInteger(blobPrecision)) {
