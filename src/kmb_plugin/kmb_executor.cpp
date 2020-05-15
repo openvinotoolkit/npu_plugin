@@ -163,6 +163,31 @@ InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp
     }
     return found->second;
 }
+
+// DataMapType expected to be either InputsDataMap or OutputsDataMap
+// useNewFormat basically means that graph header doesn't have meta-data
+// defaultNamePrefix is used only with old format
+// dataIdx is the position of input/output in FLIC pipeline internal data structure
+template <typename DataMapType>
+InferenceEngine::Data flicTensorDescToIEData(const flicTensorDescriptor_t& flicTensorDesc, bool useNewFormat,
+    const DataMapType& dataMap, const size_t& dataIdx, const std::string& defaultNamePrefix) {
+    InferenceEngine::SizeVector ieDims({flicTensorDesc.n, flicTensorDesc.c, flicTensorDesc.h, flicTensorDesc.w});
+    InferenceEngine::Layout ieLayout = getIOLayout(flicTensorDesc);
+    InferenceEngine::Precision iePrecision = getIOPrecision(flicTensorDesc);
+    InferenceEngine::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
+    std::string ieDataName = "";
+    if (useNewFormat) {
+        // FIXME data maps have lexicographical order. however, runtime inputs and outputs are not ordered by name
+        // find a better way to map names
+        typename DataMapType::const_iterator dataMapIter = dataMap.begin();
+        std::advance(dataMapIter, dataIdx);
+        ieDataName = dataMapIter->first;
+    } else {
+        ieDataName = defaultNamePrefix + std::to_string(dataIdx);
+    }
+    InferenceEngine::Data ieData(ieDataName, ieDesc);
+    return ieData;
+}
 }  // namespace
 #endif
 
@@ -170,11 +195,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     const OutputsDataMap& networkOutputs, bool newFormat) {
     if (!_config.useKmbExecutor()) {
         return;
-    }
-
-    if (newFormat) {
-        IE_ASSERT(networkInputs.size() == 1);
-        IE_ASSERT(networkOutputs.size() == 1);
     }
 
 #if defined(__arm__) || defined(__aarch64__)
@@ -258,32 +278,61 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
             descriptor.heightStride, descriptor.channelsStride);
     };
 
-    flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(0);
-    flicTensorDescriptor_t descIn = nnPl->GetInputTensorDescriptor(0);
-    _logger->info("Deserializing descriptors:\nInput: ");
-    tensor_deserializer(descIn);
-    _logger->info("Output: ");
-    tensor_deserializer(descOut);
+    _logger->info("Deserializing descriptors:");
+    size_t inputsSize = nnPl->GetNumberOfInputs();
+    if (newFormat) {
+        IE_ASSERT(networkInputs.size() == inputsSize);
+    }
+    flicTensorDescriptor_t sumSizeTensorDescIn;
+    // tensor batch is not a proper 4D tensor anymore, but a 1D tensor with concatenated reshaped inputs
+    // use width and total size to determine the size of the blob. other dimensions are just 1
+    sumSizeTensorDescIn.n = 1;
+    sumSizeTensorDescIn.c = 1;
+    sumSizeTensorDescIn.h = 1;
+    sumSizeTensorDescIn.w = 0;
+    sumSizeTensorDescIn.totalSize = 0;
+    sumSizeTensorDescIn.widthStride = 1;
+    for (size_t inputIdx = 0; inputIdx < inputsSize; inputIdx++) {
+        flicTensorDescriptor_t descIn = nnPl->GetInputTensorDescriptor(inputIdx);
+        _logger->info("Input: %d", inputIdx);
+        tensor_deserializer(descIn);
 
-    const std::string inputName = newFormat ? networkInputs.begin()->first : "input";
-    InferenceEngine::SizeVector inputDims({descIn.n, descIn.c, descIn.h, descIn.w});
-    InferenceEngine::Layout inputLayout = getIOLayout(descIn);
-    InferenceEngine::Precision inputPrecision = getIOPrecision(descIn);
-    InferenceEngine::TensorDesc inputDesc(inputPrecision, inputDims, inputLayout);
-    InferenceEngine::Data inputData(inputName, inputDesc);
+        InferenceEngine::Data inputData = flicTensorDescToIEData(descIn, newFormat, networkInputs, inputIdx, "input");
+        InferenceEngine::InputInfo inputInfo;
+        inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
+        _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
 
-    InferenceEngine::InputInfo inputInfo;
-    inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-    _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
+        sumSizeTensorDescIn.totalSize += descIn.totalSize;
+    }
+    sumSizeTensorDescIn.w = sumSizeTensorDescIn.totalSize;
+    sumSizeTensorDescIn.heightStride = sumSizeTensorDescIn.totalSize;
+    sumSizeTensorDescIn.channelsStride = sumSizeTensorDescIn.totalSize;
 
-    const std::string outputName = newFormat ? networkInputs.begin()->first : "output";
-    InferenceEngine::SizeVector outputDims({descOut.n, descOut.c, descOut.h, descOut.w});
-    InferenceEngine::Layout outputLayout = getIOLayout(descOut);
-    InferenceEngine::Precision outputPrecision = getIOPrecision(descOut);
-    InferenceEngine::TensorDesc outputDesc(outputPrecision, outputDims, outputLayout);
-    InferenceEngine::Data outputData(outputName, outputDesc);
+    size_t outputsSize = nnPl->GetNumberOfOutputs();
+    if (newFormat) {
+        IE_ASSERT(networkOutputs.size() == outputsSize);
+    }
+    flicTensorDescriptor_t sumSizeTensorDescOut;
+    sumSizeTensorDescOut.n = 1;
+    sumSizeTensorDescOut.c = 1;
+    sumSizeTensorDescOut.h = 1;
+    sumSizeTensorDescOut.w = 0;
+    sumSizeTensorDescOut.totalSize = 0;
+    sumSizeTensorDescOut.widthStride = 1;
+    for (size_t outputIdx = 0; outputIdx < outputsSize; outputIdx++) {
+        flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(outputIdx);
+        _logger->info("Output: %d", outputIdx);
+        tensor_deserializer(descOut);
 
-    _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+        InferenceEngine::Data outputData =
+            flicTensorDescToIEData(descOut, newFormat, networkOutputs, outputIdx, "output");
+        _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
+
+        sumSizeTensorDescOut.totalSize += descOut.totalSize;
+    }
+    sumSizeTensorDescOut.w = sumSizeTensorDescOut.totalSize;
+    sumSizeTensorDescOut.heightStride = sumSizeTensorDescOut.totalSize;
+    sumSizeTensorDescOut.channelsStride = sumSizeTensorDescOut.totalSize;
 
     rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
@@ -295,7 +344,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     // TODO - These
     const unsigned int shavel2CacheLineSize = 64;
-    unsigned int outputTensorSize = ROUND_UP(descOut.totalSize, shavel2CacheLineSize);
+    unsigned int outputTensorSize = ROUND_UP(sumSizeTensorDescOut.totalSize, shavel2CacheLineSize);
 
     // TODO - These
     _logger->info("read memory pool finished...");
@@ -306,10 +355,10 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
     _logger->info("Created plgPoolInferenceMsg");
 
-    plgTensorInput_->Create(descIn.totalSize, xlinkChannel, descIn);
+    plgTensorInput_->Create(sumSizeTensorDescIn.totalSize, xlinkChannel, sumSizeTensorDescIn);
     _logger->info("Created plgTensorInput");
 
-    plgTensorOutput_->Create(descOut.totalSize, xlinkChannel, descOut);
+    plgTensorOutput_->Create(sumSizeTensorDescOut.totalSize, xlinkChannel, sumSizeTensorDescOut);
     _logger->info("Created plgTensorOutput");
 
     plgInferenceInput_->Create(3 * inferenceIDSize, xlinkChannel);
@@ -345,6 +394,9 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     _logger->info("Started FLIC pipeline...");
 #else
     UNUSED(graphFileContent);
+    UNUSED(networkInputs);
+    UNUSED(networkOutputs);
+    UNUSED(newFormat);
 #endif
 }
 
@@ -392,8 +444,9 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
 
     _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
     IE_ASSERT(result_bytes >= len);
-    std::memcpy(result_data, data, len);
-    std::memset(data, 0, len);
+    // FIXME output->Pull gives only the length of the first tensor
+    // result_bytes size has to be used here in order to copy data from subsequent tensors
+    std::memcpy(result_data, data, result_bytes);
     _logger->info("KmbExecutor::getResult memcpy finished");
 #else
     UNUSED(result_data);

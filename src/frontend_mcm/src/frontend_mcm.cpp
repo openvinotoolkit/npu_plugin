@@ -747,10 +747,6 @@ bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
 
-    if (_parsedNetwork.networkInputs.size() != 1) {
-        THROW_IE_EXCEPTION << "Only single input is supported currently";
-    }
-
     for (const auto& inputInfo : _parsedNetwork.networkInputs) {
         auto netInput = inputInfo.second;
         IE_ASSERT(netInput != nullptr);
