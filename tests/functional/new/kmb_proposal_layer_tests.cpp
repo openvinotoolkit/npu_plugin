@@ -52,8 +52,8 @@ std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
 class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
 
-/* FIXME: C++ exception with description "Only single input is supported currently"
-   Ticket: https://jira.devtools.intel.com/browse/VPUNND-2552 */
+/* FIXME: mcmCompiler doesn't support multiple inputs with float precision
+*    Ticket: https://jira.devtools.intel.com/browse/VPUNND-3036 */
 TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
     SKIP_INFER_ON("KMB", "bad results");
 
