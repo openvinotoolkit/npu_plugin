@@ -712,39 +712,6 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
-void linkFlowsRemoveFlowsInsertOps(mv::OpModel om, mv::Data::TensorIterator operationToRemove, mv::Data::TensorIterator operationToReplace, std::vector<mv::Data::TensorIterator> operationsToInsert)
-{
-    
-    // Remove old flow, remember to it to put next depthwise into model in correct place
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-    auto originOp = om.getSourceOp(operationToRemove);
-    auto sourceFlowStart = originOp.leftmostOutput();
-    linkNewOperationsReplacement(originOp, operationToReplace, om, originOp);
-    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        opsToLink.push_back(sinkFlow.sink());
-        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-        flowsToRemove.push_back(sinkFlow);
-    }
-    // Remove old flow before creating new dw
-    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-    {
-        om.undefineFlow(flowsToRemove[flowIdx]);
-    }
-    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-    {
-        for (auto opToInsert = operationsToInsert.begin();opToInsert != operationsToInsert.end(); opToInsert++ )
-        {
-            opsToLink[op]->setInputTensor(*opToInsert, inputSlots[op], false);
-            om.defineFlow(*opToInsert, opsToLink[op], inputSlots[op]);
-        }
-    }
-}
-
-
 // Check for average pooling layers with kernels bigger than supported by hardware (11x11)
 // and replace with equivalent two average pooling (approx equiv in case of prime kernel i.e. 13x13)
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
