@@ -19,6 +19,7 @@
 #include "lp_scheduler/control_edge_generator.hpp"
 #include "lp_scheduler/operation_precedence_dag.hpp"
 #include "scheduler/dag_address_generator.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 namespace lp_scheduler {
@@ -761,10 +762,7 @@ class Control_Edge_Set {
         // add a control edge between op and cop //
         add_control_edge(op, cop, model);
 
-        relocating_dma_map_t::const_iterator map_itr =
-            relocating_dma_map_.find(op);
-
-        assert(map_itr == relocating_dma_map_.end());
+        assert(relocating_dma_map_.find(op) == relocating_dma_map_.end());
 
         relocating_dma_map_.insert(std::make_pair(op, cop));
 
@@ -1475,8 +1473,7 @@ class Master_Slave_Buffer_Relations {
         operation_t op = *itr;
         if (does_this_op_use_ddr_resources(op)) {
           operation_t mop = get_op_associated_with_master_buffer(op);
-          master_map_iterator_t mitr = master_map_.find(op);
-          assert(mitr == master_map_.end());
+          assert(master_map_.find(op) == master_map_.end());
           master_map_.insert(std::make_pair(op, mop));
           if (op != mop) {
             has_slaves_.insert(mop);
@@ -1559,7 +1556,7 @@ class DDR_Address_Generator {
     struct ddr_address_setter_t {
       ddr_address_setter_t(FILE *fptr=NULL,
           ddr_address_table_t *address_table_ptr=NULL)
-        : fptr_(fptr), address_table_ptr_(address_table_ptr) {}
+        : address_table_ptr_(address_table_ptr), fptr_(fptr) {}
 
       bool operator=(const address_info_t& address_info) const {
         mv::Op * const op_ptr = const_cast<mv::Op *>(address_info.op_);
@@ -1693,7 +1690,7 @@ class DDR_Address_Generator {
     bool generate_tensor_addresses(
         ScheduleIterator sched_begin, ScheduleIterator sched_end,
         const char *file_name=NULL) { 
-      generate_tensor_addresses(sched_begin, sched_end, file_name, false);
+      return generate_tensor_addresses(sched_begin, sched_end, file_name, false);
     }
 
     // Takes a schedule and generates address for tensors which reside in DDR.
@@ -2158,6 +2155,7 @@ class Repack_Input_DMA_Tasks {
 
           bool new_insert = (original_schedule_info_.insert(std::make_pair(
                   traits::scheduled_operation(sched_op), sched_op))).second;
+          UNUSED(new_insert);
           assert(new_insert);
 
           if (traits::is_valid_scheduled_op(sched_op)) {

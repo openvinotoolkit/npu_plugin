@@ -874,7 +874,7 @@ std::string mv::Tensor::subTensorInfo() const
     std::string toReturn;
     if (hasSubTensors())
     {
-        for (int i = 0; i < numSubTensors(); i++)
+        for (std::size_t i = 0; i < numSubTensors(); i++)
         {
             toReturn += subTensors_[i]->getShape().toString();
         }
