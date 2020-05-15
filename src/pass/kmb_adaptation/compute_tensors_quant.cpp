@@ -300,25 +300,27 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterato
     if (op->hasAttr("postOpTypes"))
     {
         std::string resolvedPWL;
-        for (auto fixedQuant : pwlFixedQuantization) {
-            auto ppeIterator = std::find(op->get<std::vector<std::string>>("postOpTypes").begin(),
-                            op->get<std::vector<std::string>>("postOpTypes").end(),
-                            fixedQuant.first);
-            if (ppeIterator != op->get<std::vector<std::string>>("postOpTypes").end())
+        for (auto postOp : op->get<std::vector<std::string>>("postOpTypes"))
+        {
+            auto fixedQuantIt = pwlFixedQuantization.find(postOp);
+            if (fixedQuantIt != pwlFixedQuantization.cend())
             {
-                if (!resolvedPWL.empty()) {
+
+                if (!resolvedPWL.empty())
+                {
                     pass.log(mv::Logger::MessageType::Warning,
                         "Multiple PWL functions associated per DPU task: " +
-                        fixedQuant.first + " is ignored since " + resolvedPWL + " is already set");
+                        fixedQuantIt->first + " is ignored since " + resolvedPWL + " is already set");
                     continue;
                 }
 
-                auto typedFixedQuantIt = fixedQuant.second.find(actDType);
+                auto typedFixedQuantIt = fixedQuantIt->second.find(actDType);
 
-                if (typedFixedQuantIt == fixedQuant.second.end()) {
+                if (typedFixedQuantIt == fixedQuantIt->second.cend()) {
                     pass.log(mv::Logger::MessageType::Error,
                         "No fixed quantization scheme associated for " +
-                        fixedQuant.first + " with datatype " + actDType);
+                        fixedQuantIt->first + " with datatype " + actDType);
+                    continue;
                 }
 
                 auto pwlInputQuant = typedFixedQuantIt->second[0];
@@ -333,7 +335,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::Data::OpListIterato
                     output->set<mv::QuantizationParams>("quantParams", pwlOutputQuant);
                 }
 
-                resolvedPWL = fixedQuant.first;
+                resolvedPWL = postOp;
             }
         }
     }
@@ -367,23 +369,29 @@ void updatePWLQuantParams(mv::Data::OpListIterator& op,
         return;
 
     auto pwlQuant = op->get<mv::QuantizationParams>("pwlQuantParams");
-    auto scale = std::vector<float>(inputScale.begin(), inputScale.end());
-    auto quantSize = scale.size();
 
-    auto alignedScale = extendToK(quantSize, pwlQuant.getScale(), op->getName());
-    auto alignedZeroPoint = extendToK(quantSize, pwlQuant.getZeroPoint(), op->getName());
-    pwlQuant.setScale(alignedScale);
-    pwlQuant.setZeroPoint(alignedZeroPoint);
+    auto reQuantScale = std::vector<float>(inputScale.begin(), inputScale.end());
+    auto quantSize = reQuantScale.size();
 
-    // (input_sc * weight_sc) / output_sc
-    std::transform(scale.begin(), scale.end(), alignedScale.begin(), scale.begin(), std::divides<float>());
+    pwlQuant.setScale(
+        extendToK(quantSize, pwlQuant.getScale(), op->getName()));
+    pwlQuant.setZeroPoint(
+        extendToK(quantSize, pwlQuant.getZeroPoint(), op->getName()));
 
-    std::vector<unsigned> shift(quantSize, 0);
-    std::vector<unsigned> mult(quantSize, 1);
+    // (input_scale * weight_scale) / output_scale
+    std::transform(
+        reQuantScale.begin(),
+        reQuantScale.end(),
+        pwlQuant.getScale().begin(),
+        reQuantScale.begin(),
+        std::divides<float>());
 
-    computeQuantMultShift(scale, shift, mult);
+    std::vector<unsigned> reQuantShift(quantSize, 0);
+    std::vector<unsigned> reQuantMult(quantSize, 1);
 
-    op->get<mv::QuantizationParams>("pwlQuantParams").quantize(shift, mult);
+    computeQuantMultShift(reQuantScale, reQuantShift, reQuantMult);
+
+    op->get<mv::QuantizationParams>("pwlQuantParams").quantize(reQuantShift, reQuantMult);
 }
 
 void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
