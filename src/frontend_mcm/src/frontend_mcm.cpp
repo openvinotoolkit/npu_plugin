@@ -1677,9 +1677,24 @@ void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVec
 }
 
 void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "PSROIPooling layer is not supported by kmbPlugin";
+    auto output_dim = static_cast<size_t>(layer->GetParamAsInt("output_dim"));
+    auto group_size = static_cast<size_t>(layer->GetParamAsInt("group_size"));
+    auto spatial_scale = layer->GetParamAsFloat("spatial_scale");
+    auto pooled_h = static_cast<size_t>(layer->GetParamAsInt("pooled_height", static_cast<int>(group_size)));
+    auto pooled_w = static_cast<size_t>(layer->GetParamAsInt("pooled_width", static_cast<int>(group_size)));
+    auto spatial_bins_x = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_x", 1));
+    auto spatial_bins_y = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_y", 1));
+    auto mode = layer->GetParamAsString("mode", "average");
+
+    std::vector<mv::Data::TensorIterator> psroi_ins;
+    for (const auto& input : inputs) {
+        psroi_ins.push_back(input->getMcmNode());
+    }
+
+    auto psroi = _modelMcm.pSROIPooling(psroi_ins, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
+        spatial_bins_x, spatial_bins_y, mode, mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(psroi, layer->outData[0]);
 }
 
 void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
