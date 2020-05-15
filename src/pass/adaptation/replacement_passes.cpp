@@ -983,7 +983,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                             beginInputShape,
                             branchInputSize,
                             inputTensor->get<mv::QuantizationParams>("quantParams"),
-                            operation->getName() + "_slice_Input[" + std::to_string(i) + "][" + std::to_string(j)+ "]");
+                            "Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto sliceInputOp = om.getSourceOp(sliceInput);
             sliceInputOp->set<unsigned>("opId", initialOpId);
             auto parentOpIt = om.getSourceOp(inputTensor);
@@ -995,9 +995,9 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     {1,1},
                     padding,
                     true,//exclude pad
-                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getOpType() + "Op_sl_"+ sliceInput->getName());
+                    operation->getName() + sliceInput->getName());
             }
             else if (operation->getOpType() == "DepthwiseConv")
             {
@@ -1006,9 +1006,9 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     {1,1},//no stride
                     padding,
                     operation->get<unsigned>("dilationFactor"),
-                    operation->getInputTensor(0)->get<mv::DType>("dType"),
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getOpType() + "Op_sl_"+ sliceInput->getName());
+                    operation->getName() + sliceInput->getName());
             }
             else if (operation->getOpType()== "Conv")
             {
@@ -1020,7 +1020,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     1,//no group dilation
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getOpType() + "Op_sl_" + sliceInput->getName());
+                    operation->getName() + sliceInput->getName());
             }
             else if (operation->getOpType()== "MaxPool")
             {
@@ -1031,7 +1031,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getOpType() + "Op_sl_" + sliceInput->getName());
+                    operation->getName() + sliceInput->getName());
             }            
             op->set<unsigned>("opId", initialOpId);
             auto opSlice = om.getSourceOp(op);
@@ -1047,7 +1047,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                                 "W",
                                 operation->getInputTensor(0)->get<mv::DType>("dType"),
                                 operation->get<mv::QuantizationParams>("quantParams"),
-                                operation->getName() + "concat line" + std::to_string(j));
+                                operation->getName() + "_concat_l" + std::to_string(j));
         opsHorizontal.clear();
 
         opConcatHorizontal->set<unsigned>("opId", initialOpId);
@@ -1064,7 +1064,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                             "H",
                             operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                             operation->get<mv::QuantizationParams>("quantParams"),
-                            operation->getName() + "fullconcat");
+                            operation->getName() + "concat_full");
     opConcat->set<unsigned>("opId", initialOpId);
     auto opConcatSlice = om.getSourceOp(opConcat);
     opConcatSlice->set<unsigned>("opId", initialOpId);
