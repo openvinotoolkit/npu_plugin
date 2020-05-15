@@ -862,20 +862,13 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
 
 bool hasPWLActivation(mv::Data::OpListIterator &opIt)
 {
-    const std::vector<std::string> pwlActivations = {
-        "Sigmoid",
-        "Tanh"
-    };
-
     if(opIt->hasAttr("postOpTypes")) {
         for (auto postOp : opIt->get<std::vector<std::string>>("postOpTypes"))
         {
-            if (std::find(pwlActivations.cbegin(), pwlActivations.cend(), postOp)
-                != pwlActivations.cend())
+            if (isPWLActivation(postOp))
                 return true;
         }
     }
-
     return false;
 }
 
