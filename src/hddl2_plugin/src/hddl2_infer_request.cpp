@@ -227,8 +227,9 @@ void HDDL2InferRequest::GetResult() {
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
-    UNUSED(perfMap);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    if (_config.performance_counting()) {
+        _inferDataPtr->getHddlUnitePerfCounters(perfMap);
+    }
 }
 
 void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {

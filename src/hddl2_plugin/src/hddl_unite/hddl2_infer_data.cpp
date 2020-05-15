@@ -118,6 +118,7 @@ std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
     if (outputBlob == nullptr) {
         THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
     }
+    _profileData = _inferDataPtr->getProfileData();
     return outputBlob->getData();
 }
 
@@ -126,4 +127,24 @@ void HddlUniteInferData::waitInferDone() const {
     if (status != HDDL_OK) {
         THROW_IE_EXCEPTION << "Failed to wait for inference result with error: " << status;
     }
+}
+
+void HddlUniteInferData::getHddlUnitePerfCounters(
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
+    InferenceEngine::InferenceEngineProfileInfo info;
+    info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+    info.cpu_uSec = 0;
+    info.execution_index = 0;
+    info.realTime_uSec = 0;
+
+    info.realTime_uSec = _profileData.infer.time;
+    IE_ASSERT(info.realTime_uSec != 0);
+    retPerfCounters["1. Total scoring time"] = info;
+
+    info.realTime_uSec = _profileData.nn.time;
+    IE_ASSERT(info.realTime_uSec != 0);
+    retPerfCounters["2. Total scoring time on inference"] = info;
+
+    info.realTime_uSec = _profileData.pp.time;
+    retPerfCounters["3. Total scoring time on preprocess"] = info;
 }

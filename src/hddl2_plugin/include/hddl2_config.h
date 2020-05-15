@@ -28,6 +28,7 @@ class HDDL2Config final : public MCMConfig {
 public:
     const std::string& platform() const { return _platform; }
     const std::string& device_id() const { return _device_id; }
+    bool performance_counting() const { return _performance_counting; }
 
     // FIXME [Workaround to change default log lvl]
     LogLevel logLevel() const;
@@ -41,6 +42,7 @@ private:
     std::string _platform = "HDDL2";
     LogLevel _logLevel = LogLevel::Warning;
     std::string _device_id;
+    bool _performance_counting = false;
 };
 
 }  // namespace vpu
