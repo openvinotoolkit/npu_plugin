@@ -39,6 +39,7 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
                 opIt->set<bool>("multiCast", true);
             else
                 opIt->set<bool>("multiCast", false);
+            break; //the operation can have only one strategy, and the nn filter (operation) was found
         }
     }
 }
