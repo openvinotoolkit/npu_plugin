@@ -30,13 +30,9 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     {
         std::string opType = layer->getOpType();
         std::string opStrategy;
-        if (layer->hasAttr("splitStrategy"))
-            opStrategy = layer->get<std::string>("splitStrategy");
-        else
-            opStrategy = "Clustering"; //fall off case
-
         if (opType == "DPUTask")
         {
+            auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
             outputTensor->set<std::string>("splitStrategy", opStrategy);
             unsigned n = layer->inputSlots();
@@ -63,6 +59,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
         else if (opType == "Input" || opType == "Crop" || opType == "UPATask" || opType == "Copy" || opType == "ImplicitInput")
         {
+            auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
             outputTensor->set<std::string>("splitStrategy", opStrategy);
         }
@@ -81,8 +78,6 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         if (implicitConcat->getInputTensor(0)->hasAttr("splitStrategy"))
             implicitConcat->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitConcat->getInputTensor(0)->get<std::string>("splitStrategy"));
-        else
-        implicitConcat->getOutputTensor(0)->set<std::string>("splitStrategy","Clustering"); //fall off case
     }
     auto implicitPermuteOps = om.getOps("ImplicitPermute");
     for (auto implicitPermute : implicitPermuteOps)
