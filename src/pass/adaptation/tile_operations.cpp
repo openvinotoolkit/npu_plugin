@@ -211,12 +211,12 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         sliceWeightOp->set<unsigned>("opId", initialOpId);
 
     }
-    placeAdd0 = om.eltwise({convs[0], convs[1]}, "And",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "AND_Partition0");
-    placeAdd1 = om.eltwise({placeAdd0, convs[2]}, "And",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "AND_Partition1");
-    placeAdd2 = om.eltwise({placeAdd1, convs[3]}, "And",
-                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "AND_Partition2");
+    placeAdd0 = om.eltwise({convs[0], convs[1]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition0");
+    placeAdd1 = om.eltwise({placeAdd0, convs[2]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition1");
+    placeAdd2 = om.eltwise({placeAdd1, convs[3]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition2");
     nextOpIt->setInputTensor(placeAdd2, 0, false );
     auto placeAdd0Op = om.getSourceOp(placeAdd0);
     auto placeAdd1Op = om.getSourceOp(placeAdd1);
