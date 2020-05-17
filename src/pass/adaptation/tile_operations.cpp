@@ -203,6 +203,13 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
     for (std::size_t branchId = 0; branchId < partitions; branchId++)
     {
+        //NOTE: assuming order of paddings: left,right,top,bottom
+        //Pad quadrant 0 with real data from right
+        //Pad quadrant 1 with real data from bottom
+        //Pad quadrant 2 with real data from top
+        //Pad quadrant 3 with real data from left
+        bool isasymmetric = false;
+        int largeDim = 0;
         if (branchId == 0)
         {
             beginInputShape = {0,0,0,0};
@@ -227,6 +234,8 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
             branchInputSize = {branchWidth, branchHeight,
                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
             padding = {0, initialPadding[1], initialPadding[2], 0};
+            isasymmetric = true;
+            largeDim = 1;
         }
         else if (branchId == 2)
         {
@@ -239,6 +248,8 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
             branchInputSize = {branchWidth, branchHeight,
                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
             padding = {initialPadding[0], 0, 0, initialPadding[3]};
+            isasymmetric = true;
+            largeDim = 0;
         }
         else
         {
@@ -276,6 +287,9 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                             opIt->getName() + std::to_string(branchId));
         convs.push_back(conv);
         auto convOp = om.getSourceOp(conv);
+
+        if(isasymmetric)
+            convOp->set<unsigned>("asymmetricKernel", 1-largeDim);
 
         if (hasBias)
         {

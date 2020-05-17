@@ -169,6 +169,9 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         }
     }
 
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
+
     return dpuConv;
 }
 
