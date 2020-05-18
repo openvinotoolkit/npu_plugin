@@ -120,20 +120,33 @@ namespace mv
 
     }
 
-    namespace op {
+    namespace op
+    {
         MV_REGISTER_OP(Conv)
-        .setInputs({"data", "weights"})
-        .setOutputs({"output"})
-        .setArg<std::array<unsigned short, 2>>("stride")
-        .setArg<std::array<unsigned short, 4>>("padding")
-        .setOptionalArg<unsigned>("dilationFactor", 1)
-        .setOptionalArg<unsigned>("group", 1)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(op_conv::inputCheckFcn)
-        .setOutputDef(op_conv::outputDefFcn)
-        .setTypeTrait({"executable", "exposed", "optimizable"});
+            .setInputs({"data", "weights"})
+            .setOutputs({"output"})
+            .setArg<std::array<unsigned short, 2>>("stride")
+            .setArg<std::array<unsigned short, 4>>("padding")
+            .setOptionalArg<unsigned>("dilationFactor", 1)
+            .setOptionalArg<unsigned>("group", 1)
+            .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+            .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+            .setInputCheck(op_conv::inputCheckFcn)
+            .setOutputDef(op_conv::outputDefFcn)
+            .setTypeTrait({"executable", "exposed", "optimizable"});
 
+        MV_REGISTER_OP(RefConv)
+            .setInputs({"data", "weights"})
+            .setOutputs({"output"})
+            .setArg<std::array<unsigned short, 2>>("stride")
+            .setArg<std::array<unsigned short, 4>>("padding")
+            .setOptionalArg<unsigned>("dilationFactor", 1)
+            .setOptionalArg<unsigned>("group", 1)
+            .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+            .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+            .setInputCheck(op_conv::inputCheckFcn)
+            .setOutputDef(op_conv::outputDefFcn)
+            .setTypeTrait({"executable"});
 
     }
 

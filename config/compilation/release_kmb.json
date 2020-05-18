@@ -23,6 +23,7 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -89,7 +90,8 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            }
+            },
+            "UseReferenceOps"
         ]
     },
     "quantization" : {
