@@ -331,7 +331,7 @@ bool mv::Op::hasPWLActivation() const
         for (auto postOp : get<std::vector<std::string>>("postOpTypes"))
         {
             if (std::find(pwlActivations.cbegin(), pwlActivations.cend(),
-                getOpType()) != pwlActivations.cend())
+                postOp) != pwlActivations.cend())
                 hasPWL = true;
         }
     }
