@@ -384,13 +384,3 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
     }
     return false;
 }
-
-bool isPWLActivation(std::string opName)
-{
-    const std::vector<std::string> pwlActivations = {
-        "Sigmoid",
-        "Tanh"
-    };
-    return std::find(pwlActivations.cbegin(), pwlActivations.cend(), opName)
-        != pwlActivations.cend();
-}

@@ -182,7 +182,7 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 
     if (opType == "LeakyRelu")
         parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
-    else if (isPWLActivation(opType))
+    else if (opIt->hasPWLActivation())
     {
         // Check for fuseable parentOp; else, execute in software
         auto optype = parentOpIt->getOpType();

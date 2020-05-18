@@ -19,7 +19,6 @@ static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
 int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
 int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
-bool hasPWLActivation(mv::Data::OpListIterator &opIt);
 
 namespace mv
 {
@@ -791,7 +790,7 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
     }
 
     // PWL activation runs immediately after clamp
-    if(hasPWLActivation(opIt))
+    if(opIt->hasPWLActivation())
         clamp = -4096;
     if (flex)
         clamp = -128;
@@ -853,23 +852,11 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
     }
 
     // PWL activation runs immediately after clamp
-    if(hasPWLActivation(opIt))
+    if(opIt->hasPWLActivation())
         clamp = 4095;
     if (flex)
         clamp = 127;
     return clamp;
-}
-
-bool hasPWLActivation(mv::Data::OpListIterator &opIt)
-{
-    if(opIt->hasAttr("postOpTypes")) {
-        for (auto postOp : opIt->get<std::vector<std::string>>("postOpTypes"))
-        {
-            if (isPWLActivation(postOp))
-                return true;
-        }
-    }
-    return false;
 }
 
 // Calculate the permute_order

@@ -28,6 +28,5 @@ void provideAccuracyinPPEs(mv::ComputationModel& model);
 //std::vector<T> extendToK(size_t size, std::vector<T> value, std::string tensorName);
 std::vector<double> extendToK(size_t size, std::vector<double> value, std::string tensorName);
 std::vector<int64_t> extendToK(size_t size, std::vector<int64_t> value, std::string tensorName);
-bool isPWLActivation(std::string opName);
 
 #endif // PASS_UTILS_HPP_
