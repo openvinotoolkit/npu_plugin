@@ -21,7 +21,12 @@ namespace mv
 }
 
 static double inf = std::numeric_limits<double>::infinity();
-static const auto initial_quant_params = mv::QuantizationParams{{0}, {1}, {-inf}, {inf}};
+
+// This is needed to avoid a static initializer fiasco.
+static const mv::QuantizationParams& initial_quant_params() {
+    static mv::QuantizationParams init{{0}, {1}, {-inf}, {inf}};
+    return init;
+}
 
 enum class Precision {
     Default,
@@ -207,7 +212,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
 
     // NO FQ on branches
     if (outQuantParams.empty()) {
-        return initial_quant_params;
+        return initial_quant_params();
     }
 
     for (size_t i = 1; i < outQuantParams.size(); i++) {
@@ -273,7 +278,7 @@ void propagateParameters(mv::ComputationModel& model) {
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
             quant_params = findOutputQuantParams(model, op);
 
-            if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params)) {
+            if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
                 quant_params = getParentQuantParams(om, op);
             }
 
@@ -479,7 +484,7 @@ void quantizeIO(mv::ComputationModel& model) {
         auto input = inputs.at(i);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
-        mv::QuantizationParams inputQuantParams = initial_quant_params;
+        mv::QuantizationParams inputQuantParams = initial_quant_params();
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
@@ -531,7 +536,7 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             // Quantize input bias
             current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
             if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
-                auto bias_op = quantizeBias(model, current_op, initial_quant_params, scalesQuantParams);
+                auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
                 setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
             }
         }
