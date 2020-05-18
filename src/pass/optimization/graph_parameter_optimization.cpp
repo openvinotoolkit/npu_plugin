@@ -653,13 +653,24 @@ namespace mv
                 if(globalEnableStreaming)
                     maxSplits = (alignedOutputChannelSize/16);
 
-                // TODO refactor to add just 1 split over k for each aligned to 16 channel possibility
+
+                // For each aligned-to-16 number of output channels possibility, add only the 
+                // minimum number of streams over k that will be aligned to that number
                 splits.push_back(1);
-                for(unsigned split = 2; split <= maxSplits; split=split+2)
-                {
-                    if(!(alignedOutputChannelSize/split < 16))
-                        splits.push_back(split);
+                size_t possibleK = 2;
+                for(unsigned channels = alignedOutputChannelSize/2; channels >= 16; channels=channels-16){
+                    splits.push_back(possibleK);
+                    do{
+                        possibleK++;
+                    }while(mv::round_up(alignedOutputChannelSize/possibleK, 16) == channels);
                 }
+                // // TODO refactor to add just 1 split over k for each aligned to 16 channel possibility
+                // splits.push_back(1);
+                // for(unsigned split = 2; split <= maxSplits; split=split+2)
+                // {
+                //     if(!(alignedOutputChannelSize/split < 16))
+                //         splits.push_back(split);
+                // }
 
                 return splits;
             }
