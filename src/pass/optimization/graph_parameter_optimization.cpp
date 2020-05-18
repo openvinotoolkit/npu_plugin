@@ -638,6 +638,10 @@ namespace mv
                 return splits + 1; // consider one extra H stream, just in case
             }
 
+            unsigned findBestK(unsigned alignedSize, unsigned channels){
+                return std::ceil(alignedSize / ((alignedSize/2) - channels));
+            }
+
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
             {
                 auto opType = op.getOpType();
@@ -648,29 +652,22 @@ namespace mv
                 size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
 
                 vector<size_t> splits;
-                size_t maxSplits = 1;
-
-                if(globalEnableStreaming)
-                    maxSplits = (alignedOutputChannelSize/16);
-
 
                 // For each aligned-to-16 number of output channels possibility, add only the 
                 // minimum number of streams over k that will be aligned to that number
-                splits.push_back(1);
-                size_t possibleK = 2;
-                for(unsigned channels = alignedOutputChannelSize/2; channels >= 16; channels=channels-16){
-                    splits.push_back(possibleK);
-                    do{
-                        possibleK++;
-                    }while(mv::round_up(alignedOutputChannelSize/possibleK, 16) == channels);
+                for(unsigned channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
+                    auto possibleK = findBestK(alignedOutputChannelSize, channels);
+                    if(splits.back() != possibleK and possibleK >= 1){
+                        splits.push_back(possibleK);
+                    }
                 }
-                // // TODO refactor to add just 1 split over k for each aligned to 16 channel possibility
-                // splits.push_back(1);
-                // for(unsigned split = 2; split <= maxSplits; split=split+2)
-                // {
-                //     if(!(alignedOutputChannelSize/split < 16))
-                //         splits.push_back(split);
-                // }
+                auto lastK = splits.back();
+                if(lastK > 2){
+                    splits.push_back(2);
+                    splits.push_back(1);
+                }else if(lastK == 2){
+                    splits.push_back(1);
+                }
 
                 return splits;
             }
