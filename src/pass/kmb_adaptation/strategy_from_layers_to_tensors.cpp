@@ -182,6 +182,9 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         {
             auto outputTensor = layer->getOutputTensor(0);
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+            // Handle back to back slice operations
+            if(sinkOperators[0]->getOpType() == "Slice") 
+                sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
             auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
             outputTensor->set<std::string>("splitStrategy", opStrategy);
         }
