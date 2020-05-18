@@ -107,6 +107,9 @@ else()
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
 
+    add_executable(depthwiseconv_exceed_stride depthwiseconv_exceed_stride/depthwiseconv_exceed_stride.cpp)
+    target_link_libraries(depthwiseconv_exceed_stride cm)
+
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
 
