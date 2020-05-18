@@ -70,6 +70,7 @@ file(GLOB barrier_deps_test
 )
 file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/scheduler/*\_test.cpp"
+  "${CMAKE_SOURCE_DIR}/src/pass/scheduling/*\_test.cpp"
   "${CMAKE_SOURCE_DIR}/src/pass/lp_scheduler/*\_test.cpp"
 )
 
