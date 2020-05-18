@@ -691,11 +691,11 @@ OpInfo analyzeOp(mv::Op& op)
         std::uint64_t ioSize = 0;
         for (auto& tensor : op.getInputTensor())
         {
-            ioSize += tensor->dataPackedSize();
+            ioSize += tensor->size();
         }
         for (auto& tensor : op.getOutputTensor())
         {
-            ioSize += tensor->dataPackedSize();
+            ioSize += tensor->size();
         }
         ioSize /= 100;  // Just a guess -- 10x DDR speed
         return OpInfo{&op, false, ioSize};
