@@ -18,7 +18,7 @@ static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void reorderDmasInScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
-static void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -732,16 +732,28 @@ OpInfo analyzeOp(mv::Op& op)
     return OpInfo{&op, false, 0};  // TODO: What other tasks should we handle here?
 }
 
-void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+#define DEBUG_LAYOUT_PASS
 
 #ifdef DEBUG_LAYOUT_PASS
     std::cerr << "LayoutDMA: Begin\n";
 #endif
 
     auto globalConfig = model.getGlobalConfigParams();
-    if (!globalConfig->hasAttr("csramLimit"))
+
+    int csramLimit = 0;
+    if (passDesc.hasAttr("csramLimit"))
+    {
+        csramLimit = passDesc.get<int>("csramLimit");
+    }
+    else if (globalConfig->hasAttr("csramLimit"))
+    {
+        csramLimit = globalConfig->get<int>("csramLimit");
+    }
+    else
     {
 #ifdef DEBUG_LAYOUT_PASS
         std::cerr << "LayoutDMA: No CSRAM attr\n";
@@ -749,7 +761,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         return;
     }
 
-    auto csramLimit = globalConfig->get<int>("csramLimit");
     if (csramLimit <= 0)
     {
 #ifdef DEBUG_LAYOUT_PASS
@@ -758,7 +769,15 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         return;
     }
 
-    auto portLimit = globalConfig->get<int>("dmaControllers");
+    int portLimit = 1;
+    if (passDesc.hasAttr("dmaControllers"))
+    {
+        portLimit = passDesc.get<int>("dmaControllers");
+    }
+    else if (globalConfig->hasAttr("dmaControllers"))
+    {
+        portLimit = globalConfig->get<int>("dmaControllers");
+    }
 
 #ifdef DEBUG_LAYOUT_PASS
     std::cerr << "LayoutDMA: csramLimit=" << csramLimit
