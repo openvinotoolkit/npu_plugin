@@ -1612,9 +1612,20 @@ void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr& layer, const McmNodeVec
 }
 
 void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    UNUSED(inputs);
-    UNUSED(layer);
-    VPU_THROW_EXCEPTION << "Interp layer is not supported by kmbPlugin";
+    IE_ASSERT(inputs.size() == 1);
+    logParsingStartHelper(_logger, layer, inputs);
+    auto factor = layer->GetParamAsFloat("factor", 1.0);
+    auto height = layer->GetParamAsUInt("height", 0);
+    auto width = layer->GetParamAsUInt("width", 0);
+    auto pad_begin = layer->GetParamAsUInt("pads_begin", 0);
+    auto pad_end = layer->GetParamAsUInt("pads_end", 0);
+    auto align_corners = layer->GetParamAsInt("align_corners", 0) == 1;
+
+    auto mvInterp = _modelMcm.interp(inputs[0]->getMcmNode(), factor, pad_begin, pad_end, height, width, align_corners,
+        mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(mvInterp, layer->outData[0]);
+    _logger->debug(FINISH_PARSING_STR, mvInterp->getName());
 }
 
 void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
