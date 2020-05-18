@@ -20,17 +20,22 @@
 
 namespace Comparators {
     void compareTopClasses(
-            const InferenceEngine::Blob::Ptr &resultBlob, const InferenceEngine::Blob::Ptr &refBlob, size_t maxClasses);
+            const InferenceEngine::Blob::Ptr &resultBlob, const InferenceEngine::Blob::Ptr &refBlob,
+            size_t maxClasses, const bool &ordered = true);
 
-    template <typename blobData_t>
-    std::vector<size_t> yieldTopClasses(const InferenceEngine::Blob::Ptr& resultBlob, size_t maxClasses);
+    void compareTopClassesUnordered(
+            const InferenceEngine::Blob::Ptr &resultBlob, const InferenceEngine::Blob::Ptr &refBlob,
+            size_t maxClasses
+    );
 
+    template<typename blobData_t>
+    std::vector<size_t>
+    yieldTopClasses(const InferenceEngine::Blob::Ptr &resultBlob, size_t maxClasses);
 
-    //------------------------------------------------------------------------------
-    //    Implementation
     //------------------------------------------------------------------------------
     inline void compareTopClasses(
-            const InferenceEngine::Blob::Ptr& resultBlob, const InferenceEngine::Blob::Ptr& refBlob, size_t maxClasses) {
+            const InferenceEngine::Blob::Ptr &resultBlob, const InferenceEngine::Blob::Ptr &refBlob,
+            size_t maxClasses, const bool &ordered) {
         std::vector<size_t> outTopClasses, refTopClasses;
         switch (resultBlob->getTensorDesc().getPrecision()) {
             case InferenceEngine::Precision::U8:
@@ -54,7 +59,19 @@ namespace Comparators {
         for (size_t classId = 0; classId < maxClasses; classId++) {
             logStream << refTopClasses[classId] << " ";
         }
-        EXPECT_TRUE(std::equal(outTopClasses.begin(), outTopClasses.end(), refTopClasses.begin())) << logStream.str();
+        if (ordered) {
+            EXPECT_TRUE(std::equal(outTopClasses.begin(), outTopClasses.end(), refTopClasses.begin()))
+                                << logStream.str();
+        } else {
+            EXPECT_TRUE(std::is_permutation(outTopClasses.begin(), outTopClasses.end(),
+                                            refTopClasses.begin())) << logStream.str();
+        }
+    }
+
+    inline void compareTopClassesUnordered(const InferenceEngine::Blob::Ptr &resultBlob,
+                                           const InferenceEngine::Blob::Ptr &refBlob,
+                                           size_t maxClasses) {
+        compareTopClasses(resultBlob, refBlob, maxClasses, /*ordered*/false);
     }
 
     template<typename blobData_t>

@@ -21,10 +21,12 @@
 #include <helper_remote_context.h>
 #include <models/precompiled_resnet.h>
 
+#include <blob_factory.hpp>
 #include <chrono>
 #include <ie_core.hpp>
 #include <thread>
 
+#include "comparators.h"
 #include "creators/creator_blob_nv12.h"
 #include "ie_metric_helpers.hpp"
 #include "models/model_pooling.h"
@@ -41,7 +43,7 @@ protected:
 };
 
 void InferRequest_Tests::SetUp() {
-    // FIXME Workaround [Track number: S#28523]
+    // TODO Workaround [Track number: S#28523]
     std::this_thread::sleep_for(std::chrono::seconds(2));
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
@@ -176,6 +178,11 @@ class Inference_onSpecificDevice : public InferRequest_Tests {
 public:
     int amountOfDevices = 0;
 
+    std::string graphPath;
+    std::string refInputPath;
+    std::string refOutputPath;
+    const size_t numberOfTopClassesToCompare = 5;
+
 protected:
     void SetUp() override;
 };
@@ -184,6 +191,9 @@ void Inference_onSpecificDevice::SetUp() {
     std::vector<HddlUnite::Device> devices;
     getAvailableDevices(devices);
     amountOfDevices = devices.size();
+    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
 }
 
 TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {
@@ -216,4 +226,52 @@ TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromGetAllDevices) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     ASSERT_NO_THROW(inferRequest.Infer());
+}
+
+static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) {
+    std::vector<std::pair<std::string, IE::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
+    std::sort(perfVec.begin(), perfVec.end(),
+        [=](const std::pair<std::string, IE::InferenceEngineProfileInfo>& pair1,
+            const std::pair<std::string, IE::InferenceEngineProfileInfo>& pair2) -> bool {
+            return pair1.second.execution_index < pair2.second.execution_index;
+        });
+
+    for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
+        std::string name = it->first;
+        IE::InferenceEngineProfileInfo info = it->second;
+        if (info.status == IE::InferenceEngineProfileInfo::EXECUTED) {
+            printf("HDDL2 time: '%s' is %f ms.\n", name.c_str(), info.realTime_uSec / 1000.f);
+        }
+    }
+}
+
+using InferenceWithPerfCount = Inference_onSpecificDevice;
+
+TEST_F(InferenceWithPerfCount, SyncInferenceWithPerfCount) {
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+
+    // ---- Import or load network
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, pluginName, _config);
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Set input
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Get performance
+    ASSERT_NO_THROW(dumpPerformance(inferRequest.GetPerformanceCounts()));
 }

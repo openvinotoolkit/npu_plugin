@@ -51,6 +51,7 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
         std::cout << "Graph: " << graphName << " to device id: " << core->getSwDeviceId()
                   << " | Device: " << core->getName() << std::endl;
     } else {
+        // TODO Use logger here
         std::cout << "All devices will be used." << std::endl;
     }
 

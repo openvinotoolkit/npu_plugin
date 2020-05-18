@@ -37,5 +37,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES", "NO", default is "YES"
+ * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_SIPP);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

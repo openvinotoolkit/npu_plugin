@@ -67,6 +67,13 @@ TEST_F(Metrics_Tests, canGetAvailableDevice) {
     }
 }
 
+TEST_F(Metrics_Tests, supportMetrics) {
+    std::vector<std::string> supportedMetrics = ie.GetMetric(pluginName, METRIC_KEY(SUPPORTED_METRICS));
+    for (auto& metric : supportedMetrics) {
+        ASSERT_NO_THROW(ie.GetMetric(pluginName, metric));
+    }
+}
+
 TEST_F(Metrics_Tests, canFoundHddl2DeviceInAllDevices) {
     std::vector<std::string> allDevices = ie.GetAvailableDevices();
     auto found_name = std::find_if(allDevices.begin(), allDevices.end(), [this](const std::string& str) {

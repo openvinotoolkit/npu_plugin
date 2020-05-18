@@ -232,8 +232,6 @@ Run the following commands on HOST to generate reference results for KMB target 
 ```bash
 export IE_KMB_TESTS_DUMP_PATH=$KMB_PLUGIN_HOME/tests-dump
 mkdir -p $IE_KMB_TESTS_DUMP_PATH
-# optionally for target models:
-export KMB_ALPHA_TESTS_DATA_PATH=$KMB_WORK_DIR/temp/models
 $DLDT_HOME/bin/intel64/Release/KmbFunctionalTests --gtest_filter=*Kmb*NetworkTest*INT8_Dense*
 rsync -avz $IE_KMB_TESTS_DUMP_PATH root@$KMB_BOARD_HOST:$KMB_WORK_DIR/
 ```
@@ -248,8 +246,6 @@ export LD_LIBRARY_PATH=$KMB_WORK_DIR/Release/lib
 export DATA_PATH=$KMB_WORK_DIR/temp/validation_set/src/validation_set
 export MODELS_PATH=$KMB_WORK_DIR/temp/models
 export IE_KMB_TESTS_DUMP_PATH=$KMB_WORK_DIR/tests-dump
-# optionally for target models:
-export KMB_ALPHA_TESTS_DATA_PATH=$KMB_WORK_DIR/temp/models
 $KMB_WORK_DIR/Release/KmbFunctionalTests --gtest_filter=*Kmb*NetworkTest*INT8_Dense*
 ```
 

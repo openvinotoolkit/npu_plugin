@@ -40,3 +40,10 @@ TEST_F(GetMetricTest, getAvailableDevices) {
         std::cout << deviceId << std::endl;
     }
 }
+
+TEST_F(GetMetricTest, supportMetrics) {
+    std::vector<std::string> supportedMetrics = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+    for (auto& metric : supportedMetrics) {
+        ASSERT_NO_THROW(ie.GetMetric(deviceName, metric));
+    }
+}

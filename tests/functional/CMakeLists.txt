@@ -28,8 +28,6 @@ addIeTargetTest(
             ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
             ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
             ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
-        DEFINES
-            -DKMB_ALPHA_TESTS_DATA_PATH="${MODELS_PATH}"
         LINK_LIBRARIES
             IE::IESharedTests
             IE::vpu_common_lib
@@ -42,6 +40,11 @@ addIeTargetTest(
             KMB
             VPU
 )
+
+add_dependencies(${TARGET_NAME} kmbPlugin)
+if (X86 OR X86_64)
+    add_dependencies(${TARGET_NAME} HDDL2Plugin VPUXPlugin)
+endif()
 
 target_compile_options(${TARGET_NAME}
     PRIVATE

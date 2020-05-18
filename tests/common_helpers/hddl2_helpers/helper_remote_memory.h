@@ -81,8 +81,6 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
     }
 
     _memoryFd = _memory->getDmaBufFd();
-
-    printf("Memory fd: %lu\n", _memoryFd);
     return _memoryFd;
 }
 

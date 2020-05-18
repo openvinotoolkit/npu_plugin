@@ -144,6 +144,16 @@ InferenceEngine::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, _metrics.AvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
         IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
+    } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics.GetFullDevicesNames());
+    } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics.GetSupportedConfigKeys());
+    } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
+        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics.GetOptimizationCapabilities());
+    } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
+        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics.GetRangeForAsyncInferRequest());
+    } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
+        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }

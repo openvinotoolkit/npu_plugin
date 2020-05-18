@@ -46,6 +46,8 @@ public:
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
 
+    bool useSIPP() const { return _useSIPP; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
@@ -74,6 +76,7 @@ private:
     bool _forceNCHWToNHWC = false;
     bool _force2DToNC = true;
     bool _forceFP16ToFP32 = true;
+    bool _useSIPP = true;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

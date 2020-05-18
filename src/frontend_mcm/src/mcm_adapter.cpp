@@ -38,6 +38,7 @@
 #include <schema/graphfile/graphfile_generated.h>
 
 #include "converters.hpp"
+#include "ie_memcpy.h"
 
 using namespace InferenceEngine;
 using namespace vpu;
@@ -104,7 +105,7 @@ static std::vector<char> serializeMetaData(const char* memBlobData, const Infere
     flatbuffers::Offset<MVCNN::GraphFile> offset = MVCNN::CreateGraphFile(builder, &graphFileInstance);
     MVCNN::FinishGraphFileBuffer(builder, offset);
     std::vector<char> binaryData(builder.GetSize());
-    std::memcpy(binaryData.data(), builder.GetBufferPointer(), binaryData.size());
+    ie_memcpy(binaryData.data(), binaryData.size(), builder.GetBufferPointer(), binaryData.size());
 
     return binaryData;
 }
@@ -282,6 +283,9 @@ bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
 std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::MCMAdapter::deserializeMetaData(
     const std::vector<char>& outBlob, const MCMConfig& config) {
     Logger::Ptr logger = std::make_shared<Logger>("compileMCM", config.logLevel(), consoleOutput());
+    if (logger == nullptr) {
+        THROW_IE_EXCEPTION << "Logger has not been created";
+    }
     const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(outBlob.data());
     MVCNN::GraphFileT graphFileInstance;
     graphFilePtr->UnPackTo(&graphFileInstance);

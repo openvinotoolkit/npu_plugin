@@ -32,7 +32,7 @@
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
 
-// TODO https://jira.devtools.intel.com/browse/CVS-21391
+// TODO [Track number: S#21391]
 // FIXME: does not work for batch != 1
 static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
     size_t ones = std::count(dims.begin(), dims.end(), 1);
@@ -42,24 +42,24 @@ static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
+static void deallocateHelper(uint8_t* ptr) { getKmbAllocator()->free(ptr); }
+
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
     const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
-      _deviceLayout(Layout::NHWC),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
-      _blobWithResult(nullptr),
-      _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())),
+      _inputBuffer(nullptr, deallocateHelper),
+      _outputBuffer(nullptr, deallocateHelper) {
     IE_PROFILING_AUTO_SCOPE(KmbInferRequest);
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
 
-    if (_networkInputs.size() != 1) {
-        THROW_IE_EXCEPTION << "Infer request supports only 1 input";
-    }
+    size_t inputsTotalSize = 0;
     for (auto& networkInput : _networkInputs) {
         Precision precision = networkInput.second->getTensorDesc().getPrecision();
 
@@ -72,11 +72,14 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         Blob::Ptr inputBlob = make_blob_with_precision(networkInput.second->getTensorDesc(), getKmbAllocator());
         inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
+        inputsTotalSize += inputBlob->byteSize();
+    }
+    if (_networkInputs.size() > 1) {
+        uint8_t* inputsRawPtr = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(inputsTotalSize));
+        _inputBuffer.reset(inputsRawPtr);
     }
 
-    if (_networkOutputs.size() != 1) {
-        THROW_IE_EXCEPTION << "Infer request supports only 1 output";
-    }
+    size_t outputsTotalSize = 0;
     for (auto& networkOutput : _networkOutputs) {
         Precision precision = networkOutput.second->getTensorDesc().getPrecision();
 
@@ -90,7 +93,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
         outputBlob = make_blob_with_precision(networkOutput.second->getTensorDesc(), getKmbAllocator());
         outputBlob->allocate();
         _outputs[networkOutput.first] = outputBlob;
+        outputsTotalSize += outputBlob->byteSize();
     }
+    uint8_t* outputsRawPtr = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(outputsTotalSize));
+    _outputBuffer.reset(outputsRawPtr);
 }
 void KmbInferRequest::InferImpl() {
     InferAsync();
@@ -140,20 +146,42 @@ void KmbInferRequest::InferAsync() {
 
     const auto& deviceInputs = _executor->getRuntimeInputs();
     if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
-    const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
-    const auto input = _inputs.begin()->second;
+    if (deviceInputs.size() != _inputs.size()) THROW_IE_EXCEPTION << "DeviceInputs and _inputs sizes are different.";
 
-    auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+    if (_inputs.size() == 1) {
+        // avoid memory copy for single input
+        const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
+        const auto input = _inputs.begin()->second;
+        auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+        _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
+    } else {
+        size_t inputBufferOffset = 0;
+        for (const auto& inferInput : _inputs) {
+            std::string inputName = inferInput.first;
+            const auto deviceInputDesc = deviceInputs.at(inputName)->getTensorDesc();
+            const auto input = inferInput.second;
 
-    _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
+            auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+            // TODO implement memory copy inside prepareInputForInference
+            std::memcpy(_inputBuffer.get() + inputBufferOffset, updatedInput->buffer().as<uint8_t*>(),
+                updatedInput->byteSize());
+
+            inputBufferOffset += updatedInput->byteSize();
+        }
+        _executor->queueInference(_inputBuffer.get(), inputBufferOffset);
+    }
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
-    if (SippPreproc::useSIPP() && SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+    // TODO: [Track number: S#31121]
+    // Get rid of environment variable USE_SIPP
+    if (_config.useSIPP() && SippPreproc::useSIPP() &&
+        SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
+        _logger->warning("SIPP is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }
@@ -312,8 +340,6 @@ void KmbInferRequest::GetResult() {
 
     // check that output layout is the same as device layout
     const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getRuntimeOutputs();
-    IE_ASSERT(deviceOutputs.size() == 1) << "Networks with " << deviceOutputs.size() << " outputs are not supported. "
-                                         << "Only networks with 1 output are supported.";
 
     size_t output_size_total = std::accumulate(
         _outputs.begin(), _outputs.end(), 0, [](size_t sum, InferenceEngine::BlobMap::value_type& outputs) {
@@ -329,28 +355,35 @@ void KmbInferRequest::GetResult() {
     InferenceEngine::Layout deviceLayout = deviceTensorDesc.getLayout();
     InferenceEngine::Layout outputLayout = outputTensorDesc.getLayout();
 
-    if ((devicePrecision == outputPrecision) && (deviceLayout == outputLayout)) {
+    if (_outputs.size() == 1 && devicePrecision == outputPrecision && deviceLayout == outputLayout) {
         // read result directly into output, do not copy blob
         void* outputPtr = outputBlobRef->buffer();
         _executor->getResult(outputPtr, output_size_total);
     } else {
-        // read result into _blobWithResult
-        if (_blobWithResult == nullptr) {
-            _blobWithResult = make_blob_with_precision(deviceTensorDesc);
-            _blobWithResult->allocate();
-        }
-        void* outputPtr = _blobWithResult->buffer();
-        _executor->getResult(outputPtr, output_size_total);
-        // do precision conversion when necessary
-        Blob::Ptr blobWithCorrectPrecision = utils::convertPrecision(_blobWithResult, outputTensorDesc.getPrecision());
-        // copy blob with correct precision to the output blob
-        // copyBlob does layout conversion on its own
-        if (outputLayout == InferenceEngine::Layout::NC) {
-            // NC tensors are copied to blob buffer as is
-            copyBlob(blobWithCorrectPrecision, deviceLayout, outputBlobRef->buffer());
-        } else {
-            // do layout conversion
-            copyBlob(blobWithCorrectPrecision, outputBlobRef);
+        _executor->getResult(_outputBuffer.get(), output_size_total);
+        size_t outputBufferOffset = 0;
+        for (const auto& inferOutput : _outputs) {
+            std::string outputName = inferOutput.first;
+            const auto deviceOutputDesc = deviceOutputs.at(outputName)->getTensorDesc();
+            const auto outputBlob = inferOutput.second;
+            const auto inferOutputDesc = outputBlob->getTensorDesc();
+
+            const Blob::Ptr devOutBlob =
+                make_blob_with_precision(deviceOutputDesc, _outputBuffer.get() + outputBufferOffset);
+            // do precision conversion when necessary
+            Blob::Ptr blobWithCorrectPrecision = utils::convertPrecision(devOutBlob, inferOutputDesc.getPrecision());
+
+            // copy blob with correct precision to the output blob
+            // copyBlob does layout conversion on its own
+            if (inferOutputDesc.getLayout() == InferenceEngine::Layout::NC) {
+                // NC tensors are copied to blob buffer as is
+                copyBlob(blobWithCorrectPrecision, deviceOutputDesc.getLayout(), outputBlob->buffer());
+            } else {
+                // do layout conversion
+                copyBlob(blobWithCorrectPrecision, outputBlob);
+            }
+
+            outputBufferOffset += devOutBlob->byteSize();
         }
     }
 

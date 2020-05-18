@@ -103,6 +103,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Pad",                &FrontEndMcm::parsePad},
                 {"Resample",           &FrontEndMcm::parseResample},
                 {"ArgMax",             &FrontEndMcm::parseArgMax},
+                {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
                 {"Const",              &FrontEndMcm::parseConst},
         };
@@ -695,7 +696,13 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
     }
 }
 
-std::unordered_map<int, char> DIM_NAMES({{3, 'W'}, {2, 'H'}, {1, 'C'}, {0, 'N'}});
+std::string getDimLabel(int dimIndex, ie::Layout ieLayout) {
+    std::ostringstream ostr;
+    ostr << ieLayout;
+    const auto layoutStr = ostr.str();
+    IE_ASSERT(dimIndex >= 0 && dimIndex < layoutStr.size());
+    return std::string(1, layoutStr[dimIndex]);
+}
 
 constexpr char FINISH_PARSING_STR[] = "Parsed to mcmModel as '%s";
 
@@ -736,10 +743,6 @@ bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
 void FrontEndMcm::parseInputData() {
     _logger->debug("Try to parse network input");
 
-    if (_parsedNetwork.networkInputs.size() != 1) {
-        THROW_IE_EXCEPTION << "Only single input is supported currently";
-    }
-
     for (const auto& inputInfo : _parsedNetwork.networkInputs) {
         auto netInput = inputInfo.second;
         IE_ASSERT(netInput != nullptr);
@@ -762,8 +765,10 @@ void FrontEndMcm::parseInputData() {
             VPU_THROW_EXCEPTION << "Input data type is not supported: " << ieData->getTensorDesc().getPrecision();
         }
 
+        bool networkInput = true;
+
         auto mvInput = _modelMcm.input(inputShape, convert_data_type(inputPrecision),
-            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, netInput->name());
+            convert_layout(InferenceEngine::Layout::NHWC), initialQuantParams, networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
@@ -1048,8 +1053,8 @@ void FrontEndMcm::parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[softMaxLayer->axis];
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
+    std::string mcmAxis = getDimLabel(softMaxLayer->axis, ieLayout);
     auto mvSoftmax = _modelMcm.softmax(
         inputs[0]->getMcmNode(), mcmAxis, mv::DType("Default"), initialQuantParams, softMaxLayer->name);
 
@@ -1133,9 +1138,10 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     std::string newOrder;
 
-    //  4d NCHW inputs are supported
+    // 4d NCHW inputs are supported
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
     for (size_t i = 0; i < ieOrder.size(); i++) {
-        newOrder += DIM_NAMES[ieOrder[ieOrder.size() - 1 - i]];
+        newOrder += getDimLabel(ieOrder[ieOrder.size() - 1 - i], ieLayout);
     }
 
     auto mvPerm = _modelMcm.permute(
@@ -1272,10 +1278,10 @@ void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
     logParsingStartHelper(_logger, layer, inputs);
 
-    std::string mcmAxis;
-    mcmAxis = mcmAxis + DIM_NAMES[concatLayer->_axis];
-    std::vector<mv::Data::TensorIterator> concatInputs;
+    const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
+    std::string mcmAxis = getDimLabel(concatLayer->_axis, ieLayout);
 
+    std::vector<mv::Data::TensorIterator> concatInputs;
     for (const auto& input : inputs) {
         concatInputs.push_back(input->getMcmNode());
     }
@@ -1296,8 +1302,9 @@ void FrontEndMcm::parseRegionYolo(const ie::CNNLayerPtr& layer, const McmNodeVec
     auto classes = layer->GetParamAsUInt("classes");
     auto do_softmax = layer->GetParamAsBool("do_softmax");
     auto num = layer->GetParamAsUInt("num");
+    auto mask = layer->GetParamAsUInts("mask", {});
 
-    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, {},
+    auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, mask,
         mv::DType("Default"), initialQuantParams, layer->name);
     bindOutput(region, layer->outData[0]);
 
@@ -1347,7 +1354,11 @@ mv::Shape calculateMcmShape(const SizeVector dims) {
 
 void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     IE_ASSERT(layer->type == "Const");
-    const auto constBlob = layer->blobs.begin()->second;
+    auto foundBlob = layer->blobs.begin();
+    if (foundBlob == layer->blobs.end()) {
+        VPU_THROW_EXCEPTION << "Const layer blob is not supportied";
+    }
+    const auto constBlob = foundBlob->second;
     auto blobPrecision = constBlob->getTensorDesc().getPrecision();
     auto mcmShape = calculateMcmShape(layer->outData.front()->getDims());
     if (isInteger(blobPrecision)) {
@@ -1382,6 +1393,23 @@ void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, c
     auto fakeQuantize = _modelMcm.fakeQuantize(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(),
         inputs[2]->getMcmNode(), inputs[3]->getMcmNode(), inputs[4]->getMcmNode(), levels);
     bindOutput(fakeQuantize, layer->outData[0]);
+}
+
+void FrontEndMcm::parseTopK(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 2);
+    logParsingStartHelper(_logger, layer, inputs);
+    auto axis = layer->GetParamAsUInt("axis");
+    auto mode = layer->GetParamAsString("mode");
+    auto sort = layer->GetParamAsString("sort");
+    int32_t k = inputs[1]->getMcmNode()->getIntData()[0];
+    _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[1]->getMcmNode()));
+
+    auto topK = _modelMcm.topK(
+        inputs[0]->getMcmNode(), sort, mode, k, axis, mv::DType("Default"), initialQuantParams, layer->name);
+    bindOutput(topK, layer->outData[0]);
+    auto topKOp = _modelMcm.getSourceOp(topK);
+    if (topKOp->outputSlots() > 1) bindOutput(topKOp->getOutputTensor(1), layer->outData[1]);
+    _logger->debug(FINISH_PARSING_STR, topK->getName());
 }
 
 void FrontEndMcm::parseArgMax(const ie::CNNLayerPtr&, const McmNodeVector&) {
@@ -1441,8 +1469,8 @@ void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNo
     std::string code_type = layer->GetParamAsString("code_type");
     bool share_location = layer->GetParamAsInt("share_location", 1);
     double confidence_threshold = layer->GetParamAsFloat("confidence_threshold", 0.01);
-    bool clip_before_nms = 0;
-    bool clip_after_nms = 0;
+    bool clip_before_nms = layer->GetParamAsInt("clip_before_nms", 0);
+    bool clip_after_nms = layer->GetParamAsInt("clip_after_nms", 0);
     int64_t decrease_label_id = 0;
     bool normalized = layer->GetParamAsInt("normalized", 1);
     int64_t input_height = layer->GetParamAsInt("input_height", 1);
@@ -1555,8 +1583,21 @@ void FrontEndMcm::parseCTCDecoder(const ie::CNNLayerPtr&, const McmNodeVector&) 
     VPU_THROW_EXCEPTION << "CTCDecoder layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseInterp(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "Interp layer is not supported by kmbPlugin";
+void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 1);
+    logParsingStartHelper(_logger, layer, inputs);
+    auto factor = layer->GetParamAsFloat("factor", 1.0);
+    auto height = layer->GetParamAsUInt("height", 0);
+    auto width = layer->GetParamAsUInt("width", 0);
+    auto pad_begin = layer->GetParamAsUInt("pads_begin", 0);
+    auto pad_end = layer->GetParamAsUInt("pads_end", 0);
+    auto align_corners = layer->GetParamAsInt("align_corners", 0) == 1;
+
+    auto mvInterp = _modelMcm.interp(inputs[0]->getMcmNode(), factor, pad_begin, pad_end, height, width, align_corners,
+        mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(mvInterp, layer->outData[0]);
+    _logger->debug(FINISH_PARSING_STR, mvInterp->getName());
 }
 
 void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1589,12 +1630,13 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
         proposal_ins.push_back(input->getMcmNode());
     }
 
+    // FIXME mcmCompiler doesn't support std::vector<float> for constant operation
     auto scale = _modelMcm.constant(std::vector<double>(scale_data.begin(), scale_data.end()),
-        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
         "scale");
 
     auto ratio = _modelMcm.constant(std::vector<double>(ratio_data.begin(), ratio_data.end()),
-        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float64"), mv::Order::getZMajorID(4), initialQuantParams,
+        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
         "ratio");
 
     proposal_ins.push_back(scale);
@@ -1602,7 +1644,7 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
 
     auto proposal = _modelMcm.proposal(proposal_ins, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride,
         min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale,
-        framework, for_deformable, mv::DType("Float16"));
+        framework, for_deformable, mv::DType("Default"));
 
     bindOutput(proposal, layer->outData[0]);
 }
@@ -1611,8 +1653,25 @@ void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr&, const McmNodeVector&) 
     VPU_THROW_EXCEPTION << "ROIPooling layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "PSROIPooling layer is not supported by kmbPlugin";
+void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    auto output_dim = static_cast<size_t>(layer->GetParamAsInt("output_dim"));
+    auto group_size = static_cast<size_t>(layer->GetParamAsInt("group_size"));
+    auto spatial_scale = layer->GetParamAsFloat("spatial_scale");
+    auto pooled_h = static_cast<size_t>(layer->GetParamAsInt("pooled_height", static_cast<int>(group_size)));
+    auto pooled_w = static_cast<size_t>(layer->GetParamAsInt("pooled_width", static_cast<int>(group_size)));
+    auto spatial_bins_x = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_x", 1));
+    auto spatial_bins_y = static_cast<size_t>(layer->GetParamAsInt("spatial_bins_y", 1));
+    auto mode = layer->GetParamAsString("mode", "average");
+
+    std::vector<mv::Data::TensorIterator> psroi_ins;
+    for (const auto& input : inputs) {
+        psroi_ins.push_back(input->getMcmNode());
+    }
+
+    auto psroi = _modelMcm.pSROIPooling(psroi_ins, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
+        spatial_bins_x, spatial_bins_y, mode, mv::DType("Default"), initialQuantParams, layer->name);
+
+    bindOutput(psroi, layer->outData[0]);
 }
 
 void FrontEndMcm::parseCustom(const ie::CNNLayerPtr&, const McmNodeVector&) {
@@ -1691,7 +1750,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
         fixed_sizes, fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
 
     auto boxes = ParseLayersHelpers::computePriorbox(param);
-    auto priorbox = _modelMcm.constant(boxes, {1, boxes.size() / 2, 2, 1}, mv::DType("Float64"), mv::Order("NHWC"),
+    auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
         initialQuantParams, layer->name + "_const");
 
     bindOutput(priorbox, layer->outData[0]);
@@ -1699,8 +1758,71 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
     _logger->debug(FINISH_PARSING_STR, priorbox->getName());
 }
 
-void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "PriorBoxClustered layer is not supported by kmbPlugin";
+void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    if (layer->insData.size() != 2 || layer->outData.empty()) {
+        THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
+    }
+
+    if (layer->insData[0].lock()->getTensorDesc().getDims().size() != 4 ||
+        layer->insData[1].lock()->getTensorDesc().getDims().size() != 4) {
+        THROW_IE_EXCEPTION << "PriorBoxClustered supports only 4D blobs!";
+    }
+
+    if (layer->outData.size() != 1) {
+        THROW_IE_EXCEPTION << "PriorBoxClustered must have only one output";
+    }
+
+    const int clip = layer->GetParamAsInt("clip");
+    const int img_h = layer->GetParamAsInt("img_h", 0);
+    const int img_w = layer->GetParamAsInt("img_w", 0);
+    std::vector<float> widths = layer->GetParamAsFloats("width", {});
+    std::vector<float> heights = layer->GetParamAsFloats("height", {});
+    const float step = layer->GetParamAsFloat("step", 0);
+    const float offset = layer->GetParamAsFloat("offset");
+
+    float step_w = layer->GetParamAsFloat("step_w", step);
+    float step_h = layer->GetParamAsFloat("step_h", step);
+
+    int img_width = layer->insData[1].lock()->getTensorDesc().getDims()[3];
+    int img_height = layer->insData[1].lock()->getTensorDesc().getDims()[2];
+    img_width = img_w == 0 ? img_width : img_w;
+    img_height = img_h == 0 ? img_height : img_h;
+
+    int layer_width = layer->insData[0].lock()->getTensorDesc().getDims()[3];
+    int layer_height = layer->insData[0].lock()->getTensorDesc().getDims()[2];
+
+    IE_ASSERT(widths.size() == heights.size());
+    int num_priors = widths.size();
+
+    std::vector<float> variance = layer->GetParamAsFloats("variance", {});
+    if (variance.empty()) {
+        variance.push_back(0.1f);
+    }
+
+    if (step_w == 0 && step_h == 0) {
+        if (step == 0) {
+            step_w = static_cast<float>(img_width) / layer_width;
+            step_h = static_cast<float>(img_height) / layer_height;
+        } else {
+            step_w = step;
+            step_h = step;
+        }
+    }
+
+    const auto& dims = layer->outData.front()->getDims();
+
+    IE_ASSERT(dims.size() == 3);
+    int size = dims[0] * dims[1] * dims[2];
+
+    ParseLayersHelpers::priorBoxClusteredParam param {offset, clip, step_w, step_h, layer_width, layer_height,
+        img_width, img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
+
+    auto boxes = computePriorboxClustered(param);
+
+    auto priorboxClustered =
+        _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"));
+
+    bindOutput(priorboxClustered, layer->outData[0]);
 }
 
 void FrontEndMcm::parseSplit(const ie::CNNLayerPtr&, const McmNodeVector&) {

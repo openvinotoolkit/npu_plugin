@@ -21,6 +21,9 @@ struct DummyParamsT;
 struct DetectionOutputParams;
 struct DetectionOutputParamsT;
 
+struct DeconvolutionParams;
+struct DeconvolutionParamsT;
+
 struct FlattenParams;
 struct FlattenParamsT;
 
@@ -38,6 +41,9 @@ struct PriorboxParamsT;
 
 struct ROIPoolingParams;
 struct ROIPoolingParamsT;
+
+struct PSROIPoolingParams;
+struct PSROIPoolingParamsT;
 
 struct ProposalParams;
 struct ProposalParamsT;
@@ -138,6 +144,39 @@ struct PPEAssistT;
 struct NNTensorTask;
 struct NNTensorTaskT;
 
+enum PSROIPoolingMode {
+  PSROIPoolingMode_AVERAGE = 0,
+  PSROIPoolingMode_BILINEAR = 1,
+  PSROIPoolingMode_BILINEAR_DEFORMABLE = 2,
+  PSROIPoolingMode_MIN = PSROIPoolingMode_AVERAGE,
+  PSROIPoolingMode_MAX = PSROIPoolingMode_BILINEAR_DEFORMABLE
+};
+
+inline const PSROIPoolingMode (&EnumValuesPSROIPoolingMode())[3] {
+  static const PSROIPoolingMode values[] = {
+    PSROIPoolingMode_AVERAGE,
+    PSROIPoolingMode_BILINEAR,
+    PSROIPoolingMode_BILINEAR_DEFORMABLE
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesPSROIPoolingMode() {
+  static const char * const names[] = {
+    "AVERAGE",
+    "BILINEAR",
+    "BILINEAR_DEFORMABLE",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNamePSROIPoolingMode(PSROIPoolingMode e) {
+  if (e < PSROIPoolingMode_AVERAGE || e > PSROIPoolingMode_BILINEAR_DEFORMABLE) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesPSROIPoolingMode()[index];
+}
+
 enum InterpolationMethod {
   InterpolationMethod_NEAREST = 0,
   InterpolationMethod_BILINEAR = 1,
@@ -203,11 +242,13 @@ enum SoftwareLayerParams {
   SoftwareLayerParams_PoolingParams = 28,
   SoftwareLayerParams_EdslParams = 29,
   SoftwareLayerParams_TileParams = 30,
+  SoftwareLayerParams_PSROIPoolingParams = 31,
+  SoftwareLayerParams_DeconvolutionParams = 32,
   SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
-  SoftwareLayerParams_MAX = SoftwareLayerParams_TileParams
+  SoftwareLayerParams_MAX = SoftwareLayerParams_DeconvolutionParams
 };
 
-inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[31] {
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[33] {
   static const SoftwareLayerParams values[] = {
     SoftwareLayerParams_NONE,
     SoftwareLayerParams_DummyParams,
@@ -239,7 +280,9 @@ inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[31] {
     SoftwareLayerParams_FakeQuantizeParams,
     SoftwareLayerParams_PoolingParams,
     SoftwareLayerParams_EdslParams,
-    SoftwareLayerParams_TileParams
+    SoftwareLayerParams_TileParams,
+    SoftwareLayerParams_PSROIPoolingParams,
+    SoftwareLayerParams_DeconvolutionParams
   };
   return values;
 }
@@ -277,13 +320,15 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
     "PoolingParams",
     "EdslParams",
     "TileParams",
+    "PSROIPoolingParams",
+    "DeconvolutionParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_TileParams) return "";
+  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_DeconvolutionParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -410,6 +455,14 @@ template<> struct SoftwareLayerParamsTraits<EdslParams> {
 
 template<> struct SoftwareLayerParamsTraits<TileParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_TileParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<PSROIPoolingParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_PSROIPoolingParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<DeconvolutionParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_DeconvolutionParams;
 };
 
 struct SoftwareLayerParamsUnion {
@@ -683,6 +736,22 @@ struct SoftwareLayerParamsUnion {
   const TileParamsT *AsTileParams() const {
     return type == SoftwareLayerParams_TileParams ?
       reinterpret_cast<const TileParamsT *>(value) : nullptr;
+  }
+  PSROIPoolingParamsT *AsPSROIPoolingParams() {
+    return type == SoftwareLayerParams_PSROIPoolingParams ?
+      reinterpret_cast<PSROIPoolingParamsT *>(value) : nullptr;
+  }
+  const PSROIPoolingParamsT *AsPSROIPoolingParams() const {
+    return type == SoftwareLayerParams_PSROIPoolingParams ?
+      reinterpret_cast<const PSROIPoolingParamsT *>(value) : nullptr;
+  }
+  DeconvolutionParamsT *AsDeconvolutionParams() {
+    return type == SoftwareLayerParams_DeconvolutionParams ?
+      reinterpret_cast<DeconvolutionParamsT *>(value) : nullptr;
+  }
+  const DeconvolutionParamsT *AsDeconvolutionParams() const {
+    return type == SoftwareLayerParams_DeconvolutionParams ?
+      reinterpret_cast<const DeconvolutionParamsT *>(value) : nullptr;
   }
 };
 
@@ -1386,6 +1455,126 @@ inline flatbuffers::Offset<DetectionOutputParams> CreateDetectionOutputParamsDir
 
 flatbuffers::Offset<DetectionOutputParams> CreateDetectionOutputParams(flatbuffers::FlatBufferBuilder &_fbb, const DetectionOutputParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct DeconvolutionParamsT : public flatbuffers::NativeTable {
+  typedef DeconvolutionParams TableType;
+  std::unique_ptr<order3> kernel;
+  std::unique_ptr<order3> strides;
+  std::unique_ptr<order3> dilations;
+  std::unique_ptr<order3> pads_begin;
+  std::unique_ptr<order3> pads_end;
+  std::unique_ptr<order3> output_padding;
+  bool is_depthwise;
+  DeconvolutionParamsT()
+      : is_depthwise(false) {
+  }
+};
+
+struct DeconvolutionParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef DeconvolutionParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_KERNEL = 4,
+    VT_STRIDES = 6,
+    VT_DILATIONS = 8,
+    VT_PADS_BEGIN = 10,
+    VT_PADS_END = 12,
+    VT_OUTPUT_PADDING = 14,
+    VT_IS_DEPTHWISE = 16
+  };
+  const order3 *kernel() const {
+    return GetStruct<const order3 *>(VT_KERNEL);
+  }
+  const order3 *strides() const {
+    return GetStruct<const order3 *>(VT_STRIDES);
+  }
+  const order3 *dilations() const {
+    return GetStruct<const order3 *>(VT_DILATIONS);
+  }
+  const order3 *pads_begin() const {
+    return GetStruct<const order3 *>(VT_PADS_BEGIN);
+  }
+  const order3 *pads_end() const {
+    return GetStruct<const order3 *>(VT_PADS_END);
+  }
+  const order3 *output_padding() const {
+    return GetStruct<const order3 *>(VT_OUTPUT_PADDING);
+  }
+  bool is_depthwise() const {
+    return GetField<uint8_t>(VT_IS_DEPTHWISE, 0) != 0;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<order3>(verifier, VT_KERNEL) &&
+           VerifyField<order3>(verifier, VT_STRIDES) &&
+           VerifyField<order3>(verifier, VT_DILATIONS) &&
+           VerifyField<order3>(verifier, VT_PADS_BEGIN) &&
+           VerifyField<order3>(verifier, VT_PADS_END) &&
+           VerifyField<order3>(verifier, VT_OUTPUT_PADDING) &&
+           VerifyField<uint8_t>(verifier, VT_IS_DEPTHWISE) &&
+           verifier.EndTable();
+  }
+  DeconvolutionParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(DeconvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<DeconvolutionParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct DeconvolutionParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_kernel(const order3 *kernel) {
+    fbb_.AddStruct(DeconvolutionParams::VT_KERNEL, kernel);
+  }
+  void add_strides(const order3 *strides) {
+    fbb_.AddStruct(DeconvolutionParams::VT_STRIDES, strides);
+  }
+  void add_dilations(const order3 *dilations) {
+    fbb_.AddStruct(DeconvolutionParams::VT_DILATIONS, dilations);
+  }
+  void add_pads_begin(const order3 *pads_begin) {
+    fbb_.AddStruct(DeconvolutionParams::VT_PADS_BEGIN, pads_begin);
+  }
+  void add_pads_end(const order3 *pads_end) {
+    fbb_.AddStruct(DeconvolutionParams::VT_PADS_END, pads_end);
+  }
+  void add_output_padding(const order3 *output_padding) {
+    fbb_.AddStruct(DeconvolutionParams::VT_OUTPUT_PADDING, output_padding);
+  }
+  void add_is_depthwise(bool is_depthwise) {
+    fbb_.AddElement<uint8_t>(DeconvolutionParams::VT_IS_DEPTHWISE, static_cast<uint8_t>(is_depthwise), 0);
+  }
+  explicit DeconvolutionParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  DeconvolutionParamsBuilder &operator=(const DeconvolutionParamsBuilder &);
+  flatbuffers::Offset<DeconvolutionParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<DeconvolutionParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const order3 *kernel = 0,
+    const order3 *strides = 0,
+    const order3 *dilations = 0,
+    const order3 *pads_begin = 0,
+    const order3 *pads_end = 0,
+    const order3 *output_padding = 0,
+    bool is_depthwise = false) {
+  DeconvolutionParamsBuilder builder_(_fbb);
+  builder_.add_output_padding(output_padding);
+  builder_.add_pads_end(pads_end);
+  builder_.add_pads_begin(pads_begin);
+  builder_.add_dilations(dilations);
+  builder_.add_strides(strides);
+  builder_.add_kernel(kernel);
+  builder_.add_is_depthwise(is_depthwise);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct FlattenParamsT : public flatbuffers::NativeTable {
   typedef FlattenParams TableType;
   FlattenParamsT() {
@@ -1914,6 +2103,144 @@ inline flatbuffers::Offset<ROIPoolingParams> CreateROIPoolingParams(
 }
 
 flatbuffers::Offset<ROIPoolingParams> CreateROIPoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const ROIPoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PSROIPoolingParamsT : public flatbuffers::NativeTable {
+  typedef PSROIPoolingParams TableType;
+  uint32_t output_dim;
+  uint32_t group_size;
+  float spatial_scale;
+  uint32_t pooled_w;
+  uint32_t pooled_h;
+  uint32_t spatial_bin_x;
+  uint32_t spatial_bin_y;
+  PSROIPoolingMode mode;
+  PSROIPoolingParamsT()
+      : output_dim(0),
+        group_size(0),
+        spatial_scale(0.0f),
+        pooled_w(0),
+        pooled_h(0),
+        spatial_bin_x(0),
+        spatial_bin_y(0),
+        mode(PSROIPoolingMode_AVERAGE) {
+  }
+};
+
+struct PSROIPoolingParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PSROIPoolingParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_OUTPUT_DIM = 4,
+    VT_GROUP_SIZE = 6,
+    VT_SPATIAL_SCALE = 8,
+    VT_POOLED_W = 10,
+    VT_POOLED_H = 12,
+    VT_SPATIAL_BIN_X = 14,
+    VT_SPATIAL_BIN_Y = 16,
+    VT_MODE = 18
+  };
+  uint32_t output_dim() const {
+    return GetField<uint32_t>(VT_OUTPUT_DIM, 0);
+  }
+  uint32_t group_size() const {
+    return GetField<uint32_t>(VT_GROUP_SIZE, 0);
+  }
+  float spatial_scale() const {
+    return GetField<float>(VT_SPATIAL_SCALE, 0.0f);
+  }
+  uint32_t pooled_w() const {
+    return GetField<uint32_t>(VT_POOLED_W, 0);
+  }
+  uint32_t pooled_h() const {
+    return GetField<uint32_t>(VT_POOLED_H, 0);
+  }
+  uint32_t spatial_bin_x() const {
+    return GetField<uint32_t>(VT_SPATIAL_BIN_X, 0);
+  }
+  uint32_t spatial_bin_y() const {
+    return GetField<uint32_t>(VT_SPATIAL_BIN_Y, 0);
+  }
+  PSROIPoolingMode mode() const {
+    return static_cast<PSROIPoolingMode>(GetField<int8_t>(VT_MODE, 0));
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_OUTPUT_DIM) &&
+           VerifyField<uint32_t>(verifier, VT_GROUP_SIZE) &&
+           VerifyField<float>(verifier, VT_SPATIAL_SCALE) &&
+           VerifyField<uint32_t>(verifier, VT_POOLED_W) &&
+           VerifyField<uint32_t>(verifier, VT_POOLED_H) &&
+           VerifyField<uint32_t>(verifier, VT_SPATIAL_BIN_X) &&
+           VerifyField<uint32_t>(verifier, VT_SPATIAL_BIN_Y) &&
+           VerifyField<int8_t>(verifier, VT_MODE) &&
+           verifier.EndTable();
+  }
+  PSROIPoolingParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PSROIPoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PSROIPoolingParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PSROIPoolingParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_output_dim(uint32_t output_dim) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_OUTPUT_DIM, output_dim, 0);
+  }
+  void add_group_size(uint32_t group_size) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_GROUP_SIZE, group_size, 0);
+  }
+  void add_spatial_scale(float spatial_scale) {
+    fbb_.AddElement<float>(PSROIPoolingParams::VT_SPATIAL_SCALE, spatial_scale, 0.0f);
+  }
+  void add_pooled_w(uint32_t pooled_w) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_POOLED_W, pooled_w, 0);
+  }
+  void add_pooled_h(uint32_t pooled_h) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_POOLED_H, pooled_h, 0);
+  }
+  void add_spatial_bin_x(uint32_t spatial_bin_x) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_SPATIAL_BIN_X, spatial_bin_x, 0);
+  }
+  void add_spatial_bin_y(uint32_t spatial_bin_y) {
+    fbb_.AddElement<uint32_t>(PSROIPoolingParams::VT_SPATIAL_BIN_Y, spatial_bin_y, 0);
+  }
+  void add_mode(PSROIPoolingMode mode) {
+    fbb_.AddElement<int8_t>(PSROIPoolingParams::VT_MODE, static_cast<int8_t>(mode), 0);
+  }
+  explicit PSROIPoolingParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PSROIPoolingParamsBuilder &operator=(const PSROIPoolingParamsBuilder &);
+  flatbuffers::Offset<PSROIPoolingParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PSROIPoolingParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PSROIPoolingParams> CreatePSROIPoolingParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t output_dim = 0,
+    uint32_t group_size = 0,
+    float spatial_scale = 0.0f,
+    uint32_t pooled_w = 0,
+    uint32_t pooled_h = 0,
+    uint32_t spatial_bin_x = 0,
+    uint32_t spatial_bin_y = 0,
+    PSROIPoolingMode mode = PSROIPoolingMode_AVERAGE) {
+  PSROIPoolingParamsBuilder builder_(_fbb);
+  builder_.add_spatial_bin_y(spatial_bin_y);
+  builder_.add_spatial_bin_x(spatial_bin_x);
+  builder_.add_pooled_h(pooled_h);
+  builder_.add_pooled_w(pooled_w);
+  builder_.add_spatial_scale(spatial_scale);
+  builder_.add_group_size(group_size);
+  builder_.add_output_dim(output_dim);
+  builder_.add_mode(mode);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<PSROIPoolingParams> CreatePSROIPoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct ProposalParamsT : public flatbuffers::NativeTable {
   typedef ProposalParams TableType;
@@ -3861,6 +4188,12 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const TileParams *softLayerParams_as_TileParams() const {
     return softLayerParams_type() == SoftwareLayerParams_TileParams ? static_cast<const TileParams *>(softLayerParams()) : nullptr;
   }
+  const PSROIPoolingParams *softLayerParams_as_PSROIPoolingParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PSROIPoolingParams ? static_cast<const PSROIPoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_DeconvolutionParams ? static_cast<const DeconvolutionParams *>(softLayerParams()) : nullptr;
+  }
   const TensorReference *input_data() const {
     return GetPointer<const TensorReference *>(VT_INPUT_DATA);
   }
@@ -4028,6 +4361,14 @@ template<> inline const EdslParams *UPALayerTask::softLayerParams_as<EdslParams>
 
 template<> inline const TileParams *UPALayerTask::softLayerParams_as<TileParams>() const {
   return softLayerParams_as_TileParams();
+}
+
+template<> inline const PSROIPoolingParams *UPALayerTask::softLayerParams_as<PSROIPoolingParams>() const {
+  return softLayerParams_as_PSROIPoolingParams();
+}
+
+template<> inline const DeconvolutionParams *UPALayerTask::softLayerParams_as<DeconvolutionParams>() const {
+  return softLayerParams_as_DeconvolutionParams();
 }
 
 struct UPALayerTaskBuilder {
@@ -4241,6 +4582,12 @@ struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const TileParams *softLayerParams_as_TileParams() const {
     return softLayerParams_type() == SoftwareLayerParams_TileParams ? static_cast<const TileParams *>(softLayerParams()) : nullptr;
   }
+  const PSROIPoolingParams *softLayerParams_as_PSROIPoolingParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PSROIPoolingParams ? static_cast<const PSROIPoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_DeconvolutionParams ? static_cast<const DeconvolutionParams *>(softLayerParams()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
@@ -4371,6 +4718,14 @@ template<> inline const EdslParams *SNNLayerTask::softLayerParams_as<EdslParams>
 
 template<> inline const TileParams *SNNLayerTask::softLayerParams_as<TileParams>() const {
   return softLayerParams_as_TileParams();
+}
+
+template<> inline const PSROIPoolingParams *SNNLayerTask::softLayerParams_as<PSROIPoolingParams>() const {
+  return softLayerParams_as_PSROIPoolingParams();
+}
+
+template<> inline const DeconvolutionParams *SNNLayerTask::softLayerParams_as<DeconvolutionParams>() const {
+  return softLayerParams_as_DeconvolutionParams();
 }
 
 struct SNNLayerTaskBuilder {
@@ -5601,6 +5956,50 @@ inline flatbuffers::Offset<DetectionOutputParams> CreateDetectionOutputParams(fl
       _objectness_score);
 }
 
+inline DeconvolutionParamsT *DeconvolutionParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new DeconvolutionParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void DeconvolutionParams::UnPackTo(DeconvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = dilations(); if (_e) _o->dilations = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = output_padding(); if (_e) _o->output_padding = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = is_depthwise(); _o->is_depthwise = _e; };
+}
+
+inline flatbuffers::Offset<DeconvolutionParams> DeconvolutionParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateDeconvolutionParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DeconvolutionParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _kernel = _o->kernel ? _o->kernel.get() : 0;
+  auto _strides = _o->strides ? _o->strides.get() : 0;
+  auto _dilations = _o->dilations ? _o->dilations.get() : 0;
+  auto _pads_begin = _o->pads_begin ? _o->pads_begin.get() : 0;
+  auto _pads_end = _o->pads_end ? _o->pads_end.get() : 0;
+  auto _output_padding = _o->output_padding ? _o->output_padding.get() : 0;
+  auto _is_depthwise = _o->is_depthwise;
+  return MVCNN::CreateDeconvolutionParams(
+      _fbb,
+      _kernel,
+      _strides,
+      _dilations,
+      _pads_begin,
+      _pads_end,
+      _output_padding,
+      _is_depthwise);
+}
+
 inline FlattenParamsT *FlattenParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = new FlattenParamsT();
   UnPackTo(_o, _resolver);
@@ -5800,6 +6199,53 @@ inline flatbuffers::Offset<ROIPoolingParams> CreateROIPoolingParams(flatbuffers:
       _spatial_scale,
       _roi_pooling_method,
       _num_rois);
+}
+
+inline PSROIPoolingParamsT *PSROIPoolingParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new PSROIPoolingParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void PSROIPoolingParams::UnPackTo(PSROIPoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = output_dim(); _o->output_dim = _e; };
+  { auto _e = group_size(); _o->group_size = _e; };
+  { auto _e = spatial_scale(); _o->spatial_scale = _e; };
+  { auto _e = pooled_w(); _o->pooled_w = _e; };
+  { auto _e = pooled_h(); _o->pooled_h = _e; };
+  { auto _e = spatial_bin_x(); _o->spatial_bin_x = _e; };
+  { auto _e = spatial_bin_y(); _o->spatial_bin_y = _e; };
+  { auto _e = mode(); _o->mode = _e; };
+}
+
+inline flatbuffers::Offset<PSROIPoolingParams> PSROIPoolingParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePSROIPoolingParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<PSROIPoolingParams> CreatePSROIPoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PSROIPoolingParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _output_dim = _o->output_dim;
+  auto _group_size = _o->group_size;
+  auto _spatial_scale = _o->spatial_scale;
+  auto _pooled_w = _o->pooled_w;
+  auto _pooled_h = _o->pooled_h;
+  auto _spatial_bin_x = _o->spatial_bin_x;
+  auto _spatial_bin_y = _o->spatial_bin_y;
+  auto _mode = _o->mode;
+  return MVCNN::CreatePSROIPoolingParams(
+      _fbb,
+      _output_dim,
+      _group_size,
+      _spatial_scale,
+      _pooled_w,
+      _pooled_h,
+      _spatial_bin_x,
+      _spatial_bin_y,
+      _mode);
 }
 
 inline ProposalParamsT *ProposalParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -7067,6 +7513,14 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const TileParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case SoftwareLayerParams_PSROIPoolingParams: {
+      auto ptr = reinterpret_cast<const PSROIPoolingParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SoftwareLayerParams_DeconvolutionParams: {
+      auto ptr = reinterpret_cast<const DeconvolutionParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return false;
   }
 }
@@ -7205,6 +7659,14 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const TileParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_PSROIPoolingParams: {
+      auto ptr = reinterpret_cast<const PSROIPoolingParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SoftwareLayerParams_DeconvolutionParams: {
+      auto ptr = reinterpret_cast<const DeconvolutionParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -7331,6 +7793,14 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const TileParamsT *>(value);
       return CreateTileParams(_fbb, ptr, _rehasher).Union();
     }
+    case SoftwareLayerParams_PSROIPoolingParams: {
+      auto ptr = reinterpret_cast<const PSROIPoolingParamsT *>(value);
+      return CreatePSROIPoolingParams(_fbb, ptr, _rehasher).Union();
+    }
+    case SoftwareLayerParams_DeconvolutionParams: {
+      auto ptr = reinterpret_cast<const DeconvolutionParamsT *>(value);
+      return CreateDeconvolutionParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -7455,6 +7925,14 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_TileParams: {
       value = new TileParamsT(*reinterpret_cast<TileParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_PSROIPoolingParams: {
+      value = new PSROIPoolingParamsT(*reinterpret_cast<PSROIPoolingParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_DeconvolutionParams: {
+      FLATBUFFERS_ASSERT(false);  // DeconvolutionParamsT not copyable.
       break;
     }
     default:
@@ -7611,6 +8089,16 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_TileParams: {
       auto ptr = reinterpret_cast<TileParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_PSROIPoolingParams: {
+      auto ptr = reinterpret_cast<PSROIPoolingParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_DeconvolutionParams: {
+      auto ptr = reinterpret_cast<DeconvolutionParamsT *>(value);
       delete ptr;
       break;
     }
