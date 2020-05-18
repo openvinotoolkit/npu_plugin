@@ -31,7 +31,9 @@
 #include "kmb_test_power_def.hpp"
 #include "kmb_test_proposal_def.hpp"
 #include "kmb_test_psroipooling_def.hpp"
+#include "kmb_test_interp_def.hpp"
 #include "kmb_test_topk_def.hpp"
+#include "kmb_test_interp_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
