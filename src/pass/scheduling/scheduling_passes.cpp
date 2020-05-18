@@ -736,8 +736,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
-#define DEBUG_LAYOUT_PASS
-
 #ifdef DEBUG_LAYOUT_PASS
     std::cerr << "LayoutDMA: Begin\n";
 #endif
