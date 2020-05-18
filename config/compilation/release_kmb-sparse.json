@@ -199,6 +199,7 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
+            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
