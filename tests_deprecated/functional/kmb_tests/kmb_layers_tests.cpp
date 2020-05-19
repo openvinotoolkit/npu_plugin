@@ -33,9 +33,8 @@ void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map
         doNetworkInit(layer_type, params, weights_size, biases_size, weights, outputPrecision, inputPrecision););
 }
 
-void kmbLayersTests_nightly::setup(
-    InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision, bool useHWOpt) {
-    CNNNetwork network = _net_reader.getNetwork();
+void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
+    InferenceEngine::Precision inputPrecision, bool useHWOpt) {
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
@@ -57,12 +56,10 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::m
     InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
     std::string xml;
     genXML(layer_type, params, weights_size, biases_size, xml);
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
-    ASSERT_EQ(_net_reader.isParseSuccess(), true);
-    if (weights != nullptr) {
-        ASSERT_NO_THROW(_net_reader.SetWeights(weights));
-    }
-    setup(outputPrecision, inputPrecision, true);
+    Core ie;
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(xml, weights));
+    setup(network, outputPrecision, inputPrecision, true);
 }
 
 std::map<std::string, std::string> KmbPerLayerTest::getCommonConfig() const {

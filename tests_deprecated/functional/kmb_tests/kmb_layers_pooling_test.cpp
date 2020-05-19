@@ -121,11 +121,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
 
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(18828 + 128));
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    auto network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -187,10 +184,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     </net>
         )V0G0N";
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    auto network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);

@@ -92,15 +92,12 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
     REPLACE_WITH_STR(model, "<biases offset=\"6\" size=\"6\"/>", " ");
     REPLACE_WITH_STR(model, "<biases offset=\"18828\" size=\"128\"/>", " ");
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
     std::size_t weightSize = 6 + 18816;
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
+    Core ie;
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -118,10 +115,9 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
     extern std::string pooling_test2;
     const std::string model = pooling_test2;
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    auto network = _net_reader.getNetwork();
+    Core ie;
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
@@ -139,10 +135,9 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
     extern std::string relu_test_2;
     const std::string model = relu_test_2;
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    auto network = _net_reader.getNetwork();
+    Core ie;
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);

@@ -22,5 +22,6 @@ class IE_Core_Helper {
 public:
     InferenceEngine::Core ie;
     IE_Core_Helper();
+    void printRawBlob(const InferenceEngine::Blob::Ptr& blob, const size_t& sizeToPrint, const std::string& blobName = "");
     const std::string pluginName;
 };

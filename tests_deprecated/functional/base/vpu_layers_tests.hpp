@@ -22,6 +22,7 @@
 #include <random>
 #include "layers_reference_functions.hpp"
 #include "comparators.h"
+#include "ie_core.hpp"
 
 // clang-format on
 
@@ -134,9 +135,10 @@ protected:
     void AddLayer(const std::string& layer_type, const std::map<std::string, std::string>* params,
         const IN_OUT_desc& inDim, const IN_OUT_desc& outDim, func&& cl);
 
-    void ReferenceGraph();
+    void ReferenceGraph(const CNNNetwork& net);
     bool Infer();
-    bool GenerateNetAndInfer(bool useHWOpt = false, bool runRefGraph = true, int version = 2);
+    bool GenerateNetAndInfer(
+        const CNNNetwork& network, bool useHWOpt = false, bool runRefGraph = true, int version = 2);
     void SetInputReshape() { _doReshape = true; }
     void SetInputTensor(tensor_test_params const& tensor);
     void SetOutputTensor(tensor_test_params const& tensor);
@@ -170,9 +172,6 @@ protected:
         return weights;
     }
 
-    IE_SUPPRESS_DEPRECATED_START
-    InferenceEngine::CNNNetReader _net_reader;
-    IE_SUPPRESS_DEPRECATED_END
     InferenceEngine::ResponseDesc _resp;
     InferenceEngine::InputsDataMap _inputsInfo;
     InferenceEngine::BlobMap _inputMap;
@@ -324,8 +323,8 @@ protected:
 protected:
     ReferenceSequence _referenceGraph;
     std::vector<ObjectToGen> _testNet;
-    virtual void setup(
-        InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision, bool useHWOpt = false);
+    virtual void setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
+        InferenceEngine::Precision inputPrecision, bool useHWOpt = false);
 };
 
 /* This is limited implementation of functionality required for graphs generation.  */
@@ -347,7 +346,8 @@ void vpuLayersTests::AddLayer(const std::string& layer_type, const ParamsStruct*
     _referenceGraph.Add(inDim, outDim, nullptr, 0, 0, cl, new_layer.params);
 }
 
-inline bool vpuLayersTests::GenerateNetAndInfer(bool useHWOpt, bool runRefGraph, int version) {
+inline bool vpuLayersTests::GenerateNetAndInfer(
+    const CNNNetwork& network, bool useHWOpt, bool runRefGraph, int version) {
     if (_testNet.size() != _referenceGraph.callbacks.size()) {
         return false;
     }
@@ -356,7 +356,7 @@ inline bool vpuLayersTests::GenerateNetAndInfer(bool useHWOpt, bool runRefGraph,
         return _netInitialized;
     }
     if (runRefGraph) {
-        ReferenceGraph();
+        ReferenceGraph(network);
     }
     return Infer();
 }
