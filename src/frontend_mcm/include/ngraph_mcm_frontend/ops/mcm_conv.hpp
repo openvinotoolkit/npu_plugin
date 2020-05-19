@@ -33,7 +33,6 @@ public:
             const ngraph::CoordinateDiff& pads_begin,
             const ngraph::CoordinateDiff& pads_end,
             const ngraph::Strides& dilations,
-            const ngraph::Shape& output_shape,
             size_t group,
             const ngraph::element::Type& type);
 
