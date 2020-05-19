@@ -182,6 +182,49 @@ cp -r $MCM_HOME/install/* $KMB_PLUGIN_HOME/artifacts/mcmCompilerInstallPackage/ 
 git checkout -b <name_of_new_branch> && git add -A && git commit -m "integrate new version mcmCompiler" 
 ```
 
+### Manual vpualHost build
+
+#### How to build vpualHost for kmb-plugin
+1. To build ARM64 code you need [Yocto SDK].
+2. Clone the repository:
+```sh
+git clone git@github.com:movidius/vpualHost.git
+```
+3. Run the following script:
+```sh
+source /usr/local/oecore-x86_64/environment-setup-aarch64-ese-linux && \
+cd vpualHost && git checkout <The branch you need> && git submodule update --init --recursive && \
+mkdir build_aarch && mkdir install && export VPUAL_HOME=$(pwd) && git rev-parse HEAD > install/revision.txt && cd build_aarch && \
+cmake -DCMAKE_INSTALL_PREFIX=$VPUAL_HOME/install -DCMAKE_BUILD_TYPE=Release .. && make -j8 && make install
+```
+* The built package is located in the "$VPUAL_HOME/install" folder.
+* The current revision of vpualHost is stored in the revision.txt file.
+
+#### How to build kmb-plugin using custom vpualHost
+
+* Currently vpualHost is a pre-built package.
+* Default path: $KMB_PLUGIN_HOME/artifacts/vpualHostInstallPackage.
+* To use a specific package, you do not need to delete the existing default package in kmb-plugin storage.
+
+```
+export KMB_PLUGIN_HOME=<path to kmb-plugin> && \
+export DLDT_HOME=<path to dldt> && \
+export VPUAL_HOME=<path to vpualHost> && \
+mkdir -p $KMB_PLUGIN_HOME/build_aarch && \
+cd $KMB_PLUGIN_HOME/build_aarch && \
+cmake -DInferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build_aarch -DvpualHost_DIR=$VPUAL_HOME/install/share/vpualHost/ .. && make -j8
+```
+
+#### How to integrate vpualHost to kmb-plugin
+
+```
+export KMB_PLUGIN_HOME=<path to kmb-plugin> && \
+export VPUAL_HOME=<path to vpualHost> && \
+rm -rf $KMB_PLUGIN_HOME/artifacts/vpualHostInstallPackage/* && \
+cp -r $VPUAL_HOME/install/* $KMB_PLUGIN_HOME/artifacts/vpualHostInstallPackage/ && \
+git checkout -b <name_of_new_branch> && git add -A && git commit -m "integrate new version vpualHost"
+```
+
 ## Deployment to KMB board
 
 Deploy OpenVINO artifacts to the KMB board:
@@ -297,3 +340,4 @@ The number of shaves is `16`, maximal number of pipelines is `2`, maximal number
 [DLDT Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [VPU Wiki Accuracy Checker]: https://wiki.ith.intel.com/display/VPUWIKI/Set+up+and+Run+Accuracy+checker+on+ARM
+[Yocto SDK]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin/blob/master/README.md#yocto-sdk
