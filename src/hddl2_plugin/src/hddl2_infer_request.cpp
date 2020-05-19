@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
@@ -123,6 +124,8 @@ void HDDL2InferRequest::InferAsync() {
             THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        prepareInputForInference(inputBlobPtr);
+
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
             needUnitePreProcessing = true;
         }
@@ -172,6 +175,24 @@ void HDDL2InferRequest::InferAsync() {
 void HDDL2InferRequest::WaitInferDone() {
     IE_PROFILING_AUTO_SCOPE(WaitInferDone)
     _inferDataPtr->waitInferDone();
+}
+
+static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE::Layout layout) {
+    IE::Blob::Ptr newBlob =
+        make_blob_with_precision({blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout});
+    newBlob->allocate();
+    vpu::copyBlob(blob, newBlob);
+    return newBlob;
+}
+
+IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const ie::Blob::Ptr& actualInput) {
+    IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
+    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC) return actualInput;
+
+    _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+    IE::Blob::Ptr inputForInference;
+    inputForInference = reallocateBlobToLayout(actualInput, IE::Layout::NHWC);
+    return inputForInference;
 }
 
 void HDDL2InferRequest::GetResult() {
