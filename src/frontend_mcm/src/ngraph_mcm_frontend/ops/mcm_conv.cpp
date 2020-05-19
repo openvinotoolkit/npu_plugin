@@ -29,15 +29,15 @@ McmConv::McmConv(
         const ngraph::CoordinateDiff& pads_begin,
         const ngraph::CoordinateDiff& pads_end,
         const ngraph::Strides& dilations,
-        const ngraph::Shape& output_shape,
         size_t group,
         const ngraph::element::Type& type)
-            : ConvolutionIE(data, filters, strides, pads_begin, pads_end, dilations, output_shape, group), _type(type) {
+            : ConvolutionIE(data, filters, strides, dilations, pads_begin, pads_end, group), _type(type) {
     constructor_validate_and_infer_types();
 }
 
 void McmConv::validate_and_infer_types() {
-    set_output_type(0, _type, m_output_shape);
+    ConvolutionIE::validate_and_infer_types();
+    get_output_tensor().set_element_type(_type);
 }
 
 std::shared_ptr<ngraph::Node> McmConv::copy_with_new_args(const ngraph::NodeVector& new_args) const {
@@ -45,8 +45,7 @@ std::shared_ptr<ngraph::Node> McmConv::copy_with_new_args(const ngraph::NodeVect
     return std::make_shared<McmConv>(
         new_args.at(0), new_args.at(1),
         m_strides, m_pads_begin, m_pads_end,
-        m_dilations, m_output_shape, m_group,
-        _type);
+        m_dilations, m_group, _type);
 }
 
 #endif

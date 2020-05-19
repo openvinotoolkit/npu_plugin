@@ -101,7 +101,6 @@ QuantizeConvBiases::QuantizeConvBiases() {
         ngraph::Strides {1, 1},
         ngraph::CoordinateDiff {0, 0}, ngraph::CoordinateDiff {0, 0},
         ngraph::Strides {1, 1},
-        ngraph::Shape {1},
         1, ngraph::element::f32);
 
     const auto biases = std::make_shared<ngraph::op::Constant>(

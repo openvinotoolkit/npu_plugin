@@ -82,7 +82,7 @@ add_subdirectory(src/utils)
 if(ENABLE_TESTS)
     enable_testing()
     add_subdirectory(tests)
-    add_subdirectory(tests_experimental)
+    add_subdirectory(tests_deprecated)
 endif()
 
 add_subdirectory(tools)

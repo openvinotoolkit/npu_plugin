@@ -30,7 +30,7 @@ bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
         const auto mcmConv = std::make_shared<McmConv>(
             conv->input_value(0), conv->input_value(1),
             conv->get_strides(), conv->get_pads_begin(), conv->get_pads_end(),
-            conv->get_dilations(), conv->get_output_shape(), conv->get_group(),
+            conv->get_dilations(), conv->get_group(),
             conv->get_output_element_type(0));
 
         if (conv->get_input_size() == 2) {
