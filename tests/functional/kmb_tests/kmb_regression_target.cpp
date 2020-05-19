@@ -71,11 +71,8 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
         biasData[i] = 1lu;
     }
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(_net_reader.SetWeights(convolutionWeightsBuffer));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    auto network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, convolutionWeightsBuffer));
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);

@@ -159,13 +159,8 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
 
     const std::string model = instantiateConvTestIR(allTestParams);
 
-    IE_SUPPRESS_DEPRECATED_START
-    CNNNetReader reader;
-    ASSERT_NO_THROW(reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_NO_THROW(reader.SetWeights(weightsBuffer));
-    ASSERT_TRUE(reader.isParseSuccess());
-    const CNNNetwork network = reader.getNetwork();
-    IE_SUPPRESS_DEPRECATED_END
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBuffer));
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -472,11 +467,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     std::size_t biasSize = 0;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    CNNNetwork network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);

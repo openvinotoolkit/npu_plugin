@@ -46,8 +46,8 @@ private:
         InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32,
         InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16);
 
-    void setup(InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision,
-        bool useHWOpt = false) override;
+    void setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
+        InferenceEngine::Precision inputPrecision, bool useHWOpt = false);
 };
 
 template <class T>

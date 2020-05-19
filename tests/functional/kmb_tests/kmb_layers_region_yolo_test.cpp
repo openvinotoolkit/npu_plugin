@@ -62,10 +62,8 @@ static const std::string model_regionYolo = R"V0G0N(
 TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
     std::string model = model_regionYolo;
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    CNNNetwork network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["data"]->setPrecision(Precision::FP16);
