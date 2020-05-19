@@ -240,78 +240,8 @@ namespace mv
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
-            // size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
-            // {
-            //     // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
-            //     Shape worstStreamPool = streamingPool;
-
-            //     Shape tensorShape = tensorToSize->getShape();
-            //     //update the streamingPool to the worst combination, based on slice sizes
-            //     size_t outputSize;
-            //     size_t numberOfSplits;
-            //     if(streamingPool["H"] > 1) // If streaming over H
-            //     {
-            //         outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-            //         numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
-            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-            //         int newOutputSize = newOutputSizes.front();
-
-            //         int remainderOutputSize = newOutputSizes.back();
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         // TODO determine when there will be overlap, for now consider worst case scenario of +2
-            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
-
-            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-            //         worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-            //     }
-            //     else if(streamingPool["B"] > 1) // If streaming over N
-            //     {
-            //         outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-            //         numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-            //         int newOutputSize = newOutputSizes.front();
-
-            //         int remainderOutputSize = newOutputSizes.back();
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         auto worstNumberOfSplits = outputSize/newOutputSize;
-            //         worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-            //     }
-            //     if (streamingPool["K"] > 1)
-            //     {
-            //         outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
-            //         numberOfSplits = streamingPool["K"];
-            //         int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
-
-            //         int remainderOutputSize = outputSize - (newOutputSize*(numberOfSplits -1));
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         // TODO determine when there will be overlap
-            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
-
-            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-            //         worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
-            //     }
-
-            //     //TODO add handling for weights case if we dont align it to 16 always
-            //     size_t streamDivisor = 1;
-            //     for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
-            //     {
-            //         streamDivisor = streamDivisor * worstStreamPool[dim];
-            //     }
-
-            //     if(isCMConv)
-            //         return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
-
-            //     return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
-            // }
-
-            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, size_t kHeight)
             {
                 // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -337,8 +267,11 @@ namespace mv
                     if (remainderOutputSize > newOutputSize)
                         newOutputSize = remainderOutputSize;
 
-                    // TODO determine when there will be overlap, for now consider worst case scenario of +2
-                    double worstNumberOfSplits = ((double)outputSize/(newOutputSize+2));
+                    int extraLines = 2;
+                    if(kHeight > 2)
+                        extraLines = kHeight;
+                    
+                    double worstNumberOfSplits = ((double)outputSize/(newOutputSize+extraLines));
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
@@ -435,11 +368,16 @@ namespace mv
                 if(enableChannelMajorConv and opType == "Conv" and
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     isCMConv = true;
+
+                size_t kHeight = -1;
+                if(opType == "Conv")
+                    kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
+
                 if(opType != "Input"){
-                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv);
+                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, kHeight);
                 }
                 if(opType != "Output"){
-                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv);
+                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, kHeight);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -470,7 +408,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0; //TODO think about
-                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv);
+                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv, kHeight);
                 }
 
                 //Additional memory footprint for sparsity
@@ -653,21 +591,21 @@ namespace mv
 
                 vector<size_t> splits;
 
+                //Add max split
+                splits.push_back(alignedOutputChannelSize/16);
+
                 // For each aligned-to-16 number of output channels possibility, add only the 
                 // minimum number of streams over k that will be aligned to that number
                 for(unsigned channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
                     auto possibleK = findBestK(alignedOutputChannelSize, channels);
-                    if(splits.back() != possibleK and possibleK >= 1){
+                    if(splits.back() != possibleK and possibleK >= 1)
                         splits.push_back(possibleK);
-                    }
                 }
-                auto lastK = splits.back();
-                if(lastK > 2){
+                if(splits.back() > 2)
                     splits.push_back(2);
+
+                if(splits.back() > 1)
                     splits.push_back(1);
-                }else if(lastK == 2){
-                    splits.push_back(1);
-                }
 
                 return splits;
             }
@@ -897,7 +835,7 @@ namespace mv
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
-                    if(fit.first + fit.second > clusterMemory)
+                    if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
 
