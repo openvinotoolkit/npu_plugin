@@ -930,12 +930,14 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     unsigned int i = 0; //counts the slices on the 0x axis
     unsigned int j = 0; //counts the slices on the 0y axis
     do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
-        do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis 
-            beginInputShape = { (unsigned long)( (i)*widthSlice - (( initialPadding[mv::PADDING_LEFT] && (i > 0) ) ? kSize[mv::KERNEL_WIDTH]/2 : 0 )),  // overlap horizontal from previous slice
-                                (unsigned long)( (j)*heightSlice - (( initialPadding[mv::PADDING_TOP] && (j > 0)) ? kSize[mv::KERNEL_HEIGHT]/2 : 0 )), // overlap vertical from previous slice
+        do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis
+            //start new tile from the boundaries, with origin at the strides
+            beginInputShape = { (unsigned long)( (i)*widthSlice),
+                                (unsigned long)( (j)*heightSlice),
                                 0, 0};
-            branchWidth = widthSlice + (!initialPadding[mv::PADDING_LEFT] ? 0 : (i == 0) || (i == hslices) ? kSize[mv::KERNEL_WIDTH]/2 :  std::floor(kSize[mv::KERNEL_WIDTH]/2)*2);
-            branchHeight = heightSlice + (!initialPadding[mv::PADDING_TOP] ? 0 : (j == 0) || (j == vslices) ? kSize[mv::KERNEL_HEIGHT]/2 :  std::floor(kSize[mv::KERNEL_HEIGHT]/2)*2);
+            //window of the slice equal to the kernel size as the stride becomes 1x1 so we have one operation per slicing with strides dimension
+            branchWidth = kSize[mv::KERNEL_WIDTH];
+            branchHeight = kSize[mv::KERNEL_HEIGHT];
             branchInputSize = {branchWidth,
                                 branchHeight,
                                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
