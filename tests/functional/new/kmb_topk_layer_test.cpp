@@ -54,7 +54,7 @@ class KmbTopKLayerTests : public KmbLayerTestBase, public testing::WithParamInte
 // Sсalar blob is unsupported
 // Layers with multiple outputs is unsupported
 // [Track number: S#31485/S#31238]
-TEST_P(KmbTopKLayerTests, DISABLED_Top_EqualWithCPU) {
+TEST_P(KmbTopKLayerTests, Top_EqualWithCPU) {
 
     const auto& p = GetParam();
 
@@ -71,10 +71,7 @@ TEST_P(KmbTopKLayerTests, DISABLED_Top_EqualWithCPU) {
 
     auto scalarKTensorDesc = TensorDesc(Precision::I64, {}, Layout::SCALAR);
     registerBlobGenerator("scalarK", scalarKTensorDesc, [&](const TensorDesc& desc) {
-        auto blob = make_plain_blob(desc.getPrecision(), {});
-        blob->allocate();
-        blob->buffer().as<uint64_t*>()[0] = 1l;
-        return blob;
+        return makeSingleValueBlob(desc, 1l);
     });
 
     const auto netBuidler = [&](TestNetwork& testNet) {
@@ -84,8 +81,8 @@ TEST_P(KmbTopKLayerTests, DISABLED_Top_EqualWithCPU) {
                 .input("input")
                 .scalarK(getBlobByName("scalarK"))
                 .build()
-            .addNetOutput(PortInfo("topk"))
-            .setUserOutput(PortInfo("topk"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .addNetOutput(PortInfo("topk", 1))
+            .setUserOutput(PortInfo("topk", 1), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .finalize();
     };
 
@@ -101,4 +98,3 @@ const std::vector<TopKTestParams> topkParams {
 };
 
 INSTANTIATE_TEST_CASE_P(TopK, KmbTopKLayerTests, testing::ValuesIn(topkParams));
-
