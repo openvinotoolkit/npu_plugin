@@ -22,6 +22,7 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "PWLUsage": true,
                 "split_strategy" :
                 [
                     {
@@ -103,6 +104,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PreprocessForPWL",
             "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
@@ -214,6 +216,7 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
+            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -280,7 +283,8 @@
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "PopulateInstructionListTables"
         ]
     },
     "scheduling": {

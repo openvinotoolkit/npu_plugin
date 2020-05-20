@@ -371,10 +371,10 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  //quantized to 13-bits, then runtime uses a LUT to correspond to 8-bit
                  if (opIt->hasAttr("postOpTypes"))
                  {
-                     auto ppeIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                     auto ppeSigmoidIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
                                                opIt->get<std::vector<std::string>>("postOpTypes").end(),
                                                "Sigmoid");
-                     if (ppeIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+                     if (ppeSigmoidIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
                      {
                         auto ppeQuantumBits = 5;
                         auto ppeQuantum = std::pow(2, ppeQuantumBits);
@@ -417,6 +417,20 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                  std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
                  std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
                  outputQuantization.quantize(ser_shift, ser_scale);
+                 if (opIt->hasAttr("postOpTypes"))
+                 {
+                     signed postShift = 0;
+                     auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                                               opIt->get<std::vector<std::string>>("postOpTypes").end(),
+                                               "FLEXARB");
+                     if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+                        postShift = 4;
+                     mv::QuantizationParams postQuantization = {{outputQuantization.getZeroPoint()},{outputQuantization.getScale()},
+                                                                {outputQuantization.getMin()},{outputQuantization.getMax()},
+                                                                ser_shift, ser_scale, postShift};
+                    output->set<mv::QuantizationParams>("quantParams", postQuantization);
+                 }
+
             }
         }
 
