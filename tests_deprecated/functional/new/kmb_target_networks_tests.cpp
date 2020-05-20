@@ -68,7 +68,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% spar
         1, 0.05f);
 }
 
-// KMB : Hangs on infer stage 
+// KMB : Hangs on infer stage
 // [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% sparsity
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
@@ -142,7 +142,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_SparseV1_TF_IRv7_MobileNet_V2) {  /
         1, 0.05f);
 }
 
-// KMB : Bad inference results. 
+// KMB : Bad inference results.
 // [Track number: D#2246 D#2691]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% sparsity
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results, mixed up top2 classes");
@@ -156,7 +156,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% s
         1, 0.05f);
 }
 
-// KMB : Bad inference results. 
+// KMB : Bad inference results.
 // [Track number: D#2246]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
@@ -213,7 +213,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
         1, 0.05f);
 }
 
-// KMB : Hangs on infer stage 
+// KMB : Hangs on infer stage
 // [Track number: D#2293]
 TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
@@ -699,7 +699,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPresision("output", Precision::FP32),
             TestImageDesc("224x224/watch.bmp", false),
-            1, 2.6f);
+            1, 2.62f);
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
