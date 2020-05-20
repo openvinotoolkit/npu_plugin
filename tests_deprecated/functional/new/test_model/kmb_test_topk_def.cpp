@@ -59,10 +59,8 @@ BlobVector refTopK(const TestNetwork::NodePtr& layer, const BlobVector& inputs, 
 
     ngraph::runtime::reference::topk(inputPtr, outputIndicesPtr, outputValuesPtr, layer->input(0).get_shape(),
         layer->output(0).get_shape(), axis, k, computeMax, sortType);
-    if (ngraph::op::v1::TopK::SortType::SORT_VALUES == sortType) {
-        return {outputValues};
-    }
-    return {outputIndices};
+
+    return {outputValues, outputIndices};
 };
 
 }  // namespace
