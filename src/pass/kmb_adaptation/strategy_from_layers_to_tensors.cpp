@@ -114,12 +114,14 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             || opType == "Concat" || opType == "ImplicitOutput" || opType == "ImplicitUnion")
         {
             if(!(layer->getInputTensor(0)->hasAttr("splitStrategy"))){
-                // HACK In this case we've found a priorbox concat, set all it's input tensors
+                // In this case we've found a concat with some populated inputs, set all it's input tensors
                 // to have strategy and location in the blob
                 auto input = layer.leftmostInput();
                 while(input != om.flowEnd()){
-                    input->getTensor()->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::BLOB);
-                    input->getTensor()->set<std::string>("splitStrategy", std::string("Clustering"));
+                    if(!input->getTensor()->hasAttr("splitStrategy"))
+                    {
+                        input->getTensor()->set<std::string>("splitStrategy", std::string("Clustering"));
+                    }
                     ++input;
                 }
             }
