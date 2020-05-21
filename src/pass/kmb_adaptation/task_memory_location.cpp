@@ -96,7 +96,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
                 size_t numInputs = 1;
                 if (isElementWise)
-                    numInputs = opIt->inputSlots();
+                    numInputs++;
 
                 for (size_t i = 0; i < numInputs; i++)
                 {
