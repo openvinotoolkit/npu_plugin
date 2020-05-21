@@ -85,7 +85,7 @@ static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     return toBuild;
 }
 
-static std::vector<char> serializeMetaData(const char* memBlobData, const InferenceEngine::InputsDataMap& inputInfo,
+std::vector<char> serializeMetaData(const char* memBlobData, const InferenceEngine::InputsDataMap& inputInfo,
     const InferenceEngine::OutputsDataMap& outputInfo) {
     const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(memBlobData);
     MVCNN::GraphFileT graphFileInstance;
