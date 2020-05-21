@@ -91,8 +91,10 @@ struct NNDMATaskT : public flatbuffers::NativeTable {
   std::unique_ptr<TensorReferenceT> src;
   std::unique_ptr<TensorReferenceT> dst;
   bool compression;
+  uint8_t port;
   NNDMATaskT()
-      : compression(false) {
+      : compression(false),
+        port(0) {
   }
 };
 
@@ -101,7 +103,8 @@ struct NNDMATask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SRC = 4,
     VT_DST = 6,
-    VT_COMPRESSION = 8
+    VT_COMPRESSION = 8,
+    VT_PORT = 10
   };
   /// The NNDMA has a few additional features.
   /// multiple destination tensors represents copy to several locations
@@ -117,6 +120,10 @@ struct NNDMATask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   bool compression() const {
     return GetField<uint8_t>(VT_COMPRESSION, 0) != 0;
   }
+  /// DMA port which the DMA task will execute on
+  uint8_t port() const {
+    return GetField<uint8_t>(VT_PORT, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_SRC) &&
@@ -124,6 +131,7 @@ struct NNDMATask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            VerifyOffset(verifier, VT_DST) &&
            verifier.VerifyTable(dst()) &&
            VerifyField<uint8_t>(verifier, VT_COMPRESSION) &&
+           VerifyField<uint8_t>(verifier, VT_PORT) &&
            verifier.EndTable();
   }
   NNDMATaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -143,6 +151,9 @@ struct NNDMATaskBuilder {
   void add_compression(bool compression) {
     fbb_.AddElement<uint8_t>(NNDMATask::VT_COMPRESSION, static_cast<uint8_t>(compression), 0);
   }
+  void add_port(uint8_t port) {
+    fbb_.AddElement<uint8_t>(NNDMATask::VT_PORT, port, 0);
+  }
   explicit NNDMATaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -159,10 +170,12 @@ inline flatbuffers::Offset<NNDMATask> CreateNNDMATask(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<TensorReference> src = 0,
     flatbuffers::Offset<TensorReference> dst = 0,
-    bool compression = false) {
+    bool compression = false,
+    uint8_t port = 0) {
   NNDMATaskBuilder builder_(_fbb);
   builder_.add_dst(dst);
   builder_.add_src(src);
+  builder_.add_port(port);
   builder_.add_compression(compression);
   return builder_.Finish();
 }
@@ -210,6 +223,7 @@ inline void NNDMATask::UnPackTo(NNDMATaskT *_o, const flatbuffers::resolver_func
   { auto _e = src(); if (_e) _o->src = std::unique_ptr<TensorReferenceT>(_e->UnPack(_resolver)); };
   { auto _e = dst(); if (_e) _o->dst = std::unique_ptr<TensorReferenceT>(_e->UnPack(_resolver)); };
   { auto _e = compression(); _o->compression = _e; };
+  { auto _e = port(); _o->port = _e; };
 }
 
 inline flatbuffers::Offset<NNDMATask> NNDMATask::Pack(flatbuffers::FlatBufferBuilder &_fbb, const NNDMATaskT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -223,11 +237,13 @@ inline flatbuffers::Offset<NNDMATask> CreateNNDMATask(flatbuffers::FlatBufferBui
   auto _src = _o->src ? CreateTensorReference(_fbb, _o->src.get(), _rehasher) : 0;
   auto _dst = _o->dst ? CreateTensorReference(_fbb, _o->dst.get(), _rehasher) : 0;
   auto _compression = _o->compression;
+  auto _port = _o->port;
   return MVCNN::CreateNNDMATask(
       _fbb,
       _src,
       _dst,
-      _compression);
+      _compression,
+      _port);
 }
 
 }  // namespace MVCNN

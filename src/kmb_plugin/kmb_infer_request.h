@@ -36,7 +36,6 @@ namespace KmbPlugin {
 
 class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbExecutor::Ptr _executor;
-    InferenceEngine::Layout _deviceLayout;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
 
@@ -76,11 +75,13 @@ protected:
     void dumpOutputBlobHelper(const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst);
 
 private:
-    InferenceEngine::Blob::Ptr _blobWithResult;
     Logger::Ptr _logger;
 
     InferenceEngine::Blob::Ptr prepareInputForInference(
         const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::TensorDesc& expectedDesc);
+
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 };
 
 }  // namespace KmbPlugin

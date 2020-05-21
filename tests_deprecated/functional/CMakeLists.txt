@@ -43,6 +43,11 @@ addIeTargetTest(
             VPU
 )
 
+add_dependencies(${TARGET_NAME} kmbPlugin)
+if (X86 OR X86_64)
+    add_dependencies(${TARGET_NAME} HDDL2Plugin VPUXPlugin)
+endif()
+
 target_compile_options(${TARGET_NAME}
     PRIVATE
         -Wall

@@ -24,6 +24,7 @@
 
 #include "converters.h"
 #include "hddl2_params.hpp"
+#include "ie_memcpy.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -168,8 +169,8 @@ void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& bl
         auto repackedBlobMemory = repackedBlobLockedMemory.as<uint8_t*>();
         if (repackedBlobMemory == nullptr) THROW_IE_EXCEPTION << "Failed to allocate memory for blob";
 
-        memcpy(repackedBlobMemory, yPlaneMemory, yPlane->size());
-        memcpy(repackedBlobMemory + yPlane->size(), uvPlaneMemory, uvPlane->size());
+        ie_memcpy(repackedBlobMemory, yPlane->size(), yPlaneMemory, yPlane->size());
+        ie_memcpy(repackedBlobMemory + yPlane->size(), uvPlane->size(), uvPlaneMemory, uvPlane->size());
     }
     _repackedBlob = repackedBlob;
 }
@@ -202,9 +203,9 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
         THROW_IE_EXCEPTION << "Failed to create blob description for " << layout << " layout.";
     }
 
-    blobDesc.m_res_height = dims[H_index];
-    blobDesc.m_res_width = blobDesc.m_width_stride = dims[W_index];
-    blobDesc.m_plane_stride = blobDesc.m_width_stride * blobDesc.m_res_height;
+    blobDesc.m_resHeight = dims[H_index];
+    blobDesc.m_resWidth = blobDesc.m_widthStride = dims[W_index];
+    blobDesc.m_planeStride = blobDesc.m_widthStride * blobDesc.m_resHeight;
 
     if (_blobPtr->is<IE::NV12Blob>() || _roiPtr != nullptr) {
         if (_roiPtr != nullptr) {
@@ -213,7 +214,7 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
                 static_cast<int32_t>(_roiPtr->sizeY)};
             blobDesc.m_rect.push_back(roi0);
         } else {
-            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_res_width, blobDesc.m_res_height};
+            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_resWidth, blobDesc.m_resHeight};
             blobDesc.m_rect.push_back(rect0);
         }
     }

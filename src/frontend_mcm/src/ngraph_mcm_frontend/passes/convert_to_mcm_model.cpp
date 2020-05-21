@@ -101,7 +101,9 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     // MCM Compiler requirements
     IE_ASSERT(mv::DType("UInt8") == mvDType);
     IE_ASSERT(mv::Order("NHWC") == mvOrder);
-    const auto mcmOutput = mcmModel.input(mvShape, mvDType, mvOrder, mvQuantParams, opName);
+
+	bool mvNetworkInput = true;
+    const auto mcmOutput = mcmModel.input(mvShape, mvDType, mvOrder, mvQuantParams, mvNetworkInput, opName);
 
     registerOutputs(param, {mcmOutput}, mcmOutputsMap);
 }

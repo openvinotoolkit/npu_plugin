@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "InferData.h"
 #include "InferGraph.h"
 #include "blob_descriptor.h"
 #include "hddl2_remote_context.h"
@@ -48,6 +49,8 @@ public:
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
     void waitInferDone() const;
 
+    void getHddlUnitePerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
+
     /**
      * @brief Wait when inference is done and get result from HddlUnite
      */
@@ -64,6 +67,12 @@ private:
 
     const bool _haveRemoteContext;
     const bool _needUnitePreProcessing;
+
+    // TODO [Workaround] Avoid allocation buffer each time
+    std::once_flag _onceFlagInputAllocations;
+    std::once_flag _onceFlagOutputAllocations;
+
+    HddlUnite::Inference::InferData::ProfileData _profileData = {};
 };
 
 }  // namespace HDDL2Plugin

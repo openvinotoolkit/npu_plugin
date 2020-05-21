@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include <helper_ie_core.h>
+
 #include <blob_factory.hpp>
 #include <ie_core.hpp>
 
@@ -26,7 +28,7 @@
 
 namespace IE = InferenceEngine;
 
-class ImageWorkload_Tests : public ::testing::Test {
+class ImageWorkload_Tests : public IE_Core_Helper, public ::testing::Test {
 public:
     std::string graphPath;
     std::string refInputPath;
@@ -36,34 +38,12 @@ public:
 
 protected:
     void SetUp() override;
-    static void printRawBlob(const IE::Blob::Ptr& blob, const size_t& sizeToPrint, const std::string& blobName = "");
 };
 
 void ImageWorkload_Tests::SetUp() {
     graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
     refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
     refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
-}
-
-void ImageWorkload_Tests::printRawBlob(
-    const IE::Blob::Ptr& blob, const size_t& sizeToPrint, const std::string& blobName) {
-    if (blob->size() < sizeToPrint) {
-        THROW_IE_EXCEPTION << "Blob size is smaller then required size to print.\n"
-                              "Blob size: "
-                           << blob->size() << " sizeToPrint: " << sizeToPrint;
-    }
-    if (blob->getTensorDesc().getPrecision() != IE::Precision::U8) {
-        THROW_IE_EXCEPTION << "Unsupported precision";
-    }
-
-    auto mBlob = IE::as<IE::MemoryBlob>(blob);
-    auto mappedMemory = mBlob->rmap();
-    uint8_t* data = mappedMemory.as<uint8_t*>();
-    std::cout << "uint8_t output raw data" << (blobName.empty() ? "" : " for " + blobName) << "\t: " << std::hex;
-    for (size_t i = 0; i < sizeToPrint; ++i) {
-        std::cout << unsigned(data[i]) << " ";
-    }
-    std::cout << std::endl;
 }
 
 //------------------------------------------------------------------------------

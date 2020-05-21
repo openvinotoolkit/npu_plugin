@@ -117,11 +117,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-    ASSERT_NO_THROW(_net_reader.SetWeights(weightsBlob));
-
-    auto network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -182,10 +179,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     </net>
         )V0G0N";
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(model.data(), model.length()));
-    ASSERT_TRUE(_net_reader.isParseSuccess());
-
-    auto network = _net_reader.getNetwork();
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -221,10 +216,9 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     std::string xml;
     genXML("ReLU", &params, 0, 0, xml);
 
-    ASSERT_NO_THROW(_net_reader.ReadNetwork(xml.data(), xml.length()));
-    ASSERT_EQ(_net_reader.isParseSuccess(), true);
+    CNNNetwork network;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(xml, Blob::CPtr()));
 
-    CNNNetwork network = _net_reader.getNetwork();
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(Precision::U8);

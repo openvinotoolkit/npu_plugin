@@ -388,5 +388,6 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     // --- Compare with expected output
     ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
     ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, outputRefBlob, reducedNumberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(outputBlob, outputRefBlob, reducedNumberOfTopClassesToCompare));
 }

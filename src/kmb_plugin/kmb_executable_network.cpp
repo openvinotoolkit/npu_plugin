@@ -81,7 +81,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
     if (kmb_use_ngraph || _config.useNGraphParser()) {
         if (const auto func = network.getFunction()) {
-            std::cout << "Using NGraph parser" << std::endl;
+            _logger->info("Using NGraph parser");
             InputsDataMap inputsInfo;
             network.getInputsInfo(inputsInfo);
 
@@ -90,12 +90,14 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
             _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
         } else {
-            std::cout << "Failed to read NGraph func" << std::endl;
+            _logger->warning("Failed to read NGraph network");
         }
     } else {
-        std::cout << "NGraph parser disabled" << std::endl;
+        _logger->info("NGraph parser disabled");
     }
+
     if (_graphBlob.empty()) {
+        _logger->info("Using CNNNetwork parser");
 #ifdef ENABLE_MCM_COMPILER
         // HACK: convert nGraph to old CNNNetwork to fix LP transformations
 

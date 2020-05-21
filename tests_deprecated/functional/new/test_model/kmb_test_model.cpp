@@ -59,6 +59,13 @@ Precision typeToPrecision(const ngraph::element::Type& type) {
     }
 }
 
+std::string createNameWithPort(const std::string &origName, const int &numberOfPorts, const int &portId) {
+    std::string finalName = origName;
+    if (numberOfPorts > 1) {
+        finalName += "." + std::to_string(portId);
+    }
+    return finalName;
+}
 }  // namespace
 
 TestNetwork::TestNetwork(const TestNetwork& other) :
@@ -177,8 +184,11 @@ TestNetwork& TestNetwork::setUserOutput(
         const Layout& layout) {
     IE_ASSERT(_func == nullptr);
 
-    _outputPrecisions[port.layerName] = precision;
-    _outputLayouts[port.layerName] = layout;
+    auto outputNode = _nodes[port.layerName];
+    auto outputCount = outputNode->outputs().size();
+    auto finalPortName = createNameWithPort(port.layerName, outputCount, port.index);
+    _outputPrecisions[finalPortName] = precision;
+    _outputLayouts[finalPortName] = layout;
 
     return *this;
 }
@@ -304,7 +314,6 @@ BlobMap TestNetwork::calcRef(const BlobMap& inputs) const {
         } else if (const auto result = std::dynamic_pointer_cast<ngraph::op::Result>(op)) {
             const auto prev = result->input(0).get_source_output();
             const auto prevCall = callsMap.at(prev.get_node_shared_ptr());
-
             outputCalls.insert({prevCall, prev.get_index()});
         } else {
             auto callNode = std::make_shared<CallNode>();
@@ -364,11 +373,13 @@ BlobMap TestNetwork::calcRef(const BlobMap& inputs) const {
         const auto& callNode = p.first;
         IE_ASSERT(callNode != nullptr);
         IE_ASSERT(callNode->op != nullptr);
-
         const auto& output = callNode->outputs.at(p.second);
         IE_ASSERT(output != nullptr);
+        auto outputName = createNameWithPort(callNode->op->get_friendly_name(),
+                                             callNode->op->outputs().size(),
+                                             p.second);
 
-        outputs.insert({callNode->op->get_friendly_name(), output});
+        outputs.insert({outputName, output});
     }
 
     return outputs;
@@ -402,7 +413,10 @@ std::vector<DataPtr> TestNetwork::getOutputsInfo() const {
     for (const auto& result : _results) {
         const auto prev = result->input(0).get_source_output();
 
-        const auto& outputName = prev.get_node()->get_friendly_name();
+        const auto& outputName = createNameWithPort(prev.get_node()->get_friendly_name(),
+                                                    prev.get_node()->outputs().size(),
+                                                    prev.get_index());
+
         const auto info = prev.get_node()->output(prev.get_index());
 
         const auto precisionIt = _outputPrecisions.find(outputName);

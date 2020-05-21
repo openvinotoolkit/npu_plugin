@@ -27,6 +27,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
@@ -112,12 +113,19 @@ void HDDL2InferRequest::InferImpl() {
 }
 
 void HDDL2InferRequest::InferAsync() {
+    IE_PROFILING_AUTO_SCOPE(InferAsync)
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needUnitePreProcessing = false;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
-        const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+        auto foundInputBlob = _inputs.find(inputName);
+        if (foundInputBlob == _inputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        prepareInputForInference(inputBlobPtr);
+
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
             needUnitePreProcessing = true;
         }
@@ -126,7 +134,9 @@ void HDDL2InferRequest::InferAsync() {
         }
     }
 
-    _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
+    std::call_once(_onceFlagInferData, [&] {
+        _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
+    });
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
@@ -139,14 +149,22 @@ void HDDL2InferRequest::InferAsync() {
 
             _inferDataPtr->prepareUniteInput(blobForPreprocessing, inputDesc);
         } else {
-            const IE::Blob::Ptr inputBlobPtr = _inputs.find(inputName)->second;
+            auto foundInputBlob = _inputs.find(inputName);
+            if (foundInputBlob == _inputs.end()) {
+                THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+            }
+            const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
             _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
         }
     }
 
     for (const auto& networkOutput : _networkOutputs) {
         const std::string outputName = networkOutput.first;
-        const IE::Blob::Ptr outputBlobPtr = _outputs.find(outputName)->second;
+        auto foundOutputBlob = _outputs.find(outputName);
+        if (foundOutputBlob == _outputs.end()) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
         _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
     }
@@ -154,9 +172,31 @@ void HDDL2InferRequest::InferAsync() {
     _loadedGraphPtr->InferAsync(_inferDataPtr);
 }
 
-void HDDL2InferRequest::WaitInferDone() { _inferDataPtr->waitInferDone(); }
+void HDDL2InferRequest::WaitInferDone() {
+    IE_PROFILING_AUTO_SCOPE(WaitInferDone)
+    _inferDataPtr->waitInferDone();
+}
+
+static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE::Layout layout) {
+    IE::Blob::Ptr newBlob =
+        make_blob_with_precision({blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout});
+    newBlob->allocate();
+    vpu::copyBlob(blob, newBlob);
+    return newBlob;
+}
+
+IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const ie::Blob::Ptr& actualInput) {
+    IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
+    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC) return actualInput;
+
+    _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+    IE::Blob::Ptr inputForInference;
+    inputForInference = reallocateBlobToLayout(actualInput, IE::Layout::NHWC);
+    return inputForInference;
+}
 
 void HDDL2InferRequest::GetResult() {
+    IE_PROFILING_AUTO_SCOPE(GetResult)
     if (_networkOutputs.size() != 1) {
         THROW_IE_EXCEPTION << "Only one output is supported!";
     }
@@ -208,8 +248,9 @@ void HDDL2InferRequest::GetResult() {
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
-    UNUSED(perfMap);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    if (_config.performance_counting()) {
+        _inferDataPtr->getHddlUnitePerfCounters(perfMap);
+    }
 }
 
 void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {

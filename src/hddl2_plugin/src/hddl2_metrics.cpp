@@ -29,6 +29,17 @@ HDDL2Metrics::HDDL2Metrics() {
     _supportedMetrics = {
         METRIC_KEY(SUPPORTED_METRICS),
         METRIC_KEY(AVAILABLE_DEVICES),
+        METRIC_KEY(FULL_DEVICE_NAME),
+        METRIC_KEY(SUPPORTED_CONFIG_KEYS),
+        METRIC_KEY(OPTIMIZATION_CAPABILITIES),
+        METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS),
+        METRIC_KEY(RANGE_FOR_STREAMS),
+    };
+
+    _supportedConfigKeys = {
+        VPU_KMB_CONFIG_KEY(PLATFORM),
+        CONFIG_KEY(DEVICE_ID),
+        CONFIG_KEY(LOG_LEVEL),
     };
 }
 
@@ -63,3 +74,16 @@ bool HDDL2Metrics::isServiceAvailable() {
 
     return specifiedService.good() || defaultService.good();
 }
+
+// TODO: Need to add the full name
+std::string HDDL2Metrics::GetFullDevicesNames() { return {""}; }
+
+const std::vector<std::string>& HDDL2Metrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
+
+const std::vector<std::string>& HDDL2Metrics::GetOptimizationCapabilities() const { return _optimizationCapabilities; }
+
+const std::tuple<uint32_t, uint32_t, uint32_t>& HDDL2Metrics::GetRangeForAsyncInferRequest() const {
+    return _rangeForAsyncInferRequests;
+}
+
+const std::tuple<uint32_t, uint32_t>& HDDL2Metrics::GetRangeForStreams() const { return _rangeForStreams; }
