@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": true,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 5,
@@ -301,7 +301,8 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 8,
               "barrier_bound" : 4,
-              "producer_bound" : 256
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : false
             },
             {
                 "name": "GenerateDot",
