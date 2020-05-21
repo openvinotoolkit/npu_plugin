@@ -1,4 +1,13 @@
 ///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
 /// @file      GraphManagerPlg.h
 /// @copyright All code copyright Movidius Ltd 2018, all rights reserved.
 ///            For License Warranty see: common/license.txt
@@ -11,6 +20,7 @@
 #include "Flic.h"
 #include "Message.h"
 #include "NN_Types.h"
+#include <vector>
 
 #include "Pool.h"
 
@@ -39,7 +49,7 @@ class NNFlicPlg : public PluginStub{
   public:
 
     /** Constructor. */
-    NNFlicPlg(uint32_t device_id) : PluginStub("NNFlicDecoder", device_id), output{device_id}, inferenceOutput{device_id} {}
+    NNFlicPlg(uint32_t device_id = 0) : PluginStub("NNFlicDecoder", device_id), output{device_id}, inferenceOutput{device_id} {}
 
     void Create(BlobHandle_t * Blhdl);
     // void Delete();
@@ -47,6 +57,7 @@ class NNFlicPlg : public PluginStub{
 
     void SetNumberOfThreads(int32_t threadNum);
     void SetNumberOfShaves(int32_t shaves);
+    void SetScratchBuffer(const std::vector<void *> &physAddrs) const;
 
     NNPlgState GetLatestState();
 
@@ -54,11 +65,13 @@ class NNFlicPlg : public PluginStub{
     unsigned int GetNumberOfOutputs() const;
     unsigned int GetMaxNumberOfThreads() const;
     unsigned int GetMaxNumberOfShaves() const;
+    unsigned int GetMemoryRequirements() const;
 
     unsigned int GetNumberOfStages() const;
 
     uint32_t *GetBlobVersion() const;
     flicTensorDescriptor_t GetInputTensorDescriptor(unsigned int index) const;
     flicTensorDescriptor_t GetOutputTensorDescriptor(unsigned int index) const;
+
 };
 #endif // __NNFLIC_PLG_H__

@@ -1,4 +1,13 @@
 ///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
 /// @file      PlgOTXout.h
 /// @copyright All code copyright Movidius Ltd 2018, all rights reserved.
 ///            For License Warranty see: common/license.txt
@@ -46,6 +55,16 @@ class PlgOTXout : public PluginStub
      * @param chanId_unused not used, just for API to be backward-compatible..
      */
     int Create(uint32_t maxSz, uint32_t chanId_unused);
+
+
+    /**
+     * Plugin Create method.
+     *
+     * @param maxSz maximum size of the XLink Stream.
+     * @param chanId_unused not used, just for API to be backward-compatible..
+     * @param streamId - stream_id is the unique id for the input video stream
+     */
+    int Create(uint32_t maxSz, uint32_t chanId_unused, int32_t streamId);
 
     /**
      * Plugin Delete method.
