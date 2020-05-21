@@ -128,7 +128,7 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto pad = std::get<3>(compilationConfigs);
     auto workloadCost = std::get<4>(compilationConfigs);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "DPUTask")
         {

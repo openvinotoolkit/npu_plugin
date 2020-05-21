@@ -467,6 +467,7 @@ bool mv::Tensor::setSparse()
         return false;
 
     set<bool>("sparse", true);
+    set<bool>("allocateSparsityMap", true);
 
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];

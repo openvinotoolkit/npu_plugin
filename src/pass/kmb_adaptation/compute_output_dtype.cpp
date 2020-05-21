@@ -264,7 +264,7 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
     using namespace mv;
     OpModel om(model);
 
-    auto kernelOp = om.getInput();
+    auto kernelOp = om.opBegin();
     while (kernelOp != om.opEnd())
     {
         if(kernelOp.outputsSize() > 0)
@@ -321,7 +321,7 @@ void tensorsToU8Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model, m
     auto sourceDType = mv::DType("Int8");
     auto targetDType = mv::DType("UInt8");
 
-    auto kernelOp = om.getInput();
+    auto kernelOp = om.opBegin();
     auto inputType = kernelOp->getOutputTensor(0)->getDType();
     if(inputType == mv::DType("Int8"))
         throw std::runtime_error("Compiler doesn't support I8 inputs for the moment, please rescale your data to U8");

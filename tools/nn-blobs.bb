@@ -8,7 +8,7 @@ RDEPENDS_${PN} = "kernel-module-udmabuf openvino"
 
 SRC_URI = "file://${NN_BLOBS_PATH}/nn-blobs.tar.bz2"
 
-PV = "nn_blobs_75e0804+NN_Compiler_v1.3.4"
+PV = "nn_blobs_75e0804+NN_Compiler_v1.3.5"
 
 S = "${WORKDIR}/release_blobs"
 
@@ -76,22 +76,26 @@ do_install () {
     install -m 0755 ${S}/fullyolov2_ov/input_ov.dat ${D}/opt/fullyolov2_ov
     install -m 0755 ${S}/fullyolov2_ov/fullyolov2_ov.blob ${D}/opt/fullyolov2_ov
 
-    install -d ${D}/opt/inceptionv4
-    install -m 0755 ${S}/inceptionv4/expected_result_sim.dat ${D}/opt/inceptionv4
-    install -m 0755 ${S}/inceptionv4/input.dat ${D}/opt/inceptionv4
-    install -m 0755 ${S}/inceptionv4/inceptionv4.blob ${D}/opt/inceptionv4
-    install -d ${D}/opt/resnet-101
-    install -m 0755 ${S}/resnet-101/expected_result_sim.dat ${D}/opt/resnet-101
-    install -m 0755 ${S}/resnet-101/input.dat ${D}/opt/resnet-101
-    install -m 0755 ${S}/resnet-101/resnet-101.blob ${D}/opt/resnet-101
-    install -d ${D}/opt/resnet-152
-    install -m 0755 ${S}/resnet-152/expected_result_sim.dat ${D}/opt/resnet-152
-    install -m 0755 ${S}/resnet-152/input.dat ${D}/opt/resnet-152
-    install -m 0755 ${S}/resnet-152/resnet-101.blob ${D}/opt/resnet-152
-    install -d ${D}/opt/yolotiny-v1
-    install -m 0755 ${S}/yolotiny-v1/expected_result_sim.dat ${D}/opt/yolotiny-v1
-    install -m 0755 ${S}/yolotiny-v1/input.dat ${D}/opt/yolotiny-v1
-    install -m 0755 ${S}/yolotiny-v1/yolotiny-v1.blob ${D}/opt/yolotiny-v1
+    install -d ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/expected_result_sim_ov.dat ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/input_ov.dat ${D}/opt/inception-v4_ov
+    install -m 0755 ${S}/inception-v4_ov/inception-v4_ov.blob ${D}/opt/inception-v4_ov
+    install -d ${D}/opt/resnet-101_ov
+    install -m 0755 ${S}/resnet-101_ov/expected_result_sim_ov.dat ${D}/opt/resnet-101_ov
+    install -m 0755 ${S}/resnet-101_ov/input_ov.dat ${D}/opt/resnet-101_ov
+    install -m 0755 ${S}/resnet-101_ov/resnet-101_ov.blob ${D}/opt/resnet-101_ov
+    install -d ${D}/opt/resnet-152_ov
+    install -m 0755 ${S}/resnet-152_ov/expected_result_sim_ov.dat ${D}/opt/resnet-152_ov
+    install -m 0755 ${S}/resnet-152_ov/input_ov.dat ${D}/opt/resnet-152_ov
+    install -m 0755 ${S}/resnet-152_ov/resnet-101_ov.blob ${D}/opt/resnet-152_ov
+    install -d ${D}/opt/yolotiny-v1_ov
+    install -m 0755 ${S}/yolotiny-v1_ov/expected_result_sim_ov.dat ${D}/opt/yolotiny-v1_ov
+    install -m 0755 ${S}/yolotiny-v1_ov/input_ov.dat ${D}/opt/yolotiny-v1_ov
+    install -m 0755 ${S}/yolotiny-v1_ov/yolotiny-v1_ov.blob ${D}/opt/yolotiny-v1_ov
+    install -d ${D}/opt/facenet_ov
+    install -m 0755 ${S}/facenet_ov/expected_result_sim_ov.dat ${D}/opt/facenet_ov
+    install -m 0755 ${S}/facenet_ov/input_ov.dat ${D}/opt/facenet_ov
+    install -m 0755 ${S}/facenet_ov/facenet_ov.blob ${D}/opt/facenet_ov
 }
 
 FILES_${PN} += " /opt"

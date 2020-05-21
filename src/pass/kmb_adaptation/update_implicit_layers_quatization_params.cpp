@@ -67,12 +67,16 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
 
-            if (outputOp->getOpType() == "DMATask") { break; }
+            // Crop is correctly accounted for with a spilling DMA
+            if (outputOp->getOpType() == "DMATask" &&
+                outputOp->get<mv::DmaDirection>("direction") == mv::NNCMX2DDR)
+                continue;
 
             while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
+
             auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
                     ? mv::Tensor::MemoryLocation::OUTPUT
@@ -86,21 +90,31 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             {
                 auto parentOp = om.getSourceOp(opIt->getInputTensor(0));
                 //Sink Ops of the Input of the Copy layer
-                auto sinkOps = findSinkLayers(dm, opIt->getInputTensor(0));
+                // auto sinkOps = findSinkLayers(dm, opIt->getInputTensor(0));
+                std::vector<mv::Data::OpListIterator> sinkOps;
                 auto outputFlow = parentOp.leftmostOutput();
                 std::size_t copyId, dpuId = 0;
                 std::unordered_map<std::string, std::vector<mv::Data::FlowSiblingIterator>> tasks_flows;
                 while (outputFlow != om.flowEnd())
                 {
-                    if (outputFlow.sink()->getOpType() == "Copy")
+                    if (outputFlow.sink()->getOpType() == "Copy"
+                        and outputFlow.sink()->getName() == opIt->getName()) // In case of parallel branches, just this guy
                     {
                         copyId = outputFlow->get<std::size_t>("sinkInput");
                         tasks_flows["Copy"].push_back(outputFlow);
+                        sinkOps.push_back(outputFlow.sink());
                     }
                     else
                     {
-                        dpuId = outputFlow->get<std::size_t>("sinkInput");
-                        tasks_flows["DPUTask"].push_back(outputFlow);
+                        auto sinkInput = outputFlow.sink().leftmostInput();
+                        while(sinkInput != om.flowEnd()){
+                            if(sinkInput.source()->getName() == opIt->getName()){
+                                dpuId = outputFlow->get<std::size_t>("sinkInput");
+                                tasks_flows["DPUTask"].push_back(outputFlow);
+                                sinkOps.push_back(outputFlow.sink());
+                            }
+                            ++sinkInput;
+                        }
                     }
                     ++outputFlow;
                 }

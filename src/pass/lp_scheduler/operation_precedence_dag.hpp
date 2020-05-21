@@ -35,7 +35,7 @@ struct model_traits<mv::ControlModel> {
 
   //TODO(vamsikku): reference to model must be const here //
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getFirst();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -62,7 +62,7 @@ struct model_traits<mv::OpModel> {
 
 
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getInput();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -278,8 +278,12 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Copy", "Align",
-          "ImplicitReshape", "ImplicitPermute", "ImplicitOutput"} ) {
+      //NOTE: please add all implicit ops to this list -- except ImplicitConcat
+      //All implicit ops are short-circuited during scheduling. ImplicitConcat
+      //is left in place to reduce the edge blowup (quadratic) of dependencies.
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
+          "ImplicitInputSlice", "ImplicitUnion"} ) {
         init_from_model(model);
     }
 
@@ -609,7 +613,6 @@ class Operation_Dag {
         bfs_list.pop_front();
         op_size_table_t::iterator itr = op_size_table.find(curr_op);
 
-
         resource_t curr_op_utility = resource_utility(curr_op);
 
         if (itr == op_size_table.end()) {
@@ -693,10 +696,11 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") ||
+      return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
-              (op->getOpType() == "ImplicitUnion");
+          (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
+          (op->getOpType() == "ImplicitInputSlice");
     }
 
 

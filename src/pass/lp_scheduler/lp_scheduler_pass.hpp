@@ -38,6 +38,14 @@ struct Control_Edge {
   mv::Op const * sink_;
 }; // struct Control_Edge //
 
+inline void dump_exception(const char *str) {
+  FILE *fptr = fopen("scheduler_exceptions.txt", "a");
+  assert(fptr);
+  fprintf(fptr, "%s\n", str);
+  fclose(fptr);
+}
+
+
 template<typename SchedulerType>
 struct Tensor_Address_Assignment {
   typedef SchedulerType scheduler_t;
@@ -144,15 +152,29 @@ class ImplicitConcat_Connected_Component {
     typedef typename dag_t::const_operation_iterator_t
         const_operation_iterator_t;
     typedef std::unordered_map<operation_t, operation_t> union_find_array_t;
+    typedef std::list<operation_t> read_list_t;
+    typedef std::unordered_map<operation_t, read_list_t > slave_concat_reads_t;
   //////////////////////////////////////////////////////////////////////////////
 
     ImplicitConcat_Connected_Component(const dag_t& dag)
-      : dag_(dag), union_find_array_() { build(); }
+      : dag_(dag), union_find_array_(), slave_concat_reads_() { build(); }
 
     operation_t implicit_concat_root(const operation_t& op) const {
       auto itr = union_find_array_.find(op);
       if (itr == union_find_array_.end()) { 
+        dump_exception("[ImplicitConcatRoot]\n");
         throw "[ImplicitConcatRoot] missing operation: " + op->getName();
+      }
+      return itr->second;
+    }
+
+    const read_list_t& slave_reads_of_master_concat(
+        const operation_t& op) const {
+      typename slave_concat_reads_t::const_iterator itr =
+          slave_concat_reads_.find(op);
+      if (itr == slave_concat_reads_.end()) {
+        dump_exception("[ImplicitConcatInvariant]: invalid master concat\n");
+        throw "[ImplicitConcatInvariant]: invalid master concat ";
       }
       return itr->second;
     }
@@ -165,6 +187,7 @@ class ImplicitConcat_Connected_Component {
         operation_t op = *itr;
         collapsing_find(op);
       }
+      build_slave_concat_reads();
     }
 
     void collapsing_find(const operation_t& op) {
@@ -189,16 +212,70 @@ class ImplicitConcat_Connected_Component {
       }
     }
 
+    void build_slave_concat_reads() {
+      slave_concat_reads_.clear();
+      for (const_operation_iterator_t itr=dag_.begin_nodes();
+          itr!=dag_.end_nodes(); ++itr) {
+
+        operation_t op = *itr;
+        if (!is_implicit_concat(op))  { continue; }
+        typename union_find_array_t::const_iterator uitr =
+            union_find_array_.find(op);
+
+        if (uitr == union_find_array_.end()) {
+          dump_exception("build_slave_concat_reads\n");
+          throw "[build_slave_concat_reads] : "
+              "Invalid concat union-find state\n";
+        }
+
+        // add all reads from this concat to the slave_read table of the
+        // root concat.
+        operation_t concat_master = uitr->second;
+        typename slave_concat_reads_t::iterator sitr =
+            slave_concat_reads_.find(concat_master);
+        if (sitr == slave_concat_reads_.end()) {
+            sitr = slave_concat_reads_.insert(
+                std::make_pair(concat_master, read_list_t())).first;
+        }
+        read_list_t &slave_read_list = sitr->second;
+
+        for (const_operation_iterator_t citr=dag_.begin_nodes(op);
+              citr!=dag_.end_nodes(op); ++citr) {
+          operation_t cop = *citr;
+          if (dag_.is_output_op(cop)) { continue; }
+
+          bool is_read_or_upa =
+            (dag_.is_dma_op_moving_data_from_ddr_to_cmx(cop) || 
+              dag_.is_upa_op(cop));
+
+          if (!(is_implicit_concat(cop) || is_read_or_upa) ) {
+            FILE *fptr = fopen("non_reads.txt", "a");
+
+            for (const_operation_iterator_t kitr=dag_.begin_nodes(op); 
+                kitr != dag_.end_nodes(op); ++kitr) {
+              fprintf(fptr, "%s -> %s\n", op->getName().c_str(), 
+                  (*kitr)->getName().c_str());
+            }
+            fclose(fptr);
+
+            dump_exception("[ImplictConcatInvariant]: implict concat reads\n");
+            throw "[ImplicitConcatInvariant] : implict concat should only have"
+              " dataflow to either concats or reads\n";
+          }
+
+          if (is_read_or_upa) {
+            slave_read_list.push_back(cop);
+          }
+        }
+      }
+    }
+
+   
     operation_t implicit_concat_parent(const operation_t& op) const {
       for (const_operation_iterator_t citr=dag_.begin_nodes(op);
             citr!=dag_.end_nodes(op); ++citr) {
         operation_t cop = *citr;
-
-        if (dag_.is_implicit_op(cop)) {
-          ++citr;
-          if (citr != dag_.end_nodes(op)) {
-            throw op->getName() + " ImplictConcat has non-unit out degree";
-          }
+        if (is_implicit_concat(cop)) {
           return cop;
         }
       }
@@ -212,6 +289,7 @@ class ImplicitConcat_Connected_Component {
 
     const dag_t &dag_;
     union_find_array_t union_find_array_;
+    slave_concat_reads_t slave_concat_reads_;
 }; // class ImplicitConcat_Connected_Component //
 
 
@@ -283,6 +361,7 @@ class Control_Edge_Set {
       add_control_edges_between_inputs_and_compute_ops(dag, model);
 
       if (!generate_temporal_edges) {
+        add_control_edges_between_compute_ops_and_writes(dag, model);
         add_memory_control_edges(dag, model, sbegin, send);
         add_control_edges_for_implicit_concats(dag, model);
         add_control_edges_for_upa_tasks(dag, model);
@@ -610,39 +689,53 @@ class Control_Edge_Set {
     void add_control_edges_for_implicit_concats(const OpDag& dag,
         mv::ComputationModel& model) {
       typedef OpDag dag_t;
-      ImplicitConcat_Connected_Component<dag_t> concat_connected_comp(dag);
+      typedef ImplicitConcat_Connected_Component<dag_t> connected_comp_algo_t;
+      typedef typename connected_comp_algo_t::read_list_t read_list_t;
+
+      connected_comp_algo_t concat_connected_comp(dag);
 
       for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
           itr!=dag.end_nodes(); ++itr) {
         operation_t op = *itr;
         if (!(op->getOpType() == "ImplicitConcat")) { continue; }
 
-        // add control edges between parents and children //
-        std::vector<operation_t> parents;
-        std::vector<operation_t> children;
+        operation_t master_op =
+            concat_connected_comp.implicit_concat_root(op);
+        const read_list_t& master_children =
+            concat_connected_comp.slave_reads_of_master_concat(master_op);
 
+        // Add control edges between parents and reads of master concat//
         for (typename dag_t::const_operation_iterator_t
             pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
               ++pitr) {
           operation_t parent_op = *pitr;
           if (dag.is_implicit_op(parent_op)) { continue; }
-          parents.push_back(parent_op);
+
+          // this list also includes slave reads //
+          for (auto citr=master_children.begin(); citr!=master_children.end();
+                ++citr) { 
+            add_control_edge(parent_op, *citr, model);
+          }
         }
 
-        operation_t master_op =
-            concat_connected_comp.implicit_concat_root(op);
+      }
+    }
 
-        for (typename dag_t::const_operation_iterator_t
-            citr=dag.begin_nodes(master_op); citr != dag.end_nodes(master_op);
-            ++citr) {
-          operation_t child_op = *citr;
-          children.push_back(child_op);
-        }
+    template<typename OpDag>
+    void add_control_edges_between_compute_ops_and_writes(
+        const OpDag& dag, mv::ComputationModel& model) {
+      typedef OpDag dag_t;
 
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!dag.is_dpu_op(op)) { continue; }
 
-        for (size_t p=0; p<parents.size(); p++) {
-          for (size_t c=0; c<children.size(); c++) {
-            add_control_edge(parents[p], children[c], model);
+        for (typename dag_t::const_operation_iterator_t 
+              citr=dag.begin_nodes(op); citr!=dag.end_nodes(op); ++citr) {
+          operation_t cop = *citr;
+          if (dag.is_dma_op_moving_data_from_cmx_to_ddr(cop)) {
+            add_control_edge(op, cop, model);
           }
         }
       }
@@ -1057,6 +1150,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           size_t idx = outputFlow->get<size_t>("sinkInput");
@@ -1072,6 +1171,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
         std::vector<mv::Data::FlowListIterator> flows;
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           operation_t sink_op = &(*(outputFlow.sink()));
@@ -1216,6 +1321,7 @@ class Dynamic_Spill_Node_Inserter {
       mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
       spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
       std::string dma_op_name;
+      mv::Data::TensorIterator spill_read_tensor_itr;
 
       for (typename spilled_read_subtrees_t::iterator
             spill_read_itr=read_subtrees.begin();
@@ -1223,8 +1329,10 @@ class Dynamic_Spill_Node_Inserter {
 
         dma_op_name = spilled_op->getName() + "_spilledReadForest" +
             std::to_string(read_index++);
-        mv::Data::TensorIterator spill_read_tensor_itr = om.dMATask(
+        spill_read_tensor_itr = om.dMATask(
             spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
+        if(spill_read_tensor_itr->isSparse())
+          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false) 
         Data::OpListIterator read_op_itr =
             om.getSourceOp(spill_read_tensor_itr);
         read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
@@ -1258,7 +1366,8 @@ class Dynamic_Spill_Node_Inserter {
         redundant_spill_map_.insert(
             std::make_pair(spilled_op, spilled_op->getName()));
         om.removeOp(spilled_op_itr);
-      }
+        spill_read_tensor_itr->set<bool>("allocateSparsityMap", true); // If the original DMA Op is considered redundant and removed
+      }                                                                // then we want the 'new' spilled DMA to allocate the sparsity map
     }
 
     bool has_its_output_spilled(operation_t op) const {

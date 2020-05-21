@@ -60,6 +60,22 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         std::set <std::string> specialTensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         std::vector <mv::Data::TensorIterator> specialTensors;
+
+        //Todo:: the construction and logic of this pass needs to be refactored.
+        // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
+        // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
+        // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
+
+        auto implicitConcats = om.getOps("ImplicitConcat");
+        for(auto layer : implicitConcats)
+        {
+            auto outputTensor = layer->getOutputTensor(0);
+            if(outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto outputTensorName = layer->getOutputTensor(0)->getName();
+                tensorNames.insert(outputTensorName);
+            }
+        }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
@@ -232,9 +248,12 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
                     if (!sinkOperators.empty())
                     {
-                        while (sinkOperators[0]->getOpType() != "DPUTask")
+                        while (sinkOperators[0]->getOpType() != "DPUTask" and 
+                                sinkOperators[0]->getOpType() != "Output"){
                             sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
-                        outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        }
+                        if(sinkOperators[0]->getOpType() != "Output")
+                            outputChannels = sinkOperators[0]->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
                     }
                     auto newSubTensors = fixRectangularHeuristicBug(subTensors, tensor, nWorkloads, outputChannels);
                     subTensors.clear();

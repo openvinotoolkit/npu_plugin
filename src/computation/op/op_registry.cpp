@@ -1105,6 +1105,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/resample.cpp"
 #include    "src/computation/op/def/reshape.cpp"
 #include    "src/computation/op/def/roipooling.cpp"
+#include    "src/computation/op/def/psroipooling.cpp"
 #include    "src/computation/op/def/scale.cpp"
 #include    "src/computation/op/def/slice.cpp"
 #include    "src/computation/op/def/sigmoid.cpp"
@@ -1112,3 +1113,4 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/tanh.cpp"
 #include    "src/computation/op/def/fake_quantize.cpp"
 #include    "src/computation/op/def/implicit_output.cpp"
+#include    "src/computation/op/def/implicit_input.cpp"

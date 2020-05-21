@@ -412,9 +412,14 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if(std::getenv("RUNTIME_CONFIG") != NULL)
         runtimeConfig = std::getenv("RUNTIME_CONFIG");
 
+    // accept runtime options from user to enable features, normally empty is opt-in option
+    std::string runtimeOptions = "";
+    if(std::getenv("RUNTIME_OPTIONS") != NULL)
+        runtimeOptions = std::getenv("RUNTIME_OPTIONS");
+
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
-        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort;
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)

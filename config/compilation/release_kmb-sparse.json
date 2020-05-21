@@ -78,6 +78,7 @@
                     }
                 ]
             },
+            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -102,6 +103,7 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "DecideOutputDataType",
             "PlacementOfOps",

@@ -34,7 +34,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto opIt = om.getInput();
+    auto opIt = om.opBegin();
     while (opIt != om.opEnd())
     {
         std::string opType = opIt->getOpType();
@@ -96,7 +96,7 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
 
                 size_t numInputs = 1;
                 if (isElementWise)
-                    numInputs++;
+                    numInputs = opIt->inputSlots();
 
                 for (size_t i = 0; i < numInputs; i++)
                 {
@@ -152,7 +152,7 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto opIt = om.getInput();
+    auto opIt = om.opBegin();
 
     while (opIt != om.opEnd())
     {

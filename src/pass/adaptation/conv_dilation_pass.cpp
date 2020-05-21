@@ -27,7 +27,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
         if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
         {

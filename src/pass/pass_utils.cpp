@@ -100,7 +100,6 @@ mv::Data::OpListIterator mv::linkNewOperationsRemove(mv::Data::OpListIterator pa
 
     return opIt;
 }
-
 mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterator parentOpIt,
                                                       mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
@@ -139,6 +138,88 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
         om.defineFlow(sourceTensor, opsToLink[j], inputSlots[j]);
     }
 
+    return opIt;
+}
+
+mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
+                                                      std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    
+    //Important: do not change the order of this ops
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    //consumers
+    //for (auto outIt = opIt->getOutputTensor().begin(); outIt != opIt->getOutputTensor().end(); outIt++)
+        for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+            //if (*outIt != sinkFlow.sink())
+            {                
+                opsToLink.push_back(sinkFlow.sink());
+                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            }
+
+    auto paramOp = opIt.leftmostParent();
+    for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
+    {
+        while(paramOp != om.opEnd())
+        {
+            if (paramOp->getOutputTensor(0) != *sourceTensorIt && (paramOp->getOpType() == "Constant" || paramOp->getOpType() == "ConstantInt"
+                || paramOp->getOpType() == "ConstantDataElement"))
+            {
+                auto backUp = paramOp;
+                ++paramOp;
+                om.removeOp(backUp);
+            }
+            else
+                ++paramOp;
+        }
+    }
+
+    om.removeOp(opIt);
+    opIt = parentOpIt;
+    
+    for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
+    {
+        if(*sourceTensorIt == om.tensorEnd())
+            *sourceTensorIt = parentOpIt->getOutputTensor(0);
+
+        for (unsigned j = 0; j < opsToLink.size(); ++j)
+        {
+            opsToLink[j]->setInputTensor(*sourceTensorIt, inputSlots[j], false);
+            om.defineFlow(*sourceTensorIt, opsToLink[j], inputSlots[j]);
+        }
+    }
+
+    return opIt;
+}
+
+mv::Data::OpListIterator mv::linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator childOpIt,
+                                                      mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt)
+{
+    std::vector<mv::Data::OpListIterator> opsToLink;
+    std::vector<std::size_t> inputSlots;
+    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+    //consumers
+    for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        flowsToRemove.push_back(sinkFlow);
+    }
+    
+    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+    {
+        om.undefineFlow(flowsToRemove[flowIdx]);
+    }
+    om.removeOp(opIt);
+    opIt = childOpIt;
+    
+    //create links
+    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+    {
+        opsToLink[op]->setInputTensor(sourceTensor, inputSlots[op], false);
+        om.defineFlow(sourceTensor, opsToLink[op], inputSlots[op]);
+    }
+    //om.defineFlow(sourceTensor, childOpIt, mv::IO_TENSOR_INPUT);
     return opIt;
 }
 

@@ -381,6 +381,9 @@ void MetaGraph::solve()
             }
             cost = (*criticalEdges[ctr]) + cost;
 
+            if(cost < numeric_limits<double>::infinity())
+                foundPath = true;
+
             //todo:: do we really need to always copy this? but indeed we need to inherit existing edges
             for(const auto edge : criticalEdges)
             {
@@ -406,6 +409,10 @@ void MetaGraph::solve()
     name = firstLevel.op->getName() +"==>"+levels[1].op->getName() + "==>" + lastLevel.op->getName();
     if(!foundPath)
         cout << "INFINITE PATH: " << name << endl;
+    if(!foundPath){
+    //    cout<< "ONLY INFINITE PATHS at " << name << endl;
+        // TODO throw exception
+    }
     solved_ = true;
 }
 
@@ -452,10 +459,10 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
                 foundPath = true;
             }
         }
-    //if(!foundPath){
+    if(!foundPath){
     //    cout<< "Unable to find non-infinite path between pivot nodes"<< endl;
-        //TODO throw exception
-    //}
+        // TODO throw exception
+    }
 
     auto& bestCriPath = criticalPaths_.find(bestPair)->second;
 

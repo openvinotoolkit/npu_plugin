@@ -18,8 +18,8 @@
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": true,
-                "FloatOutput": false,
+                "PredictionOfQuantizationOutput": false,
+                "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "split_strategy" :
@@ -78,6 +78,7 @@
                     }
                 ]
             },
+            "AssignInputNode",
             "AssignOutputNode",
             "ComputeMemory",
             "AssignUniqueOpId",
@@ -102,12 +103,15 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
+            "HandleGroupConvolution",
+            "TileOps",
+            "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -285,7 +289,8 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
-              "producer_bound" : 256
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : false
             }
         ]
     },

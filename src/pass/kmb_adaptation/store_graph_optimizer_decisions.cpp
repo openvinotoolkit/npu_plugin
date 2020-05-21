@@ -39,6 +39,7 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
                 opIt->set<bool>("multiCast", true);
             else
                 opIt->set<bool>("multiCast", false);
+            break; //the operation can have only one strategy, and the nn filter (operation) was found
         }
     }
 }
@@ -209,6 +210,23 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("INPUT", true));
     }
 
+    auto implicitRInputSlice = om.getOps("ImplicitInputSlice");
+    for (std::size_t i = 0; i < implicitRInputSlice.size(); i++)
+    {
+        auto inTensors = implicitRInputSlice[i]->getOutputTensor();
+        for (auto tensor : inTensors)
+        {
+            if(!tensor->get<mv::Tensor::MemoryLocation>("Location").isDefault())
+            {
+                pass.log(mv::Logger::MessageType::Warning, "Found InputTensor " +
+                            tensor->getName() + " description location in JSON. Will override with INPUT");
+            }
+            pass.log(mv::Logger::MessageType::Warning,"Found OutputTensor " +
+                            tensor->getName() + " current location is " + tensor->get<mv::Tensor::MemoryLocation>("Location").toString() + " override with OUTPUT");
+            //mark location forced so any adaptation pass will inheret opIt
+            tensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation("INPUT", true));
+        }
+    }
     auto output = om.getOutput();
     auto outputTensors = output->getInputTensor();
 
