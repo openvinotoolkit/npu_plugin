@@ -315,6 +315,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_post_shift_right = quantizationParams.getPostShift();
     }
 
     return toBuild;
@@ -514,6 +515,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             quantShift = quantizationParams.getShift();
         quantShift = reduceQuantVector_(quantShift);
         toBuild->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+        toBuild->quant_post_shift_right = quantizationParams.getPostShift();
 
     }
 
@@ -1057,14 +1059,19 @@ std::unique_ptr<MVCNN::PPEFixedFunctionT> mv::RuntimeModel::buildPPEFixedFunctio
     return toBuild;
 }
 
-std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, const mv::PPETask& ppeTask)
+std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT(ComputationModel& cm, mv::Element& compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::PPETaskT> toBuild = std::unique_ptr<MVCNN::PPETaskT>(new MVCNN::PPETaskT());
-
+    const mv::PPETask& ppeTask = opIt->get<PPETask>("PPETask");
     if(ppeTask.hasAttr("scaleData"))
         toBuild->scale_data = buildTensorReferenceT(cm, compilationDescriptor, ppeTask.getScaleData());
     toBuild->fixed_function = buildPPEFixedFunctionT(cm, compilationDescriptor, ppeTask.getFixedFunction());
-
+    if (opIt->hasAttr("firstConvWithLRelu")
+                      && opIt->get<bool>("firstConvWithLRelu"))
+    {
+        auto index = opIt->get<std::size_t>("instructionListTableIndex");
+        toBuild->instruction_list_data = buildTensorReferenceT(cm, compilationDescriptor, opIt->getInputTensor()[index]);
+    }
     return toBuild;
 }
 
@@ -1089,7 +1096,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
-        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
+        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
     else
         toBuild->ppe_task = buildPPETaskT();
 
@@ -1170,7 +1177,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
-        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt->get<PPETask>("PPETask"));
+        toBuild->ppe_task = buildPPETaskT(cm, compilationDescriptor, opIt);
     else
         toBuild->ppe_task = buildPPETaskT();
 
