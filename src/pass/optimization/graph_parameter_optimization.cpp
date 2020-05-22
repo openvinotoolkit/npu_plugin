@@ -434,7 +434,7 @@ namespace mv
                 auto clusterStrategy = clustering.get<string>();
 
                 if(enableChannelMajorConv and opType == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                         isCMConv = true;
 
                 if(opType != "Input"){
@@ -446,12 +446,11 @@ namespace mv
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
-                size_t outChannels = op.outputSlots() ? op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION] : 0;
-                size_t alignedFullChannels = mv::round_up(outChannels, 16);
-                size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
                 if(opType == "Conv" || opType == "DepthwiseConv")
                 {
-                    weightTableSize = 16 * alignedSplittedChannels;
+                    size_t alignedFullChannels = mv::round_up(op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION], 16);
+                    size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
+                    weightTableSize = 4 * alignedSplittedChannels;
                     if (opType == "Conv")
                     {
                         weightSize += alignedWeightsSize(op.getInputTensor(1),{1,1,streamConfig["C"],streamConfig["K"],1}, clusterStrategy);
@@ -466,7 +465,7 @@ namespace mv
                 }
                 else if(opType == "MaxPool")
                 {
-                    weightTableSize = 16 * alignedSplittedChannels;
+                    weightTableSize = 0;
                     weightSize = 0;
                 }
                 else if(opType == "Eltwise" && !software)
@@ -755,11 +754,10 @@ namespace mv
                     baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
                 }
 
-                Shape streamShape = {streaming["W"], streaming["H"], streaming["K"], 1};
                 //the actual compute
-                if (outputShape.ndims() != streamShape.ndims())
-                    outputShape = outputShape.augment(outputShape, streamShape.ndims());
-                Shape dpuOutShape = ( outputShape / streamShape ) / isiSplit;
+                if (outputShape.ndims() != streamNumerator.ndims())
+                    outputShape = outputShape.augment(outputShape, streamNumerator.ndims());
+                Shape dpuOutShape = ( outputShape / streamNumerator ) / isiSplit;
                 Shape contextsInOp = dpuOutShape / contexts;
                 unsigned numContextsInOp = contextsInOp.totalSize();
 
@@ -768,7 +766,7 @@ namespace mv
 
                 unsigned contextsPerDpu = (unsigned)ceil( (double)numContextsInOp / (double)dpuPerCluster);
 
-                return contextsPerDpu * streamShape.totalSize() * baseKernelCost;
+                return contextsPerDpu * streamNumerator.totalSize() * baseKernelCost;
             }
 
             bool requiresActivationSparsity(Op& op, string clustering){
@@ -823,7 +821,7 @@ namespace mv
             bool requiresFakeActivationSparsity(Op& op){
                 if(enableChannelMajorConv and
                   (op.getOpType() == "Conv") and
-                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16) )
+                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16) )
                 {
                     return true;
                 }
@@ -871,7 +869,7 @@ namespace mv
                                 op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > 8192)
                                 executableInHW = 2;
                             auto stride_array = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
-                            if (stride_array[0] > 8 || stride_array[1] > 8 || stride_array[0] != stride_array[1])
+                            if (stride_array[0] > 8 || stride_array[1] > 8)
                                 executableInHW = 3;
                         }
                     }
@@ -949,7 +947,7 @@ namespace mv
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-                    if ( numInChannels % 16 ) //assume channel major conv
+                    if ( numInChannels < 16 ) //assume channel major conv
                         if(clustering == "SplitOverH" and streamShape["H"] > 1)
                             return 10;
                 }
@@ -1072,7 +1070,7 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     //This rule only relevant for channel major convs
-                    if( enableChannelMajorConv and numInChannels % 16)
+                    if( enableChannelMajorConv and numInChannels < 16)
                     {
                         if(childClustering == "SplitOverH" and not (parentClustering == "SplitOverHOverlapped"))
                         {
@@ -1117,7 +1115,7 @@ namespace mv
                 //Note: Input clustering strategy should match first layer, if it is Z-major
                 if(parentOp.getOpType() == "Input" and not
                     (childOp.getOpType() == "Conv" and enableChannelMajorConv
-                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16))
+                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16))
                 {
                     if(parentClustering != childClustering)
                     {
@@ -1313,7 +1311,7 @@ namespace mv
 
                 // If CM convolutions are enabled, don't sparsify these
                 if(enableChannelMajorConv and op.getOpType() == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     return false;
 
                 //Size of weights, actual sparsity of tensor determine speedup

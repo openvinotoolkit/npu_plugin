@@ -462,9 +462,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
+        // PR653 Streaming Refactoring code
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->data->data_index += leading_offset;
+        //
 
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
@@ -813,7 +815,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildSpecificTaskUn
         toBuild = buildControllerTaskT(cm, compilationDescriptor, opIt);
     else if(taskType == "BarrierTask")
         toBuild = buildBarrierTaskT(cm, compilationDescriptor, opIt);
-
     return toBuild;
 }
 
@@ -2207,6 +2208,68 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACustomTask(ComputationModel& cm
     return toBuild;
 }
 
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADeconvTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_DeconvolutionParams;
+    auto softLayerParamsValue = new MVCNN::DeconvolutionParamsT();
+
+    auto input = opIt->getInputTensor(0);
+    auto weights = opIt->getInputTensor(1);
+    // auto biases = opIt->getInputTensor(2);  biases
+    auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    // Kernel
+    auto kernel =
+        std::unique_ptr<MVCNN::order3>(new MVCNN::order3(weights->getShape()[mv::IO_WIDTH_DIMENSION], weights->getShape()[mv::IO_HEIGHT_DIMENSION], 0));
+    softLayerParamsValue->kernel = std::move(kernel);
+
+    // Strides
+    if (opIt->hasAttr("stride"))
+    {
+        auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
+        auto strides =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelStride[0], kernelStride[1], 0));
+        softLayerParamsValue->strides = std::move(strides);
+    }
+
+    // Paddings
+    if (opIt->hasAttr("padding"))
+    {
+        auto kernelPadding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+        auto pads_begin =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelPadding[0], kernelPadding[2], 0)); // Left,Top,Front
+        softLayerParamsValue->pads_begin = std::move(pads_begin);
+
+        auto pads_end =
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelPadding[1], kernelPadding[3], 0)); // Right,Bottom,Back
+        softLayerParamsValue->pads_end = std::move(pads_end);
+    }
+
+    // Dilations
+    if (opIt->hasAttr("dilationFactor"))
+    {
+        auto kernelDilation = opIt->get<unsigned>("dilationFactor");
+
+        auto dilations = 
+            std::unique_ptr<MVCNN::order3>(new MVCNN::order3(kernelDilation, kernelDilation, 0));
+        softLayerParamsValue->dilations = std::move(dilations);
+    }
+
+    // Depthwise flag
+    softLayerParamsValue->is_depthwise = opIt->get<bool>("is_depthwise");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2260,6 +2323,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPACustomTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "topK")
         toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Deconv")
+        toReturn[0]->task.value = buildUPADeconvTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
@@ -2489,7 +2554,6 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
     // Barrier Table must be build only on dynamic scheduling
     if(globalConfigurationParameters->get<std::string>("barrier_index_assignment") == "Dynamic")
         graphFile_.barrier_table = buildBarrierTable(cm, compilationDescriptor);
-
 }
 
 void mv::RuntimeModel::serialize()

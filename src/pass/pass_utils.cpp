@@ -149,13 +149,11 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
     std::vector<mv::Data::OpListIterator> opsToLink;
     std::vector<std::size_t> inputSlots;
     //consumers
-    //for (auto outIt = opIt->getOutputTensor().begin(); outIt != opIt->getOutputTensor().end(); outIt++)
-        for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-            //if (*outIt != sinkFlow.sink())
-            {                
-                opsToLink.push_back(sinkFlow.sink());
-                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-            }
+    for (auto sinkFlow = opIt.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
+    {                
+        opsToLink.push_back(sinkFlow.sink());
+        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+    }
 
     auto paramOp = opIt.leftmostParent();
     for (auto sourceTensorIt = sourceTensors.begin(); sourceTensorIt != sourceTensors.end(); sourceTensorIt++)
@@ -219,7 +217,6 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacementRemoveFlows(mv::Data::O
         opsToLink[op]->setInputTensor(sourceTensor, inputSlots[op], false);
         om.defineFlow(sourceTensor, opsToLink[op], inputSlots[op]);
     }
-    //om.defineFlow(sourceTensor, childOpIt, mv::IO_TENSOR_INPUT);
     return opIt;
 }
 

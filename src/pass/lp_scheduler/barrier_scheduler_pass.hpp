@@ -400,6 +400,11 @@ class Control_Model_Barrier_Scheduler {
             auto prev_upa_itr = om.getOp(prev_upa_op->getName());
             auto curr_upa_itr = om.getOp(curr_op->getName());
             cm.defineFlow(prev_upa_itr, curr_upa_itr);
+            // clear barrier references if any to avoid runtime warnings //
+            mv::BarrierDependencies& barrierRef =
+              curr_upa_itr->get<mv::BarrierDependencies>("BarrierDeps");
+            barrierRef.clear();
+            curr_upa_itr->set<bool>("trailing", true);
           }
           prev_upa_op = curr_op;
         } else {
