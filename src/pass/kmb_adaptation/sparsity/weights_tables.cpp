@@ -359,6 +359,11 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
+//NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
+//This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
+//Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
+//leaky relu. After we generate the instruction list table and we save the values of the registers inside.
+//The map of the bits per instruction are described here: https://docs.google.com/spreadsheets/d/1RcD1FYGiKCTCRTDsU-J4r_FaQyAQbzMLyRu7WkeNoOY/edit#gid=0.
 void populateInstructionListMap(mv::Data::TensorIterator instructionListTable)
 {
     //NOTE : The instruction list has 5 bits of addresses so the biggest count of instructions is 11111 = 27
