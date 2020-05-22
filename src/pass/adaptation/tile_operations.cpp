@@ -45,11 +45,11 @@ void tileOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
         {
             // Check if padding is too large for the partition. If so, pre pad the input and 
             // remove padding from original conv before the partition operation
-            // auto originalPadding = conv->get<std::array<unsigned short, 4>>("padding");
-            // if((originalPadding[0] > std::floor(MID_LIMIT_KERNEL/2)) or (originalPadding[2] > std::floor(MID_LIMIT_KERNEL/2)))
-            // {
+            auto originalPadding = conv->get<std::array<unsigned short, 4>>("padding");
+            if((originalPadding[0] > std::floor(MID_LIMIT_KERNEL/2)) or (originalPadding[2] > std::floor(MID_LIMIT_KERNEL/2)))
+            {
                 padInputTensor(conv, model);
-            // }
+            }
 
             auto nextOp = mv::findSinkLayers(dm, conv->getOutputTensor(0))[0];
             //NOTE: The idea here is that we need 4 equal partitions
