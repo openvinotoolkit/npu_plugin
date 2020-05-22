@@ -560,7 +560,8 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
 
             if((op->hasAttr("asymmetricKernel")))
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
-            slices.push_back(slice);
+
+            slices[split].push_back(slice);
         }
         else if (opType == "Eltwise")
         {
