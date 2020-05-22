@@ -52,6 +52,7 @@ else()
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
     target_link_libraries(conv_output_quant cm)
+
     add_executable(conv_fp16input conv_fp16input/conv_fp16input.cpp)
     target_link_libraries(conv_fp16input cm)
 
@@ -109,11 +110,17 @@ else()
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
 
+    add_executable(depthwiseconv_exceed_stride depthwiseconv_exceed_stride/depthwiseconv_exceed_stride.cpp)
+    target_link_libraries(depthwiseconv_exceed_stride cm)
+
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
 
     add_executable(fully_connected_channel_scaling fully_connected_channel_scaling/fully_connected_channel_scaling.cpp)
     target_link_libraries(fully_connected_channel_scaling cm)
+
+    add_executable(maxpool_exceed_stride maxpool_exceed_stride/maxpool_exceed_stride.cpp)
+    target_link_libraries(maxpool_exceed_stride cm)
 
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
