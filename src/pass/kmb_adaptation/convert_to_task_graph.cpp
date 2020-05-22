@@ -151,7 +151,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
 
     //    NOTE: Thanks to proper padding handling we don't need this anymore
     //    Leaving it here as an historical note... and now it's back as an option
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
     {
        dpuConvOp->erase("taskOp");
        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
@@ -484,6 +484,28 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
                             name);
 }
 
+mv::Data::TensorIterator convertDeconvToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto group = attrs.at("group").get<unsigned>();
+    auto is_depthwise = attrs.at("is_depthwise").get<bool>();
+
+    auto globalParams = om.getGlobalConfigParams();
+
+    auto upaDeconv = om.uPATaskDeconv(inputs, strides, padding, dilationFactor, group, is_depthwise, outputTensorType, quantParams, name);
+
+    auto upaDeconvOp = om.getSourceOp(upaDeconv);
+    upaDeconvOp->set<bool>("hasWeights", true);
+
+    return upaDeconv;
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -496,7 +518,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -527,6 +549,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
     {"Sigmoid", convertSigmoidToUPATask},
+    {"Deconv", convertDeconvToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)

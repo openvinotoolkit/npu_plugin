@@ -26,6 +26,9 @@ namespace mv
     static const size_t PADDING_TOP = 2;
     static const size_t PADDING_BOT = 3;
 
+    static const size_t STRIDE_HORIZONTAL = 0;
+    static const size_t STRIDE_VERTICAL = 1;
+
     class Shape : public Printable, public LogSender
     {
     private:

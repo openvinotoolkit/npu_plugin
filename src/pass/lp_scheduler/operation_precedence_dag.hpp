@@ -10,6 +10,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 
@@ -787,6 +788,7 @@ class Operation_Dag {
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited =
             short_circuit_unit_indegree_op(*oitr);
+        UNUSED(short_circuited);
         assert(short_circuited);
       }
       return true;
@@ -903,7 +905,7 @@ class Operation_Dag {
     //ideally we need to take a functor which decides if the scheduler can
     //ignore the operation.
     bool is_operation_ignored(operation_t op,
-          mv::ControlModel& dispatch_tag) const {
+          mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
         (op_type == "ImplicitConcat") || 
@@ -912,7 +914,7 @@ class Operation_Dag {
 
 
 
-    bool is_operation_ignored(operation_t op, mv::OpModel& dispatch_tag) const {
+    bool is_operation_ignored(operation_t op, mv::OpModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
     }
@@ -947,9 +949,7 @@ class Operation_Dag {
           pop_itr = (ops_.insert(op)).first;
           // op should have an unique name //
           const char * const op_name = op->getName().c_str();
-          op_name_table_t::iterator nitr =
-              op_name_table_.find(op->getName().c_str());
-          assert(nitr == op_name_table_.end());
+          assert(op_name_table_.find(op_name) == op_name_table_.end());
           op_name_table_.insert(std::make_pair(op_name, op));
         }
         op_to_iterator_lookup_.insert(std::make_pair(op, itr));
@@ -971,9 +971,7 @@ class Operation_Dag {
           if (cop_itr == ops_.end()) {
             cop_itr = (ops_.insert(child_op)).first;
             const char * const child_op_name = child_op->getName().c_str();
-            op_name_table_t::iterator nitr =
-                op_name_table_.find(child_op->getName().c_str());
-            assert(nitr == op_name_table_.end());
+            assert(op_name_table_.find(child_op_name) == op_name_table_.end());
             op_name_table_.insert(std::make_pair(child_op_name, child_op));
           }
 

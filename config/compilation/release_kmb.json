@@ -16,7 +16,7 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
@@ -293,7 +293,8 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
-              "producer_bound" : 256
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : false
             }
         ]
     },

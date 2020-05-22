@@ -98,7 +98,7 @@ int main(int argc, char **argv)
     auto biasWeights4 = om.constantInt(biasWeightsData4,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2574053471325897e-05},{-inf},{inf}}, "res2a_branch2c#13_bias#15");
     auto bias_c4 = om.bias(conv4, biasWeights4, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise0 = om.add({bias_c1,bias_c4}, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/Relu#187");
+    auto eltwise0 = om.eltwise({bias_c1,bias_c4}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2a/Relu#187");
 
     std::vector<int64_t> weightsData5 = mv::utils::generateSequence<int64_t> (1*1*256*64);
     auto weights5 = om.constantInt(weightsData5,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{119},{0.0032081177923828363},{-0.3820513188838959},{0.436018705368042}}, "res2b_branch2a#17_weights#18");
@@ -124,7 +124,7 @@ int main(int argc, char **argv)
     auto biasWeights7 = om.constantInt(biasWeightsData7,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.1591652764764149e-05},{-inf},{inf}}, "res2b_branch2c#23_bias#25");
     auto bias_c7 = om.bias(conv7, biasWeights7, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise1 = om.add({eltwise0,bias_c7}, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b/Relu#191");
+    auto eltwise1 = om.eltwise({eltwise0,bias_c7}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2b/Relu#191");
 
     std::vector<int64_t> weightsData8 = mv::utils::generateSequence<int64_t> (1*1*256*64);
     auto weights8 = om.constantInt(weightsData8,{1,1,256,64}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{127},{0.0031738088000565767},{-0.4021194577217102},{0.40720176696777344}}, "res2c_branch2a#27_weights#28");
@@ -150,7 +150,7 @@ int main(int argc, char **argv)
     auto biasWeights10 = om.constantInt(biasWeightsData10,{256}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2724126463581342e-05},{-inf},{inf}}, "res2c_branch2c#33_bias#35");
     auto bias_c10 = om.bias(conv10, biasWeights10, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise2 = om.add({eltwise1,bias_c10}, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c/Relu#195");
+    auto eltwise2 = om.eltwise({eltwise1,bias_c10}, "Add", mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}}, "res2c/Relu#195");
 
     std::vector<int64_t> weightsData11 = mv::utils::generateSequence<int64_t> (1*1*256*512);
     auto weights11 = om.constantInt(weightsData11,{1,1,256,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{122},{0.0034912910778075457},{-0.42566612362861633},{0.4646131098270416}}, "res3a_branch1#37_weights#38");
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
     auto biasWeights14 = om.constantInt(biasWeightsData14,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2489723303588107e-05},{-inf},{inf}}, "res3a_branch2c#46_bias#48");
     auto bias_c14 = om.bias(conv14, biasWeights14, mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}});
 
-    auto eltwise3 = om.add({bias_c11,bias_c14}, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3a/Relu#200");
+    auto eltwise3 = om.eltwise({bias_c11,bias_c14}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3a/Relu#200");
 
     std::vector<int64_t> weightsData15 = mv::utils::generateSequence<int64_t> (1*1*512*128);
     auto weights15 = om.constantInt(weightsData15,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.003236441407352686},{-0.4176654815673828},{0.4076271057128906}}, "res3b_branch2a#50_weights#51");
@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     auto biasWeights17 = om.constantInt(biasWeightsData17,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2625863746507093e-05},{-inf},{inf}}, "res3b_branch2c#56_bias#58");
     auto bias_c17 = om.bias(conv17, biasWeights17, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
 
-    auto eltwise4 = om.add({eltwise3,bias_c17}, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3b/Relu#204");
+    auto eltwise4 = om.eltwise({eltwise3,bias_c17}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3b/Relu#204");
 
     std::vector<int64_t> weightsData18 = mv::utils::generateSequence<int64_t> (1*1*512*128);
     auto weights18 = om.constantInt(weightsData18,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{135},{0.003667778568342328},{-0.4963448643684387},{0.4389386773109436}}, "res3c_branch2a#60_weights#61");
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
     auto biasWeights20 = om.constantInt(biasWeightsData20,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.2975456229469273e-05},{-inf},{inf}}, "res3c_branch2c#66_bias#68");
     auto bias_c20 = om.bias(conv20, biasWeights20, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
 
-    auto eltwise5 = om.add({eltwise4,bias_c20}, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3c/Relu#208");
+    auto eltwise5 = om.eltwise({eltwise4,bias_c20}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3c/Relu#208");
 
     std::vector<int64_t> weightsData21 = mv::utils::generateSequence<int64_t> (1*1*512*128);
     auto weights21 = om.constantInt(weightsData21,{1,1,512,128}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{130},{0.0033619359601289034},{-0.43593573570251465},{0.4213579595088959}}, "res3d_branch2a#70_weights#71");
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
     auto biasWeights23 = om.constantInt(biasWeightsData23,{512}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4506839761452284e-05},{-inf},{inf}}, "res3d_branch2c#76_bias#78");
     auto bias_c23 = om.bias(conv23, biasWeights23, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
 
-    auto eltwise6 = om.add({eltwise5,bias_c23}, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3d/Relu#212");
+    auto eltwise6 = om.eltwise({eltwise5,bias_c23}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res3d/Relu#212");
 
     std::vector<int64_t> weightsData24 = mv::utils::generateSequence<int64_t> (1*1*512*1024);
     auto weights24 = om.constantInt(weightsData24,{1,1,512,1024}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{125},{0.0036697331815958023},{-0.459474116563797},{0.47630783915519714}}, "res4a_branch1#80_weights#81");
@@ -296,7 +296,7 @@ int main(int argc, char **argv)
     auto biasWeights27 = om.constantInt(biasWeightsData27,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.327363497694023e-05},{-inf},{inf}}, "res4a_branch2c#89_bias#91");
     auto bias_c27 = om.bias(conv27, biasWeights27, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
 
-    auto eltwise7 = om.add({bias_c24,bias_c27}, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a/Relu#217");
+    auto eltwise7 = om.eltwise({bias_c24,bias_c27}, "Add", mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}}, "res4a/Relu#217");
 
     std::vector<int64_t> weightsData28 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
     auto weights28 = om.constantInt(weightsData28,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.004124246072024107},{-0.5335013270378113},{0.5181813836097717}}, "res4b_branch2a#93_weights#94");
@@ -322,7 +322,7 @@ int main(int argc, char **argv)
     auto biasWeights30 = om.constantInt(biasWeightsData30,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3108494385960512e-05},{-inf},{inf}}, "res4b_branch2c#99_bias#101");
     auto bias_c30 = om.bias(conv30, biasWeights30, mv::DType("UInt8"), {{0},{0.0313725508749485},{0.0},{8.0}});
 
-    auto eltwise8 = om.add({eltwise7,bias_c30}, mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}}, "res4b/Relu#221");
+    auto eltwise8 = om.eltwise({eltwise7,bias_c30}, "Add", mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}}, "res4b/Relu#221");
 
     std::vector<int64_t> weightsData31 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
     auto weights31 = om.constantInt(weightsData31,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{123},{0.003458196995779872},{-0.4249594211578369},{0.4568808376789093}}, "res4c_branch2a#103_weights#104");
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
     auto biasWeights33 = om.constantInt(biasWeightsData33,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3447955097944941e-05},{-inf},{inf}}, "res4c_branch2c#109_bias#111");
     auto bias_c33 = om.bias(conv33, biasWeights33, mv::DType("UInt8"), {{0},{0.0470588244497776},{0.0},{12.0}});
 
-    auto eltwise9 = om.add({eltwise8,bias_c33}, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4c/Relu#225");
+    auto eltwise9 = om.eltwise({eltwise8,bias_c33}, "Add", mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}}, "res4c/Relu#225");
 
     std::vector<int64_t> weightsData34 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
     auto weights34 = om.constantInt(weightsData34,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{136},{0.0036149746738374233},{-0.49254778027534485},{0.42927077412605286}}, "res4d_branch2a#113_weights#114");
@@ -374,7 +374,7 @@ int main(int argc, char **argv)
     auto biasWeights36 = om.constantInt(biasWeightsData36,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.5061895282997284e-05},{-inf},{inf}}, "res4d_branch2c#119_bias#121");
     auto bias_c36 = om.bias(conv36, biasWeights36, mv::DType("UInt8"), {{0},{0.062745101749897},{0.0},{16.0}});
 
-    auto eltwise10 = om.add({eltwise9,bias_c36}, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4d/Relu#229");
+    auto eltwise10 = om.eltwise({eltwise9,bias_c36}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4d/Relu#229");
 
     std::vector<int64_t> weightsData37 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
     auto weights37 = om.constantInt(weightsData37,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.0034344515297561884},{-0.43838825821876526},{0.4373968541622162}}, "res4e_branch2a#123_weights#124");
@@ -400,7 +400,7 @@ int main(int argc, char **argv)
     auto biasWeights39 = om.constantInt(biasWeightsData39,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.3856257282895967e-05},{-inf},{inf}}, "res4e_branch2c#129_bias#131");
     auto bias_c39 = om.bias(conv39, biasWeights39, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
 
-    auto eltwise11 = om.add({eltwise10,bias_c39}, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4e/Relu#233");
+    auto eltwise11 = om.eltwise({eltwise10,bias_c39}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4e/Relu#233");
 
     std::vector<int64_t> weightsData40 = mv::utils::generateSequence<int64_t> (1*1*1024*256);
     auto weights40 = om.constantInt(weightsData40,{1,1,1024,256}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{126},{0.0035140542313456535},{-0.4410395920276642},{0.4550442397594452}}, "res4f_branch2a#133_weights#134");
@@ -426,7 +426,7 @@ int main(int argc, char **argv)
     auto biasWeights42 = om.constantInt(biasWeightsData42,{1024}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4869156075292267e-05},{-inf},{inf}}, "res4f_branch2c#139_bias#141");
     auto bias_c42 = om.bias(conv42, biasWeights42, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}});
 
-    auto eltwise12 = om.add({eltwise11,bias_c42}, mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4f/Relu#237");
+    auto eltwise12 = om.eltwise({eltwise11,bias_c42}, "Add", mv::DType("UInt8"), {{0},{0.0941176488995552},{0.0},{24.0}}, "res4f/Relu#237");
 
     std::vector<int64_t> weightsData43 = mv::utils::generateSequence<int64_t> (1*1*1024*2048);
     auto weights43 = om.constantInt(weightsData43,{1,1,1024,2048}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.003836166113615036},{-0.4922131896018982},{0.4860091507434845}}, "res5a_branch1#143_weights#144");
@@ -460,7 +460,7 @@ int main(int argc, char **argv)
     auto biasWeights46 = om.constantInt(biasWeightsData46,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.5073868780746125e-05},{-inf},{inf}}, "res5a_branch2c#152_bias#154");
     auto bias_c46 = om.bias(conv46, biasWeights46, mv::DType("UInt8"), {{0},{0.125490203499794},{0.0},{32.0}});
 
-    auto eltwise13 = om.add({bias_c43,bias_c46}, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5a/Relu#242");
+    auto eltwise13 = om.eltwise({bias_c43,bias_c46}, "Add", mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5a/Relu#242");
 
     std::vector<int64_t> weightsData47 = mv::utils::generateSequence<int64_t> (1*1*2048*512);
     auto weights47 = om.constantInt(weightsData47,{1,1,2048,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0038684855680912733},{-0.497765451669693},{0.48869839310646057}}, "res5b_branch2a#156_weights#157");
@@ -486,7 +486,7 @@ int main(int argc, char **argv)
     auto biasWeights49 = om.constantInt(biasWeightsData49,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.674842496868223e-05},{-inf},{inf}}, "res5b_branch2c#162_bias#164");
     auto bias_c49 = om.bias(conv49, biasWeights49, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
 
-    auto eltwise14 = om.add({eltwise13,bias_c49}, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5b/Relu#246");
+    auto eltwise14 = om.eltwise({eltwise13,bias_c49}, "Add", mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}}, "res5b/Relu#246");
 
     std::vector<int64_t> weightsData50 = mv::utils::generateSequence<int64_t> (1*1*2048*512);
     auto weights50 = om.constantInt(weightsData50,{1,1,2048,512}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{129},{0.0037442538887262344},{-0.48447155952453613},{0.4703131914138794}}, "res5c_branch2a#166_weights#167");
@@ -512,7 +512,7 @@ int main(int argc, char **argv)
     auto biasWeights52 = om.constantInt(biasWeightsData52,{2048}, mv::DType("UInt8"), mv::Order::getColMajorID(1), {{0},{1.4699906387249939e-05},{-inf},{inf}}, "res5c_branch2c#172_bias#174");
     auto bias_c52 = om.bias(conv52, biasWeights52, mv::DType("UInt8"), {{0},{0.16470588743686676},{0.0},{42.0}});
 
-    auto eltwise15 = om.add({eltwise14,bias_c52}, mv::DType("UInt8"), {{0},{0.250980406999588},{0.0},{64.0}}, "res5c/Relu#250");
+    auto eltwise15 = om.eltwise({eltwise14,bias_c52}, "Add", mv::DType("UInt8"), {{0},{0.250980406999588},{0.0},{64.0}}, "res5c/Relu#250");
 
     auto pool1 = om.averagePool(eltwise15, {7, 7}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("UInt8"), {{0},{0.250980406999588},{0.0},{64.0}}, "pool5/AvgPool#251");
 
