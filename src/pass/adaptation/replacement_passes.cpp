@@ -763,7 +763,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     {
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
 
-        if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
+        if(kSize[0] <= MAX_KERNEL and kSize[1] <= MAX_KERNEL) // can do as single depthwise, skip
             continue;
 
         auto kernelSize = kSize[0];
