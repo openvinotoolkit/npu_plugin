@@ -892,6 +892,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
 {
+    // Note: Zero-padding populated tensor used for large kernel support needs to keep existing dst strides
+    auto skip_unstriding_dst = false;
+    if(src->hasAttr("is_pad") && src->get<bool>("is_pad"))
+        skip_unstriding_dst = true;
+
     if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
@@ -918,6 +923,8 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->strides = strides;
         tmp->src->data_dtype = dtype;
 
+        if(skip_unstriding_dst)
+            return;
 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
@@ -956,7 +963,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     checkUnstridedDMA(src, -1, tmp);
 
     // Check if the HDE engine compressed the weights
-    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
         tmp->compression =  true;
 
     toPush->task.value = tmp;

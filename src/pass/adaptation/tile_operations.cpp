@@ -89,6 +89,8 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
                                 inputTensor->getOrder(), 
                                 inputTensorQPs);
     om.getSourceOp(topPad)->set<unsigned>("opId", opId);
+    topPad->set<bool>("is_pad", true);
+
     std::vector<int64_t> bottomData(bottomSize * otherDimSize, zeroPoint[0]);
     auto bottomPad = om.constantInt(bottomData, 
                             {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
@@ -96,6 +98,7 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
                             inputTensor->getOrder(), 
                             inputTensorQPs);
     om.getSourceOp(bottomPad)->set<unsigned>("opId", opId);
+    bottomPad->set<bool>("is_pad", true);
 
     auto newHeight = inputTensorShape[mv::IO_HEIGHT_DIMENSION] + originalPadding[2] + originalPadding[3];
     // Create left/right padding, height of (original tensor+ t/b padding), width of l/r padding
@@ -108,6 +111,8 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
                                 mv::DType("UInt8"), 
                                 inputTensor->getOrder(), 
                                 inputTensorQPs);
+    leftPad->set<bool>("is_pad", true);
+
     om.getSourceOp(leftPad)->set<unsigned>("opId", opId);
     std::vector<int64_t> rightData(rightSize * otherDimSize, zeroPoint[0]);
     auto rightPad = om.constantInt(rightData, 
@@ -116,6 +121,7 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
                             inputTensor->getOrder(), 
                             inputTensorQPs);
     om.getSourceOp(rightPad)->set<unsigned>("opId", opId);
+    rightPad->set<bool>("is_pad", true);
 
 
     // Create concats and update flows
