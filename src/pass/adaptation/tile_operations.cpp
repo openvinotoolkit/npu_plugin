@@ -132,7 +132,7 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     
     auto sourceFlow = opIt.leftmostInput();
     om.undefineFlow(sourceFlow);
-    opIt->setInputTensor(concatW, 0, true);
+    opIt->setInputTensor(concatW, 0, false);
     om.defineFlow(concatW, opIt, 0);
 
     opIt->set<std::array<unsigned short, 4>>("padding", {0,0,0,0});
