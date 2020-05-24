@@ -383,7 +383,7 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and inputShapeBasedCmconvFilter(op))
                     isCMConv = true;
 
-                size_t kHeight = -1;
+                size_t kHeight = 1;
                 if(opType == "Conv")
                     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
 
@@ -852,6 +852,7 @@ namespace mv
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
+                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
                     if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
