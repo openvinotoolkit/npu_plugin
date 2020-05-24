@@ -121,18 +121,17 @@ namespace
             // *codeOut << paramName;
             // *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
             // *dataOut << std::endl;
-            std::string T_type = "int64_t";
-            if (typeid(T).name() == "l")
-                T_type = "int64_t";
-            else if (typeid(T).name() == "a")
-                T_type = "int8_t";
-            else if (typeid(T).name() == "d")
-                T_type = "double";
+            std::string T_in = typeid(T).name();
+            std::string T_str = "int64_t";
+            if (T_in == "l")
+                T_str = "int64_t";
+            else if (T_in == "d")
+                T_str = "double";
             else 
-                T_type = typeid(T).name();
+                T_str = T_in;
             
             std::string weightsFilename = std::string("./data/") + paramName + std::string(".bin");
-            *codeOut << "read<" << T_type << "," << T_type << ">(" << weightsFilename << ")";
+            *codeOut << "read<" << T_str << "," << T_str << ">(" << weightsFilename << ")";
             write<T,T>(attr, weightsFilename);
         }
     }
