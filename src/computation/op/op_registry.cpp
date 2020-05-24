@@ -33,6 +33,19 @@ namespace
 const std::string RECORDED_OP_MODEL_CPP_BODY = R"cpptempl(
 namespace
 {
+    template <typename T1, typename T2>
+    void write(const std::vector<T1>& data, const std::string& filepath)
+    {
+        mv::utils::validatePath(filepath);
+        std::ofstream file(filepath, std::ofstream::binary);
+        T2 aux;
+        for (const auto& value: data)
+        {
+            aux = value;
+            file.write(&reinterpret_cast<char&>(aux), sizeof(aux));
+        };
+    }
+
     std::string varName(std::string name)
     {
         std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
@@ -105,9 +118,22 @@ namespace
         }
         else
         {
-            *codeOut << paramName;
-            *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
-            *dataOut << std::endl;
+            // *codeOut << paramName;
+            // *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
+            // *dataOut << std::endl;
+            std::string T_type = "int64_t";
+            if (typeid(T).name() == "l")
+                T_type = "int64_t";
+            else if (typeid(T).name() == "a")
+                T_type = "int8_t";
+            else if (typeid(T).name() == "d")
+                T_type = "double";
+            else 
+                T_type = typeid(T).name();
+            
+            std::string weightsFilename = std::string("./data/") + paramName + std::string(".bin");
+            *codeOut << "read<" << T_type << "," << T_type << ">(" << weightsFilename << ")";
+            write<T,T>(attr, weightsFilename);
         }
     }
     template <typename T>
@@ -1011,7 +1037,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "/*" << eol;
     srcStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
     srcStream << "*/" << eol << eol;
-    srcStream << "#include \"" << "include/mcm/op_model.hpp" << "\"" << eol << eol;
+    srcStream << "#include \"" << "include/mcm/op_model.hpp" << "\"" << eol;
+    srcStream << "#include \"" << "include/mcm/utils/env_loader.hpp" << "\"" << eol << eol;
 
     srcStream << "mv::OpModel::OpModel(const std::string& name) :" << eol;
     srcStream << "BaseOpModel(name)" << eol;
