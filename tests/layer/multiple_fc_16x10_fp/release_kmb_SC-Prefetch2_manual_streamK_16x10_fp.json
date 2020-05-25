@@ -225,10 +225,11 @@
             "TensorsToFP16",
             "FusePostOps",
             "ConvolutionDilation",
-            "DecidePrecision",
+            "HandleGroupConvolution",
+            "DecideOutputDataType",
+            "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
             "StoreGraphOptimizerDecisions",
             "ComputeSparsitySolution",
             "StreamingOperations",
@@ -262,7 +263,6 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-            "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
     },
@@ -322,7 +322,8 @@
                 "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers"
+            "PopulateWeightsTablesPointers",
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
