@@ -523,11 +523,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
-        // PR653 Streaming Refactoring code
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->data->data_index += leading_offset;
-        //
 
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
