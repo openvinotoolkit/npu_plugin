@@ -437,19 +437,31 @@ void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationM
                     computeQuantMultShift(m, shift, mult);
 
                 outputQuantization.quantize(shift, mult);
-                 if (opIt->hasAttr("postOpTypes"))
-                 {
-                     signed postShift = 0;
-                     auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
-                                               opIt->get<std::vector<std::string>>("postOpTypes").end(),
-                                               "FLEXARB");
-                     if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+
+                // Custom PWL table, supports only Leaky Relu at this point
+                if (opIt->hasAttr("postOpTypes"))
+                {
+                    signed postShift = 0;
+                    auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                                            opIt->get<std::vector<std::string>>("postOpTypes").end(),
+                                            "FLEXARB");
+                    // TODO: post_shist of 4 is just the current computed value for the sole
+                    // case of leaky relu done in PWL, need to provide a path from target descritptor
+                    // to pass logic to parametrize each custom PWL table entries.
+                    // We may just as well have two custom PWL tables during inference with diff params
+                    if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
                         postShift = 4;
-                     mv::QuantizationParams postQuantization = {{outputQuantization.getZeroPoint()},{outputQuantization.getScale()},
-                                                                {outputQuantization.getMin()},{outputQuantization.getMax()},
-                                                                ser_shift, ser_scale, postShift};
+                    mv::QuantizationParams postQuantization = {
+                            {outputQuantization.getZeroPoint()},
+                            {outputQuantization.getScale()},
+                            {outputQuantization.getMin()},
+                            {outputQuantization.getMax()},
+                            shift,
+                            mult,
+                            postShift
+                        };
                     output->set<mv::QuantizationParams>("quantParams", postQuantization);
-                 }
+                }
 
             }
         }
