@@ -34,6 +34,8 @@ namespace IE = InferenceEngine;
 using RemoteMemoryFD = uint64_t;
 class VideoWorkload_Tests : public ::testing::Test {
 public:
+    WorkloadID workloadId = -1;
+
     std::string graphPath;
     std::string refInputPath;
     std::string refOutputPath;
@@ -45,6 +47,7 @@ public:
 
 protected:
     void SetUp() override;
+    void TearDown() override;
     HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
@@ -68,6 +71,8 @@ void VideoWorkload_Tests::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
 }
 
+void VideoWorkload_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
+
 //------------------------------------------------------------------------------
 using VideoWorkload_WithoutPreprocessing = VideoWorkload_Tests;
 TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
@@ -75,7 +80,6 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
 
-    WorkloadID workloadId;
     context->setContext(workloadId);
     EXPECT_EQ(workloadId, context->getWorkloadContextID());
     EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
@@ -151,7 +155,6 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupp
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
 
-    WorkloadID workloadId;
     context->setContext(workloadId);
     EXPECT_EQ(workloadId, context->getWorkloadContextID());
     EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
@@ -226,7 +229,6 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
 
-    WorkloadID workloadId;
     context->setContext(workloadId);
     EXPECT_EQ(workloadId, context->getWorkloadContextID());
     EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
@@ -310,7 +312,6 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
 
-    WorkloadID workloadId;
     context->setContext(workloadId);
     EXPECT_EQ(workloadId, context->getWorkloadContextID());
     EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));

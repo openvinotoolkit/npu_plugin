@@ -40,6 +40,8 @@ public:
     using Time = std::chrono::high_resolution_clock::time_point;
     Time (&Now)() = std::chrono::high_resolution_clock::now;
 
+    WorkloadID workloadId = -1;
+
     const int numberOfIterations = 100;
     std::string graphPath;
     std::string refInputPath;
@@ -52,6 +54,7 @@ public:
 
 protected:
     void SetUp() override;
+    void TearDown() override;
 
     HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
@@ -76,12 +79,13 @@ void Performance_Tests::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12_1080Output;
 }
 
+void Performance_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
+
 TEST_F(Performance_Tests, Resnet50_DPU_Blob_WithPreprocessing) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
 
-    WorkloadID workloadId;
     context->setContext(workloadId);
     EXPECT_EQ(workloadId, context->getWorkloadContextID());
     EXPECT_EQ(HddlStatusCode::HDDL_OK, registerWorkloadContext(context));
