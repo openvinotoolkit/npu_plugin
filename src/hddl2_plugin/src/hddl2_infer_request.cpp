@@ -124,7 +124,7 @@ void HDDL2InferRequest::InferAsync() {
             THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
         }
         const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-        prepareInputForInference(inputBlobPtr);
+        foundInputBlob->second = prepareInputForInference(inputBlobPtr);
 
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
             needUnitePreProcessing = true;
