@@ -125,9 +125,10 @@ namespace mv
             auto numberOfSplits = childTiles_.size();
             auto parentTileShape = getSize();
             auto axisToSplit = mv::Shape::getAxis(getAxis());
-
-            int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
-            int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
+            int newSize = mv::round_up(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits), 16);
+            int remainderSize = mv::round_up(parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1)), 16);
+            // int newSize = ceil(((double)parentTileShape[axisToSplit]) / ((double)numberOfSplits));
+            // int remainderSize = parentTileShape[axisToSplit] - (newSize*(numberOfSplits -1));
 
             if(remainderSize == 0)
             {

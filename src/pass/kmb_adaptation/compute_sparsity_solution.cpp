@@ -41,8 +41,9 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         auto inputTensorMemoryLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
         //if the input Tensor is in ddr, it means that the previous op outputed in cmx and for
         //memory requirements a travel to ddr is taking place so the previous op was streamed
-        if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR"))
-        {
+        // if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR") ||
+        //     inputTensorMemoryLocation == mv::Tensor::MemoryLocation("INPUT"))
+        // {
             //for now we are going to handle only the case that we have an op flaot16
             if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision") &&
                     referenceDevice == "A0")
@@ -50,7 +51,7 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
                 convOp->set<bool>("activationSparsityCompilerSolving", true);
                 convOp->set<bool>("inputActivationSparsity", true);
             }
-        }
+        // }
     }
 
 }
