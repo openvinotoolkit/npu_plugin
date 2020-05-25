@@ -100,3 +100,9 @@ else()
     set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
     set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
 endif()
+
+# copy firmware to lib folder to have vpu.bin in a package
+add_custom_target(vpu_bin_copy ALL
+        COMMAND "${CMAKE_COMMAND}" -E copy "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpuip_2/vpu.bin"
+                                            $<TARGET_FILE_DIR:kmbPlugin>
+        COMMENT "[Firmware] Copy vpu.bin")
