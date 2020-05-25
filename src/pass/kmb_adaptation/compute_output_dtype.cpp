@@ -446,6 +446,16 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                     }
                 }
             }
+            else
+            {
+                if (returnedParams->hasAttr("FloatOutput"))
+                {
+                    if (returnedParams->get<bool>("FloatOutput"))
+                    {
+                        conv->set<bool>("floatPrecision", true);
+                    }
+                }
+            }
         }
     }
 }
