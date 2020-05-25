@@ -101,7 +101,7 @@ std::string mv::BaseOpModel::varName(std::string name)
     return name;
 }
 
-void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
+void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool recordWeightsAsText) 
 {
     // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
@@ -109,7 +109,8 @@ void mv::BaseOpModel::initRecordingFile(const std::string& outFileName)
 
     codeOut_ = new std::ofstream();
     dataOut_ = new std::ofstream();
-    this->recordModel = true;
+    this->recordModel_ = true;
+    this->recordWeightsAsText_ = recordWeightsAsText;
 
     const auto dataFileName = removeFileExt(outFileName) + ".data.inc";
     codeOut_->open(outFileName, std::ios_base::out | std::ios_base::trunc);
