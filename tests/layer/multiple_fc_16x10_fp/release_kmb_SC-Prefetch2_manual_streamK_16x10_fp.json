@@ -124,7 +124,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 16}
+                            {"K" : 22}
                         ]
                     },
                     {
@@ -133,7 +133,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 8}
+                            {"K" : 16}
                         ]
                     },
                     {
@@ -173,33 +173,33 @@
                         "weightsSparsity": false
                     },
                     {
-                        "inputActivationSparsity": false,
+                        "inputActivationSparsity": true,
                         "name_filter": "fc_0",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": false,
+                        "inputActivationSparsity": true,
                         "name_filter": "fc_1",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": false,
+                        "inputActivationSparsity": true,
                         "name_filter": "fc_2",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "outputActivationSparsity": true,
+                        "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": false,
+                        "inputActivationSparsity": true,
                         "name_filter": "fc_3",
                         "outputActivationSparsity": false,
-                        "weightsSparsity": false
+                        "weightsSparsity": true
                     },
                     {
                         "inputActivationSparsity": false,
                         "name_filter": "Input_0",
-                        "outputActivationSparsity": false,
+                        "outputActivationSparsity": true,
                         "weightsSparsity": false
                     }
                 ]
