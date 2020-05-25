@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <vpusmm/vpusmm.h>
 
 #include <condition_variable>
 #include <mutex>
@@ -15,8 +16,6 @@
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/private_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
-
-#include "vpusmm.h"
 
 using namespace ::testing;
 using namespace InferenceEngine;
