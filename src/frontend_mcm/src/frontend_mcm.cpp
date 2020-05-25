@@ -1839,8 +1839,8 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
         variance.push_back(0.1f);
     }
 
-    if (step_w == 0 && step_h == 0) {
-        if (step == 0) {
+    if (step_w == 0.f && step_h == 0.f) {
+        if (step == 0.f) {
             step_w = static_cast<float>(img_width) / layer_width;
             step_h = static_cast<float>(img_height) / layer_height;
         } else {

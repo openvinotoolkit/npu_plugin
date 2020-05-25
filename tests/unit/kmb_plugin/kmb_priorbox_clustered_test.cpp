@@ -1,5 +1,17 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <cpp/ie_cnn_net_reader.h>
@@ -123,20 +135,6 @@ class KmbComputePriorboxClusteredTest :
 </Net>
 )V0G0N";
 
-    template <typename T>
-    std::string vectorToStr(const std::vector<T>& array) {
-        if (array.empty()) return std::string();
-
-        std::stringstream outStream;
-
-        for (size_t i = 0; i < array.size(); ++i) {
-            if (i != 0) {
-                outStream << ',';
-            }
-            outStream << array[i];
-        }
-        return outStream.str();
-    }
     std::string getModel(xmlPriorBoxClusteredParam p) {
         std::string model = model_t;
 
@@ -152,9 +150,9 @@ class KmbComputePriorboxClusteredTest :
         REPLACE_WITH_NUM(model, "_OH_", p._out_dims[1]);
         REPLACE_WITH_NUM(model, "_OC_", p._out_dims[0]);
 
-        REPLACE_WITH_STR(model, "_WIDTH_", vectorToStr(p._width));
-        REPLACE_WITH_STR(model, "_HEIGHT_", vectorToStr(p._height));
-        REPLACE_WITH_STR(model, "_VARIANCE_", vectorToStr(p._variance));
+        REPLACE_WITH_STR(model, "_WIDTH_", vpu::ParseLayersHelpers::vectorToStr(p._width));
+        REPLACE_WITH_STR(model, "_HEIGHT_", vpu::ParseLayersHelpers::vectorToStr(p._height));
+        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::ParseLayersHelpers::vectorToStr(p._variance));
 
         REPLACE_WITH_NUM(model, "_CLIP_", p._clip);
         REPLACE_WITH_NUM(model, "_FLIP_", p._flip);
@@ -266,8 +264,8 @@ protected:
 
             // compare CPU and KMB outputs
 
-            const TBlob<float>::Ptr outputArray = std::dynamic_pointer_cast<TBlob<float>>(output);
-            float* dst_ptr = outputArray->data();
+            auto moutputHolder = output->wmap();
+            float* dst_ptr = moutputHolder.as<float*>();
 
             for (size_t i = 0; i < kmb_priorbox_clustered_result.size(); ++i) {
                 EXPECT_EQ(dst_ptr[i], kmb_priorbox_clustered_result[i]);
