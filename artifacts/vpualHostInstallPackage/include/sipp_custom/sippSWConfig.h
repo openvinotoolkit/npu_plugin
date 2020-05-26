@@ -635,7 +635,7 @@ cvtColorChromaNV12Param;
  */
 typedef struct
 {
-    UInt32 dMat[14];
+    UInt8 dMat[49];
 }
 Dilate7x7Param;
 
@@ -647,7 +647,7 @@ Dilate7x7Param;
  */
 typedef struct
 {
-    UInt32 eMat[3];
+    UInt8 eMat[9];
 }
 Erode3x3Param;
 
@@ -659,7 +659,7 @@ Erode3x3Param;
  */
 typedef struct
 {
-    UInt32 eMat[10];
+    UInt8 eMat[25];
 }
 Erode5x5Param;
 
@@ -920,7 +920,7 @@ Conv15x1Param;
  */
 typedef struct
 {
-    UInt32 dMat[10];
+    UInt8 dMat[25];
 }
 Dilate5x5Param;
 
@@ -949,7 +949,7 @@ RandNoiseFp16Param;
  */
 typedef struct
 {
-    UInt32 dMat[14];
+    UInt8 dMat[49];
 }
 Erode7x7Param;
 
@@ -1075,7 +1075,7 @@ PadKernel_u16Param;
  */
 typedef struct
 {
-    UInt32 dMat[3];
+    UInt8 dMat[9];
 }
 Dilate3x3Param;
 

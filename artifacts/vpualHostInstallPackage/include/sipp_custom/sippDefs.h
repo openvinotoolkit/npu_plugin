@@ -201,6 +201,11 @@ enum SippFilters {
     svuCvtColorRGBfp16ToLumaU8            = BASE_SW_ID + 165,
     svuCvtColorRGBfp16ToUV420U8           = BASE_SW_ID + 166,
     svuHammingDistance                    = BASE_SW_ID + 167,
+    svuMerge2p                            = BASE_SW_ID + 168,
+    svuMerge4p                            = BASE_SW_ID + 169,
+    svuSplit2p                            = BASE_SW_ID + 170,
+    svuSplit3p                            = BASE_SW_ID + 171,
+    svuSplit4p                            = BASE_SW_ID + 172,
 
 };
 
