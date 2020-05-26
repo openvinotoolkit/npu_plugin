@@ -20,7 +20,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${KMB_TEST_SOURCES})
 endif()
 
-list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB} kmb_utils)
+list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph kmb_utils)
 
 add_executable(${TARGET_NAME} ${KMB_TEST_SOURCES})
 

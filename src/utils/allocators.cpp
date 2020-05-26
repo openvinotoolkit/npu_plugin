@@ -25,7 +25,7 @@
 #include "../kmb_plugin/kmb_allocator.h"
 
 #if defined(__arm__) || defined(__aarch64__)
-#include "vpusmm.h"
+#include <vpusmm/vpusmm.h>
 #endif
 
 namespace vpu {

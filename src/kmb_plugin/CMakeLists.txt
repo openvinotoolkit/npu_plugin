@@ -60,7 +60,7 @@ target_link_libraries(${TARGET_NAME}
         IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
-        ${VPUSMM_LIB}
+        ${VPUSMM_LIBRARY}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
@@ -113,7 +113,7 @@ if(ENABLE_TESTS)
             IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
-            ${VPUSMM_LIB}
+            ${VPUSMM_LIBRARY}
         PRIVATE
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)

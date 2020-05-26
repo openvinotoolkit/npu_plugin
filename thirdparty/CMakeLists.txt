@@ -32,16 +32,6 @@ function(add_3rdparty_subdir SUBDIR_NAME)
 endfunction()
 
 if(ARM OR AARCH64)
-    add_subdirectory(vsi_cmodel/vpusmm)
-
-    # copy memory manager library to target directory when vpualHost is enabled
-    get_target_property(VPUSMM_LIB_PATH vpusmm IMPORTED_LOCATION)
-    set(VPUSMM_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-    # FIXME: dirty hack to copy vpusmm and symlinks on it
-    add_custom_target(vpusmm_copy_library ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy "${VPUSMM_LIB_PATH}*" "${VPUSMM_OUT_DIR}"
-        COMMENT "[VPUSMM] Copy vpusmm library to build results")
-
     add_custom_target(vpual_copy_library ALL
             COMMAND "${CMAKE_COMMAND}" -E copy  $<TARGET_PROPERTY:NN,LOCATION>
                                                 $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
@@ -68,7 +58,6 @@ if(ARM OR AARCH64)
 
     set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
-    set(VPUSMM_LIB vpusmm CACHE INTERNAL "")
 else()
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
@@ -81,7 +70,6 @@ else()
 
     set(GAPI_SIPP_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES "" CACHE INTERNAL "")
-    set(VPUSMM_LIB "" CACHE INTERNAL "")
 endif()
 
 if(ENABLE_MCM_COMPILER)
@@ -112,3 +100,9 @@ else()
     set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
     set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
 endif()
+
+# copy firmware to lib folder to have vpu.bin in a package
+add_custom_target(vpu_bin_copy ALL
+        COMMAND "${CMAKE_COMMAND}" -E copy "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/movidius/vpuip_2/vpu.bin"
+                                            $<TARGET_FILE_DIR:kmbPlugin>
+        COMMENT "[Firmware] Copy vpu.bin")

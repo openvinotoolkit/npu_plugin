@@ -27,7 +27,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
 endif()
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_link_libraries(${TARGET_NAME} PRIVATE ${VPUSMM_LIB} PUBLIC IE::inference_engine_lp_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE ${VPUSMM_LIBRARY} PUBLIC IE::inference_engine_lp_transformations)
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
