@@ -223,12 +223,13 @@ protected:
             std::string model = getModel(p);
 
             // calc priorbox output using CPU plugin
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            Core ie;
+            CNNNetwork network;
+            ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
-            net_reader.getNetwork().setBatchSize(1);
+            network.setBatchSize(1);
 
-            InputsDataMap inputs = net_reader.getNetwork().getInputsInfo();
+            InputsDataMap inputs = network.getInputsInfo();
 
             DataPtr inputPtr1 = inputs["input1"]->getInputData();
             DataPtr inputPtr2 = inputs["input2"]->getInputData();
@@ -243,7 +244,7 @@ protected:
             inputBlobs["input1"] = input1;
             inputBlobs["input2"] = input2;
 
-            OutputsDataMap outputs = net_reader.getNetwork().getOutputsInfo();
+            OutputsDataMap outputs = network.getOutputsInfo();
 
             InferenceEngine::TBlob<float>::Ptr output;
             output = InferenceEngine::make_shared_blob<float>(outputs["priorboxclustered"]->getTensorDesc());
@@ -252,8 +253,7 @@ protected:
             InferenceEngine::BlobMap outputBlobs;
             outputBlobs["priorboxclustered"] = output;
 
-            Core ie;
-            ExecutableNetwork exeNetwork = ie.LoadNetwork(net_reader.getNetwork(), "CPU");
+            ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "CPU");
             InferRequest inferRequest = exeNetwork.CreateInferRequest();
             inferRequest.SetInput(inputBlobs);
             inferRequest.SetOutput(outputBlobs);
