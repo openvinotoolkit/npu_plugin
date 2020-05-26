@@ -19,7 +19,7 @@ set(TARGET_NAME KmbUnitTests)
 file(GLOB TEST_SOURCES
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
-list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIB})
+list(APPEND KMB_TEST_LIBRARIES IE::IESharedTests IE::vpu_common_lib IE::ngraph ${VPUSMM_LIBRARY})
 
 add_executable(${TARGET_NAME} ${TEST_SOURCES})
 
