@@ -248,6 +248,7 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsEltwise",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "no_temporal_edges" : true,

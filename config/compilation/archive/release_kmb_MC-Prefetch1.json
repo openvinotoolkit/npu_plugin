@@ -243,7 +243,6 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsEltwise",
             "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
