@@ -15,7 +15,7 @@ debug_message(STATUS "MODELS_PATH=" ${MODELS_PATH})
 set(DATA_PATH "${TEMP}/validation_set/src/validation_set")
 debug_message(STATUS "DATA_PATH=" ${DATA_PATH})
 
-add_models_repo(${ENABLE_MODELS} "models:inference-engine/models-ir.git")
+add_models_repo(${ENABLE_MODELS} "models:git@gitlab-icv.inn.intel.com:inference-engine/models-ir.git")
 
 if (ENABLE_VALIDATION_SET)
     add_lfs_repo(
