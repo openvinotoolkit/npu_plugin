@@ -10,6 +10,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "scheduler/feasible_scheduler.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 
@@ -35,7 +36,7 @@ struct model_traits<mv::ControlModel> {
 
   //TODO(vamsikku): reference to model must be const here //
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getFirst();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -62,7 +63,7 @@ struct model_traits<mv::OpModel> {
 
 
   static const_operation_iterator_t begin_operations(model_t& cm) {
-    return cm.getInput();
+    return cm.opBegin();
   }
 
   static const_child_operation_iterator_t begin_child_operations(
@@ -140,6 +141,19 @@ struct Scheduled_Op {
 
   typedef mv::Op const * operation_t;
   operator operation_t() const { return op_; }
+
+  void set_start_address(size_t start_address) {
+    cmx_address_start_ = start_address;
+  }
+
+  void set_end_address(size_t end_address) {
+    cmx_address_end_ = end_address;
+  }
+
+  void invalidate_address() {
+    cmx_address_start_= std::numeric_limits<size_t>::max();
+    cmx_address_end_= std::numeric_limits<size_t>::min();
+  }
 
 
   mv::Op const * op_;
@@ -265,8 +279,12 @@ class Operation_Dag {
     Operation_Dag(model_t& model) : adj_map_(), adj_map_rev_(),
       op_name_table_(), ops_(), resource_utility_map_(),
       op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
-      implicit_op_types_( {"Slice", "Crop", "Copy", "Align",
-          "ImplicitReshape", "ImplicitPermute", "ImplicitOutput"} ) {
+      //NOTE: please add all implicit ops to this list -- except ImplicitConcat
+      //All implicit ops are short-circuited during scheduling. ImplicitConcat
+      //is left in place to reduce the edge blowup (quadratic) of dependencies.
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
+          "ImplicitInputSlice", "ImplicitUnion"} ) {
         init_from_model(model);
     }
 
@@ -551,6 +569,10 @@ class Operation_Dag {
       return op->getOpType() == "DPUTask";
     }
 
+    bool is_upa_op(operation_t op) const {
+      return op->getOpType() == "UPATask";
+    }
+
     bool has_edge_between_ops(operation_t a, operation_t b) const {
       const_operation_iterator_t citr = begin_nodes(a), citr_end = end_nodes(a);
       for (; citr != citr_end; ++citr) {
@@ -591,7 +613,6 @@ class Operation_Dag {
 
         bfs_list.pop_front();
         op_size_table_t::iterator itr = op_size_table.find(curr_op);
-
 
         resource_t curr_op_utility = resource_utility(curr_op);
 
@@ -676,10 +697,11 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") ||
+      return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
-              (op->getOpType() == "ImplicitUnion");
+          (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
+          (op->getOpType() == "ImplicitInputSlice");
     }
 
 
@@ -766,6 +788,7 @@ class Operation_Dag {
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited =
             short_circuit_unit_indegree_op(*oitr);
+        UNUSED(short_circuited);
         assert(short_circuited);
       }
       return true;
@@ -882,7 +905,7 @@ class Operation_Dag {
     //ideally we need to take a functor which decides if the scheduler can
     //ignore the operation.
     bool is_operation_ignored(operation_t op,
-          mv::ControlModel& dispatch_tag) const {
+          mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
         (op_type == "ImplicitConcat") || 
@@ -891,7 +914,7 @@ class Operation_Dag {
 
 
 
-    bool is_operation_ignored(operation_t op, mv::OpModel& dispatch_tag) const {
+    bool is_operation_ignored(operation_t op, mv::OpModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement");
     }
@@ -926,9 +949,7 @@ class Operation_Dag {
           pop_itr = (ops_.insert(op)).first;
           // op should have an unique name //
           const char * const op_name = op->getName().c_str();
-          op_name_table_t::iterator nitr =
-              op_name_table_.find(op->getName().c_str());
-          assert(nitr == op_name_table_.end());
+          assert(op_name_table_.find(op_name) == op_name_table_.end());
           op_name_table_.insert(std::make_pair(op_name, op));
         }
         op_to_iterator_lookup_.insert(std::make_pair(op, itr));
@@ -950,9 +971,7 @@ class Operation_Dag {
           if (cop_itr == ops_.end()) {
             cop_itr = (ops_.insert(child_op)).first;
             const char * const child_op_name = child_op->getName().c_str();
-            op_name_table_t::iterator nitr =
-                op_name_table_.find(child_op->getName().c_str());
-            assert(nitr == op_name_table_.end());
+            assert(op_name_table_.find(child_op_name) == op_name_table_.end());
             op_name_table_.insert(std::make_pair(child_op_name, child_op));
           }
 
@@ -1234,7 +1253,6 @@ class Operation_Dag {
     }
 
 
-  private:
 
 
     bool does_the_op_run_on_hardware(operation_t op) const {
@@ -1249,6 +1267,17 @@ class Operation_Dag {
       return (dma_dir == mv::DmaDirectionEnum::NNCMX2DDR) ||
           (dma_dir == mv::DmaDirectionEnum::UPACMX2DDR);
     }
+
+    bool is_dma_op_moving_data_from_ddr_to_cmx(operation_t op) const {
+      if ((op->getOpType()) != "DMATask") { return false; }
+
+      mv::DmaDirectionEnum dma_dir = op->get<mv::DmaDirection>("direction");
+
+      return (dma_dir == mv::DmaDirectionEnum::DDR2NNCMX) ||
+          (dma_dir == mv::DmaDirectionEnum::DDR2UPACMX);
+    }
+
+  private:
 
 
     //TODO(vamsikku): consolidate ops_ and op_to_iterator_lookup_ tables. //

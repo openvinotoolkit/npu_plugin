@@ -268,13 +268,17 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/tile_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/preprocess_PWL.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/tile_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/ppe_replacement.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/concat_as_implicit.cpp"
@@ -299,7 +303,8 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/deallocation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/assign_unique_task_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/splitting_across_clusters.cpp"
-    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_layer_split_strategy.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_graph_optimizer_decisions.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_sparsity_solution.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/store_workload_strategy.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_operation_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/sparsity/sparsity_maps.cpp"
@@ -337,6 +342,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/validation/basic_checks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/validation/generate_dot.cpp"
 
+    "${PROJECT_SOURCE_DIR}/src/pass/emulation/decide_precision.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
@@ -388,7 +394,7 @@ if (MSVC)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
     add_library(model SHARED ${model})
-    
+
     if(TARGET generate-comp-api)
         add_dependencies(cm generate-comp-api)
         add_dependencies(model generate-comp-api)
@@ -448,7 +454,7 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
-install(TARGETS cm model 
+install(TARGETS cm model
         EXPORT mcmCompilerTargets
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib

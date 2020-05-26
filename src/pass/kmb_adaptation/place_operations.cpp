@@ -8,6 +8,7 @@
 
 void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -20,6 +21,65 @@ namespace mv
         .setDescription(
             "This pass handles the DPU's output Tensor Data Type."
         );
+
+        MV_REGISTER_PASS(AddReshapesToChangeSoftmaxAxis)
+        .setFunc(addReshapesToChangeSoftmaxAxisFcn)
+        .setDescription(
+            "UPA softmax layer does not support softmax oepration on the W axis. \
+            The solution to this is to reshape the tensor before and after the softmax operation."
+        );
+    }
+}
+
+void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    using namespace mv;
+    OpModel om(model);
+    auto softmaxOps = om.getOps("Softmax");
+
+    for (auto& softmax : softmaxOps)
+    {
+        std::string axis = softmax->get<std::string>("axis");
+
+        if (axis.compare(std::string("W")) == 0)
+        {
+            auto inputTensorSoftmax = softmax->getInputTensor(0);
+
+            mv::QuantizationParams inputTensorSoftmaxQPs = inputTensorSoftmax->get<mv::QuantizationParams>("quantParams");
+
+            mv::Shape outputShapeBeforeSoftmax = {softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
+            
+            auto reshapeBeforeSoftmax = om.reshape(inputTensorSoftmax, outputShapeBeforeSoftmax, mv::DType("Float16"), inputTensorSoftmaxQPs,  softmax->getName() + "_reshape");
+            auto reshapeOpBeforeSoftmax = om.getSourceOp(reshapeBeforeSoftmax);
+            auto outputMemoryLocationSoftmax = softmax->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+            
+            /*Remove old flow*/
+            auto sourceFlow = softmax.leftmostInput();
+            om.undefineFlow(sourceFlow);
+
+            reshapeOpBeforeSoftmax->set<unsigned>("opId", softmax->get<unsigned>("opId"));
+            softmax->setInputTensor(reshapeBeforeSoftmax, 0, true);
+            om.defineFlow(reshapeBeforeSoftmax, softmax, 0);
+           
+            reshapeBeforeSoftmax->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
+            softmax->set<std::string>("axis", "H");
+
+            /*Reshape after*/
+            auto opAfterSoftmax = softmax.leftmostChild();
+            auto inputTensorOpAfterSoftmax =  opAfterSoftmax->getInputTensor(0);
+            mv::QuantizationParams inputTensorQuantizationParamsOpAfterSoftmax = inputTensorOpAfterSoftmax->get<mv::QuantizationParams>("quantParams");
+            mv::Shape outputShapeAfterSoftmax = {softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
+            auto reshapeAfterSoftmax = om.reshape(inputTensorOpAfterSoftmax, outputShapeAfterSoftmax, mv::DType("Float16"), inputTensorQuantizationParamsOpAfterSoftmax,  opAfterSoftmax->getName() + "_reshape");
+            auto reshapeOpAfterSoftmax = om.getSourceOp(reshapeAfterSoftmax);
+            
+            /*Remove old flow*/
+            auto sourceFlow1 = opAfterSoftmax.leftmostInput();
+            om.undefineFlow(sourceFlow1);
+            reshapeOpAfterSoftmax->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
+            opAfterSoftmax->setInputTensor(reshapeAfterSoftmax, 0, true);
+            om.defineFlow(reshapeAfterSoftmax, opAfterSoftmax, 0);
+            reshapeAfterSoftmax->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
+        }
     }
 }
 
@@ -53,6 +113,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     mv::DataModel dm(model);
 
     auto convOps = om.getOps("Conv");
+    auto convDepthwiseOps = om.getOps("DepthwiseConv");
+    convOps.insert(convOps.end(),convDepthwiseOps.begin(),convDepthwiseOps.end());
 
     for (auto& opIt : convOps)
     {
@@ -65,6 +127,7 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                 placeEltwiseDequantize(om, opIt);
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
+                opIt->set<mv::DType>("dType", mv::DType("Float16"));
                 //NOTE: Do not care of the data type of input but it will be float so all
                 //inputs and outputs need to be converted to float, populated need de-quantize!!!
                 for(std::size_t i = 0; i < opIt->inputSlots(); ++i)

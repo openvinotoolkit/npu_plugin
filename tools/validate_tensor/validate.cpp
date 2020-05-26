@@ -10,6 +10,7 @@
 #include <dirent.h>
 #include <iomanip>
 #include <vector>
+#include <ios>
 
 /**
  * Required environmental variables
@@ -412,9 +413,30 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if(std::getenv("RUNTIME_CONFIG") != NULL)
         runtimeConfig = std::getenv("RUNTIME_CONFIG");
 
+    // accept runtime options from user to enable features, normally empty is opt-in option
+    std::string runtimeOptions = "";
+    if(std::getenv("RUNTIME_OPTIONS") != NULL)
+        runtimeOptions = std::getenv("RUNTIME_OPTIONS");
+
+    // check the size of the blob file
+    std::ifstream blobfile(blobPath, std::ios::in);
+    blobfile.seekg(0, std::ios::end);
+    long int blobfile_size = blobfile.tellg();
+    std::cout << std::string("blobfile_size=") << blobfile_size << std::endl;
+    long int blobfile_size_mb = blobfile_size / 1048576L;
+    std::cout << std::string("blobfile_size_mb=") << blobfile_size_mb << std::endl;
+
+    // add to runtimeOptions
+    long int buffer_max_size=blobfile_size_mb + 1;
+    runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
+    if(blobfile_size_mb >= 100L)
+    {
+        runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
+    }
+
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
-        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort;
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)

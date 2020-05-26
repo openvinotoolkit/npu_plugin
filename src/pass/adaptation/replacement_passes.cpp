@@ -18,7 +18,9 @@ static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -64,15 +66,16 @@ void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-    pass.log(mv::Logger::MessageType::Debug, "Replacement passes are starting");
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeAvgPoolFcn(pass, model);
+    replaceLargeStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
+    replaceConcatOfPopulatedTensorsFcn(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -443,19 +446,25 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     for (auto& opIt : topKOps)
     {
         //Check if first output has no data flows
+        //check if mode and sort are different from what is supported by argmax
         auto firstoutput = opIt->getOutputTensor(0);
-        if(firstoutput->hasAttr("flows"))
-            continue;
+        auto attrs = opIt->getAttrs();
+
+        if(firstoutput->hasAttr("flows") ||
+            (attrs.at("mode").get<std::string>().compare("max") != 0) ||
+            (attrs.at("sort").get<std::string>().compare("index") != 0))
+            throw ArgumentError("topKAsArgMaxFcn", "flows", "", "cannot convert topK to argMax");// TODO replace with continue when we add topK support
+
         auto outputMemoryLocation = opIt->getOutputTensor(1)->get<mv::Tensor::MemoryLocation>("Location");
 
         auto sourceTensor = opIt->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(sourceTensor);
         auto inputShape = sourceTensor->getShape();
 
-        auto attrs = opIt->getAttrs();
+
         auto dtype = attrs.at("dType").get<mv::DType>();
         auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
-        auto out_max_val = attrs.at("out_max_val").get<int64_t>();
+        auto out_max_val = 0; //only support this for this conversion
         auto top_k = attrs.at("top_k").get<int64_t>();
         auto axis = attrs.at("axis").get<int64_t>();
 
@@ -813,4 +822,250 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
     } // end for
+}
+
+// Replace concat of populated inputs with single populated input
+void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    auto concats = om.getOps("Concat");
+    for(auto& concat : concats)
+    {
+        auto all_inputs_are_populated = true;
+        auto inputs = concat->getInputTensor();
+        for (auto& input : inputs)
+            if (!input->isPopulated())
+                all_inputs_are_populated = false;
+
+        if (!all_inputs_are_populated)
+            continue;
+
+        // Check for supported params
+        auto axis = concat->get<std::string>("axis");
+        if (axis != "W")
+            throw std::runtime_error("Compiler doesn't support manual concat of axis != W");
+
+        // Manually concat populated tensors
+        auto newShape = concat->getOutputTensor()[0]->getShape();
+        std::vector<double> newData(newShape.totalSize());
+        auto concat_offset = 0;
+        for (unsigned i=0; i<inputs.size(); i++)
+        {
+            auto inputData = inputs[i]->getDoubleData();
+            auto inputShape = inputs[i]->getShape();
+            for (unsigned H=0; H<inputShape[1]; H++)
+            {
+                auto input_start = (H)*inputShape[0];
+                auto input_length = inputShape[0];
+                auto new_start = concat_offset + H*newShape[0];
+                for(unsigned j=0; j<input_length; j++)
+                {
+                    newData[new_start + j] = inputData[input_start + j];
+                }
+            }
+            concat_offset += inputShape[0];
+        }
+
+        // Replace existing Concat'd tensors with a single tensor
+        std::vector<std::string> ops_to_remove;
+        for (unsigned i=0; i<concat->getInputTensor().size(); i++)
+            ops_to_remove.push_back(om.getSourceOp(concat->getInputTensor(i))->getName());
+
+        auto order = concat->getInputTensor(0)->getOrder();
+        auto quantParams = concat->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams");
+        auto newKernel = om.constant(newData, newShape, mv::DType("Float64"), order, quantParams);
+        auto newKernelOp = om.getSourceOp(newKernel);
+        newKernelOp->set<unsigned>("opId", concat->get<unsigned>("opId"));
+        newKernelOp->set<mv::DType>("dType", concat->get<mv::DType>("dType"));
+        auto flows = mv::getOutputDataFlow(om, concat);
+        mv::setOutputDataFlow(om, newKernel, flows);
+
+        for (auto& op_name : ops_to_remove)
+            om.removeOp(om.getOp(op_name));
+    }
+}
+//pass slicing horizontally by the provided width also slicing vertically by the provided height
+//original operation  is performed per small partitions, 
+//result concatenated per each line (horizontally) and at the end concatening the  1 column of results vertically
+mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto inputTensor = operation->getInputTensor(mv::IO_TENSOR_INPUT);
+    unsigned initialOpId = operation->get<unsigned>("opId");
+    auto inputShape = inputTensor->getShape();
+    auto width = inputShape[mv::IO_WIDTH_DIMENSION];
+    auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
+    std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> kSize;
+    if ( operation->hasAttr("kSize") )
+        kSize = operation->get<std::array<unsigned short, 2>>("kSize");
+    else
+        kSize = {operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH],
+                    operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT] };
+
+    auto initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
+    std::array<unsigned short, 4> padding = initialPadding;
+    std::size_t branchWidth, branchHeight;
+    mv::Shape beginInputShape, branchInputSize; //coordinates to slice
+    //if strides bigger than supported stride, replace the operation with big strides by the chunks of operations with strides of a batch
+
+    branchWidth = stride[mv::STRIDE_HORIZONTAL];//no overlap
+    branchHeight = stride[mv::STRIDE_VERTICAL];//no overlap
+    branchInputSize = {branchWidth, branchHeight, inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION], inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
+    padding = {0, 0, 0, 0};
+    //sliced op iteratively and the vector
+    mv::Data::TensorIterator op;
+    mv::Data::TensorIterator opConcatHorizontal;
+    std::vector <mv::Data::TensorIterator> opsHorizontal;
+
+    //concat iteratively on the line vertically on the width axis and the vector of Horizontally Concats to be concatenated Vertically
+    mv::Data::TensorIterator opConcat;
+    std::vector <mv::Data::TensorIterator> opsSlicesConcatHorizontally;
+    const unsigned int hslices = width/widthSlice;
+    const unsigned int vslices = height/heightSlice;
+
+    unsigned int i = 0; //counts the slices on the 0x axis
+    unsigned int j = 0; //counts the slices on the 0y axis
+    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
+        do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis
+            //start new tile from the boundaries, with origin at the strides
+            beginInputShape = { (unsigned long)( (i)*widthSlice),
+                                (unsigned long)( (j)*heightSlice),
+                                0, 0};
+            //window of the slice equal to the kernel size as the stride becomes 1x1 so we have one operation per slicing with strides dimension
+            //if tensor is sliced on a dimension, kernel is the window size, if not, the actual dimension does not change
+            branchWidth = (hslices > 1) ? kSize[mv::KERNEL_WIDTH] : width;
+            branchHeight = (vslices > 1) ? kSize[mv::KERNEL_HEIGHT] : height;
+            branchInputSize = {branchWidth,
+                                branchHeight,
+                                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
+                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
+
+            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT] : 0,
+                        (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
+                        (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
+                        (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
+
+            auto sliceInput = om.slice(inputTensor,
+                            beginInputShape,
+                            branchInputSize,
+                            inputTensor->get<mv::QuantizationParams>("quantParams"),
+                            "Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
+            auto sliceInputOp = om.getSourceOp(sliceInput);
+            sliceInputOp->set<unsigned>("opId", initialOpId);
+            auto parentOpIt = om.getSourceOp(inputTensor);
+	        
+            if (operation->getOpType() == "AveragePool")
+            {
+                op = om.averagePool(sliceInput,
+                    kSize,
+                    {1,1},
+                    padding,
+                    true,//exclude pad
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            else if (operation->getOpType() == "DepthwiseConv")
+            {
+                op  = om.depthwiseConv(sliceInput,
+                    operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
+                    {1,1},//no stride
+                    padding,
+                    operation->get<unsigned>("dilationFactor"),
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            else if (operation->getOpType()== "Conv")
+            {
+                op = om.conv(sliceInput,
+                    operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
+                    {1,1},
+                    padding,
+                    operation->get<unsigned>("dilationFactor"),
+                    1,//no group dilation
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }
+            else if (operation->getOpType()== "MaxPool")
+            {
+                op = om.maxPool(sliceInput,
+                    kSize,
+                    {1,1},
+                    padding,
+                    true,//exclude pad
+                    operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    operation->get<mv::QuantizationParams>("quantParams"),
+                    operation->getName() + sliceInput->getName());
+            }            
+            op->set<unsigned>("opId", initialOpId);
+            auto opSlice = om.getSourceOp(op);
+            opSlice->set<unsigned>("opId", initialOpId);
+            opsHorizontal.push_back(op);
+
+            i++;
+        } while (i < hslices);
+        if (opsHorizontal.size() == 1)
+            opConcatHorizontal = mv::Data::TensorIterator(*opsHorizontal.begin());
+        else
+            opConcatHorizontal = om.concat(opsHorizontal,
+                                "W",
+                                operation->getInputTensor(0)->get<mv::DType>("dType"),
+                                operation->get<mv::QuantizationParams>("quantParams"),
+                                operation->getName() + "_concat_l" + std::to_string(j));
+        opsHorizontal.clear();
+
+        opConcatHorizontal->set<unsigned>("opId", initialOpId);
+        auto opConcatHorizontalSlice = om.getSourceOp(opConcatHorizontal);
+        opConcatHorizontalSlice->set<unsigned>("opId", initialOpId);
+        opsSlicesConcatHorizontally.push_back(opConcatHorizontal);
+        i = 0;//reiterate the horizontal slices for the next vertical slice
+        j++;
+    } while( j < vslices); //i,j non zero means we need to slice
+    if (opsSlicesConcatHorizontally.size() == 1)
+        opConcat = mv::Data::TensorIterator(*opsSlicesConcatHorizontally.begin());
+    else
+        opConcat = om.concat(opsSlicesConcatHorizontally,
+                            "H",
+                            operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                            operation->get<mv::QuantizationParams>("quantParams"),
+                            operation->getName() + "concat_full");
+    opConcat->set<unsigned>("opId", initialOpId);
+    auto opConcatSlice = om.getSourceOp(opConcat);
+    opConcatSlice->set<unsigned>("opId", initialOpId);
+    //recircuit the graph flow
+    operation = linkNewOperationsReplacementRemoveFlows(nextOpIt, opConcat, om, operation);
+    return operation;
+}
+
+void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    const auto MAX_STRIDE = 8; // hardware limitation
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)	
+    {
+        //zm ops except eltwise
+        if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv" || opIt->getOpType() == "MaxPool" || opIt->getOpType() == "AveragePool")
+        {
+            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+            if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
+                continue;
+            auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+            opIt = splitOperationSlicingFixedWidthHeight (om,
+                                                            opIt,
+                                                            stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            stride[mv::STRIDE_VERTICAL] > MAX_STRIDE ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            nextOp);
+        }
+    }
 }

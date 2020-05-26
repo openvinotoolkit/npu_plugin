@@ -8,6 +8,9 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
+    target_link_libraries(single_conv_hde cm)
+
     add_executable(single_conv_hde_SOK single_conv_hde_SOK/single_conv_hde_SOK.cpp)
     target_link_libraries(single_conv_hde_SOK cm)
 
@@ -29,6 +32,12 @@ else()
     add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
     target_link_libraries(conv_fakequantize cm)
 
+    add_executable(multiple_input_same_size multiple_input_same_size/multiple_input_same_size.cpp)
+    target_link_libraries(multiple_input_same_size cm)
+
+    add_executable(multiple_input_different_sizes multiple_input_different_sizes/multiple_input_different_sizes.cpp)
+    target_link_libraries(multiple_input_different_sizes cm)
+
     add_executable(multiple_output_same_size multiple_output_same_size/multiple_output_same_size.cpp)
     target_link_libraries(multiple_output_same_size cm)
 
@@ -38,25 +47,35 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
-    add_executable(conv_int32_output conv_int32_output/int32_output_conv.cpp)
+    add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
     target_link_libraries(conv_int32_output cm)
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
     target_link_libraries(conv_output_quant cm)
+
     add_executable(conv_fp16input conv_fp16input/conv_fp16input.cpp)
     target_link_libraries(conv_fp16input cm)
 
     add_executable(conv_with_precision conv_with_precision/conv_with_precision.cpp)
     target_link_libraries(conv_with_precision cm)
 
+    add_executable(conv_big_kernel conv_big_kernel/conv_big_kernel.cpp)
+    target_link_libraries(conv_big_kernel cm)
+
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
+
+    add_executable(conv_leaky_icv conv_leaky_icv/conv_leaky_icv.cpp)
+    target_link_libraries(conv_leaky_icv cm)
 
     add_executable(group_convolution group_convolution/group_convolution.cpp)
     target_link_libraries(group_convolution cm)
 
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
+
+    add_executable(streaming_mixed_mode_eltwise streaming_mixed_mode_eltwise/streaming_mixed_mode_eltwise.cpp)
+    target_link_libraries(streaming_mixed_mode_eltwise cm)
 
     add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
     target_link_libraries(conv_sparsity cm)
@@ -70,6 +89,9 @@ else()
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
 
+    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    target_link_libraries(conv_dilated cm)
+
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
 
@@ -82,17 +104,26 @@ else()
     add_executable(conv_softmax conv_softmax/conv_softmax.cpp)
     target_link_libraries(conv_softmax cm)
 
+    add_executable(depthwise_deconv_fp16 depthwise_deconv_fp16/depthwise_deconv_fp16.cpp)
+    target_link_libraries(depthwise_deconv_fp16 cm)
+
     add_executable(detection_output detection_output/detection_output.cpp)
     target_link_libraries(detection_output cm)
 
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
 
+    add_executable(depthwiseconv_exceed_stride depthwiseconv_exceed_stride/depthwiseconv_exceed_stride.cpp)
+    target_link_libraries(depthwiseconv_exceed_stride cm)
+
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
 
     add_executable(fully_connected_channel_scaling fully_connected_channel_scaling/fully_connected_channel_scaling.cpp)
     target_link_libraries(fully_connected_channel_scaling cm)
+
+    add_executable(maxpool_exceed_stride maxpool_exceed_stride/maxpool_exceed_stride.cpp)
+    target_link_libraries(maxpool_exceed_stride cm)
 
     add_executable(normalize normalize/normalize.cpp)
     target_link_libraries(normalize cm)
@@ -117,6 +148,9 @@ else()
 
     add_executable(roi_pooling roi_pooling/roi_pooling.cpp)
     target_link_libraries(roi_pooling cm)
+
+    add_executable(psroi_pooling psroi_pooling/psroi_pooling.cpp)
+    target_link_libraries(psroi_pooling cm)
 
     add_executable(slice slice/slice.cpp)
     target_link_libraries(slice cm)

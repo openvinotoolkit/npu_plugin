@@ -59,7 +59,7 @@ int main()
                                                                          code_type, share_location, confidence_threshold, clip_before_nms, clip_after_nms,
                                                                          decrease_label_id, normalized, input_height, input_width, objectness_score, dtype, quantParams, "detection_output");
     om.output(detection0);
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

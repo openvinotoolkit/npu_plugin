@@ -32,6 +32,11 @@ typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
 
 
+static bool is_scheduler_output_enabled() {
+  const auto level = mv::Logger::getVerboseLevel();
+  return (mv::VerboseLevel::Error != level && mv::VerboseLevel::Silent != level);
+}
+
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
   typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
@@ -42,6 +47,8 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
   if (global_params->hasAttr(reader_t::ddr_address_attribute())) {
     dag_t input_dag(om);
     typename reader_t::schedule_read_iterator_t begin, end;
+    bool add_ddr_control_edges = (passDesc.hasAttr("ddr_control_edges") &&
+        passDesc.get<bool>("ddr_control_edges"));
 
     mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
         msrelations(input_dag, model);
@@ -50,17 +57,23 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       global_params->get<std::string>(reader_t::ddr_address_attribute());
     assert(!stringfile.empty());
 
+    const char *lp_sched_ddr_address_dump_filename = nullptr;
+    if (is_scheduler_output_enabled())
+    {
+      lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
+    }
     begin = reader_t::begin_read(stringfile, om);
     end = reader_t::end_read();
 
     mv::lp_scheduler::DDR_Address_Generator<dag_t>
         ddr_address_generator(model, input_dag);
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-          "lp_sched_ddr_address_dump.txt");
+        lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
+    UNUSED(status);
     assert(status);
   }
 
-  for (auto itr=om.getInput(); itr!=om.opEnd(); ++itr) {
+  for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
     mv::Op &op = *itr;
     if (!op.outputSlots()) { continue; }
 
@@ -77,8 +90,8 @@ void LpSchedulerBuildTimeStamp(FILE *fptr) {
 }
 
 void LpSchedulerPass(const mv::pass::PassEntry& pass,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
-    mv::Element& passDesc, mv::Element& compOutput) {
+    mv::ComputationModel& model, mv::TargetDescriptor&,
+    mv::Element& passDesc, mv::Element&) {
   typedef mv::lp_scheduler::mv_memory_scheduler_with_spilling_t scheduler_t;
   typedef typename scheduler_t::scheduled_op_info_t scheduled_op_info_t;
   typedef mv::lp_scheduler::scheduler_traits<dag_t> traits_t;
@@ -95,9 +108,13 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
   printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
-  std::string output_file = passDesc.get<std::string>("output");
-  FILE *fptr = fopen(output_file.c_str(), "w");
-  assert(fptr);
+
+  FILE *fptr = nullptr;
+  if (is_scheduler_output_enabled()) {
+    const std::string output_file = passDesc.get<std::string>("output");
+    fptr = fopen(output_file.c_str(), "w");
+    assert(fptr);
+  }
 
   // precondition check //
   {
@@ -107,14 +124,16 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      printfInfo("LpScheduler:", "[exceeding op:] %s resource=%lu\n",
-          (itr->first)->getName().c_str(), (itr->second));
+      pass.log(mv::Logger::MessageType::Info," Exceeding Op: " + (itr->first)->getName() +
+                                                  " with resources:# " + (std::to_string(itr->second)));
+
     }
     assert(exceeding_ops.empty());
   }
 
-
-  LpSchedulerBuildTimeStamp(fptr);
+  if (fptr) {
+    LpSchedulerBuildTimeStamp(fptr);
+  }
 
   // generate tensor addresses //
   mv::lp_scheduler::Tensor_Address_Assignment<scheduler_t>
@@ -174,17 +193,19 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
       if (!scheduled_op.is_original_op()) { has_any_dynamic_spill_ops = true; }
 
-      //////////////////////////////////////////////////////////////////////////
-      fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
-          (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
-            scheduled_op.schedule_time_);
-      fflush(fptr);
+      //////////////////////////////////debug///////////////////////////////////
+      if (fptr) {
+        fprintf(fptr, "op = %-20s  type = %-15s  time = %lu",
+            (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+              scheduled_op.schedule_time_);
+        fflush(fptr);
 
-      if (scheduled_op.has_active_resource()) {
-        fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.cmx_address_start_,
-            scheduled_op.cmx_address_end_);
-      } else {
-        fprintf(fptr, " resource=<none>\n");
+        if (scheduled_op.has_active_resource()) {
+          fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.cmx_address_start_,
+              scheduled_op.cmx_address_end_);
+        } else {
+          fprintf(fptr, " resource=<none>\n");
+        }
       }
       //////////////////////////////////////////////////////////////////////////
     }
@@ -217,29 +238,34 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         sched_itr = sched_itr_next;
       }
     }
-    dynamic_spill.print_redundant_spilled_ops(fptr);
+    if (fptr) {
+      dynamic_spill.print_redundant_spilled_ops(fptr);
+    }
 
     // update the input_dag with updated opModel
     mv::OpModel updated_om(model);
     input_dag.reset(updated_om);
 
     // updated schedule //
-    fprintf(fptr, "\n\n\n======================\n");
+    if (fptr) {
+      fprintf(fptr, "\n\n\n======================\n");
+    }
     for (auto sitr=scheduled_ops.begin(); sitr!=scheduled_ops.end(); ++sitr) {
       const scheduled_op_t& scheduled_op = *sitr;
       assert( scheduled_op.is_original_op() );
-      fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %lu ",
-          (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
-          scheduled_op.schedule_time_);
+      if (fptr) {
+        fprintf(fptr, "[updated] op = %-20s  type = %-15s  time = %lu ",
+            (scheduled_op.op_)->getName().c_str(), scheduled_op.op_type_name(),
+            scheduled_op.schedule_time_);
 
-      if (scheduled_op.has_valid_address()) {
-        fprintf(fptr, " resource=[%lu %lu] \n", scheduled_op.cmx_address_start_,
-            scheduled_op.cmx_address_end_);
-      } else {
-        fprintf(fptr, " resource=<none> \n");
+        if (scheduled_op.has_valid_address()) {
+          fprintf(fptr, " resource=[%lu %lu] \n", scheduled_op.cmx_address_start_,
+              scheduled_op.cmx_address_end_);
+        } else {
+          fprintf(fptr, " resource=<none> \n");
+        }
+        fflush(fptr);
       }
-
-      fflush(fptr);
 
       cmx_address_alloc(scheduled_op);
     }
@@ -261,8 +287,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(new_scheduled_ops));
 
     scheduled_ops = new_scheduled_ops;
-    fprintf(fptr, "[Average Repack Level]: %0.5lf\n",
-          repacker.average_repack_level());
+    if (fptr) {
+      fprintf(fptr, "[Average Repack Level]: %0.5lf\n",
+            repacker.average_repack_level());
+    }
   }
   //////////////////////////////////////////////////////////////////////////////
 
@@ -270,12 +298,14 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   ///////////////Save Schedule for DDR Address Generation///////////////////////
-  if (passDesc.hasAttr("ddr_address_generation")) {
+  if (passDesc.hasAttr("ddr_address_generation") &&
+        passDesc.get<bool>("ddr_address_generation")) {
     typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> writer_t;
     std::ostringstream schedule_state;
 
     bool status = writer_t::write_to_stringstream(schedule_state,
           scheduled_ops.begin(), scheduled_ops.end());
+    UNUSED(status);
     assert(status);
     // save the schedule state in global params //
     auto global_params = model.getGlobalConfigParams();
@@ -303,16 +333,16 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
 
-
-  fprintf(fptr, "\n\n");
-  for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
-    fprintf(fptr, "control_edge: %s -> %s \n",
-          (*itr).source_name(), (*itr).sink_name());
+  if (fptr) {
+    fprintf(fptr, "\n\n");
+    for (auto itr=control_edges.begin(); itr != control_edges.end(); ++itr) {
+      fprintf(fptr, "control_edge: %s -> %s \n",
+            (*itr).source_name(), (*itr).sink_name());
+    }
   }
 
-
   { 
-    control_edges.add_edges_to_fresh_control_model(input_dag, model, 
+    control_edges.add_cmx_memory_control_edges(input_dag, model, 
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
@@ -322,18 +352,17 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   ////////////////////// Control Edge Generation ///////////////////////////////
 
 
-  {
+  if (fptr) {
     mv::ControlModel cmodel_local(model);
     fprintf(fptr, "[DAG Invariant: %s]\n",
           cmodel_local.isDag() ? "PASSED" : "FAILED");
-  }
 
-
-  for (auto itr=traits_t::operations_begin(input_dag);
-        itr != traits_t::operations_end(input_dag); ++itr) {
-    if (scheduled_ops_set.find((*itr)->getName()) == scheduled_ops_set.end()) {
-      fprintf(fptr, "[unscheduled_op]: op=%s\n", (*itr)->getName().c_str());
+    for (auto itr=traits_t::operations_begin(input_dag);
+          itr != traits_t::operations_end(input_dag); ++itr) {
+      if (scheduled_ops_set.find((*itr)->getName()) == scheduled_ops_set.end()) {
+        fprintf(fptr, "[unscheduled_op]: op=%s\n", (*itr)->getName().c_str());
+      }
     }
+    fclose(fptr);
   }
-  fclose(fptr);
 }

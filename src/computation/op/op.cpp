@@ -269,7 +269,6 @@ std::map<std::string, mv::Attribute> mv::Op::getAttrs(const std::vector<std::str
     return mv::Element::getAttrs(finalVector);
 }
 
-
 std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
 {
     return outputs_;
@@ -293,8 +292,9 @@ std::string mv::Op::getLogID() const
 bool mv::Op::isImplicit() const
 {
     bool isImplicitOp = false;
-
-    std::vector<std::string> implicitTypes = {"ImplicitConcat", "Crop", "Copy", "Slice", "Align", "ImplicitReshape", "ImplicitPermute", "ImplicitOutput", "ImplicitUnion"};
+    std::vector<std::string> implicitTypes = {"ImplicitConcat", "Crop", "Copy", "Slice", "Align", "ImplicitReshape",
+                                                "ImplicitPermute", "ImplicitOutput", "ImplicitUnion",
+                                                "ImplicitInput", "ImplicitInputSlice"};
     if (std::count(implicitTypes.begin(), implicitTypes.end(), getOpType()))
     {
         isImplicitOp = true;

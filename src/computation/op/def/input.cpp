@@ -43,6 +43,7 @@ namespace mv
         .setArg<mv::DType>("dType")
         .setArg<mv::Order>("order")
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+        .setOptionalArg<bool>("networkInput", true)
         .setInputCheck(op_input::inputCheckFcn)
         .setOutputDef(op_input::outputDefFcn)
         .setTypeTrait({"exposed", "executable", "optimizable"});

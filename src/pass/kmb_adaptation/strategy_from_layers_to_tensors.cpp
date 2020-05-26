@@ -23,7 +23,6 @@ namespace mv
 
 void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
-    auto globalParams = model.getGlobalConfigParams();
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -57,7 +56,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
                     inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }
-        else if (opType == "Input" || opType == "Crop" || opType == "UPATask" || opType == "Copy")
+        else if (opType == "Input" || opType == "Crop" || opType == "UPATask" || opType == "Copy" || opType == "ImplicitInput")
         {
             auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
@@ -109,6 +108,16 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         if (opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute"
             || opType == "Concat" || opType == "ImplicitOutput" || opType == "ImplicitUnion")
         {
+            if(!(layer->getInputTensor(0)->hasAttr("splitStrategy"))){
+                // HACK In this case we've found a priorbox concat, set all it's input tensors
+                // to have strategy and location in the blob
+                auto input = layer.leftmostInput();
+                while(input != om.flowEnd()){
+                    input->getTensor()->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::BLOB);
+                    input->getTensor()->set<std::string>("splitStrategy", std::string("Clustering"));
+                    ++input;
+                }
+            }
             auto opStrategy = layer->getInputTensor(0)->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
             outputTensor->set<std::string>("splitStrategy", opStrategy);
@@ -139,6 +148,28 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         }
     }
 
+    // ImplicitInputSlice has to take strategies from its individual output tensors
+    // one for each output tensor. The input slice itself shouldn't have a strategy
+    for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    {
+        std::string opType = layer->getOpType();
+        if (opType == "ImplicitInputSlice")
+        {
+            auto numOutputs = layer->outputSlots();
+            for (std::size_t i = 0; i < numOutputs; i++)
+            {
+                auto outputTensor = layer->getOutputTensor(i);
+                // Oh ... the many assumptions here!
+                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+                auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
+                outputTensor->set<std::string>("splitStrategy", opStrategy);
+            }
+            // TODO: Fix this -- this layer cannot have a strategy since it is a container
+            // of multiple output tensors of different sizes.
+            layer->set<std::string>("splitStrategy", "Clustering");
+        }
+    }
+
     for(auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
     {
         std::string opType = layer->getOpType();
@@ -148,6 +179,21 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
             auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
             outputTensor->set<std::string>("splitStrategy", opStrategy);
+        }
+    }
+
+    //NOTE: The instructionListTable's shape is indepedent of tensor's shape just depends on
+    // the number of the opcodes, which no matter the strategy op needs to be constant
+    for (auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    {
+        if (layer->getOpType() == "DPUTask")
+        {
+            if (layer->hasAttr("firstConvWithLRelu")
+                              && layer->get<bool>("firstConvWithLRelu"))
+            {
+                auto index = layer->get<size_t>("instructionListTableIndex");
+                layer->getInputTensor()[index]->set<std::string>("splitStrategy", "Clustering");
+            }
         }
     }
 

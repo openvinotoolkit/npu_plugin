@@ -160,9 +160,12 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
         // Weights sparsity new approach
         if(tensorIt->isPopulated() && tensorIt->isSparse())
         {
-            auto sparsityMap = tensorIt->getSparsityMap();
-            auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
-            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
+            if(tensorIt->get<bool>("allocateSparsityMap"))
+            {
+                auto sparsityMap = tensorIt->getSparsityMap();
+                auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
+                dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
+            }
         }
         return toReturn;
     }
@@ -494,7 +497,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                     lhs_padding, rhs_padding);
                 }
             }
-            else if(opType == "ImplicitUnion")
+            else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
             {
                 //In implicit union case, we dont really have 1 master buffer, we are just using it
                 // to have one output for the whole network, so each input to this op will still have
@@ -579,7 +582,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                                                 outputBuffer, inputBuffer,
                                                 lhs_padding, rhs_padding);
             }
-            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput")
+            else if (opType == "Copy" || opType == "Align" || opType == "ImplicitOutput" || opType == "ImplicitInput")
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
                 auto inputTensor = opIterator->getInputTensor(0);

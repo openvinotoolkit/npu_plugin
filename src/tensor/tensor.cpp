@@ -467,6 +467,7 @@ bool mv::Tensor::setSparse()
         return false;
 
     set<bool>("sparse", true);
+    set<bool>("allocateSparsityMap", true);
 
     auto shape = getShape();
     size_t N = shape[shape.ndims()-1];
@@ -873,7 +874,7 @@ std::string mv::Tensor::subTensorInfo() const
     std::string toReturn;
     if (hasSubTensors())
     {
-        for (int i = 0; i < numSubTensors(); i++)
+        for (std::size_t i = 0; i < numSubTensors(); i++)
         {
             toReturn += subTensors_[i]->getShape().toString();
         }

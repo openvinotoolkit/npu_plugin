@@ -20,7 +20,7 @@ int main()
     auto argmax0 = om.argmax(input0, out_max_val, top_k, axis, mv::DType("Float16"));
     om.output(argmax0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_MC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);

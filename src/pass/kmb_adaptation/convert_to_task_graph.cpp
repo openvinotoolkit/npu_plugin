@@ -17,8 +17,8 @@ static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::v
 static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
-int32_t computeClampLow(mv::Data::OpListIterator &opIt);
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
 
 namespace mv
 {
@@ -151,7 +151,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
 
     //    NOTE: Thanks to proper padding handling we don't need this anymore
     //    Leaving it here as an historical note... and now it's back as an option
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
     {
        dpuConvOp->erase("taskOp");
        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
@@ -177,6 +177,14 @@ mv::Data::TensorIterator convertSoftmaxToUPATask(mv::OpModel& om, const std::vec
     auto dtype = attrs.at("dType").get<mv::DType>();
 
    return om.uPATaskSoftmax(inputs, axis, dtype, quantParams, name);
+}
+
+mv::Data::TensorIterator convertSigmoidToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                const std::map<std::string, mv::Attribute>& attrs, const std::string& name,  bool software = false)
+{
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+   return om.uPATaskSigmoid(inputs, mv::DType("Float16"), quantParams, name);
 }
 
 mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
@@ -220,6 +228,24 @@ mv::Data::TensorIterator convertROIPoolingToUPATask(mv::OpModel& om, const std::
     auto num_rois = attrs.at("num_rois").get<unsigned>();
 
     return om.uPATaskROIPooling(inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, dtype, quantParams, name);
+}
+
+mv::Data::TensorIterator convertPSROIPoolingToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+{
+    auto quantParams   = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto dtype         = attrs.at("dType").get<mv::DType>();
+    auto output_dim    = attrs.at("output_dim").get<std::size_t>();
+    auto group_size    = attrs.at("group_size").get<std::size_t>();
+    auto spatial_scale = attrs.at("spatial_scale").get<double>();
+    auto pooled_w      = attrs.at("pooled_w").get<std::size_t>();
+    auto pooled_h      = attrs.at("pooled_h").get<std::size_t>();
+    auto spatial_bin_x = attrs.at("spatial_bin_x").get<std::size_t>();
+    auto spatial_bin_y = attrs.at("spatial_bin_y").get<std::size_t>();
+    auto mode          = attrs.at("mode").get<std::string>();
+
+    return om.uPATaskPSROIPooling(inputs, output_dim, group_size, spatial_scale, pooled_w, pooled_h,
+                                  spatial_bin_x, spatial_bin_y, mode, dtype, quantParams, name);
 }
 
 mv::Data::TensorIterator convertQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
@@ -458,6 +484,28 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
                             name);
 }
 
+mv::Data::TensorIterator convertDeconvToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto group = attrs.at("group").get<unsigned>();
+    auto is_depthwise = attrs.at("is_depthwise").get<bool>();
+
+    auto globalParams = om.getGlobalConfigParams();
+
+    auto upaDeconv = om.uPATaskDeconv(inputs, strides, padding, dilationFactor, group, is_depthwise, outputTensorType, quantParams, name);
+
+    auto upaDeconvOp = om.getSourceOp(upaDeconv);
+    upaDeconvOp->set<bool>("hasWeights", true);
+
+    return upaDeconv;
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -467,10 +515,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     //Note: Eltwise might be UPA might be DPU task...
     std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
-    std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling",
+    std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -486,6 +534,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Softmax", convertSoftmaxToUPATask},
     {"Proposal", convertProposalToUPATask},
     {"ROIPooling", convertROIPoolingToUPATask},
+    {"PSROIPooling", convertPSROIPoolingToUPATask},
     {"Quantize", convertQuantizeToUPATask},
     {"Resample", convertResampleToUPATask},
     {"Reshape", convertReshapeToUPATask},
@@ -499,6 +548,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Argmax", convertArgmaxToUPATask},
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
+    {"Sigmoid", convertSigmoidToUPATask},
+    {"Deconv", convertDeconvToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)
@@ -564,14 +615,41 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
         }
     }
+
+    // Correct concat output dtype when all inputs & output are UPATasks
+    auto concats = om.getOps("ImplicitConcat");
+    for(auto& concatOp : concats)
+    {
+        auto all_inputs_are_fp16 = true;
+        auto inputs = concatOp->getInputTensor();
+        for (auto& input : inputs)
+        {
+            if (!((om.getSourceOp(input)->getOpType() == "UPATask")  && (input->get<mv::DType>("dType") == mv::DType("Float16"))))
+                all_inputs_are_fp16 = false;
+        }
+        if (all_inputs_are_fp16)
+        {
+            auto outputs = concatOp->getOutputTensor();
+            for (auto& output : outputs)
+            {
+                if (output->get<mv::DType>("dType") != mv::DType("Float16"))
+                {
+                    output->set<mv::DType>("dType", mv::DType("Float16"));
+                }
+            }
+        }
+    }
 }
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
-
-    ppeFixedFunction.setLowClamp(computeClampLow(opIt));
-    ppeFixedFunction.setHighClamp(computeClampHigh(opIt));
+    bool flexarbINT8 = false;
+    if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "FLEXARB") != ppeTaskTypes.end())
+        flexarbINT8= true;
+    //NOTE: the idea of the flex is that the post shift is not sign extendable so the clamps need to be like INT8
+    ppeFixedFunction.setLowClamp(computeClampLow(opIt, flexarbINT8));
+    ppeFixedFunction.setHighClamp(computeClampHigh(opIt, flexarbINT8));
 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
@@ -615,7 +693,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 // U8 <- [-zp; 255 - zp]
 // I8 <- [-128 - zp; +127 - zp] but ensure that zp is 0
 // The clamp value is stored as is if compute type is U8. Otherwise it must be converted in S16.16
-int32_t computeClampLow(mv::Data::OpListIterator &opIt)
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -671,11 +749,14 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
         clamp /= alpha;
     }
 
+    if (flex)
+        clamp = -128;
+
     return clamp;
 }
 
 
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -726,6 +807,8 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
             }
         }
     }
+    if (flex)
+        clamp = 127;
     return clamp;
 }
 

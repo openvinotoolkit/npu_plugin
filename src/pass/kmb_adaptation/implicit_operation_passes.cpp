@@ -32,12 +32,11 @@ static std::map<const std::string,mv::DmaDirectionEnum> dmaDirectionStrings =
       {"DDR2OUTPUT",mv::DmaDirectionEnum::DDR2DDR}
 };
 
-void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {
@@ -47,7 +46,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
             opType == "ImplicitOutput" || opType == "ImplicitUnion")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
-        if (opType == "Slice" || opType == "Crop")
+        if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
         if (opType == "Copy" || opType == "Align")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));

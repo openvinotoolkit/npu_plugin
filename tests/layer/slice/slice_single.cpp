@@ -46,7 +46,7 @@ int main()
     // Output
     auto output0 = om.output(maxpools.back());
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb_SC-Prefetch1.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
