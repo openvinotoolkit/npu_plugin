@@ -502,8 +502,7 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
     InferenceEngine::TensorDesc outputTensorDesc = inferRequest.GetBlob(output_name)->getTensorDesc();
 
     Blob::Ptr outputBlob;
-    ASSERT_NO_THROW(outputBlob = InferenceEngine::make_shared_blob<ie_fp16>(
-                        {Precision::FP16, outputTensorDesc.getDims(), outputTensorDesc.getLayout()}));
+    ASSERT_NO_THROW(outputBlob = InferenceEngine::make_shared_blob<float>(outputTensorDesc));
     outputBlob->allocate();
 
     auto outputBufferData = outputBlob->buffer().as<uint8_t*>();
