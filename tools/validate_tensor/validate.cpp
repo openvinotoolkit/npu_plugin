@@ -10,7 +10,6 @@
 #include <dirent.h>
 #include <iomanip>
 #include <vector>
-#include <ios>
 
 /**
  * Required environmental variables
@@ -418,22 +417,6 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     if(std::getenv("RUNTIME_OPTIONS") != NULL)
         runtimeOptions = std::getenv("RUNTIME_OPTIONS");
 
-    // check the size of the blob file
-    std::ifstream blobfile(blobPath, std::ios::in);
-    blobfile.seekg(0, std::ios::end);
-    long int blobfile_size = blobfile.tellg();
-    std::cout << std::string("blobfile_size=") << blobfile_size << std::endl;
-    long int blobfile_size_mb = blobfile_size / 1048576L;
-    std::cout << std::string("blobfile_size_mb=") << blobfile_size_mb << std::endl;
-
-    // add to runtimeOptions
-    long int buffer_max_size=blobfile_size_mb + 1;
-    runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
-    if(blobfile_size_mb >= 100L)
-    {
-        runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
-    }
-
     // execute the blob
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
         "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
@@ -725,14 +708,17 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     return RESULT_SUCCESS;    
 }
 
-int checkInference(std::string actualResults, std::string imagePath, bool yoloNetwork=true)
+int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
 {
     // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/output_class_reader.py ") + actualResults;
-    if (yoloNetwork) 
+    if (networkType == "yolo") 
         commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/yolo_bbox.py ") + imagePath;
+    else if (networkType == "ssd") 
+        commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/ssd_bbox.py ") + imagePath;
+
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
     
@@ -798,11 +784,13 @@ int main(int argc, char *argv[])
         postProcessActualResults(FLAGS_a, FLAGS_b);
         validate(FLAGS_b, FLAGS_e, actualPathProcessed);
         
-        bool yoloNetwork=false;
+        std::string networkType="classification";
         if (FLAGS_m.find("yolo") != std::string::npos)
-            yoloNetwork=true;
+            networkType="yolo";
+        else if (FLAGS_m.find("ssd") != std::string::npos)
+            networkType="ssd";
 
-        checkInference(FLAGS_a, FLAGS_i, yoloNetwork);
+        checkInference(FLAGS_a, FLAGS_i, networkType);
         return(0);
     }
 
@@ -841,9 +829,11 @@ int main(int argc, char *argv[])
     validate(blobPath, expectedPath, actualPathProcessed);
     
     // master test is if the top 1's match
-    bool yoloNetwork=false;
+    std::string networkType="classification";
     if (FLAGS_m.find("yolo") != std::string::npos)
-        yoloNetwork=true;
+        networkType="yolo";
+    else if (FLAGS_m.find("ssd") != std::string::npos)
+        networkType="ssd";
 
-    return (checkInference(actualPath, FLAGS_i, yoloNetwork));
+    return (checkInference(actualPath, FLAGS_i, networkType));
 }
