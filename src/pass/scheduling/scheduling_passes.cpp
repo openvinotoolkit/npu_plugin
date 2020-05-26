@@ -684,10 +684,19 @@ OpInfo analyzeOp(mv::Op& op)
 {
     if (op.getOpType() == "DPUTask")
     {
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Modeling DPU task:\n" << op.toString() << "\n";
+#endif
         // TODO: Better models for DPU tasks.
         //
         // For now, we assume that DPU tasks execute in time proportional
         // to their total IO.
+        //
+        // What we want is something like:
+        // cycles = product of (output_dimension / mpe_mode) * kernel width * kernel height,
+        // if conv: cycles *= (input dim 2 / channel conv mac config)
+        // total = cycles * sparsity / efficiency / frequency
+
         std::uint64_t ioSize = 0;
         for (auto& tensor : op.getInputTensor())
         {
@@ -703,27 +712,45 @@ OpInfo analyzeOp(mv::Op& op)
 
     if (op.getOpType() == "DMATask")
     {
-        // TODO: Better models for DMA tasks.
-        //
-        // For now, we assume that DMA tasks execute in time proportional
-        // to the input tensor size, with a multipler dependent on the DMA
-        // direction.
-        std::uint64_t ioSize = 0;
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Modeling DMA task:\n" << op.toString() << "\n";
+#endif
+        // We assume that DMA tasks execute in time proportional to
+        // the smaller of the input tensor size and output tensor
+        // size, with a multiplier dependent on the DMA direction.
+        std::uint64_t inSize = 0;
         for (auto& tensor : op.getInputTensor())
         {
-            ioSize += tensor->size();
+#ifdef DEBUG_LAYOUT_PASS
+          std::cerr << "LayoutDMA: Input Tensor:\n" << tensor->toString() << "\n  size=" << tensor->computeTotalSize() << "\n  shape=" << tensor->getShape().toString() << "\n";
+#endif
+            inSize += tensor->computeTotalSize();
         }
 
+        std::uint64_t outSize = 0;
+        for (auto& tensor : op.getOutputTensor())
+        {
+#ifdef DEBUG_LAYOUT_PASS
+          std::cerr << "LayoutDMA: Output Tensor:\n" << tensor->toString() << "\n  size=" << tensor->computeTotalSize() << "\n  shape=" << tensor->getShape().toString() << "\n";
+#endif
+            outSize += tensor->computeTotalSize();
+        }
+
+        std::uint64_t ioSize = std::min(inSize, outSize);
+
         // Convert to nanos by dividing by the gbps rate of the transfer.
+        const unsigned ddrBw = 20;
+        const unsigned cmxBw = 32;
+
         switch (op.get<mv::DmaDirection>("direction"))
         {
             case mv::DmaDirectionEnum::DDR2NNCMX:
-                return OpInfo{&op, true, ioSize * 8 / 20, ioSize * 8 / 32, ioSize};
+                return OpInfo{&op, true, ioSize / ddrBw, ioSize / cmxBw, ioSize};
             case mv::DmaDirectionEnum::NNCMX2DDR:
                 ioSize /= 20;
-                return OpInfo{&op, true, ioSize * 8 / 20};
+                return OpInfo{&op, true, ioSize / ddrBw};
             case mv::DmaDirectionEnum::CSRAM2NNCMX:
-                return OpInfo{&op, true, ioSize * 8 / 32};
+                return OpInfo{&op, true, ioSize / cmxBw};
             default:
                 return OpInfo{&op, true, 0};  // Don't account for this DMA
         }
@@ -970,7 +997,8 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 #ifdef DEBUG_LAYOUT_PASS
             std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
                       << " ty=" << opInfo.op->getOpType()
-                      << ": wait=";
+                      << " size=" << opInfo.size
+                      << " wait=";
             for (auto wait : opInfo.deps.getWait())
             {
                 std::cerr << wait << " ";
