@@ -113,7 +113,11 @@ class XPool : public PluginStub
                 xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
-                    throw std::runtime_error("Xpool error xlink_read_data_to_buffer");
+                    std::string error_message {
+                        "Xpool error xlink_read_data_to_buffer: "
+                        + std::to_string(sc)
+                        };
+                    throw std::runtime_error(error_message);
                 }
 
                 // Read data
@@ -124,7 +128,10 @@ class XPool : public PluginStub
 
                 sc = xlink_read_data(&XlinkDeviceHandle, chanId, &out_data, (uint32_t*)&data_size);
                 if (sc) {
-                    throw std::runtime_error("Xpool error xlink_read_data");
+                    std::string error_message {
+                        "Xpool error xlink_read_data: "
+                        + std::to_string(sc)
+                        };
                 }
 
 #else // __REMOTE_HOST__
@@ -142,7 +149,11 @@ class XPool : public PluginStub
                 auto sc { xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId,
                                                     msg, &size) };
                 if (sc != X_LINK_SUCCESS) {
-                    throw std::runtime_error("Xpool error xlink_read_data_to_buffer");
+                    std::string error_message {
+                        "Xpool error xlink_read_data_to_buffer: "
+                        + std::to_string(sc)
+                        };
+                    throw std::runtime_error(error_message);
                 }
 
                 // Read data
@@ -156,7 +167,11 @@ class XPool : public PluginStub
                                      (uint32_t*)&data_size);
 
                 if (sc != X_LINK_SUCCESS) {
-                    throw std::runtime_error("Xpool error xlink_read_data");
+                    std::string error_message {
+                        "Xpool error xlink_read_data: "
+                        + std::to_string(sc)
+                        };
+                    throw std::runtime_error(error_message);
                 }
 
                 // TODO - Do we need to do this validation? Remote case?
