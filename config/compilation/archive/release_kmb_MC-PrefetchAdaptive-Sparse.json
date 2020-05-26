@@ -114,7 +114,7 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : false     },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : true      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -124,7 +124,7 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : true}
                             ]
@@ -164,7 +164,7 @@
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : true},
+                                {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
                             ]
