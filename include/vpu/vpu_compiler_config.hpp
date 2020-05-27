@@ -133,5 +133,21 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: std::string, default is empty.
+ * Provide path to custom layer binding xml file.
+ * If layer is present in such an xml, it would be used during inference even if the layer is natively supported.
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
+
+/**
+ * @brief [Only for vpu compiler]
+ * Type: std::string, default is empty.
+ * Semicolon separated list of comma separated group and pass values.
+ * Removes {group, pass} value from mcm compilation descriptor.
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

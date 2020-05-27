@@ -15,49 +15,16 @@
 //
 
 #include "kmb_test_model.hpp"
-
-#include <queue>
+#include "kmb_test_utils.hpp"
+#include <file_utils.h>
 
 #include <blob_factory.hpp>
+#include <queue>
+
+const std::string TestNetwork::_customLayerXmlDefault =
+    getIELibraryPath() + "/kmb_custom_kernels/customLayerBindings.xml";
 
 namespace {
-
-ngraph::element::Type precisionToType(const Precision& precision) {
-    switch (precision) {
-    case Precision::FP32:
-        return ngraph::element::f32;
-    case Precision::FP16:
-        return ngraph::element::f16;
-    case Precision::I64:
-        return ngraph::element::i64;
-    case Precision::I32:
-        return ngraph::element::i32;
-    case Precision::U8:
-        return ngraph::element::u8;
-    case Precision::I8:
-        return ngraph::element::i8;
-    default:
-        THROW_IE_EXCEPTION << "Unsupported precision " << precision;
-    }
-}
-
-Precision typeToPrecision(const ngraph::element::Type& type) {
-    if (type == ngraph::element::f32) {
-        return Precision::FP32;
-    } else if (type == ngraph::element::f16) {
-        return Precision::FP16;
-    } else if (type == ngraph::element::i64) {
-        return Precision::I64;
-    } else if (type == ngraph::element::i32) {
-        return Precision::I32;
-    } else if (type == ngraph::element::u8) {
-        return Precision::U8;
-    } else if (type == ngraph::element::i8) {
-        return Precision::I8;
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported type " << type;
-    }
-}
 
 std::string createNameWithPort(const std::string &origName, const int &numberOfPorts, const int &portId) {
     std::string finalName = origName;
@@ -66,6 +33,7 @@ std::string createNameWithPort(const std::string &origName, const int &numberOfP
     }
     return finalName;
 }
+
 }  // namespace
 
 TestNetwork::TestNetwork(const TestNetwork& other) :

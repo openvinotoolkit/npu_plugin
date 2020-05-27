@@ -35,6 +35,7 @@
 #ifdef ENABLE_MCM_COMPILER
 
 #include <graph_tools.hpp>
+#include <custom_layer/custom_layer.hpp>
 #include <include/mcm/op_model.hpp>
 
 #include "mcm_config.h"
@@ -188,6 +189,9 @@ private:
 
     ParsedNetwork _parsedNetwork;
     MCMConfig _config;
+
+    CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr& cnnLayer);
+    ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
 };
 
 }  // namespace vpu

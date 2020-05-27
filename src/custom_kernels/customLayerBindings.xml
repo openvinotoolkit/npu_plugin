@@ -1,0 +1,14 @@
+<CustomLayer name="Convert" type="MVCL" version="1">
+    <Kernel entry="cvtu8f16">
+        <Source filename="cvtu8f16.bin"/>
+        <Parameters>
+            <Tensor arg-name="src" type="input" port-index="0" format="BFYX"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
+            <Scalar arg-name="scale" type="float" source="1.0"/>
+            <Scalar arg-name="bias" type="float" source="0.0"/>
+            <Data arg-name="local_src" type="local_data" dim="input,0" size="X*1"/>
+            <Data arg-name="local_dst" type="local_data" dim="input,0" size="X*2"/>
+        </Parameters>
+        <WorkSizes dim="input,0" global="X,Y,F" local="X,1,1"/>
+    </Kernel>
+</CustomLayer>

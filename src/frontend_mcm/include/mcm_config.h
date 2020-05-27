@@ -60,6 +60,10 @@ public:
 
     bool useNGraphParser() const { return _useNGraphParser; }
 
+    std::string customLayers() const { return _customLayers; }
+
+    const std::string& mcmCompilationPassBanList() const { return _mcmCompilationPassBanList; }
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
@@ -88,6 +92,10 @@ private:
     std::string _serializeCNNBeforeCompileFile = "";
 
     bool _useNGraphParser = false;
+
+    std::string _customLayers = "";
+
+    std::string _mcmCompilationPassBanList = "";
 };
 
 }  // namespace vpu

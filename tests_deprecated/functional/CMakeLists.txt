@@ -12,6 +12,8 @@ endif()
 
 set(TARGET_NAME "KmbFunctionalTests")
 
+find_package(Boost REQUIRED COMPONENTS system filesystem)
+
 addIeTargetTest(
         NAME ${TARGET_NAME}
         ROOT
@@ -30,12 +32,15 @@ addIeTargetTest(
             ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
         DEFINES
             -DKMB_ALPHA_TESTS_DATA_PATH="${MODELS_PATH}"
+        DEPENDENCIES
+            kmb_custom_kernels
         LINK_LIBRARIES
             IE::IESharedTests
             IE::vpu_common_lib
             IE::ngraph
             ${VPUSMM_LIB}
             kmb_utils
+            Boost::filesystem
         LINK_LIBRARIES_WHOLE_ARCHIVE
             kmbTestData
         LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().

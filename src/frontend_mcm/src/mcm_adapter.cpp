@@ -193,6 +193,21 @@ void MCMAdapter::compileNetwork(
 
     compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
 
+    if (!config.mcmCompilationPassBanList().empty()) {
+        std::stringstream banList{config.mcmCompilationPassBanList()};
+        std::string groupPassPair;
+        while (std::getline(banList, groupPassPair, ';')) {
+            const auto delim = groupPassPair.find(',');
+            VPU_THROW_UNLESS(delim != std::string::npos,
+                "McmCompilationPassBanList parsing error: provided value '%s'"
+                "should have comma separated Group,Pass string",
+                groupPassPair);
+            const auto group = groupPassPair.substr(0, delim);
+            const auto pass = groupPassPair.substr(delim + 1, std::string::npos);
+            compDesc.remove(group, pass);
+        }
+    }
+
     IE_ASSERT(unit->initialize());
 
     try {
