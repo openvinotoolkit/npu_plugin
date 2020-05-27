@@ -1387,8 +1387,8 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constant(constData, mcmShape, precisionToDType(Precision(Precision::ePrecision::FP32)),
-                // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+                // Initially  this parameter is: precisionToDType(constBlob->getTensorDesc().getPrecision()),
+                // but as Work Around it is set to: precisionToDType(Precision(Precision::ePrecision::FP32)).
                 // It is so just because mcmCompiler has not supported FP16 yet.
                 // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
@@ -1582,7 +1582,7 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     }
 
     auto mvWeightsValues = _modelMcm.constant(weightsData, weightsShape,
-        mv::DType(convert_data_type(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
+        mv::DType(precisionToDType(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
 
     mv::Data::TensorIterator mvNormalize;
 
