@@ -11,6 +11,20 @@ const std::string OUT_START_TEMPL = R"cppinttempl(
 #include "include/mcm/compiler/compilation_unit.hpp"
 #include "@DATA_FILE_NAME@"
 
+
+template <typename T1, typename T2>
+std::vector<T1>
+    read(const std::string& filepath, std::size_t num = std::numeric_limits<size_t>::max())
+{
+    std::ifstream fileStream(filepath, std::ifstream::binary);
+    if (!fileStream) return {};
+    std::vector<T1> data;
+    T2 aux;
+    while (fileStream.read(&reinterpret_cast<char&>(aux), sizeof(aux)) && num-- > 0)
+        data.emplace_back(aux);
+    return data;
+}
+
 void build_@MODEL_NAME@(mv::OpModel& model)
 {
     using namespace mv;
@@ -87,7 +101,7 @@ std::string mv::BaseOpModel::varName(std::string name)
     return name;
 }
 
-void mv::BaseOpModel::initRecordingFile(const std::string& outFileName) 
+void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool recordWeightsAsText) 
 {
     // log(Logger::MessageType::Debug, "Initializing RecordedModel...");
     delete codeOut_;
@@ -95,7 +109,8 @@ void mv::BaseOpModel::initRecordingFile(const std::string& outFileName)
 
     codeOut_ = new std::ofstream();
     dataOut_ = new std::ofstream();
-    this->recordModel = true;
+    this->recordModel_ = true;
+    this->recordWeightsAsText_ = recordWeightsAsText;
 
     const auto dataFileName = removeFileExt(outFileName) + ".data.inc";
     codeOut_->open(outFileName, std::ios_base::out | std::ios_base::trunc);

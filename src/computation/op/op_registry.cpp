@@ -33,6 +33,19 @@ namespace
 const std::string RECORDED_OP_MODEL_CPP_BODY = R"cpptempl(
 namespace
 {
+    template <typename T1, typename T2>
+    void write(const std::vector<T1>& data, const std::string& filepath)
+    {
+        mv::utils::validatePath(filepath);
+        std::ofstream file(filepath, std::ofstream::binary);
+        T2 aux;
+        for (const auto& value: data)
+        {
+            aux = value;
+            file.write(&reinterpret_cast<char&>(aux), sizeof(aux));
+        };
+    }
+
     std::string varName(std::string name)
     {
         std::replace_if(name.begin(), name.end(), [](char c) { return !std::isalnum(c) && c != '_'; }, '_');
@@ -79,11 +92,11 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const mv::Data::TensorIterator& tensor)
     {
         *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
     {
         *codeOut << "{";
         if (!tensors.empty())
@@ -97,7 +110,7 @@ namespace
         *codeOut << "}";
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<T>& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const std::vector<T>& attr)
     {
         if (attr.size() < 8)
         {
@@ -105,39 +118,57 @@ namespace
         }
         else
         {
-            *codeOut << paramName;
-            *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
-            *dataOut << std::endl;
+            if (recordWeightsAsText)
+            {
+                *codeOut << paramName;
+                *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
+                *dataOut << std::endl;
+            }
+            else
+            {
+                std::string T_in = typeid(T).name();
+                std::string T_str = "int64_t";
+                if (T_in == "l")
+                    T_str = "int64_t";
+                else if (T_in == "d")
+                    T_str = "double";
+                else 
+                    T_str = T_in;
+                
+                std::string weightsFilename = std::string("./data/") + paramName + std::string(".bin");
+                *codeOut << "read<" << T_str << "," << T_str << ">(\"" << weightsFilename << "\")";
+                write<T,T>(attr, weightsFilename);
+            }
         }
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const T& attr)
     {
         *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
         if (I > 0)
         {
             *codeOut << ", ";
         }
 
-        printParam(codeOut, dataOut, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
+        printParam(codeOut, dataOut, recordWeightsAsText, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
 
-        printParams<I + 1>(codeOut, dataOut, outVarName, paramNames, paramValues);
+        printParams<I + 1>(codeOut, dataOut, recordWeightsAsText, outVarName, paramNames, paramValues);
     }
 
     template <typename... Args>
     void printOp(
-            std::ostream* codeOut, std::ostream* dataOut,
+            std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText,
             const std::string& outVarName,
             const std::string& opName,
             const std::string& name,
@@ -149,7 +180,7 @@ namespace
             *codeOut << "    const auto " << outVarName << " = model." << opName << "(";
             const auto paramNames = splitStringList(paramStr, ',');
             const auto paramValues = std::forward_as_tuple(std::forward<Args>(args)...);
-            printParams(codeOut, dataOut, outVarName, paramNames, paramValues);
+            printParams(codeOut, dataOut, recordWeightsAsText, outVarName, paramNames, paramValues);
             *codeOut << ", \"" << name << "\");" << std::endl;
         }
     }
@@ -823,9 +854,9 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
         if (opParams.str().substr(opParams.str().length()-1) == "," )
             opParamstr = opParams.str().substr(0, opParams.str().length() -1);
 
-        output += tab + "if (recordModel) { " + eol;
+        output += tab + "if (recordModel_) { " + eol + eol;
         output += tab + tab + "const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : \"" + opFuncName.str() + "\");" + eol;
-        output += tab + tab + "printOp(codeOut_, dataOut_, outputName, \"" + opFuncName.str() + "\", name, \"" + opParamstr + "\", " + opParamstr + ");" + eol;
+        output += tab + tab + "printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, \"" + opFuncName.str() + "\", name, \"" + opParamstr + "\", " + opParamstr + ");" + eol;
         output += tab + "}" + eol;
     }
     output += tab + "return output;";
@@ -1011,7 +1042,8 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     srcStream << "/*" << eol;
     srcStream << tab << "DO NOT MODIFY - that file was generated automatically using op::OpRegistry::generateCompositionAPI()" << eol;
     srcStream << "*/" << eol << eol;
-    srcStream << "#include \"" << "include/mcm/op_model.hpp" << "\"" << eol << eol;
+    srcStream << "#include \"" << "include/mcm/op_model.hpp" << "\"" << eol;
+    srcStream << "#include \"" << "include/mcm/utils/env_loader.hpp" << "\"" << eol << eol;
 
     srcStream << "mv::OpModel::OpModel(const std::string& name) :" << eol;
     srcStream << "BaseOpModel(name)" << eol;
