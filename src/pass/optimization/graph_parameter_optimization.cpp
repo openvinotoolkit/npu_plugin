@@ -268,8 +268,10 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     int extraLines = 2;
+                    // Stream over H slices will overlap up to (kernel size - 1)  if stride != kernel size
+                    // TODO this be (kernel height - stride height) instead of minus 1
                     if(kHeight > 2)
-                        extraLines = kHeight;
+                        extraLines = kHeight - 1;
                     
                     double worstNumberOfSplits = ((double)outputSize/(newOutputSize+extraLines));
 
