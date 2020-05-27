@@ -78,7 +78,7 @@ class KmbPSROIPoolingLayerTests : public KmbLayerTestBase,
                                   public testing::WithParamInterface<PSROIPoolingTestParams> {};
 
 /* FIXME: mcmCompiler doesn't support multiple inputs with float precision
- *    Ticket: https://jira.devtools.intel.com/browse/VPUNND-3036 */
+ * [Track number: D#3036] */
 TEST_P(KmbPSROIPoolingLayerTests, DISABLED_AccuracyTest) {
     SKIP_INFER_ON("KMB", "bad results");
     const auto& p = GetParam();

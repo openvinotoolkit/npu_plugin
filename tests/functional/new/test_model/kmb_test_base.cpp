@@ -306,10 +306,9 @@ void KmbTestBase::compareOutputs(
     const auto& refDesc = refOutput->getTensorDesc();
     const auto& actualDesc = actualOutput->getTensorDesc();
 
-    /* FIXME: Currently output from mcmCompiler is always 4D even the network output isn't 4D
-     *        So we can't compare number of dimensions as:
-     * ASSERT_EQ(refDesc.getDims().size(), actualDesc.getDims().size()) */
-    ASSERT_EQ(refOutput->size(), actualOutput->size());
+    const auto& ref_dims = refDesc.getDims();
+    const auto& actual_dims = actualDesc.getDims();
+    ASSERT_TRUE(ref_dims == actual_dims);
 
     BufferWrapper refPtr(refOutput);
     BufferWrapper actualPtr(actualOutput);
@@ -361,6 +360,19 @@ void KmbTestBase::compareWithReference(
 
             compareOutputs(refOutput, actualOutput, tolerance, method);
         }
+    }
+}
+
+void KmbTestBase::checkWithOutputsInfo(const BlobMap& actualOutputs,
+                                       const std::vector<DataPtr>& outputsInfo) {
+    for (const auto& info : outputsInfo) {
+        auto it = actualOutputs.find(info->getName());
+        ASSERT_TRUE(it != actualOutputs.end());
+
+        const auto& actual_desc = it->second->getTensorDesc();
+        ASSERT_EQ(info->getLayout(),    actual_desc.getLayout());
+        ASSERT_EQ(info->getPrecision(), actual_desc.getPrecision());
+        ASSERT_EQ(info->getDims(),      actual_desc.getDims());
     }
 }
 
@@ -546,6 +558,7 @@ void KmbLayerTestBase::runTest(
 
         std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
 
+        checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
     }
 }
@@ -744,6 +757,34 @@ Blob::Ptr KmbNetworkTestBase::calcRefOutput(
     return refOutputs.begin()->second;
 }
 
+void KmbNetworkTestBase::checkLayouts(const BlobMap& actualOutputs,
+                                      const std::unordered_map<std::string, Layout>& layouts) const {
+    // FIXME: Currently only one output is allowed
+    // Network can not explicitly set output layout
+    ASSERT_TRUE(layouts.size() <= 1u);
+    ASSERT_EQ(1u, actualOutputs.size());
+
+    if (layouts.size() == 1) {
+        const auto& actual   = *actualOutputs.begin();
+        const auto& expected = *layouts.begin();
+        ASSERT_EQ(expected.second, actual.second->getTensorDesc().getLayout());
+    }
+}
+
+void KmbNetworkTestBase::checkPrecisions(const BlobMap& actualOutputs,
+                                         const std::unordered_map<std::string, Precision>& precisions) const {
+    // FIXME: Currently only one output is allowed
+    // Network can not explicitly set output precision
+    ASSERT_TRUE(precisions.size() <= 1u);
+    ASSERT_EQ(1u, actualOutputs.size());
+
+    if (precisions.size() == 1) {
+        const auto& actual   = *actualOutputs.begin();
+        const auto& expected = *precisions.begin();
+        ASSERT_EQ(expected.second, actual.second->getTensorDesc().getPrecision());
+    }
+}
+
 void KmbNetworkTestBase::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
@@ -813,6 +854,9 @@ void KmbNetworkTestBase::runTest(
 
         std::cout << "=== COMPARE WITH REFERENCE" << std::endl;
 
+        checkLayouts(actualOutputs,    netDesc.outputLayouts());
+        checkPrecisions(actualOutputs, netDesc.outputPrecisions());
+
         checkCallback(actualOutputBlob, refOutputBlob, inputTensorDesc);
     }
 }
@@ -826,6 +870,8 @@ void KmbClassifyNetworkTest::runTest(
         const TestImageDesc& image,
         size_t topK, float probTolerance) {
     const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc&) {
+        ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
+
         auto actualOutput = parseOutput(toFP32(actualBlob));
         auto refOutput = parseOutput(toFP32(refBlob));
 
