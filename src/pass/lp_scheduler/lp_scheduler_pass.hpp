@@ -1540,14 +1540,18 @@ class DDR_Address_Generator {
               ddr_op_utility_t> address_generator_t;
     typedef typename address_generator_t::address_info_t address_info_t;
     typedef std::unordered_map<operation_t, address_info_t> ddr_address_table_t;
+    typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
 
     struct ddr_address_setter_t {
       ddr_address_setter_t(FILE *fptr=NULL,
-          ddr_address_table_t *address_table_ptr=NULL)
-        : address_table_ptr_(address_table_ptr), fptr_(fptr) {}
+          ddr_address_table_t *address_table_ptr=NULL,
+          const master_slave_relations_t *msrelations_ptr=NULL)
+        : address_table_ptr_(address_table_ptr), fptr_(fptr),
+          msrelations_ptr_(msrelations_ptr) {}
 
       bool operator=(const address_info_t& address_info) const {
-        mv::Op * const op_ptr = const_cast<mv::Op *>(address_info.op_);
+        mv::Op * const op_ptr = const_cast<mv::Op *>(
+            msrelations_ptr_->master_tensor_op(address_info.op_) );
         mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
         assert(address_info.address_begin_ >= 1UL);
         size_t address = address_info.address_begin_ - 1UL;
@@ -1559,7 +1563,7 @@ class DDR_Address_Generator {
         }
 
         if (address_table_ptr_) {
-          operation_t key = address_info.op_;
+          operation_t key = op_ptr;
           assert(address_table_ptr_->find(key) == address_table_ptr_->end());
           (*address_table_ptr_)[key] = address_info;
         }
@@ -1568,6 +1572,7 @@ class DDR_Address_Generator {
 
       ddr_address_table_t *address_table_ptr_;
       FILE *fptr_;
+      const master_slave_relations_t *msrelations_ptr_;
     }; // struct ddr_address_setter_t //
 
     struct sched_op_t{
@@ -1579,7 +1584,6 @@ class DDR_Address_Generator {
 
       sched_op_t(operation_t op, size_t time) : op_(op), time_(time) {}
     }; // struct sched_op_t //
-    typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
 
 
     template<typename dag_t>
@@ -1700,10 +1704,16 @@ class DDR_Address_Generator {
       update_dag_with_master_slave_relations(schedule.begin(), schedule.end(),
           msrelations);
 
+      FILE *fptr_ms = fopen("msrelations.txt", "w");
+      if (!fptr_ms) {
+        throw "[MSRelation Dump]: failed\n";
+      }
+      msrelations.print(fptr_ms);
 
       ddr_address_table_t ddr_address_table;
       FILE *fptr = file_name ?  fopen(file_name, "w") : NULL;
-      ddr_address_setter_t address_setter(fptr, &ddr_address_table);
+      ddr_address_setter_t address_setter(fptr, &ddr_address_table,
+            &msrelations);
 
 
       // STEP-3: generate addresses using new DAG and resource model //

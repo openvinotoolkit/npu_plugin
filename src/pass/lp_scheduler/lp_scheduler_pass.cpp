@@ -33,8 +33,11 @@ typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
 
 
 static bool is_scheduler_output_enabled() {
+  return true;
+  /*
   const auto level = mv::Logger::getVerboseLevel();
   return (mv::VerboseLevel::Error != level && mv::VerboseLevel::Silent != level);
+  */
 }
 
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
