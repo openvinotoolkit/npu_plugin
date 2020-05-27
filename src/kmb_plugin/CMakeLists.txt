@@ -62,6 +62,7 @@ target_link_libraries(${TARGET_NAME}
         ${VPUAL_NN_LIBRARY}
         ${VPUSMM_LIB}
     PRIVATE
+        ${INTEL_ITT_LIBS}
         ${GAPI_SIPP_LIBRARY}
         kmb_utils)
 
@@ -115,6 +116,7 @@ if(ENABLE_TESTS)
             ${VPUAL_NN_LIBRARY}
             ${VPUSMM_LIB}
         PRIVATE
+            ${INTEL_ITT_LIBS}
             ${GAPI_SIPP_LIBRARY}
             kmb_utils)
 endif()
