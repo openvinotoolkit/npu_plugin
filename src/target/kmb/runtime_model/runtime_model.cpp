@@ -279,12 +279,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-        if (t->hasAttr("activationSparsityCompilerSolving")
-                            && t->get<bool>("activationSparsityCompilerSolving"))
-        {
-            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
-        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());
@@ -528,13 +522,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-    }
-
-    if (t->hasAttr("activationSparsityCompilerSolving")
-                        && t->get<bool>("activationSparsityCompilerSolving"))
-    {
-        toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-        toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -1247,6 +1234,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
+    if (inputTensor->hasAttr("activationSparsityCompilerSolving")
+        && inputTensor->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+    }
+
     //output
     auto outputTensor = opIt->getOutputTensor(0);
 
@@ -1352,6 +1346,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
+
+    if (parentInputTensor->hasAttr("activationSparsityCompilerSolving")
+        && parentInputTensor->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+    }
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
