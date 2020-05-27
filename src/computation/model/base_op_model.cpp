@@ -18,7 +18,7 @@ std::vector<T1>
 {
     std::ifstream fileStream(filepath, std::ifstream::binary);
     if (!fileStream) 
-        throw RuntimeError("TemplateExample", "Weights file: \"" + filepath + "\" not found");
+        throw mv::RuntimeError("TemplateExample", "Weights file: \"" + filepath + "\" not found");
     std::vector<T1> data;
     T2 aux;
     while (fileStream.read(&reinterpret_cast<char&>(aux), sizeof(aux)) && num-- > 0)
