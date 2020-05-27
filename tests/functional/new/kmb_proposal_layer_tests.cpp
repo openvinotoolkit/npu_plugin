@@ -15,6 +15,9 @@
 //
 
 #include "test_model/kmb_test_base.hpp"
+#include "test_model/kmb_test_reshape_def.hpp"
+
+#include <blob_factory.hpp>
 
 struct ProposalTestParams final {
     SizeVector         cls_score_dims_;
@@ -53,7 +56,7 @@ class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
 
 /* FIXME: mcmCompiler doesn't support multiple inputs with float precision
-*    Ticket: https://jira.devtools.intel.com/browse/VPUNND-3036 */
+ * [Track number: D#3036] */
 TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
     SKIP_INFER_ON("KMB", "bad results");
 
@@ -62,15 +65,9 @@ TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
 
     const auto cls_score_desc = TensorDesc(Precision::FP32, p.cls_score_dims_, Layout::NHWC);
     const auto bbox_pred_desc = TensorDesc(Precision::FP32, p.bbox_pred_dims_, Layout::NHWC);
-    /* FIXME: Implement reshape layer in test framework
-     *        https://jira.devtools.intel.com/browse/CVS-30959
-     *
-     * Usually image info has the shape {1, C} then the network uses a reshape,
-     * because ngraph for proposal layer uses the shape {C}, but since the reshape layer
-     * in test framework isn't implemented yet, we create image info immediately with the shape {C}
-     */
-    const auto img_info_desc = TensorDesc(Precision::FP32, {p.img_info_.size()} , Layout::C);
-    const auto output_desc   = TensorDesc(Precision::FP32,                        Layout::NC);
+    const auto img_info_desc = TensorDesc(Precision::FP32, {1, p.img_info_.size()}, Layout::NC);
+    const auto shape_desc    = TensorDesc(Precision::I64,  {1                    }, Layout::C);
+    const auto output_desc   = TensorDesc(Precision::FP32,                          Layout::NC);
 
     const auto range = std::make_pair(0.0f, 1.0f);
     const auto tolerance = 1e-3f;
@@ -96,10 +93,18 @@ TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
                                                                     desc.getDims(),
                                                                     desc.getLayout()));
             img_info_blob->allocate();
-            auto* img_info_raw = img_info_blob->buffer().as<float*>();
-            std::copy(p.img_info_.begin(), p.img_info_.end(), img_info_raw);
-
+            CopyVectorToBlob(img_info_blob, p.img_info_);
             return img_info_blob;
+        }
+    );
+
+    registerBlobGenerator(
+        "shape", shape_desc,
+        [&](const TensorDesc& desc) {
+            auto blob = make_blob_with_precision(desc);
+            blob->allocate();
+            CopyVectorToBlob(blob, SizeVector{p.img_info_.size()});
+            return blob;
         }
     );
 
@@ -111,10 +116,15 @@ TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
             .addNetInput("bbox_pred" , bbox_pred_desc.getDims(), precision)
             .setUserInput("img_info" , img_info_desc.getPrecision(), img_info_desc.getLayout())
             .addNetInput("img_info"  , img_info_desc.getDims(), precision)
+            .addConst("shape", getBlobByName("shape"))
+            .addLayer<ReshapeLayerDef>("reshape")
+                .input("img_info")
+                .shape("shape")
+                .build()
             .addLayer<ProposalLayerDef>("proposal", p.params_)
                 .scores("input")
                 .boxDeltas("bbox_pred")
-                .imgInfo("img_info")
+                .imgInfo("reshape")
                 .build()
             .addNetOutput(PortInfo("proposal"))
             .setUserOutput(PortInfo("proposal"), output_desc.getPrecision(), output_desc.getLayout())

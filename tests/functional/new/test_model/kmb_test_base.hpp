@@ -34,6 +34,7 @@
 #include "kmb_test_interp_def.hpp"
 #include "kmb_test_topk_def.hpp"
 #include "kmb_test_interp_def.hpp"
+#include "kmb_test_reshape_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
@@ -156,6 +157,8 @@ protected:
             const Blob::Ptr& refOutput, const Blob::Ptr& actualOutput,
             float tolerance, CompareMethod method = CompareMethod::Absolute);
 
+    void checkWithOutputsInfo(const BlobMap& actualOutputs, const std::vector<DataPtr>& outputsInfo);
+
 protected:
     void exportNetwork(ExecutableNetwork& exeNet);
 
@@ -246,6 +249,14 @@ public:
     void fillUserInputInfo(InputsDataMap& info) const;
     void fillUserOutputInfo(OutputsDataMap& info) const;
 
+    const std::unordered_map<std::string, Precision>& outputPrecisions() const {
+        return _outputPrecisions;
+    }
+
+    const std::unordered_map<std::string, Layout>& outputLayouts() const {
+        return _outputLayouts;
+    }
+
     const std::map<std::string, std::string>& compileConfig() const {
         return _compileConfig;
     }
@@ -310,6 +321,12 @@ protected:
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
             const CheckCallback& checkCallback);
+
+    void checkLayouts(const BlobMap& actualOutputs,
+                      const std::unordered_map<std::string, Layout>& layouts) const;
+
+    void checkPrecisions(const BlobMap& actualOutputs,
+                         const std::unordered_map<std::string, Precision>&) const;
 };
 
 //
