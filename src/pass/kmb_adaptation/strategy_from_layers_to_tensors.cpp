@@ -23,7 +23,6 @@ namespace mv
 
 void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element &)
 {
-    auto globalParams = model.getGlobalConfigParams();
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
@@ -157,7 +156,7 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         if (opType == "ImplicitInputSlice")
         {
             auto numOutputs = layer->outputSlots();
-            for (auto i = 0; i < numOutputs; i++)
+            for (std::size_t i = 0; i < numOutputs; i++)
             {
                 auto outputTensor = layer->getOutputTensor(i);
                 // Oh ... the many assumptions here!
@@ -180,6 +179,21 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
             auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
             outputTensor->set<std::string>("splitStrategy", opStrategy);
+        }
+    }
+
+    //NOTE: The instructionListTable's shape is indepedent of tensor's shape just depends on
+    // the number of the opcodes, which no matter the strategy op needs to be constant
+    for (auto layer = om.opBegin(); layer != om.opEnd(); ++layer)
+    {
+        if (layer->getOpType() == "DPUTask")
+        {
+            if (layer->hasAttr("firstConvWithLRelu")
+                              && layer->get<bool>("firstConvWithLRelu"))
+            {
+                auto index = layer->get<size_t>("instructionListTableIndex");
+                layer->getInputTensor()[index]->set<std::string>("splitStrategy", "Clustering");
+            }
         }
     }
 

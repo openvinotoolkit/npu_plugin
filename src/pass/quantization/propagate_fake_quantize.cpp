@@ -21,7 +21,12 @@ namespace mv
 }
 
 static double inf = std::numeric_limits<double>::infinity();
-static const auto initial_quant_params = mv::QuantizationParams{{0}, {1}, {-inf}, {inf}};
+
+// This is needed to avoid a static initializer fiasco.
+static const mv::QuantizationParams& initial_quant_params() {
+    static mv::QuantizationParams init{{0}, {1}, {-inf}, {inf}};
+    return init;
+}
 
 enum class Precision {
     Default,
@@ -166,7 +171,7 @@ bool isVectorsEqual(const std::vector<double> left, const std::vector<double> ri
         return false;
     }
 
-    for (int i = 0; i < left.size(); i++) {
+    for (size_t i = 0; i < left.size(); i++) {
         if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
             return  false;
         }
@@ -199,7 +204,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     }
 
     std::vector<mv::QuantizationParams> outQuantParams;
-    for (int i = 0; i < current_ops.size(); i++) {
+    for (size_t i = 0; i < current_ops.size(); i++) {
         if (current_ops[i]->getOpType() == "FakeQuantize") {
             outQuantParams.push_back(extractQuantParamsO(current_ops[0], op->getOpType() != "Constant"));
         }
@@ -207,10 +212,10 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
 
     // NO FQ on branches
     if (outQuantParams.empty()) {
-        return initial_quant_params;
+        return initial_quant_params();
     }
 
-    for (int i = 1; i < outQuantParams.size(); i++) {
+    for (size_t i = 1; i < outQuantParams.size(); i++) {
         if (!isEqual(outQuantParams[0], outQuantParams[i])) {
             throw std::runtime_error("Different quant params on branches");
         }
@@ -273,7 +278,7 @@ void propagateParameters(mv::ComputationModel& model) {
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
             quant_params = findOutputQuantParams(model, op);
 
-            if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params)) {
+            if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
                 quant_params = getParentQuantParams(om, op);
             }
 
@@ -475,11 +480,11 @@ void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
     mv::DataModel dm(om);
-    for (int i = 0; i < inputs.size(); i++) {
+    for (size_t i = 0; i < inputs.size(); i++) {
         auto input = inputs.at(i);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
-        mv::QuantizationParams inputQuantParams = initial_quant_params;
+        mv::QuantizationParams inputQuantParams = initial_quant_params();
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
@@ -491,7 +496,7 @@ void quantizeIO(mv::ComputationModel& model) {
     setQuantizationParams(output, {{}, {}, {}, {}});
 }
 
-void removeFQ(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+void removeFQ(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
 
@@ -531,14 +536,14 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
             // Quantize input bias
             current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
             if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
-                auto bias_op = quantizeBias(model, current_op, initial_quant_params, scalesQuantParams);
+                auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
                 setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
             }
         }
     }
 }
 
-void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& compilationDescriptor, mv::Element&) {
+void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&) {
     mv::OpModel om(model);
     auto fq_ops = om.getOps("FakeQuantize");
     if (fq_ops.empty())

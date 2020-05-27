@@ -17,8 +17,8 @@ static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::v
 static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
-int32_t computeClampLow(mv::Data::OpListIterator &opIt);
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
 
 namespace mv
 {
@@ -484,6 +484,28 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
                             name);
 }
 
+mv::Data::TensorIterator convertDeconvToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto group = attrs.at("group").get<unsigned>();
+    auto is_depthwise = attrs.at("is_depthwise").get<bool>();
+
+    auto globalParams = om.getGlobalConfigParams();
+
+    auto upaDeconv = om.uPATaskDeconv(inputs, strides, padding, dilationFactor, group, is_depthwise, outputTensorType, quantParams, name);
+
+    auto upaDeconvOp = om.getSourceOp(upaDeconv);
+    upaDeconvOp->set<bool>("hasWeights", true);
+
+    return upaDeconv;
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -496,7 +518,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv"};
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
     auto opsToConvert = om.getOpsOfTypes(opsTypesToConvert);
@@ -527,6 +549,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Permute", convertPermuteToUPATask},
     {"Custom", convertCustomToUPATask},
     {"Sigmoid", convertSigmoidToUPATask},
+    {"Deconv", convertDeconvToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)
@@ -621,9 +644,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
-
-    ppeFixedFunction.setLowClamp(computeClampLow(opIt));
-    ppeFixedFunction.setHighClamp(computeClampHigh(opIt));
+    bool flexarbINT8 = false;
+    if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "FLEXARB") != ppeTaskTypes.end())
+        flexarbINT8= true;
+    //NOTE: the idea of the flex is that the post shift is not sign extendable so the clamps need to be like INT8
+    ppeFixedFunction.setLowClamp(computeClampLow(opIt, flexarbINT8));
+    ppeFixedFunction.setHighClamp(computeClampHigh(opIt, flexarbINT8));
 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
@@ -667,7 +693,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 // U8 <- [-zp; 255 - zp]
 // I8 <- [-128 - zp; +127 - zp] but ensure that zp is 0
 // The clamp value is stored as is if compute type is U8. Otherwise it must be converted in S16.16
-int32_t computeClampLow(mv::Data::OpListIterator &opIt)
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -723,11 +749,14 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
         clamp /= alpha;
     }
 
+    if (flex)
+        clamp = -128;
+
     return clamp;
 }
 
 
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -778,6 +807,8 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
             }
         }
     }
+    if (flex)
+        clamp = 127;
     return clamp;
 }
 

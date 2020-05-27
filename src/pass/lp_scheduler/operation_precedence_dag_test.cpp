@@ -18,20 +18,21 @@ class Operation_Dag_Test : public ::testing::Test {
       //programatically//
       std::string prefix(getenv("MCM_HOME"));
       comp_desc_path_ = prefix + 
-          "/config/compilation/release_kmb_SC-PrefetchAdaptive.json";
+          "/config/compilation/release_kmb-sc.json";
       setup_three_layer_conv_input();
     }
 
-    Operation_Dag_Test() : three_layer_conv_input_("3layer_conv") {}
+    Operation_Dag_Test() : three_layer_conv_input_("3layer_conv"),
+      upa_chain_ending_with_dpu_("upa_chain_ending_with_dpu"),
+      upa_chain_with_single_link_("upa_chain_with_single_link_") {}
 
     mv::OpModel& three_layer_conv_model() {
       return three_layer_conv_input_.model();
     }
 
 
-    mv::OpModel& get_three_layer_conv_model_control_model() {
+    mv::OpModel& clear_control_model_and_remove_barriers(mv::OpModel& om) {
       // clear all control edges //
-      mv::OpModel &om = three_layer_conv_model();
       mv::ControlModel cm(om);
 
       mv::Control::FlowListIterator fitr, fitr_next;
@@ -58,11 +59,25 @@ class Operation_Dag_Test : public ::testing::Test {
       for (mv::Data::OpListIterator oitr=om.getInput(); oitr!=om.opEnd();
           ++oitr) {
         mv::Data::OpListIterator source = oitr; 
-        for (mv::Data::OpChildIterator citr=oitr.leftmostChild();
-              citr!=om.opEnd(); ++citr) {
-          mv::Data::OpListIterator sink = om.getOp(citr->getName());
-          assert(sink != om.opEnd());
-          cm.defineFlow(source, sink);
+        if (source->isImplicit()) {
+          for (mv::Data::OpParentIterator pitr=oitr.leftmostParent();
+               pitr!=om.opEnd(); ++pitr) {
+            for (mv::Data::OpChildIterator citr=oitr.leftmostChild();
+                  citr!=om.opEnd(); ++citr) {
+              mv::Data::OpListIterator parent = om.getOp(pitr->getName());
+              mv::Data::OpListIterator child = om.getOp(citr->getName());
+              assert(parent != om.opEnd());
+              assert(child != om.opEnd());
+              cm.defineFlow(parent, child);
+            }
+          }
+        } else {
+          for (mv::Data::OpChildIterator citr=oitr.leftmostChild();
+                citr!=om.opEnd(); ++citr) {
+            mv::Data::OpListIterator sink = om.getOp(citr->getName());
+            assert(sink != om.opEnd());
+            cm.defineFlow(source, sink);
+          }
         }
       }
       return om;
@@ -81,8 +96,6 @@ class Operation_Dag_Test : public ::testing::Test {
       // check the parents //
       for (mv::Control::OpParentIterator pitr=cop_itr.leftmostParent();
           pitr!=cm.opEnd(); ++pitr) {
-        printf("[p] (%s) -> (%s)\n", pitr->getName().c_str(),
-              cop_itr->getName().c_str());
 
         if (cop_itr->getOpType() == "Output") { continue; }
         if (is_barrier_op(cop_itr) == is_barrier_op(pitr)) { return false; }
@@ -103,8 +116,6 @@ class Operation_Dag_Test : public ::testing::Test {
       // check the children //
       for (mv::Control::OpChildIterator citr=cop_itr.leftmostChild();
           citr!=cm.opEnd(); ++citr) {
-        printf("[c] (%s) -> (%s)\n", cop_itr->getName().c_str(),
-              citr->getName().c_str());
 
         if (citr->getOpType() == "Output") { continue; }
         if (is_barrier_op(cop_itr) == is_barrier_op(citr)) { return false; }
@@ -234,7 +245,92 @@ class Operation_Dag_Test : public ::testing::Test {
       unit.run();
     }
 
+
+    mv::OpModel& upa_chain_ending_with_dpu_model() {
+      return upa_chain_ending_with_dpu_.model();
+    }
+
+    void setup_upa_chain_ending_with_dpu_model() {
+      mv::CompilationUnit &unit = upa_chain_ending_with_dpu_;
+      mv::OpModel& om = unit.model();
+      
+      auto input0 = om.input({1,1,1000,1}, mv::DType("Float64"),
+          mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
+      std::string axis = "C";
+     
+      auto softmax0 = om.softmax(input0, axis);
+      auto softmax1 = om.softmax(softmax0, axis);
+      auto softmax2 = om.softmax(softmax1, axis, mv::DType("Float64"),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}});
+
+      std::vector<int64_t> weightsData0 =
+          mv::utils::generateSequence<int64_t> (1*1*1000*1);
+      auto weights0 = om.constantInt(weightsData0,{1,1,1000,1},
+            mv::DType("UInt8"), mv::Order::getZMajorID(4),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}}, "conv#0_weights#1");
+
+      auto conv0 = om.conv(softmax2, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1,
+          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
+            "conv#10");
+
+      om.output(conv0);
+
+      std::string compDescPath(comp_desc_path_);
+      unit.loadCompilationDescriptor(compDescPath);
+
+      unit.loadTargetDescriptor(mv::Target::ma2490);
+      unit.initialize();
+      unit.run();
+    }
+
+
+    void setup_upa_chain_with_single_link() {
+      mv::CompilationUnit &unit = upa_chain_with_single_link_;
+      mv::OpModel& om = unit.model();
+      
+      auto input0 = om.input({1,1,1000,1}, mv::DType("Float64"),
+          mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
+      std::string axis = "C";
+     
+      auto softmax0 = om.softmax(input0, axis);
+      auto softmax1 = om.softmax(softmax0, axis);
+      auto softmax2 = om.softmax(softmax1, axis, mv::DType("Float64"),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}});
+
+      std::vector<int64_t> weightsData0 =
+          mv::utils::generateSequence<int64_t> (1*1*1000*1);
+      auto weights0 = om.constantInt(weightsData0,{1,1,1000,1},
+            mv::DType("UInt8"), mv::Order::getZMajorID(4),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}}, "conv#0_weights#1");
+
+      auto conv0 = om.conv(softmax2, weights0, {1, 1}, {1, 1, 1, 1}, 1, 1,
+          mv::DType("UInt8"), {{0},{0.003921568859368563},{0.0},{1.0}},
+            "conv#10");
+
+      auto softmax3 = om.softmax(conv0, axis);
+
+      om.output(softmax3);
+
+      std::string compDescPath(comp_desc_path_);
+      unit.loadCompilationDescriptor(compDescPath);
+
+      unit.loadTargetDescriptor(mv::Target::ma2490);
+      unit.initialize();
+      unit.run();
+    }
+
+    mv::OpModel& upa_chain_with_single_link() {
+      return upa_chain_with_single_link_.model();
+    }
+
+
     mv::CompilationUnit three_layer_conv_input_;
+    mv::CompilationUnit upa_chain_ending_with_dpu_;
+    mv::CompilationUnit upa_chain_with_single_link_;
     std::string comp_desc_path_;
 }; // class Operation_Dag_Test //
 
@@ -348,7 +444,7 @@ TEST_F(Operation_Dag_Test, incoming_edge_iterator) {
   }
   EXPECT_EQ(found_parents, expected_parents);
 
-  op = dag.get_op_by_name("input#9");
+  op = dag.get_op_by_name("Input_0");
   ASSERT_TRUE(op != NULL);
   itr = dag.begin_parent_nodes(op);
   itr_end = dag.end_parent_nodes(op);
@@ -386,7 +482,6 @@ TEST_F(Operation_Dag_Test, schedule_write_and_read_test) {
 
     ++sbegin;
     ++record_count;
-    ASSERT_TRUE(record_count <= 32UL);
   }
   
   EXPECT_TRUE(status);
@@ -398,7 +493,7 @@ class Aligned_DMA_Test : public ::testing::Test {
     void SetUp() override {
       std::string prefix(getenv("MCM_HOME"));
       comp_desc_path_ = prefix +
-        "/config/compilation/release_kmb_SC-PrefetchAdaptive.json";
+        "/config/compilation/release_kmb-sc.json";
       setup_aligned_dma_input();
     }
 
@@ -548,35 +643,94 @@ TEST_F(Aligned_DMA_Test, resource_utility) {
   EXPECT_EQ(input_dag.resource_utility(om, "Add1_7091/Fused_Add_"), 451584UL);
 }
 
+namespace mv_unit_testing {
 
 class Barrier_Control_Dag_Test : public Operation_Dag_Test {
+
   protected:
+    ////////////////////////////////////////////////////////////////////////////
+    typedef mv::lp_scheduler::Control_Model_Barrier_Scheduler
+        barrier_scheduler_t;
+    typedef typename barrier_scheduler_t::barrier_control_edge_t
+      barrier_control_edge_t;
+    typedef typename barrier_scheduler_t::operation_t operation_t;
+    typedef typename std::list<operation_t> op_chain_t;
+    ////////////////////////////////////////////////////////////////////////////
+
 
     void SetUp() override {
       std::string prefix(getenv("MCM_HOME"));
-      comp_desc_path_ = prefix + 
-          "/config/compilation/release_kmb_SC-"
-          "PrefetchAdaptive-BarrierScheduler-NoTemporalEdges.json";
+      comp_desc_path_ = prefix + "/config/compilation/release_kmb-sc.json";
       setup_three_layer_conv_input();
+    }
+
+    op_chain_t get_tailing_upa_chain(
+        const barrier_scheduler_t& barrier_scheduler) const {
+      op_chain_t chain;
+      barrier_scheduler.get_tailing_upa_chain(std::back_inserter(chain));
+      return chain;
     }
 }; // class Barrier_Control_Dag_Test //
 
-typedef mv::lp_scheduler::Control_Model_Barrier_Scheduler barrier_scheduler_t;
-typedef typename barrier_scheduler_t::barrier_control_edge_t
-  barrier_control_edge_t;
+} // namespace mv_unit_testing
+
+using namespace mv_unit_testing;
+
 TEST_F(Barrier_Control_Dag_Test, barrier_control_dag) {
-  mv::ControlModel cmodel(three_layer_conv_model()); 
+  mv::OpModel& om = three_layer_conv_model();
+  mv::ControlModel cm(om); 
+
+  clear_control_model_and_remove_barriers(om);
+
+  // run the barrier scheduler on the underlying opmodel//
+  barrier_scheduler_t barrier_scheduler(cm, 4UL, 256UL);
+
+  barrier_scheduler.schedule();
+
   // the setup already runs the barrier scheduler //
-  EXPECT_TRUE(is_valid_barrier_schedule(cmodel));
-  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cmodel));
+  EXPECT_TRUE(is_valid_barrier_schedule(cm));
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cm));
 }
 
-/*
-#include "pass/lp_scheduler/barrier_simulation_pass.hpp"
-typedef mv::lp_scheduler::Dynamic_Barrier_Schedule_Adjuster schedule_adjuster_t;
-TEST_F(Barrier_Control_Dag_Test, basic) {
-  mv::ControlModel cmodel(three_layer_conv_model()); 
+TEST_F(Barrier_Control_Dag_Test, upa_chain_ending_with_dpu) {
+  setup_upa_chain_ending_with_dpu_model();
 
-  schedule_adjuster_t adjuster(cmodel);
+  mv::OpModel &om = upa_chain_ending_with_dpu_model(); 
+  mv::ControlModel cm(om); 
+
+  clear_control_model_and_remove_barriers(om);
+
+  // run the barrier scheduler on the underlying opmodel//
+  barrier_scheduler_t barrier_scheduler(cm, 4UL, 256UL);
+
+  barrier_scheduler.schedule();
+
+  op_chain_t upa_chain = get_tailing_upa_chain(barrier_scheduler);
+
+  EXPECT_TRUE(upa_chain.empty());
+
+  EXPECT_TRUE(is_valid_barrier_schedule(cm));
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cm));
 }
-*/
+
+TEST_F(Barrier_Control_Dag_Test, upa_chain_with_single_link) {
+  setup_upa_chain_with_single_link();
+
+  mv::OpModel &om = upa_chain_with_single_link(); 
+  mv::ControlModel cm(om); 
+
+  clear_control_model_and_remove_barriers(om);
+
+  // run the barrier scheduler on the underlying opmodel//
+  barrier_scheduler_t barrier_scheduler(cm, 4UL, 256UL);
+
+  barrier_scheduler.schedule();
+
+  op_chain_t upa_chain = get_tailing_upa_chain(barrier_scheduler);
+
+  // compiler puts a quantize before softmax and two barriers//
+  ASSERT_EQ(upa_chain.size(), 4UL);
+
+  barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cm));
+}

@@ -287,6 +287,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/tile_operations.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/fuse_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/adaptation/preprocess_PWL.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/remove_passes.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/replacement_passes.cpp"

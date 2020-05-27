@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include "include/mcm/utils/warning_manager.hpp"
 
 namespace mv {
 
@@ -1632,14 +1633,14 @@ class Feasible_Memory_Schedule_Generator {
     size_t schedule_all_possible_ready_ops_gen(ReadyListIterator ritr,
         ReadyListIterator ritr_end, BackInsertIterator output) {
       size_t scheduled_ops_count = 0UL;
-      bool scheduled = false;
 
       for (; ritr != ritr_end; ++ritr) {
         const operation_t& op = *ritr;
         if (is_ready_compute_operation_schedulable(op)) {
           // schedule_compute_op() will also allocate resources for all missing
           // inputs for this compute op.
-          scheduled = schedule_compute_op(op);
+          const bool scheduled = schedule_compute_op(op);
+          UNUSED(scheduled);
           assert(scheduled);
           scheduled_ops_count++;
           output = op;
@@ -1785,6 +1786,7 @@ class Feasible_Memory_Schedule_Generator {
               active_result.demand_index_);
 
         bool unassigned = memory_state_.unassign_resources(demand_key);
+        UNUSED(unassigned);
         assert(unassigned);
       }
       active_resource_table_.erase(aitr);
@@ -1802,9 +1804,7 @@ class Feasible_Memory_Schedule_Generator {
     // Precondition: is_ready_compute_operation_schedulable(op) is true
     bool schedule_compute_op(const operation_t& op) {
       assert(traits::is_compute_operation(*input_ptr_, op));
-
-      typename op_output_table_t::iterator out_itr = op_output_table_.find(op);
-      assert(out_itr == op_output_table_.end());
+      assert(op_output_table_.find(op) == op_output_table_.end());
 
       //////////////////////////////////////////////////////////////////////////
       //STEP-1: add to the output result table. //
@@ -1979,6 +1979,7 @@ class Feasible_Memory_Schedule_Generator {
                   active_result.demand_index_);
 
             bool unassigned = memory_state_.unassign_resources(demand_key);
+            UNUSED(unassigned);
             assert(unassigned);
           }
 
