@@ -39,7 +39,7 @@
 #include <ie_compound_blob.h>
 #include <format_reader_ptr.h>
 
-#include "vpusmm.h"
+#include <vpusmm/vpusmm.h>
 
 #include <unistd.h>
 #include <sys/mman.h>

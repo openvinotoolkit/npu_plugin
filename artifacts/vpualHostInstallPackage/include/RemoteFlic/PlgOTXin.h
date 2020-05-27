@@ -59,6 +59,16 @@ class PlgOTXin : public PluginStub
      */
     int Create(uint32_t maxSz, uint32_t chanId_unused);
 
+    /**
+     * Plugin Create method.
+     *
+     * @param maxSz maximum size of the XLink Stream.
+     * @param chanId_unused  not used, just for API to be backward-compatible.
+     * @param streamId stream_id is the unique id for the input video stream
+     */
+    int Create(uint32_t maxSz, uint32_t chanId_unused, int32_t streamId);
+
+
 
     /**
      * Plugin Delete method.

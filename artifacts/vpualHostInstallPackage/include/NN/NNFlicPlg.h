@@ -11,6 +11,7 @@
 #include "Flic.h"
 #include "Message.h"
 #include "NN_Types.h"
+#include <vector>
 
 #include "Pool.h"
 
@@ -47,6 +48,7 @@ class NNFlicPlg : public PluginStub{
 
     void SetNumberOfThreads(int32_t threadNum);
     void SetNumberOfShaves(int32_t shaves);
+    void SetScratchBuffer(const std::vector<void *> &physAddrs) const;
 
     NNPlgState GetLatestState();
 
@@ -54,11 +56,13 @@ class NNFlicPlg : public PluginStub{
     unsigned int GetNumberOfOutputs() const;
     unsigned int GetMaxNumberOfThreads() const;
     unsigned int GetMaxNumberOfShaves() const;
+    unsigned int GetMemoryRequirements() const;
 
     unsigned int GetNumberOfStages() const;
 
     uint32_t *GetBlobVersion() const;
     flicTensorDescriptor_t GetInputTensorDescriptor(unsigned int index) const;
     flicTensorDescriptor_t GetOutputTensorDescriptor(unsigned int index) const;
+
 };
 #endif // __NNFLIC_PLG_H__

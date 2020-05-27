@@ -1575,15 +1575,14 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
 
     IE_ASSERT((dims[1] == weightsSize) || (channel_shared == 1 && weightsSize == 1));
 
-    auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
-    auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+   auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
     if (channel_shared) {
         weightsData.assign(dims[1], weightsData[0]);
         channel_shared = false;
     }
 
-    auto mvWeightsValues = _modelMcm.constant(
-        weightsData, weightsShape, precisionToDType(weightsPrecision), mv::Order::getZMajorID(4));
+    auto mvWeightsValues = _modelMcm.constant(weightsData, weightsShape,
+        mv::DType(convert_data_type(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
 
     mv::Data::TensorIterator mvNormalize;
 
@@ -1918,8 +1917,8 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
         variance.push_back(0.1f);
     }
 
-    if (step_w == 0 && step_h == 0) {
-        if (step == 0) {
+    if (step_w == 0.f && step_h == 0.f) {
+        if (step == 0.f) {
             step_w = static_cast<float>(img_width) / layer_width;
             step_h = static_cast<float>(img_height) / layer_height;
         } else {

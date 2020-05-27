@@ -24,6 +24,8 @@ struct NormTestParams final {
     Layout _outLayout;
     NormalizeParams _normParams;
     bool _scalesBroadcasting;
+    Precision _netPrecision;
+
 
     NormTestParams& inDims(const SizeVector& inDims) {
         this->_inDims = inDims;
@@ -49,6 +51,11 @@ struct NormTestParams final {
         this->_scalesBroadcasting = broadcasting;
         return *this;
     }
+
+    NormTestParams& netPrecision(const Precision& netPrecision) {
+        this->_netPrecision = netPrecision;
+        return *this;
+    }
 };
 std::ostream& operator<<(std::ostream& os, const NormTestParams& p) {
     vpu::formatPrint(os, "[inDims:%v, normParams:%v , scalesBroadCasting:%v]", p._inDims, p._normParams,
@@ -62,7 +69,7 @@ TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
 
     const auto& p = GetParam();
 
-    const auto netPresicion = Precision::FP32;
+    const auto netPresicion = p._netPrecision;
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, p._inLayout);
     const auto userOutDesc = TensorDesc(Precision::FP16, p._outLayout);
@@ -77,9 +84,9 @@ TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
         }
     );
 
-    auto scalesTensorDesc = TensorDesc(Precision::FP32, {1,p._inDims[1], 1, 1}, Layout::NCHW);
+    auto scalesTensorDesc = TensorDesc(p._netPrecision, {1,p._inDims[1], 1, 1}, Layout::NCHW);
     if (p._scalesBroadcasting) {
-        scalesTensorDesc = TensorDesc(Precision::FP32, {1}, Layout::C);
+        scalesTensorDesc = TensorDesc(p._netPrecision, {1}, Layout::C);
     }
     registerBlobGenerator("scales", scalesTensorDesc, [&](const TensorDesc& desc) {
             return makeSingleValueBlob(desc, 1.f);
@@ -110,18 +117,30 @@ const std::vector<NormTestParams> normParams {
         .inDims({1, 4, 16, 16})
         .inLayout(Layout::NHWC)
         .outLayout(Layout::NHWC)
-        .scalesBroadcasting(false),
+        .scalesBroadcasting(false)
+        .netPrecision(Precision::FP32),
    NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
         .inDims({1, 4, 16, 16})
         .inLayout(Layout::NHWC)
         .outLayout(Layout::NHWC)
-        .scalesBroadcasting(true),
+        .scalesBroadcasting(true)
+        .netPrecision(Precision::FP32),
+
+   // Case from SSD-512
    NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
         .inDims({1, 512, 64, 64})
         .inLayout(Layout::NHWC)
         .outLayout(Layout::NHWC)
         .scalesBroadcasting(false)
+        .netPrecision(Precision::FP32),
 
+   // Case from facenet-20180408-102900
+   NormTestParams(NormalizeParams(1e-10f, ngraph::op::EpsMode::ADD))
+        .inDims({1, 512, 1, 1})
+        .inLayout(Layout::NHWC)
+        .outLayout(Layout::NHWC)
+        .scalesBroadcasting(false)
+        .netPrecision(Precision::FP16)
 };
 
 INSTANTIATE_TEST_CASE_P(Normalize, KmbNormalizeLayerTests, testing::ValuesIn(normParams));
