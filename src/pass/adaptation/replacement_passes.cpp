@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
@@ -550,6 +551,15 @@ std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
             factors.first++;
         else
             factors.second++;
+
+
+        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) || 
+                (factors.first * factors.second > (kernelSize + factors.second/2) ) )
+        {
+            // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
+            allFactors = getFactorsList(kernelSize + 1);
+            factors = allFactors.back(); // Get the most equal factors
+        }
     }
     else // Original kernel size NOT PRIME
     {
@@ -763,25 +773,26 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     {
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
 
-        if(kSize[0] <= MAX_KERNEL and kSize[1] <= MAX_KERNEL) // can do as single depthwise, skip
-            continue;
+        if(kSize[mv::KERNEL_WIDTH] <= MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= MAX_KERNEL) // can do as single depthwise, skip
+            continue;//skip for this avgPool
 
-        auto kernelSize = kSize[0];
-        auto largeDim = 0;
+        //figure out the bigger kernel dimension width or height when having an asymmetric kernel
+        auto kernelSize = kSize[mv::KERNEL_WIDTH];
+        auto largeDim = mv::KERNEL_WIDTH;
         auto asymmetricCase = false;
         auto asymmetricBothKernelsLarge = false;
 
-        if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
+        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) and (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL or kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL))
         {
-            if (kSize[0] > MAX_KERNEL and kSize[1] > MAX_KERNEL)
+            if (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL)
                 asymmetricBothKernelsLarge = true;
 
             // deal with asymetric kernels when one dim is larger than MAX_KERNEL
             asymmetricCase = true;
-            if (kSize[0] <  kSize[1])
+            if (kSize[mv::KERNEL_WIDTH] <  kSize[mv::KERNEL_HEIGHT])
             {
-                kernelSize = kSize[1];
-                largeDim = 1;
+                kernelSize = kSize[mv::KERNEL_HEIGHT];
+                largeDim = mv::KERNEL_HEIGHT;
             }
         }
 
@@ -805,21 +816,20 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         factors = getFactors(kernelSize);
         if (factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
-            //TODO throw error, unable to split into appropriate size
-            std::cout << "ERROR: factors are larger the MAX_KERNEL " << std::endl;
-            continue;
+            //unable to split into appropriate size
+            throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
         }
 
         pass.log(mv::Logger::MessageType::Debug, "factors " +  std::to_string(factors.first) + " , " + std::to_string(factors.second));
 
         if (asymmetricBothKernelsLarge)
         {
-            factorsDim2 = getFactors(kSize[1-largeDim]);
+            factorsDim2 = getFactors(kSize[1-largeDim]);//toggling between the two kernel sizes
 
             if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
             {
-                //TODO throw error, unable to split into appropriate size
-                continue;
+                //unable to split into appropriate size
+                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
             }
             pass.log(mv::Logger::MessageType::Debug, "factors2 " +  std::to_string(factorsDim2.first) + " , " + std::to_string(factorsDim2.second));
         }
