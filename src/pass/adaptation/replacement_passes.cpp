@@ -814,24 +814,24 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
 
         factors = getFactors(kernelSize);
+        pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
         if (factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
             //unable to split into appropriate size
             throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
         }
 
-        pass.log(mv::Logger::MessageType::Debug, "factors " +  std::to_string(factors.first) + " , " + std::to_string(factors.second));
-
         if (asymmetricBothKernelsLarge)
         {
+            pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(1-largeDim));
             factorsDim2 = getFactors(kSize[1-largeDim]);//toggling between the two kernel sizes
+            pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[1-largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
 
             if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
             {
                 //unable to split into appropriate size
                 throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
             }
-            pass.log(mv::Logger::MessageType::Debug, "factors2 " +  std::to_string(factorsDim2.first) + " , " + std::to_string(factorsDim2.second));
         }
 
         // Padding relationship is (input size + pad) / k = output size
@@ -1022,6 +1022,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     auto width = inputShape[mv::IO_WIDTH_DIMENSION];
     auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
     std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> newStride = {1,1};
     std::array<unsigned short, 2> kSize;
     if ( operation->hasAttr("kSize") )
         kSize = operation->get<std::array<unsigned short, 2>>("kSize");
@@ -1062,6 +1063,9 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             //if tensor is sliced on a dimension, kernel is the window size, if not, the actual dimension does not change
             branchWidth = (hslices > 1) ? kSize[mv::KERNEL_WIDTH] : width;
             branchHeight = (vslices > 1) ? kSize[mv::KERNEL_HEIGHT] : height;
+            //when slicing on a dimension the stride becomes 1
+            newStride = {(hslices > 1) ? 1 : stride[mv::STRIDE_HORIZONTAL], (vslices > 1) ? 1 : stride[mv::STRIDE_VERTICAL]};
+            model.log(mv::Logger::MessageType::Debug, "newStride hor=" + std::to_string(newStride[mv::STRIDE_HORIZONTAL])+ " , newStride vert=" + std::to_string(newStride[mv::STRIDE_VERTICAL]));
             branchInputSize = {branchWidth,
                                 branchHeight,
                                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
@@ -1085,7 +1089,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.averagePool(sliceInput,
                     kSize,
-                    {1,1},
+                    newStride,
                     padding,
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -1096,7 +1100,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op  = om.depthwiseConv(sliceInput,
                     operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                    {1,1},//no stride
+                    newStride,
                     padding,
                     operation->get<unsigned>("dilationFactor"),
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -1107,7 +1111,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.conv(sliceInput,
                     operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                    {1,1},
+                    newStride,
                     padding,
                     operation->get<unsigned>("dilationFactor"),
                     1,//no group dilation
@@ -1119,7 +1123,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.maxPool(sliceInput,
                     kSize,
-                    {1,1},
+                    newStride,
                     padding,
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -1183,11 +1187,13 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
+        pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+            //stride supported not slicing, stride not supported slicing with slices dimensions of stride
             opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
-                                                            stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            stride[mv::STRIDE_VERTICAL] > MAX_STRIDE ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            (stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            (stride[mv::STRIDE_VERTICAL] > MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                                             nextOp);
         }
     }
