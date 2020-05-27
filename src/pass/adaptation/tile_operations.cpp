@@ -7,8 +7,9 @@
 #include <cmath>
 
 const size_t MAX_LIMIT_KERNEL = 11;
-const size_t MID_LIMIT_KERNEL = 7;
-const size_t NUMBER_OF_PARTITIONS = 4;
+const size_t MID_LIMIT_KERNEL_H = 7;
+const size_t MID_LIMIT_KERNEL_W = 5;
+const size_t NUMBER_OF_PARTITIONS = 6;
 const size_t GROUP_DILATION = 1;
 
 static void tileOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -45,11 +46,12 @@ void tileOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
         {
             // Check if padding is too large for the partition. If so, pre pad the input and 
             // remove padding from original conv before the partition operation
-            auto originalPadding = conv->get<std::array<unsigned short, 4>>("padding");
-            if((originalPadding[0] > std::floor(MID_LIMIT_KERNEL/2)) or (originalPadding[2] > std::floor(MID_LIMIT_KERNEL/2)))
-            {
-                padInputTensor(conv, model);
-            }
+            // auto originalPadding = conv->get<std::array<unsigned short, 4>>("padding");
+            // if((originalPadding[0] > std::floor(MID_LIMIT_KERNEL_W/2)) or (originalPadding[2] > std::floor(MID_LIMIT_KERNEL_H/2)))
+            // {
+                padInputTensor(conv, model); //TODO renable handling of padding where it's small enough!
+            // }
+            
 
             auto nextOp = mv::findSinkLayers(dm, conv->getOutputTensor(0))[0];
             //NOTE: The idea here is that we need 4 equal partitions
@@ -194,9 +196,10 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
     mv::Shape beginInputShape, branchInputSize, beginWeightShape, branchWeightSize;
     std::size_t branchWidth, branchHeight;
-    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, conv, bias, newBias;
+    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, placeAdd3, placeAdd4, conv, bias, newBias;
     std::vector <mv::Data::TensorIterator> convs;
-    std::size_t partitionedKenelSize = oldKernelSize;
+    std::size_t partitionedKernelHeight = oldKernelSize;
+    std::size_t partitionedKernelWidth = oldKernelSize;
     bool hasBias = opIt->hasAttr("bias");
     if (hasBias)
         bias =  dm.getTensor(opIt->get<std::string>("bias"));
@@ -212,57 +215,80 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         int largeDim = 0;
         if (branchId == 0)
         {
+            partitionedKernelHeight = MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = MID_LIMIT_KERNEL_W;
+
             beginInputShape = {0,0,0,0};
-            partitionedKenelSize = MID_LIMIT_KERNEL;
-            branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - (oldKernelSize - partitionedKenelSize);
-            branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] - (oldKernelSize - partitionedKenelSize);
             beginWeightShape = {0,0,0,0};
-            branchWeightSize = {partitionedKenelSize, partitionedKenelSize,
-                weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS],weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
-            branchInputSize = {branchWidth, branchHeight,
-                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
-            padding = {initialPadding[0], 0, initialPadding[2], 0};
+
+            // padding = {initialPadding[0], 0, initialPadding[2], 0};
          }
         else if (branchId == 1)
         {
-            beginInputShape = {partitionedKenelSize, 0,0,0};
-            branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - partitionedKenelSize;
-            branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] - (oldKernelSize - partitionedKenelSize);
-            beginWeightShape = {partitionedKenelSize,0,0,0};
-            branchWeightSize = {oldKernelSize - partitionedKenelSize, partitionedKenelSize,
-                weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS], weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
-            branchInputSize = {branchWidth, branchHeight,
-                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
-            padding = {0, initialPadding[1], initialPadding[2], 0};
-            isasymmetric = true;
-            largeDim = 1;
+            partitionedKernelHeight = MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W, 0,0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W,0,0,0};
+
+            // padding = {0, 0, initialPadding[2], 0};
         }
         else if (branchId == 2)
         {
-            beginInputShape = {0, partitionedKenelSize,0,0};
-            branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - (oldKernelSize - partitionedKenelSize);
-            branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]- partitionedKenelSize;
-            beginWeightShape = {0,partitionedKenelSize,0,0};
-            branchWeightSize = {partitionedKenelSize, oldKernelSize - partitionedKenelSize,
-                weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS],weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
-            branchInputSize = {branchWidth, branchHeight,
-                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
-            padding = {initialPadding[0], 0, 0, initialPadding[3]};
-            isasymmetric = true;
-            largeDim = 0;
+            partitionedKernelHeight = MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = std::floor((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),0,0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),0,0,0};
+            // padding = {initialPadding[0], 0, 0, initialPadding[3]};
+        }
+        else if (branchId == 3)
+        {
+            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = MID_LIMIT_KERNEL_W;
+
+            beginInputShape = {0, MID_LIMIT_KERNEL_H,0,0};
+            beginWeightShape = {0, MID_LIMIT_KERNEL_H,0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
+        }
+        else if (branchId == 4)
+        {
+            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H,0,0};
+           
+            beginWeightShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H,0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
         }
         else
         {
-            beginInputShape = {partitionedKenelSize, partitionedKenelSize,0,0};
-            branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - partitionedKenelSize;
-            branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]- partitionedKenelSize;
-            beginWeightShape = {partitionedKenelSize, partitionedKenelSize,0,0};
-            branchWeightSize = {oldKernelSize - partitionedKenelSize, oldKernelSize - partitionedKenelSize,
-                weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS],weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
-            branchInputSize = {branchWidth, branchHeight,
-                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
-            padding = {0, initialPadding[1], 0, initialPadding[3]};
+            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelWidth = std::floor((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
         }
+
+        if(partitionedKernelWidth != partitionedKernelHeight)
+            isasymmetric = true;
+
+        if(partitionedKernelHeight > partitionedKernelWidth)
+            largeDim = 1;
+
+        
+        branchWeightSize = {partitionedKernelWidth, partitionedKernelHeight,
+                            weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS],
+                            weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
+
+        branchWidth = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION] - (oldKernelSize - partitionedKernelWidth);
+        branchHeight = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION] - (oldKernelSize - partitionedKernelHeight);
+        branchInputSize = {branchWidth, branchHeight,
+                            inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],1};
 
         auto sliceInput = om.slice(inputTensor,
                                    beginInputShape,
@@ -312,13 +338,21 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition1");
     placeAdd2 = om.eltwise({placeAdd1, convs[3]}, "Add",
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition2");
-    nextOpIt->setInputTensor(placeAdd2, 0, false );
+    placeAdd3 = om.eltwise({placeAdd2, convs[4]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition3");
+    placeAdd4 = om.eltwise({placeAdd3, convs[5]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition4");
+    nextOpIt->setInputTensor(placeAdd4, 0, false );
     auto placeAdd0Op = om.getSourceOp(placeAdd0);
     auto placeAdd1Op = om.getSourceOp(placeAdd1);
     auto placeAdd2Op = om.getSourceOp(placeAdd2);
+    auto placeAdd3Op = om.getSourceOp(placeAdd3);
+    auto placeAdd4Op = om.getSourceOp(placeAdd4);
     placeAdd0Op->set<unsigned>("opId", initialOpId);
     placeAdd1Op->set<unsigned>("opId", initialOpId);
     placeAdd2Op->set<unsigned>("opId", initialOpId);
-    om.defineFlow(placeAdd2, nextOpIt, 0);
+    placeAdd3Op->set<unsigned>("opId", initialOpId);
+    placeAdd4Op->set<unsigned>("opId", initialOpId);
+    om.defineFlow(placeAdd4, nextOpIt, 0);
     om.removeOp(opIt);
 }
