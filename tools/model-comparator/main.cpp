@@ -981,7 +981,7 @@ int main(int argc, char* argv[]) {
     ngraph::NodeVector baseNodes;
 
     for (const auto& baseNode : baseFunc->get_ordered_ops()) {
-        if (baseNode->is_parameter() || baseNode->is_output()) {
+        if (ngraph::is_type<ngraph::op::Parameter>(baseNode) || ngraph::is_type<ngraph::op::Result>(baseNode)) {
             continue;
         }
 
