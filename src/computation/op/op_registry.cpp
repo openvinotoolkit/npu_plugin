@@ -136,7 +136,7 @@ namespace
                     T_str = T_in;
                 
                 std::string weightsFilename = std::string("./data/") + paramName + std::string(".bin");
-                *codeOut << "read<" << T_str << "," << T_str << ">(\"" << weightsFilename << "\")";
+                *codeOut << "read<" << T_str << "," << T_str << ">(WEIGHTS_FOLDER + \"" << weightsFilename << "\")";
                 write<T,T>(attr, weightsFilename);
             }
         }
