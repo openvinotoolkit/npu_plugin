@@ -1,4 +1,13 @@
 ///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
 /// @file      PlgQuantize.h
 /// @copyright All code copyright Movidius Ltd 2018, all rights reserved.
 ///            For License Warranty see: common/license.txt
@@ -24,7 +33,7 @@ class PlgQuantize : public PluginStub
 
   public:
     /** Constructor. */
-    PlgQuantize(uint32_t device_id) : PluginStub("PlgQuantize", device_id), out{device_id} {};
+    PlgQuantize(uint32_t device_id) : PluginStub("PlgQuantize", device_id), out{device_id}{};
 
     /** Create method. */
     void Create();

@@ -1,3 +1,16 @@
+///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
+/// @file      VpuData.h
+/// 
+
 #ifndef __VPU_DATA_H__
 #define __VPU_DATA_H__
 
@@ -30,12 +43,12 @@ class VpuData {
 
     size_t         size_;       /*< Size of allocation. */
     unsigned char* buf_;        /*< Buffer for use in virtual address space. */
-    uint32_t       device_id_;
-  
+  	uint32_t       device_id_;
+
   public:
 
     // Create a VPU data object of the given size.
-    VpuData(size_t size, uint32_t device_id);
+    VpuData(size_t size, uint32_t device_id = 0);
     // TODO - Maybe we also need this sort of stuff? Can add later.
     // VpuData(size_t size, alignement = 64U, zero_initialise=false);
 

@@ -1,3 +1,16 @@
+///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
+/// @file      sippDefs.h
+/// 
+
 #ifndef _SIPP_DEFS_H_
 #define _SIPP_DEFS_H_
 
@@ -201,6 +214,31 @@ enum SippFilters {
     svuCvtColorRGBfp16ToLumaU8            = BASE_SW_ID + 165,
     svuCvtColorRGBfp16ToUV420U8           = BASE_SW_ID + 166,
     svuHammingDistance                    = BASE_SW_ID + 167,
+    svuMerge2p                            = BASE_SW_ID + 168,
+    svuMerge4p                            = BASE_SW_ID + 169,
+    svuSplit2p                            = BASE_SW_ID + 170,
+    svuSplit3p                            = BASE_SW_ID + 171,
+    svuSplit4p                            = BASE_SW_ID + 172,
+    svuConvSeparable11x11                 = BASE_SW_ID + 173,
+    svuConvSeparable11x11Fp16ToFp16       = BASE_SW_ID + 174,
+    svuConvSeparable9x9Fp16ToFp16         = BASE_SW_ID + 175,
+    svuConvolution11x11s3hhhh             = BASE_SW_ID + 176,
+    svuConvolution11x11s4hhhh             = BASE_SW_ID + 177,
+    svuConvolution11x11s8hhhh             = BASE_SW_ID + 178,
+    svuConv11x11                          = BASE_SW_ID + 179,
+    svuConvolution11x11s1hhhh             = BASE_SW_ID + 180,
+    svuConvolution11x11s1xxhx             = BASE_SW_ID + 181,
+    svuConvolution11x11s2hhhh             = BASE_SW_ID + 182,
+    svuConvolution11x11s2xxhx             = BASE_SW_ID + 183,
+    svuConv3x3fp32Scharr                  = BASE_SW_ID + 184,
+    svuCvtColorRGBtoNV21                  = BASE_SW_ID + 185,
+    svuConv9x9                            = BASE_SW_ID + 186,
+    svuConv9x9Fp16ToFp16                  = BASE_SW_ID + 187,
+    svuConvolution9x9s2hhhh               = BASE_SW_ID + 188,
+    svuConvolution9x9s3hhhh               = BASE_SW_ID + 189,
+    svuConvolution9x9s4hhhh               = BASE_SW_ID + 190,
+    svuConvolution9x9s8hhhh               = BASE_SW_ID + 191,
+    svuCvtColorKernelRGBtoYUV             = BASE_SW_ID + 192,
 
 };
 

@@ -1,4 +1,13 @@
 ///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
 /// @file
 /// @copyright All code copyright Movidius Ltd 2019, all rights reserved.
 ///            For License Warranty see: common/license.txt
@@ -635,7 +644,7 @@ cvtColorChromaNV12Param;
  */
 typedef struct
 {
-    UInt32 dMat[14];
+    UInt8 dMat[49];
 }
 Dilate7x7Param;
 
@@ -647,7 +656,7 @@ Dilate7x7Param;
  */
 typedef struct
 {
-    UInt32 eMat[3];
+    UInt8 eMat[9];
 }
 Erode3x3Param;
 
@@ -659,7 +668,7 @@ Erode3x3Param;
  */
 typedef struct
 {
-    UInt32 eMat[10];
+    UInt8 eMat[25];
 }
 Erode5x5Param;
 
@@ -920,7 +929,7 @@ Conv15x1Param;
  */
 typedef struct
 {
-    UInt32 dMat[10];
+    UInt8 dMat[25];
 }
 Dilate5x5Param;
 
@@ -949,7 +958,7 @@ RandNoiseFp16Param;
  */
 typedef struct
 {
-    UInt32 dMat[14];
+    UInt8 dMat[49];
 }
 Erode7x7Param;
 
@@ -1075,7 +1084,7 @@ PadKernel_u16Param;
  */
 typedef struct
 {
-    UInt32 dMat[3];
+    UInt8 dMat[9];
 }
 Dilate3x3Param;
 
@@ -1162,3 +1171,262 @@ typedef struct
     int descriptor_size;
 }
 HammingDistanceParam;
+
+/**
+ * Parameter structure of the convSeparable11x11 filter.
+ *
+ * This filter performs a separable convolution on the input image using the given 11x11
+ * matrix.
+ * Identifier: svuConvSeparable11x11
+ */
+typedef struct
+{
+    UInt32 cMat[6];
+}
+ConvSeparable11x11Param;
+
+
+
+/**
+ * Parameter structure of the convSeparable11x11Fp16ToFp16 filter.
+ *
+ *  This filter performs a separable convolution on the fp16 input image using the given 11x11
+ * matrix.
+ * Identifier: svuConvSeparable11x11Fp16ToFp16
+ */
+typedef struct
+{
+    UInt16 cMat[6];
+}
+ConvSeparable11x11Fp16ToFp16Param;
+
+
+/**
+ * Parameter structure of the convSeparable9x9Fp16ToFp16 filter.
+ *
+ * This filter performs a separable convolution on the fp16 input image using the given 9x9
+ * matrix.
+ * Identifier: svuConvSeparable9x9Fp16ToFp16
+ */
+typedef struct
+{
+    UInt16 cMat[5];
+}
+ConvSeparable9x9Fp16ToFp16Param;
+
+
+/**
+ * Parameter structure of the Conv11x11s3hhhh filter.
+ *
+ * This filter performs a convolution the fp16 input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s3hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11s3hhhhParam;
+
+
+/**
+ * Parameter structure of the Conv11x11s4hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s4hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11s4hhhhParam;
+
+
+/**
+ * Parameter structure of the Conv11x11s8hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s8hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11s8hhhhParam;
+
+/**
+ * Parameter structure of the convolution 11x11 filter.
+ *
+ * This filter performs a convolution on the input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11Param;
+
+
+/**
+ * Parameter structure of the Conv11x11s1hhhh filter.
+ *
+ * This filter performs a convolution on the input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s1hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11s1hhhhParam;
+
+
+/**
+ * Parameter structure of the Conv11x11s1xxhx filter.
+ *
+ * This filter performs a convolution on the input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s1xxhx
+ */
+typedef struct
+{
+    UInt8 cMat[121];
+}
+Conv11x11s1xxhxParam;
+
+
+/**
+ * Parameter structure of the Conv11x11s2hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s2hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[121];
+}
+Conv11x11s2hhhhParam;
+
+
+/**
+ * Parameter structure of the Conv11x11s2xxhx filter.
+ *
+ * This filter performs a convolution on the input image using the given 11x11
+ * matrix.
+ *
+ * Identifier: svuConv11x11s2xxhx
+ */
+typedef struct
+{
+    UInt8 cMat[121];
+}
+Conv11x11s2xxhxParam;
+
+
+/**
+ * Parameter structure of the Conv3x3fp32Scharr filter.
+ *
+ * This filter performs a convolution on the input image using the given 3x3
+ * matrix using Scharr.
+ *
+ * Identifier: svuConv3x3fp32Scharr
+ */
+typedef struct
+{
+    float smooth_k[2];
+    int height;
+    int width;
+}
+Conv3x3fp32ScharrParam;
+
+/**
+ * Parameter structure of the convolution9x9 filter.
+ *
+ * This filter performs a convolution on the input image using the given 9x9 matrix.
+ *
+ * Identifier: svuConv9x9
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9Param;
+
+
+/**
+ * Parameter structure of the convolution9x9Fp16ToFp16 filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 9x9 matrix.
+ *
+ * Identifier: svuConv9x9Fp16ToFp16
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9ParamFp16ToFp16;
+
+
+/**
+ * Parameter structure of the convolution9x9s2hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 9x9 matrix.
+ * Identifier: svuConvolution9x9s2hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9s2hhhhParam;
+
+
+/**
+ * Parameter structure of the convolution9x9s3hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 9x9 matrix.
+ *
+ * Identifier: svuConvolution9x9s3hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9s3hhhhParam;
+
+
+/**
+ * Parameter structure of the convolution9x9s4hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 9x9 matrix.
+ *
+ * Identifier: svuConvolution9x9s4hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9s4hhhhParam;
+
+/**
+ * Parameter structure of the convolution9x9s8hhhh filter.
+ *
+ * This filter performs a convolution on the fp16 input image using the given 9x9 matrix.
+ *
+ * Identifier: svuConvolution9x9s8hhhh
+ */
+typedef struct
+{
+    UInt16 cMat[81];
+}
+Conv9x9s8hhhhParam;
