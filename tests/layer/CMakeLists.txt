@@ -12,9 +12,6 @@ else()
     add_executable(avgpool_asymmetric_1d_large_kernel avgpool_asymmetric_1d_large_kernel/avgpool_asymmetric_1d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_1d_large_kernel cm)
 
-    add_executable(avgpool_asymmetric_1d_large_kernel_23_30 avgpool_asymmetric_1d_large_kernel_23_30/avgpool_asymmetric_1d_large_kernel_23_30.cpp)
-    target_link_libraries(avgpool_asymmetric_1d_large_kernel_23_30 cm)
-
     add_executable(avgpool_asymmetric_2d_large_kernel avgpool_asymmetric_2d_large_kernel/avgpool_asymmetric_2d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
 
