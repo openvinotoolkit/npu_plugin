@@ -22,7 +22,7 @@ typedef mv::lp_scheduler::Control_Model_Barrier_Scheduler barrier_scheduler_t;
 
 void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
     size_t start_barrier_bound, size_t real_barrier_bound,
-    size_t producer_bound) {
+    size_t producer_bound, bool remove_barriers_in_upa_tail=false) {
   bool success = false;
 
   mv::lp_scheduler::Save_Restore_Control_Model save_restore(cm);
@@ -40,6 +40,9 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
         barrier_bound, success ? "PASSED" : "FAILED"); 
 
     if (!success) { save_restore.restore(); }
+    else if (remove_barriers_in_upa_tail) {
+      barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
+    }
   } 
 
   if (!success) {
@@ -47,6 +50,9 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
           "may be the graph is disconnected!");
     exit(1);
   }
+
+
+  // we now have a valid barrier schedule remove tailing
 }
 
 void barrierSchedulerPass(const mv::pass::PassEntry&,
@@ -73,7 +79,12 @@ void barrierSchedulerPass(const mv::pass::PassEntry&,
     exit(1);
   }
 
+
+  bool remove_barriers_in_upa_tail =
+    (passDesc.hasAttr("remove_barriers_in_upa_tail") &&
+      passDesc.get<bool>("remove_barriers_in_upa_tail"));
   mv::ControlModel cm(model);
   dynamicallyAdjustScheduleToMeetRuntimeProblems(cm, barrier_bound,
-      real_physical_barriers, producer_bound);
+      real_physical_barriers, producer_bound, remove_barriers_in_upa_tail);
+
 }

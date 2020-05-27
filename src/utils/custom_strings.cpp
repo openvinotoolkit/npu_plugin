@@ -34,6 +34,11 @@ std::string mv::createWeightTableName(const std::string& opName)
     return opName + "_weights_table";
 }
 
+std::string mv::createInstructionListTableName(const std::string& opName)
+{
+    return opName + "_instruction_list";
+}
+
 std::string mv::createDPUTaskName(const std::string& opName)
 {
     return opName;

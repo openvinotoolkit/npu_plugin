@@ -5,7 +5,11 @@ mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element
 {
 
 }
-mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max)
+mv::QuantizationParams::QuantizationParams(
+    const std::vector<int64_t>& zp,
+    const std::vector<double>& scale,
+    const std::vector<double>& min,
+    const std::vector<double>& max)
     :Element("quantParams")
 {
     set<std::vector<int64_t>>("zeroPoint", zp);
@@ -19,6 +23,7 @@ mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const
         std::vector<unsigned> multDefaut(scale.size(), 1);
         set<std::vector<unsigned>>("shift", shiftDefaut);
         set<std::vector<unsigned>>("mult", multDefaut);
+        set<signed>("postShift", 0);
     }
 
 }
@@ -35,16 +40,37 @@ mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const
 //        std::vector<unsigned> multDefaut(quantObject.get<std::vector<double>>("scale").size(), 1);
 //        set<std::vector<unsigned>>("shift", shiftDefaut);
 //        set<std::vector<unsigned>>("mult", multDefaut);
+//        set<signed>("postShift", 0);
 //    }
 //    return *this;
 //}
 
 
-mv::QuantizationParams::QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max, const std::vector <unsigned>& shift, const std::vector<unsigned>& mult):
+mv::QuantizationParams::QuantizationParams(
+    const std::vector<int64_t>& zp,
+    const std::vector<double>& scale,
+    const std::vector<double>& min,
+    const std::vector<double>& max,
+    const std::vector <unsigned>& shift,
+    const std::vector<unsigned>& mult):
     QuantizationParams(zp, scale, min, max)
 {
     set<std::vector<unsigned>>("shift", shift);
     set<std::vector<unsigned>>("mult", mult);
+    set<signed>("postShift", 0);
+}
+
+mv::QuantizationParams::QuantizationParams(
+    const std::vector<int64_t>& zp,
+    const std::vector<double>& scale,
+    const std::vector<double>& min,
+    const std::vector<double>& max,
+    const std::vector <unsigned>& shift,
+    const std::vector<unsigned>& mult,
+    const signed postShift):
+    QuantizationParams(zp, scale, min, max, shift, mult)
+{
+    set<signed>("postShift", postShift);
 }
 
 void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<unsigned> mult)
@@ -56,6 +82,16 @@ void mv::QuantizationParams::quantize(std::vector<unsigned> shift, std::vector<u
 void mv::QuantizationParams::setScale(std::vector<double> scale_)
 {
     set<std::vector<double>>("scale", scale_);
+}
+
+void mv::QuantizationParams::setZeroPoint(std::vector<int64_t> zeroPoint_)
+{
+    set<std::vector<int64_t>>("zeroPoint", zeroPoint_);
+}
+
+void mv::QuantizationParams::setPostShift(signed postShift_)
+{
+    set<signed>("postShift", postShift_);
 }
 
 int64_t mv::QuantizationParams::getZeroPoint(const size_t channel) const
@@ -151,5 +187,4 @@ double mv::QuantizationParams::getScale(const size_t channel) const {
                             "Invalid index: channel is greater than scales vector");
     return scales[channel];
 }
-
 
