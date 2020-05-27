@@ -18,6 +18,7 @@
 
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
+#include <vpu/vpu_compiler_config.hpp>
 
 #include "kmb_test_utils.hpp"
 
@@ -78,6 +79,23 @@ public:
         return LayerDef(*this, std::forward<Args>(args)...);
     }
 
+    TestNetwork& useCustomLayers(bool enable = true) {
+        _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = enable ? _customLayerXmlDefault : "";
+        return *this;
+    }
+
+    TestNetwork& disableMcmPasses(const std::vector<std::pair<std::string, std::string>>& banList) {
+        const auto passFold = [](std::string list, const std::pair<std::string, std::string>& pass) {
+            return std::move(list) + pass.first + "," + pass.second + ";";
+        };
+
+        auto configValue = std::accumulate(begin(banList), end(banList), std::string{}, passFold);
+        configValue.pop_back();
+
+        _compileConfig[VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST)] = std::move(configValue);
+        return *this;
+    }
+
     void finalize() {
         _func = std::make_shared<ngraph::Function>(_results, _params);
     }
@@ -114,4 +132,6 @@ private:
     std::shared_ptr<ngraph::Function> _func;
 
     std::map<std::string, std::string> _compileConfig;
+
+    static const std::string _customLayerXmlDefault;
 };

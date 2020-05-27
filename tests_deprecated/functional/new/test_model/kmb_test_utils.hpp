@@ -20,6 +20,7 @@
 
 #include <inference_engine.hpp>
 #include <vpu/utils/io.hpp>
+#include <ngraph/type/element_type.hpp>
 
 #include <random>
 #include <cstddef>
@@ -73,3 +74,11 @@ inline std::ostream& operator<<(std::ostream& os, const Pad2D& p) {
     vpu::formatPrint(os, "[left:%v, right:%v, top:%v, bottom:%v]", p.left, p.right, p.top, p.bottom);
     return os;
 }
+
+//
+// Precision conversion functions
+//
+
+ngraph::element::Type precisionToType(const Precision& precision);
+
+Precision typeToPrecision(const ngraph::element::Type& type);

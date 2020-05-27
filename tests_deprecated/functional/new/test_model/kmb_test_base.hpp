@@ -34,6 +34,7 @@
 #include "kmb_test_interp_def.hpp"
 #include "kmb_test_topk_def.hpp"
 #include "kmb_test_interp_def.hpp"
+#include "kmb_test_convert_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
@@ -105,6 +106,32 @@ using namespace InferenceEngine;
 #define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
 
 #define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
+
+//
+// Kmb test parameters accessors
+//
+
+#define PARAMETER(Type, Name) \
+private: \
+    Type _##Name{}; \
+public: \
+    auto Name(const Type &value) -> decltype(*this)& { \
+        this->_##Name = value; \
+        return *this; \
+    } \
+    const Type &Name() const { \
+        return this->_##Name; \
+    }
+
+#define LAYER_PARAMETER(Type, Name) \
+public: \
+    auto Name(const Type &value) -> decltype(*this)& { \
+        params.Name = value; \
+        return *this; \
+    } \
+    const Type &Name() const { \
+        return params.Name; \
+    }
 
 //
 // KmbTestBase

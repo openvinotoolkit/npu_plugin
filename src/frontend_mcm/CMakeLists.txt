@@ -20,7 +20,7 @@ endif()
 
 set(TARGET_NAME "frontend_mcm")
 set(IE_FRONTEND_MCM_INCLUDE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/inlude CACHE INTERNAL "IE_FRONTEND_MCM_INCLUDE_DIR")
+        ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "IE_FRONTEND_MCM_INCLUDE_DIR")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -39,7 +39,8 @@ target_include_directories(${TARGET_NAME}
         "${SCHEMA_INCLUDE_PATH}"
     PUBLIC
         "include"
-        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
+        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
@@ -48,6 +49,7 @@ target_link_libraries(${TARGET_NAME}
         IE::inference_engine_lp_transformations
         IE::vpu_common_lib
     PRIVATE
+        IE::pugixml
         kmb_utils
         ${MCM_COMPILER_LIBRARY})
 

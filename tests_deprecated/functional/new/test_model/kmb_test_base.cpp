@@ -27,6 +27,7 @@
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
 #include <vpu/utils/error.hpp>
+#include <boost/filesystem.hpp>
 
 //
 // KmbTestBase
@@ -396,6 +397,11 @@ ExecutableNetwork KmbTestBase::importNetwork() {
 
 void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
     IE_ASSERT(!DUMP_PATH.empty());
+
+    namespace fs = boost::filesystem;
+    if (!fs::exists(DUMP_PATH)) {
+        fs::create_directories(DUMP_PATH);
+    }
 
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 

@@ -14,7 +14,7 @@ DerivePointerAlignment: false
 PointerAlignment: Left
 FixNamespaceComments: true
 IndentCaseLabels: false
-SpaceBeforeCpp11BracedList: true
+SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: false
 BreakInheritanceList:  AfterColon
 AllowShortBlocksOnASingleLine: false

@@ -25,6 +25,7 @@ cmake_minimum_required(VERSION 3.13.0 FATAL_ERROR)
 project(InferenceEngineKMBPlugin)
 
 set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
 set(IE_PATH_TO_DEPS "http://nnt-srv01.inn.intel.com/dl_score_engine/")
 
 list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
