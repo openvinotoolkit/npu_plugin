@@ -307,8 +307,7 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
-                "name": "GenerateBlobKmb",
-                "output": "output/mcm.blob"
+                "name": "GenerateBlobKmb"
             }
         ]
     },
