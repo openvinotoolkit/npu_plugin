@@ -683,7 +683,9 @@ struct OpInfo {
 struct BarrierInfo
 {
     std::uint64_t startNS;
-    std::vector<OpInfo*> opInfos;
+    std::uint64_t earliestNS;
+    std::vector<OpInfo*> waitOpInfos;
+    std::vector<OpInfo*> updateOpInfos;
     std::vector<std::uint64_t> portSlackNS;
 };
 
@@ -789,6 +791,7 @@ std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
     for (auto& barrierInfo : *barrierInfos)
     {
         barrierInfo.startNS = 0;
+        barrierInfo.earliestNS = 0;
     }
 
     const auto portLimit = portInfos->size();
@@ -856,15 +859,12 @@ std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
 
 // Recomputes the slack available for each port for each barrier.
 // This is the amount of time between when the port becomes ready and
-// the barrier becomes ready, which is used to determine
+// the start time of the earliest op that depends on the barrier
+// becoming ready.
 //
-// TODO: What matters isn't when the barrier becomes ready, what
-// matters is when the earliest operation that depends on the barrier
-// becomes ready; since operations may depend on multiple barriers,
-// this time may be further in the future than all but one of those
-// barriers, which implies that there's more slack available for those
-// other barriers, which should give the DMAs that use this barriers
-// more time to complete (more slack).
+// TODO: This should also take into account the next operation that
+// uses the port, since moving the current tensor to CSRAM might
+// make that port available earlier.
 void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
                       std::size_t portLimit)
 {
@@ -879,13 +879,32 @@ void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
 #ifdef DEBUG_LAYOUT_PASS
         std::cerr << "LayoutDMA:   Considering barrier=" << barrierIdx << "; startNS=" << barrierInfo.startNS << "\n";
 #endif
+        if (!barrierInfo.waitOpInfos.size())
+        {
+            barrierInfo.earliestNS = barrierInfo.startNS;
+        }
+        else
+        {
+            auto waitIt = barrierInfo.waitOpInfos.begin();
+            barrierInfo.earliestNS = (*waitIt)->startNS;
+            ++waitIt;
+            while (waitIt != barrierInfo.waitOpInfos.end())
+            {
+                barrierInfo.earliestNS = std::min(barrierInfo.earliestNS, (*waitIt)->startNS);
+                ++waitIt;
+            }
+        }
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA:   earliestNS=" << barrierInfo.earliestNS << "\n";
+#endif
+
         for (std::size_t portIdx = 0; portIdx < portLimit; ++portIdx)
         {
 #ifdef DEBUG_LAYOUT_PASS
             std::cerr << "LayoutDMA:     Considering portIdx=" << portIdx << "\n";
 #endif
             std::uint64_t portCompleteNS = 0;
-            for (auto opInfo : barrierInfo.opInfos)
+            for (auto opInfo : barrierInfo.updateOpInfos)
             {
                 if (opInfo->isDMA && opInfo->portIdx == portIdx)
                 {
@@ -898,9 +917,9 @@ void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
             }
 #ifdef DEBUG_LAYOUT_PASS
             std::cerr << "LayoutDMA:       Port[" << portIdx << "].slack="
-                      << barrierInfo.startNS - portCompleteNS << "\n";
+                      << barrierInfo.earliestNS - portCompleteNS << "\n";
 #endif
-            barrierInfo.portSlackNS[portIdx] = barrierInfo.startNS - portCompleteNS;
+            barrierInfo.portSlackNS[portIdx] = barrierInfo.earliestNS - portCompleteNS;
         }
     }
 }
@@ -939,7 +958,7 @@ Benefit computeBenefit(OpInfo* opInfo,
     {
         std::uint64_t newStartNS = 0;
         auto& barrierInfo = (*barrierInfos)[depUpdate];
-        for (auto opInfoT : barrierInfo.opInfos)
+        for (auto opInfoT : barrierInfo.updateOpInfos)
         {
             std::uint64_t completeNS = (opInfoT == opInfo
                                         ? opInfoT->completeNSUsingCSRAM()
@@ -956,6 +975,14 @@ Benefit computeBenefit(OpInfo* opInfo,
             {
                 newStartNS = std::max(newStartNS, completeNS);
             }
+        }
+
+        if (barrierInfo.earliestNS != barrierInfo.startNS)
+        {
+            // Moving this barrier earlier isn't going to help any
+            // downstream operations; we only want to consider the
+            // slack for this operation.
+            continue;
         }
 
         // TODO: This is the point where it might be useful to
@@ -1162,12 +1189,16 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 #endif
     }
 
-    std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, {}, std::vector<std::uint64_t>(portLimit, 0)});
+    std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, 0, {}, {}, std::vector<std::uint64_t>(portLimit, 0)});
     for (auto& opInfo : opInfos)
     {
+        for (auto depWait : opInfo.deps.getWait())
+        {
+            barrierInfos[depWait].waitOpInfos.emplace_back(&opInfo);
+        }
         for (auto depUpdate : opInfo.deps.getUpdate())
         {
-            barrierInfos[depUpdate].opInfos.emplace_back(&opInfo);
+            barrierInfos[depUpdate].updateOpInfos.emplace_back(&opInfo);
         }
     }
 
@@ -1250,8 +1281,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                   << " size=" << benefit.opInfo->size
                   << "\n";
 #endif
-        csramAvailable -= benefit.opInfo->size;
-
         for (auto& tensor : benefit.opInfo->op->getInputTensor())
         {
             auto& ti = tensorInfos.at(&*tensor);
