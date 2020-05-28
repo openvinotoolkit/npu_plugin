@@ -1,5 +1,17 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <cpp/ie_cnn_net_reader.h>
@@ -72,20 +84,6 @@ class KmbComputePriorboxTest :
 </Net>
 )V0G0N";
 
-    template <typename T>
-    std::string vectorToStr(const std::vector<T>& array) {
-        if (array.empty()) return std::string();
-
-        std::stringstream outStream;
-
-        for (size_t i = 0; i < array.size(); ++i) {
-            if (i != 0) {
-                outStream << ',';
-            }
-            outStream << array[i];
-        }
-        return outStream.str();
-    }
     std::string getModel(vpu::ParseLayersHelpers::priorBoxParam p) {
         std::string model = model_t;
 
@@ -101,13 +99,13 @@ class KmbComputePriorboxTest :
         REPLACE_WITH_NUM(model, "_OH_", p._out_dims[1]);
         REPLACE_WITH_NUM(model, "_OC_", p._out_dims[0]);
 
-        REPLACE_WITH_STR(model, "_ASP_RAT_", vectorToStr(p._src_aspect_ratios));
-        REPLACE_WITH_STR(model, "_DENSITY_", vectorToStr(p._densitys));
-        REPLACE_WITH_STR(model, "_F_RAT_", vectorToStr(p._fixed_ratios));
-        REPLACE_WITH_STR(model, "_F_SIZE_", vectorToStr(p._densitys));
-        REPLACE_WITH_STR(model, "_MAX_SIZE_", vectorToStr(p._max_sizes));
-        REPLACE_WITH_STR(model, "_MIN_SIZE_", vectorToStr(p._min_sizes));
-        REPLACE_WITH_STR(model, "_VARIANCE_", vectorToStr(p._src_variance));
+        REPLACE_WITH_STR(model, "_ASP_RAT_", vpu::ParseLayersHelpers::vectorToStr(p._src_aspect_ratios));
+        REPLACE_WITH_STR(model, "_DENSITY_", vpu::ParseLayersHelpers::vectorToStr(p._densitys));
+        REPLACE_WITH_STR(model, "_F_RAT_", vpu::ParseLayersHelpers::vectorToStr(p._fixed_ratios));
+        REPLACE_WITH_STR(model, "_F_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._densitys));
+        REPLACE_WITH_STR(model, "_MAX_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._max_sizes));
+        REPLACE_WITH_STR(model, "_MIN_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._min_sizes));
+        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::ParseLayersHelpers::vectorToStr(p._src_variance));
 
         REPLACE_WITH_NUM(model, "_CLIP_", p._clip ? 1 : 0);
         REPLACE_WITH_NUM(model, "_FLIP_", p._flip ? 1 : 0);

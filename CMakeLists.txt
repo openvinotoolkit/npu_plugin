@@ -61,6 +61,7 @@ if (ARM OR AARCH64)
         set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)
     endif()
     find_package(vpualHost REQUIRED CONFIG PATHS ${vpualHost_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
+    set(VPUSMM_LIBRARY vpusmm)
 endif()
 
 add_subdirectory(thirdparty)

@@ -30,17 +30,21 @@ namespace IE = InferenceEngine;
 class HDDL2_ImportNetwork_Tests : public CoreAPI_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
-    void SetUp() override;
     InferenceEngine::ParamMap params;
 
-private:
-    WorkloadContext_Helper workloadContextHelper;
+protected:
+    void SetUp() override;
+    void TearDown() override;
+    WorkloadContext_Helper _workloadContextHelper;
+    WorkloadID _workloadId;
 };
 
 void HDDL2_ImportNetwork_Tests::SetUp() {
-    WorkloadID workloadId = workloadContextHelper.getWorkloadId();
-    params = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
+    _workloadId = _workloadContextHelper.getWorkloadId();
+    params = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
 }
+
+void HDDL2_ImportNetwork_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(_workloadId); }
 
 //------------------------------------------------------------------------------
 // [Track number: S#28523]

@@ -105,7 +105,7 @@ class VpualMessage
     {
         if (deallocate)
         {
-            delete sdata;
+            delete[] sdata;
         }
     }
 

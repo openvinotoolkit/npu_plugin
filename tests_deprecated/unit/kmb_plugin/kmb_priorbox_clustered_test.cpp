@@ -1,5 +1,17 @@
-// Copyright (C) 2018-2020 Intel Corporation
-// SPDX-License-Identifier: Apache-2.0
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
 //
 
 #include <cpp/ie_cnn_net_reader.h>
@@ -123,20 +135,6 @@ class KmbComputePriorboxClusteredTest :
 </Net>
 )V0G0N";
 
-    template <typename T>
-    std::string vectorToStr(const std::vector<T>& array) {
-        if (array.empty()) return std::string();
-
-        std::stringstream outStream;
-
-        for (size_t i = 0; i < array.size(); ++i) {
-            if (i != 0) {
-                outStream << ',';
-            }
-            outStream << array[i];
-        }
-        return outStream.str();
-    }
     std::string getModel(xmlPriorBoxClusteredParam p) {
         std::string model = model_t;
 
@@ -152,9 +150,9 @@ class KmbComputePriorboxClusteredTest :
         REPLACE_WITH_NUM(model, "_OH_", p._out_dims[1]);
         REPLACE_WITH_NUM(model, "_OC_", p._out_dims[0]);
 
-        REPLACE_WITH_STR(model, "_WIDTH_", vectorToStr(p._width));
-        REPLACE_WITH_STR(model, "_HEIGHT_", vectorToStr(p._height));
-        REPLACE_WITH_STR(model, "_VARIANCE_", vectorToStr(p._variance));
+        REPLACE_WITH_STR(model, "_WIDTH_", vpu::ParseLayersHelpers::vectorToStr(p._width));
+        REPLACE_WITH_STR(model, "_HEIGHT_", vpu::ParseLayersHelpers::vectorToStr(p._height));
+        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::ParseLayersHelpers::vectorToStr(p._variance));
 
         REPLACE_WITH_NUM(model, "_CLIP_", p._clip);
         REPLACE_WITH_NUM(model, "_FLIP_", p._flip);
@@ -225,12 +223,13 @@ protected:
             std::string model = getModel(p);
 
             // calc priorbox output using CPU plugin
-            CNNNetReader net_reader;
-            ASSERT_NO_THROW(net_reader.ReadNetwork(model.data(), model.length()));
+            Core ie;
+            CNNNetwork network;
+            ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
 
-            net_reader.getNetwork().setBatchSize(1);
+            network.setBatchSize(1);
 
-            InputsDataMap inputs = net_reader.getNetwork().getInputsInfo();
+            InputsDataMap inputs = network.getInputsInfo();
 
             DataPtr inputPtr1 = inputs["input1"]->getInputData();
             DataPtr inputPtr2 = inputs["input2"]->getInputData();
@@ -245,7 +244,7 @@ protected:
             inputBlobs["input1"] = input1;
             inputBlobs["input2"] = input2;
 
-            OutputsDataMap outputs = net_reader.getNetwork().getOutputsInfo();
+            OutputsDataMap outputs = network.getOutputsInfo();
 
             InferenceEngine::TBlob<float>::Ptr output;
             output = InferenceEngine::make_shared_blob<float>(outputs["priorboxclustered"]->getTensorDesc());
@@ -254,8 +253,7 @@ protected:
             InferenceEngine::BlobMap outputBlobs;
             outputBlobs["priorboxclustered"] = output;
 
-            Core ie;
-            ExecutableNetwork exeNetwork = ie.LoadNetwork(net_reader.getNetwork(), "CPU");
+            ExecutableNetwork exeNetwork = ie.LoadNetwork(network, "CPU");
             InferRequest inferRequest = exeNetwork.CreateInferRequest();
             inferRequest.SetInput(inputBlobs);
             inferRequest.SetOutput(outputBlobs);
@@ -266,8 +264,8 @@ protected:
 
             // compare CPU and KMB outputs
 
-            const TBlob<float>::Ptr outputArray = std::dynamic_pointer_cast<TBlob<float>>(output);
-            float* dst_ptr = outputArray->data();
+            auto moutputHolder = output->wmap();
+            float* dst_ptr = moutputHolder.as<float*>();
 
             for (size_t i = 0; i < kmb_priorbox_clustered_result.size(); ++i) {
                 EXPECT_EQ(dst_ptr[i], kmb_priorbox_clustered_result[i]);

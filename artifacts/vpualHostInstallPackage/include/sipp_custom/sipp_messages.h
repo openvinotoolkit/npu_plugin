@@ -13,7 +13,6 @@
 #include <vector>
 #include <string.h>
 #include <stdint.h>
-#include <semaphore.h>
 #include "sippDefs.h"
 
 #define MAX_IO (4)

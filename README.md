@@ -7,7 +7,7 @@
 To build ARM64 code for KMB board the Yocto SDK is required. It can be installed with the following commands:
 
 ```bash
-wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/development/20191011-1106/oecore-x86_64-aarch64-toolchain-1.0.sh && \
+wget -q http://nnt-srv01.inn.intel.com/dl_score_engine/thirdparty/linux/keembay/development/20200420-2100/oecore-x86_64-aarch64-toolchain-1.0.sh && \
     chmod +x oecore-x86_64-aarch64-toolchain-1.0.sh && \
     ./oecore-x86_64-aarch64-toolchain-1.0.sh -y -d /usr/local/oecore-x86_64 && \
     rm oecore-x86_64-aarch64-toolchain-1.0.sh
@@ -258,7 +258,25 @@ sshfs <username>@<host>:$DLDT_HOME/inference-engine/temp $KMB_WORK_DIR/temp
 fusermount -u $KMB_WORK_DIR/temp
 ```
 
+
 ## Testing on KMB board
+
+### Run Layer Tests
+
+These tests could be run on HOST or KMB-board. To be able to run test on KMB-board side you need to provide `IE_KMB_TESTS_DUMP_PATH` so the test framework can found compiled networks for tests. Please see how to do it in secsion [Target networks regression tests](#target-networks-regression-tests). But in any case (HOST or KMB-board) command line text is the same.
+
+* Run the following command to launch Layer Tests:
+
+```bash
+$DLDT_HOME/bin/intel64/Release/KmbFunctionalTests --gtest_filter=*LayerTests*
+```
+
+* If you want to run all Layer Tests including disabled ones then run this command:
+
+```bash
+$DLDT_HOME/bin/intel64/Release/KmbFunctionalTests --gtest_filter=*LayerTests* --gtest_also_run_disabled_tests
+```
+
 
 ### Target networks regression tests
 

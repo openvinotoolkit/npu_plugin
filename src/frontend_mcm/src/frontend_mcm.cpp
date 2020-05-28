@@ -1387,8 +1387,8 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constant(constData, mcmShape, precisionToDType(Precision(Precision::ePrecision::FP32)),
-                // Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
-                // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+                // Initially  this parameter is: precisionToDType(constBlob->getTensorDesc().getPrecision()),
+                // but as Work Around it is set to: precisionToDType(Precision(Precision::ePrecision::FP32)).
                 // It is so just because mcmCompiler has not supported FP16 yet.
                 // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
@@ -1575,15 +1575,14 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
 
     IE_ASSERT((dims[1] == weightsSize) || (channel_shared == 1 && weightsSize == 1));
 
-    auto weightsPrecision = weightsBlob->getTensorDesc().getPrecision();
-    auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+   auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
     if (channel_shared) {
         weightsData.assign(dims[1], weightsData[0]);
         channel_shared = false;
     }
 
-    auto mvWeightsValues = _modelMcm.constant(
-        weightsData, weightsShape, precisionToDType(weightsPrecision), mv::Order::getZMajorID(4));
+    auto mvWeightsValues = _modelMcm.constant(weightsData, weightsShape,
+        mv::DType(precisionToDType(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
 
     mv::Data::TensorIterator mvNormalize;
 
@@ -1918,8 +1917,8 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
         variance.push_back(0.1f);
     }
 
-    if (step_w == 0 && step_h == 0) {
-        if (step == 0) {
+    if (step_w == 0.f && step_h == 0.f) {
+        if (step == 0.f) {
             step_w = static_cast<float>(img_width) / layer_width;
             step_h = static_cast<float>(img_height) / layer_height;
         } else {

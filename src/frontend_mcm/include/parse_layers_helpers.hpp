@@ -80,6 +80,20 @@ struct priorBoxClusteredParam {
 
 std::vector<double> computePriorbox(const priorBoxParam& param);
 std::vector<double> computePriorboxClustered(const priorBoxClusteredParam& param);
+template <typename T>
+std::string vectorToStr(const std::vector<T>& array) {
+    if (array.empty()) return std::string();
+
+    std::stringstream outStream;
+
+    for (size_t i = 0; i < array.size(); ++i) {
+        if (i != 0) {
+            outStream << ',';
+        }
+        outStream << array[i];
+    }
+    return outStream.str();
+}
 
 }  // namespace ParseLayersHelpers
 }  // namespace vpu

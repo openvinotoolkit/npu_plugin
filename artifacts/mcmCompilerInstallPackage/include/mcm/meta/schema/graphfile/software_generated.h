@@ -108,6 +108,15 @@ struct PoolingParamsT;
 struct TileParams;
 struct TileParamsT;
 
+struct LeakyReluParams;
+struct LeakyReluParamsT;
+
+struct SigmoidParams;
+struct SigmoidParamsT;
+
+struct UnaryOpParams;
+struct UnaryOpParamsT;
+
 struct UPALayerTask;
 struct UPALayerTaskT;
 
@@ -210,6 +219,104 @@ inline const char *EnumNameInterpolationMethod(InterpolationMethod e) {
   return EnumNamesInterpolationMethod()[index];
 }
 
+enum UnaryOpNestedParams {
+  UnaryOpNestedParams_NONE = 0,
+  UnaryOpNestedParams_LeakyReluParams = 1,
+  UnaryOpNestedParams_SigmoidParams = 2,
+  UnaryOpNestedParams_MIN = UnaryOpNestedParams_NONE,
+  UnaryOpNestedParams_MAX = UnaryOpNestedParams_SigmoidParams
+};
+
+inline const UnaryOpNestedParams (&EnumValuesUnaryOpNestedParams())[3] {
+  static const UnaryOpNestedParams values[] = {
+    UnaryOpNestedParams_NONE,
+    UnaryOpNestedParams_LeakyReluParams,
+    UnaryOpNestedParams_SigmoidParams
+  };
+  return values;
+}
+
+inline const char * const *EnumNamesUnaryOpNestedParams() {
+  static const char * const names[] = {
+    "NONE",
+    "LeakyReluParams",
+    "SigmoidParams",
+    nullptr
+  };
+  return names;
+}
+
+inline const char *EnumNameUnaryOpNestedParams(UnaryOpNestedParams e) {
+  if (e < UnaryOpNestedParams_NONE || e > UnaryOpNestedParams_SigmoidParams) return "";
+  const size_t index = static_cast<size_t>(e);
+  return EnumNamesUnaryOpNestedParams()[index];
+}
+
+template<typename T> struct UnaryOpNestedParamsTraits {
+  static const UnaryOpNestedParams enum_value = UnaryOpNestedParams_NONE;
+};
+
+template<> struct UnaryOpNestedParamsTraits<LeakyReluParams> {
+  static const UnaryOpNestedParams enum_value = UnaryOpNestedParams_LeakyReluParams;
+};
+
+template<> struct UnaryOpNestedParamsTraits<SigmoidParams> {
+  static const UnaryOpNestedParams enum_value = UnaryOpNestedParams_SigmoidParams;
+};
+
+struct UnaryOpNestedParamsUnion {
+  UnaryOpNestedParams type;
+  void *value;
+
+  UnaryOpNestedParamsUnion() : type(UnaryOpNestedParams_NONE), value(nullptr) {}
+  UnaryOpNestedParamsUnion(UnaryOpNestedParamsUnion&& u) FLATBUFFERS_NOEXCEPT :
+    type(UnaryOpNestedParams_NONE), value(nullptr)
+    { std::swap(type, u.type); std::swap(value, u.value); }
+  UnaryOpNestedParamsUnion(const UnaryOpNestedParamsUnion &) FLATBUFFERS_NOEXCEPT;
+  UnaryOpNestedParamsUnion &operator=(const UnaryOpNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT
+    { UnaryOpNestedParamsUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
+  UnaryOpNestedParamsUnion &operator=(UnaryOpNestedParamsUnion &&u) FLATBUFFERS_NOEXCEPT
+    { std::swap(type, u.type); std::swap(value, u.value); return *this; }
+  ~UnaryOpNestedParamsUnion() { Reset(); }
+
+  void Reset();
+
+#ifndef FLATBUFFERS_CPP98_STL
+  template <typename T>
+  void Set(T&& val) {
+    using RT = typename std::remove_reference<T>::type;
+    Reset();
+    type = UnaryOpNestedParamsTraits<typename RT::TableType>::enum_value;
+    if (type != UnaryOpNestedParams_NONE) {
+      value = new RT(std::forward<T>(val));
+    }
+  }
+#endif  // FLATBUFFERS_CPP98_STL
+
+  static void *UnPack(const void *obj, UnaryOpNestedParams type, const flatbuffers::resolver_function_t *resolver);
+  flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
+
+  LeakyReluParamsT *AsLeakyReluParams() {
+    return type == UnaryOpNestedParams_LeakyReluParams ?
+      reinterpret_cast<LeakyReluParamsT *>(value) : nullptr;
+  }
+  const LeakyReluParamsT *AsLeakyReluParams() const {
+    return type == UnaryOpNestedParams_LeakyReluParams ?
+      reinterpret_cast<const LeakyReluParamsT *>(value) : nullptr;
+  }
+  SigmoidParamsT *AsSigmoidParams() {
+    return type == UnaryOpNestedParams_SigmoidParams ?
+      reinterpret_cast<SigmoidParamsT *>(value) : nullptr;
+  }
+  const SigmoidParamsT *AsSigmoidParams() const {
+    return type == UnaryOpNestedParams_SigmoidParams ?
+      reinterpret_cast<const SigmoidParamsT *>(value) : nullptr;
+  }
+};
+
+bool VerifyUnaryOpNestedParams(flatbuffers::Verifier &verifier, const void *obj, UnaryOpNestedParams type);
+bool VerifyUnaryOpNestedParamsVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types);
+
 enum SoftwareLayerParams {
   SoftwareLayerParams_NONE = 0,
   SoftwareLayerParams_DummyParams = 1,
@@ -244,11 +351,12 @@ enum SoftwareLayerParams {
   SoftwareLayerParams_TileParams = 30,
   SoftwareLayerParams_PSROIPoolingParams = 31,
   SoftwareLayerParams_DeconvolutionParams = 32,
+  SoftwareLayerParams_UnaryOpParams = 33,
   SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
-  SoftwareLayerParams_MAX = SoftwareLayerParams_DeconvolutionParams
+  SoftwareLayerParams_MAX = SoftwareLayerParams_UnaryOpParams
 };
 
-inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[33] {
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[34] {
   static const SoftwareLayerParams values[] = {
     SoftwareLayerParams_NONE,
     SoftwareLayerParams_DummyParams,
@@ -282,7 +390,8 @@ inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[33] {
     SoftwareLayerParams_EdslParams,
     SoftwareLayerParams_TileParams,
     SoftwareLayerParams_PSROIPoolingParams,
-    SoftwareLayerParams_DeconvolutionParams
+    SoftwareLayerParams_DeconvolutionParams,
+    SoftwareLayerParams_UnaryOpParams
   };
   return values;
 }
@@ -322,13 +431,14 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
     "TileParams",
     "PSROIPoolingParams",
     "DeconvolutionParams",
+    "UnaryOpParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_DeconvolutionParams) return "";
+  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_UnaryOpParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -463,6 +573,10 @@ template<> struct SoftwareLayerParamsTraits<PSROIPoolingParams> {
 
 template<> struct SoftwareLayerParamsTraits<DeconvolutionParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_DeconvolutionParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<UnaryOpParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_UnaryOpParams;
 };
 
 struct SoftwareLayerParamsUnion {
@@ -752,6 +866,14 @@ struct SoftwareLayerParamsUnion {
   const DeconvolutionParamsT *AsDeconvolutionParams() const {
     return type == SoftwareLayerParams_DeconvolutionParams ?
       reinterpret_cast<const DeconvolutionParamsT *>(value) : nullptr;
+  }
+  UnaryOpParamsT *AsUnaryOpParams() {
+    return type == SoftwareLayerParams_UnaryOpParams ?
+      reinterpret_cast<UnaryOpParamsT *>(value) : nullptr;
+  }
+  const UnaryOpParamsT *AsUnaryOpParams() const {
+    return type == SoftwareLayerParams_UnaryOpParams ?
+      reinterpret_cast<const UnaryOpParamsT *>(value) : nullptr;
   }
 };
 
@@ -4057,6 +4179,179 @@ inline flatbuffers::Offset<TileParams> CreateTileParams(
 
 flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
+struct LeakyReluParamsT : public flatbuffers::NativeTable {
+  typedef LeakyReluParams TableType;
+  float negative_slope;
+  LeakyReluParamsT()
+      : negative_slope(0.0f) {
+  }
+};
+
+struct LeakyReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef LeakyReluParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NEGATIVE_SLOPE = 4
+  };
+  float negative_slope() const {
+    return GetField<float>(VT_NEGATIVE_SLOPE, 0.0f);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_NEGATIVE_SLOPE) &&
+           verifier.EndTable();
+  }
+  LeakyReluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(LeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<LeakyReluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct LeakyReluParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_negative_slope(float negative_slope) {
+    fbb_.AddElement<float>(LeakyReluParams::VT_NEGATIVE_SLOPE, negative_slope, 0.0f);
+  }
+  explicit LeakyReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  LeakyReluParamsBuilder &operator=(const LeakyReluParamsBuilder &);
+  flatbuffers::Offset<LeakyReluParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<LeakyReluParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float negative_slope = 0.0f) {
+  LeakyReluParamsBuilder builder_(_fbb);
+  builder_.add_negative_slope(negative_slope);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SigmoidParamsT : public flatbuffers::NativeTable {
+  typedef SigmoidParams TableType;
+  SigmoidParamsT() {
+  }
+};
+
+struct SigmoidParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef SigmoidParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  SigmoidParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SigmoidParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<SigmoidParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct SigmoidParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit SigmoidParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  SigmoidParamsBuilder &operator=(const SigmoidParamsBuilder &);
+  flatbuffers::Offset<SigmoidParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<SigmoidParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  SigmoidParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct UnaryOpParamsT : public flatbuffers::NativeTable {
+  typedef UnaryOpParams TableType;
+  UnaryOpNestedParamsUnion nested_params;
+  UnaryOpParamsT() {
+  }
+};
+
+struct UnaryOpParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UnaryOpParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NESTED_PARAMS_TYPE = 4,
+    VT_NESTED_PARAMS = 6
+  };
+  UnaryOpNestedParams nested_params_type() const {
+    return static_cast<UnaryOpNestedParams>(GetField<uint8_t>(VT_NESTED_PARAMS_TYPE, 0));
+  }
+  const void *nested_params() const {
+    return GetPointer<const void *>(VT_NESTED_PARAMS);
+  }
+  template<typename T> const T *nested_params_as() const;
+  const LeakyReluParams *nested_params_as_LeakyReluParams() const {
+    return nested_params_type() == UnaryOpNestedParams_LeakyReluParams ? static_cast<const LeakyReluParams *>(nested_params()) : nullptr;
+  }
+  const SigmoidParams *nested_params_as_SigmoidParams() const {
+    return nested_params_type() == UnaryOpNestedParams_SigmoidParams ? static_cast<const SigmoidParams *>(nested_params()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_NESTED_PARAMS_TYPE) &&
+           VerifyOffset(verifier, VT_NESTED_PARAMS) &&
+           VerifyUnaryOpNestedParams(verifier, nested_params(), nested_params_type()) &&
+           verifier.EndTable();
+  }
+  UnaryOpParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(UnaryOpParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<UnaryOpParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const LeakyReluParams *UnaryOpParams::nested_params_as<LeakyReluParams>() const {
+  return nested_params_as_LeakyReluParams();
+}
+
+template<> inline const SigmoidParams *UnaryOpParams::nested_params_as<SigmoidParams>() const {
+  return nested_params_as_SigmoidParams();
+}
+
+struct UnaryOpParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_nested_params_type(UnaryOpNestedParams nested_params_type) {
+    fbb_.AddElement<uint8_t>(UnaryOpParams::VT_NESTED_PARAMS_TYPE, static_cast<uint8_t>(nested_params_type), 0);
+  }
+  void add_nested_params(flatbuffers::Offset<void> nested_params) {
+    fbb_.AddOffset(UnaryOpParams::VT_NESTED_PARAMS, nested_params);
+  }
+  explicit UnaryOpParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  UnaryOpParamsBuilder &operator=(const UnaryOpParamsBuilder &);
+  flatbuffers::Offset<UnaryOpParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<UnaryOpParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    UnaryOpNestedParams nested_params_type = UnaryOpNestedParams_NONE,
+    flatbuffers::Offset<void> nested_params = 0) {
+  UnaryOpParamsBuilder builder_(_fbb);
+  builder_.add_nested_params(nested_params);
+  builder_.add_nested_params_type(nested_params_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
 struct UPALayerTaskT : public flatbuffers::NativeTable {
   typedef UPALayerTask TableType;
   uint8_t maxShaves;
@@ -4193,6 +4488,9 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
     return softLayerParams_type() == SoftwareLayerParams_DeconvolutionParams ? static_cast<const DeconvolutionParams *>(softLayerParams()) : nullptr;
+  }
+  const UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_UnaryOpParams ? static_cast<const UnaryOpParams *>(softLayerParams()) : nullptr;
   }
   const TensorReference *input_data() const {
     return GetPointer<const TensorReference *>(VT_INPUT_DATA);
@@ -4369,6 +4667,10 @@ template<> inline const PSROIPoolingParams *UPALayerTask::softLayerParams_as<PSR
 
 template<> inline const DeconvolutionParams *UPALayerTask::softLayerParams_as<DeconvolutionParams>() const {
   return softLayerParams_as_DeconvolutionParams();
+}
+
+template<> inline const UnaryOpParams *UPALayerTask::softLayerParams_as<UnaryOpParams>() const {
+  return softLayerParams_as_UnaryOpParams();
 }
 
 struct UPALayerTaskBuilder {
@@ -4588,6 +4890,9 @@ struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
     return softLayerParams_type() == SoftwareLayerParams_DeconvolutionParams ? static_cast<const DeconvolutionParams *>(softLayerParams()) : nullptr;
   }
+  const UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_UnaryOpParams ? static_cast<const UnaryOpParams *>(softLayerParams()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
@@ -4726,6 +5031,10 @@ template<> inline const PSROIPoolingParams *SNNLayerTask::softLayerParams_as<PSR
 
 template<> inline const DeconvolutionParams *SNNLayerTask::softLayerParams_as<DeconvolutionParams>() const {
   return softLayerParams_as_DeconvolutionParams();
+}
+
+template<> inline const UnaryOpParams *SNNLayerTask::softLayerParams_as<UnaryOpParams>() const {
+  return softLayerParams_as_UnaryOpParams();
 }
 
 struct SNNLayerTaskBuilder {
@@ -6932,6 +7241,84 @@ inline flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferB
       _tiles);
 }
 
+inline LeakyReluParamsT *LeakyReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new LeakyReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void LeakyReluParams::UnPackTo(LeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = negative_slope(); _o->negative_slope = _e; };
+}
+
+inline flatbuffers::Offset<LeakyReluParams> LeakyReluParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateLeakyReluParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const LeakyReluParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _negative_slope = _o->negative_slope;
+  return MVCNN::CreateLeakyReluParams(
+      _fbb,
+      _negative_slope);
+}
+
+inline SigmoidParamsT *SigmoidParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new SigmoidParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void SigmoidParams::UnPackTo(SigmoidParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+}
+
+inline flatbuffers::Offset<SigmoidParams> SigmoidParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateSigmoidParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const SigmoidParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  return MVCNN::CreateSigmoidParams(
+      _fbb);
+}
+
+inline UnaryOpParamsT *UnaryOpParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new UnaryOpParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void UnaryOpParams::UnPackTo(UnaryOpParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = nested_params_type(); _o->nested_params.type = _e; };
+  { auto _e = nested_params(); if (_e) _o->nested_params.value = UnaryOpNestedParamsUnion::UnPack(_e, nested_params_type(), _resolver); };
+}
+
+inline flatbuffers::Offset<UnaryOpParams> UnaryOpParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateUnaryOpParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const UnaryOpParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _nested_params_type = _o->nested_params.type;
+  auto _nested_params = _o->nested_params.Pack(_fbb);
+  return MVCNN::CreateUnaryOpParams(
+      _fbb,
+      _nested_params_type,
+      _nested_params);
+}
+
 inline UPALayerTaskT *UPALayerTask::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
   auto _o = new UPALayerTaskT();
   UnPackTo(_o, _resolver);
@@ -7388,6 +7775,96 @@ inline flatbuffers::Offset<NNTensorTask> CreateNNTensorTask(flatbuffers::FlatBuf
       _subtask);
 }
 
+inline bool VerifyUnaryOpNestedParams(flatbuffers::Verifier &verifier, const void *obj, UnaryOpNestedParams type) {
+  switch (type) {
+    case UnaryOpNestedParams_NONE: {
+      return true;
+    }
+    case UnaryOpNestedParams_LeakyReluParams: {
+      auto ptr = reinterpret_cast<const LeakyReluParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case UnaryOpNestedParams_SigmoidParams: {
+      auto ptr = reinterpret_cast<const SigmoidParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return false;
+  }
+}
+
+inline bool VerifyUnaryOpNestedParamsVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyUnaryOpNestedParams(
+        verifier,  values->Get(i), types->GetEnum<UnaryOpNestedParams>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline void *UnaryOpNestedParamsUnion::UnPack(const void *obj, UnaryOpNestedParams type, const flatbuffers::resolver_function_t *resolver) {
+  switch (type) {
+    case UnaryOpNestedParams_LeakyReluParams: {
+      auto ptr = reinterpret_cast<const LeakyReluParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case UnaryOpNestedParams_SigmoidParams: {
+      auto ptr = reinterpret_cast<const SigmoidParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    default: return nullptr;
+  }
+}
+
+inline flatbuffers::Offset<void> UnaryOpNestedParamsUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
+  switch (type) {
+    case UnaryOpNestedParams_LeakyReluParams: {
+      auto ptr = reinterpret_cast<const LeakyReluParamsT *>(value);
+      return CreateLeakyReluParams(_fbb, ptr, _rehasher).Union();
+    }
+    case UnaryOpNestedParams_SigmoidParams: {
+      auto ptr = reinterpret_cast<const SigmoidParamsT *>(value);
+      return CreateSigmoidParams(_fbb, ptr, _rehasher).Union();
+    }
+    default: return 0;
+  }
+}
+
+inline UnaryOpNestedParamsUnion::UnaryOpNestedParamsUnion(const UnaryOpNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT : type(u.type), value(nullptr) {
+  switch (type) {
+    case UnaryOpNestedParams_LeakyReluParams: {
+      value = new LeakyReluParamsT(*reinterpret_cast<LeakyReluParamsT *>(u.value));
+      break;
+    }
+    case UnaryOpNestedParams_SigmoidParams: {
+      value = new SigmoidParamsT(*reinterpret_cast<SigmoidParamsT *>(u.value));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+inline void UnaryOpNestedParamsUnion::Reset() {
+  switch (type) {
+    case UnaryOpNestedParams_LeakyReluParams: {
+      auto ptr = reinterpret_cast<LeakyReluParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case UnaryOpNestedParams_SigmoidParams: {
+      auto ptr = reinterpret_cast<SigmoidParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    default: break;
+  }
+  value = nullptr;
+  type = UnaryOpNestedParams_NONE;
+}
+
 inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const void *obj, SoftwareLayerParams type) {
   switch (type) {
     case SoftwareLayerParams_NONE: {
@@ -7519,6 +7996,10 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
     }
     case SoftwareLayerParams_DeconvolutionParams: {
       auto ptr = reinterpret_cast<const DeconvolutionParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SoftwareLayerParams_UnaryOpParams: {
+      auto ptr = reinterpret_cast<const UnaryOpParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     default: return false;
@@ -7667,6 +8148,10 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const DeconvolutionParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_UnaryOpParams: {
+      auto ptr = reinterpret_cast<const UnaryOpParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -7801,6 +8286,10 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const DeconvolutionParamsT *>(value);
       return CreateDeconvolutionParams(_fbb, ptr, _rehasher).Union();
     }
+    case SoftwareLayerParams_UnaryOpParams: {
+      auto ptr = reinterpret_cast<const UnaryOpParamsT *>(value);
+      return CreateUnaryOpParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -7933,6 +8422,10 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_DeconvolutionParams: {
       FLATBUFFERS_ASSERT(false);  // DeconvolutionParamsT not copyable.
+      break;
+    }
+    case SoftwareLayerParams_UnaryOpParams: {
+      value = new UnaryOpParamsT(*reinterpret_cast<UnaryOpParamsT *>(u.value));
       break;
     }
     default:
@@ -8099,6 +8592,11 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_DeconvolutionParams: {
       auto ptr = reinterpret_cast<DeconvolutionParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_UnaryOpParams: {
+      auto ptr = reinterpret_cast<UnaryOpParamsT *>(value);
       delete ptr;
       break;
     }

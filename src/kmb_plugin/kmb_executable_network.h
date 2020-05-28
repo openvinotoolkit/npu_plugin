@@ -80,14 +80,18 @@ public:
     void ExportImpl(std::ostream& model) override { model.write(_graphBlob.data(), _graphBlob.size()); }
 
     void Export(const std::string& modelFileName) override {
-        std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
+        if (!_graphBlob.empty()) {
+            std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
 
-        if (modelFile.is_open()) {
-            ExportImpl(modelFile);
-        } else {
-            THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
+            if (modelFile.is_open()) {
+                ExportImpl(modelFile);
+            } else {
+                THROW_IE_EXCEPTION << "The " << modelFileName << " file can not be opened for export";
+            }
         }
     }
+
+    void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
 private:
     void ConfigureExecutor(const std::string& networkName);

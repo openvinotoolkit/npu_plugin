@@ -31,7 +31,7 @@ namespace IE = InferenceEngine;
 
 class AsyncInferRequest_Tests : public CoreAPI_Tests {
 public:
-    const int REQUEST_LIMIT = 100;
+    const int REQUEST_LIMIT = 10;
     const int MAX_WAIT = 60000;
 
     const int TOP_CLASSES_TO_COMPARE = 3;
