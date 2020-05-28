@@ -912,6 +912,14 @@ struct Benefit
     std::uint64_t slackNS;
 };
 
+// Returns true iff rhs is a "higher benefit" than lhs.
+bool operator<(const Benefit& lhs, const Benefit& rhs)
+{
+    return (!lhs.opInfo
+            || (rhs.benefitNS > lhs.benefitNS)
+            || (lhs.benefitNS == 0 && rhs.slackNS < lhs.slackNS));
+}
+
 Benefit computeBenefit(OpInfo* opInfo,
                        std::vector<BarrierInfo>* barrierInfos,
                        std::vector<PortInfo>* portInfos,
@@ -1188,92 +1196,83 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
     int currentPriority = 0;
 
-    for (;;)
+    std::uint64_t overallLatency = simRunModel(&opInfos, &barrierInfos, &portInfos);
+    computePortSlack(&barrierInfos, portLimit);
+
+#ifdef DEBUG_LAYOUT_PASS
+    std::cerr << "LayoutDMA: csramAvailable=" << csramAvailable
+              << " overallLatency=" << overallLatency << "\n";
+#endif
+
+    // Compute the benefit for each candidate operation, saving the best we have so far.
+
+    auto bestBenefit = Benefit{nullptr, 0, overallLatency};
+    for (auto& opInfo : opInfos)
     {
-        std::uint64_t overallLatency = simRunModel(&opInfos, &barrierInfos, &portInfos);
-        computePortSlack(&barrierInfos, portLimit);
-
 #ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: csramAvailable=" << csramAvailable
-                  << " overallLatency=" << overallLatency << "\n";
+        std::cerr << "LayoutDMA: Planning Op=" << opInfo.op->getName()
+                  << " ty=" << opInfo.op->getOpType()
+                  << ": latency=" << opInfo.latencyNS
+                  << " csramNS=" << opInfo.csramNS
+                  << " size=" << opInfo.size
+                  << " port=" << opInfo.portIdx
+                  << "\n";
 #endif
-
-        // Compute the benefit for each candidate operation, saving the best we have so far.
-
-        auto bestBenefit = Benefit{nullptr, 0, overallLatency};
-        for (auto& opInfo : opInfos)
+        if (!opInfo.isCSRAMCandidate() || csramAvailable < opInfo.size)
         {
 #ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Planning Op=" << opInfo.op->getName()
-                      << " ty=" << opInfo.op->getOpType()
-                      << ": latency=" << opInfo.latencyNS
-                      << " csramNS=" << opInfo.csramNS
-                      << " size=" << opInfo.size
-                      << " port=" << opInfo.portIdx
-                      << "\n";
+            std::cerr << "LayoutDMA:   not a candidate for CSRAM (isWeightDMA=" << opInfo.isWeightDMA << ")\n";
 #endif
-            if (!opInfo.isCSRAMCandidate() || csramAvailable < opInfo.size)
-            {
-#ifdef DEBUG_LAYOUT_PASS
-                std::cerr << "LayoutDMA:   not a candidate for CSRAM (isWeightDMA=" << opInfo.isWeightDMA << ")\n";
-#endif
-                continue;
-            }
-
-            auto benefit = computeBenefit(&opInfo, &barrierInfos, &portInfos, overallLatency);
-
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA:   benefit=" << benefit.benefitNS << " slack=" << benefit.slackNS << "\n";
-#endif
-
-            if ((!bestBenefit.opInfo)
-                || (benefit.benefitNS > bestBenefit.benefitNS)
-                || (bestBenefit.benefitNS == 0 && benefit.slackNS < bestBenefit.slackNS))
-            {
-                bestBenefit = benefit;
-            }
+            continue;
         }
 
-        if (bestBenefit.opInfo)
-        {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Moving to CSRAM: Op=" << bestBenefit.opInfo->op->getName()
-                      << " ty=" << bestBenefit.opInfo->op->getOpType()
-                      << " benefit=" << bestBenefit.benefitNS
-                      << " slack=" << bestBenefit.slackNS
-                      << " size=" << bestBenefit.opInfo->size
-                      << "\n";
-#endif
-            csramAvailable -= bestBenefit.opInfo->size;
+        auto benefit = computeBenefit(&opInfo, &barrierInfos, &portInfos, overallLatency);
 
-            for (auto& tensor : bestBenefit.opInfo->op->getInputTensor())
-            {
-                auto& ti = tensorInfos.at(&*tensor);
-                if (ti.priority < 0)
-                {
 #ifdef DEBUG_LAYOUT_PASS
-                    std::cerr << "LayoutDMA: Allocating CSRAM tensor priority=" << currentPriority << "\n";
+        std::cerr << "LayoutDMA:   benefit=" << benefit.benefitNS << " slack=" << benefit.slackNS << "\n";
 #endif
-                    ti.priority = currentPriority++;
-                }
-                for (auto updateOpInfo : ti.readers)
-                {
-                    updateOpInfo->latencyNS = updateOpInfo->csramNS;
-                }
-            }
-            assert(bestBenefit.opInfo->latencyNS == bestBenefit.opInfo->csramNS);
-        }
-        else
+
+        if (bestBenefit < benefit)
         {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: No useful tensor optimizations available\n";
-#endif
-            break;
+            bestBenefit = benefit;
         }
     }
 
-    // At this point, we happen to have pretty good port assignments for
-    // all operations in the opInfos vector, so update all of them.
+    if (bestBenefit.opInfo)
+    {
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Moving to CSRAM: Op=" << bestBenefit.opInfo->op->getName()
+                  << " ty=" << bestBenefit.opInfo->op->getOpType()
+                  << " benefit=" << bestBenefit.benefitNS
+                  << " slack=" << bestBenefit.slackNS
+                  << " size=" << bestBenefit.opInfo->size
+                  << "\n";
+#endif
+        csramAvailable -= bestBenefit.opInfo->size;
+
+        for (auto& tensor : bestBenefit.opInfo->op->getInputTensor())
+        {
+            auto& ti = tensorInfos.at(&*tensor);
+            if (ti.priority < 0)
+            {
+#ifdef DEBUG_LAYOUT_PASS
+                std::cerr << "LayoutDMA: Allocating CSRAM tensor priority=" << currentPriority << "\n";
+#endif
+                ti.priority = currentPriority++;
+            }
+            for (auto updateOpInfo : ti.readers)
+            {
+                updateOpInfo->latencyNS = updateOpInfo->csramNS;
+            }
+        }
+        assert(bestBenefit.opInfo->latencyNS == bestBenefit.opInfo->csramNS);
+    }
+
+    // Recompute port assignments based on updated tensor placements.
+    simRunModel(&opInfos, &barrierInfos, &portInfos);
+
+    // At this point, we have pretty good port assignments for all
+    // operations in the opInfos vector, so update the actual operations.
     for (auto& opInfo : opInfos)
     {
         if (opInfo.isDMA)
