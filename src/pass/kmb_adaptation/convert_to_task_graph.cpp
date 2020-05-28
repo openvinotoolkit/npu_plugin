@@ -17,8 +17,8 @@ static void calculate_permutation_from_permutes(std::vector<unsigned> &P, std::v
 static void calculate_xyz_from_permutation(std::vector<unsigned>& permute_order_xyz, std::vector<unsigned>& permute_order);
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string> &ppeTaskType, double leakyAlpha = 0, double leakyHack = 1.0);
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt);
-int32_t computeClampLow(mv::Data::OpListIterator &opIt);
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex);
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex);
 
 namespace mv
 {
@@ -646,9 +646,12 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)
 {
     auto ppeFixedFunction = mv::PPEFixedFunction();
-
-    ppeFixedFunction.setLowClamp(computeClampLow(opIt));
-    ppeFixedFunction.setHighClamp(computeClampHigh(opIt));
+    bool flexarbINT8 = false;
+    if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "FLEXARB") != ppeTaskTypes.end())
+        flexarbINT8= true;
+    //NOTE: the idea of the flex is that the post shift is not sign extendable so the clamps need to be like INT8
+    ppeFixedFunction.setLowClamp(computeClampLow(opIt, flexarbINT8));
+    ppeFixedFunction.setHighClamp(computeClampHigh(opIt, flexarbINT8));
 
     if (std::find(ppeTaskTypes.begin(), ppeTaskTypes.end(), "LeakyRelu") != ppeTaskTypes.end())
     {
@@ -692,7 +695,7 @@ void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& 
 // U8 <- [-zp; 255 - zp]
 // I8 <- [-128 - zp; +127 - zp] but ensure that zp is 0
 // The clamp value is stored as is if compute type is U8. Otherwise it must be converted in S16.16
-int32_t computeClampLow(mv::Data::OpListIterator &opIt)
+int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -748,11 +751,14 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt)
         clamp /= alpha;
     }
 
+    if (flex)
+        clamp = -128;
+
     return clamp;
 }
 
 
-int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
+int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
 {
     auto computeDType = opIt->getInputTensor(0)->getDType();
     auto outputDType = opIt->getOutputTensor(0)->getDType();
@@ -803,6 +809,8 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt)
             }
         }
     }
+    if (flex)
+        clamp = 127;
     return clamp;
 }
 
