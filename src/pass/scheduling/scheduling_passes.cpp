@@ -680,6 +680,8 @@ struct OpInfo {
     mv::BarrierDependencies deps;
 };
 
+#define DEBUG_LAYOUT_PASS
+
 OpInfo analyzeOp(mv::Op& op)
 {
     if (op.getOpType() == "DPUTask")
@@ -984,7 +986,11 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
     for (;;)
     {
-        std::fill(portInfos.begin(), portInfos.end(), PortInfo{0});
+        for (auto& portInfo : portInfos)
+        {
+            portInfo = PortInfo{0};
+        }
+
         for (auto& barrierInfo : barrierInfos)
         {
             barrierInfo.startNS = 0;
@@ -1013,7 +1019,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             opInfo.startNS = 0;
             for (auto depWait : opInfo.deps.getWait())
             {
-                opInfo.startNS = std::max(opInfo.startNS, barrierInfos.at(depWait).startNS);
+                opInfo.startNS = std::max(opInfo.startNS, barrierInfos[depWait].startNS);
             }
             if (opInfo.isDMA)
             {
@@ -1022,14 +1028,14 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 std::size_t portIdx = 0;
                 for (auto portIdxT = 1; portIdxT < portLimit; ++portIdxT)
                 {
-                    if (portInfos.at(portIdxT).busyUntil < portInfos.at(portIdx).busyUntil)
+                    if (portInfos[portIdxT].busyUntil < portInfos[portIdx].busyUntil)
                     {
                         portIdx = portIdxT;
                     }
                 }
                 opInfo.portIdx = portIdx;
-                opInfo.startNS = std::max(opInfo.startNS, portInfos.at(portIdx).busyUntil);
-                portInfos.at(portIdx).busyUntil = opInfo.completeNS();
+                opInfo.startNS = std::max(opInfo.startNS, portInfos[portIdx].busyUntil);
+                portInfos[portIdx].busyUntil = opInfo.completeNS();
 #ifdef DEBUG_LAYOUT_PASS
                 std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
 #endif
@@ -1040,7 +1046,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 #endif
             for (auto depUpdate : opInfo.deps.getUpdate())
             {
-                barrierInfos.at(depUpdate).startNS = std::max(barrierInfos.at(depUpdate).startNS, opInfo.completeNS());
+                barrierInfos[depUpdate].startNS = std::max(barrierInfos[depUpdate].startNS, opInfo.completeNS());
             }
             overallLatency = std::max(opInfo.completeNS(), overallLatency);
 #ifdef DEBUG_LAYOUT_PASS
@@ -1055,7 +1061,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         // Compute per-barrier/per-port slack latencies.
         for (size_t barrierIdx = 0; barrierIdx < barrierInfos.size(); ++barrierIdx)
         {
-            auto& barrierInfo = barrierInfos.at(barrierIdx);
+            auto& barrierInfo = barrierInfos[barrierIdx];
 #ifdef DEBUG_LAYOUT_PASS
             std::cerr << "LayoutDMA:   Considering barrier=" << barrierIdx << "; startNS=" << barrierInfo.startNS << "\n";
 #endif
@@ -1080,7 +1086,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                 std::cerr << "LayoutDMA:       Port[" << portIdx << "].slack="
                           << barrierInfo.startNS - portCompleteNS << "\n";
 #endif
-                barrierInfo.portSlackNS.at(portIdx) = barrierInfo.startNS - portCompleteNS;
+                barrierInfo.portSlackNS[portIdx] = barrierInfo.startNS - portCompleteNS;
             }
         }
 
@@ -1124,7 +1130,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             for (auto depUpdate : opInfo.deps.getUpdate())
             {
                 std::uint64_t newStartNS = 0;
-                auto& barrierInfo = barrierInfos.at(depUpdate);
+                auto& barrierInfo = barrierInfos[depUpdate];
                 for (auto opInfoT : barrierInfo.opInfos)
                 {
                     std::uint64_t completeNS = (opInfoT == &opInfo
@@ -1132,11 +1138,11 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                                                 : opInfoT->completeNS());
                     if (opInfoT->isDMA)
                     {
-                        portInfos.at(opInfoT->portIdx).busyUntil = std::max(portInfos.at(opInfoT->portIdx).busyUntil, completeNS);
+                        portInfos[opInfoT->portIdx].busyUntil = std::max(portInfos[opInfoT->portIdx].busyUntil, completeNS);
 #ifdef DEBUG_LAYOUT_PASS
-                        std::cerr << "LayoutDMA:   Port " << opInfoT->portIdx << " barrier slack=" << barrierInfo.portSlackNS.at(opInfoT->portIdx) << "\n";
+                        std::cerr << "LayoutDMA:   Port " << opInfoT->portIdx << " barrier slack=" << barrierInfo.portSlackNS[opInfoT->portIdx] << "\n";
 #endif
-                        plan.slackNS = std::min(barrierInfo.portSlackNS.at(opInfoT->portIdx), plan.slackNS);
+                        plan.slackNS = std::min(barrierInfo.portSlackNS[opInfoT->portIdx], plan.slackNS);
                     }
                     else
                     {
