@@ -680,7 +680,17 @@ struct OpInfo {
     mv::BarrierDependencies deps;
 };
 
-#define DEBUG_LAYOUT_PASS
+struct BarrierInfo
+{
+    std::uint64_t startNS;
+    std::vector<OpInfo*> opInfos;
+    std::vector<std::uint64_t> portSlackNS;
+};
+
+struct PortInfo
+{
+    std::uint64_t busyUntil;
+};
 
 OpInfo analyzeOp(mv::Op& op)
 {
@@ -759,6 +769,89 @@ OpInfo analyzeOp(mv::Op& op)
     }
 
     return OpInfo{&op, false, 0};  // TODO: What other tasks should we handle here?
+}
+
+// Simulates running the model, returning the resulting overall latency.
+//
+// As a side effect, this function recomputes:
+// ) The DMA port assignments for each operation
+// ) The time at which each barrier is expected to become ready
+// ) The time when each operation is expected to start
+std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
+                          std::vector<BarrierInfo>* barrierInfos,
+                          std::vector<PortInfo>* portInfos)
+{
+    for (auto& portInfo : *portInfos)
+    {
+        portInfo = PortInfo{0};
+    }
+
+    for (auto& barrierInfo : *barrierInfos)
+    {
+        barrierInfo.startNS = 0;
+    }
+
+    const auto portLimit = portInfos->size();
+
+    // Compute per-barrier latencies, including port effects.
+    std::uint64_t overallLatency = 0;
+    for (auto& opInfo : *opInfos)
+    {
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
+                  << " ty=" << opInfo.op->getOpType()
+                  << " size=" << opInfo.size
+                  << " wait=";
+        for (auto wait : opInfo.deps.getWait())
+        {
+            std::cerr << wait << " ";
+        }
+        std::cerr << " update=";
+        for (auto update : opInfo.deps.getUpdate())
+        {
+            std::cerr << update << " ";
+        }
+        std::cerr << "\nLayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
+#endif
+        opInfo.startNS = 0;
+        for (auto depWait : opInfo.deps.getWait())
+        {
+            opInfo.startNS = std::max(opInfo.startNS, (*barrierInfos)[depWait].startNS);
+        }
+        if (opInfo.isDMA)
+        {
+            // Assign the DMA to a port, since our model needs to account
+            // for limited port availability.
+            std::size_t portIdx = 0;
+            for (std::size_t portIdxT = 1; portIdxT < portLimit; ++portIdxT)
+            {
+                if ((*portInfos)[portIdxT].busyUntil < (*portInfos)[portIdx].busyUntil)
+                {
+                    portIdx = portIdxT;
+                }
+            }
+            opInfo.portIdx = portIdx;
+            opInfo.startNS = std::max(opInfo.startNS, (*portInfos)[portIdx].busyUntil);
+            (*portInfos)[portIdx].busyUntil = opInfo.completeNS();
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
+#endif
+        }
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
+        std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
+#endif
+        for (auto depUpdate : opInfo.deps.getUpdate())
+        {
+            (*barrierInfos)[depUpdate].startNS = std::max((*barrierInfos)[depUpdate].startNS, opInfo.completeNS());
+        }
+        overallLatency = std::max(opInfo.completeNS(), overallLatency);
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "\n";
+#endif
+    }
+
+    return overallLatency;
 }
 
 void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
@@ -856,34 +949,36 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // favor of the smaller weight tensor (the better to spread slack
     // latency around the overall computation).
     //
-    // (Note that we rebuild our per-barrier start times after each DMA
-    // source reassignment.  The reason is that this can affect port
-    // assignments and downstream barrier times -- so for correctness,
-    // we ought to re-model the entire network forward from each
-    // proposed weight tensor source modification in order to determine
-    // an accurate savings.  We don't do this, simply because the
-    // per-barrier cost approximation is correct for all networks we're
-    // currently optimizing for, and it's expected to produce almost
-    // identical results as the full network remodel.)
+    // Note that we do not rebuild our per-barrier start times after
+    // each DMA source reassignment.  The reason is that while moving
+    // a weight tensor to CSRAM can affect the benefit of moving other
+    // tensors, it typically won't, and incorporating that benefit
+    // requires O(n^2) time, which turns out to be problematic for the
+    // networks we care about, even with some work done to reduce the
+    // relevant constant factors.
     //
-    // There's a major limitation to this algorithm:
+    // There're two minor limitations to this algorithm:
     //
-    //   Since there may be multiple DMA controllers operating in
-    //   parallel, there will be cases where moving one of two weight
-    //   tensors to CSRAM provides almost no benefit, but where moving
-    //   both tensors provides a substantial benefit.
+    //   1) Since there may be multiple DMA controllers operating in
+    //      parallel, there will be cases where moving one of two
+    //      weight tensors to CSRAM provides almost no benefit, but
+    //      where moving both tensors provides a substantial benefit
+    //      (although note that this benefit will always be at double
+    //      the CSRAM cost compared to cases where moving a single
+    //      tensor provides a speedup).
     //
-    //   To solve this, a future version of this code might model weight
-    //   tensor groups, trying to identify sets of tensors that, when
-    //   moved to CSRAM together, provide a performance benefit
-    //   commensurate with their cost.
+    //      To solve this, a future version of this code might model
+    //      weight tensor groups, trying to identify sets of tensors
+    //      that, when moved to CSRAM together, provide a performance
+    //      benefit commensurate with their cost.
     //
-    // There's another minor limitation: because we're considering
-    // operations in turn, and because we're unconcerned with loops, we
-    // will underestimate the impact of a weight tensor that's used
-    // multiple times.  In practice, that's not a concern for current
-    // networks we're optimizing for, but we may want to handle that
-    // case correctly in the future.
+    //   2) There's another minor limitation: because we're
+    //      considering operations in turn, and because we're
+    //      unconcerned with loops, we will underestimate the impact
+    //      of a weight tensor that's used multiple times.  In
+    //      practice, that's not a concern for current networks we're
+    //      optimizing for, but we may want to handle that case
+    //      correctly in the future.
 
     unsigned opLimit = 0;
     unsigned barrierMax = 0;
@@ -939,13 +1034,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 #endif
     }
 
-    struct BarrierInfo
-    {
-        std::uint64_t startNS;
-        std::vector<OpInfo*> opInfos;
-        std::vector<std::uint64_t> portSlackNS;
-    };
-
     std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, {}, std::vector<std::uint64_t>(portLimit, 0)});
     for (auto& opInfo : opInfos)
     {
@@ -954,11 +1042,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             barrierInfos[depUpdate].opInfos.emplace_back(&opInfo);
         }
     }
-
-    struct PortInfo
-    {
-        std::uint64_t busyUntil;
-    };
 
     std::vector<PortInfo> portInfos(portLimit);
 
@@ -986,73 +1069,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
 
     for (;;)
     {
-        for (auto& portInfo : portInfos)
-        {
-            portInfo = PortInfo{0};
-        }
-
-        for (auto& barrierInfo : barrierInfos)
-        {
-            barrierInfo.startNS = 0;
-        }
-
-        // Compute per-barrier latencies, including port effects.
-        std::uint64_t overallLatency = 0;
-        for (auto& opInfo : opInfos)
-        {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
-                      << " ty=" << opInfo.op->getOpType()
-                      << " size=" << opInfo.size
-                      << " wait=";
-            for (auto wait : opInfo.deps.getWait())
-            {
-                std::cerr << wait << " ";
-            }
-            std::cerr << " update=";
-            for (auto update : opInfo.deps.getUpdate())
-            {
-                std::cerr << update << " ";
-            }
-            std::cerr << "\nLayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
-#endif
-            opInfo.startNS = 0;
-            for (auto depWait : opInfo.deps.getWait())
-            {
-                opInfo.startNS = std::max(opInfo.startNS, barrierInfos[depWait].startNS);
-            }
-            if (opInfo.isDMA)
-            {
-                // Assign the DMA to a port, since our model needs to account
-                // for limited port availability.
-                std::size_t portIdx = 0;
-                for (auto portIdxT = 1; portIdxT < portLimit; ++portIdxT)
-                {
-                    if (portInfos[portIdxT].busyUntil < portInfos[portIdx].busyUntil)
-                    {
-                        portIdx = portIdxT;
-                    }
-                }
-                opInfo.portIdx = portIdx;
-                opInfo.startNS = std::max(opInfo.startNS, portInfos[portIdx].busyUntil);
-                portInfos[portIdx].busyUntil = opInfo.completeNS();
-#ifdef DEBUG_LAYOUT_PASS
-                std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
-#endif
-            }
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
-            std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
-#endif
-            for (auto depUpdate : opInfo.deps.getUpdate())
-            {
-                barrierInfos[depUpdate].startNS = std::max(barrierInfos[depUpdate].startNS, opInfo.completeNS());
-            }
-            overallLatency = std::max(opInfo.completeNS(), overallLatency);
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "\n";
-#endif
-        }
+        std::uint64_t overallLatency = simRunModel(&opInfos, &barrierInfos, &portInfos);
 
 #ifdef DEBUG_LAYOUT_PASS
         std::cerr << "LayoutDMA: Computing slack\n";
