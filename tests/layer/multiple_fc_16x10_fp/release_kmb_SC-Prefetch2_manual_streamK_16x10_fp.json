@@ -232,7 +232,10 @@
             "EltwiseToSWEltwise",
             "StoreGraphOptimizerDecisions",
             "ComputeSparsitySolution",
-            "StreamingOperations",
+            {
+                "name": "StreamingOperations",
+                "alignment" : 16
+            },
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]
