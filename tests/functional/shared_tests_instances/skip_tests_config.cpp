@@ -14,6 +14,11 @@ std::vector<std::string> disabledTestPatterns() {
         ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
         ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
 
+        ".*CorrectConfigTests.*",
+        ".*IncorrectConfigTests.*",
+        ".*IncorrectConfigAPITests.*",
+        ".*CorrectConfigAPITests.*",
+
         // double free detected
         // [Track number: S#27337]
         ".*Behavior.*ExecGraphTests.*",
