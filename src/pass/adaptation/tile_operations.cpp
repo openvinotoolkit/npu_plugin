@@ -7,9 +7,9 @@
 #include <cmath>
 
 const size_t MAX_LIMIT_KERNEL = 11;
-const size_t MID_LIMIT_KERNEL_H = 7;
+const size_t MID_LIMIT_KERNEL_H = 5;
 const size_t MID_LIMIT_KERNEL_W = 5;
-const size_t NUMBER_OF_PARTITIONS = 6;
+const size_t NUMBER_OF_PARTITIONS = 9;
 const size_t GROUP_DILATION = 1;
 
 static void tileOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -196,7 +196,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
     mv::Shape beginInputShape, branchInputSize, beginWeightShape, branchWeightSize;
     std::size_t branchWidth, branchHeight;
-    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, placeAdd3, placeAdd4, conv, bias, newBias;
+    mv::Data::TensorIterator placeAdd0, placeAdd1, placeAdd2, placeAdd3, placeAdd4, placeAdd5, placeAdd6, placeAdd7, conv, bias, newBias;
     std::vector <mv::Data::TensorIterator> convs;
     std::size_t partitionedKernelHeight = oldKernelSize;
     std::size_t partitionedKernelWidth = oldKernelSize;
@@ -212,6 +212,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         //Pad quadrant 2 with real data from top
         //Pad quadrant 3 with real data from left
         bool isasymmetric = false;
+        bool propogateDType = true;
         int largeDim = 0;
         if (branchId == 0)
         {
@@ -220,7 +221,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
             beginInputShape = {0,0,0,0};
             beginWeightShape = {0,0,0,0};
-
+            propogateDType = false; // branch 1 will propogate, no need to do twice
             // padding = {initialPadding[0], 0, initialPadding[2], 0};
          }
         else if (branchId == 1)
@@ -244,7 +245,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         }
         else if (branchId == 3)
         {
-            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelHeight = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
             partitionedKernelWidth = MID_LIMIT_KERNEL_W;
 
             beginInputShape = {0, MID_LIMIT_KERNEL_H,0,0};
@@ -254,22 +255,51 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         }
         else if (branchId == 4)
         {
-            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelHeight = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
             partitionedKernelWidth = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
 
             beginInputShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H,0,0};
-           
             beginWeightShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H,0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
+        }
+        else if (branchId == 5)
+        {
+            partitionedKernelHeight = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
+            partitionedKernelWidth = std::floor((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
+        }
+        else if (branchId == 6)
+        {
+            partitionedKernelHeight = std::floor((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
+            partitionedKernelWidth = MID_LIMIT_KERNEL_W;
+
+            beginInputShape = {0, MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
+            beginWeightShape = {0, MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
+
+            // padding = {0, initialPadding[1], 0, initialPadding[3]};
+        }
+        else if (branchId == 7)
+        {
+            partitionedKernelHeight = std::floor((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
+            partitionedKernelWidth = std::ceil((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
+
+            beginInputShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W, MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
 
             // padding = {0, initialPadding[1], 0, initialPadding[3]};
         }
         else
         {
-            partitionedKernelHeight = oldKernelSize - MID_LIMIT_KERNEL_H;
+            partitionedKernelHeight = std::floor((oldKernelSize - MID_LIMIT_KERNEL_H)/2);
             partitionedKernelWidth = std::floor((oldKernelSize - MID_LIMIT_KERNEL_W)/2);
 
-            beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
-            beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W),MID_LIMIT_KERNEL_H,0,0};
+            beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W), MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
+            beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W), MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
 
             // padding = {0, initialPadding[1], 0, initialPadding[3]};
         }
@@ -328,6 +358,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         auto sliceInputOp = om.getSourceOp(sliceInput);
         auto sliceWeightOp = om.getSourceOp(sliceWeight);
         convOp->set<unsigned>("opId", initialOpId);
+        convOp->set<bool>("partitionedKernelToAdd", propogateDType);
         sliceInputOp->set<unsigned>("opId", initialOpId);
         sliceWeightOp->set<unsigned>("opId", initialOpId);
 
@@ -342,17 +373,29 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition3");
     placeAdd4 = om.eltwise({placeAdd3, convs[5]}, "Add",
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition4");
-    nextOpIt->setInputTensor(placeAdd4, 0, false );
+    placeAdd5 = om.eltwise({placeAdd4, convs[6]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition5");
+    placeAdd6 = om.eltwise({placeAdd5, convs[7]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition6");
+    placeAdd7 = om.eltwise({placeAdd6, convs[8]}, "Add",
+                mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition7");
+    nextOpIt->setInputTensor(placeAdd7, 0, false );
     auto placeAdd0Op = om.getSourceOp(placeAdd0);
     auto placeAdd1Op = om.getSourceOp(placeAdd1);
     auto placeAdd2Op = om.getSourceOp(placeAdd2);
     auto placeAdd3Op = om.getSourceOp(placeAdd3);
     auto placeAdd4Op = om.getSourceOp(placeAdd4);
+    auto placeAdd5Op = om.getSourceOp(placeAdd5);
+    auto placeAdd6Op = om.getSourceOp(placeAdd6);
+    auto placeAdd7Op = om.getSourceOp(placeAdd7);
     placeAdd0Op->set<unsigned>("opId", initialOpId);
     placeAdd1Op->set<unsigned>("opId", initialOpId);
     placeAdd2Op->set<unsigned>("opId", initialOpId);
     placeAdd3Op->set<unsigned>("opId", initialOpId);
     placeAdd4Op->set<unsigned>("opId", initialOpId);
-    om.defineFlow(placeAdd4, nextOpIt, 0);
+    placeAdd5Op->set<unsigned>("opId", initialOpId);
+    placeAdd6Op->set<unsigned>("opId", initialOpId);
+    placeAdd7Op->set<unsigned>("opId", initialOpId);
+    om.defineFlow(placeAdd7, nextOpIt, 0);
     om.removeOp(opIt);
 }

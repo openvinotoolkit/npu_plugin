@@ -153,6 +153,16 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 //                opIt->set<mv::DType>("dType", mv::DType("Float16"));
                 bool hasBias = opIt->hasAttr("bias");
 
+                // If this conv was a tiled conv, pass the conversion to the adds as well
+                if(opIt->hasAttr("partitionedKernelToAdd"))
+                {
+                    if(opIt->get<bool>("partitionedKernelToAdd"))
+                    {
+                        auto partitionAdd = opIt.leftmostOutput().sink();
+                        partitionAdd->getOutputTensor(0)->set<mv::DType>("dType", mv::DType("Float16"));
+                    }
+                }
+
                 if (opIt->hasWeights())
                 {
                     double real_weight;
