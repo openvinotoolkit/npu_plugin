@@ -108,6 +108,9 @@ struct ConvolutionLayerDef final {
         return *this;
     }
     ConvolutionLayerDef& biases(const Blob::Ptr& blob) {
+        if (blob == nullptr) {
+            return *this;
+        }
         const auto biasesLayerName = name + "_biases";
         testNet.addConst(biasesLayerName, blob);
         return biases(biasesLayerName);

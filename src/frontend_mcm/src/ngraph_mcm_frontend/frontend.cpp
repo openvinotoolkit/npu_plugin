@@ -107,6 +107,10 @@ std::vector<char> compileNGraph(
 
         mcmCompDesc.setPassArg("GlobalConfigParams", "verbose", cvtLogLevelToMCM(config.mcmLogLevel()));
 
+        if (config.referenceMode()) {
+            mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
+        }
+
         IE_ASSERT(mcmCompiler.initialize());
     }
 

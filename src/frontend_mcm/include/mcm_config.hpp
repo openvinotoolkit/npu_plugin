@@ -63,6 +63,8 @@ public:
 
     bool scaleFuseInput() const { return _scaleFuseInput; }
 
+    bool referenceMode() const { return _referenceMode; }
+
     const std::unordered_set<std::string>& getCompileOptions() const override;
 
 protected:
@@ -96,6 +98,8 @@ private:
     std::string _mcmCompilationPassBanList = "";
 
     bool _scaleFuseInput = true;
+
+    bool _referenceMode = false;
 };
 
 }  //  namespace vpu
