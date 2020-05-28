@@ -276,8 +276,10 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
             }
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
                         outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
-            quantize->set<std::string>("splitStrategy",
-                        outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
+            if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
+                quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
             outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",
