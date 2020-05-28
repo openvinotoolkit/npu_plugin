@@ -200,3 +200,10 @@ std::shared_ptr<std::vector<char>> mv::CompilationUnit::getBlob() const
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(targetDescriptor_);
     return rm.getBlob();
 }
+
+const mv::BufferMap& mv::CompilationUnit::getBufferMap() const
+{
+    if(!completed())
+        throw RuntimeError(*this, "Attempt of quering the buffer map before the completion of the compilation");
+    return model_->bufferMap();
+}

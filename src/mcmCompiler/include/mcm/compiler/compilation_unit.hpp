@@ -33,7 +33,6 @@ namespace mv
         const static unsigned jsonParserBufferLength_ = 256;
 
     public:
-        std::shared_ptr<std::vector<char> > getBlob() const;
 
         CompilationUnit(const std::string& modelName);
         ~CompilationUnit();
@@ -50,6 +49,9 @@ namespace mv
         Element runStep();
         Element run();
         bool completed() const;
+
+        std::shared_ptr<std::vector<char> > getBlob() const;
+        const BufferMap& getBufferMap() const;
 
         virtual std::string getLogID() const override;
 
