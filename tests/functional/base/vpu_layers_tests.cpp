@@ -86,6 +86,9 @@ void vpuLayersTests::TearDown() {
             std::cout << "[ VALUE    ] \t" << value_param << std::endl;
         }
     }
+    // FIXME: reset cache every time to work-around hangs in VPU runtime
+    // Track number: H#18011604417
+    PluginCache::get().reset();
 }
 
 void vpuLayersTests::SetSeed(uint32_t seed) {
