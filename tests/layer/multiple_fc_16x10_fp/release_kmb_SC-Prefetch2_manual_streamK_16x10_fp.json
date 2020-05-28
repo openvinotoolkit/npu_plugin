@@ -173,25 +173,25 @@
                         "weightsSparsity": false
                     },
                     {
-                        "inputActivationSparsity": true,
+                        "inputActivationSparsity": false,
                         "name_filter": "fc_0",
-                        "outputActivationSparsity": true,
+                        "outputActivationSparsity": false,
                         "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": true,
+                        "inputActivationSparsity": false,
                         "name_filter": "fc_1",
-                        "outputActivationSparsity": true,
+                        "outputActivationSparsity": false,
                         "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": true,
+                        "inputActivationSparsity": false,
                         "name_filter": "fc_2",
-                        "outputActivationSparsity": true,
+                        "outputActivationSparsity": false,
                         "weightsSparsity": true
                     },
                     {
-                        "inputActivationSparsity": true,
+                        "inputActivationSparsity": false,
                         "name_filter": "fc_3",
                         "outputActivationSparsity": false,
                         "weightsSparsity": true
@@ -199,7 +199,7 @@
                     {
                         "inputActivationSparsity": false,
                         "name_filter": "Input_0",
-                        "outputActivationSparsity": true,
+                        "outputActivationSparsity": false,
                         "weightsSparsity": false
                     }
                 ]
