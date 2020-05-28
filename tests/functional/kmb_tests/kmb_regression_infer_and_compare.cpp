@@ -70,8 +70,7 @@ TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mod
     std::string weightsPath = ModelsPath() + path_to_files.path_to_weights;
     std::string inputPath = get_data_path() + path_to_files.path_to_input;
 
-    Core ie;
-    CNNNetwork network = ie.ReadNetwork(irXmlPath, weightsPath);
+    CNNNetwork network = core->ReadNetwork(irXmlPath, weightsPath);
 
     InputsDataMap inputInfo = network.getInputsInfo();
     for (auto& item : inputInfo) {
@@ -79,7 +78,7 @@ TEST_P(VpuInferAndCompareTests, TargetCompilation) {  // To be run in manual mod
     }
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    exeNetwork = ie.LoadNetwork(network, deviceName);
+    exeNetwork = core->LoadNetwork(network, deviceName);
 #ifdef __arm__
     int batch = 1;
 

@@ -233,7 +233,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     fillFcIR(model, input_dims, weightsBufferOffset, weightsByteSize, weightsBufferOffset + weightsByteSize,
         biasByteSize, outChannels);
 
-    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+    CNNNetwork network = core->ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -245,7 +245,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(network, deviceName, config));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
@@ -300,7 +300,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
 
     fillFcIR(model, input_dims, 0, weightsByteSize, weightsByteSize, biasByteSize, outChannels);
 
-    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+    CNNNetwork network = core->ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -313,7 +313,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    (executableNetwork = ie.LoadNetwork(network, deviceName, config));
+    (executableNetwork = core->LoadNetwork(network, deviceName, config));
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
 
     InferenceEngine::InferRequest inferRequest;

@@ -74,6 +74,7 @@ void vpuLayersTests::SetUp() {
     _genDataCallback = GenRandomData;
     TestsCommon::SetUp();
     SetSeed(DEFAULT_SEED_VALUE);
+    core = PluginCache::get().ie();
 }
 
 void vpuLayersTests::TearDown() {
@@ -357,7 +358,7 @@ void vpuLayersTests::setup(
     for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
     }
-    std::map<std::string, std::string> config(_config);
+    std::map<std::string, std::string> config(config);
     if (useHWOpt) {
         config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(YES);
     } else {
@@ -369,7 +370,7 @@ void vpuLayersTests::setup(
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
     config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
 
-    _exeNetwork = ie.LoadNetwork(network, "KMB", config);
+    _exeNetwork = core->LoadNetwork(network, deviceName, config);
     _inputsInfo = network.getInputsInfo();
     _outputsInfo = network.getOutputsInfo();
     genInputBlobs(inputPrecision);
