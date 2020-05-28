@@ -396,6 +396,14 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
     placeAdd5Op->set<unsigned>("opId", initialOpId);
     placeAdd6Op->set<unsigned>("opId", initialOpId);
     placeAdd7Op->set<unsigned>("opId", initialOpId);
+    placeAdd0Op->set<bool>("floatPrecision", true);
+    placeAdd1Op->set<bool>("floatPrecision", true);
+    placeAdd2Op->set<bool>("floatPrecision", true);
+    placeAdd3Op->set<bool>("floatPrecision", true);
+    placeAdd4Op->set<bool>("floatPrecision", true);
+    placeAdd5Op->set<bool>("floatPrecision", true);
+    placeAdd6Op->set<bool>("floatPrecision", true);
+    placeAdd7Op->set<bool>("floatPrecision", true);
     om.defineFlow(placeAdd7, nextOpIt, 0);
     om.removeOp(opIt);
 }
