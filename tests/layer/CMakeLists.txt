@@ -209,4 +209,7 @@ else()
     add_executable(multiple_fc_16x10_fp multiple_fc_16x10_fp/multiple_fc_16x10_fp.cpp)
     target_link_libraries(multiple_fc_16x10_fp cm)
 
+    add_executable(multiple_fc_16x40_fp multiple_fc_16x40_fp/multiple_fc_16x40_fp.cpp)
+    target_link_libraries(multiple_fc_16x40_fp cm)
+
 endif(MSVC)
