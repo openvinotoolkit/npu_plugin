@@ -450,11 +450,7 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
             {
                 auto activationStorageElement
                         = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("storageElementIndex"));
-                auto activationSparsityMap
-                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("unpopulatedSparsityMapIndex"));
                 dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
-                dpuTaskOp->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
-                dpuTaskOp->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
                 populateActivationStorageElementMap(activationStorageElement, dpuTaskOp);
             }
         }

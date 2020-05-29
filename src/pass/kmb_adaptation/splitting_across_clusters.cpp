@@ -83,11 +83,11 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                if (layer->hasAttr("unpopulatedSparsityMapIndex"))
-                {
-                    if (i == layer->hasAttr("unpopulatedSparsityMapIndex"))
-                        specialTensorNames.insert(layer->getInputTensor(i)->getName());
-                }
+                if ((layer->hasAttr("unpopulatedSparsityMapIndex") &&
+                    i == layer->get<size_t>("unpopulatedSparsityMapIndex"))
+                    || (layer->hasAttr("storageElementIndex") &&
+                    i == layer->get<size_t>("storageElementIndex")))
+                    specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
                     auto inputTensorName = layer->getInputTensor(i)->getName();

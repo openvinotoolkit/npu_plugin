@@ -1323,8 +1323,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (inputTensor->hasAttr("activationSparsityCompilerSolving")
         && inputTensor->get<bool>("activationSparsityCompilerSolving"))
     {
-        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
-        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+        auto seTensorIdx = opIt->get<std::size_t>("storageElementIndex");
+        toBuild->input_data->data->storage_element_index =
+            opIt->getInputTensor(seTensorIdx)
+                ->getAddress();
+        auto smTensorIdx = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->sparsity_index =
+            opIt->getInputTensor(smTensorIdx)
+                ->getAddress();
     }
 
     //output
@@ -1438,8 +1444,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if (parentInputTensor->hasAttr("activationSparsityCompilerSolving")
         && parentInputTensor->get<bool>("activationSparsityCompilerSolving"))
     {
-        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
-        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+        auto seTensorIdx = opIt->get<std::size_t>("storageElementIndex");
+        toBuild->input_data->data->storage_element_index =
+            opIt->getInputTensor(seTensorIdx)
+                ->getSubTensor(clusterId)
+                .getAddress();
+        auto smTensorIdx = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->sparsity_index =
+            opIt->getInputTensor(smTensorIdx)
+                ->getSubTensor(clusterId)
+                .getAddress();
     }
 
     //output
