@@ -15,7 +15,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
@@ -94,6 +94,7 @@
     },
     "quantization" : {
         "Singular" : [
+	    "SelectiveCMconv",
             "FakeQuantize"
         ]
     },

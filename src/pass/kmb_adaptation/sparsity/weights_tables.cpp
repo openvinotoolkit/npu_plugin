@@ -528,7 +528,7 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
         if(dpuTaskOp->getOpType() == "DPUTask")
         {
             auto taskOpType = dpuTaskOp->get<std::string>("taskOp");
-            if(taskOpType == "Conv" && dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("firstConvWithLRelu")
+            if((taskOpType == "Conv" || taskOpType == "ChannelMajorConvolution") && dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("firstConvWithLRelu")
                     && dpuTaskOp->get<bool>("firstConvWithLRelu"))
             {
                 auto ppeIterator = std::find(dpuTaskOp->get<std::vector<std::string>>("postOpTypes").begin(),

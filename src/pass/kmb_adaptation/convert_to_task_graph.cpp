@@ -139,9 +139,9 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    bool disableCMconv = attrs.at("disableCMconv").get<bool>();
     auto globalParams = om.getGlobalConfigParams();
     bool enableChannelMajor = globalParams->get<bool>("enable_channel_major_conv");
-
     unsigned group = attrs.at("group").get<unsigned>();
 
     auto dpuConv = om.dPUTaskConv(inputs, strides, padding, dilationFactor, group, outputTensorType, quantParams, mv::createDPUTaskName(name));
@@ -151,10 +151,20 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
 
     //    NOTE: Thanks to proper padding handling we don't need this anymore
     //    Leaving it here as an historical note... and now it's back as an option
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+    //    Check if the dpuConvop is DW, if DW, it can't be channel major conv
+    bool notDW = true;
+    if(dpuConvOp->hasAttr("taskOp"))
     {
-       dpuConvOp->erase("taskOp");
-       dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+        if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
+            notDW = false;
+    }
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and notDW)
+    {
+        if (!disableCMconv)
+        {
+           dpuConvOp->erase("taskOp");
+           dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+        }
     }
 
     return dpuConv;
@@ -558,11 +568,17 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         for(auto& opIt: ops)
         {
             bool software = false;
+            bool disableCMconv = false;
             //Note: That condition is coming due to limitations like add with different scales
             if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
                 software = true;
+            if (opIt->hasAttr("enableCMconv"))
+                disableCMconv = true;
+            else
+                disableCMconv = false;
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
+            attrsToCopy.insert(std::pair<std::string, bool>("disableCMconv", disableCMconv));
             auto inputs = opIt->getInputTensor();
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
