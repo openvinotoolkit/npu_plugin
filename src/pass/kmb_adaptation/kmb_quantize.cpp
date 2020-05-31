@@ -62,8 +62,9 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 }
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
-                quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                if (tensor->hasAttr("splitStrategy"))
+                    quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
+                
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
@@ -161,8 +162,8 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
                 {
                     quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
-                    quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                    if (tensor->hasAttr("splitStrategy"))
+                        quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                     auto quantizeOp = om.getSourceOp(quantize);
                     quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
                 }
