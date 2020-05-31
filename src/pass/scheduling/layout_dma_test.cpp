@@ -82,7 +82,7 @@ class LayoutDMATest : public ::testing::Test {
 };
 
 // Verify that all graphfile tensors are assigned sequential indices.
-TEST_F(LayoutDMATest, smoke)
+TEST_F(LayoutDMATest, DISABLED_smoke)
 {
     mv::CompilationUnit unit{"conv"};
     LoadModel(&unit);
@@ -116,7 +116,7 @@ TEST_F(LayoutDMATest, smoke)
 }
 
 // Verify that the highest-priority tensor is still highest-priority with reduced CSRAM.
-TEST_F(LayoutDMATest, high_priority_preserved)
+TEST_F(LayoutDMATest, DISABLED_high_priority_preserved)
 {
     std::string name;
     unsigned size = 0;
@@ -179,7 +179,7 @@ TEST_F(LayoutDMATest, high_priority_preserved)
 // Verify that the highest-priority tensor is not the highest priority
 // when there's insufficient CSRAM.  (NB this depends on the
 // particular network we happen to be using.)
-TEST_F(LayoutDMATest, alternative_high_priority)
+TEST_F(LayoutDMATest, DISABLED_alternative_high_priority)
 {
     std::string name;
     unsigned size = 0;
