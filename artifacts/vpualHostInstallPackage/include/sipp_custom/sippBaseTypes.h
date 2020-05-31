@@ -1,11 +1,22 @@
-// -----------------------------------------------------------------------------
-// Copyright (C) 2015 Movidius Ltd. All rights reserved
+// 
+// ///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
+/// @file 		sippBaseTypes.h
+/// @copyright 	All code copyright Movidius Ltd 2015, all rights reserved.
+///            	For License Warranty see: common/license.txt
+///
+/// @brief     	Public header file for SIPP base types
+//             	Aim to replace with a generic moviTypes.h file if one exists
 //
-// Company          : Movidius
-// Description      : Public header file for SIPP base types
-//                    Aim to replace with a generic moviTypes.h file if one exists
 //
-// -----------------------------------------------------------------------------
 
 #ifndef _SIPP_BASE_TYPES_H_
 #define _SIPP_BASE_TYPES_H_

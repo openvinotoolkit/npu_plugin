@@ -38,7 +38,7 @@ TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias) {
 
     // Parsing only is enabled because mcmCompiler can't compile layers.
     // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    _config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     NetworkInit("Bias", nullptr, 0, biasesSize, weightsBlob,
         Precision::FP16  // output precision

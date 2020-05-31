@@ -118,7 +118,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -136,7 +136,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 // [Track number: S#27195]
@@ -180,7 +180,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
         )V0G0N";
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -194,7 +194,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
@@ -217,7 +217,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     genXML("ReLU", &params, 0, 0, xml);
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(xml, Blob::CPtr()));
+    ASSERT_NO_THROW(network = core->ReadNetwork(xml, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
@@ -234,7 +234,7 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
     // TODO disable 'parse only' and find out why LoadNetwork fails
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 static const tensor_test_params paramsTable[] = {

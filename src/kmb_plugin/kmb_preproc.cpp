@@ -21,8 +21,7 @@ bool useSIPP() {
 #if defined(__arm__) || defined(__aarch64__)
     const bool USE_SIPP = [](const char* str) -> bool {
         std::string var(str ? str : "");
-        // we consider if USE_SIPP is not defined then SIPP is enabled
-        return var == "Y" || var == "YES" || var == "ON" || var == "1" || var == "";
+        return var == "Y" || var == "YES" || var == "ON" || var == "1";
     }(std::getenv("USE_SIPP"));
 
     return USE_SIPP;

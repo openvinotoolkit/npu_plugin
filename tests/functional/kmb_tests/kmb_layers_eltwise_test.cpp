@@ -66,7 +66,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTheSameInputToBothPortsNegative_Test)
     const std::string model = instantiateConvTestIR(allTestParams);
 
     Core ie;
-    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+    CNNNetwork network = core->ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -81,7 +81,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTheSameInputToBothPortsNegative_Test)
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_ANY_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 // MCM compiler does not support multiple Input layers
@@ -110,7 +110,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     const std::string model = instantiateConvTestIR(allTestParams);
 
     Core ie;
-    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+    CNNNetwork network = core->ReadNetwork(model, weightsBuffer);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -126,7 +126,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTwoDifferentInputsNegative_Test) {
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_ANY_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_ANY_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 static std::vector<eltwise_test_params> test_params = {
@@ -160,7 +160,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     const std::string model = instantiateConvTestIR(allTestParams);
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBuffer));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBuffer));
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -186,7 +186,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 
 // [Track number: S#23769]
@@ -468,14 +468,14 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBlob));
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 INSTANTIATE_TEST_CASE_P(accuracy, EltwiseTest, ::testing::ValuesIn(test_params));

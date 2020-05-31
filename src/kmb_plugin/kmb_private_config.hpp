@@ -39,7 +39,7 @@ DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: "YES", "NO", default is "YES"
+ * Type: "YES", "NO", default is "NO"
  * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_SIPP);

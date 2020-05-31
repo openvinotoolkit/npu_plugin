@@ -72,7 +72,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
     }
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, convolutionWeightsBuffer));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, convolutionWeightsBuffer));
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -88,7 +88,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());
@@ -148,7 +148,7 @@ TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -164,7 +164,7 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -218,7 +218,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     std::list<InferenceEngine::InferRequest> requestList;
     const int REQUEST_LIMIT = 10;
@@ -298,9 +298,8 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     std::list<InferenceEngine::InferRequest> requestList;
     const int REQUEST_LIMIT = 10;
@@ -381,9 +380,8 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -455,9 +453,8 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobInput) {
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -490,9 +487,8 @@ TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobOutput) {
     std::string graphSuffix = blobsInfo._graphPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -533,9 +529,8 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndGetBlobAfterInfer) {
     std::string inputNameFilePath = ModelsPath() + inputSuffix;
     std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest1;
     ASSERT_NO_THROW(inferRequest1 = importedNetwork.CreateInferRequest());
@@ -600,9 +595,9 @@ TEST_F(kmbSetBlob, compareSetBlobAllocation) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork mobilNImportedNetwork;
-    ASSERT_NO_THROW(mobilNImportedNetwork = ie.ImportNetwork(mobilenetModelFilePath, deviceName));
+    ASSERT_NO_THROW(mobilNImportedNetwork = core->ImportNetwork(mobilenetModelFilePath, deviceName));
     InferenceEngine::ExecutableNetwork resNImportedNetwork;
-    ASSERT_NO_THROW(resNImportedNetwork = ie.ImportNetwork(resnetModelFilePath, deviceName));
+    ASSERT_NO_THROW(resNImportedNetwork = core->ImportNetwork(resnetModelFilePath, deviceName));
 
     InferenceEngine::InferRequest mobilNInferRequest;
     ASSERT_NO_THROW(mobilNInferRequest = mobilNImportedNetwork.CreateInferRequest());
@@ -633,9 +628,9 @@ TEST_P(VpuInferWithPath, DISABLED_compareOutputsTwoNetworks) {
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork1;
-    ASSERT_NO_THROW(importedNetwork1 = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork1 = core->ImportNetwork(modelFilePath, deviceName));
     InferenceEngine::ExecutableNetwork importedNetwork2;
-    ASSERT_NO_THROW(importedNetwork2 = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork2 = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest1;
     ASSERT_NO_THROW(inferRequest1 = importedNetwork1.CreateInferRequest());
@@ -697,9 +692,8 @@ TEST_P(VpuInferWithPath, DISABLED_compareSetBlobAndInfer) {
     std::string inputNameFilePath = ModelsPath() + inputSuffix;
     std::string outputNameFilePath = ModelsPath() + outputSuffix;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -743,12 +737,16 @@ class vpuInferWithSetUp : public vpuLayersTests {
 public:
     std::stringstream out;
     Regression::basic_streambuf<char, std::char_traits<char>>* ptr;
-    virtual void SetUp() {
+    void SetUp() override {
+        vpuLayersTests::SetUp();
         ptr = std::cout.rdbuf();
         std::cout.rdbuf(out.rdbuf());
     }
 
-    virtual void TearDown() { std::cout.rdbuf(ptr); }
+    void TearDown() override {
+        vpuLayersTests::TearDown();
+        std::cout.rdbuf(ptr);
+    }
 };
 
 TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
@@ -761,9 +759,8 @@ TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
     fileOutputBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(outputNameFilePath, fileOutputBlob));
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
@@ -819,9 +816,8 @@ TEST_P(VpuInferWithPathForTop3Net, canDoInferenceOnTop3ImportedBlobs) {
     std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;
     std::string refOutputPath = ModelsPath() + blobsInfo._outputPath;
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());

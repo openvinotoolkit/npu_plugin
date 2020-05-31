@@ -245,10 +245,12 @@ struct IndirectDataReferenceT : public flatbuffers::NativeTable {
   uint64_t data_index;
   uint64_t sparsity_index;
   uint64_t storage_element_index;
+  uint32_t storage_element_size;
   IndirectDataReferenceT()
       : data_index(999999999999999999),
         sparsity_index(999999999999999999),
-        storage_element_index(999999999999999999) {
+        storage_element_index(999999999999999999),
+        storage_element_size(0) {
   }
 };
 
@@ -257,7 +259,8 @@ struct IndirectDataReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_DATA_INDEX = 4,
     VT_SPARSITY_INDEX = 6,
-    VT_STORAGE_ELEMENT_INDEX = 8
+    VT_STORAGE_ELEMENT_INDEX = 8,
+    VT_STORAGE_ELEMENT_SIZE = 10
   };
   /// Index/Offsets from the start of a memory location (see MemoryLocation)
   ///
@@ -280,11 +283,15 @@ struct IndirectDataReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Tabl
   uint64_t storage_element_index() const {
     return GetField<uint64_t>(VT_STORAGE_ELEMENT_INDEX, 999999999999999999);
   }
+  uint32_t storage_element_size() const {
+    return GetField<uint32_t>(VT_STORAGE_ELEMENT_SIZE, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint64_t>(verifier, VT_DATA_INDEX) &&
            VerifyField<uint64_t>(verifier, VT_SPARSITY_INDEX) &&
            VerifyField<uint64_t>(verifier, VT_STORAGE_ELEMENT_INDEX) &&
+           VerifyField<uint32_t>(verifier, VT_STORAGE_ELEMENT_SIZE) &&
            verifier.EndTable();
   }
   IndirectDataReferenceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -304,6 +311,9 @@ struct IndirectDataReferenceBuilder {
   void add_storage_element_index(uint64_t storage_element_index) {
     fbb_.AddElement<uint64_t>(IndirectDataReference::VT_STORAGE_ELEMENT_INDEX, storage_element_index, 999999999999999999);
   }
+  void add_storage_element_size(uint32_t storage_element_size) {
+    fbb_.AddElement<uint32_t>(IndirectDataReference::VT_STORAGE_ELEMENT_SIZE, storage_element_size, 0);
+  }
   explicit IndirectDataReferenceBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -320,11 +330,13 @@ inline flatbuffers::Offset<IndirectDataReference> CreateIndirectDataReference(
     flatbuffers::FlatBufferBuilder &_fbb,
     uint64_t data_index = 999999999999999999,
     uint64_t sparsity_index = 999999999999999999,
-    uint64_t storage_element_index = 999999999999999999) {
+    uint64_t storage_element_index = 999999999999999999,
+    uint32_t storage_element_size = 0) {
   IndirectDataReferenceBuilder builder_(_fbb);
   builder_.add_storage_element_index(storage_element_index);
   builder_.add_sparsity_index(sparsity_index);
   builder_.add_data_index(data_index);
+  builder_.add_storage_element_size(storage_element_size);
   return builder_.Finish();
 }
 
@@ -345,11 +357,13 @@ struct TensorReferenceT : public flatbuffers::NativeTable {
   std::vector<float> quant_scale;
   std::vector<uint16_t> quant_mult;
   std::vector<uint8_t> quant_shift;
+  int8_t quant_post_shift_right;
   TensorReferenceT()
       : leading_offset(0),
         trailing_offset(0),
         locale(MemoryLocation_NULL),
-        data_dtype(DType_NOT_SET) {
+        data_dtype(DType_NOT_SET),
+        quant_post_shift_right(0) {
   }
 };
 
@@ -368,7 +382,8 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_QUANT_ZERO = 22,
     VT_QUANT_SCALE = 24,
     VT_QUANT_MULT = 26,
-    VT_QUANT_SHIFT = 28
+    VT_QUANT_SHIFT = 28,
+    VT_QUANT_POST_SHIFT_RIGHT = 30
   };
   /// Information on how to access a Tensor
   const flatbuffers::String *name() const {
@@ -410,6 +425,9 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<uint8_t> *quant_shift() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_QUANT_SHIFT);
   }
+  int8_t quant_post_shift_right() const {
+    return GetField<int8_t>(VT_QUANT_POST_SHIFT_RIGHT, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyOffset(verifier, VT_NAME) &&
@@ -434,6 +452,7 @@ struct TensorReference FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyVector(quant_mult()) &&
            VerifyOffset(verifier, VT_QUANT_SHIFT) &&
            verifier.VerifyVector(quant_shift()) &&
+           VerifyField<int8_t>(verifier, VT_QUANT_POST_SHIFT_RIGHT) &&
            verifier.EndTable();
   }
   TensorReferenceT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -483,6 +502,9 @@ struct TensorReferenceBuilder {
   void add_quant_shift(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_shift) {
     fbb_.AddOffset(TensorReference::VT_QUANT_SHIFT, quant_shift);
   }
+  void add_quant_post_shift_right(int8_t quant_post_shift_right) {
+    fbb_.AddElement<int8_t>(TensorReference::VT_QUANT_POST_SHIFT_RIGHT, quant_post_shift_right, 0);
+  }
   explicit TensorReferenceBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -509,7 +531,8 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_zero = 0,
     flatbuffers::Offset<flatbuffers::Vector<float>> quant_scale = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint16_t>> quant_mult = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_shift = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<uint8_t>> quant_shift = 0,
+    int8_t quant_post_shift_right = 0) {
   TensorReferenceBuilder builder_(_fbb);
   builder_.add_quant_shift(quant_shift);
   builder_.add_quant_mult(quant_mult);
@@ -522,6 +545,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(
   builder_.add_strides(strides);
   builder_.add_dimensions(dimensions);
   builder_.add_name(name);
+  builder_.add_quant_post_shift_right(quant_post_shift_right);
   builder_.add_data_dtype(data_dtype);
   builder_.add_locale(locale);
   return builder_.Finish();
@@ -541,7 +565,8 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
     const std::vector<uint8_t> *quant_zero = nullptr,
     const std::vector<float> *quant_scale = nullptr,
     const std::vector<uint16_t> *quant_mult = nullptr,
-    const std::vector<uint8_t> *quant_shift = nullptr) {
+    const std::vector<uint8_t> *quant_shift = nullptr,
+    int8_t quant_post_shift_right = 0) {
   auto name__ = name ? _fbb.CreateString(name) : 0;
   auto dimensions__ = dimensions ? _fbb.CreateVector<uint32_t>(*dimensions) : 0;
   auto strides__ = strides ? _fbb.CreateVector<uint32_t>(*strides) : 0;
@@ -564,7 +589,8 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReferenceDirect(
       quant_zero__,
       quant_scale__,
       quant_mult__,
-      quant_shift__);
+      quant_shift__,
+      quant_post_shift_right);
 }
 
 flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::FlatBufferBuilder &_fbb, const TensorReferenceT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -613,6 +639,7 @@ inline void IndirectDataReference::UnPackTo(IndirectDataReferenceT *_o, const fl
   { auto _e = data_index(); _o->data_index = _e; };
   { auto _e = sparsity_index(); _o->sparsity_index = _e; };
   { auto _e = storage_element_index(); _o->storage_element_index = _e; };
+  { auto _e = storage_element_size(); _o->storage_element_size = _e; };
 }
 
 inline flatbuffers::Offset<IndirectDataReference> IndirectDataReference::Pack(flatbuffers::FlatBufferBuilder &_fbb, const IndirectDataReferenceT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -626,11 +653,13 @@ inline flatbuffers::Offset<IndirectDataReference> CreateIndirectDataReference(fl
   auto _data_index = _o->data_index;
   auto _sparsity_index = _o->sparsity_index;
   auto _storage_element_index = _o->storage_element_index;
+  auto _storage_element_size = _o->storage_element_size;
   return MVCNN::CreateIndirectDataReference(
       _fbb,
       _data_index,
       _sparsity_index,
-      _storage_element_index);
+      _storage_element_index,
+      _storage_element_size);
 }
 
 inline TensorReferenceT *TensorReference::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -655,6 +684,7 @@ inline void TensorReference::UnPackTo(TensorReferenceT *_o, const flatbuffers::r
   { auto _e = quant_scale(); if (_e) { _o->quant_scale.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_scale[_i] = _e->Get(_i); } } };
   { auto _e = quant_mult(); if (_e) { _o->quant_mult.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_mult[_i] = _e->Get(_i); } } };
   { auto _e = quant_shift(); if (_e) { _o->quant_shift.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->quant_shift[_i] = _e->Get(_i); } } };
+  { auto _e = quant_post_shift_right(); _o->quant_post_shift_right = _e; };
 }
 
 inline flatbuffers::Offset<TensorReference> TensorReference::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TensorReferenceT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -678,6 +708,7 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::F
   auto _quant_scale = _fbb.CreateVector(_o->quant_scale);
   auto _quant_mult = _fbb.CreateVector(_o->quant_mult);
   auto _quant_shift = _fbb.CreateVector(_o->quant_shift);
+  auto _quant_post_shift_right = _o->quant_post_shift_right;
   return MVCNN::CreateTensorReference(
       _fbb,
       _name,
@@ -692,7 +723,8 @@ inline flatbuffers::Offset<TensorReference> CreateTensorReference(flatbuffers::F
       _quant_zero,
       _quant_scale,
       _quant_mult,
-      _quant_shift);
+      _quant_shift,
+      _quant_post_shift_right);
 }
 
 }  // namespace MVCNN

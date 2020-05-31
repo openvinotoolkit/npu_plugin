@@ -12,8 +12,26 @@ namespace mv
     {
     public:
         QuantizationParams(const json::Value& content);
-        QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max);
-        QuantizationParams(const std::vector<int64_t>& zp, const std::vector<double>& scale, const std::vector<double>& min, const std::vector<double>& max, const std::vector <unsigned>& shift, const std::vector<unsigned>& mult);
+        QuantizationParams(
+            const std::vector<int64_t>& zp,
+            const std::vector<double>& scale,
+            const std::vector<double>& min,
+            const std::vector<double>& max);
+        QuantizationParams(
+            const std::vector<int64_t>& zp,
+            const std::vector<double>& scale,
+            const std::vector<double>& min,
+            const std::vector<double>& max,
+            const std::vector<unsigned>& shift,
+            const std::vector<unsigned>& mult);
+        QuantizationParams(
+            const std::vector<int64_t>& zp,
+            const std::vector<double>& scale,
+            const std::vector<double>& min,
+            const std::vector<double>& max,
+            const std::vector<unsigned>& shift,
+            const std::vector<unsigned>& mult,
+            const signed postShift);
 //        QuantizationParams & operator=(const QuantizationParams& quantObject);
 
         inline std::vector<int64_t> getZeroPoint() const
@@ -46,8 +64,15 @@ namespace mv
             return get<std::vector<unsigned>>("mult");
         }
 
+        inline signed getPostShift() const
+        {
+            return get<signed>("postShift");
+        }
+
         void quantize(std::vector<unsigned> shift, std::vector<unsigned> mult);
         void setScale(std::vector<double> scale_);
+        void setZeroPoint(std::vector<int64_t> zeroPoint_);
+        void setPostShift(signed postShift_);
 
         int64_t getZeroPoint(const size_t channel) const;
         double getScale(const size_t channel) const;

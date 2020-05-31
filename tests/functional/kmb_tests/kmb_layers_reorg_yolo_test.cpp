@@ -64,7 +64,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestReorgYolo) {
     std::string model = model_regionYolo;
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["data"]->setPrecision(Precision::FP16);
@@ -76,6 +76,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestReorgYolo) {
     setCommonConfig(config);
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 };
 #endif

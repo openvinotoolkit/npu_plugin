@@ -177,7 +177,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
     // TODO: [Track number: S#31121]
     // Get rid of environment variable USE_SIPP
-    if (_config.useSIPP() && SippPreproc::useSIPP() &&
+    if ((_config.useSIPP() || SippPreproc::useSIPP()) &&
         SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());

@@ -1,3 +1,16 @@
+///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
+/// @file      PlgOTTypes.h
+/// 
+
 #ifndef __PLG_OTTYPES_H__
 #define __PLG_OTTYPES_H__
 #include <vector>
@@ -91,8 +104,8 @@ public:
 
      * Object rectangle.
      */
-    Object() : rect(Rect()), tracking_id (-1), class_label(-1), status(TrackingStatus::LOST)  {}
-    Object(const Rect& rect, uint64_t tid, int32_t class_label, TrackingStatus status) : rect(rect), tracking_id(tid), class_label(class_label), status(status) {}
+    Object() : rect(Rect()), tracking_id (-1), class_label(-1), status(TrackingStatus::LOST), association_idx(-1) {}
+    Object(const Rect& rect, uint64_t tid, int32_t class_label, TrackingStatus status, int32_t idx = -1) : rect(rect), tracking_id(tid), class_label(class_label), status(status), association_idx(idx) {}
     Rect rect;
 
     /**
@@ -111,6 +124,11 @@ public:
      */
     TrackingStatus status;
 
+    /**
+     * Index in the DetectedObject vector.
+     * If the Object was not in detection input, then it will be -1.
+     */
+    int32_t association_idx;
 };
 
 typedef std::vector<Object> Objects;

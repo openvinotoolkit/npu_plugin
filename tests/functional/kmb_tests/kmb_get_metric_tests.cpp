@@ -23,14 +23,12 @@ using namespace details;
 using GetMetricTest = vpuLayersTests;
 
 TEST_F(GetMetricTest, getAvailableDevices) {
-    Core ie;
-
-    std::vector<std::string> kmbSupportedMetrics = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+    std::vector<std::string> kmbSupportedMetrics = core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
     std::vector<std::string>::const_iterator kmbAvalableDevMetricIter =
         std::find(kmbSupportedMetrics.begin(), kmbSupportedMetrics.end(), METRIC_KEY(AVAILABLE_DEVICES));
     ASSERT_NE(kmbAvalableDevMetricIter, kmbSupportedMetrics.end());
 
-    std::vector<std::string> kmbDeviceIds = ie.GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
+    std::vector<std::string> kmbDeviceIds = core->GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
     ASSERT_FALSE(kmbDeviceIds.empty());
     ASSERT_EQ(kmbDeviceIds.size(), 1);
     ASSERT_NE(kmbDeviceIds.begin()->find("Keem Bay"), std::string::npos);
@@ -42,8 +40,8 @@ TEST_F(GetMetricTest, getAvailableDevices) {
 }
 
 TEST_F(GetMetricTest, supportMetrics) {
-    std::vector<std::string> supportedMetrics = ie.GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
+    std::vector<std::string> supportedMetrics = core->GetMetric(deviceName, METRIC_KEY(SUPPORTED_METRICS));
     for (auto& metric : supportedMetrics) {
-        ASSERT_NO_THROW(ie.GetMetric(deviceName, metric));
+        ASSERT_NO_THROW(core->GetMetric(deviceName, metric));
     }
 }
