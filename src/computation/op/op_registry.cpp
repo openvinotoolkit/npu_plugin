@@ -33,6 +33,8 @@ namespace
 const std::string RECORDED_OP_MODEL_CPP_BODY = R"cpptempl(
 namespace
 {
+	bool recordWeightsAsText_ = false;
+
     template <typename T1, typename T2>
     void write(const std::vector<T1>& data, const std::string& filepath)
     {
@@ -92,11 +94,11 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
     {
         *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
     {
         *codeOut << "{";
         if (!tensors.empty())
@@ -110,7 +112,7 @@ namespace
         *codeOut << "}";
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const std::vector<T>& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<T>& attr)
     {
         if (attr.size() < 8)
         {
@@ -118,7 +120,7 @@ namespace
         }
         else
         {
-            if (recordWeightsAsText)
+            if (recordWeightsAsText_)
             {
                 *codeOut << paramName;
                 *dataOut << "const std::vector<" << mv::Attribute(attr[0]).getTypeName() << "> " << paramName << mv::Attribute(attr).toLongString() << ";" << std::endl;
@@ -142,28 +144,28 @@ namespace
         }
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
     {
         *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, bool recordWeightsAsText, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
     {
         if (I > 0)
         {
             *codeOut << ", ";
         }
 
-        printParam(codeOut, dataOut, recordWeightsAsText, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
+        printParam(codeOut, dataOut, outVarName + "_" + paramNames.at(I), std::get<I>(paramValues));
 
-        printParams<I + 1>(codeOut, dataOut, recordWeightsAsText, outVarName, paramNames, paramValues);
+        printParams<I + 1>(codeOut, dataOut, outVarName, paramNames, paramValues);
     }
 
     template <typename... Args>
@@ -175,12 +177,13 @@ namespace
             const std::string& paramStr,
             Args&&... args)
     {
+		recordWeightsAsText_ = recordWeightsAsText;
         if (codeOut)
         {
             *codeOut << "    const auto " << outVarName << " = model." << opName << "(";
             const auto paramNames = splitStringList(paramStr, ',');
             const auto paramValues = std::forward_as_tuple(std::forward<Args>(args)...);
-            printParams(codeOut, dataOut, recordWeightsAsText, outVarName, paramNames, paramValues);
+            printParams(codeOut, dataOut, outVarName, paramNames, paramValues);
             *codeOut << ", \"" << name << "\");" << std::endl;
         }
     }
