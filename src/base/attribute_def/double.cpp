@@ -8,6 +8,14 @@ namespace mv
 
     namespace attr_double
     {
+        template <typename T>
+        static std::string toStringWithPrecision(const T val, const int precision = 15)
+        {
+            std::ostringstream outstream;
+            outstream.precision(precision);
+            outstream << std::fixed << val;
+            return outstream.str();
+        }
 
         static mv::json::Value toJSON(const Attribute& a)
         {
@@ -25,6 +33,11 @@ namespace mv
         static std::string toString(const Attribute& a)
         {
             return std::to_string(a.get<double>());
+        }
+
+        static std::string toLongString(const Attribute& a)
+        {
+            return toStringWithPrecision(a.get<double>());
         }
 
         static std::vector<uint8_t> toBinary(const Attribute& a)
@@ -46,7 +59,9 @@ namespace mv
             .setToJSONFunc(attr_double::toJSON)
             .setFromJSONFunc(attr_double::fromJSON)
             .setToStringFunc(attr_double::toString)
-            .setToBinaryFunc(attr_double::toBinary);
+            .setToLongStringFunc(attr_double::toLongString)
+            .setToBinaryFunc(attr_double::toBinary)
+            .setTypeTrait("large");
     }
 
 }
