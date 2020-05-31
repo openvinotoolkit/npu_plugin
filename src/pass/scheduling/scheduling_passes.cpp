@@ -1314,12 +1314,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // Recompute port assignments based on updated tensor placements.
     simRunModel(&opInfos, &barrierInfos, &portInfos);
 
-    // DO NOT SUBMIT: Experiment to see whether the preceeding code is
-    // running too long (quite possible) or whether the modifications
-    // performed by the subsequent code are causing something later in
-    // the compilation sequence to time out (also quite possible).
-    return;
-
     // At this point, we have pretty good port assignments for all
     // operations in the opInfos vector, so update the actual operations.
     for (auto& opInfo : opInfos)
@@ -1329,6 +1323,10 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             opInfo.op->set<std::uint8_t>("port", opInfo.portIdx);
         }
     }
+
+    // DO NOT SUBMIT: Experiment to see whether the preceeding loop or
+    // the next loop is causing our problems in CI.
+    return;
 
     // Rewrite graphFileIndex values.  The CSRAM tensors are first in
     // the blob, followed by the DDR tensors; CSRAM tensors are
