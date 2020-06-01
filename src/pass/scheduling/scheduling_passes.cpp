@@ -1352,6 +1352,10 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         t->set("graphFileIndex", idx);
     }
 
+    // DO NOT SUBMIT: This is just an experiment to see what the final
+    // tensor layouts are for a few models.
+#define DEBUG_LAYOUT_PASS
+
 #ifdef DEBUG_LAYOUT_PASS
     std::cerr << "LayoutDMA: Final Tensors:\n";
     for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
