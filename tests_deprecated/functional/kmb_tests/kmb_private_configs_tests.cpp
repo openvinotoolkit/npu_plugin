@@ -18,7 +18,6 @@
 #include <gtest/gtest.h>
 
 #include <allocators.hpp>
-#include <ie_core.hpp>
 #include <test_model/kmb_test_utils.hpp>
 
 #include "models/model_pooling.h"
@@ -41,9 +40,8 @@ TEST_F(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     }
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
-    Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
+    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -80,9 +78,8 @@ TEST_F(KmbPrivateConfigTests, USE_SIPP) {
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
-    Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, "KMB", {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}});
+    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -148,9 +145,8 @@ TEST_F(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
 #endif
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
-    Core ie;
     InferenceEngine::ExecutableNetwork network;
-    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}});
+    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}});
 
     InferenceEngine::InferRequest request;
     request = network.CreateInferRequest();
@@ -184,7 +180,6 @@ TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     SKIP();
 #endif
 
-    Core ie;
     InferenceEngine::ExecutableNetwork network;
     ModelPooling_Helper modelPoolingHelper;
     const std::string testFileName = "tmp_test.xml";
@@ -197,10 +192,10 @@ TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
         output.second->setLayout(InferenceEngine::Layout::NHWC);
         output.second->setPrecision(InferenceEngine::Precision::FP16);
     }
-    network = ie.LoadNetwork(modelPoolingHelper.network, deviceName);
+    network = core->LoadNetwork(modelPoolingHelper.network, deviceName);
     std::ifstream notExist(testFileName);
     ASSERT_FALSE(notExist.good());
-    network = ie.LoadNetwork(modelPoolingHelper.network, deviceName,
+    network = core->LoadNetwork(modelPoolingHelper.network, deviceName,
         {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
     std::ifstream exists(testFileName);
     ASSERT_TRUE(exists.good());

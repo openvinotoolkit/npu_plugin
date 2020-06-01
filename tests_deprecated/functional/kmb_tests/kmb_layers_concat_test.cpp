@@ -97,7 +97,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConcatenationAfterSoftmax) {
         )V0G0N";
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -115,6 +115,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConcatenationAfterSoftmax) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 #endif

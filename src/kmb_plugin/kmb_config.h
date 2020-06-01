@@ -74,9 +74,9 @@ private:
     int _SIPPLpi = 8;
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
     bool _forceNCHWToNHWC = false;
-    bool _force2DToNC = true;
-    bool _forceFP16ToFP32 = true;
-    bool _useSIPP = true;
+    // FIXME: have to be true, disabled due to not working vpu runtime
+    // tracking number: h#18011604382
+    bool _useSIPP = false;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

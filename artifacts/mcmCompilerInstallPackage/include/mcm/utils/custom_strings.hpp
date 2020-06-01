@@ -11,6 +11,7 @@ namespace mv
     std::string createSparsityMapName(const std::string& tensorName);
     std::string createStorageElementName(const std::string& tensorName);
     std::string createWeightTableName(const std::string& opName);
+    std::string createInstructionListTableName(const std::string& opName);
     std::string createDPUTaskName(const std::string& opName);
     std::string createDeallocationName(const std::string& opName);
     std::string createDMATaskNNCMX2DDRName(const std::string& opName);

@@ -15,7 +15,6 @@
 //
 
 #include "kmb_test_proposal_def.hpp"
-#include "kmb_test_add_def.hpp"
 
 #include <ngraph/op/experimental/layers/proposal.hpp>
 
@@ -343,13 +342,6 @@ namespace {
         const float *p_img_info_cpu  = inputs[2]->buffer();
         float *p_roi_item            = output->buffer();
 
-        /* FIXME: Implement reshape layer in test framework
-         * Usually image info has the shape {1, C} then the network uses a reshape,
-         * because ngraph for proposal layer uses the shape {C}, but since the reshape layer
-         * in test framework isn't implemented yet, we create image info immediately with the shape {C}
-         * Uncomment after implementing reshape layer in test framework:
-         * size_t img_info_size = inputs[2]->getTensorDesc().getDims()[1];
-         */
         size_t img_info_size = inputs[2]->getTensorDesc().getDims()[0];
 
         // bottom shape: (2 x num_anchors) x H x W
