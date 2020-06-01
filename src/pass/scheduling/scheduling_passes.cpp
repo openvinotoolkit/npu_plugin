@@ -1324,17 +1324,15 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
     }
 
-    // DO NOT SUBMIT: Experiment to see whether the preceeding loop or
-    // the next loop is causing our problems in CI.
-    return;
-
     // Rewrite graphFileIndex values.  The CSRAM tensors are first in
     // the blob, followed by the DDR tensors; CSRAM tensors are
     // ordered with highest priority (lowest numerical priority) at
     // the front of the blob.
     for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
     {
-        if (!t->get<std::set<std::string>>("allocators").count("GraphFile"))
+        if (!t->hasAttr("allocators")
+            || !t->get<std::set<std::string>>("allocators").count("GraphFile")
+            || !t->hasAttr("graphFileIndex"))
         {
             continue;
         }
