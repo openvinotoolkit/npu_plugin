@@ -21,7 +21,7 @@ class KmbLayoutTests : public KmbLayerTestBase,
 
 static const std::set<Precision> supportedInPrecisions = { Precision::U8 };
 static const std::set<Precision> supportedOutPrecisions = { Precision::U8, Precision::FP16, Precision::FP32 };
-static const std::set<Layout> supportedInLayouts = { Layout::NHWC, Layout::NCHW };
+static const std::set<Layout> supportedInLayouts = { Layout::NHWC, Layout::NCHW, Layout::NC };
 static const std::set<Layout> supportedOutLayouts = { Layout::NHWC, Layout::NCHW, Layout::NC };
 
 static bool is_supported(const Precision& inPrecision, const Layout& inLayout, const Precision& outPrecision, const Layout& outLayout) {
@@ -99,7 +99,12 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
             }
     );
 
-    const auto powerTensorDesc = TensorDesc(Precision::FP32, {1, 1, 1, 1}, useIncorrectInputLayout ? Layout::NCHW : Layout::NHWC);
+    const std::vector<size_t> powerTensorDims(dims.size(), 1);
+    Layout powerTensorLayout = layout;
+    if (powerTensorDims.size() == 4) {
+        powerTensorLayout = useIncorrectInputLayout ? Layout::NCHW : Layout::NHWC;
+    }
+    const auto powerTensorDesc = TensorDesc(Precision::FP32, powerTensorDims, powerTensorLayout);
     registerBlobGenerator(
             "scale", powerTensorDesc,
             [&](const TensorDesc& desc) {
