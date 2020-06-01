@@ -17,7 +17,8 @@ std::vector<T1>
     read(const std::string& filepath, std::size_t num = std::numeric_limits<size_t>::max())
 {
     std::ifstream fileStream(filepath, std::ifstream::binary);
-    if (!fileStream) return {};
+    if (!fileStream) 
+        throw mv::RuntimeError("TemplateExample", "Weights file: \"" + filepath + "\" not found");
     std::vector<T1> data;
     T2 aux;
     while (fileStream.read(&reinterpret_cast<char&>(aux), sizeof(aux)) && num-- > 0)
@@ -28,7 +29,7 @@ std::vector<T1>
 void build_@MODEL_NAME@(mv::OpModel& model)
 {
     using namespace mv;
-
+    const std::string WEIGHTS_FOLDER = mv::utils::projectRootPath() + "/examples/";
     static const auto inf = std::numeric_limits<double>::infinity();
 
 )cppinttempl";
@@ -118,7 +119,11 @@ void mv::BaseOpModel::initRecordingFile(const std::string& outFileName, bool rec
     dataOut_->open(dataFileName, std::ios_base::out | std::ios_base::trunc);
     assert(dataOut_->is_open());
     auto outStart = OUT_START_TEMPL;
-    setTemplParam(outStart, "@DATA_FILE_NAME@", dataFileName);
+    
+    if (recordWeightsAsText) // remove the text weights file include if not required
+        setTemplParam(outStart, "@DATA_FILE_NAME@", dataFileName);
+    else
+        setTemplParam(outStart, "#include \"@DATA_FILE_NAME@\"", "");
     setTemplParam(outStart, "@MODEL_NAME@", varName(getName()));
     *codeOut_ << outStart;
 }
