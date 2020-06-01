@@ -122,7 +122,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(18828 + 128));
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -140,7 +140,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 // [Track number: S#27192]
@@ -185,7 +185,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
         )V0G0N";
 
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, Blob::CPtr()));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, Blob::CPtr()));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -200,7 +200,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(_exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
 TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
@@ -323,7 +323,7 @@ TEST_P(PoolingTest, DISABLED_pooling_only) {
 
     Core ie;
     InferenceEngine::Blob::CPtr weights;
-    CNNNetwork network = ie.ReadNetwork(model, weights);
+    CNNNetwork network = core->ReadNetwork(model, weights);
 
     auto _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::U8);
@@ -338,7 +338,7 @@ TEST_P(PoolingTest, DISABLED_pooling_only) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
-    ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));
 
     InferenceEngine::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = exeNetwork.CreateInferRequest());

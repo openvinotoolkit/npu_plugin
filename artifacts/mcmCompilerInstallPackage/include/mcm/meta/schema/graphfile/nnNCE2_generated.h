@@ -373,7 +373,7 @@ struct PPETaskT : public flatbuffers::NativeTable {
   typedef PPETask TableType;
   std::unique_ptr<TensorReferenceT> scale_data;
   std::unique_ptr<PPEFixedFunctionT> fixed_function;
-  std::vector<uint32_t> instruction_list;
+  std::unique_ptr<TensorReferenceT> instruction_list_data;
   PPETaskT() {
   }
 };
@@ -383,7 +383,7 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_SCALE_DATA = 4,
     VT_FIXED_FUNCTION = 6,
-    VT_INSTRUCTION_LIST = 8
+    VT_INSTRUCTION_LIST_DATA = 10
   };
   const TensorReference *scale_data() const {
     return GetPointer<const TensorReference *>(VT_SCALE_DATA);
@@ -391,8 +391,8 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const PPEFixedFunction *fixed_function() const {
     return GetPointer<const PPEFixedFunction *>(VT_FIXED_FUNCTION);
   }
-  const flatbuffers::Vector<uint32_t> *instruction_list() const {
-    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_INSTRUCTION_LIST);
+  const TensorReference *instruction_list_data() const {
+    return GetPointer<const TensorReference *>(VT_INSTRUCTION_LIST_DATA);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -400,8 +400,8 @@ struct PPETask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
            verifier.VerifyTable(scale_data()) &&
            VerifyOffset(verifier, VT_FIXED_FUNCTION) &&
            verifier.VerifyTable(fixed_function()) &&
-           VerifyOffset(verifier, VT_INSTRUCTION_LIST) &&
-           verifier.VerifyVector(instruction_list()) &&
+           VerifyOffset(verifier, VT_INSTRUCTION_LIST_DATA) &&
+           verifier.VerifyTable(instruction_list_data()) &&
            verifier.EndTable();
   }
   PPETaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -418,8 +418,8 @@ struct PPETaskBuilder {
   void add_fixed_function(flatbuffers::Offset<PPEFixedFunction> fixed_function) {
     fbb_.AddOffset(PPETask::VT_FIXED_FUNCTION, fixed_function);
   }
-  void add_instruction_list(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> instruction_list) {
-    fbb_.AddOffset(PPETask::VT_INSTRUCTION_LIST, instruction_list);
+  void add_instruction_list_data(flatbuffers::Offset<TensorReference> instruction_list_data) {
+    fbb_.AddOffset(PPETask::VT_INSTRUCTION_LIST_DATA, instruction_list_data);
   }
   explicit PPETaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
@@ -437,25 +437,12 @@ inline flatbuffers::Offset<PPETask> CreatePPETask(
     flatbuffers::FlatBufferBuilder &_fbb,
     flatbuffers::Offset<TensorReference> scale_data = 0,
     flatbuffers::Offset<PPEFixedFunction> fixed_function = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint32_t>> instruction_list = 0) {
+    flatbuffers::Offset<TensorReference> instruction_list_data = 0) {
   PPETaskBuilder builder_(_fbb);
-  builder_.add_instruction_list(instruction_list);
+  builder_.add_instruction_list_data(instruction_list_data);
   builder_.add_fixed_function(fixed_function);
   builder_.add_scale_data(scale_data);
   return builder_.Finish();
-}
-
-inline flatbuffers::Offset<PPETask> CreatePPETaskDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<TensorReference> scale_data = 0,
-    flatbuffers::Offset<PPEFixedFunction> fixed_function = 0,
-    const std::vector<uint32_t> *instruction_list = nullptr) {
-  auto instruction_list__ = instruction_list ? _fbb.CreateVector<uint32_t>(*instruction_list) : 0;
-  return MVCNN::CreatePPETask(
-      _fbb,
-      scale_data,
-      fixed_function,
-      instruction_list__);
 }
 
 flatbuffers::Offset<PPETask> CreatePPETask(flatbuffers::FlatBufferBuilder &_fbb, const PPETaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -1207,7 +1194,7 @@ inline void PPETask::UnPackTo(PPETaskT *_o, const flatbuffers::resolver_function
   (void)_resolver;
   { auto _e = scale_data(); if (_e) _o->scale_data = std::unique_ptr<TensorReferenceT>(_e->UnPack(_resolver)); };
   { auto _e = fixed_function(); if (_e) _o->fixed_function = std::unique_ptr<PPEFixedFunctionT>(_e->UnPack(_resolver)); };
-  { auto _e = instruction_list(); if (_e) { _o->instruction_list.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->instruction_list[_i] = _e->Get(_i); } } };
+  { auto _e = instruction_list_data(); if (_e) _o->instruction_list_data = std::unique_ptr<TensorReferenceT>(_e->UnPack(_resolver)); };
 }
 
 inline flatbuffers::Offset<PPETask> PPETask::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PPETaskT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -1220,12 +1207,12 @@ inline flatbuffers::Offset<PPETask> CreatePPETask(flatbuffers::FlatBufferBuilder
   struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PPETaskT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
   auto _scale_data = _o->scale_data ? CreateTensorReference(_fbb, _o->scale_data.get(), _rehasher) : 0;
   auto _fixed_function = _o->fixed_function ? CreatePPEFixedFunction(_fbb, _o->fixed_function.get(), _rehasher) : 0;
-  auto _instruction_list = _fbb.CreateVector(_o->instruction_list);
+  auto _instruction_list_data = _o->instruction_list_data ? CreateTensorReference(_fbb, _o->instruction_list_data.get(), _rehasher) : 0;
   return MVCNN::CreatePPETask(
       _fbb,
       _scale_data,
       _fixed_function,
-      _instruction_list);
+      _instruction_list_data);
 }
 
 inline NCEInvariantFieldsT *NCEInvariantFields::UnPack(const flatbuffers::resolver_function_t *_resolver) const {

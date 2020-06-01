@@ -162,9 +162,10 @@ void KmbInferRequest::InferAsync() {
             const auto input = inferInput.second;
 
             auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+
             // TODO implement memory copy inside prepareInputForInference
-            std::memcpy(_inputBuffer.get() + inputBufferOffset, updatedInput->buffer().as<uint8_t*>(),
-                updatedInput->byteSize());
+            ie_memcpy(_inputBuffer.get() + inputBufferOffset, _inputs[inferInput.first]->byteSize(),
+                updatedInput->buffer().as<uint8_t*>(), updatedInput->byteSize());
 
             inputBufferOffset += updatedInput->byteSize();
         }
@@ -176,7 +177,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
     // TODO: [Track number: S#31121]
     // Get rid of environment variable USE_SIPP
-    if (_config.useSIPP() && SippPreproc::useSIPP() &&
+    if ((_config.useSIPP() || SippPreproc::useSIPP()) &&
         SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
@@ -340,6 +341,7 @@ void KmbInferRequest::GetResult() {
 
     // check that output layout is the same as device layout
     const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getRuntimeOutputs();
+    IE_ASSERT(!deviceOutputs.empty());
 
     size_t output_size_total = std::accumulate(
         _outputs.begin(), _outputs.end(), 0, [](size_t sum, InferenceEngine::BlobMap::value_type& outputs) {

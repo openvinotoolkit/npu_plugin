@@ -63,7 +63,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -81,7 +81,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 
 // TODO: Test segfault, when kmb_plugin compile with MCM_COMPILER
@@ -95,7 +95,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     std::size_t biasSize = 6 + 128;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightSize + biasSize));
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(model, weightsBlob));
+    ASSERT_NO_THROW(network = core->ReadNetwork(model, weightsBlob));
 
     _inputsInfo = network.getInputsInfo();
     _inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -113,7 +113,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 
 std::vector<convolution_test_desc> convolution_only_fp16 = {
@@ -144,8 +144,6 @@ public:
 TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
     auto convTestParam = GetParam();
 
-    Core ie;
-
     std::string blob_name = ::testing::UnitTest::GetInstance()->current_test_info()->name();
     blob_name += ".blob";
     std::replace(blob_name.begin(), blob_name.end(), '/', '_');
@@ -154,7 +152,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 #ifndef __arm__
     std::string model = instantiateConvTestIR(convTestParam);
 
-    CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
+    CNNNetwork network = core->ReadNetwork(model, weightsBuffer);
 
     auto inputsInfo = network.getInputsInfo();
     inputsInfo["input"]->setPrecision(Precision::FP16);
@@ -167,7 +165,7 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
     config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(network, deviceName, config));
     ASSERT_NO_THROW(executableNetwork.Export(blob_name));
 #else
 

@@ -751,7 +751,7 @@ bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
 }
 
 bool isInputLayoutSupported(const ie::Layout& inputLayout) {
-    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC, ie::Layout::NCHW};
+    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::NC};
     return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
 }
 
@@ -1407,7 +1407,7 @@ void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, c
     const auto levels = layer->GetParamAsInt("levels");
 
     auto fakeQuantize = _modelMcm.fakeQuantize(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(),
-        inputs[2]->getMcmNode(), inputs[3]->getMcmNode(), inputs[4]->getMcmNode(), levels);
+        inputs[2]->getMcmNode(), inputs[3]->getMcmNode(), inputs[4]->getMcmNode(), levels, layer->name);
     bindOutput(fakeQuantize, layer->outData[0]);
 }
 

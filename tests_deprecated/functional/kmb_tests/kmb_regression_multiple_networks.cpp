@@ -37,19 +37,19 @@ class KmbRegressionMultipleNetworks :
 
 // Hangs in Release time to time
 // [Track number: S#23514]
-TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
+TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIteration) {
     auto param = GetParam();
     auto models = get<1>(param);
 
     InferenceEngine::ExecutableNetwork network1;
     stringstream network1StrStream;
     network1StrStream << "/KMB_models/BLOBS/" << get<0>(models) << "/" << get<0>(models) << ".blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(ModelsPath() + network1StrStream.str(), deviceName, {}));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(ModelsPath() + network1StrStream.str(), deviceName, {}));
 
     stringstream network2StrStream;
     network2StrStream << "/KMB_models/BLOBS/" << get<1>(models) << "/" << get<1>(models) << ".blob";
     InferenceEngine::ExecutableNetwork network2;
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(ModelsPath() + network2StrStream.str(), deviceName, {}));
+    ASSERT_NO_THROW(network2 = core->ImportNetwork(ModelsPath() + network2StrStream.str(), deviceName, {}));
 
     std::cout << "Created networks\n";
 
@@ -119,7 +119,7 @@ TEST_P(KmbRegressionMultipleNetworks, canRunInferTwoNetworksSeveralIteration) {
         });
         network2InferReqPtr->SetCompletionCallback([&] {
             curIterationNet2++;
-            std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+            std::cout << "Completed " << curIterationNet2 << " async request execution for network2\n";
             if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
                 Blob::Ptr outputBlob;
                 std::string output2Name = network2.GetOutputsInfo().begin()->first;

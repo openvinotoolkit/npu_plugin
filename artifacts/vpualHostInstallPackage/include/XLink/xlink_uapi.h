@@ -1,3 +1,13 @@
+///
+/// INTEL CONFIDENTIAL
+/// Copyright 2020. Intel Corporation.
+/// This software and the related documents are Intel copyrighted materials, 
+/// and your use of them is governed by the express license under which they were provided to you ("License"). 
+/// Unless the License provides otherwise, you may not use, modify, copy, publish, distribute, disclose or 
+/// transmit this software or the related documents without Intel's prior written permission.
+/// This software and the related documents are provided as is, with no express or implied warranties, 
+/// other than those that are expressly stated in the License.
+///
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * xlink Linux Kernel API
@@ -5,6 +15,7 @@
  * Copyright (C) 2018-2019 Intel Corporation
  *
  */
+
 #ifndef __XLINK_UAPI_H
 #define __XLINK_UAPI_H
 
@@ -31,11 +42,13 @@
 #define XL_GET_DEVICE_STATUS		_IOW(XLINK_MAGIC, 18, void*)
 #define XL_BOOT_DEVICE				_IOW(XLINK_MAGIC, 19, void*)
 #define XL_RESET_DEVICE				_IOW(XLINK_MAGIC, 20, void*)
+#define XL_GET_DEVICE_MODE			_IOW(XLINK_MAGIC, 21, void*)
+#define XL_SET_DEVICE_MODE			_IOW(XLINK_MAGIC, 22, void*)
 
 struct xlinkopenchannel {
 	void *handle;
 	uint16_t chan;
-	enum xlink_opmode mode;
+	int mode;
 	uint32_t data_size;
 	uint32_t timeout;
 	uint32_t *return_code;
@@ -44,7 +57,7 @@ struct xlinkopenchannel {
 struct xlinkcallback {
 	void *handle;
 	uint16_t chan;
-	void *callback;
+	void (*callback)(uint16_t);
 	uint32_t *return_code;
 };
 
@@ -95,7 +108,7 @@ struct xlinkstopvpu {
 };
 
 struct xlinkgetdevicename {
-	uint32_t sw_device_id;
+	void *handle;
 	char *name;
 	uint32_t name_size;
 	uint32_t *return_code;
@@ -104,26 +117,30 @@ struct xlinkgetdevicename {
 struct xlinkgetdevicelist {
 	uint32_t *sw_device_id_list;
 	uint32_t *num_devices;
-	int pid;
 	uint32_t *return_code;
 };
 
 struct xlinkgetdevicestatus {
-	uint32_t sw_device_id;
+	void *handle;
 	uint32_t *device_status;
-	int pid;
 	uint32_t *return_code;
 };
 
 struct xlinkbootdevice {
 	void *handle;
-	int operating_frequency;
+	const char *binary_name;
+	uint32_t binary_name_size;
 	uint32_t *return_code;
 };
 
 struct xlinkresetdevice {
 	void *handle;
-	int operating_frequency;
+	uint32_t *return_code;
+};
+
+struct xlinkdevmode {
+	void *handle;
+	int *device_mode;
 	uint32_t *return_code;
 };
 

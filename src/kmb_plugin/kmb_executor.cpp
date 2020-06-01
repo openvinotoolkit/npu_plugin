@@ -207,15 +207,18 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     _logger->info("KmbExecutor::allocateGraph begins");
 
+    // HACK: we have to allocate at least this size due some issue in runtime
+    const size_t minGraphSize = 60 * 1024 * 1024;  // 60 Mb
+
     BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
-    BHandle->graphLen = graphFileContent.size();
+    BHandle->graphLen = std::max(graphFileContent.size(), minGraphSize);
     BHandle->refCount = 0;
 
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
-    blob_file = getKmbAllocator()->alloc(graphFileContent.size());
+    blob_file = getKmbAllocator()->alloc(BHandle->graphLen);
 
     if (!blob_file) {
         _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
@@ -227,6 +230,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     // ########################################################################
 
     std::memcpy(blob_file, graphFileContent.data(), graphFileContent.size());
+    std::memset(
+        static_cast<uint8_t*>(blob_file) + graphFileContent.size(), 0, BHandle->graphLen - graphFileContent.size());
     // Point Blob Handle to the newly loaded graph file. Only allow 32-bit
 
     // Assigning physical address of Blob file

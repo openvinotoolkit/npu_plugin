@@ -48,7 +48,7 @@ void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::P
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    ASSERT_NO_THROW(ie.LoadNetwork(network, deviceName, config));
+    ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params,
@@ -56,9 +56,8 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::m
     InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
     std::string xml;
     genXML(layer_type, params, weights_size, biases_size, xml);
-    Core ie;
     CNNNetwork network;
-    ASSERT_NO_THROW(network = ie.ReadNetwork(xml, weights));
+    ASSERT_NO_THROW(network = core->ReadNetwork(xml, weights));
     setup(network, outputPrecision, inputPrecision, true);
 }
 
@@ -79,7 +78,7 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 }
 
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
-    config = _config;
+    config = config;
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(NO);
     config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(NO);

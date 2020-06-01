@@ -69,6 +69,11 @@ std::vector<char> compileNGraph(
 #include <vector>
 #include <utility>
 
+std::vector<char> serializeMetaData(
+        const char* memBlobData,
+        const InferenceEngine::InputsDataMap& inputInfo,
+        const InferenceEngine::OutputsDataMap& outputInfo);
+
 std::vector<char> compileNGraph(
         const std::shared_ptr<ngraph::Function>& func,
         const std::string& netName,
@@ -153,7 +158,7 @@ std::vector<char> compileNGraph(
     const auto blob = mcmCompiler.getBlob();
     IE_ASSERT(blob != nullptr);
 
-    return std::move(*blob);
+    return serializeMetaData(blob->data(), inputsInfo, outputsInfo);
 }
 
 #endif

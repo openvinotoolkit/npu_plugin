@@ -42,7 +42,7 @@ TEST_P(kmbLayersTestsPermuteParams, DISABLED_TestsPermute) {
 
     // Parsing only is enabled because mcmCompiler can't compile layers.
     // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    _config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
+    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);

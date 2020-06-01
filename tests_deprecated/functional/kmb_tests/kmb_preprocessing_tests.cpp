@@ -392,11 +392,11 @@ TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
 TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, deviceName, {}));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, deviceName, {}));
+    ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, {}));
 
     std::cout << "Created networks\n";
 
@@ -476,7 +476,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
 TEST_F(vpuLayersTests, allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, deviceName, {}));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
 
@@ -513,7 +513,7 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
 TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, deviceName, {}));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
 
@@ -570,7 +570,7 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
 TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, deviceName, {}));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
 
     ASSERT_EQ(1, network1.GetInputsInfo().size());
 
@@ -645,12 +645,11 @@ TEST_P(VpuPreprocessingConfigAndInferTests, setConfigAndInfer) {
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
     config[key] = value;
-    ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName, config));
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
 
     ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
@@ -674,16 +673,15 @@ TEST_P(VpuPreprocessingConfigTests, setConfigAndCheck) {
     std::tie(key, value, valid) = GetParam();
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
 
-    Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
     config[key] = value;
 
     if (valid) {
-        ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName, config));
+        ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
     } else {
-        ASSERT_ANY_THROW(importedNetwork = ie.ImportNetwork(modelFilePath, deviceName, config));
+        ASSERT_ANY_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
     }
 }
 
@@ -693,14 +691,14 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     std::map<std::string, std::string> config1;
     config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
     config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, deviceName, config1));
+    ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, config1));
 
     InferenceEngine::ExecutableNetwork network2;
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     std::map<std::string, std::string> config2;
     config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
     config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "8";
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, deviceName, config2));
+    ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, config2));
 
     std::cout << "Created networks\n";
 
