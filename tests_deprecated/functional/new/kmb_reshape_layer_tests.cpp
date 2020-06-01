@@ -58,8 +58,7 @@ TEST_P(KmbReshapeLayerTests, DISABLED_AccuracyTest) {
         "input", input_desc,
         [&](const TensorDesc& desc) {
             return genBlobUniform(desc, rd, range.first, range.second);
-        }
-    );
+        });
 
     registerBlobGenerator(
         "shape", shape_desc,
@@ -68,8 +67,7 @@ TEST_P(KmbReshapeLayerTests, DISABLED_AccuracyTest) {
             blob->allocate();
             CopyVectorToBlob(blob, p.shape_);
             return blob;
-        }
-    );
+        });
 
     const auto builder = [&](TestNetwork& testNet) {
         testNet
