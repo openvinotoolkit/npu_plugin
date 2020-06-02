@@ -1275,6 +1275,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+           toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
+    }
+
     return toBuild;
 }
 
@@ -1403,6 +1411,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+
+    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
     return toBuild;
