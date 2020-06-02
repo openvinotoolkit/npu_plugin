@@ -1563,7 +1563,7 @@ class DDR_Address_Generator {
         }
 
         if (address_table_ptr_) {
-          operation_t key = op_ptr;
+          operation_t key = address_info.op_;
           assert(address_table_ptr_->find(key) == address_table_ptr_->end());
           (*address_table_ptr_)[key] = address_info;
         }
