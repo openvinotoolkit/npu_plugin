@@ -9,14 +9,12 @@ const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -39,29 +37,9 @@ namespace mv
         .setDescription(
             "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
         );
-
-        MV_REGISTER_PASS(DecideTasksPrecision)
-        .setFunc(decideTasksPrecisionFcn)
-        .setDescription(
-            "Replaces DPU Tasks with no Quant Params with float DPU Tasks"
-        );
     }
 
 }
-
-void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
-{
-    auto inputFlow = task.leftmostInput();
-    auto neutralMaxPool = om.maxPool(task->getInputTensor(0), {1,1}, {1,1}, {0, 0, 0, 0},
-                                     false, mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
-    auto maxPoolOp = om.getSourceOp(neutralMaxPool);
-    maxPoolOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-    maxPoolOp->set<bool>("softwareExecuted", true);
-    om.undefineFlow(inputFlow);
-    task->setInputTensor(neutralMaxPool, 0, false);
-    om.defineFlow(neutralMaxPool, task, 0);
-}
-
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -177,55 +155,6 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
         {
             if (*it > 0.01)
                 opIt->set<bool>("softwareExecuted", true);
-        }
-    }
-}
-
-void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    //Note: This pass will be dis-abled and enabled only for cases that we want to execute fp16 precision dpu tasks
-    //these tasks are marked cause they have no quant params...Important here is that the Z-major Convolution has
-    //the limitation of sparse tensors, so we need to have a maxpool(neutral) before that
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-    mv::OpModel om(model);
-    std::vector<std::string> futere_dpu_types = {"Eltwise", "DepthwiseConv","MaxPool"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType
-            = om.getOpsOfTypes(futere_dpu_types);
-    mv::QuantizationParams emptyQuantizationParams = {{}, {}, {}, {}};
-    mv::QuantizationParams neutralQuantizationParams = {{0}, {1.0}, {}, {}};
-    std::vector<mv::Data::OpListIterator> simpleDpuCases = operationsOfType["Eltwise"];
-    std::merge(operationsOfType["DepthwiseConv"].begin(), operationsOfType["DepthwiseConv"].end(),
-            operationsOfType["MaxPool"].begin(), operationsOfType["MaxPool"].end(), simpleDpuCases.begin());
-
-    for (auto& opIt : simpleDpuCases)
-    {
-        if(opIt->get<bool>("softwareExecuted"))
-            continue;
-
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-    }
-
-    auto convOps = om.getOps("Conv");
-    for (auto& opIt : convOps)
-    {
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-        if (opIt->hasAttr("softwareExecuted"))
-        {
-             if (opIt->get<bool>("softwareExecuted"))
-                placeNeutralMaxPoolBefore(om, opIt);
         }
     }
 }

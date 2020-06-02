@@ -9,12 +9,19 @@
 void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+void placeNeutralMaxPoolBefore(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::Element &);
 
 namespace mv
 {
 
     namespace pass
     {
+
+        MV_REGISTER_PASS(PlaceNeutralMaxPoolBefore)
+        .setFunc(placeNeutralMaxPoolBefore)
+        .setDescription(
+            "This pass handles a specific case in yoloV3, when an interpolate goes into a concat."
+        );
 
         MV_REGISTER_PASS(PlacementOfOps)
         .setFunc(placementOfOps)
@@ -28,6 +35,38 @@ namespace mv
             "UPA softmax layer does not support softmax oepration on the W axis. \
             The solution to this is to reshape the tensor before and after the softmax operation."
         );
+    }
+}
+
+void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto resampleOps = om.getOps("Resample");
+
+    for (auto& resample : resampleOps)
+    {
+        auto outputTensor = resample->getOutputTensor(0);
+        auto nextOp = mv::findSinkLayers(dm, outputTensor)[0];
+        if (nextOp->getOpType() == "Concat")
+        {
+            auto inputFlow = nextOp.leftmostInput();
+            auto neutralMaxPool = om.maxPool(outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false,
+                mv::DType("UInt8"), outputTensor->get<mv::QuantizationParams>("quantParams"), nextOp->getName() + "MaxPool");
+            auto maxPoolOp = om.getSourceOp(neutralMaxPool);
+            maxPoolOp->set<unsigned>("opId", resample->get<unsigned>("opId"));
+            while(inputFlow != om.flowEnd())
+            {
+                auto tensor = inputFlow->getTensor();
+                if (tensor->getName() == outputTensor->getName())
+                {
+                    auto slot = inputFlow->get<size_t>("sinkInput");
+                    om.undefineFlow(inputFlow);
+                    nextOp->setInputTensor(neutralMaxPool, slot, false);
+                    om.defineFlow(neutralMaxPool, nextOp, slot);
+                }
+            }
+        }
     }
 }
 
