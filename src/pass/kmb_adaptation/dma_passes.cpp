@@ -118,6 +118,9 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::Computati
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                 inputTensorDmaOp->set<unsigned>("opId", opId);
 
+                auto tensorStrategy = inputTensorDma->get<std::string>("splitStrategy");
+                inputTensorDmaOp->set<std::string>("splitStrategy", tensorStrategy);
+
                 for(auto flowStr: flows)
                 {
                     auto backupFlow = dm.getDataFlow(flowStr);

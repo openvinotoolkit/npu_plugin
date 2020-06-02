@@ -1,16 +1,9 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
-#include <iostream>
-#include <fstream>
 
 int main()
 {
-
     mv::CompilationUnit unit("EltwiseReplacement");
     mv::OpModel& om = unit.model();
-
-    // Define parameters
-    auto out_qp = mv::QuantizationParams({{0}, {1.0}, {},{}});
-    std::vector<uint16_t> weightsData(7*7*1024);
 
     //Input
     auto input0 = om.input({7,7,1024,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
