@@ -348,18 +348,36 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
     }
 }
 
-void populateActivationStorageElementMap(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
+void populateActivationStorageElementMap(
+    mv::Data::TensorIterator activationStorageElement,
+    mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     auto input = dpuTaskOp->getInputTensor(0);
-    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
-    auto height_width = activationStorageElement->getShape().totalSize();
+    long int increment = input->getShape()[mv::IO_CHANNEL_DIMENSION] *
+        (input->getDType().getSizeInBits() / 8);
+    std::vector<int64_t> table_offsets(activationStorageElement->getShape().totalSize(), 0);
 
-    std::vector<int64_t> unpopulated_offsets(height_width, 0);
+    const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
+    if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
+                  dpuTaskOp->get<std::string>("splitStrategy")) ==
+        segmentableStrategies.cend()) {
+      for (size_t i = 0; i < table_offsets.size(); ++i)
+        table_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
+    } else {
+      auto numClusters =
+          model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+      auto running_index = 0;
 
-    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8);
-    for(unsigned i = 0; i < height_width; ++i)
-        unpopulated_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
-    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+      for (size_t cl = 0; cl < numClusters; cl++) {
+        auto clTotalSize =
+            activationStorageElement->getSubTensor(cl).getShape().totalSize();
+        for (size_t i = 0; i < clTotalSize; ++i)
+          table_offsets[running_index + i] =
+              (i * increment << SHIFT_FOR_STORAGE_ELEMENT) + cl;
+        running_index += clTotalSize;
+      }
+    }
+    activationStorageElement->populate(table_offsets, mv::Order("NHWC"));
 }
 
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
@@ -451,7 +469,7 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                 auto activationStorageElement
                         = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("storageElementIndex"));
                 dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
-                populateActivationStorageElementMap(activationStorageElement, dpuTaskOp);
+                populateActivationStorageElementMap(activationStorageElement, dpuTaskOp, model);
             }
         }
     }
