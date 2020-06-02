@@ -1453,7 +1453,7 @@ namespace mv
                             streamsOverC.push_back(1);
 
                         bool enableNestedStreaming = false;
-                        auto maxK = streamsOverK.back();
+                        auto maxK = streamsOverK.front();
                         auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n},fakeSparsity);
                         auto memoryMaxK = memK.first + memK.second;
                         auto memH = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,n},fakeSparsity);
