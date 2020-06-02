@@ -23,6 +23,7 @@
 #include "kmb_test_mul_def.hpp"
 #include "kmb_test_scale_shift_def.hpp"
 #include "kmb_test_convolution_def.hpp"
+#include "kmb_test_deconvolution_def.hpp"
 #include "kmb_test_normalize_def.hpp"
 #include "kmb_test_fake_quantize_def.hpp"
 #include "kmb_test_softmax_def.hpp"
