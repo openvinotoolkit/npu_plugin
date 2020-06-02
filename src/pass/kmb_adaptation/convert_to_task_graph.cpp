@@ -750,7 +750,13 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
     }
 
     if (flex)
-        clamp = -128;
+    {
+        auto alpha = opIt->get<double>("leakyAlpha");
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto minimum = outputQuantParams.getMin()[0];
+        minimum /= alpha;
+        clamp = outputQuantParams.getScale()[0] * minimum;
+    }
 
     return clamp;
 }
@@ -808,7 +814,12 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
         }
     }
     if (flex)
-        clamp = 127;
+    {
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto maximum = outputQuantParams.getMax()[0];
+        clamp = outputQuantParams.getScale()[0] * maximum;
+    }
+
     return clamp;
 }
 
