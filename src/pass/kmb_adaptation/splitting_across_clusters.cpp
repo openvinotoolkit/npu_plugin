@@ -302,7 +302,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
                      tensor->get<std::string>("splitStrategy") == "SplitOverK")
