@@ -141,6 +141,7 @@ include_directories(${PROJECT_SOURCE_DIR}/include/huffman_encoding)
 
 # emulator includes
 include_directories(${PROJECT_SOURCE_DIR}/contrib)
+include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/include)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/include/emu)
 include_directories(${PROJECT_SOURCE_DIR}/contrib/mcm-emulator/src)
@@ -402,7 +403,12 @@ set(
     OPERATION
     ${SOURCE_DIR}/op/compute.cpp
     ${SOURCE_DIR}/op/operator/accumulate.cpp
-    ${SOURCE_DIR}/op/operator/post_process.cpp)
+    ${SOURCE_DIR}/op/operator/post_process.cpp
+    ${SOURCE_DIR}/op/movisim/binding.cpp
+    ${SOURCE_DIR}/op/movisim/shared_library.cpp
+    ${SOURCE_DIR}/op/movisim/simulate_kmb.cpp
+    ${SOURCE_DIR}/op/movisim/simulation.cpp
+    ${SOURCE_DIR}/op/movisim/vp_logger.cpp)
 set(
     RUN
     ${SOURCE_DIR}/run/conv.cpp
@@ -486,7 +492,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
+    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon dl)
     target_link_libraries(model PRIVATE lemon)
 
     # setup warnings as errors
