@@ -6,7 +6,7 @@ double inf = std::numeric_limits<double>::infinity();
 
 template <typename T1, typename T2> std::vector<T1> read_weights_from_file(std::string input_file)
 {
-    std::string filePath = mv::utils::projectRootPath() + "/tests/layer/multiple_fc_16x10_fp/" + input_file;
+    std::string filePath = mv::utils::projectRootPath() + "/tests/layer/multiple_fc_16x40_fp/" + input_file;
     std::ifstream file(filePath, std::ifstream::binary);
     T2 inputString;
     std::vector<T2> data;

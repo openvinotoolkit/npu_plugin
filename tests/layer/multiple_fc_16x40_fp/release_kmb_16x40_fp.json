@@ -124,7 +124,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 32}
+                            {"K" : 22}
                         ]
                     },
                     {
@@ -133,7 +133,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 32}
+                            {"K" : 16}
                         ]
                     },
                     {
@@ -367,14 +367,14 @@
             "scheduling",
             {
                 "name": "GenerateDot",
-                "output": "output/controlModel_SC_pref2.dot",
+                "output": "output/controlModel_MC_pref2.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
             },
             {
                 "name": "GenerateDot",
-                "output": "output/opControlModel_SC_pref2.dot",
+                "output": "output/opControlModel_MC_pref2.dot",
                 "scope": "OpControlModel",
                 "content": "full",
                 "html": true
