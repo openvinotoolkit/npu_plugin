@@ -1704,12 +1704,6 @@ class DDR_Address_Generator {
       update_dag_with_master_slave_relations(schedule.begin(), schedule.end(),
           msrelations);
 
-      FILE *fptr_ms = fopen("msrelations.txt", "w");
-      if (!fptr_ms) {
-        throw "[MSRelation Dump]: failed\n";
-      }
-      msrelations.print(fptr_ms);
-
       ddr_address_table_t ddr_address_table;
       FILE *fptr = file_name ?  fopen(file_name, "w") : NULL;
       ddr_address_setter_t address_setter(fptr, &ddr_address_table,
