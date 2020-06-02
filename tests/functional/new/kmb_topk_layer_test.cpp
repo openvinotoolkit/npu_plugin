@@ -51,11 +51,7 @@ std::ostream& operator<<(std::ostream& os, const TopKTestParams& p) {
 
 class KmbTopKLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<TopKTestParams> {};
 
-// Sсalar blob is unsupported
-// Layers with multiple outputs is unsupported
-// [Track number: S#31485/S#31238]
 TEST_P(KmbTopKLayerTests, Top_EqualWithCPU) {
-
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
