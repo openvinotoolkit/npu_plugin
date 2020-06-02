@@ -1075,12 +1075,12 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                         (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
                         (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
                         (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
-
+            std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j) );
             auto sliceInput = om.slice(inputTensor,
                             beginInputShape,
                             branchInputSize,
                             inputTensor->get<mv::QuantizationParams>("quantParams"),
-                            "Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
+                            "Slice" + operation->getName() +  sliceName);
             auto sliceInputOp = om.getSourceOp(sliceInput);
             sliceInputOp->set<unsigned>("opId", initialOpId);
             auto parentOpIt = om.getSourceOp(inputTensor);
@@ -1094,7 +1094,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getName() + sliceInput->getName());
+                    operation->getName() + sliceName);
             }
             else if (operation->getOpType() == "DepthwiseConv")
             {
@@ -1105,7 +1105,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     operation->get<unsigned>("dilationFactor"),
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getName() + sliceInput->getName());
+                    operation->getName() + sliceName);
             }
             else if (operation->getOpType()== "Conv")
             {
@@ -1117,7 +1117,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     1,//no group dilation
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getName() + sliceInput->getName());
+                    operation->getName() + sliceName);
             }
             else if (operation->getOpType()== "MaxPool")
             {
@@ -1128,7 +1128,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
-                    operation->getName() + sliceInput->getName());
+                    operation->getName() + sliceName);
             }            
             op->set<unsigned>("opId", initialOpId);
             auto opSlice = om.getSourceOp(op);
