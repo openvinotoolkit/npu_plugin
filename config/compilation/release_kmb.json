@@ -12,7 +12,7 @@
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,

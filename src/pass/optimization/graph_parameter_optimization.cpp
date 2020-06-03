@@ -372,6 +372,7 @@ namespace mv
                     newOutputSize = mv::round_up(newOutputSize, 16);
 
                     // TODO determine when there will be overlap
+                    //double worstNumberOfSplits = (double)outputSize/(newOutputSize+2);
                     double worstNumberOfSplits = (double)outputSize/(newOutputSize);
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
@@ -401,6 +402,7 @@ namespace mv
 
                 if(clustering == "SplitOverK")
                 {
+                    //size_t alignedSplittedOutputChannels = ceil(alignedStreamedOutputChannels/totalClusters)
                     size_t alignedSplittedOutputChannels = div(alignedStreamedOutputChannels,totalClusters);
                     if(alignedSplittedOutputChannels < 64)
                         alignedSplittedOutputChannels = mv::round_up(alignedSplittedOutputChannels, 16);
@@ -621,6 +623,9 @@ namespace mv
                     return splits;
 
                 splits = splitsToFit;
+
+                if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+                cout << op.getName() << ": Calculating streams over H... weights fit" << endl;
 
                 // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
                 auto inputHeight = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
@@ -1530,13 +1535,20 @@ namespace mv
                             // Note: Adjusting maxSplitOverH appropriately for nested is now handled on the fly
                             // for each possible stream over K, a single stream over H option that fits is chosen
                         }
-
+if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+    cout << "Considering {"<< clustering.toString() << "} : nested: " << enableNestedStreaming<<endl <<
+    "    max k: " << streamsOverK.back() << ", num k: " << streamsOverK.size() << endl <<
+    "    max h: " << maxSplitOverH << ", min h: " << minSplitOverH << endl;
+                    // for(unsigned n = 1; n <= maxSplitOverN; n++)
+                    // {
                         for(const auto k : streamsOverK)
                         {
                             if(enableNestedStreaming) // generate h on the fly
                             {
                                 maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,k,1},fakeSparsity);
                                 minSplitOverH = maxSplitOverH -1;
+                                if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
+                                    cout << " enabled nested streaming... h:" << maxSplitOverH<<endl;
                             }
                             if(minSplitOverH < 1) minSplitOverH = 1;
                             if(maxSplitOverH < 1) maxSplitOverH = 1;
@@ -1551,7 +1563,7 @@ namespace mv
                                     if( !enableNestedStreaming and ((h>1) and (k>1))) // Skip nested streams unless necessary
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
-                                        continue;
+                                       continue;
                                     if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
                                         continue;
 
@@ -1573,6 +1585,9 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
+                                    if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add"){
+                                        cout << " {"<< clustering.toString() << "} : k: " << k << ", h: " << h << " : " << strategyCheck << endl;
+                                    }
                                     // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
                                     if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
