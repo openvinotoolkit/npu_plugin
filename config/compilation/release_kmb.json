@@ -106,7 +106,7 @@
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
-            "AddReshapesToChangeSoftmaxAxis",
+            "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
             "TileOps",

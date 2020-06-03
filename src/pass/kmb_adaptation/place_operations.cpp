@@ -8,7 +8,7 @@
 
 void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -22,16 +22,16 @@ namespace mv
             "This pass handles the DPU's output Tensor Data Type."
         );
 
-        MV_REGISTER_PASS(AddReshapesToChangeSoftmaxAxis)
-        .setFunc(addReshapesToChangeSoftmaxAxisFcn)
+        MV_REGISTER_PASS(AddPermutesToChangeSoftmaxAxis)
+        .setFunc(addPermutesToChangeSoftmaxAxisFcn)
         .setDescription(
             "UPA softmax layer does not support softmax oepration on the W axis. \
-            The solution to this is to reshape the tensor before and after the softmax operation."
+            The solution to this is to transpose the tensor before and after the softmax operation."
         );
     }
 }
 
-void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     using namespace mv;
     OpModel om(model);
@@ -45,40 +45,57 @@ void addReshapesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::Comp
         {
             auto inputTensorSoftmax = softmax->getInputTensor(0);
 
-            mv::QuantizationParams inputTensorSoftmaxQPs = inputTensorSoftmax->get<mv::QuantizationParams>("quantParams");
+            mv::QuantizationParams inputTensorSoftmaxQPs = {{},{},{},{}};
+            if(inputTensorSoftmax->hasAttr("quantParams"))
+                inputTensorSoftmaxQPs = inputTensorSoftmax->get<mv::QuantizationParams>("quantParams");
 
-            mv::Shape outputShapeBeforeSoftmax = {softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
-            
-            auto reshapeBeforeSoftmax = om.reshape(inputTensorSoftmax, outputShapeBeforeSoftmax, mv::DType("Float16"), inputTensorSoftmaxQPs,  softmax->getName() + "_reshape");
-            auto reshapeOpBeforeSoftmax = om.getSourceOp(reshapeBeforeSoftmax);
+            // Permute acts on internal order WHCN
+            mv::Order transposedOrder_swapWandH("HWCN");    // NCHW --> NCWH
+            mv::Order transposedOrder_swapWHandC("CWHN");   // NCHW --> NHWC
+
+            auto transposeBeforeSoftmax1 = om.permute(inputTensorSoftmax, transposedOrder_swapWandH, mv::DType("Default"), inputTensorSoftmaxQPs, softmax->getName() + "_permuteWandH");
+            auto transposeBeforeSoftmax2 = om.permute(transposeBeforeSoftmax1, transposedOrder_swapWHandC, mv::DType("Default"), inputTensorSoftmaxQPs, softmax->getName() + "_permuteWHandC");
+            auto transposeOpBeforeSoftmax1 = om.getSourceOp(transposeBeforeSoftmax1);
+            auto transposeOpBeforeSoftmax2 = om.getSourceOp(transposeBeforeSoftmax2);
             auto outputMemoryLocationSoftmax = softmax->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             
             /*Remove old flow*/
             auto sourceFlow = softmax.leftmostInput();
             om.undefineFlow(sourceFlow);
 
-            reshapeOpBeforeSoftmax->set<unsigned>("opId", softmax->get<unsigned>("opId"));
-            softmax->setInputTensor(reshapeBeforeSoftmax, 0, true);
-            om.defineFlow(reshapeBeforeSoftmax, softmax, 0);
+            transposeOpBeforeSoftmax1->set<unsigned>("opId", softmax->get<unsigned>("opId"));
+            transposeOpBeforeSoftmax2->set<unsigned>("opId", softmax->get<unsigned>("opId"));
+            softmax->setInputTensor(transposeBeforeSoftmax2, 0, true);
+            om.defineFlow(transposeBeforeSoftmax2, softmax, 0);
            
-            reshapeBeforeSoftmax->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
-            softmax->set<std::string>("axis", "H");
+            transposeOpBeforeSoftmax1->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
+            transposeOpBeforeSoftmax2->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
+            softmax->set<std::string>("axis", "C");
 
-            /*Reshape after*/
+            /*Permute after*/
             auto opAfterSoftmax = softmax.leftmostChild();
             auto inputTensorOpAfterSoftmax =  opAfterSoftmax->getInputTensor(0);
-            mv::QuantizationParams inputTensorQuantizationParamsOpAfterSoftmax = inputTensorOpAfterSoftmax->get<mv::QuantizationParams>("quantParams");
-            mv::Shape outputShapeAfterSoftmax = {softmax->getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION], softmax->getInputTensor()[0]->getShape()[mv::IO_BATCH_DIMENSION]};
-            auto reshapeAfterSoftmax = om.reshape(inputTensorOpAfterSoftmax, outputShapeAfterSoftmax, mv::DType("Float16"), inputTensorQuantizationParamsOpAfterSoftmax,  opAfterSoftmax->getName() + "_reshape");
-            auto reshapeOpAfterSoftmax = om.getSourceOp(reshapeAfterSoftmax);
-            
+            mv::QuantizationParams inputTensorQuantizationParamsOpAfterSoftmax = {{},{},{},{}};
+            if(inputTensorOpAfterSoftmax->hasAttr("quantParams"))
+                inputTensorQuantizationParamsOpAfterSoftmax = inputTensorOpAfterSoftmax->get<mv::QuantizationParams>("quantParams");
+            auto transposeAfterSoftmax1 = om.permute(inputTensorOpAfterSoftmax, transposedOrder_swapWHandC,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWHandC1");
+            auto transposeAfterSoftmax2 = om.permute(transposeAfterSoftmax1, transposedOrder_swapWHandC,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWHandC2");
+            auto transposeAfterSoftmax3 = om.permute(transposeAfterSoftmax2, transposedOrder_swapWandH,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWandH");
+            auto transposeOpAfterSoftmax1 = om.getSourceOp(transposeAfterSoftmax1);
+            auto transposeOpAfterSoftmax2 = om.getSourceOp(transposeAfterSoftmax2);
+            auto transposeOpAfterSoftmax3 = om.getSourceOp(transposeAfterSoftmax3);
+
             /*Remove old flow*/
             auto sourceFlow1 = opAfterSoftmax.leftmostInput();
             om.undefineFlow(sourceFlow1);
-            reshapeOpAfterSoftmax->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
-            opAfterSoftmax->setInputTensor(reshapeAfterSoftmax, 0, true);
-            om.defineFlow(reshapeAfterSoftmax, opAfterSoftmax, 0);
-            reshapeAfterSoftmax->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
+            transposeOpAfterSoftmax1->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
+            transposeOpAfterSoftmax2->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
+            transposeOpAfterSoftmax3->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
+            opAfterSoftmax->setInputTensor(transposeAfterSoftmax3, 0, true);
+            om.defineFlow(transposeAfterSoftmax3, opAfterSoftmax, 0);
+            transposeAfterSoftmax1->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
+            transposeAfterSoftmax2->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
+            transposeAfterSoftmax3->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
         }
     }
 }
