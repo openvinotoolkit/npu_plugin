@@ -37,17 +37,17 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     mv::OpModel om(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+    std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
+                                    {{"Bias", fuseBiasFcn},
+                                    {"Sigmoid", fuseUsualPPEFcn},
+                                    {"Relu", fuseUsualPPEFcn},
+                                    {"LeakyRelu", fuseUsualPPEFcn},
+                                    {"Minimum", fuseMinimumFcn},
+                                    {"Maximum", fuseMaximumFcn}};
+
     bool PPEAccuracy = globalParams->hasAttr("PPEAccuracy") ? globalParams->get<bool>("PPEAccuracy") : false;
     if (PPEAccuracy)
     {
-        std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
-                                           {{"Bias", fuseBiasFcn},
-                                            {"Sigmoid", fuseUsualPPEFcn},
-                                            {"Relu", fuseUsualPPEFcn},
-                                            {"LeakyRelu", fuseUsualPPEFcn},
-                                            {"Minimum", fuseMinimumFcn},
-                                            {"Maximum", fuseMaximumFcn}};
-
         std::vector<mv::Data::OpListIterator> biasOperations = om.getOps("Bias");
 
         for (auto bias : biasOperations)
@@ -69,14 +69,6 @@ void fusePostOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     {
         std::vector<std::string> fuse_types = {"Bias", "Sigmoid", "Relu", "LeakyRelu", "Minimum", "Maximum"};
         std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType = om.getOpsOfTypes(fuse_types);
-
-        std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> fuseTaskMap =
-                                           {{"Bias", fuseBiasFcn},
-                                            {"Sigmoid", fuseUsualPPEFcn},
-                                            {"Relu", fuseUsualPPEFcn},
-                                            {"LeakyRelu", fuseUsualPPEFcn},
-                                            {"Minimum", fuseMinimumFcn},
-                                            {"Maximum", fuseMaximumFcn}};
 
         //NOTE: Iterate the fuse_types vector for correct order reason according to map
         for (auto type = fuse_types.begin(); type != fuse_types.end(); type++)
@@ -190,7 +182,7 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
 
     if (opType == "LeakyRelu")
         parentOpIt->set<double>("leakyAlpha", opIt->get<double>("alpha"));
-    else if (opType == "Sigmoid")
+    else if (opIt->hasPWLActivation())
     {
         // Check for fuseable parentOp; else, execute in software
         auto optype = parentOpIt->getOpType();
@@ -198,13 +190,6 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
         {
             opIt->set<bool>("softwareExecuted", true);
             return;
-        }
-        else if (opIt->hasAttr("quantParams"))
-            parentOpIt->set<mv::QuantizationParams>("quantParams", opIt->get<mv::QuantizationParams>("quantParams"));
-        else
-        {
-            if (!parentOpIt->hasAttr("quantParams"))
-                parentOpIt->set<mv::QuantizationParams>("quantParams", {{}, {}, {}, {}});
         }
     }
     std::vector<std::string> postOpTypes;

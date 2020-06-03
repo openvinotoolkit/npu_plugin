@@ -1199,6 +1199,28 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     return toBuild;
 }
 
+void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild , Control::OpListIterator& opIt){
+    if (!opIt->hasAttr("pwlQuantParams"))
+        return;
+
+    auto pwlQuant = opIt->get<mv::QuantizationParams>("pwlQuantParams");
+    auto quantMult = reduceQuantVector_(pwlQuant.getMult());
+    toBuild->output_data->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+    toBuild->parent_output_tensor->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+    auto quantShift = reduceQuantVector_(pwlQuant.getShift());
+    toBuild->output_data->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+    toBuild->parent_output_tensor->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+    auto quantZero = pwlQuant.getZeroPoint();
+    toBuild->output_data->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+    toBuild->parent_output_tensor->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+    auto quantScale = pwlQuant.getScale();
+    toBuild->output_data->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+    toBuild->parent_output_tensor->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+    auto quantPostShift = pwlQuant.getPostShift();
+    toBuild->output_data->quant_post_shift_right = quantPostShift;
+    toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
+}
+
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
@@ -1247,6 +1269,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, outputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
+
+    updatePWLTaskT(toBuild, opIt);
 
     if(opIt->hasAttr("fakeSparsity"))
     {
@@ -1383,6 +1407,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             toBuild->output_data->data->data_index += byte_index;
         }
     }
+
+    updatePWLTaskT(toBuild, opIt);
 
     //OP inputs == n ->
     // n - 2 activation window (when present)

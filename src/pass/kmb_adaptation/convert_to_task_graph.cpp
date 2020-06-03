@@ -789,6 +789,11 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         clamp /= alpha;
     }
 
+    // PWL activation runs immediately after clamp
+    if(opIt->hasPWLActivation())
+        clamp = std::max(-4096, static_cast<signed>(std::ceil(
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getMin()[0] /
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
         clamp = -128;
 
@@ -847,6 +852,12 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
             }
         }
     }
+
+    // PWL activation runs immediately after clamp
+    if(opIt->hasPWLActivation())
+        clamp = std::min(4095, static_cast<signed>(std::floor(
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getMax()[0] /
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
         clamp = 127;
     return clamp;
