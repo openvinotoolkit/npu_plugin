@@ -81,7 +81,8 @@ void Performance_Tests::SetUp() {
 
 void Performance_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
 
-TEST_F(Performance_Tests, Resnet50_DPU_Blob_WithPreprocessing) {
+// [Track number: S#31183]
+TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
