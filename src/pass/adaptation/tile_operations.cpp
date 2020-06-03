@@ -206,11 +206,6 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
     for (std::size_t branchId = 0; branchId < partitions; branchId++)
     {
-        //NOTE: assuming order of paddings: left,right,top,bottom
-        //Pad quadrant 0 with real data from right
-        //Pad quadrant 1 with real data from bottom
-        //Pad quadrant 2 with real data from top
-        //Pad quadrant 3 with real data from left
         bool isasymmetric = false;
         bool propogateDType = true;
         int largeDim = 0;
@@ -357,6 +352,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
 
         auto sliceInputOp = om.getSourceOp(sliceInput);
         auto sliceWeightOp = om.getSourceOp(sliceWeight);
+        convOp->set<bool>("placeConversionToFloat", true);
         convOp->set<unsigned>("opId", initialOpId);
         convOp->set<bool>("partitionedKernelToAdd", propogateDType);
         sliceInputOp->set<unsigned>("opId", initialOpId);
@@ -404,6 +400,11 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
     placeAdd5Op->set<bool>("floatPrecision", true);
     placeAdd6Op->set<bool>("floatPrecision", true);
     placeAdd7Op->set<bool>("floatPrecision", true);
+    std::vector<std::string> postOpTypes;
+    if (opIt->hasAttr("postOpTypes"))
+        postOpTypes = opIt->get<std::vector<std::string>>("postOpTypes");
+    if (!postOpTypes.empty())
+        placeAdd7Op->set<std::vector<std::string>>("postOpTypes", postOpTypes);
     om.defineFlow(placeAdd7, nextOpIt, 0);
     om.removeOp(opIt);
 }
