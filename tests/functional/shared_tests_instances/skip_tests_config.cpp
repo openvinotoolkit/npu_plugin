@@ -20,7 +20,9 @@ std::vector<std::string> disabledTestPatterns() {
         ".*CorrectConfigAPITests.*",
 
         // double free detected
-        // [Track number: S#27337]
-        ".*Behavior.*ExecGraphTests.*",
+        // [Track number: S#27343]
+        ".*InferConfigInTests\\.CanInferWithConfig.*",
+        ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
+        ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
     };
 }
