@@ -200,16 +200,16 @@ else()
     add_executable(reorg_yolo_dpu reorg_yolo_dpu/reorg_yolo_dpu.cpp)
     target_link_libraries(reorg_yolo_dpu cm)
 
-    add_executable(multiple_fc_16x20 multiple_fc_16x20/multiple_fc_16x20.cpp)
-    target_link_libraries(multiple_fc_16x20 cm)
+    add_executable(multiple_conv_sc multiple_conv_sc/multiple_conv_sc.cpp)
+    target_link_libraries(multiple_conv_sc cm)
 
-    add_executable(multiple_fc_16x80 multiple_fc_16x80/multiple_fc_16x80.cpp)
-    target_link_libraries(multiple_fc_16x80 cm)
+    add_executable(multiple_conv_mc multiple_conv_mc/multiple_conv_mc.cpp)
+    target_link_libraries(multiple_conv_mc cm)
 
-    add_executable(multiple_fc_16x10_fp multiple_fc_16x10_fp/multiple_fc_16x10_fp.cpp)
-    target_link_libraries(multiple_fc_16x10_fp cm)
+    add_executable(multiple_conv_sc_fp multiple_conv_sc_fp/multiple_conv_sc_fp.cpp)
+    target_link_libraries(multiple_conv_sc_fp cm)
 
-    add_executable(multiple_fc_16x40_fp multiple_fc_16x40_fp/multiple_fc_16x40_fp.cpp)
-    target_link_libraries(multiple_fc_16x40_fp cm)
+    add_executable(multiple_conv_mc_fp multiple_conv_mc_fp/multiple_conv_mc_fp.cpp)
+    target_link_libraries(multiple_conv_mc_fp cm)
 
 endif(MSVC)

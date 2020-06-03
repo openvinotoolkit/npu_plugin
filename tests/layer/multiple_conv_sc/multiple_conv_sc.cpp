@@ -6,7 +6,7 @@ double inf = std::numeric_limits<double>::infinity();
 
 template <typename T1, typename T2> std::vector<T1> read_weights_from_file(std::string input_file)
 {
-    std::string filePath = mv::utils::projectRootPath() + "/tests/layer/multiple_fc_16x80/" + input_file;
+    std::string filePath = mv::utils::projectRootPath() + "/tests/layer/multiple_conv_sc/" + input_file;
     std::ifstream file(filePath, std::ifstream::binary);
     T2 inputString;
     std::vector<T2> data;
@@ -42,7 +42,7 @@ int main()
     mv::CompilationUnit unit("parserModel");
     mv::OpModel& om = unit.model();
 
-    auto input = om.input({16,80,784,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input");
+    auto input = om.input({16,20,784,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{128},{0.007843137718737125},{-1.0},{1.0}}, "input");
 
     auto fc_0 = convBias(om, input, {1,1,784,1024},
                                     {{0},{0.003921568859368563},{0.0},{1.0}},
@@ -71,7 +71,7 @@ int main()
     om.output(fc_3);
 
     std::string compDescPath = mv::utils::projectRootPath() +
-        "/tests/layer/multiple_fc_16x80/release_kmb_MC-Prefetch2_manual_streamK_16x80.json";
+        "/tests/layer/multiple_conv_sc/release_kmb_multiple_conv_sc.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
