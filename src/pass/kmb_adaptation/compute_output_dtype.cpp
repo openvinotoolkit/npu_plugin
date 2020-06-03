@@ -359,9 +359,9 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto returnedParams = model.getGlobalConfigParams();
     if (returnedParams->hasAttr("PredictionOfQuantizationOutput"))
         PredictionOfQuantizationOutput = returnedParams->get<bool>("PredictionOfQuantizationOutput");
-    bool inputQuantized, weightsQuantized;
+    bool inputQuantized, weightsQuantized, outputQuantized;
 
-   if (PredictionOfQuantizationOutput)
+    if (PredictionOfQuantizationOutput)
         updateOutputQuantParams(pass, model);
     else
     {
@@ -381,26 +381,36 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 outputConvHasNeutralQuantParams =
                     conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral();
             }
-            if (!outputConvHasQuantParams|| outputConvHasEmptyQuantParams || outputConvHasNeutralQuantParams)
+            outputQuantized = !(!outputConvHasQuantParams || outputConvHasEmptyQuantParams || outputConvHasNeutralQuantParams);
+
+            if (conv->getInputTensor()[0]->hasAttr("quantParams"))
             {
-                if (conv->getInputTensor()[0]->hasAttr("quantParams"))
+                if (!(conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
+                        conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty()))
                 {
-                    if (!(conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
-                            conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty()))
-                    {
-                        inputQuantized = true;
-                    }
+                    inputQuantized = true;
                 }
-                if (conv->getInputTensor()[1]->hasAttr("quantParams"))
+            }
+            if (conv->getInputTensor()[1]->hasAttr("quantParams"))
+            {
+                if (!(conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
+                        conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isEmpty()))
                 {
-                    if (!(conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
-                            conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isEmpty()))
+                    weightsQuantized = true;
+                }
+            }
+
+            if (conv->getOutputTensor()[0]->get<mv::DType>("dType") ==  mv::DType("Float16"))
+            {
+                if (returnedParams->hasAttr("FloatOutput"))
+                {
+                    if (returnedParams->get<bool>("FloatOutput"))
                     {
-                        weightsQuantized = true;
+                        conv->set<bool>("floatPrecision", true);
                     }
                 }
             }
-            if (weightsQuantized && inputQuantized)
+            else if (weightsQuantized && inputQuantized && !outputQuantized)
             {
                 if (returnedParams->hasAttr("Int32Output"))
                 {
@@ -443,16 +453,6 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
                             if (perTensor)
                                 conv->set<bool>("placeConversionToFloat", true);
                         }
-                    }
-                }
-            }
-            else
-            {
-                if (returnedParams->hasAttr("FloatOutput"))
-                {
-                    if (returnedParams->get<bool>("FloatOutput"))
-                    {
-                        conv->set<bool>("floatPrecision", true);
                     }
                 }
             }
