@@ -108,6 +108,8 @@ namespace mv
             static std::unique_ptr<MVCNN::PPETaskT> buildPPETaskT();
             static std::unique_ptr<MVCNN::PPEFixedFunctionT> buildPPEFixedFunctionT(ComputationModel&, Element&, const PPEFixedFunction &ppeFixedFunction);
             static void updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild , Control::OpListIterator& opIt);
+            static void adaptFakeSparsityIndex(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv, Control::OpListIterator opIt, int clusterId);
+            static void adaptFakeSparsityIndex(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv, Control::OpListIterator opIt);
 
             // UPA Layer Task
             static MVCNN::UPALayerTaskT * buildUPAQuantizeTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);

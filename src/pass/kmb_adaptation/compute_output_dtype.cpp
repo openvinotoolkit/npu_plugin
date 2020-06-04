@@ -359,99 +359,89 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
     auto returnedParams = model.getGlobalConfigParams();
     if (returnedParams->hasAttr("PredictionOfQuantizationOutput"))
         PredictionOfQuantizationOutput = returnedParams->get<bool>("PredictionOfQuantizationOutput");
-    bool inputQuantized, weightsQuantized, outputQuantized;
 
     if (PredictionOfQuantizationOutput)
         updateOutputQuantParams(pass, model);
     else
     {
-        auto convOps = om.getOps("Conv");
-        auto convDepthwiseOps = om.getOps("DepthwiseConv");
-        convOps.insert(convOps.end(),convDepthwiseOps.begin(),convDepthwiseOps.end());
+        const std::unordered_map <std::string, std::vector<std::size_t>>
+            hardwarizableOps =
+            {
+                {"Conv", {0}},
+                {"DepthwiseConv", {0}},
+                {"MaxPool", {0}},
+                {"Eltwise", {0, 1}}
+            };
 
-        bool outputConvHasQuantParams, outputConvHasEmptyQuantParams, outputConvHasNeutralQuantParams;
-        for (auto conv : convOps)
+        for (auto opType : hardwarizableOps)
         {
-            inputQuantized = false, weightsQuantized = false;
-            outputConvHasQuantParams = conv->getOutputTensor()[0]->hasAttr("quantParams");
-            if (outputConvHasQuantParams)
-            {
-                outputConvHasEmptyQuantParams =
-                    conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty();
-                outputConvHasNeutralQuantParams =
-                    conv->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral();
-            }
-            outputQuantized = !(!outputConvHasQuantParams || outputConvHasEmptyQuantParams || outputConvHasNeutralQuantParams);
+            auto opList = om.getOps(opType.first);
 
-            if (conv->getInputTensor()[0]->hasAttr("quantParams"))
+            for (auto op : opList)
             {
-                if (!(conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
-                        conv->getInputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty()))
-                {
-                    inputQuantized = true;
-                }
-            }
-            if (conv->getInputTensor()[1]->hasAttr("quantParams"))
-            {
-                if (!(conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isNeutral() ||
-                        conv->getInputTensor()[1]->get<mv::QuantizationParams>("quantParams").isEmpty()))
-                {
-                    weightsQuantized = true;
-                }
-            }
+                bool outputQuantized = !(!op->getOutputTensor()[0]->hasAttr("quantParams") ||
+                    op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty() ||
+                    op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral());
 
-            if (conv->getOutputTensor()[0]->get<mv::DType>("dType") ==  mv::DType("Float16"))
-            {
-                if (returnedParams->hasAttr("FloatOutput"))
+                bool inputQuantized = true;
+                for (auto tidx : opType.second)
+                    inputQuantized &= op->getInputTensor(tidx)->hasAttr("quantParams") &&
+                        !(op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isNeutral() ||
+                        op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isEmpty());
+
+                if (op->getOutputTensor()[0]->get<mv::DType>("dType") ==  mv::DType("Float16"))
                 {
-                    if (returnedParams->get<bool>("FloatOutput"))
+                    if (returnedParams->hasAttr("FloatOutput"))
                     {
-                        conv->set<bool>("floatPrecision", true);
-                    }
-                }
-            }
-            else if (weightsQuantized && inputQuantized && !outputQuantized)
-            {
-                if (returnedParams->hasAttr("Int32Output"))
-                {
-                    if (returnedParams->get<bool>("Int32Output"))
-                    {
-                        conv->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
-                        conv->set<mv::DType>("dType", mv::DType("Int32"));
-                    }
-                }
-                //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
-                //each other, which leads to 1x1 workloads, so we will do an explicit conversion
-                //in different cases
-                if (returnedParams->hasAttr("FloatOutput"))
-                {
-                    if (returnedParams->get<bool>("FloatOutput"))
-                    {
-                        if (conv->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
-                         conv->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
+                        if (returnedParams->get<bool>("FloatOutput"))
                         {
-                            conv->set<bool>("mixedToFloat", true);
-                            conv->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
+                            op->set<bool>("floatPrecision", true);
                         }
-                        else
+                    }
+                }
+                else if (inputQuantized && !outputQuantized)
+                {
+                    if (returnedParams->hasAttr("Int32Output"))
+                    {
+                        if (returnedParams->get<bool>("Int32Output"))
                         {
-                            //NOTE: Eltwise quantize can support only per tensor quantization!!!
-                            bool perTensor = true;
-                            std::vector <double> absRelativeErrorScale;
-                            auto channelScale = conv->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                            for (std::size_t i = 1; i < conv->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale().size();
-                                 i++)
-                                absRelativeErrorScale.push_back(std::abs(channelScale[i] - channelScale[0]));
-                            for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                            op->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Int32"));
+                            op->set<mv::DType>("dType", mv::DType("Int32"));
+                        }
+                    }
+                    //NOTE: HW limitation, in mixed mode the grids of the MPEs are conflicting between
+                    //each other, which leads to 1x1 workloads, so we will do an explicit conversion
+                    //in different cases
+                    if (returnedParams->hasAttr("FloatOutput"))
+                    {
+                        if (returnedParams->get<bool>("FloatOutput"))
+                        {
+                            if (op->getOutputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION] == 1 &&
+                            op->getOutputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 1)
                             {
-                                if (*it > 0.01f)
-                                {
-                                    perTensor = false;
-                                    break;
-                                }
+                                op->set<bool>("mixedToFloat", true);
+                                op->getOutputTensor()[0]->set<mv::DType>("dType", mv::DType("Float16"));
                             }
-                            if (perTensor)
-                                conv->set<bool>("placeConversionToFloat", true);
+                            else
+                            {
+                                //NOTE: Eltwise quantize can support only per tensor quantization!!!
+                                bool perTensor = true;
+                                std::vector <double> absRelativeErrorScale;
+                                auto channelScale = op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
+                                for (std::size_t i = 1; i < op->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale().size();
+                                    i++)
+                                    absRelativeErrorScale.push_back(std::abs(channelScale[i] - channelScale[0]));
+                                for (auto it = absRelativeErrorScale.begin(); it != absRelativeErrorScale.end(); it++)
+                                {
+                                    if (*it > 0.01f)
+                                    {
+                                        perTensor = false;
+                                        break;
+                                    }
+                                }
+                                if (perTensor)
+                                    op->set<bool>("placeConversionToFloat", true);
+                            }
                         }
                     }
                 }

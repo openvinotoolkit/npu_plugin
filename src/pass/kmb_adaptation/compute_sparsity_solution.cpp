@@ -31,19 +31,21 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    auto convOps = om.getOps("Conv");
+    auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
-    for (auto &convOp : convOps) {
-        if (convOp->hasAttr("floatPrecision") &&
-            convOp->get<bool>("floatPrecision") &&
-            referenceDevice == "A0" &&
-            (!convOp->hasAttr("inputActivationSparsity") ||
-            !convOp->get<bool>("inputActivationSparsity")))
-        {
-            convOp->set<bool>("activationSparsityCompilerSolving", true);
-            convOp->set<bool>("inputActivationSparsity", true);
+    for (auto opList : opsMap) {
+        for (auto op : opList.second) {
+            if (op->hasAttr("floatPrecision") &&
+                op->get<bool>("floatPrecision") &&
+                referenceDevice == "A0" &&
+                (!op->hasAttr("inputActivationSparsity") ||
+                !op->get<bool>("inputActivationSparsity")))
+            {
+                op->set<bool>("activationSparsityCompilerSolving", true);
+                op->set<bool>("inputActivationSparsity", true);
+            }
         }
     }
 }
