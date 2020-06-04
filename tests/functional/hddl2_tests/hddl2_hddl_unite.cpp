@@ -427,8 +427,8 @@ TEST_F(HddlUnite_Stress, DISABLED_MultipleAllocations) {
     const size_t amountOfAllocations = 100;
 
     HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;
-    const std::string graphName = PrecompiledResNet_Helper::resnet50_dpu.graphName;
-    const std::string graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    const std::string graphName = PrecompiledResNet_Helper::resnet50.graphName;
+    const std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
 
     for (size_t i = 0; i < amountOfAllocations; ++i) {
         ASSERT_EQ(HddlUnite::Inference::loadGraph(graphPtr, graphName, graphPath), HDDL_OK);

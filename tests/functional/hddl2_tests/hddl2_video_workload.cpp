@@ -66,9 +66,9 @@ RemoteMemoryFD VideoWorkload_Tests::allocateRemoteMemory(
 }
 
 void VideoWorkload_Tests::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
 void VideoWorkload_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
@@ -161,7 +161,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupp
 
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
-    const auto& inputTensor = PrecompiledResNet_Helper::resnet50_dpu_tensors.inputTensor;
+    const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
     auto inputRefBlob = make_blob_with_precision(inputTensor);
     inputRefBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
@@ -219,9 +219,9 @@ protected:
 };
 
 void VideoWorkload_WithPreprocessing::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Input;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.nv12Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.nv12Output;
 }
 
 TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {

@@ -40,7 +40,7 @@ public:
     std::string refOutputPath;
 
 protected:
-    modelBlobInfo _blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
+    modelBlobInfo _blobInfo = PrecompiledResNet_Helper::resnet50;
 
     void SetUp() override;
 

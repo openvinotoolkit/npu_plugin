@@ -41,14 +41,13 @@ protected:
 };
 
 void ImageWorkload_Tests::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
 //------------------------------------------------------------------------------
 using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
-
 TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
