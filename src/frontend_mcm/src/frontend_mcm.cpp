@@ -725,7 +725,7 @@ double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
