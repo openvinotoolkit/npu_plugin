@@ -27,6 +27,7 @@
 #include "hddl2_params.hpp"
 #include "ie_compound_blob.h"
 #include "ie_core.hpp"
+#include "ie_utils.hpp"
 #include "models/precompiled_resnet.h"
 
 namespace IE = InferenceEngine;
@@ -40,8 +41,7 @@ public:
     std::string refInputPath;
     std::string refOutputPath;
 
-    const size_t numberOfTopClassesToCompare = 5;
-    const size_t reducedNumberOfTopClassesToCompare = 3;
+    const size_t numberOfTopClassesToCompare = 1;
     RemoteMemoryFD allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
@@ -86,7 +86,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
 
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
-    const auto& inputTensor = PrecompiledResNet_Helper::resnet50_dpu_tensors.inputTensor;
+    const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
     auto inputRefBlob = make_blob_with_precision(inputTensor);
     inputRefBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
@@ -144,9 +144,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
 
     // --- Compare with expected output
-    ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
-    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, outputRefBlob, numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
@@ -297,14 +296,14 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    auto referenceBlobTensor = outputBlob->getTensorDesc();
+    referenceBlobTensor.setPrecision(IE::Precision::U8);
+    auto outputRefBlob = make_blob_with_precision(referenceBlobTensor);
     outputRefBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
 
-    // --- Compare with expected output
-    ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
-    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, outputRefBlob, numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
 TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
@@ -382,13 +381,12 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    auto refTensorDesc = outputBlob->getTensorDesc();
+    refTensorDesc.setPrecision(IE::Precision::U8);
+    auto outputRefBlob = make_blob_with_precision(refTensorDesc);
     outputRefBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
 
-    // --- Compare with expected output
-    ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());
-    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(
-        Comparators::compareTopClassesUnordered(outputBlob, outputRefBlob, reducedNumberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+        toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }

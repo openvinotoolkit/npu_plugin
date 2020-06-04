@@ -185,9 +185,11 @@ static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE:
     return newBlob;
 }
 
-IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const ie::Blob::Ptr& actualInput) {
+IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const IE::Blob::Ptr& actualInput) {
     IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
-    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC) return actualInput;
+    if (actualInput->is<ie::CompoundBlob>() || actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC) {
+        return actualInput;
+    }
 
     _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
     IE::Blob::Ptr inputForInference;

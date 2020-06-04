@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <format_reader_ptr.h>
 #include <helper_ie_core.h>
 
 #include <blob_factory.hpp>
@@ -24,7 +25,9 @@
 #include "file_reader.h"
 #include "gtest/gtest.h"
 #include "ie_blob.h"
+#include "ie_utils.hpp"
 #include "models/precompiled_resnet.h"
+#include "tests_common.hpp"
 
 namespace IE = InferenceEngine;
 
@@ -34,7 +37,7 @@ public:
     std::string refInputPath;
     std::string refOutputPath;
 
-    const size_t numberOfTopClassesToCompare = 5;
+    const size_t numberOfTopClassesToCompare = 1;
 
 protected:
     void SetUp() override;
@@ -61,8 +64,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
 
     // ---- Set input
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inputBlob = loadCatImage();
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -76,15 +79,42 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
     refBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
 
-    // --- Look at raw input/output/reference
-    const size_t byteToPrint = 8;
-    EXPECT_NO_THROW(printRawBlob(inputBlob, byteToPrint, "inputBlob"));
-    EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
-    EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
+    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
+    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+}
+
+TEST_F(ImageWorkload_WithoutPreprocessing, SyncInferenceNCHWInput) {
+    // ---- Load inference engine instance
+    InferenceEngine::Core ie;
+
+    // ---- Import or load network
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+
+    // ---- Create infer request
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    // ---- Set input
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+
+    // Load image in different layout to validate repacking
+    auto inputBlob = loadCatImage(IE::Layout::NCHW);
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
+
+    // ---- Run the request synchronously
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    refBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
-    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
@@ -94,9 +124,9 @@ protected:
 };
 
 void ImageWorkload_WithPreprocessing::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Input;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12Output;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.nv12Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.nv12Output;
 }
 
 TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
@@ -134,16 +164,11 @@ TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    auto refTensorDesc = outputBlob->getTensorDesc();
+    refTensorDesc.setPrecision(IE::Precision::U8);
+    auto refBlob = make_blob_with_precision(refTensorDesc);
     refBlob->allocate();
     ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
 
-    // --- Look at raw output/reference
-    const size_t byteToPrint = 8;
-    EXPECT_NO_THROW(printRawBlob(outputBlob, byteToPrint, "outputBlob"));
-    EXPECT_NO_THROW(printRawBlob(refBlob, byteToPrint, "refBlob"));
-
-    ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
-    ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == IE::Precision::U8);
-    ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
