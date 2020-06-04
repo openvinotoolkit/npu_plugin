@@ -49,9 +49,7 @@ void disableCMconvOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             for (auto& convOp : convOps)
             {
                 if ((convOp->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 512) ||
-                (convOp->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 300) ||
-                (convOp->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 416 &&
-                convOp->getOutputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] == 32))
+                (convOp->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] == 300))
                 {
                    globalParams->erase("enable_channel_major_conv");
                    globalParams->set("enable_channel_major_conv", mv::Attribute(bool(false)));
