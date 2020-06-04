@@ -660,10 +660,7 @@ void reorderDmasInScheduleFcn(const mv::pass::PassEntry&, mv::ComputationModel& 
 
 struct OpInfo {
     OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_) : op{op_}, latencyNS{latencyNS_}, csramNS{latencyNS_}, isDMA{isDMA_} {}
-    OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_, std::uint64_t csramNS_, std::uint64_t size_) : op{op_}, latencyNS{latencyNS_}, csramNS{csramNS_}, size{size_}, isDMA{isDMA_}
-    {
-        isWeightDMA = op->getInputTensor(0)->get<std::set<std::string>>("allocators").count("GraphFile");
-    }
+    OpInfo(mv::Op* op_, bool isDMA_, std::uint64_t latencyNS_, std::uint64_t csramNS_, std::uint64_t size_) : op{op_}, latencyNS{latencyNS_}, csramNS{csramNS_}, size{size_}, isDMA{isDMA_} {}
 
     std::uint64_t completeNS() const { return startNS + latencyNS; }
     std::uint64_t completeNSUsingCSRAM() const { return startNS + csramNS; }
@@ -674,7 +671,6 @@ struct OpInfo {
     std::uint64_t size = 0;
     std::uint64_t startNS = 0;
     bool isDMA;
-    bool isWeightDMA = false;
     std::size_t portIdx = 0;
     mv::BarrierDependencies deps;
 };
@@ -926,10 +922,12 @@ void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
 
 struct TensorInfo
 {
+    TensorInfo(mv::Tensor* tensor_, std::uint64_t size_) : tensor{tensor_}, size{size_} {}
+
     mv::Tensor* tensor;
-    std::list<OpInfo*> readers;
-    int priority;
     std::uint64_t size;
+    std::list<OpInfo*> readers = {};
+    bool updatedGraphfileIndex = false;
 };
 
 struct Benefit
@@ -1033,6 +1031,38 @@ Benefit computeBenefit(TensorInfo* tensorInfo,
     return benefit;
 }
 
+// Sets the tensor (and sub-tensors) to the indicated graph file
+// index, and returns the next graph file index to use for
+// assignments.
+unsigned setTensorIndex(unsigned numClusters, TensorInfo* ti, unsigned idx)
+{
+    // N.B. This is essentially duplicating the logic for
+    // graphFileIndex assignment used in allocate_memory_kmb.
+    if (ti->tensor->hasAttr("splitStrategy")
+        && !ti->tensor->hasAttr("weightTable")
+        && !ti->tensor->hasAttr("sparsityMap")
+        && ti->tensor->get<std::string>("splitStrategy") == "SplitOverK")
+    {
+        for (unsigned j = 0; j < numClusters; ++j)
+        {
+#ifdef DEBUG_LAYOUT_PASS
+            std::cerr << "Setting graphFileIndex (dense SplitOverK " << j << " of " << ti->tensor
+                      << " / " << &ti->tensor->getSubTensor(j) << "): " << idx << "\n";
+#endif
+            ti->tensor->getSubTensor(j).set<unsigned>("graphFileIndex", idx++);
+        }
+    }
+    else
+    {
+#ifdef DEBUG_LAYOUT_PASS
+        std::cerr << "Setting graphFileIndex (fallback " << ti->tensor << "): " << idx << "\n";
+#endif
+        ti->tensor->set<unsigned>("graphFileIndex", idx++);
+    }
+    ti->updatedGraphfileIndex = true;
+    return idx;
+}
+
 void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -1082,7 +1112,16 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     std::cerr << "LayoutDMA: csramLimit=" << csramLimit
               << " portLimit=" << portLimit
               << "\n";
+
+    std::cerr << "LayoutDMA: Initial Tensors:\n";
+    for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
+    {
+        std::cerr << "\nTensor " << &*ti << ": " << ti->toString() << "\n";
+    }
 #endif
+
+    mv::DataModel dataModel(model);
+    unsigned numClusters = dataModel.getGlobalConfigParams()->get<int>("Number_of_Clusters");
 
     mv::ControlModel controlModel(model);
     auto ops = controlModel.schedulingSort();
@@ -1202,7 +1241,6 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
             std::cerr << update << " ";
         }
         std::cerr << "size=" << opInfo->size
-                  << " isWeightDMA=" << opInfo->isWeightDMA << "\n"
                   << op->toString() << "\n";
         if (opInfo->isDMA)
         {
@@ -1230,22 +1268,25 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     std::list<TensorInfo> tensorInfos;
     std::unordered_map<mv::Tensor*, TensorInfo*> tensorInfoMap;
 
+    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
+    {
+        if (!t->hasAttr("allocators") || !t->get<std::set<std::string>>("allocators").count("GraphFile"))
+        {
+            continue;
+        }
+        auto it = tensorInfos.emplace(tensorInfos.end(), TensorInfo{&*t, t->computeTotalSize()});
+        tensorInfoMap[&*t] = &*it;
+    }
+
     for (auto& opInfo : opInfos)
     {
         for (auto& tensor : opInfo.op->getInputTensor())
         {
-            bool isWeightDMA = (0 < tensor->get<std::set<std::string>>("allocators").count("GraphFile"));
-            if (!isWeightDMA)
+            auto it = tensorInfoMap.find(&*tensor);
+            if (it != tensorInfoMap.end())
             {
-                continue;
+                it->second->readers.emplace_back(&opInfo);
             }
-            auto it_inserted = tensorInfoMap.insert(std::make_pair(&*tensor, nullptr));
-            if (it_inserted.second)
-            {
-                auto it = tensorInfos.emplace(tensorInfos.end(), TensorInfo{&*tensor, {}, -1, tensor->computeTotalSize()}  );
-                it_inserted.first->second = &*it;
-            }
-            it_inserted.first->second->readers.emplace_back(&opInfo);
         }
     }
 
@@ -1279,7 +1320,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
                   });
 
     std::uint64_t csramAvailable = static_cast<std::uint64_t>(csramLimit);
-    int currentPriority = 0;
+    int currentGraphfileIndex = 0;
 
     // Process benefits in two passes: one pass to pull out as many
     // tensors as will fit into the amount of CSRAM memory we think we
@@ -1290,7 +1331,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         if (benefit.tensorInfo->size <= csramAvailable)
         {
             csramAvailable -= benefit.tensorInfo->size;
-            benefit.tensorInfo->priority = currentPriority++;
+            currentGraphfileIndex = setTensorIndex(numClusters, benefit.tensorInfo, currentGraphfileIndex);
             for (auto updateOpInfo : benefit.tensorInfo->readers)
             {
                 updateOpInfo->latencyNS = updateOpInfo->csramNS;
@@ -1308,7 +1349,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // CSRAM available at runtime.
     for (auto& benefit : benefits)
     {
-        benefit.tensorInfo->priority = currentPriority++;
+        currentGraphfileIndex = setTensorIndex(numClusters, benefit.tensorInfo, currentGraphfileIndex);
     }
 
     // Recompute port assignments based on updated tensor placements.
@@ -1324,44 +1365,13 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
     }
 
-    // DO NOT SUBMIT: This is just an experiment to see what the final
-    // tensor layouts are for a few models.
-#define DEBUG_LAYOUT_PASS
-
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: Initial Tensors:\n";
-    for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
+    // Rewrite remaining graphFileIndex values.
+    for (auto& ti : tensorInfos)
     {
-        std::cerr << "\n" << ti->toString() << "\n";
-    }
-#endif
-
-    // Rewrite graphFileIndex values.  The CSRAM tensors are first in
-    // the blob, followed by the DDR tensors; CSRAM tensors are
-    // ordered with highest priority (lowest numerical priority) at
-    // the front of the blob.
-    for (auto t = model.tensorBegin(); t != model.tensorEnd(); ++t)
-    {
-        if (!t->hasAttr("allocators")
-            || !t->get<std::set<std::string>>("allocators").count("GraphFile")
-            || !t->hasAttr("graphFileIndex"))
+        if (!ti.updatedGraphfileIndex)
         {
-            continue;
+            currentGraphfileIndex = setTensorIndex(numClusters, &ti, currentGraphfileIndex);
         }
-        unsigned idx;
-        auto tensor_ti = tensorInfoMap.find(&*t);
-        if (tensor_ti != tensorInfoMap.end() && 0 <= tensor_ti->second->priority)
-        {
-            idx = tensor_ti->second->priority;
-        }
-        else
-        {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Allocating DDR tensor priority=" << currentPriority << "\n";
-#endif
-            idx = currentPriority++;
-        }
-        t->set("graphFileIndex", idx);
     }
 
 #ifdef DEBUG_LAYOUT_PASS

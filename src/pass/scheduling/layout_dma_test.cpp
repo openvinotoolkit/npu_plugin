@@ -11,6 +11,40 @@ class LayoutDMATest : public ::testing::Test {
 
     LayoutDMATest() {}
 
+    bool isGraphfileTensor(mv::Tensor* t)
+    {
+        return t->hasAttr("allocators")
+          && t->get<std::set<std::string>>("allocators").count("GraphFile");
+    }
+
+    template <typename F>
+    void forEachGraphfileTensor(mv::OpModel& opModel, const F& func)
+    {
+        for (auto ti = opModel.tensorBegin(); ti != opModel.tensorEnd(); ++ti)
+        {
+            mv::Tensor* t = &*ti;
+            if (!t->hasAttr("allocators") || !t->get<std::set<std::string>>("allocators").count("GraphFile"))
+            {
+                continue;
+            }
+            if (t->hasAttr("splitStrategy")
+                && !t->hasAttr("weightTable")
+                && !t->hasAttr("sparsityMap")
+                && t->get<std::string>("splitStrategy") == "SplitOverK")
+            {
+                unsigned numClusters = opModel.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+                for (unsigned j = 0; j < numClusters; ++j)
+                {
+                    func(&t->getSubTensor(j), t);
+                }
+            }
+            else
+            {
+                func(t, t);
+            }
+        }
+    }
+
     void LoadModel(mv::CompilationUnit* unit) {
       mv::OpModel& om = unit->model();
 
@@ -82,32 +116,27 @@ class LayoutDMATest : public ::testing::Test {
 };
 
 // Verify that all graphfile tensors are assigned sequential indices.
-TEST_F(LayoutDMATest, DISABLED_smoke)
+TEST_F(LayoutDMATest, smoke)
 {
     mv::CompilationUnit unit{"conv"};
     LoadModel(&unit);
     unit.initialize();
     unit.run();
-  
+
     std::vector<bool> idxs;
 
-    for (auto ti = unit.model().tensorBegin(); ti != unit.model().tensorEnd(); ++ti)
-    {
-        if (!ti->get<std::set<std::string>>("allocators").count("GraphFile"))
+    forEachGraphfileTensor(unit.model(), [&](mv::Tensor* t, mv::Tensor* /* p */)
         {
-            continue;
-        }
+            unsigned idx = t->get<unsigned>("graphFileIndex");
 
-        unsigned idx = ti->get<unsigned>("graphFileIndex");
+            if (idxs.size() <= idx)
+            {
+                idxs.resize(idx + 1, false);
+            }
 
-        if (idxs.size() <= idx)
-        {
-            idxs.resize(idx + 1, false);
-        }
-
-        EXPECT_FALSE(idxs.at(idx)) << "Duplicate graphFileIndex";
-        idxs.at(idx) = true;
-    }
+            EXPECT_FALSE(idxs.at(idx)) << "Duplicate graphFileIndex";
+            idxs.at(idx) = true;
+        });
 
     for (auto b : idxs)
     {
@@ -116,7 +145,7 @@ TEST_F(LayoutDMATest, DISABLED_smoke)
 }
 
 // Verify that the highest-priority tensor is still highest-priority with reduced CSRAM.
-TEST_F(LayoutDMATest, DISABLED_high_priority_preserved)
+TEST_F(LayoutDMATest, high_priority_preserved)
 {
     std::string name;
     unsigned size = 0;
@@ -128,18 +157,14 @@ TEST_F(LayoutDMATest, DISABLED_high_priority_preserved)
         unit.initialize();
         unit.run();
 
-        for (auto ti = unit.model().tensorBegin(); ti != unit.model().tensorEnd(); ++ti)
-        {
-            if (ti->hasAttr("graphFileIndex"))
+        forEachGraphfileTensor(unit.model(), [&](mv::Tensor* t, mv::Tensor* p)
             {
-                unsigned idx = ti->get<unsigned>("graphFileIndex");
+                unsigned idx = t->get<unsigned>("graphFileIndex");
                 if (!idx)
                 {
-                    tensor = &*ti;
-                    break;
+                    tensor = p;
                 }
-            }
-        }
+            });
 
         ASSERT_NE(tensor, nullptr);
 
@@ -157,18 +182,14 @@ TEST_F(LayoutDMATest, DISABLED_high_priority_preserved)
         unit.initialize();
         unit.run();
 
-        for (auto ti = unit.model().tensorBegin(); ti != unit.model().tensorEnd(); ++ti)
-        {
-            if (ti->hasAttr("graphFileIndex"))
+        forEachGraphfileTensor(unit.model(), [&](mv::Tensor* t, mv::Tensor* p)
             {
-                unsigned idx = ti->get<unsigned>("graphFileIndex");
+                unsigned idx = t->get<unsigned>("graphFileIndex");
                 if (!idx)
                 {
-                    tensor = &*ti;
-                    break;
+                    tensor = p;
                 }
-            }
-        }
+            });
 
         ASSERT_NE(tensor, nullptr);
 
@@ -179,7 +200,7 @@ TEST_F(LayoutDMATest, DISABLED_high_priority_preserved)
 // Verify that the highest-priority tensor is not the highest priority
 // when there's insufficient CSRAM.  (NB this depends on the
 // particular network we happen to be using.)
-TEST_F(LayoutDMATest, DISABLED_alternative_high_priority)
+TEST_F(LayoutDMATest, alternative_high_priority)
 {
     std::string name;
     unsigned size = 0;
@@ -191,18 +212,14 @@ TEST_F(LayoutDMATest, DISABLED_alternative_high_priority)
         unit.initialize();
         unit.run();
 
-        for (auto ti = unit.model().tensorBegin(); ti != unit.model().tensorEnd(); ++ti)
-        {
-            if (ti->hasAttr("graphFileIndex"))
+        forEachGraphfileTensor(unit.model(), [&](mv::Tensor* t, mv::Tensor* p)
             {
-                unsigned idx = ti->get<unsigned>("graphFileIndex");
+                unsigned idx = t->get<unsigned>("graphFileIndex");
                 if (!idx)
                 {
-                    tensor = &*ti;
-                    break;
+                    tensor = p;
                 }
-            }
-        }
+            });
 
         ASSERT_NE(tensor, nullptr);
 
@@ -220,18 +237,14 @@ TEST_F(LayoutDMATest, DISABLED_alternative_high_priority)
         unit.initialize();
         unit.run();
 
-        for (auto ti = unit.model().tensorBegin(); ti != unit.model().tensorEnd(); ++ti)
-        {
-            if (ti->hasAttr("graphFileIndex"))
+        forEachGraphfileTensor(unit.model(), [&](mv::Tensor* t, mv::Tensor* p)
             {
-                unsigned idx = ti->get<unsigned>("graphFileIndex");
+                unsigned idx = t->get<unsigned>("graphFileIndex");
                 if (!idx)
                 {
-                    tensor = &*ti;
-                    break;
+                    tensor = p;
                 }
-            }
-        }
+            });
 
         ASSERT_NE(tensor, nullptr);
 
