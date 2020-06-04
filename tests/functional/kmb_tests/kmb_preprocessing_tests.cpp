@@ -388,8 +388,12 @@ TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
         ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), referenceOutputBlob, NUMBER_OF_CLASSES));
     }
 }
+class VpuPreprocessingWithTwoNetworksTests :
+    public VpuPreprocessingTests,
+    public testing::WithParamInterface<
+        std::tuple<const char*, std::size_t, std::size_t, const char*, std::size_t, std::size_t>> {};
 
-TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
+TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, {}));
@@ -414,15 +418,22 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
 
     std::string input1_name = inputInfo1.begin()->first;
-    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin";
-    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, 228, 228);
+    auto param = GetParam();
+    auto input1Path = ModelsPath() + get<0>(param);
+    auto input1Width = get<1>(param);
+    auto input1Height = get<2>(param);
+    std::cout << "Set input for network1 with width = " << input1Width << ", height = " << input1Height << std::endl;
+    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, input1Width, input1Height);
 
     InferenceEngine::InferRequest::Ptr network2InferReqPtr;
     network2InferReqPtr = network2.CreateInferRequestPtr();
 
     std::string input2_name = inputInfo2.begin()->first;
-    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/input-228x228-nv12.bin";
-    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, 228, 228);
+    auto input2Path = ModelsPath() + get<3>(param);
+    auto input2Width = get<4>(param);
+    auto input2Height = get<5>(param);
+    std::cout << "Set input for network2 with width = " << input2Width << ", height = " << input2Height << std::endl;
+    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, input2Width, input2Height);
 
     std::cout << "Created inference requests\n";
 
@@ -449,7 +460,7 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
     });
     network2InferReqPtr->SetCompletionCallback([&] {
         curIterationNet2++;
-        std::cout << "Completed " << curIterationNet2 << " async request execution for network1\n";
+        std::cout << "Completed " << curIterationNet2 << " async request execution for network2\n";
         if (curIterationNet2 < static_cast<size_t>(iterationCount)) {
             Blob::Ptr outputBlob;
             std::string output2Name = network2.GetOutputsInfo().begin()->first;
@@ -472,6 +483,14 @@ TEST_F(VpuPreprocessingTests, twoNetworksWithPreprocessing) {
                curIterationNet2 == static_cast<size_t>(iterationCount);
     });
 }
+
+INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingWithTwoNetworksTests,
+    Values(std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1080x1080-nv12.bin", 1080, 1080,
+               "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080),
+        std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1920x1080-nv12.bin", 1920, 1080,
+            "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080),
+        std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin", 228, 228,
+            "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080)));
 
 TEST_F(vpuLayersTests, allocateNV12WithNative) {
     InferenceEngine::ExecutableNetwork network1;
