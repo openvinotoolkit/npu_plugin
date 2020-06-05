@@ -803,6 +803,7 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         clamp = round(minimum/outputQuantParams.getScale()[0]);
         clamp = std::max(clamp, -128);
     }
+
     return clamp;
 }
 
