@@ -286,14 +286,8 @@ void mv::CompilationUnit::generateExpectedResults()
     // initialize the Emulator Manager
     mv::emu::Manager emulatorManager(emOM);
 
-    // set input tensor values
-    std::vector<std::int64_t> input0Data = read<std::int64_t, std::uint8_t>("./input_cpu_nhwc_rgb.bin");
-    if (input0Data.empty() ) throw RuntimeError(*this, "Emulator required file 'input.dat' not found in current directory");
-
-    mv::Data::OpListIterator opIt = emOM.getOps("Input")[0];
-    mv::Data::TensorIterator tensorIt = emOM.getOps("Input")[0]->getOutputTensor()[0];
-    
-    emulatorManager.populate(*(emOM.getOps("Input")[0]->getOutputTensor()[0]), mv::Order::getZMajorID(4), input0Data);
+    // set input tensor values - filename is in emulator config
+    emulatorManager.populateInput();
     
     std::cout << "Generating results..." << std::endl;
     emulatorManager.run();
