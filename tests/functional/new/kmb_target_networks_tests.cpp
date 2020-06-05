@@ -719,8 +719,6 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8) {
 }
 
 TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8) {
-    // tracking number: S#32514
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPresision("input", Precision::U8)
