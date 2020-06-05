@@ -177,7 +177,7 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
     // TODO: [Track number: S#31121]
     // Get rid of environment variable USE_SIPP
-    if ((_config.useSIPP() || SippPreproc::useSIPP()) &&
+    if ((_config.useSIPP() || _config.useM2I() || SippPreproc::useSIPP()) &&
         SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecSIPPDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
@@ -192,6 +192,7 @@ static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob) {
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
+// TODO: Drop SIPP from the name
 void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
@@ -230,10 +231,13 @@ void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::Bl
     this->execSIPPDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
 }
 
+// TODO: Drop SIPP from the name
 void KmbInferRequest::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
-    SippPreproc::execSIPPDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi);
+    IE_ASSERT(_config.useSIPP() || _config.useM2I());
+    const SippPreproc::Path ppPath = _config.useSIPP() ? SippPreproc::Path::SIPP : SippPreproc::Path::M2I;
+    SippPreproc::execSIPPDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
 }
 
 static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {

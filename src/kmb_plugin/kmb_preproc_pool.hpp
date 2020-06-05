@@ -16,6 +16,8 @@
 #include <string>
 #include <vector>
 
+#include "kmb_preproc.hpp"  // SippPreproc::Path
+
 namespace InferenceEngine {
 
 struct PreprocTask {
@@ -31,7 +33,7 @@ class SIPPPreprocessor {
     std::unique_ptr<SIPPPreprocEngine> _preproc;
 
 public:
-    SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
+    SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi, SippPreproc::Path ppPath);
     ~SIPPPreprocessor();
 
     void execSIPPDataPreprocessing(const PreprocTask& task);
@@ -45,7 +47,10 @@ class SippPreprocessorPool {
     unsigned int _numberOfShaves;
 
 public:
-    SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi);
+    // TODO: This is an absolute ugliness to specify the Path here
+    // Pool should be neutral to the underlying engine it manages
+    SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi,
+        SippPreproc::Path ppPath);
     void execSIPPDataPreprocessing(const PreprocTask& task);
     unsigned int getNumberOfShaves() const;
 };
@@ -57,7 +62,7 @@ public:
 // SippPreprocPool has few specialized pools which are mapped by particular output tensor size so
 // there is different pools for different output tensor sizes. Each specialized pool has a vector
 // of SIPPPreprocessor-s which do actual preprocessing work. SIPPPreprocessor has a SippPipeline inside
-// created for particular output size so reschedule mechanism can be utilized as only input size can change.
+// created for particular output snize so reschedule mechanism can be utilized as only input size can change.
 // If there is no free SIPPPreprocessor at the moment, infer request waits until some of preprocessors free.
 
 class SippPreprocPool {
@@ -69,10 +74,11 @@ class SippPreprocPool {
     friend SippPreprocPool& sippPreprocPool();
     std::map<int, std::unique_ptr<SippPreprocessorPool>> _preprocPools;
     std::mutex _mutex;
-    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi);
+    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi, SippPreproc::Path ppPath);
 
 public:
-    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi);
+    void execSIPPDataPreprocessing(
+        const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, SippPreproc::Path ppPath);
 };
 
 SippPreprocPool& sippPreprocPool();

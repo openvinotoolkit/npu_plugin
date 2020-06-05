@@ -21,6 +21,14 @@ cv::GMat merge3p(const cv::GMatP& src) {
     return preproc::GMerge3p::on(src);
 }
 
+cv::GMat  M2Ii(const cv::GMat &src_nv12, cv::gapi::m2i::CSC csc_code, const cv::gapi::own::Size &sz) {
+    return preproc::GM2Ii::on(src_nv12, csc_code, sz);
+}
+
+cv::GMatP M2Ip(const cv::GMat &src_nv12, cv::gapi::m2i::CSC csc_code, const cv::gapi::own::Size &sz) {
+    return preproc::GM2Ip::on(src_nv12, csc_code, sz);
+}
+
 }  // namespace gapi
 }  // namespace InferenceEngine
 // clang-format on

@@ -478,7 +478,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     unsigned int shaveFirst = 0;
     unsigned int shaveLast = 1;
     unsigned int lpi = 8;
-    SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi);
+    SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi, SippPreproc::Path::SIPP);
 
     for (int i = 0; i < 10; i++) {
         auto y_roi = getRandomRoi(y_size);

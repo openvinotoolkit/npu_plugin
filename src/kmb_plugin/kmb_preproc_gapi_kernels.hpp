@@ -6,6 +6,21 @@
 #if defined(__arm__) || defined(__aarch64__)
 #include <opencv2/gapi.hpp>
 
+namespace cv {
+namespace gapi {
+namespace m2i {
+// TODO: Stub! Need to replace with code coming
+// from g-api-vpu when M2I gets there.
+
+enum class CSC {
+    NV12toRGB,
+    NV12toBGR,
+};
+
+}  // namespace m2i
+}  // namespace gapi
+}  // namespace cv
+
 namespace InferenceEngine {
 namespace gapi {
 namespace preproc {
@@ -14,7 +29,7 @@ namespace preproc {
 // we can't let clang-format tool work with this code. It would ruin everything
 
 G_TYPED_KERNEL(GNV12toRGBp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12torgbp") {
-    static cv::GMatDesc outMeta(cv::GMatDesc inY, cv::GMatDesc inUV) {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &inY, const cv::GMatDesc &inUV) {
         GAPI_Assert(inY.depth == CV_8U);
         GAPI_Assert(inUV.depth == CV_8U);
         GAPI_Assert(inY.chan == 1);
@@ -28,7 +43,7 @@ G_TYPED_KERNEL(GNV12toRGBp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tor
 };
 
 G_TYPED_KERNEL(GNV12toBGRp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tobgrp") {
-    static cv::GMatDesc outMeta(cv::GMatDesc inY, cv::GMatDesc inUV) {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &inY, const cv::GMatDesc &inUV) {
         GAPI_Assert(inY.depth == CV_8U);
         GAPI_Assert(inUV.depth == CV_8U);
         GAPI_Assert(inY.chan == 1);
@@ -42,7 +57,7 @@ G_TYPED_KERNEL(GNV12toBGRp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tob
 };
 
 G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.preproc.resizeP") {
-    static cv::GMatDesc outMeta(cv::GMatDesc in, const cv::gapi::own::Size& sz, int interp) {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const cv::gapi::own::Size& sz, int interp) {
         GAPI_Assert(in.depth == CV_8U);
         GAPI_Assert(in.chan == 3);
         GAPI_Assert(in.planar);
@@ -52,11 +67,30 @@ G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.p
 };
 
 G_TYPED_KERNEL(GMerge3p, <cv::GMat(cv::GMatP)>, "ie.preproc.merge3p") {
-    static cv::GMatDesc outMeta(cv::GMatDesc in) {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in) {
         GAPI_Assert(in.depth == CV_8U);
         GAPI_Assert(in.chan == 3);
         GAPI_Assert(in.planar);
         return in.asInterleaved();
+    }
+};
+
+G_TYPED_KERNEL(GM2Ii, <cv::GMat(cv::GMat, cv::gapi::m2i::CSC, cv::gapi::own::Size)>, "ie.preproc.m2i.inter") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, cv::gapi::m2i::CSC, const cv::gapi::own::Size &sz) {
+        using namespace cv::gapi;
+        GAPI_Assert(in.depth == CV_8U);
+        GAPI_Assert(in.chan == 1);
+        GAPI_Assert(in.size.height % 3 == 0); // assuming NV12 input here
+        GAPI_Assert(!in.planar);
+        auto newDesc = in.withSize(sz);
+        newDesc.chan = 3; // TODO: use withChan() after G-API is updated
+        return newDesc;
+    }
+};
+
+G_TYPED_KERNEL(GM2Ip, <cv::GMatP(cv::GMat, cv::gapi::m2i::CSC, cv::gapi::own::Size)>, "ie.preproc.m2i.planar") {
+    static cv::GMatDesc outMeta(const cv::GMatDesc &in, cv::gapi::m2i::CSC csc, const cv::gapi::own::Size &sz) {
+        return GM2Ii::outMeta(in, csc, sz).asPlanar();
     }
 };
 }  // namespace preproc
@@ -66,6 +100,9 @@ cv::GMatP NV12toRGBp(const cv::GMat& src_y, const cv::GMat& src_uv);
 cv::GMatP NV12toBGRp(const cv::GMat& src_y, const cv::GMat& src_uv);
 cv::GMatP resizeP(const cv::GMatP& src, const cv::gapi::own::Size& dsize, int interpolation = cv::INTER_LINEAR);
 cv::GMat merge3p(const cv::GMatP& src);
+
+cv::GMat  M2Ii(const cv::GMat &src_nv12, cv::gapi::m2i::CSC csc_code, const cv::gapi::own::Size &sz);
+cv::GMatP M2Ip(const cv::GMat &src_nv12, cv::gapi::m2i::CSC csc_code, const cv::gapi::own::Size &sz);
 
 // clang-format on
 

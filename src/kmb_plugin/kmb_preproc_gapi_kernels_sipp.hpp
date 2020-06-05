@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+// TODO: drop SIPP from this file name
+
 #pragma once
 
 #if defined(__arm__) || defined(__aarch64__)
@@ -13,6 +15,11 @@ namespace preproc {
 namespace sipp {
 cv::gapi::GKernelPackage kernels();
 }  // namespace sipp
+
+namespace m2i {
+cv::gapi::GKernelPackage kernels();  // TODO: Remove (Stub)
+}  // namespace m2i
+
 }  // namespace preproc
 }  // namespace gapi
 }  // namespace InferenceEngine
