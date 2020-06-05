@@ -400,9 +400,9 @@ bool mv::isVectorsEqual(const std::vector<double> left, const std::vector<double
 }
 
 bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
-    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
-    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+    //bool isZpEqual = left.getZeroPoint() == right.getZeroPoint(); //keembay the two eltwises can have different zero point
+    //bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
+    //bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
     bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
-    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
+    return isScaleEqual;
 }
