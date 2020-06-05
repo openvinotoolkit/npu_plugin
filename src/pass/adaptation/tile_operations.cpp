@@ -296,6 +296,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
             beginInputShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W), MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
             beginWeightShape = {MID_LIMIT_KERNEL_W + (oldKernelSize-partitionedKernelWidth-MID_LIMIT_KERNEL_W), MID_LIMIT_KERNEL_H + (oldKernelSize-partitionedKernelHeight-MID_LIMIT_KERNEL_H),0,0};
 
+            propogateDType = false; // Output from last eltwise in Uint8, quantize will be inserted before next layer
             // padding = {0, initialPadding[1], 0, initialPadding[3]};
         }
 
