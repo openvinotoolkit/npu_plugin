@@ -141,8 +141,9 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
                 double last_fl_max = fl_max;
                 double last_q_max = pwl_range.second;
-
-                if(q_min < pwl_range.first || q_max > pwl_range.second)
+                //NOTE: zero point is added after lr so the formula should contain the subtraction
+                if(q_max - outQuantParams.getZeroPoint()[0] > pwl_range.second ||
+                    std::round(std::abs(q_min) * conv->get<double>("leakyAlpha")) - outQuantParams.getZeroPoint()[0] > std::abs(pwl_range.first))
                 {
                     // Note: for some reason the results without the absolute maximum are more accurate or
                     // at least closer to cpu
@@ -153,6 +154,7 @@ void checkPWLForRequantize(const mv::pass::PassEntry&, mv::ComputationModel& mod
 //                    }
                     int64_t newZp = outQuantParams.getZeroPoint()[0];
                     double newScale = last_fl_max/(last_q_max-newZp);
+
                     mv::QuantizationParams newQuantParams = mv::QuantizationParams({newZp},{newScale},
                                     {fl_min},{fl_max});
                     auto outputTensor = conv->getOutputTensor()[0];
