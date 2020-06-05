@@ -106,6 +106,8 @@
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
+            "CheckPWLForRequantize",
+            {
             "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
