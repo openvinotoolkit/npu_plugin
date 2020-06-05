@@ -399,10 +399,16 @@ bool mv::isVectorsEqual(const std::vector<double> left, const std::vector<double
     return true;
 }
 
-bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    //bool isZpEqual = left.getZeroPoint() == right.getZeroPoint(); //keembay the two eltwises can have different zero point
-    //bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
-    //bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+bool mv::isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+    //in keembay the two eltwises can have different zero point
     bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
     return isScaleEqual;
+}
+
+bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
+    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
+    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
+    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
 }
