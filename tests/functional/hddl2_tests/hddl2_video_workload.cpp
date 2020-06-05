@@ -25,7 +25,6 @@
 #include "gtest/gtest.h"
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
-#include "ie_compound_blob.h"
 #include "ie_core.hpp"
 #include "ie_utils.hpp"
 #include "models/precompiled_resnet.h"

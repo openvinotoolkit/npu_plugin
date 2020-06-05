@@ -123,14 +123,18 @@ void HDDL2InferRequest::InferAsync() {
         if (foundInputBlob == _inputs.end()) {
             THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
         }
-        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-        foundInputBlob->second = prepareInputForInference(inputBlobPtr);
 
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
         if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
             needUnitePreProcessing = true;
         }
         if (inputBlobPtr->is<HDDL2RemoteBlob>()) {
             needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
+        }
+
+        // TODO [Design flaw] If preprocessing is required, blob is stored inside _preprocData, not in _networkInputs.
+        if (!needUnitePreProcessing) {
+            foundInputBlob->second = prepareInputForInference(foundInputBlob->second);
         }
     }
 
@@ -187,7 +191,12 @@ static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE:
 
 IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const IE::Blob::Ptr& actualInput) {
     IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
-    if (actualInput->is<ie::CompoundBlob>() || actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC) {
+    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
+        /** Currently we ignore information of what type of remote blob we are using **/
+        actualInput->is<IE::RemoteBlob>() ||
+        /** Repacking for NV12 Blob is not required, compound blob should be handled other way **/
+        // TODO Add repacking for compound blob case
+        actualInput->is<IE::NV12Blob>() || actualInput->is<ie::CompoundBlob>()) {
         return actualInput;
     }
 
