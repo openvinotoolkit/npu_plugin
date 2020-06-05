@@ -342,7 +342,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         if(isasymmetric)
             convOp->set<unsigned>("asymmetricKernel", 1-largeDim);
 
-        if (hasBias)
+        if (hasBias and (branchId == 4))
         {
             std::string biasName = mv::createBiasName(convOp->getName() + "_bias");
             newBias = dm.defineTensor(mv::Tensor(biasName, bias->getShape(),
@@ -375,7 +375,9 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition6");
     placeAdd7 = om.eltwise({placeAdd6, convs[8]}, "Add",
                 mv::DType("Default"), opIt->get<mv::QuantizationParams>("quantParams"), opIt->getName() + "ADD_Partition7");
+
     nextOpIt->setInputTensor(placeAdd7, 0, false );
+
     auto placeAdd0Op = om.getSourceOp(placeAdd0);
     auto placeAdd1Op = om.getSourceOp(placeAdd1);
     auto placeAdd2Op = om.getSourceOp(placeAdd2);
@@ -400,11 +402,13 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
     placeAdd5Op->set<bool>("floatPrecision", true);
     placeAdd6Op->set<bool>("floatPrecision", true);
     placeAdd7Op->set<bool>("floatPrecision", true);
+
     std::vector<std::string> postOpTypes;
     if (opIt->hasAttr("postOpTypes"))
         postOpTypes = opIt->get<std::vector<std::string>>("postOpTypes");
     if (!postOpTypes.empty())
         placeAdd7Op->set<std::vector<std::string>>("postOpTypes", postOpTypes);
+
     om.defineFlow(placeAdd7, nextOpIt, 0);
     om.removeOp(opIt);
 }
