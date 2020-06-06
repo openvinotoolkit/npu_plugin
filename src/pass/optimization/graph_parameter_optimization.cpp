@@ -1007,9 +1007,9 @@ namespace mv
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
                 bool spillForCM = false;
-                if (enableChannelMajorConv and (parentOp.getOpType() == "Conv" and
+                if (enableChannelMajorConv and ((parentOp.getOpType() == "Conv" and
                    parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) or (childOp.getOpType() == "Conv" and
-                   childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16))
+                   childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)))
                    spillForCM = needForceSpillingForCM(parentOp, childOp, parentClustering, childClustering);
 
                 if(!enableChannelMajorConv && parentOp.getOpType() == "Input" && childOp.getOpType() == "Conv" && childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
