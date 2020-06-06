@@ -19,6 +19,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -54,6 +55,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
     replaceConcatOfPopulatedTensorsFcn(pass, model);
+    reorgYoloAsConvConcatFcn(pass, model);
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -215,6 +217,88 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
         }
+    }
+}
+
+void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto reorgYoloOps = om.getOps("ReorgYolo");
+
+    for (auto &opIt : reorgYoloOps)
+    {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto inputShape = sourceTensor->getShape();
+        unsigned stride = opIt->get<unsigned>("stride");
+        unsigned C = inputShape[2];
+        mv::QuantizationParams weightsTensorQuantizationParams = {{0}, {1.}, {}, {}};
+        mv::QuantizationParams outputTensorQuantizationParams = {{}, {}, {}, {}};
+
+        if (opIt->getInputTensor(0)->isQuantized())
+        {
+            outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        }
+        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+
+        std::vector<mv::Data::TensorIterator> convOutputs;
+
+        int kernelStep = stride * stride;
+        for (unsigned rowIdx = 0; rowIdx < stride; rowIdx++)
+        {
+            for (unsigned colIdx = 0; colIdx < stride; colIdx++)
+            {
+                int kernelOffset = colIdx + stride * rowIdx;
+                mv::Data::TensorIterator weight;
+                if (sourceTensor->isDoubleType())
+                {
+                    std::vector<double> weightData(C * stride * stride, 0.);
+                    for (unsigned cIdx = 0; cIdx < C; cIdx++)
+                    {
+                        weightData[kernelOffset + cIdx * kernelStep] = 1.;
+                    }
+                    weight = om.constant(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
+                                         mv::Order(mv::Order::getRowMajorID(4)),
+                                         weightsTensorQuantizationParams);
+                }
+                else
+                {
+                    std::vector<int64_t> weightData(C * stride * stride, 0);
+                    for (unsigned cIdx = 0; cIdx < C; cIdx++)
+                    {
+                        weightData[kernelOffset + cIdx * kernelStep] = 1;
+                    }
+                    weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
+                                            mv::Order(mv::Order::getRowMajorID(4)),
+                                            weightsTensorQuantizationParams);
+                }
+                auto gridConv = om.depthwiseConv(sourceTensor, weight, {stride, stride}, {0, 0, 0, 0}, 1, outputTensorType,
+                                                 outputTensorQuantizationParams,
+                                                 opIt->getName() + "_DepthwiseConvGrid" + ":_" + std::to_string(rowIdx) + "_" + std::to_string(colIdx) + "_");
+                auto convOp = om.getSourceOp(gridConv);
+                auto weightOp = om.getSourceOp(weight);
+                if (opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    convOp->set<unsigned>("opId", currentOpId);
+                    weightOp->set<unsigned>("opId", currentOpId);
+                }
+                convOutputs.push_back(gridConv);
+            }
+        }
+        auto concat = om.concat(convOutputs, "C", outputTensorType, outputTensorQuantizationParams, opIt->getName() + "_Concat");
+        auto concatOp = om.getSourceOp(concat);
+        if (opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            concatOp->set<unsigned>("opId", currentOpId);
+        }
+        linkNewOperationsReplacement(parentOpIt, concat, om, opIt);
+        concat->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
 
