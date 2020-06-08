@@ -306,8 +306,10 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
-                "name": "GenerateBlobKmb"
+                "name": "GenerateBlobKmb",
+                "output": "output/mcm.blob"
             }
         ]
     },
