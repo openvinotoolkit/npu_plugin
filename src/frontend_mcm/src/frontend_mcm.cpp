@@ -1589,9 +1589,9 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
         mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), groupSize, 1lu};
 
         auto mvWeightsValues = _modelMcm.constant(weightsData, mcmShape,
-            convert_data_type(Precision(Precision::ePrecision::FP32)), mv::Order::getZMajorID(mcmShape.ndims()));
-        // TODO: Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
-        // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+            precisionToDType(Precision::FP32), mv::Order::getZMajorID(mcmShape.ndims()));
+        // TODO: Initially  this parameter is: precisionToDType(constBlob->getTensorDesc().getPrecision()),
+        // but as Work Around it is set to: precisionToDType(Precision(Precision::ePrecision::FP32)).
         // It is so just because mcmCompiler has not supported FP16 yet.
         // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
         mvWeightsValues->set<bool>("is_depthwise_weights", true);
