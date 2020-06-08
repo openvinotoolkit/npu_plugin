@@ -402,7 +402,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // In DDRs style memory we use the strides of the master tensor
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
-    if(*tensorAllocatorName == "VPU_CMX_NN")
+
+    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
@@ -460,14 +461,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = t->getOrder().subToInd(t->getShape(), offset);
+
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
-
         toBuild->data->data_index = byte_index;
-
         auto strides = tensorBufferIt->getStrides();
+
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
 
         if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
@@ -484,10 +486,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
+        auto tensorStrides = t->computeNumericStrides();
+        tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+        std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        if(numericStrides[4] != tensorStrides[4]){
+            byte_index = index * (numericStrides[4]/tensorStrides[4]);
+        }
+
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
-        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
         else
@@ -977,6 +988,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         toPush->task.type = MVCNN::SpecificTask_NNDMATask;
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
+
         // if the DMA Out tensor is input Tensor for DMA in, have to make sure the src/dst dims match for CM Conv
         if(dmaToDMA)
         {
@@ -1003,6 +1015,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->get<std::string>("taskOp") == "DepthwiseConv")
                     alignTensor(cm, tmp->src, src->getSubTensor(i), IO_WIDTH_DIMENSION, false);
         }
+
 
 
         checkUnstridedDMA(src, i, tmp);
