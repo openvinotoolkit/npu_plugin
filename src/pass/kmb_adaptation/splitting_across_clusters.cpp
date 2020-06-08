@@ -83,10 +83,16 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
+                auto sparsityMapIndexEntries = layer->get<std::vector<size_t>>("unpopulatedSparsityMapIndex");
+                auto storageElementIndexEntries = layer->get<std::vector<size_t>>("storageElementIndex");
                 if ((layer->hasAttr("unpopulatedSparsityMapIndex") &&
-                    i == layer->get<size_t>("unpopulatedSparsityMapIndex"))
+                        std::find(sparsityMapIndexEntries.begin(),
+                        sparsityMapIndexEntries.end(), i)
+                        != sparsityMapIndexEntries.end())
                     || (layer->hasAttr("storageElementIndex") &&
-                    i == layer->get<size_t>("storageElementIndex")))
+                        std::find(storageElementIndexEntries.begin(),
+                        storageElementIndexEntries.end(), i)
+                        != storageElementIndexEntries.end()))
                     specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
