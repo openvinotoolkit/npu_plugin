@@ -241,8 +241,10 @@ bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
     return false;
 }
 
-bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
+bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
 {
+    if (referenceDevice != "A0")
+        return false;
     auto source = flow.source();
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
@@ -300,6 +302,8 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
     mv::OpModel om(model);
+    auto globalParams = model.getGlobalConfigParams();
+    auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -327,12 +331,12 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow))
+            if(checkA0SOHSparsityBug(flow, referenceDevice))
             {
                 tensorNeedsSparsity = true;
                 break;
             }
-            else if (checkA0FloatSparsityBug(flow) && !compilerSolvesSparsity(flow))
+            else if (checkA0FloatSparsityBug(flow, referenceDevice) && !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
                 break;

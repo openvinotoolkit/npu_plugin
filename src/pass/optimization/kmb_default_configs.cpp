@@ -5,6 +5,9 @@ namespace graphOptimizer {
 
 //################## DEFAULT GLOBAL CONFIG'S FOR Kmb ####################
 MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY()
+    .enter("referenceDevice").set("A0");
+
+MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY()
     .enter("totalClusters").set(1);
 
 MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY()
