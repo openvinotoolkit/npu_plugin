@@ -202,7 +202,8 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInfe
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
+// tracking number: S#32515
+TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -252,8 +253,8 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) 
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
-
-TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
+// tracking number: S#32515
+TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_CanGetTheSameBlobAfterSetNV12Blob) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -357,8 +358,8 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
 
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
-
-TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
+// tracking number: S#32515
+TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_BGRIsDefaultColorFormatForSIPPPreproc) {
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
     auto inputName = _inputs.begin()->first.c_str();
@@ -376,8 +377,8 @@ TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) 
 class kmbInferRequestOutColorFormatSIPPUnitTests :
     public kmbInferRequestUseCasesUnitTests,
     public testing::WithParamInterface<const char*> {};
-
-TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
+// tracking number: S#32515
+TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, DISABLED_preprocessingUseRGBIfConfigIsSet) {
     KmbConfig config;
     const auto configValue = GetParam();
     config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});

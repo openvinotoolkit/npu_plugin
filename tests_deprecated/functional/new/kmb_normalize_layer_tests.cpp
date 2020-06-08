@@ -67,7 +67,7 @@ class KmbNormalizeLayerTests : public KmbLayerTestBase, public testing::WithPara
 
 TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
     // tracking number: S#32479
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Normalize returns NaNs");
+    SKIP_INFER_ON("KMB", "VPUX", "HDDL2", "bad results and hang");
     const auto& p = GetParam();
 
     const auto netPresicion = p._netPrecision;

@@ -738,7 +738,7 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
         logger->debug("Layer has no input");
     } else {
         for (size_t i = 0; i < inputs.size(); ++i)
-            logger->debug("Layer input %d: '%s'", i, inputs[0]->getMcmNode()->getName());
+            logger->debug("Layer input %d: '%s'", i, inputs[i]->getMcmNode()->getName());
     }
 }
 
@@ -746,7 +746,7 @@ double inf = std::numeric_limits<double>::infinity();
 mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
@@ -1275,10 +1275,12 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
 void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     auto layerOutput = layer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
+
+    logParsingStartHelper(_logger, layer, inputs);
+
     for (size_t i = 1; i < inputs.size(); i++) {
         _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[i]->getMcmNode()));
     }
-    logParsingStartHelper(_logger, layer, inputs);
 
     // Because mcmCompiler supports only "dense" layouts
     // for example NC should be represented as NCHW with dims NC11
@@ -1536,9 +1538,87 @@ void FrontEndMcm::parseBatchNorm(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    // TODO: Leyer can be with bias
-    VPU_THROW_EXCEPTION << "Deconvolution layer is not supported by kmbPlugin";
+void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(!inputs.empty());
+    auto input = inputs[0];
+
+    auto deconvLayer = std::dynamic_pointer_cast<ie::DeconvolutionLayer>(layer);
+    IE_ASSERT(deconvLayer != nullptr);
+
+    logParsingStartHelper(_logger, layer, {input});
+    int kernelSizeX = deconvLayer->_kernel_x;
+    int kernelSizeY = deconvLayer->_kernel_y;
+
+    int kernelStrideX = deconvLayer->_stride_x;
+    int kernelStrideY = deconvLayer->_stride_y;
+
+    auto paddings = getPaddings(*deconvLayer);
+    int padLeft = paddings.begin.exist(ie::X_AXIS) ? paddings.begin[ie::X_AXIS] : 0;
+    int padRight = paddings.end.exist(ie::X_AXIS) ? paddings.end[ie::X_AXIS] : padLeft;
+    int padTop = paddings.begin.exist(ie::Y_AXIS) ? paddings.begin[ie::Y_AXIS] : 0;
+    int padBottom = paddings.end.exist(ie::Y_AXIS) ? paddings.end[ie::Y_AXIS] : padTop;
+
+    int dilationX = deconvLayer->_dilation_x;
+    int dilationY = deconvLayer->_dilation_y;
+
+    if (dilationX != dilationY) {
+        VPU_THROW_EXCEPTION << "kmb Deconvolution supports only equal dilationX and dilationY";
+    }
+    size_t groupSize = deconvLayer->_group;
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+    auto outDesc = layerOutput->getTensorDesc();
+    // TODO: implement cvtPaddingsFromCeilToFloorMode for deconv, existing func does not suit
+
+    mv::DType convolutionDataType("Default");
+    mv::Data::TensorIterator mvDeconv;
+    mv::Data::TensorIterator mvDeconvOnly;
+    size_t inputGroupSize, outputGroupSize, stub;
+    parseDims(input->desc(), stub, inputGroupSize, stub, stub);
+    parseDims(outDesc, stub, outputGroupSize, stub, stub);
+
+    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
+
+    if (isDepthWiseConv) {
+        /* TODO: Need align API in mcmCompiler
+           mcm expects (1,*,*,*) shape for depthwise weights, but Openvino has a (*,1,*,*) */
+        auto weights = layer->blobs["weights"];
+        auto weightsData = packBlobToVector<double>(weights, weights->size());
+
+        mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), groupSize, 1lu};
+
+        auto mvWeightsValues = _modelMcm.constant(weightsData, mcmShape,
+            convert_data_type(Precision(Precision::ePrecision::FP32)), mv::Order::getZMajorID(mcmShape.ndims()));
+        // TODO: Initially  this parameter is: convert_data_type(constBlob->getTensorDesc().getPrecision()),
+        // but as Work Around it is set to: convert_data_type(Precision(Precision::ePrecision::FP32)).
+        // It is so just because mcmCompiler has not supported FP16 yet.
+        // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
+        mvWeightsValues->set<bool>("is_depthwise_weights", true);
+
+        mvDeconv = _modelMcm.deconv(input->getMcmNode(), mvWeightsValues,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
+                static_cast<uint16_t>(padBottom)},
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), true, convolutionDataType,
+            initialQuantParams, deconvLayer->name);
+    } else {
+        VPU_THROW_EXCEPTION << "Non depthwise Deconvolution layer is not supported by kmbPlugin";
+    }
+
+    //  Need quantize bias, this logic provide by MCM team, need check
+    if (inputs.size() == 3) {
+        mvDeconvOnly = mvDeconv;
+        auto mvBiases = inputs[2]->getMcmNode();
+        mvDeconv = _modelMcm.bias(
+            mvDeconvOnly, mvBiases, mv::DType("Default"), initialQuantParams, deconvLayer->name + ":bias");
+        _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", deconvLayer->type, deconvLayer->name,
+            mvDeconv->getName());
+        std::cout << "mcm deconv bias done" << std::endl;
+    }
+    bindOutput(mvDeconv, layerOutput);
+
+    _logger->debug(FINISH_PARSING_STR, mvDeconv->getName());
 }
 
 void FrontEndMcm::parseCopy(const ie::CNNLayerPtr&, const McmNodeVector&) {
@@ -1549,8 +1629,51 @@ void FrontEndMcm::parseELU(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "ELU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseCrop(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "Crop layer is not supported by kmbPlugin";
+void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    auto input = inputs[0];
+    auto cropLayer = std::dynamic_pointer_cast<ie::CropLayer>(layer);
+    IE_ASSERT(cropLayer != nullptr);
+    logParsingStartHelper(_logger, layer, {input});
+
+    mv::Data::TensorIterator mvSlice;
+
+    if (layer->CheckParamPresence("axis") && layer->CheckParamPresence("offset") &&
+        !(layer->CheckParamPresence("dim"))) {
+        // Crop type 1
+        VPU_THROW_EXCEPTION << "Crop (Type 1) layer is not supported by kmbPlugin";
+    } else if (layer->CheckParamPresence("axis") && layer->CheckParamPresence("offset") &&
+               layer->CheckParamPresence("dim")) {
+        // Crop type 2
+        auto axisParam = layer->GetParamAsInts("axis");      // axis is the number of a dimension to crop
+        auto offsetParam = layer->GetParamAsInts("offset");  // offset is the starting point for crop in the input blob
+        auto dimParam =
+            layer->GetParamAsInts("dim");  // dim is the resulting size of the output blob for the specified axis
+
+        IE_ASSERT(axisParam.size() == offsetParam.size());
+        const auto& outDataDesc = layer->outData[0]->getTensorDesc();
+        mv::Shape outShape(getWHCN(outDataDesc).getDims());
+        auto ndims = outShape.ndims();
+
+        mv::Shape mvOffsets(ndims);
+        mv::Shape mvOutDims(ndims);
+
+        // fill offsets and out dimensions size with conversion NCHW->WHCN
+        for (int i = 0; i < ndims; ++i) {
+            mvOffsets[ndims - 1 - axisParam[i]] = offsetParam[i];
+            mvOutDims[ndims - 1 - axisParam[i]] = dimParam[i];
+        }
+        // _modelMcm.crop is single dimensional and _modelMcm.slice is multdimensional
+        mvSlice = _modelMcm.slice(input->getMcmNode(), mvOffsets, outShape, initialQuantParams, layer->name);
+
+        bindOutput(mvSlice, layer->outData[0]);
+    } else if (layer->CheckParamPresence("axis") && layer->CheckParamPresence("crop_begin") &&
+               layer->CheckParamPresence("crop_end")) {
+        // Crop type 3
+        VPU_THROW_EXCEPTION << "Crop (Type 3) layer is not supported by kmbPlugin";
+    } else {
+        VPU_THROW_EXCEPTION << "Unrecognized Crop layer type";
+    }
+    _logger->debug(FINISH_PARSING_STR, mvSlice->getName());
 }
 
 void FrontEndMcm::parseTile(const ie::CNNLayerPtr&, const McmNodeVector&) {

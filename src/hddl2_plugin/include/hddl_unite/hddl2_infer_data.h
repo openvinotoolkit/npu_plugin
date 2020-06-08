@@ -57,7 +57,7 @@ public:
     std::string getOutputData(const std::string& outputName);
 
 private:
-    const int _asyncInferenceWaitTimeoutMs = 2000;
+    const int _asyncInferenceWaitTimeoutMs = 5000;
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
     HddlUnite::WorkloadContext::Ptr _workloadContext = nullptr;
     HddlUnite::Inference::InferData::Ptr _inferDataPtr = nullptr;

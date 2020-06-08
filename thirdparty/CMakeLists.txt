@@ -82,8 +82,10 @@ if(mcmCompiler_FOUND)
                                                ${COMPILATION_OUT_DIR}
             COMMENT "[MCM Compiler] Copy lib files")
 
+    set(mcmCompilerDescriptor_DIR "${mcmCompiler_DIR}/../../../config")
+
     add_custom_target(mcm_compiler_copy_configs ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/config"
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCompilerDescriptor_DIR}"
                                                          "${COMPILATION_OUT_DIR}/mcm_config"
             COMMENT "[MCM Compiler] Copy config files for compilation")
 

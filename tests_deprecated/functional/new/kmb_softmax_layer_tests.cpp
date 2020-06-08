@@ -37,10 +37,10 @@ std::ostream& operator<<(std::ostream& os, const SoftmaxTestParams& p) {
 
 class KmbSoftmaxLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<SoftmaxTestParams> {};
 
-TEST_P(KmbSoftmaxLayerTests, DISABLED_Single_FP32) {
+TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
     const auto &p = GetParam();
 
-    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userInDesc = TensorDesc(Precision::FP16, p._inDims, Layout::NHWC);
     const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NHWC);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
