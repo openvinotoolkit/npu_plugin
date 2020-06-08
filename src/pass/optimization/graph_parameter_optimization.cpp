@@ -241,9 +241,25 @@ namespace mv
             }
 
 
-            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, size_t kHeight)
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, mv::Op& op)
             {
-                // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
+                size_t kHeight = 1;
+                if(op.getOpType() == "Conv")
+                    kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
+
+                //NOTE: assuming order of paddings: left,right,top,bottom
+                std::array<unsigned short, 4> padding;
+                if (op.hasAttr("padding"))
+                    padding = op.get<std::array<unsigned short, 4>>("padding");
+                else
+                    padding = {0, 0, 0, 0};
+
+                std::array<unsigned short, 2> kStride;
+                if (op.hasAttr("stride"))
+                    kStride = op.get<std::array<unsigned short, 2>>("stride");
+                else
+                    kStride = {1,1};//fake stride
+
 
                 // Shape worstStreamPool = streamingPool;
                 vector<double> worstStreamPool;
@@ -271,7 +287,12 @@ namespace mv
                     // Stream over H slices will overlap up to (kernel size - 1)  if stride != kernel size
                     // TODO this be (kernel height - stride height) instead of minus 1
                     if(kHeight > 2)
-                        extraLines = kHeight - 1;
+                        extraLines = kHeight - kStride[1];
+
+                    if(padding[2] > extraLines)
+                        extraLines = padding[2];
+                    if(padding[3] > extraLines)
+                        extraLines = padding[3];
                     
                     double worstNumberOfSplits = ((double)outputSize/(newOutputSize+extraLines));
 
@@ -371,15 +392,12 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     isCMConv = true;
 
-                size_t kHeight = -1;
-                if(opType == "Conv")
-                    kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
 
                 if(opType != "Input"){
-                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, kHeight);
+                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op);
                 }
                 if(opType != "Output"){
-                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, kHeight);
+                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, op);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -410,7 +428,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0; //TODO think about
-                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv, kHeight);
+                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv, op);
                 }
 
                 //Additional memory footprint for sparsity
