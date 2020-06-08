@@ -349,35 +349,100 @@ static void populateWeightsTablesPointersFcn(const mv::pass::PassEntry& , mv::Co
 }
 
 void populateActivationStorageElementMap(
-    mv::Data::TensorIterator activationStorageElement,
-    mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+    mv::Data::OpListIterator op,
+    mv::ComputationModel& model)
 {
-    auto input = dpuTaskOp->getInputTensor(0);
-    long int increment = input->getShape()[mv::IO_CHANNEL_DIMENSION] *
-        (input->getDType().getSizeInBits() / 8);
-    std::vector<int64_t> table_offsets(activationStorageElement->getShape().totalSize(), 0);
+
+    using clusterSolverFunc =
+        std::function<mv::Tensor*(
+        mv::Data::OpListIterator, size_t, size_t)>;
+
+    using displacementCalcFunc =
+        std::function<std::pair<long int, long int>(
+        mv::Data::OpListIterator, size_t, clusterSolverFunc, size_t)>;
+
+    const std::vector<clusterSolverFunc> clusterSolversFunctors = {
+        [](mv::Data::OpListIterator op, size_t tidx, size_t clidx)
+        {
+            return &*op->getInputTensor(tidx);
+        },
+        [](mv::Data::OpListIterator op, size_t tidx, size_t clidx)
+        {
+            return &op->getInputTensor(tidx)->getSubTensor(clidx);
+        }
+    };
+
+    const std::unordered_map<std::string, displacementCalcFunc> displacementFunctors =
+    {
+        {
+            "Conv",
+            [](mv::Data::OpListIterator op,
+                size_t inputTensorIdx,
+                clusterSolverFunc clSolver,
+                size_t clIdx){
+                std::vector<std::pair<long int, long int>> displacements;
+                auto offset = 0;
+                auto increment =
+                    clSolver(op, inputTensorIdx, clIdx)->getShape()[mv::IO_CHANNEL_DIMENSION] *
+                    (clSolver(op, inputTensorIdx, clIdx)->getDType().getSizeInBytes());
+                return std::make_pair(offset, increment);
+            }
+        },
+        {
+            "Eltwise",
+            [](mv::Data::OpListIterator op,
+                size_t inputTensorIdx,
+                clusterSolverFunc clSolver,
+                size_t clIdx){
+                auto base_addr =std::min(
+                    clSolver(op, 0, clIdx)->getAddress(),
+                    clSolver(op, 1, clIdx)->getAddress());
+                auto offset = clSolver(op, inputTensorIdx, clIdx)->getAddress() - base_addr;
+                auto increment =
+                    clSolver(op, inputTensorIdx, clIdx)->getShape()[mv::IO_CHANNEL_DIMENSION] *
+                    (clSolver(op, inputTensorIdx, clIdx)->getDType().getSizeInBytes());
+                return std::make_pair(offset, increment);
+            }
+        }
+    };
 
     const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
-    if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
-                  dpuTaskOp->get<std::string>("splitStrategy")) ==
-        segmentableStrategies.cend()) {
-      for (size_t i = 0; i < table_offsets.size(); ++i)
-        table_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
-    } else {
-      auto numClusters =
-          model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
-      auto running_index = 0;
+    auto dispFunctor = displacementFunctors.at(op->get<std::string>("taskOp"));
 
-      for (size_t cl = 0; cl < numClusters; cl++) {
-        auto clTotalSize =
-            activationStorageElement->getSubTensor(cl).getShape().totalSize();
-        for (size_t i = 0; i < clTotalSize; ++i)
-          table_offsets[running_index + i] =
-              (i * increment << SHIFT_FOR_STORAGE_ELEMENT) + cl;
-        running_index += clTotalSize;
-      }
+    auto inputTensorIdx = 0;
+    for (auto tidx : op->get<std::vector<std::size_t>>("storageElementIndex"))
+    {
+        auto storageElementTable = op->getInputTensor(tidx);
+        std::vector<int64_t> table_offsets(storageElementTable->getShape().totalSize(), 0);
+
+        if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
+            op->get<std::string>("splitStrategy")) == segmentableStrategies.cend()) {
+                auto disp = dispFunctor(op, inputTensorIdx, clusterSolversFunctors[0], 0);
+                for (size_t i = 0; i < table_offsets.size(); ++i)
+                    table_offsets[i] =
+                        ((disp.first + i * disp.second) <<
+                        SHIFT_FOR_STORAGE_ELEMENT);
+        }
+        else
+        {
+            auto numClusters =
+                model.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+            auto running_index = 0;
+
+            for (size_t cl = 0; cl < numClusters; cl++) {
+                auto disp = dispFunctor(op, inputTensorIdx, clusterSolversFunctors[1], cl);
+                auto clTotalSize =
+                    storageElementTable->getSubTensor(cl).getShape().totalSize();
+                for (size_t i = 0; i < clTotalSize; ++i)
+                    table_offsets[running_index + i] =
+                        ((disp.first + i * disp.second) <<
+                        SHIFT_FOR_STORAGE_ELEMENT) + cl;
+                running_index += clTotalSize;
+            }
+        }
+        storageElementTable->populate(table_offsets, mv::Order("NHWC"));
+        inputTensorIdx++;
     }
-    activationStorageElement->populate(table_offsets, mv::Order("NHWC"));
 }
 
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
@@ -458,21 +523,11 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    for(auto op : om.getOps("DPUTask"))
     {
-        auto taskOp = dpuTaskOp->getOpType();
-        if (taskOp == "DPUTask")
-        {
-            if(dpuTaskOp->hasAttr("activationSparsityCompilerSolving")
-                    && dpuTaskOp->get<bool>("activationSparsityCompilerSolving"))
-            {
-                for (auto tidx : dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex"))
-                {
-                    auto activationStorageElement = dpuTaskOp->getInputTensor(tidx);
-                    populateActivationStorageElementMap(activationStorageElement, dpuTaskOp, model);
-                }
-            }
-        }
+        if(op->hasAttr("activationSparsityCompilerSolving") &&
+            op->get<bool>("activationSparsityCompilerSolving"))
+            populateActivationStorageElementMap(op, model);
     }
 }
 
