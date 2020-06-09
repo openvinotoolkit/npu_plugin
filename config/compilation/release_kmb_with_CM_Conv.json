@@ -4,24 +4,25 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": true,
+                "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
-                "Number_of_DPUs" : 5,
-                "Number_of_Clusters" : 1,
+                "Number_of_DPUs" : 20,
+                "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
-                "WorkloadCost": 0,
+                "WorkloadCost": 300,
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "PWLUsage": true,
                 "split_strategy" :
                 [
                     {
@@ -103,18 +104,21 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "AddPermutesToChangeSoftmaxAxis",
+            "PreprocessForPWL",
+            "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
+            "HandleGroupConvolution",
+            "TileOps",
+            "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -213,6 +217,7 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
+            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -252,22 +257,8 @@
             "GenerateSparsityMapsEltwise",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "no_temporal_edges" : true,
-              "ddr_address_generation" : true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_output.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_opmodel_output.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
+              "ddr_address_generation" : true,
+              "no_temporal_edges" : true
             },
             {
                 "name": "TransitiveReduction",
@@ -294,24 +285,18 @@
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "PopulateInstructionListTables"
         ]
     },
     "scheduling": {
         "Singular": [
             {
               "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 8,
-              "barrier_bound" : 4,
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : false
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_scheduler_output.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             }
         ]
     },
@@ -324,21 +309,9 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization_control_no_temporal_edges.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
             }
-
         ]
     },
     "root": {

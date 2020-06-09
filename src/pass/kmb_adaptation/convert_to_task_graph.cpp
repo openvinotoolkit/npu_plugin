@@ -141,7 +141,6 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
-    bool disableCMconv = attrs.at("disableCMconv").get<bool>();
     auto globalParams = om.getGlobalConfigParams();
     bool enableChannelMajor = globalParams->get<bool>("enable_channel_major_conv");
     unsigned group = attrs.at("group").get<unsigned>();
@@ -162,11 +161,8 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     }
     if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and notDW)
     {
-        if (!disableCMconv)
-        {
-           dpuConvOp->erase("taskOp");
-           dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
-        }
+        dpuConvOp->erase("taskOp");
+        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
 
     if(attrs.find("asymmetricKernel") != attrs.end())
@@ -597,17 +593,11 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         for(auto& opIt: ops)
         {
             bool software = false;
-            bool disableCMconv = false;
             //Note: That condition is coming due to limitations like add with different scales
             if (opIt->hasAttr("softwareExecuted") && opIt->get<bool>("softwareExecuted"))
                 software = true;
-            if (opIt->hasAttr("enableCMconv"))
-                disableCMconv = true;
-            else
-                disableCMconv = false;
             auto name = opIt->getName();
             auto attrsToCopy = opIt->getAttrs();
-            attrsToCopy.insert(std::pair<std::string, bool>("disableCMconv", disableCMconv));
             auto inputs = opIt->getInputTensor();
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
@@ -795,8 +785,20 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
         clamp /= alpha;
     }
 
+    // PWL activation runs immediately after clamp
+    if(opIt->hasPWLActivation())
+        clamp = std::max(-4096, static_cast<signed>(std::ceil(
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getMin()[0] /
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
-        clamp = -128;
+    {
+        auto alpha = opIt->get<double>("leakyAlpha");
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto minimum = outputQuantParams.getMin()[0];
+        minimum /= alpha;
+        clamp = round(minimum/outputQuantParams.getScale()[0]);
+        clamp = std::max(clamp, -128);
+    }
 
     return clamp;
 }
@@ -853,8 +855,20 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
             }
         }
     }
+
+    // PWL activation runs immediately after clamp
+    if(opIt->hasPWLActivation())
+        clamp = std::min(4095, static_cast<signed>(std::floor(
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getMax()[0] /
+            opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
-        clamp = 127;
+    {
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto maximum = outputQuantParams.getMax()[0];
+        clamp = round(maximum/outputQuantParams.getScale()[0]);
+        clamp = std::min(clamp, 127);
+    }
+
     return clamp;
 }
 

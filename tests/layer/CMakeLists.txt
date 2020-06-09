@@ -203,4 +203,7 @@ else()
 
     add_executable(norm norm/norm.cpp)
     target_link_libraries(norm cm)
+
+    add_executable(reorg_yolo_dpu reorg_yolo_dpu/reorg_yolo_dpu.cpp)
+    target_link_libraries(reorg_yolo_dpu cm)
 endif(MSVC)

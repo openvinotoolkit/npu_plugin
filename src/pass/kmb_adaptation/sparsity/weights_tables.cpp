@@ -226,7 +226,10 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     std::vector<int32_t> mShift(paddedOutputChannels, 0);
     if(output->hasAttr("quantParams"))
     {
-        quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        if (dpuTaskOp->hasAttr("pwlQuantParams"))
+            quantParams = dpuTaskOp->get<mv::QuantizationParams>("pwlQuantParams");
+        else
+            quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         if (!quantParams.isEmpty())
         {
             auto mult = quantParams.getMult();
