@@ -50,6 +50,7 @@ namespace mv
         std::size_t outputSlots() const;
         bool isImplicit() const;
         bool hasWeights() const;
+        bool hasPWLActivation() const;
 
         std::string getLogID() const override;
 
