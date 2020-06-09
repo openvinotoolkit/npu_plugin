@@ -59,7 +59,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     reorgYoloAsConvConcatFcn(pass, model);
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -113,7 +113,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -162,55 +162,6 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationMod
     }
 }
 
-void decideTasksPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    //Note: This pass will be dis-abled and enabled only for cases that we want to execute fp16 precision dpu tasks
-    //these tasks are marked cause they have no quant params...Important here is that the Z-major Convolution has
-    //the limitation of sparse tensors, so we need to have a maxpool(neutral) before that
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-    mv::OpModel om(model);
-    std::vector<std::string> futere_dpu_types = {"Eltwise", "DepthwiseConv","MaxPool"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType
-            = om.getOpsOfTypes(futere_dpu_types);
-    mv::QuantizationParams emptyQuantizationParams = {{}, {}, {}, {}};
-    mv::QuantizationParams neutralQuantizationParams = {{0}, {1.0}, {}, {}};
-    std::vector<mv::Data::OpListIterator> simpleDpuCases = operationsOfType["Eltwise"];
-    std::merge(operationsOfType["DepthwiseConv"].begin(), operationsOfType["DepthwiseConv"].end(),
-            operationsOfType["MaxPool"].begin(), operationsOfType["MaxPool"].end(), simpleDpuCases.begin());
-
-    for (auto& opIt : simpleDpuCases)
-    {
-        if(opIt->get<bool>("softwareExecuted"))
-            continue;
-
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-    }
-
-    auto convOps = om.getOps("Conv");
-    for (auto& opIt : convOps)
-    {
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-        if (opIt->hasAttr("softwareExecuted"))
-        {
-             if (opIt->get<bool>("softwareExecuted"))
-                placeNeutralMaxPoolBefore(om, opIt);
-        }
-    }
-}
-
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
@@ -237,7 +188,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
               (inHeight / outHeight) == inWidth / outWidth)
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto factor = (unsigned short) (inHeight / outHeight);
+            auto factor = inHeight / outHeight;
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             std::array<unsigned short, 2> kSize({factor, factor});
@@ -408,7 +359,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -496,7 +447,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& , mv::ComputationModel& mo
     }
 }
 
-void topKAsArgMaxFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
+void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -546,7 +497,7 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
     }
 }
 
-void flattenAsReshapeFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
