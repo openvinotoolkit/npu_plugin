@@ -627,11 +627,17 @@ namespace mv
                     splits++;
                 }while(splits <= upperBoundH);
 
+                std::array<unsigned short, 4> padding;
+                if (op.hasAttr("padding"))
+                    padding = op.get<std::array<unsigned short, 4>>("padding");
+                else
+                    padding = {0, 0, 0, 0};
+
                 // Note: for convolution stream over H cannot be higher than dimension/kernel
                 if(op.getOpType() == "Conv")
                 {
                     auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
-                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3];
                     if(splits > dim/kernelSize)
                         return dim/kernelSize;
                     if(splits < 1)
@@ -892,7 +898,9 @@ namespace mv
                 {
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
-                    if(fit.first + fit.second > clusterMemory)
+
+                    // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
+                    if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
 
@@ -917,6 +925,7 @@ namespace mv
                     }
                     if(clustering == "SplitOverH")
                     {
+                        // TODO should we use padding here too?
                         //Try to guess subtensor height, and avoid situations where kernel is bigger than last workload dimension
                         auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                         auto workloadHeight = ceil((double)outputHeight / (double)(totalClusters * streamShape["H"]));
@@ -1466,6 +1475,7 @@ if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
                             }
                             if(minSplitOverH < 1) minSplitOverH = 1;
                             if(maxSplitOverH < 1) maxSplitOverH = 1;
+                            // cout << "K = " << k <<", H Streams loop: " << minSplitOverH << " --> " << maxSplitOverH << endl;
                             for(unsigned h = minSplitOverH; h <= maxSplitOverH; h++)
                             {
                                 for(const auto c : streamsOverC)
@@ -1499,10 +1509,8 @@ if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
-                                    if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add"){
-                                        cout << " {"<< clustering.toString() << "} : k: " << k << ", h: " << h << " : " << strategyCheck << endl;
-                                    }
-                                    // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
+
+                                    // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl <<endl;
                                     if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
                                     
