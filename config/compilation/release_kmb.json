@@ -7,7 +7,7 @@
                 "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "B0",
+                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
@@ -120,7 +120,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "referenceDevice", "value" : "B0"},
+                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
