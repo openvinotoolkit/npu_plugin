@@ -458,16 +458,18 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         std::vector<double> scale(1, scaleValue);
         mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
         mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+        double inf = std::numeric_limits<double>::infinity();
+        mv::QuantizationParams neutralWeightsQuantParams = {{0},{1.0},{-inf},{inf}};
 
-        if (sourceTensor->isDoubleType())
+        if (sourceTensor->isDoubleType() || sourceTensor->getDType() == mv::DType("Float16"))
         {
             double weightsValue = scaleValue;
             std::vector<double> weightsData(total_shape, weightsValue);
             //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float32"),
+                                mv::Order(mv::Order::getRowMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
