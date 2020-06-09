@@ -2501,6 +2501,69 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADeconvTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    const auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConvolutionParams;
+
+    const auto input = opIt->getInputTensor(0);
+    const auto weights = opIt->getInputTensor(1);
+    const auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    const auto softLayerParamsValue = new MVCNN::ConvolutionParamsT();
+
+    // Kernel
+
+    softLayerParamsValue->kernel =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(
+                weights->getShape()[mv::IO_WIDTH_DIMENSION],
+                weights->getShape()[mv::IO_HEIGHT_DIMENSION],
+                0));
+
+    // Strides
+
+    const auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
+
+    softLayerParamsValue->strides =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(kernelStride[0], kernelStride[1], 0));
+
+    // Paddings
+
+    const auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+    softLayerParamsValue->pads_begin =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(padding[0], padding[2], 0)); // Left,Top,Front
+
+    softLayerParamsValue->pads_end =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(padding[1], padding[3], 0)); // Right,Bottom,Back
+
+    // Dilations
+
+    const auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+
+    softLayerParamsValue->dilations =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(dilationFactor, dilationFactor, 0));
+
+    // Group
+
+    const auto group = opIt->get<unsigned>("group");
+
+    softLayerParamsValue->group = group;
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2560,6 +2623,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPATileTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "CTCDecoder")
         toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "RefConv")
+        toReturn[0]->task.value = buildUPARefConvTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))

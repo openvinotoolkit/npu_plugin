@@ -727,8 +727,6 @@ const std::vector<int64_t> mv::Tensor::getDataPacked()
     if(isDoubleType())
         throw ValueError(*this, "Attempt of getting data packed from populated double tensor");
 
-    if(!getOrder().isZMajor())
-        throw ValueError(*this, "To use getDataPacked order has to be NHWC");
 
     std::vector<int64_t> orderedDataPacked;
 

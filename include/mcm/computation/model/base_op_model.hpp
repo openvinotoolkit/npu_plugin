@@ -17,7 +17,8 @@ namespace mv
     protected:
         std::ofstream* codeOut_ = 0;
         std::ofstream* dataOut_ = 0;
-        bool recordModel = false;
+        bool recordModel_ = false;
+        bool recordWeightsAsText_ = false;
 
     public:
 
@@ -26,7 +27,7 @@ namespace mv
         BaseOpModel(mv::json::Value& value);
         virtual ~BaseOpModel() = 0;
 
-        void initRecordingFile(const std::string& outFileName);
+        void initRecordingFile(const std::string& outFileName, bool recordWeightsAsText = false);
 
         Data::OpListIterator switchContext(Control::OpListIterator other);
 
