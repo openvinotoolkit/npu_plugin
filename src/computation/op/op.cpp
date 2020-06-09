@@ -314,3 +314,26 @@ bool mv::Op::hasWeights() const
         hasWeights = false;
     return hasWeights;
 }
+
+
+bool mv::Op::hasPWLActivation() const
+{
+    const std::vector<std::string> pwlActivations = {
+        "Sigmoid",
+        "Tanh"
+    };
+    bool hasPWL = false;
+    if (std::find(pwlActivations.cbegin(), pwlActivations.cend(),
+        getOpType()) != pwlActivations.cend())
+        hasPWL = true;
+    if (hasAttr("postOpTypes"))
+    {
+        for (auto postOp : get<std::vector<std::string>>("postOpTypes"))
+        {
+            if (std::find(pwlActivations.cbegin(), pwlActivations.cend(),
+                postOp) != pwlActivations.cend())
+                hasPWL = true;
+        }
+    }
+    return hasPWL;
+}

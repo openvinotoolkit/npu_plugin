@@ -66,7 +66,7 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Eltwise")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW"})
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
-    .registerSet("inputActivationSparsity").insert(false)
+    .registerSet("inputActivationSparsity").insert(true)
     .registerSet("outputActivationSparsity").insert(true)
     .registerSet("weightsSparsity").insert(false);
 
