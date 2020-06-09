@@ -675,7 +675,7 @@ void TestNetworkDesc::fillUserOutputInfo(OutputsDataMap& info) const {
 // KmbNetworkTestBase
 //
 
-Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels) {
+Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels, int height, int width) {
     std::ostringstream imageFilePath;
     imageFilePath << TestDataHelpers::get_data_path() << "/" << image.imageFileName();
 
@@ -683,15 +683,15 @@ Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels
     IE_ASSERT(reader.get() != nullptr);
 
     const size_t C = channels;
-    const size_t H = reader->height();
-    const size_t W = reader->width();
+    const size_t H = height;
+    const size_t W = width;
 
     const auto tensorDesc = TensorDesc(Precision::FP32, {1, C, H, W}, Layout::NHWC);
 
     const auto blob = make_blob_with_precision(tensorDesc);
     blob->allocate();
 
-    const auto imagePtr = reader->getData().get();
+    const auto imagePtr = reader->getData(width, height).get();
     const auto blobPtr = blob->buffer().as<float*>();
 
     IE_ASSERT(imagePtr != nullptr);
@@ -817,7 +817,7 @@ void KmbNetworkTestBase::runTest(
         "input",
         inputTensorDesc,
         [&image](const TensorDesc& desc) {
-            const auto blob = loadImage(image, desc.getDims()[1]);
+            const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
             IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
 
             return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());

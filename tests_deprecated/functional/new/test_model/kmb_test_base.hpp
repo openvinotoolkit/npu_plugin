@@ -23,6 +23,7 @@
 #include "kmb_test_mul_def.hpp"
 #include "kmb_test_scale_shift_def.hpp"
 #include "kmb_test_convolution_def.hpp"
+#include "kmb_test_deconvolution_def.hpp"
 #include "kmb_test_normalize_def.hpp"
 #include "kmb_test_fake_quantize_def.hpp"
 #include "kmb_test_softmax_def.hpp"
@@ -331,7 +332,7 @@ protected:
     using CheckCallback = std::function<void(const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc)>;
 
 protected:
-    static Blob::Ptr loadImage(const TestImageDesc& image, int channels);
+    static Blob::Ptr loadImage(const TestImageDesc& image, int channels, int height, int width);
 
     CNNNetwork readNetwork(
             const TestNetworkDesc& netDesc,
