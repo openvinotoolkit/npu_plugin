@@ -65,8 +65,13 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     }
     // ASSUMPTION: All the input tensors of a concat share the same
     // splitting strategy
-    //NOTE: Concats of concats need to start from the inner nested part
-    auto implicitConcatOps = om.getOps("ImplicitConcat");
+    std::vector<mv::Data::OpListIterator> implicitConcatOps;
+    auto sortedOps = om.topologicalSort();
+    for (auto& op : sortedOps)
+    {
+        if (op->getOpType() == "ImplicitConcat")
+            implicitConcatOps.push_back(op);
+    }
     for (auto implicitConcat : implicitConcatOps)
     {
         if (implicitConcat->getInputTensor(0)->hasAttr("splitStrategy"))

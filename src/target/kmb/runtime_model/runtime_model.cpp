@@ -402,7 +402,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     // In DDRs style memory we use the strides of the master tensor
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
-    if(*tensorAllocatorName == "VPU_CMX_NN")
+
+    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
@@ -460,14 +461,15 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
         auto index = t->getOrder().subToInd(t->getShape(), offset);
+
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
-
         toBuild->data->data_index = byte_index;
-
         auto strides = tensorBufferIt->getStrides();
+
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
 
         if ((*masterBuffer)->getData()->hasAttr("inputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
@@ -484,10 +486,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto index = t->getOrder().subToInd(t->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
 
+        auto tensorStrides = t->computeNumericStrides();
+        tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+        std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        if(numericStrides[4] != tensorStrides[4]){
+            byte_index = index * (numericStrides[4]/tensorStrides[4]);
+        }
+
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
         auto starting_address = 0;
-        auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+
         if(t->hasAttr("address"))
             starting_address = t->get<std::size_t>("address");
         else
@@ -977,6 +988,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
         toPush->task.type = MVCNN::SpecificTask_NNDMATask;
         tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, i, dstAllocator);
         tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, i, srcAllocator);
+
         // if the DMA Out tensor is input Tensor for DMA in, have to make sure the src/dst dims match for CM Conv
         if(dmaToDMA)
         {
@@ -1003,6 +1015,7 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->get<std::string>("taskOp") == "DepthwiseConv")
                     alignTensor(cm, tmp->src, src->getSubTensor(i), IO_WIDTH_DIMENSION, false);
         }
+
 
 
         checkUnstridedDMA(src, i, tmp);
@@ -1199,6 +1212,28 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     return toBuild;
 }
 
+void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild , Control::OpListIterator& opIt){
+    if (!opIt->hasAttr("pwlQuantParams"))
+        return;
+
+    auto pwlQuant = opIt->get<mv::QuantizationParams>("pwlQuantParams");
+    auto quantMult = reduceQuantVector_(pwlQuant.getMult());
+    toBuild->output_data->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+    toBuild->parent_output_tensor->quant_mult = std::vector<unsigned short int>(quantMult.begin(), quantMult.end());
+    auto quantShift = reduceQuantVector_(pwlQuant.getShift());
+    toBuild->output_data->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+    toBuild->parent_output_tensor->quant_shift = std::vector<unsigned char>(quantShift.begin(), quantShift.end());
+    auto quantZero = pwlQuant.getZeroPoint();
+    toBuild->output_data->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+    toBuild->parent_output_tensor->quant_zero = std::vector<unsigned char>(quantZero.begin(), quantZero.end());
+    auto quantScale = pwlQuant.getScale();
+    toBuild->output_data->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+    toBuild->parent_output_tensor->quant_scale = std::vector<float>(quantScale.begin(), quantScale.end());
+    auto quantPostShift = pwlQuant.getPostShift();
+    toBuild->output_data->quant_post_shift_right = quantPostShift;
+    toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
+}
+
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
@@ -1248,6 +1283,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
 
+    updatePWLTaskT(toBuild, opIt);
+
     if(opIt->hasAttr("fakeSparsity"))
     {
         auto activationWindowTensorIterator = opIt->getInputTensor(opIt->get<std::size_t>("fakeSparsityIndex"));
@@ -1273,6 +1310,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+
+    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+           toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
     return toBuild;
@@ -1376,6 +1421,8 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
+    updatePWLTaskT(toBuild, opIt);
+
     //OP inputs == n ->
     // n - 2 activation window (when present)
     // n - 1 weights table
@@ -1403,6 +1450,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
         default:
             break;
+    }
+
+    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
+    if(opIt->hasAttr("needsODUoffset"))
+    {
+        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
+        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
+            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
     return toBuild;
@@ -2267,6 +2322,57 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAEltwiseFP16Task(ComputationMode
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input = opIt->getInputTensor(0);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_TileParams;
+    auto softLayerParamsValue = new MVCNN::TileParamsT();
+
+    // Fill in required params
+    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+    softLayerParamsValue->tiles = opIt->get<unsigned>("tiles");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPACTCDecoderTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    auto input0 = opIt->getInputTensor(0);
+    auto input1 = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+    //toBuild->maxShaves = ;
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_CTCDecoderParams;
+    auto softLayerParamsValue = new MVCNN::CTCDecoderParamsT();
+
+    // Fill in required params
+    softLayerParamsValue->ctc_merge_repeated = opIt->get<bool>("ctc_merge_repeated");
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input0);
+    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    return toBuild;
+}
+
 MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADummyTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     UNUSED(cm);
@@ -2442,6 +2548,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPATopKTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "Deconv")
         toReturn[0]->task.value = buildUPADeconvTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Tile")
+        toReturn[0]->task.value = buildUPATileTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "CTCDecoder")
+        toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))

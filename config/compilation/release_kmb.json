@@ -15,8 +15,8 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": true,
-                "HuffmanCompression": true,
+                "enable_channel_major_conv": false,
+                "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
@@ -94,7 +94,6 @@
     },
     "quantization" : {
         "Singular" : [
-	    "SelectiveCMconv",
             "FakeQuantize"
         ]
     },
@@ -112,6 +111,7 @@
             "TileOps",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
@@ -204,6 +204,7 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
+            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
@@ -254,6 +255,7 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
+            "GenerateSparsityMapsEltwise",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,

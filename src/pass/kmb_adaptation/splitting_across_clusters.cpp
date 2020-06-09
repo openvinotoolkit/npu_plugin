@@ -532,7 +532,11 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                         }
                     }
 
-                    //ASSUMPTION: all sink ops have the same strategy.
+                    //ASSUMPTION: all sink ops have the same strategy, except DMATask
+                    if (sinkOperators[0]->getOpType() == "DMATask") {
+                        continue;
+                    }
+
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
 
