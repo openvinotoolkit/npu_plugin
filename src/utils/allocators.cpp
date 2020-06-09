@@ -42,6 +42,11 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
     if (blobSizeRem) {
         requiredSize += pageSize;
     }
+    // workaround for runtime bug. allocate at least two pages of memory
+    // [Track number: h#18011677038]
+    if (requiredSize < pageSize * 2) {
+        requiredSize = pageSize * 2;
+    }
     return requiredSize;
 }
 

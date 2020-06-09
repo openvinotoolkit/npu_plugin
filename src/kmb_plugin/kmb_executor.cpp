@@ -206,12 +206,9 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     _logger->info("KmbExecutor::allocateGraph begins");
 
-    // HACK: we have to allocate at least this size due some issue in runtime
-    const size_t minGraphSize = 60 * 1024 * 1024;  // 60 Mb
-
     BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
-    BHandle->graphLen = std::max(graphFileContent.size(), minGraphSize);
+    BHandle->graphLen = graphFileContent.size();
     BHandle->refCount = 0;
 
     // ########################################################################

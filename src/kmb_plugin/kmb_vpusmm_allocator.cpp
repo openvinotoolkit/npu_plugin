@@ -30,8 +30,13 @@ using namespace vpu::KmbPlugin;
 
 void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    long pageSize = getpagesize();
+    size_t pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
+    // workaround for runtime bug. allocate at least two pages of memory
+    // [Track number: h#18011677038]
+    if (realSize < pageSize * 2) {
+        realSize = pageSize * 2;
+    }
 
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
 
