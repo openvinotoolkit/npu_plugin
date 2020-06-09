@@ -364,7 +364,7 @@ class Control_Edge_Set {
       if (!generate_temporal_edges) {
         add_control_edges_between_compute_ops_and_writes(dag, model);
         add_memory_control_edges(dag, model, sbegin, send);
-        add_control_edges_for_implicit_concats(dag, model);
+        add_control_edges_for_implicit_concats_general(dag, model);
         add_control_edges_for_upa_tasks(dag, model);
       } else {
         add_temporal_control_edges(dag, sbegin, send, model,
@@ -590,8 +590,7 @@ class Control_Edge_Set {
       // calling this (CosumerControl) need to check avoiding edges between
       // the sibiling and then this check can be removed.
       if ( (flow_itr == cmodel.flowEnd()) &&
-          !(cmodel.pathExists(oitr_source, oitr_sink)) &&
-          !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
+          !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
           printfInfo("LpScheduler:",
               "[cycle : edge (sink<-source) = (%s <- %s)]\n",
@@ -681,13 +680,12 @@ class Control_Edge_Set {
           add_control_edge(parent_op, op, model);
         }
       }
-
     }
 
-
-
+   
+    // This case works if the structure of concats is a Tree// 
     template<typename OpDag>
-    void add_control_edges_for_implicit_concats(const OpDag& dag,
+    void add_control_edges_for_implicit_concats_tree(const OpDag& dag,
         mv::ComputationModel& model) {
       typedef OpDag dag_t;
       typedef ImplicitConcat_Connected_Component<dag_t> connected_comp_algo_t;
@@ -720,6 +718,88 @@ class Control_Edge_Set {
         }
 
       }
+    }
+
+
+    // This case works if the structure of concats is a DAG //
+    struct in_out_adjacency_list_t {
+      std::set<operation_t> in_coming_;
+      std::set<operation_t> out_going_;
+      void clear() { in_coming_.clear(); out_going_.clear(); }
+    }; // struct in_out_adjacency_list_t //
+
+    template<typename OpDag>
+    void add_control_edges_for_implicit_concats_general(const OpDag& dag,
+        mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+      typedef std::unordered_map<operation_t, in_out_adjacency_list_t>
+          concat_sub_graph_t;
+      concat_sub_graph_t concat_sub_graph;
+
+      //STEP-0: Build a subgraph with ImplicitConcats and nodes adjacent on
+      //them//
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!(op->getOpType() == "ImplicitConcat")) { continue; }
+
+        in_out_adjacency_list_t &in_out_adj_list = concat_sub_graph[op]; 
+
+        for (typename dag_t::const_operation_iterator_t
+            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
+              ++pitr) {
+          operation_t parent_op = *pitr;
+          in_out_adj_list.in_coming_.insert(parent_op);
+          concat_sub_graph[parent_op].out_going_.insert(op);
+        }
+
+        for (typename dag_t::const_operation_iterator_t
+            citr=dag.begin_nodes(op); citr != dag.end_nodes(op); ++citr) {
+          operation_t child_op = *citr;
+          in_out_adj_list.out_going_.insert(child_op);
+          concat_sub_graph[child_op].in_coming_.insert(op);
+        }
+      }
+
+      //STEP-1: eliminate all the implicit concats from the subgraph but 
+      //still retaining the dependencies.
+      for (concat_sub_graph_t::iterator nitr=concat_sub_graph.begin();
+            nitr != concat_sub_graph.end(); ++nitr) {
+        operation_t op = nitr->first;
+        if (!(op->getOpType() == "ImplicitConcat")) { continue; }
+
+        // eliminate concat from the subgraph //
+        in_out_adjacency_list_t &in_out_adj_list = nitr->second;
+        std::set<operation_t>& in_coming = in_out_adj_list.in_coming_;
+        std::set<operation_t>& out_going = in_out_adj_list.out_going_;
+
+        for (auto pitr=in_coming.begin(); pitr!=in_coming.end(); ++pitr) {
+          operation_t parent_op = *pitr;
+          (concat_sub_graph[parent_op]).out_going_.erase(op);
+        }
+
+        for (auto citr=out_going.begin(); citr!=out_going.end(); ++citr) {
+          operation_t child_op = *citr;
+          (concat_sub_graph[child_op]).in_coming_.erase(op);
+        }
+
+        // explode control edges due o removal of ImplicitConcat //
+        for (auto pitr=in_coming.begin(); pitr!=in_coming.end(); ++pitr) {
+          for (auto citr=out_going.begin(); citr!=out_going.end(); ++citr) {
+            // add an edge (pitr->citr) //
+            operation_t src = *pitr;
+            operation_t sink = *citr;
+            (concat_sub_graph[sink]).in_coming_.insert(src);
+            (concat_sub_graph[src]).out_going_.insert(sink);
+
+            if (!(src->getOpType() == "ImplicitConcat") && 
+                  !(sink->getOpType() == "ImplicitConcat")) {
+              add_control_edge(src, sink, model);
+            }
+          }
+        }
+        in_out_adj_list.clear();
+      } // foreach ImplicitConcat //
     }
 
     template<typename OpDag>
