@@ -36,7 +36,7 @@ namespace IE = InferenceEngine;
 // TODO Use ImportNetwork tests as base
 class InferRequest_Tests : public CoreAPI_Tests {
 public:
-    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
+    modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50;
 
 protected:
     void SetUp() override;
@@ -181,7 +181,6 @@ public:
     std::string graphPath;
     std::string refInputPath;
     std::string refOutputPath;
-    const size_t numberOfTopClassesToCompare = 5;
 
 protected:
     void SetUp() override;
@@ -191,9 +190,9 @@ void Inference_onSpecificDevice::SetUp() {
     std::vector<HddlUnite::Device> devices;
     getAvailableDevices(devices);
     amountOfDevices = devices.size();
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.inputPath;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.outputPath;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
 TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {

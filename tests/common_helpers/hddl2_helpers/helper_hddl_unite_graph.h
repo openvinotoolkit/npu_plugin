@@ -33,8 +33,8 @@ public:
 protected:
     HddlUnite::Inference::Graph::Ptr _graphPtr = nullptr;
 
-    const std::string _graphName = PrecompiledResNet_Helper::resnet50_dpu.graphName;
-    const std::string _graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    const std::string _graphName = PrecompiledResNet_Helper::resnet50.graphName;
+    const std::string _graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
 };
 
 //------------------------------------------------------------------------------

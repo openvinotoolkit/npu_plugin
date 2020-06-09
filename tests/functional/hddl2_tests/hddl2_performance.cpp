@@ -74,9 +74,9 @@ RemoteMemoryFD Performance_Tests::allocateRemoteMemory(
 }
 
 void Performance_Tests::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12_1080Input;
-    refOutputPath = PrecompiledResNet_Helper::resnet50_dpu.nv12_1080Output;
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.nv12_1080Input;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.nv12_1080Output;
 }
 
 void Performance_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(workloadId); }
