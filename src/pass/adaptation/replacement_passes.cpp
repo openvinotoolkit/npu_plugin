@@ -550,7 +550,7 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                  std::string name, unsigned short originalKernel, unsigned short newKernel,
-                                                 std::array<unsigned short, 4> padding)
+                                                 std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
 
@@ -572,6 +572,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+    double inf = std::numeric_limits<double>::infinity();
 
 
     // Create weights tensor
@@ -596,7 +597,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
     // Create depthwise conv
 	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized())
+	if (sourceTensor->isQuantized() && quantRequired)
 	{
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
@@ -604,7 +605,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
 	else
 	{
-        mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+        mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
  	}
 
@@ -801,7 +802,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kSize[0], factors.first, padding);
+                                                                            kSize[0], factors.first, padding, true);
 
 	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -827,13 +828,14 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
 	    // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0});
+                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0},false);
 
 	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
         	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
+
     } // end for
 }
 
