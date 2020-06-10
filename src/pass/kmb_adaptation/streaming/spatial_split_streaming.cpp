@@ -252,9 +252,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             sliceInputOp->set<std::string>("splitStrategy", splitStrategy);
         }
 
-        // Restore original out dtype, to account for mixed precision cases
-        // where we don't want the same datatype for output as the input tensors
-        newTensor->setDType(op->getOutputTensor(0)->getDType());
+        // Does more harm than good, since mixed precision is not treated correctly
+        // further on
+        // // Restore original out dtype, to account for mixed precision cases
+        // // where we don't want the same datatype for output as the input tensors
+        // newTensor->setDType(op->getOutputTensor(0)->getDType());
         om.getSourceOp(newTensor)->set<unsigned>("opId", opId);
 
         //todo: clean this if-then-else bias logic.... bloatware code....
