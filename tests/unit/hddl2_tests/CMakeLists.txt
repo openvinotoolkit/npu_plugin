@@ -28,7 +28,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
 target_compile_options(${TARGET_NAME}
     PRIVATE
         -Wall
-        -Werror)
+        -Werror
+	-Wextra)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE

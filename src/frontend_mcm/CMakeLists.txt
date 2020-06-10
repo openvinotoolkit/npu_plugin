@@ -30,6 +30,12 @@ endif()
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
+target_compile_options(${TARGET_NAME}
+    PRIVATE
+        -Wall
+        -Werror
+        -Wextra)
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${MCM_COMPILER_INCLUDES}

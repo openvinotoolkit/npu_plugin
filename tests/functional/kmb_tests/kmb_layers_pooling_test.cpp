@@ -371,9 +371,9 @@ TEST_P(PoolingTest, DISABLED_pooling_only) {
 
 // Assuming input layout have NCHW order
 std::vector<PoolingTestParams> int_pooling_params = {
-    {{1, 1, 128, 128}, {{1, 1}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
-    {{1, 2048, 7, 7}, {{1, 1}, {7, 7}, {0, 0}, {0, 0}, "same_upper", false, "true"}},
-    {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "false"}},
+    {{1, 1, 128, 128}, {{1, 1}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}},
+    {{1, 2048, 7, 7}, {{1, 1}, {7, 7}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}},
+    {{1, 3, 224, 224}, {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "false", ""}},
 };
 
 INSTANTIATE_TEST_CASE_P(PerLayer, PoolingTest, ::testing::ValuesIn(int_pooling_params));

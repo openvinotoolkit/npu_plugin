@@ -236,9 +236,6 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
 
     registerOutputs(avgPool, {mcmAvgPoolOutput}, mcmOutputsMap);
 }
-
-void convert(std::shared_ptr<ngraph::op::ConvolutionIE> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
 void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(relu, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
@@ -263,8 +260,6 @@ void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOut
     const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, inputQuantParams, opName);
 
     registerOutputs(eltwise, {mcmEltwiseOutput}, mcmOutputsMap);
-}
-void convert(std::shared_ptr<ngraph::op::v1::ReduceMean> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
 }
 void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(reshape, mcmOutputsMap);
@@ -304,25 +299,6 @@ void convert(std::shared_ptr<McmFC> fc, mv::OpModel& mcmModel, NodeOutputToMcmMa
 
     registerOutputs(fc, {mcmFCOutput}, mcmOutputsMap);
 }
-void convert(std::shared_ptr<ngraph::op::v0::Clamp> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::Concat> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v1::Softmax> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::LRN> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::Convert> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::PowerIE> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::PRelu> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::RegionYolo> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-void convert(std::shared_ptr<ngraph::op::v0::ReorgYolo> op, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-}
-
 void convert(std::shared_ptr<ngraph::op::v0::FakeQuantize> fq, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(fq, mcmOutputsMap);
     IE_ASSERT(5 == mcmInputs.size());

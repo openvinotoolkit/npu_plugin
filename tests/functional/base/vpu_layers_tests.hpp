@@ -117,10 +117,9 @@ protected:
     void genLayer(std::string layer_type, std::map<std::string, std::string>* params, size_t* inoutIndex,
         std::string& out, IN_OUT_desc& inpTensors, IN_OUT_desc& outTensors, std::string* newName = nullptr);
 
-    void genWeights(int weights_size, int biases_size, size_t* inoutIndex, std::string& out);
+    void genWeights(int weights_size, int biases_size, std::string& out);
 
-    void genWeights(
-        int weights_size, int biases_size, int weights_offset, int biases_offset, size_t* inoutIndex, std::string& out);
+    void genWeights(int weights_size, int biases_size, int weights_offset, int biases_offset, std::string& out);
 
     void genXML(const std::string& layer_type, std::map<std::string, std::string>* params, int weights_size,
         int biases_size, std::string& model);

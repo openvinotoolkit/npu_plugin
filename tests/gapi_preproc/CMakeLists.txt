@@ -16,6 +16,12 @@ add_subdirectory(gapi_test_computations)
 set(TARGET gapi_preproc_tests)
 add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
+target_compile_options(${TARGET}
+    PRIVATE
+        -Wall
+        -Werror
+        -Wextra)
+
 target_link_libraries(${TARGET}
     PRIVATE
         gapi_test_computations

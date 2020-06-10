@@ -31,7 +31,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
 target_compile_options(${TARGET_NAME}
         PRIVATE
             -Wall
-            -Werror)
+            -Werror
+	    -Wextra)
 
 target_link_libraries(${TARGET_NAME} PRIVATE IE::gtest IE::gmock IE::gtest_main kmb_utils kmbPlugin_test_static
     ${KMB_TEST_LIBRARIES})

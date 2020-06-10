@@ -322,7 +322,7 @@ void utils::printYoloBBoxOutputs(std::vector<utils::YoloBBox> &actualOutput, std
     for (size_t i = 0; i < actualOutput.size(); ++i) {
         const auto& bb = actualOutput[i];
         outputStream << i << " : ";
-        if (labels.size() < bb.idx) {
+        if (static_cast<int>(labels.size()) < bb.idx) {
             outputStream << bb.idx;
         } else {
             outputStream << labels.at(bb.idx);

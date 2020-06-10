@@ -21,7 +21,8 @@ function(enable_vpu TARGET_NAME FLAG_NAME PLUGIN_NAME)
     target_compile_options(${TARGET_NAME}
             PRIVATE
             -Wall
-            -Werror)
+            -Werror
+	    -Wextra)
 
     target_compile_definitions(${TARGET_NAME} PRIVATE
             INSTANTIATE_TESTS=1

@@ -36,7 +36,7 @@ public:
     void NetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params = nullptr,
         int weights_size = 0, int biases_size = 0, InferenceEngine::TBlob<uint8_t>::Ptr weights = nullptr,
         InferenceEngine::Precision outputPrecision = InferenceEngine::Precision::FP32,
-        InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16, bool useHWOpt = false);
+        InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16);
 
     void setCommonConfig(std::map<std::string, std::string>& config);
 
@@ -47,7 +47,7 @@ private:
         InferenceEngine::Precision inputPrecision = InferenceEngine::Precision::FP16);
 
     void setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
-        InferenceEngine::Precision inputPrecision, bool useHWOpt = false);
+        InferenceEngine::Precision inputPrecision);
 };
 
 template <class T>

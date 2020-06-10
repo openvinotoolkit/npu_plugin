@@ -91,7 +91,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Tile",               &FrontEndMcm::parseTile},
                 {"Normalize",          &FrontEndMcm::parseNormalize},
                 {"PriorBox",           &FrontEndMcm::parsePriorBox},
-                {"PriorBoxClustered",  &FrontEndMcm::parsePriorBoxClustered},
+		{"PriorBoxClustered",  &FrontEndMcm::parsePriorBoxClustered},
                 {"Permute",            &FrontEndMcm::parsePermute},
                 {"DetectionOutput",    &FrontEndMcm::parseDetectionOutput},
                 {"RegionYolo",         &FrontEndMcm::parseRegionYolo},
@@ -109,7 +109,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"ArgMax",             &FrontEndMcm::parseArgMax},
                 {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
-                {"Const",              &FrontEndMcm::parseConst},
+		{"Const",              &FrontEndMcm::parseConst},
         };
 
 mv::DType convert_data_type(const ie::Precision& iePrecision) {
@@ -700,11 +700,11 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
     }
 }
 
-std::string getDimLabel(int dimIndex, ie::Layout ieLayout) {
+std::string getDimLabel(size_t dimIndex, ie::Layout ieLayout) {
     std::ostringstream ostr;
     ostr << ieLayout;
     const auto layoutStr = ostr.str();
-    IE_ASSERT(dimIndex >= 0 && dimIndex < layoutStr.size());
+    IE_ASSERT(dimIndex < layoutStr.size());
     return std::string(1, layoutStr[dimIndex]);
 }
 
@@ -1359,6 +1359,7 @@ mv::Shape calculateMcmShape(const SizeVector dims) {
 }  // namespace
 
 void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    UNUSED(inputs);
     IE_ASSERT(layer->type == "Const");
     auto foundBlob = layer->blobs.begin();
     if (foundBlob == layer->blobs.end()) {
@@ -1662,7 +1663,7 @@ void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& i
         mv::Shape mvOutDims(ndims);
 
         // fill offsets and out dimensions size with conversion NCHW->WHCN
-        for (int i = 0; i < ndims; ++i) {
+        for (int i = 0; i < static_cast<int>(ndims); ++i) {
             mvOffsets[ndims - 1 - axisParam[i]] = offsetParam[i];
             mvOutDims[ndims - 1 - axisParam[i]] = dimParam[i];
         }
@@ -1850,9 +1851,6 @@ void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVecto
     logParsingStartHelper(_logger, layer, inputs);
 
     auto antialias = layer->GetParamAsBool("antialias", 0);
-    auto factor = layer->GetParamAsFloat("factor", 2.0);
-    auto height = layer->GetParamAsUInt("height", 0);
-    auto width = layer->GetParamAsUInt("width", 0);
     auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
 
     auto layerOutput = layer->outData[0];
@@ -1917,6 +1915,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
 }
 
 void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    UNUSED(inputs);
     if (layer->insData.size() != 2 || layer->outData.empty()) {
         THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
     }

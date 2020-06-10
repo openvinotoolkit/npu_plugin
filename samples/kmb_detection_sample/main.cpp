@@ -62,12 +62,12 @@ public:
     void* allocate(size_t requestedSize);
 private:
     std::list< std::tuple<int, void*, size_t> > _memChunks;
-    static int _pageSize;
+    static uint32_t _pageSize;
 };
 
-int VPUAllocator::_pageSize = getpagesize();
+uint32_t VPUAllocator::_pageSize = getpagesize();
 
-static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
+static uint32_t calculateRequiredSize(uint32_t blobSize, uint32_t pageSize) {
     uint32_t blobSizeRem = blobSize % pageSize;
     uint32_t requiredSize = (blobSize / pageSize) * pageSize;
     if (blobSizeRem) {
