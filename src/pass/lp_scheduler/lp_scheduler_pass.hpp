@@ -67,7 +67,7 @@ struct Tensor_Address_Assignment {
     mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
     assert(op_info.begin_resource() >=1 );
     size_t address = op_info.begin_resource() - 1UL;
-    tensor_itr->setAddress( address );
+    tensor_itr->setAddress( address + 64UL );
     tensor_itr->set<bool>("lp_scheduler_cmx_address", true);
   }
 
@@ -84,7 +84,7 @@ struct Tensor_Address_Assignment {
     mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
     assert(op_info.cmx_address_start_ >=1 );
     size_t address = op_info.cmx_address_start_ - 1UL;
-    tensor_itr->setAddress( address );
+    tensor_itr->setAddress( address + 64UL );
     tensor_itr->set<bool>("lp_scheduler_cmx_address", true);
   }
 

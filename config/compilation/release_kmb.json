@@ -303,6 +303,13 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : false
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
