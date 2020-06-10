@@ -7,12 +7,11 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/target/kmb/ppe_task.hpp"
 #include <math.h>
 
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
-//cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
-static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
 static const std::size_t ALU_HALT_OPCODE = 6;
 static const std::size_t ALU_LOAD = 2;
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);

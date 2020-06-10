@@ -5,6 +5,9 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 
+//cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
+static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
+
 namespace mv
 {
     std::vector<std::pair<mv::Data::OpListIterator,size_t>> getOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, bool deleteOp = true);
