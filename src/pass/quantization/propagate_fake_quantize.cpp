@@ -489,8 +489,11 @@ void quantizeIO(mv::ComputationModel& model) {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
 
+        std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+        bool scaleFuseInput = globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false;
+
         //Fuse scaleshift(multiply+add) into quantization parameters to boost performance 
-        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale") {
+        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale" && scaleFuseInput) {
             auto child_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
             if(child_ops.size() == 1 && child_ops[0]->getOpType() == "Bias") {
                 auto next_child_ops = findSinkLayers(dm, child_ops[0]->getOutputTensor(0));

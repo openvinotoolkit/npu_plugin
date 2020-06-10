@@ -23,6 +23,7 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
