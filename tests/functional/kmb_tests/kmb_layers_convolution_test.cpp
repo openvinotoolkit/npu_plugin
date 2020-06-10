@@ -740,6 +740,7 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
     auto input_dims = GetParam().input_dim;
     auto conv_params = GetParam().conv_params;
     auto pool_params = GetParam().pool_params;
+    bool is_positive_weights = GetParam().is_positive_weights;
     std::string weight_precision_str = "U8";
 
     SizeVector output_dims;
@@ -759,7 +760,7 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
     weightsBuffer->allocate();
     auto weightsBufferData = weightsBuffer->buffer().as<int8_t*>();
     int8_t weight_val = 1;
-    if (!GetParam().is_positive_weights) weight_val = -1;
+    if (!is_positive_weights) weight_val = -1;
 
     fillIntBuffer(weightsBufferData, weightsSize, weight_val, weight_val);
 
@@ -768,7 +769,7 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
 
     REPLACE_WITH_STR(model, "_WEIGHT_PRECISION_", weight_precision_str);
 
-    fillConvAndPoolIR(model, {input_dims, conv_params, pool_params});
+    fillConvAndPoolIR(model, {input_dims, conv_params, pool_params, is_positive_weights});
 
     Core ie;
     CNNNetwork network = ie.ReadNetwork(model, weightsBuffer);
@@ -827,13 +828,13 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
 // quantization_level};
 std::vector<convolution_and_pooling_test_params> conv_and_pool_params = {
     {{1, 1, 64, 64}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {1, 1}, "", 1, 256, false, true, ""},
-        {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "true"}, true},
+        {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}, true},
     {{1, 1, 128, 128}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64, false, true, ""},
-        {{2, 2}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}, true},
+        {{2, 2}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}, true},
     {{1, 1, 64, 64}, {{1, 1}, {2, 2}, {0, 0}, {0, 0}, {1, 1}, "", 1, 256, false, true, ""},
-        {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "true"}, false},
+        {{2, 2}, {2, 2}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}, false},
     {{1, 1, 128, 128}, {{1, 1}, {3, 3}, {0, 0}, {0, 0}, {1, 1}, "", 1, 64, false, true, ""},
-        {{2, 2}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true"}, false},
+        {{2, 2}, {4, 4}, {0, 0}, {0, 0}, "same_upper", false, "true", ""}, false},
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionAndPoolingTest, ::testing::ValuesIn(conv_and_pool_params));

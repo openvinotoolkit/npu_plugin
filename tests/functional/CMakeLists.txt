@@ -32,7 +32,8 @@ endif()
 target_compile_options(${TARGET_NAME}
     PRIVATE
         -Wall
-        -Werror)
+        -Werror
+	-Wextra)
 
 target_compile_definitions(${TARGET_NAME}
     PRIVATE

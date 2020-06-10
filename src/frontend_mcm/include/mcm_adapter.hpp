@@ -27,6 +27,10 @@ void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& conf
 
 std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
 
+void compileNetwork();
+
+std::set<std::string> getSupportedLayers();
+
 std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> deserializeMetaData(
     const std::vector<char>& outBlob, const MCMConfig& config);
 

@@ -59,7 +59,9 @@ struct PSROIPoolingParams final {
 };
 
 inline std::ostream& operator<<(std::ostream& os, const PSROIPoolingParams& p) {
-    return os;
+        vpu::formatPrint(os, "[output_dim:%v, group_size:%v, spatial_bin_x:%v, spatial_bin_y:%v, spatial_scale:%v, mode:%v]",
+                p.output_dim_, p.group_size_, p.spatial_bin_x_, p.spatial_bin_y_, p.spatial_scale_, p.mode_);
+	return os;
 }
 
 struct PSROIPoolingLayerDef final {
