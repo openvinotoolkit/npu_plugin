@@ -80,6 +80,9 @@ else()
     add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
     target_link_libraries(conv_sparsity cm)
 
+    add_executable(conv_sparsity_spilling conv_sparsity_spilling/conv_sparsity_spilling.cpp)
+    target_link_libraries(conv_sparsity_spilling cm)
+
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
 

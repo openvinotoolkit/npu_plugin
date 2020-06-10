@@ -265,11 +265,11 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
-
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_input_node.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/use_reference_ops.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/conv_dilation_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/adaptation/group_convolution_pass.cpp"
@@ -350,6 +350,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_update_barriers.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/force_spill_activation.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 

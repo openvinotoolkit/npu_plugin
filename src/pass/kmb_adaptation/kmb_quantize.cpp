@@ -62,8 +62,9 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 }
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
-                quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                if (tensor->hasAttr("splitStrategy"))
+                    quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
+                
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
@@ -161,8 +162,8 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
                 {
                     quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
-                    quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                    if (tensor->hasAttr("splitStrategy"))
+                        quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                     auto quantizeOp = om.getSourceOp(quantize);
                     quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
                 }
@@ -276,8 +277,10 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
             }
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
                         outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
-            quantize->set<std::string>("splitStrategy",
-                        outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
+            if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
+                quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
             outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",

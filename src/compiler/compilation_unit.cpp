@@ -46,14 +46,23 @@ bool mv::CompilationUnit::loadCompilationDescriptor(const std::string& filePath)
         return false;
     }
 
-    try 
-    {   // parse recording on/off, but don't fail. Log message.
-        if (compDescriptor_.getPassArg("initialize", "Singular", "GlobalConfigParams", "recorded_model"))
-            model_->initRecordingFile("templateExampleNew.cpp");
-    }
-    catch (mv::AttributeError& e)
+    // query recorded model settings
+    std::vector<mv::Element> passList = compDescriptor_.serializePassList();
+    mv::Element globalParams = passList[0];
+    if (globalParams.hasAttr("recorded_model") )
     {
-        log(Logger::MessageType::Warning, "Could not find 'recorded_model' entry in 'GlobalConfigParams' section. Recording not enabled.");
+        bool recordModel = globalParams.get<bool>("recorded_model");
+        if (recordModel)
+        {
+            bool recordWeightsAsText = false;
+            if (globalParams.hasAttr("weights_form") )
+            {
+                std::string weights = globalParams.get<std::string>("weights_form");
+                if ( (weights == "text") || (weights == "Text") || (weights == "TEXT") )
+                    recordWeightsAsText = true;
+            }
+            model_->initRecordingFile("templateExampleNew.cpp", recordWeightsAsText);
+        }
     }
     return true;
 }

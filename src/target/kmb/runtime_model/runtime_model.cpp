@@ -335,7 +335,7 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, s); // 0 is the only stage for now, but this will probably change in the future
 
-    auto subtensor = d->getSubTensor(clusterId);
+    const mv::Tensor& subtensor = d->getSubTensor(clusterId);
 
     // Shape is always of the subtensor
     // If the tensor is broadcasted, then the shape of the subtensor is equal to the shape of the master tensor
@@ -376,7 +376,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
 
-    auto subtensor = t->getSubTensor(clusterId);
+    const mv::Tensor& subtensor = t->getSubTensor(clusterId);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -482,18 +482,24 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else if(*tensorAllocatorName == "VPU_DDR_BSS" || *tensorAllocatorName == "VPU_DDR_Heap")
     {
-        auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = t->getOrder().subToInd(t->getShape(), offset);
-        auto byte_index = index * t->getDType().getSizeInBits() / 8;
+        unsigned byte_index;
 
-        auto tensorStrides = t->computeNumericStrides();
-        tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
-        std::reverse(tensorStrides.begin(), tensorStrides.end());
+        if (subtensor.hasAttr("offset_byte_index")) {
+          byte_index = subtensor.get<unsigned>("offset_byte_index");
+        } else {
+          auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+          auto index = t->getOrder().subToInd(t->getShape(), offset);
+          byte_index = index * t->getDType().getSizeInBits() / 8;
+          auto tensorStrides = t->computeNumericStrides();
+          tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+          std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+          if(numericStrides[4] != tensorStrides[4]){
+              byte_index = index * (numericStrides[4]/tensorStrides[4]);
+          }
+        }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-        if(numericStrides[4] != tensorStrides[4]){
-            byte_index = index * (numericStrides[4]/tensorStrides[4]);
-        }
 
         // NOTE: This probably has to be done also when DDR kicks in
         // as CMX is the only memory with the cluster/slice approach
@@ -1009,7 +1015,8 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
             }
         }
-        if (direction == mv::NNCMX2DDR && om.getSourceOp(src)->getOpType() == "Crop")
+        if (direction == mv::NNCMX2DDR && (om.getSourceOp(src) != om.opEnd()) &&
+              om.getSourceOp(src)->getOpType() == "Crop")
         {
             if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->getOpType() == "DPUTask")
                 if (om.getSourceOp(om.getSourceOp(src)->getInputTensor(0))->get<std::string>("taskOp") == "DepthwiseConv")
@@ -1122,9 +1129,30 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         if(inputTensor->isSparse())
         {
-            // NOTE: First usage ever of the concept one tensor -> Multiple allocators
-            auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+          if (inputTensor->isPopulated()) {
+            // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
+            auto tensorSparsityMap =
+                dm.getTensor(inputTensor->getSparsityMap()->getName());
+            case1MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
+                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+          } else {
+            auto inputSparsityMap =
+                dm.getTensor(inputTensor->getSparsityMap()->getName());
+            auto inputStorageElementTable =
+                dm.getTensor(inputTensor->getStorageElement()->getName());
+            auto outputSparsityMap =
+                dm.getTensor(outputTensor->getSparsityMap()->getName());
+            auto outputStorageElementTable =
+                dm.getTensor(outputTensor->getStorageElement()->getName());
+
+            case1MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap);
+            case1MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
+                  outputStorageElementTable);
+          }
         }
         return toReturn;
     }
@@ -1139,12 +1167,37 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor);
+        case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
+            dmaToDma, toReturn, inputTensor, outputTensor);
+        // If the input tensor for a DMA task is sparse then we also need to 
+        // create DMA tasks which transfer Storage Element (SE) Table and 
+        // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
+          if (inputTensor->isPopulated()) {
             // NOTE: Second usage ever of the concept one tensor -> Multiple allocators
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
-            case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma,  toReturn, tensorSparsityMap, tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+            case2MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
+                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+          } else {
+            auto inputSparsityMap =
+                dm.getTensor(inputTensor->getSparsityMap()->getName());
+            auto inputStorageElementTable =
+                dm.getTensor(inputTensor->getStorageElement()->getName());
+            auto outputSparsityMap =
+                dm.getTensor(outputTensor->getSparsityMap()->getName());
+            auto outputStorageElementTable =
+                dm.getTensor(outputTensor->getStorageElement()->getName());
+
+            case2MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
+                  outputSparsityMap);
+                
+            case2MC(numTasks, cm, direction, compilationDescriptor,
+                padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
+                  outputStorageElementTable);
+          }
         }
         return toReturn;
     }
@@ -1412,7 +1465,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         if (opIt->get<std::string>("splitStrategy") == "HKSwitch")
         {
             auto outputTensor = opIt->getOutputTensor(0);
-            auto subtensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+            const auto& subtensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
             auto offset = subtensor.get<std::vector<std::size_t>>("offset");
             auto index = outputTensor->getOrder().subToInd(outputTensor->getShape(), offset);
             auto byte_index = index * outputTensor->getDType().getSizeInBits() / 8;
@@ -1587,7 +1640,7 @@ std::array <unsigned short, 4>  mv::RuntimeModel::getPadding(Control::OpListIter
 
     if(clusterId !=0)
     {
-        auto subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
+        const auto& subTensor = opIt->getOutputTensor(0)->getSubTensor(clusterId);
         std::vector<std::size_t> offset = subTensor.get<std::vector<std::size_t>>("offset");
 
         //NOTE:Padding up
@@ -2493,6 +2546,69 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPADeconvTask(ComputationModel& cm
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    const auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConvolutionParams;
+
+    const auto input = opIt->getInputTensor(0);
+    const auto weights = opIt->getInputTensor(1);
+    const auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    const auto softLayerParamsValue = new MVCNN::ConvolutionParamsT();
+
+    // Kernel
+
+    softLayerParamsValue->kernel =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(
+                weights->getShape()[mv::IO_WIDTH_DIMENSION],
+                weights->getShape()[mv::IO_HEIGHT_DIMENSION],
+                0));
+
+    // Strides
+
+    const auto kernelStride = opIt->get<std::array<unsigned short, 2>>("stride");
+
+    softLayerParamsValue->strides =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(kernelStride[0], kernelStride[1], 0));
+
+    // Paddings
+
+    const auto padding = opIt->get<std::array<unsigned short, 4>>("padding");
+
+    softLayerParamsValue->pads_begin =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(padding[0], padding[2], 0)); // Left,Top,Front
+
+    softLayerParamsValue->pads_end =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(padding[1], padding[3], 0)); // Right,Bottom,Back
+
+    // Dilations
+
+    const auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+
+    softLayerParamsValue->dilations =
+        std::unique_ptr<MVCNN::order3>(
+            new MVCNN::order3(dilationFactor, dilationFactor, 0));
+
+    // Group
+
+    const auto group = opIt->get<unsigned>("group");
+
+    softLayerParamsValue->group = group;
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2552,6 +2668,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPATileTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "CTCDecoder")
         toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "RefConv")
+        toReturn[0]->task.value = buildUPARefConvTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
@@ -2648,6 +2766,10 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         unsigned multiplicator = 1;
         if(inputTensor->isPopulated() && inputTensor->isSparse())
             multiplicator = 2;
+        else if (inputTensor->isSparse()) {
+            multiplicator = 3;
+        }
+
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
@@ -2684,12 +2806,13 @@ std::unique_ptr<MVCNN::BarrierT> mv::RuntimeModel::buildBarrierT(mv::Computation
     toBuild->consumer_count = 0;
     toBuild->producer_count = 0;
 
-    for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer)
+    for(auto producer = opIt.leftmostParent(); producer != cm.opEnd(); ++producer) {
         toBuild->producer_count += countProducerConsumerTasks(model, producer);
+    }
 
-    for(auto consumer = opIt.leftmostChild(); consumer != cm.opEnd(); ++consumer)
+    for(auto consumer = opIt.leftmostChild(); consumer != cm.opEnd(); ++consumer) {
         toBuild->consumer_count += countProducerConsumerTasks(model, consumer);
-
+    }
     return toBuild;
 }
 
