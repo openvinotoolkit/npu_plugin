@@ -200,7 +200,7 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const IE::Blob::Ptr& a
         return actualInput;
     }
 
-    _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+    _logger->info("Input blob is inconsistent with network input. Need to do re-layout.");
     IE::Blob::Ptr inputForInference;
     inputForInference = reallocateBlobToLayout(actualInput, IE::Layout::NHWC);
     return inputForInference;

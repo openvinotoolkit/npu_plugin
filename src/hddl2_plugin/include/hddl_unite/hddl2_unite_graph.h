@@ -33,19 +33,22 @@ public:
     /**
      * @brief Create HddlUnite graph object using context to specify which devices to use
      */
-    explicit HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& context);
+    explicit HddlUniteGraph(
+        const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& context, const LogLevel& logLevel = LogLevel::Error);
 
     /**
      * @brief Create HddlUnite graph object using specific device. If empty, use all
      * available devices
      */
-    explicit HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID = "");
+    explicit HddlUniteGraph(
+        const Graph::Ptr& graphPtr, const std::string& deviceID = "", const LogLevel& logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
     void InferAsync(const HddlUniteInferData::Ptr& data);
 
 protected:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;
+    const Logger::Ptr _logger;
 };
 
 }  // namespace HDDL2Plugin

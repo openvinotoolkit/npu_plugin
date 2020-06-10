@@ -37,7 +37,8 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID) {
+HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID, const LogLevel& logLevel)
+    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
 
     const std::string graphName = graphPtr->getGraphName();
@@ -48,11 +49,9 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     const HddlUnite::Device::Ptr core = getUniteDeviceByID(deviceID);
     if (core != nullptr) {
         devices_to_use.push_back(*core);
-        std::cout << "Graph: " << graphName << " to device id: " << core->getSwDeviceId()
-                  << " | Device: " << core->getName() << std::endl;
+        _logger->info("Graph: %s to device id: %d | Device: %s ", graphName, core->getSwDeviceId(), core->getName());
     } else {
-        // TODO Use logger here
-        std::cout << "All devices will be used." << std::endl;
+        _logger->info("All devices will be used.");
     }
 
     statusCode =
@@ -66,7 +65,9 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     }
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr) {
+HddlUniteGraph::HddlUniteGraph(
+    const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr, const LogLevel& logLevel)
+    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";
