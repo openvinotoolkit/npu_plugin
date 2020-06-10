@@ -51,9 +51,9 @@ ExecutableNetwork::ExecutableNetwork(
     _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
     _context = castIEContextToHDDL2(ieContext);
     if (_context == nullptr) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
     } else {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
     }
 
     this->_networkInputs = _graphPtr->getInputsInfo();
@@ -68,9 +68,9 @@ ExecutableNetwork::ExecutableNetwork(
 
     if (HDDL2Metrics::isServiceAvailable()) {
         if (_context == nullptr) {
-            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
         } else {
-            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
         }
     } else {
         _logger->warning("HDDL2 Scheduler service is not available. "
@@ -84,9 +84,9 @@ ExecutableNetwork::ExecutableNetwork(
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
     _context = castIEContextToHDDL2(ieContext);
     if (_context == nullptr) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id());
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
     } else {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context);
+        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
     }
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
