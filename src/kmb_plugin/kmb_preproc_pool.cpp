@@ -23,7 +23,7 @@ SIPPPreprocessor::SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLa
 
 SIPPPreprocessor::~SIPPPreprocessor() = default;
 
-void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
+void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t, const size_t& deviceId) {
     IE_ASSERT(t.inputs.size() == 1);
     for (auto& input : t.inputs) {
         const auto& blobName = input.first;
@@ -34,7 +34,8 @@ void SIPPPreprocessor::execSIPPDataPreprocessing(const PreprocTask& t) {
                                       input.second,
                                       preprocInfo.getResizeAlgorithm(),
                                       preprocInfo.getColorFormat(),
-                                      t.out_format);
+                                      t.out_format,
+                                      deviceId);
         }
     }
 }
@@ -52,7 +53,7 @@ SippPreprocessorPool::SippPreprocessorPool(
     }
 }
 
-void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
+void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task, const size_t& deviceId) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_free_preprocs.empty()) {
         _free_cond.wait(lock, [&]() {
@@ -63,7 +64,7 @@ void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
     _free_preprocs.pop();
     lock.unlock();
 
-    preproc->execSIPPDataPreprocessing(task);
+    preproc->execSIPPDataPreprocessing(task, deviceId);
 
     lock.lock();
     _free_preprocs.push(preproc);
@@ -95,12 +96,12 @@ SippPreprocessorPool& SippPreprocPool::getPool(int w, unsigned int numberOfShave
 }
 
 void SippPreprocPool::execSIPPDataPreprocessing(
-    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi) {
+    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, const size_t& deviceId) {
     if (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
-    getPool(dims[3], numberOfShaves, lpi).execSIPPDataPreprocessing(task);
+    getPool(dims[3], numberOfShaves, lpi).execSIPPDataPreprocessing(task, deviceId);
 }
 
 SippPreprocPool& sippPreprocPool() {

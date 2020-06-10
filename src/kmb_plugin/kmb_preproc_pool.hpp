@@ -33,7 +33,7 @@ public:
     SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
     ~SIPPPreprocessor();
 
-    void execSIPPDataPreprocessing(const PreprocTask& task);
+    void execSIPPDataPreprocessing(const PreprocTask& task, const size_t& deviceId);
 };
 
 class SippPreprocessorPool {
@@ -45,7 +45,7 @@ class SippPreprocessorPool {
 
 public:
     SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi);
-    void execSIPPDataPreprocessing(const PreprocTask& task);
+    void execSIPPDataPreprocessing(const PreprocTask& task, const size_t& deviceId);
     unsigned int getNumberOfShaves() const;
 };
 
@@ -71,7 +71,8 @@ class SippPreprocPool {
     SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi);
 
 public:
-    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi);
+    void execSIPPDataPreprocessing(
+        const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, const size_t& deviceId);
 };
 
 SippPreprocPool& sippPreprocPool();

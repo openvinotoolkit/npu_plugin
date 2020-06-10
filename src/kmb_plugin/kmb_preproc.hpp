@@ -18,7 +18,8 @@ bool isApplicable(
     const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData, InputsDataMap& networkInputs);
 
 void execSIPPDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
-    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi);
+    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi,
+    const size_t& deviceId);
 
 }  // namespace SippPreproc
 }  // namespace InferenceEngine
