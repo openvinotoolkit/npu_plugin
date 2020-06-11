@@ -5,9 +5,8 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
@@ -17,14 +16,13 @@
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -91,12 +89,12 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            },
-            "UseReferenceOps"
+            }
         ]
     },
     "quantization" : {
         "Singular" : [
+	    "SelectiveCMconv",
             "FakeQuantize"
         ]
     },
@@ -108,14 +106,12 @@
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
-            "CheckPWLForRequantize",
             "AddReshapesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
             "TileOps",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
-            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
@@ -123,7 +119,6 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
@@ -209,7 +204,6 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
@@ -311,11 +305,6 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
-            {
-              "name" : "ForceAddressSetterPass",
-              "op_name" : "dw_conv1#7_forceSpilledRead0",
-              "address" :  16 
-            },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
@@ -330,13 +319,6 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : false
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_scheduler_output.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             }
         ]
     },
@@ -348,6 +330,13 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_control.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

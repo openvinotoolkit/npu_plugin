@@ -208,39 +208,3 @@ void ForceSparseOutputPass(const mv::pass::PassEntry&,
 
   op_output_tensor_itr->setSparse();
 }
-
-// Force sparse output//
-static void AddDeltaToCMXAddress(
-    const mv::pass::PassEntry& , mv::ComputationModel&, mv::TargetDescriptor&,
-    mv::Element&, mv::Element&);
-
-namespace mv {
-  namespace pass {
-    MV_REGISTER_PASS(AddDeltaToCMXAddress)
-      .setFunc(AddDeltaToCMXAddress)
-      .defineArg(json::JSONType::NumberInteger, "delta")
-      .setDescription("Add delta to all CMX address of tensors");
-  } // namespace mv //
-} // namespace pass //
-
-void AddDeltaToCMXAddress(const mv::pass::PassEntry&,
-    mv::ComputationModel& model, mv::TargetDescriptor& target,
-    mv::Element& passDesc, mv::Element&) {
-
-  int delta = passDesc.get<int>("delta");
-  mv::OpModel om(model);
-  for (auto oitr=om.opBegin(); oitr!=om.opEnd(); ++oitr) {
-    if (oitr->outputSlots() < 1UL ) { continue; }
-    mv::Data::TensorIterator out_itr = oitr->getOutputTensor(0UL);
-
-    if (out_itr->hasAttr("lp_scheduler_cmx_address") &&
-        out_itr->get<bool>("lp_scheduler_cmx_address") ) {
-      size_t address = out_itr->getAddress();
-      address += delta;
-      out_itr->setAddress(address);
-      printf("[AddDelta] tensor=%s address=%lu\n", (out_itr->getName()).c_str(),
-          address);
-    }
-  }
-}
-
