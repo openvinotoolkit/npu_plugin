@@ -289,7 +289,8 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
-              "producer_bound" : 256
+              "producer_bound" : 256,
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
