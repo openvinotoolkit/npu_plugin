@@ -22,7 +22,8 @@ public:
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                          const ResizeAlgorithm& algorithm,
-                         ColorFormat in_fmt, ColorFormat out_fmt);
+                         ColorFormat in_fmt, ColorFormat out_fmt,
+                         const size_t& deviceId);
 };
 
 }  // namespace InferenceEngine

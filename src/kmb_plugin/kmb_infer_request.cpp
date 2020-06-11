@@ -213,7 +213,8 @@ void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::Bl
 void KmbInferRequest::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
-    SippPreproc::execSIPPDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi);
+    SippPreproc::execSIPPDataPreprocessing(
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _config.VPUSMMSliceIdx());
 }
 
 static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {

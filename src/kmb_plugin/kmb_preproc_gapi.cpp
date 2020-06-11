@@ -32,7 +32,8 @@ public:
 
     void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                          const ResizeAlgorithm& algorithm,
-                         ColorFormat in_fmt, ColorFormat out_fmt);
+                         ColorFormat in_fmt, ColorFormat out_fmt,
+                         const unsigned int& deviceId);
 };
 
 namespace {
@@ -141,7 +142,8 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
 }  // anonymous namespace
 
 void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                     const ResizeAlgorithm& algorithm, ColorFormat in_fmt, ColorFormat out_fmt) {
+                     const ResizeAlgorithm& algorithm, ColorFormat in_fmt, ColorFormat out_fmt,
+                     const unsigned int& deviceId) {
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
@@ -178,7 +180,7 @@ void SIPPPreprocEngine::Priv::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr
         _lastCompiled = GComputation(GIn(in_y, in_uv), GOut(out))
                             .compile(own::descr_of(input_y), own::descr_of(input_uv),
                                 compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                    GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
+                                    GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi, deviceId},
                                     GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
     } else if (y_blob->getTensorDesc().getDims() != _lastInYDims) {
         cv::GMetaArgs meta(2);
@@ -197,8 +199,9 @@ SIPPPreprocEngine::~SIPPPreprocEngine() = default;
 
 void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                                         const ResizeAlgorithm& algorithm,
-                                        ColorFormat in_fmt, ColorFormat out_fmt) {
-    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt, out_fmt);
+                                        ColorFormat in_fmt, ColorFormat out_fmt,
+                                        const size_t& deviceId) {
+    return _priv->preprocWithSIPP(inBlob, outBlob, algorithm, in_fmt, out_fmt, deviceId);
 }
 
 }  // namespace InferenceEngine

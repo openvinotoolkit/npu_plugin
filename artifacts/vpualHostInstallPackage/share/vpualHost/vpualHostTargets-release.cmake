@@ -35,16 +35,6 @@ set_target_properties(NN PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS NN )
 list(APPEND _IMPORT_CHECK_FILES_FOR_NN "${_IMPORT_PREFIX}/lib/libNN.so" )
 
-# Import target "OSD" for configuration "Release"
-set_property(TARGET OSD APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(OSD PROPERTIES
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libOSD.so"
-  IMPORTED_SONAME_RELEASE "libOSD.so"
-  )
-
-list(APPEND _IMPORT_CHECK_TARGETS OSD )
-list(APPEND _IMPORT_CHECK_FILES_FOR_OSD "${_IMPORT_PREFIX}/lib/libOSD.so" )
-
 # Import target "sipp_custom" for configuration "Release"
 set_property(TARGET sipp_custom APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(sipp_custom PROPERTIES
@@ -54,16 +44,6 @@ set_target_properties(sipp_custom PROPERTIES
 
 list(APPEND _IMPORT_CHECK_TARGETS sipp_custom )
 list(APPEND _IMPORT_CHECK_FILES_FOR_sipp_custom "${_IMPORT_PREFIX}/lib/libsipp_custom.so" )
-
-# Import target "Profiling" for configuration "Release"
-set_property(TARGET Profiling APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
-set_target_properties(Profiling PROPERTIES
-  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libProfiling.so"
-  IMPORTED_SONAME_RELEASE "libProfiling.so"
-  )
-
-list(APPEND _IMPORT_CHECK_TARGETS Profiling )
-list(APPEND _IMPORT_CHECK_FILES_FOR_Profiling "${_IMPORT_PREFIX}/lib/libProfiling.so" )
 
 # Import target "XLink" for configuration "Release"
 set_property(TARGET XLink APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)

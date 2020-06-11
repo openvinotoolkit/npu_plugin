@@ -486,7 +486,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
 
         auto in_blob = make_shared_blob<NV12Blob>(y_roi_blob, uv_roi_blob);
 
-        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, out_fmt);
+        pe.preprocWithSIPP(in_blob, out_blob, interp, in_fmt, out_fmt, 0);
 
         Blob2Img<prec>(out_blob, out_mat, out_layout);
 
@@ -601,7 +601,7 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
             unsigned int nShaves = 4;
             unsigned int lpi = 8;
             SippPreproc::execSIPPDataPreprocessing(
-                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi);
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, 0);
         }
 
 #if 0
