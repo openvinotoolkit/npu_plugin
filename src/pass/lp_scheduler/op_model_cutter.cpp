@@ -150,5 +150,6 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   //STEP-4: make the cut_op connect to new output //
   mv::Data::TensorIterator cut_op_tensor_itr = new_oitr->getOutputTensor(0UL);
   output_op_itr->setInputTensor(cut_op_tensor_itr, 0UL, false);
+  output_op_itr->set("precision", mv::DType("Default"));
   omodel.defineFlow(cut_op_tensor_itr, output_op_itr, 0UL);
 }
