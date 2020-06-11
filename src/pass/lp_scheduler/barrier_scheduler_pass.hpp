@@ -626,10 +626,9 @@ class Control_Model_Barrier_Scheduler {
             mv::Data::OpListIterator sink = canonical_barrier_itr;
             // STEP-1.5 //
             cm.defineFlow(source, sink);
-
-            // STEP-1.3 //
-            om.removeOp(curr_op_bitr);
           }
+          // STEP-1.3 //
+          om.removeOp(curr_op_bitr);
         }
       }
 
