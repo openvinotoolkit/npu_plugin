@@ -141,6 +141,7 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
     return opIt;
 }
 
+
 mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
                                                       std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel om, mv::Data::OpListIterator opIt)
 {
@@ -165,7 +166,7 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
             {
                 auto backUp = paramOp;
                 ++paramOp;
-                om.removeOp(backUp);
+                //om.removeOp(backUp); //Hack for Dilated conv test
             }
             else
                 ++paramOp;

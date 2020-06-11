@@ -107,9 +107,30 @@
             "FusePostOps",
             "PreprocessForPWL",
             "AddReshapesToChangeSoftmaxAxis",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforeDil.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/beforeDil.dot"
+            },
             "ConvolutionDilation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterDil.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/afterDil.dot"
+            },
             "HandleGroupConvolution",
-            "TileOps",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlacementOfOps",
@@ -226,12 +247,34 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision"
+            "ConfigureOutputPrecision",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/beforeDMA.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/beforeDMA.dot"
+            }
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/1DMA.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/1DMA.dot"
+            },
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
             "ResolveImplicitOperations",
@@ -307,6 +350,17 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/original_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "ConvertDot",
+                "input": "output/dots/original_model.dot"
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
