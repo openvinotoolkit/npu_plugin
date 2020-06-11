@@ -245,7 +245,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                 streamingOpName);
             if((op->hasAttr("asymmetricKernel")))
             {
-                om.getSourceOp(conv)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
+                om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
             }
             auto sliceInputOp = om.getSourceOp(sliceInput);
             sliceInputOp->set<unsigned>("opId", opId);
