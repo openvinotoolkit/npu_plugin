@@ -261,13 +261,6 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_input.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -311,13 +304,6 @@
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : false,
               "remove_redundant_wait_barriers" : true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/barrier_scheduler_output.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
             }
         ]
     },
