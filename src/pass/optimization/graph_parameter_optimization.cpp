@@ -284,15 +284,14 @@ namespace mv
                         newOutputSize = remainderOutputSize;
 
                     int extraLines = 0;
-                    // Stream over H slices will overlap up to (kernel size - 1)  if stride != kernel size
-                    // TODO this be (kernel height - stride height) instead of minus 1
-                    //if(kHeight > 2)
-                    //    extraLines = kHeight - 1;//kStride[1];
+                    // Stream over H slices will overlap up to (kernel size - 1)  if  kernel size>=2
+                    //does the split fits in the NNCMX slice? it fits better than the full size
 
                     extraLines += (padding[2]? kHeight/2 : 0);
                     extraLines += (padding[3]? kHeight/2 : 0);
-                    double worstNumberOfSplits = (double)(outputSize/ (newOutputSize + extraLines));
+                    double worstNumberOfSplits = (double)(outputSize/ (newOutputSize + extraLines))+1;
 
+                    //double worstNumberOfSplits = (double)(outputSize/ (newOutputSize)); - the worst, maximum
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
                 }
@@ -596,7 +595,7 @@ namespace mv
                     kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
 
                 // Note: for convolution stream over H cannot be higher than dimension/kernel
-                if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
+                if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool"))
                 {
                     auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                     auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
