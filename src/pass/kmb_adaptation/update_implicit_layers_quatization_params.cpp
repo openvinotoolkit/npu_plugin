@@ -67,12 +67,16 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             // Recursively search for non-implicit output op
             auto outputOp = opIt.leftmostOutput().sink();
 
-            if (outputOp->getOpType() == "DMATask") { break; }
+            // Crop is correctly accounted for with a spilling DMA
+            if (outputOp->getOpType() == "DMATask" &&
+                outputOp->get<mv::DmaDirection>("direction") == mv::NNCMX2DDR)
+                continue;
 
             while(outputOp->isImplicit())
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
+
             auto outputOpMemoryLocation = outputOp->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
             auto newMemoryLocation = (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
                     ? mv::Tensor::MemoryLocation::OUTPUT
