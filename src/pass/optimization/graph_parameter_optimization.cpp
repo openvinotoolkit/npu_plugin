@@ -291,7 +291,8 @@ namespace mv
 
                     extraLines += (padding[2]? kHeight/2 : 0);
                     extraLines += (padding[3]? kHeight/2 : 0);
-                    double worstNumberOfSplits = ((double)outputSize/(newOutputSize+extraLines));
+                    extraLines += (extraLines < 2) ? 2 : extraLines;
+                    double worstNumberOfSplits = (double)(outputSize/ (newOutputSize + extraLines));
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
