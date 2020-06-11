@@ -35,10 +35,13 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     pass.log(mv::Logger::MessageType::Debug, "Removal passes are starting");
     removeIdentityOps(pass, model);
     removeDropOut(pass, model);
-    removeSoftmax(pass, model);
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
     removeSliceNoOpFcn(pass, model);
+    auto returnedParams = model.getGlobalConfigParams();
+    if (returnedParams->hasAttr("RemoveSoftmax"))
+        if(returnedParams->get<bool>("RemoveSoftmax"))
+            removeSoftmax(pass, model);
 }
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
