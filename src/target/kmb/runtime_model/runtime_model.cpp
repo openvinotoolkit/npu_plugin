@@ -1287,6 +1287,127 @@ void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT
     toBuild->parent_output_tensor->quant_post_shift_right = quantPostShift;
 }
 
+using fakeSparseAdaptorFunc = std::function<void(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    mv::Control::OpListIterator opIt)>;
+
+void mv::RuntimeModel::adaptFakeSparsityIndex(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    Control::OpListIterator opIt,
+    int clusterId)
+{
+    auto seTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("storageElementIndex");
+    auto smTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("unpopulatedSparsityMapIndex");
+
+    const std::unordered_map<std::string, fakeSparseAdaptorFunc> fakeSparseAdaptors =
+    {
+        {
+            "Conv",
+            [seTensorIdx, smTensorIdx, clusterId](
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                    Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+            }
+        },
+        {
+            "Eltwise",
+            [seTensorIdx, smTensorIdx, clusterId](
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                    Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv->weights_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[1])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv->weights_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[1])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+            }
+        }
+    };
+
+    auto fakeSparseAdaptor = fakeSparseAdaptors.find(
+        opIt->get<std::string>("taskOp"));
+
+    if (fakeSparseAdaptor != fakeSparseAdaptors.cend())
+        fakeSparseAdaptor->second(inv, opIt);
+    else
+        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel",
+            opIt->getName() + ": No registered fake sparse adapter op type " +
+            opIt->get<std::string>("taskOp"));
+}
+
+void mv::RuntimeModel::adaptFakeSparsityIndex(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    Control::OpListIterator opIt)
+{
+    auto seTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("storageElementIndex");
+    auto smTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("unpopulatedSparsityMapIndex");
+
+    const std::unordered_map<std::string, fakeSparseAdaptorFunc> fakeSparseAdaptors =
+    {
+        {
+            "Conv",
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                     Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+            }
+        },
+        {
+            "Eltwise",
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                     Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->weights_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[1])
+                        ->getAddress();
+
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+                inv->weights_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[1])
+                        ->getAddress();
+            }
+        }
+    };
+
+    auto fakeSparseAdaptor = fakeSparseAdaptors.find(
+        opIt->get<std::string>("taskOp"));
+
+    if (fakeSparseAdaptor != fakeSparseAdaptors.cend())
+        fakeSparseAdaptor->second(inv, opIt);
+    else
+        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel",
+            opIt->getName() + ": No registered fake sparse adapter op type " +
+            opIt->get<std::string>("taskOp"));
+}
+
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
@@ -1372,6 +1493,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
+
+    if (opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving"))
+        adaptFakeSparsityIndex(toBuild, opIt);
 
     return toBuild;
 }
@@ -1512,6 +1637,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
             toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
+
+    if (opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving"))
+        adaptFakeSparsityIndex(toBuild, opIt, clusterId);
 
     return toBuild;
 }
