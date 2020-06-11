@@ -43,6 +43,22 @@ namespace mv
     }
 }
 
+bool findSparseTensorIndex(
+    mv::Data::OpListIterator layer,
+    const std::string& name,
+    std::size_t tensorIdx)
+{
+    bool found = false;
+    if (layer->hasAttr(name))
+    {
+        auto tensorList = layer->get<std::vector<size_t>>(name);
+        if (std::find(tensorList.begin(), tensorList.end(), tensorIdx) !=
+            tensorList.end())
+            found = true;
+    }
+    return found;
+}
+
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::Element &)
 {
@@ -83,16 +99,8 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                auto sparsityMapIndexEntries = layer->get<std::vector<size_t>>("unpopulatedSparsityMapIndex");
-                auto storageElementIndexEntries = layer->get<std::vector<size_t>>("storageElementIndex");
-                if ((layer->hasAttr("unpopulatedSparsityMapIndex") &&
-                        std::find(sparsityMapIndexEntries.begin(),
-                        sparsityMapIndexEntries.end(), i)
-                        != sparsityMapIndexEntries.end())
-                    || (layer->hasAttr("storageElementIndex") &&
-                        std::find(storageElementIndexEntries.begin(),
-                        storageElementIndexEntries.end(), i)
-                        != storageElementIndexEntries.end()))
+                if (findSparseTensorIndex(layer, "unpopulatedSparsityMapIndex", i) ||
+                    findSparseTensorIndex(layer, "storageElementIndex", i))
                     specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
