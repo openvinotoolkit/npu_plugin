@@ -7,6 +7,7 @@
                 "recorded_model": false,
                 "verbose": "Info",
                 "weights_form": "None",
+                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
