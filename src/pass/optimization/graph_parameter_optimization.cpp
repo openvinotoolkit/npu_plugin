@@ -283,17 +283,14 @@ namespace mv
                     if (remainderOutputSize > newOutputSize)
                         newOutputSize = remainderOutputSize;
 
-                    int extraLines = 2;
+                    int extraLines = 0;
                     // Stream over H slices will overlap up to (kernel size - 1)  if stride != kernel size
                     // TODO this be (kernel height - stride height) instead of minus 1
-                    if(kHeight > 2)
-                        extraLines = kHeight - kStride[1];
+                    //if(kHeight > 2)
+                    //    extraLines = kHeight - 1;//kStride[1];
 
-                    if(padding[2] > extraLines)
-                        extraLines = padding[2];
-                    if(padding[3] > extraLines)
-                        extraLines = padding[3];
-                    
+                    extraLines += (padding[2]? kHeight/2 : 0);
+                    extraLines += (padding[3]? kHeight/2 : 0);
                     double worstNumberOfSplits = ((double)outputSize/(newOutputSize+extraLines));
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
@@ -592,14 +589,19 @@ namespace mv
                     padding = op.get<std::array<unsigned short, 4>>("padding");
                 else
                     padding = {0, 0, 0, 0};
+                size_t kHeight = 1;
+                if ((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv"))
+                    kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
+                else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
+                    kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
 
                 // Note: for convolution stream over H cannot be higher than dimension/kernel
-                if(op.getOpType() == "Conv")
+                if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
                 {
                     auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
-                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + padding[2] + padding[3];
-                    if(splits > dim/kernelSize)
-                        return dim/kernelSize;
+                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
+                    if(splits > dim/kHeight)
+                        return dim/kHeight;
                     if(splits < 1)
                         return 1;
                 }
