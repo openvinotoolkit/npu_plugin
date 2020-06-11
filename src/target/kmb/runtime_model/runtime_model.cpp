@@ -279,12 +279,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-        if (t->hasAttr("activationSparsityCompilerSolving")
-                            && t->get<bool>("activationSparsityCompilerSolving"))
-        {
-            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
-        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());
@@ -545,13 +539,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-    }
-
-    if (t->hasAttr("activationSparsityCompilerSolving")
-                        && t->get<bool>("activationSparsityCompilerSolving"))
-    {
-        toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-        toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -909,6 +896,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
 {
+    // Note: Zero-padding populated tensor used for large kernel support needs to keep existing dst strides
+    auto skip_unstriding_dst = false;
+    if(src->hasAttr("is_pad") && src->get<bool>("is_pad"))
+        skip_unstriding_dst = true;
+
     if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
@@ -935,6 +927,8 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->strides = strides;
         tmp->src->data_dtype = dtype;
 
+        if(skip_unstriding_dst)
+            return;
 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
@@ -973,7 +967,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     checkUnstridedDMA(src, -1, tmp);
 
     // Check if the HDE engine compressed the weights
-    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
         tmp->compression =  true;
 
     toPush->task.value = tmp;
@@ -1328,6 +1322,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
+    if (inputTensor->hasAttr("activationSparsityCompilerSolving")
+        && inputTensor->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+    }
+
     //output
     auto outputTensor = opIt->getOutputTensor(0);
 
@@ -1435,6 +1436,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentInputTensor);
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
+
+    if (parentInputTensor->hasAttr("activationSparsityCompilerSolving")
+        && parentInputTensor->get<bool>("activationSparsityCompilerSolving"))
+    {
+        toBuild->input_data->data->sparsity_index = opIt->get<std::size_t>("unpopulatedSparsityMapIndex");
+        toBuild->input_data->data->storage_element_index = opIt->get<std::size_t>("storageElementAddress");
+    }
 
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);

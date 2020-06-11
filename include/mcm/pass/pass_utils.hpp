@@ -19,6 +19,10 @@ namespace mv
     mv::Data::OpListIterator linkNewOperationsReplacementRemoveFlows(mv::Data::OpListIterator childOpIt, mv::Data::TensorIterator sourceTensor, mv::OpModel om, mv::Data::OpListIterator opIt);
     std::vector<mv::Data::OpListIterator> findSinkLayers(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
     bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice);
+
+    bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right);
+    bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
+
 }
 void calcZeroPointAndScalePerTensor(double outputMax,  double outputMin, double& outScale, int64_t& outZp);
 void updateInfMinMaxPerTensor(mv::Data::TensorIterator tensor);

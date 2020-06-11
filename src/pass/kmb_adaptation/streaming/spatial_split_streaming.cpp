@@ -321,6 +321,15 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+            if((op->hasAttr("asymmetricKernel")))
+            {
+                om.getSourceOp(conv)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
+            }
+            om.getSourceOp(sliceInput)->set<unsigned>("opId", opId);
+            auto sliceInputOp = om.getSourceOp(sliceInput);
+            sliceInputOp->set<unsigned>("opId", opId);
+            sliceInputOp->set<std::string>("splitStrategy", splitStrategy);
+
             om.getSourceOp(sliceInput)->set<unsigned>("opId", opId);
         }
         om.getSourceOp(conv)->set<unsigned>("opId", opId);
@@ -548,6 +557,10 @@ std::tuple<mv::Data::TensorIterator, mv::Data::TensorIterator,mv::Data::TensorIt
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+
+            if((op->hasAttr("asymmetricKernel")))
+                om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
+
             slices[split].push_back(slice);
         }
         else if (opType == "Eltwise")

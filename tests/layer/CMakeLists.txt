@@ -8,6 +8,13 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+
+    add_executable(avgpool_asymmetric_1d_large_kernel avgpool_asymmetric_1d_large_kernel/avgpool_asymmetric_1d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_1d_large_kernel cm)
+
+    add_executable(avgpool_asymmetric_2d_large_kernel avgpool_asymmetric_2d_large_kernel/avgpool_asymmetric_2d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
+
     add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
     target_link_libraries(single_conv_hde cm)
 
@@ -61,6 +68,9 @@ else()
 
     add_executable(conv_big_kernel conv_big_kernel/conv_big_kernel.cpp)
     target_link_libraries(conv_big_kernel cm)
+
+    add_executable(conv_big_kernel_simple conv_big_kernel_simple/conv_big_kernel_simple.cpp)
+    target_link_libraries(conv_big_kernel_simple cm)
 
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
