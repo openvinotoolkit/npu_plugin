@@ -291,7 +291,6 @@ namespace mv
 
                     extraLines += (padding[2]? kHeight/2 : 0);
                     extraLines += (padding[3]? kHeight/2 : 0);
-                    extraLines += (extraLines < 2) ? 2 : extraLines;
                     double worstNumberOfSplits = (double)(outputSize/ (newOutputSize + extraLines));
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
