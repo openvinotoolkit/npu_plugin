@@ -63,6 +63,7 @@ void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::s
     UNUSED(out_format);
     UNUSED(numShaves);
     UNUSED(lpi);
+    UNUSED(deviceId);
 
 #endif
 }
