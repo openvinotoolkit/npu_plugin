@@ -22,6 +22,7 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "RemoveSoftmax": false,
                 "split_strategy" :
                 [
                     {

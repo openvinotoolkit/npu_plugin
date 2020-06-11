@@ -23,6 +23,7 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
+                "RemoveSoftmax": false,
                 "split_strategy" :
                 [
                     {
