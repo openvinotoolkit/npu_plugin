@@ -51,6 +51,7 @@ namespace mv
         bool isImplicit() const;
         bool hasWeights() const;
         bool hasPWLActivation() const;
+        bool hasFloatPrecision() const;
 
         std::string getLogID() const override;
 

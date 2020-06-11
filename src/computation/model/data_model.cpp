@@ -134,6 +134,10 @@ mv::Data::TensorIterator mv::DataModel::defineTensor(const Tensor& tensor)
     return result.first;
 }
 
+bool mv::DataModel::isTensorDefined(std::shared_ptr<Tensor> tensor) const {
+  return tensors_->find(tensor->getName()) != tensors_->end();
+}
+
 mv::Data::TensorIterator mv::DataModel::defineTensor(std::shared_ptr<Tensor> tensor)
 {
     if (tensors_->find(tensor->getName()) != tensors_->end())

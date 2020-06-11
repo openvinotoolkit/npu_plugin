@@ -315,7 +315,6 @@ bool mv::Op::hasWeights() const
     return hasWeights;
 }
 
-
 bool mv::Op::hasPWLActivation() const
 {
     const std::vector<std::string> pwlActivations = {
@@ -336,4 +335,9 @@ bool mv::Op::hasPWLActivation() const
         }
     }
     return hasPWL;
+}
+
+bool mv::Op::hasFloatPrecision() const
+{
+    return hasAttr("floatPrecision") && get<bool>("floatPrecision");
 }
