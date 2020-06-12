@@ -207,6 +207,17 @@ namespace mv
                 return attr;
             }
 
+            bool allInputsSameSize(mv::Op op)
+            {
+                auto inputs = op.getInputTensor();
+                auto size = op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
+                for(auto input : inputs)
+                    if(size != input->getShape()[mv::IO_CHANNEL_DIMENSION])
+                        return false;
+                
+                return true;
+            }
+
             size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
@@ -241,77 +252,6 @@ namespace mv
 
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
-
-            // size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
-            // {
-            //     // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
-
-            //     Shape worstStreamPool = streamingPool;
-
-            //     Shape tensorShape = tensorToSize->getShape();
-            //     //update the streamingPool to the worst combination, based on slice sizes
-            //     size_t outputSize;
-            //     size_t numberOfSplits;
-            //     if(streamingPool["H"] > 1) // If streaming over H
-            //     {
-            //         outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
-            //         numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
-            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-            //         int newOutputSize = newOutputSizes.front();
-
-            //         int remainderOutputSize = newOutputSizes.back();
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         // TODO determine when there will be overlap, for now consider worst case scenario of +2
-            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
-
-            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-            //         worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
-            //     }
-            //     else if(streamingPool["B"] > 1) // If streaming over N
-            //     {
-            //         outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
-            //         numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
-            //         auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
-            //         int newOutputSize = newOutputSizes.front();
-
-            //         int remainderOutputSize = newOutputSizes.back();
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         auto worstNumberOfSplits = outputSize/newOutputSize;
-            //         worstStreamPool[mv::IO_BATCH_DIMENSION] = worstNumberOfSplits;
-            //     }
-            //     if (streamingPool["K"] > 1)
-            //     {
-            //         outputSize = tensorShape[mv::IO_CHANNEL_DIMENSION];
-            //         numberOfSplits = streamingPool["K"];
-            //         int newOutputSize =  ceil( ((double)outputSize) / ((double)numberOfSplits));
-
-            //         int remainderOutputSize = outputSize - (newOutputSize*(numberOfSplits -1));
-            //         if (remainderOutputSize > newOutputSize)
-            //             newOutputSize = remainderOutputSize;
-
-            //         // TODO determine when there will be overlap
-            //         auto worstNumberOfSplits = std::floor((double)outputSize/(newOutputSize+2));
-
-            //         if(worstNumberOfSplits == 0) worstNumberOfSplits = 1;
-            //         worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
-            //     }
-
-            //     //TODO add handling for weights case if we dont align it to 16 always
-            //     size_t streamDivisor = 1;
-            //     for(size_t dim = 0; dim <  worstStreamPool.ndims(); ++dim)
-            //     {
-            //         streamDivisor = streamDivisor * worstStreamPool[dim];
-            //     }
-
-            //     if(isCMConv)
-            //         return tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor;
-
-            //     return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
-            // }
 
             size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
@@ -1094,7 +1034,7 @@ namespace mv
                 }
                 else if (parent["spilling"].get<bool>())
                 {
-                    if ((childClustering == "HKSwitch") and parentOp.getOpType() != "Concat")
+                    if (childClustering == "HKSwitch")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
@@ -1119,8 +1059,7 @@ namespace mv
                     //NOTE: If your parent is SplitOverH, your childs should be only Soh,HKSwitch
                     if (parentClustering == "SplitOverH")
                     {
-                        if ((childClustering == "SplitOverK" || childClustering == "Clustering") and childOp.getOpType() != "Concat")
-                        // if (childClustering == "SplitOverK" || childClustering == "Clustering")
+                        if (childClustering == "SplitOverK" || childClustering == "Clustering")
                         {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
@@ -1475,9 +1414,10 @@ namespace mv
                     weightsSparsity = decideWeightsSparsity(op);
 
                 vector<Attribute> sohConcatPool = {false};
-                if(op.getOpType() == "Concat") // TODO use function, like others
+                if(op.getOpType() == "Concat")
                 {
-                    sohConcatPool = {true, false};
+                    if(allInputsSameSize(op))
+                        sohConcatPool = {true, false};
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
