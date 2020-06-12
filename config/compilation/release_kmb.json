@@ -16,7 +16,7 @@
                 "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": true,
+                "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
@@ -178,7 +178,7 @@
                         {
                             "name" : "Concat",
                             "strategies": [
-                                {"name" : "clusteringStrategies", "value" : ["Clustering","SplitOverH"]},
+                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
