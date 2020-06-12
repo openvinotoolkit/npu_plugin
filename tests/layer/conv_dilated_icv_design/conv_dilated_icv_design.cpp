@@ -27,7 +27,11 @@ int main()
 
     //the 2 is dilation factor
     auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
-    om.output(conv0);
+    //add identity maxpool so concat will happen using storage elements
+
+    auto identity_maxPool = om.maxPool(conv0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "identity_maxpool_0");
+
+    om.output(identity_maxPool);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
