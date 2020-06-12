@@ -244,9 +244,10 @@ namespace mv
             size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, mv::Op& op)
             {
                 size_t kHeight = 1;
-                if(op.getOpType() == "Conv")
+                if(  (op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") )
                     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
-
+                else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
+                    kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
                 //NOTE: assuming order of paddings: left,right,top,bottom
                 std::array<unsigned short, 4> padding;
                 if (op.hasAttr("padding"))
@@ -289,9 +290,11 @@ namespace mv
 
                     extraLines += (padding[2]? kHeight/2 : 0);
                     extraLines += (padding[3]? kHeight/2 : 0);
-                    double worstNumberOfSplits = (double)(outputSize/ (newOutputSize + extraLines))+1;
 
-                    //double worstNumberOfSplits = (double)(outputSize/ (newOutputSize)); - the worst, maximum
+                    //the worst splits will round up, adding 1 to the division is not as accurate as ceiling
+                    auto worstNumberOfSplits = std::ceil(outputSize/ (newOutputSize + extraLines));
+                    //auto worstNumberOfSplits = (unsigned int)std::ceil(outputSize/ newOutputSize);- the worst, maximum
+
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
                 }
@@ -597,7 +600,6 @@ namespace mv
                 // Note: for convolution stream over H cannot be higher than dimension/kernel
                 if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool"))
                 {
-                    auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
                     auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
                     if(splits > dim/kHeight)
                         return dim/kHeight;
