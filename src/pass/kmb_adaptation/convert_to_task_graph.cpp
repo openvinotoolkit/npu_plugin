@@ -125,6 +125,8 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     auto dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams,
                                            mv::createDPUTaskName(name));
 
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
 
@@ -162,6 +164,9 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         dpuConvOp->erase("taskOp");
         dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
+
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
 
     return dpuConv;
 }
@@ -671,7 +676,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto inputs = concatOp->getInputTensor();
         for (auto& input : inputs)
         {
-            if (!((om.getSourceOp(input)->getOpType() == "UPATask")  && (input->get<mv::DType>("dType") == mv::DType("Float16"))))
+            if (!((om.getSourceOp(input)->getOpType() == "UPATask" || om.getSourceOp(input)->getOpType() == "ImplicitReshape")  &&
+                (input->get<mv::DType>("dType") == mv::DType("Float16"))))
                 all_inputs_are_fp16 = false;
         }
         if (all_inputs_are_fp16)
