@@ -2331,11 +2331,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm
     return toBuild;
 }
 
-MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel&, Element &, Control::OpListIterator)
 {
-    auto toBuild = new MVCNN::UPALayerTaskT();
     throw ArgumentError("tools:RuntimeModel", "UPATask", "Unsupported", "topK not implemented yet");
 
+    auto toBuild = new MVCNN::UPALayerTaskT();
     //TODO
     return toBuild;
 }
@@ -2956,5 +2956,7 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
 
 std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 {
+    if(nullptr == binaryData_)
+        serialize();
     return binaryData_;
 }
