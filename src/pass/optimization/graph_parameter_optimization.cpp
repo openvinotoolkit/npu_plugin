@@ -1083,9 +1083,18 @@ namespace mv
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (parent["spilling"].get<bool>())
+                if (child["sohConcat"].get<bool>())
                 {
-                    if ((childClustering == "HKSwitch") and (parentOp.getOpType() != "Concat"))
+                    if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                            return INF;
+                    }
+                }
+                else if (parent["spilling"].get<bool>())
+                {
+                    if ((childClustering == "HKSwitch") and parentOp.getOpType() != "Concat")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
@@ -1465,8 +1474,14 @@ namespace mv
                 else if(globalEnableWeightsSparsity)
                     weightsSparsity = decideWeightsSparsity(op);
 
+                vector<Attribute> sohConcatPool = {false};
+                if(op.getOpType() == "Concat") // TODO use function, like others
+                {
+                    sohConcatPool = {true, false};
+                }
 
                 //TODO:: replace nested loops with clean cartesian product function
+                for( const auto sohConcat : sohConcatPool){
                 for( const auto spilling : spillingPool)
                 {
                     for( const auto clustering : clusteringStrategyPool)
@@ -1565,6 +1580,7 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
+                                    s["sohConcat"] = sohConcat;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
@@ -1578,7 +1594,7 @@ namespace mv
                         }
                     }
                 }
-
+                }
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
             }
