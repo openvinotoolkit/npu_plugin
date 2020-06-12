@@ -9,7 +9,7 @@
                 "weights_form": "None",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
-                "Number_of_Clusters" : 4,
+                "Number_of_Clusters" : 1,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
@@ -122,13 +122,13 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
                         {"name" : "FathomSafetyFactor", " value" : 1.0},
-                        {"name" : "createStrategyDots", "value" : false},
+                        {"name" : "createStrategyDots", "value" : true},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
