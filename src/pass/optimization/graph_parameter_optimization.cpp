@@ -248,7 +248,7 @@ namespace mv
                     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
                 else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
                     kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
-                log(Logger::MessageType::Debug, "op = " + op.getName() + " , type " + op.getOpType());
+                // log(Logger::MessageType::Debug, "op = " + op.getName() + " , type " + op.getOpType());
                 //NOTE: assuming order of paddings: left,right,top,bottom
                 std::array<unsigned short, 4> padding;
                 if (op.hasAttr("padding"))
@@ -271,10 +271,10 @@ namespace mv
                 }
 
                 Shape tensorShape = tensorToSize->getShape();
-                log(Logger::MessageType::Debug, "shape=" + std::to_string(tensorShape[mv::IO_BATCH_DIMENSION]) +\
-                    ":" + std::to_string(tensorShape[mv::IO_CHANNEL_DIMENSION]) +\
-                    ":" + std::to_string(tensorShape[mv::IO_HEIGHT_DIMENSION]) +\
-                    ":" + std::to_string(tensorShape[mv::IO_WIDTH_DIMENSION]) );
+                // log(Logger::MessageType::Debug, "shape=" + std::to_string(tensorShape[mv::IO_BATCH_DIMENSION]) +\
+                //     ":" + std::to_string(tensorShape[mv::IO_CHANNEL_DIMENSION]) +\
+                //     ":" + std::to_string(tensorShape[mv::IO_HEIGHT_DIMENSION]) +\
+                //     ":" + std::to_string(tensorShape[mv::IO_WIDTH_DIMENSION]) );
                 //update the streamingPool to the worst combination, based on slice sizes
                 size_t outputSize;
                 size_t numberOfSplits;
@@ -300,11 +300,11 @@ namespace mv
                     auto worstNumberOfSplits = std::ceil(outputSize/ (newOutputSize + extraLines));
                     //auto worstNumberOfSplits = (unsigned int)std::ceil(outputSize/ newOutputSize);- the worst, maximum
 
-                    log(Logger::MessageType::Debug, "outputSize = " + std::to_string(outputSize));
-                    log(Logger::MessageType::Debug, "newOutputSize = " + std::to_string(newOutputSize));
-                    log(Logger::MessageType::Debug, "numberOfSplits = " + std::to_string(numberOfSplits));
-                    log(Logger::MessageType::Debug, "extralines = " + std::to_string(extraLines));
-                    log(Logger::MessageType::Debug, "worstNumberOfSplits outputSize/newOutputSize = " + std::to_string(worstNumberOfSplits));
+                    // log(Logger::MessageType::Debug, "outputSize = " + std::to_string(outputSize));
+                    // log(Logger::MessageType::Debug, "newOutputSize = " + std::to_string(newOutputSize));
+                    // log(Logger::MessageType::Debug, "numberOfSplits = " + std::to_string(numberOfSplits));
+                    // log(Logger::MessageType::Debug, "extralines = " + std::to_string(extraLines));
+                    // log(Logger::MessageType::Debug, "worstNumberOfSplits outputSize/newOutputSize = " + std::to_string(worstNumberOfSplits));
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
                 }
