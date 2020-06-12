@@ -41,7 +41,9 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
                 op->get<bool>("floatPrecision") &&
                 referenceDevice == "A0" &&
                 (!op->hasAttr("inputActivationSparsity") ||
-                !op->get<bool>("inputActivationSparsity")))
+                !op->get<bool>("inputActivationSparsity")) &&
+                (!op->hasAttr("placeConversionToFloat") ||
+                !op->get<bool>("placeConversionToFloat")))
             {
                 op->set<bool>("activationSparsityCompilerSolving", true);
                 op->set<bool>("inputActivationSparsity", true);
