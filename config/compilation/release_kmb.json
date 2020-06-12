@@ -170,16 +170,6 @@
                             ]
                         },
                         {
-                            "name" : "DilatedSubConv",
-                            "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
-                                {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : true}
-                            ]
-                        },
-                        {
                             "name" : "DepthwiseConv",
                             "strategies": [
 

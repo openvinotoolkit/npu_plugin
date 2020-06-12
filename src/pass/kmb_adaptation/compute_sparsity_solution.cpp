@@ -41,28 +41,24 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         //memory requirements a travel to ddr is taking place so the previous op was streamed
         if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR"))
         {
+
             //for now we are going to handle only the case that we have an op flaot16
             if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision"))
             {
                 convOp->set<bool>("activationSparsityCompilerSolving", true);
                 convOp->set<bool>("inputActivationSparsity", true);
+
+            }
+
+        }
+        if (convOp->hasAttr("DilatedSubConv") && convOp->get<bool>("DilatedSubConv"))
+        {
+            if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR") || inputTensorMemoryLocation == mv::Tensor::MemoryLocation("INPUT"))
+            {
+                convOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
+                convOp->set<bool>("inputActivationSparsityForDilatedConv", true);
             }
         }
 
-    }
-
-    // For dilated sub convs the compiler generates sparsity maps and SEPs for the input activations tensors for better performance
-    // Here we add the attribute for this feature to be consistent with the current FP16 A0 WA
-    for (auto& dilatedSubConvOp : dilatedSubConvOps)
-    {
-        auto inputTensor = dilatedSubConvOp->getInputTensor(0);
-        auto inputTensorMemoryLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-
-
-        if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR") || inputTensorMemoryLocation == mv::Tensor::MemoryLocation("INPUT"))
-        {
-            dilatedSubConvOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
-            dilatedSubConvOp->set<bool>("inputActivationSparsityForDilatedConv", true);
-        }
     }
 }

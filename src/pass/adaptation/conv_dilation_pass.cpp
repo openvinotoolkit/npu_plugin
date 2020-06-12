@@ -174,19 +174,35 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
 {
     mv::Data::TensorIterator subConv;
     //TODO handle stride != 1
-    subConv = om.dilatedSubConv(sourceTensor,
+    if (opIt->getOpType() == "Conv")
+    {
+        subConv = om.conv(sourceTensor,
                 opIt->getInputTensor(1),
                 opIt->get<std::array<unsigned short, 2>>("stride"),
                 padding,
-                newShape,
                 1,
-                opIt->getOpType(), //TODO currently we assume conv need to handle DW
                 opIt->get<unsigned>("group"),
                 opIt->get<mv::DType>("dType"),
                 opIt->get<mv::QuantizationParams>("quantParams"),
                 name);
+    }
+    else
+    {
+        subConv = om.depthwiseConv(sourceTensor,
+                opIt->getInputTensor(1),
+                opIt->get<std::array<unsigned short, 2>>("stride"),
+                padding,
+                1,
+                opIt->get<mv::DType>("dType"),
+                opIt->get<mv::QuantizationParams>("quantParams"),
+                name);
+    }
+    subConv->setShape(newShape);
+
 
     auto subConvOp = om.getSourceOp(subConv);
+    subConvOp->set<bool>("DilatedSubConv", true);
+    subConvOp->set<mv::Shape>("subConvShape", newShape);
     if(opIt->hasAttr("opId"))
     {
         unsigned currentOpId = opIt->get<unsigned>("opId");

@@ -116,26 +116,6 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-
-        static std::function<void(const std::vector<Data::TensorIterator>&, const std::map<std::string, Attribute>&,
-            std::vector<Tensor>&)> outputDefDilatedFcn =
-            [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
-        {
-
-            auto data = inputs[0];
-
-            mv::Shape outputShape = args.at("subConvShape").get<mv::Shape>();
-
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, inputs[0]->getOrder()));
-            else
-                outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
-
-        };
-
     }
 
     namespace op {

@@ -729,7 +729,7 @@ namespace mv
                     auto kernel = op.get<array<unsigned short,2>>("kSize");
                     baseKernelCost = kernel[0] * kernel[1];
                 }
-                else if ((opType == "DepthwiseConv") or (opType == "Conv") or (opType == "DilatedSubConv"))
+                else if ((opType == "DepthwiseConv") or (opType == "Conv"))
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost = weightsShape[KERNEL_WIDTH] * weightsShape[KERNEL_HEIGHT];
