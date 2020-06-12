@@ -1085,7 +1085,7 @@ namespace mv
                 //this strategy exists in order to reverse strategies in CMX
                 if (parent["spilling"].get<bool>())
                 {
-                    if (childClustering == "HKSwitch")
+                    if ((childClustering == "HKSwitch") and (parentOp.getOpType() != "Concat"))
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
@@ -1110,7 +1110,8 @@ namespace mv
                     //NOTE: If your parent is SplitOverH, your childs should be only Soh,HKSwitch
                     if (parentClustering == "SplitOverH")
                     {
-                        if (childClustering == "SplitOverK" || childClustering == "Clustering")
+                        if ((childClustering == "SplitOverK" || childClustering == "Clustering") and childOp.getOpType() != "Concat")
+                        // if (childClustering == "SplitOverK" || childClustering == "Clustering")
                         {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
