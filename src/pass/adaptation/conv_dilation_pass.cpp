@@ -5,6 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include <algorithm>    
 
 static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -213,9 +214,33 @@ std::array<unsigned short, 4> calcNewPadding(mv::Data::OpListIterator opIt, size
         //same padding
         //case of stride 1
         //p = ((f-1)*s -n +f )/2
-        unsigned int p1 = ((newWidth - 1) * oldStride[0] - kernelShape[mv::KERNEL_WIDTH] + newWidth)/2;
-        unsigned int p2 = ((newHeight - 1) * oldStride[1] - kernelShape[mv::KERNEL_HEIGHT] + newHeight)/2;
-        std::array<unsigned short, 4> padding = {p1, p2, p1, p2};
+        //unsigned int p1 = ((newWidth - 1) * oldStride[0] - kernelShape[mv::KERNEL_WIDTH] + newWidth)/2;
+        //unsigned int p2 = ((newHeight - 1) * oldStride[1] - kernelShape[mv::KERNEL_HEIGHT] + newHeight)/2;
+
+        /*
+        Formuala for padding taken from here: https://www.pico.net/kb/what-is-the-difference-between-same-and-valid-padding-in-tf-nn-max-pool-of-tensorflow
+
+        For 'SAME' option output dimensions and padding options are computed as:
+        out_height 	= ceil(float(in_height) / float(strides[1]))
+        out_width 	= ceil(float(in_width) / float(strides[2]))
+        pad_along_height 	= max((out_height - 1) * strides[1] + filter_height - in_height, 0)
+        pad_along_width 	= max((out_width - 1) * strides[2] + filter_width - in_width, 0)
+        pad_top 	= pad_along_height // 2
+        pad_bottom 	= pad_along_height - pad_top
+        pad_left 	= pad_along_width // 2
+        pad_right 	= pad_along_width - pad_left
+        */
+
+        unsigned int out_height = ceil(newHeight / oldStride[0]);
+        unsigned int out_width = ceil(newWidth / oldStride[1]);
+        auto pad_along_height 	= std::max(int((out_height - 1) * oldStride[0] + kernelShape[mv::KERNEL_HEIGHT] - newHeight), 0);
+        auto pad_along_width 	= std::max(int((out_width - 1) * oldStride[1] + kernelShape[mv::KERNEL_WIDTH] - newWidth), 0);
+        unsigned int pad_top 	= pad_along_height / 2;
+        unsigned int pad_bottom 	= pad_along_height - pad_top;
+        unsigned int pad_left 	= pad_along_width / 2;
+        unsigned int pad_right 	= pad_along_width - pad_left;
+
+        std::array<unsigned short, 4> padding = {pad_left, pad_right, pad_top, pad_bottom};
         return padding;
     }
 }

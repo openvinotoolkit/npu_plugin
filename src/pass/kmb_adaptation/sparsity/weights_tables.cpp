@@ -358,6 +358,24 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
+// Sub function to generate storage element pointer for dilated convolution
+void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
+{
+    // This logic is just copied from function above 
+    // Needs to be update as per design in slides
+
+    auto input = dpuTaskOp->getInputTensor(0);
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    auto height_width = activationStorageElement->getShape().totalSize();
+
+    std::vector<int64_t> unpopulated_offsets(height_width, 0);
+
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8);
+    for(unsigned i = 0; i < height_width; ++i)
+        unpopulated_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
+    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+}
+
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
 //This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the
@@ -453,7 +471,26 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                 dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
                 populateActivationStorageElementMap(activationStorageElement, dpuTaskOp);
             }
+
+            // New logic for generating SEP for dilated convolution
+            if(dpuTaskOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv")
+                    && dpuTaskOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
+            {
+                auto activationStorageElement
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("storageElementIndex"));
+                auto activationSparsityMap
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("unpopulatedSparsityMapIndex"));
+                dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
+                
+                // NB this function still needs the correct logic to generate the SEPs
+                populateActivationStorageElementMapForDilatedConvolution(activationStorageElement, dpuTaskOp);
+            }
         }
+
+        
+         
     }
 }
 

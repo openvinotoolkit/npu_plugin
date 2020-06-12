@@ -25,7 +25,11 @@ int main()
 
     auto weights0 = om.constantInt(weightsData0,kernel, mv::DType("UInt8"), mv::Order("NCHW"), {{zeroPointWt},{0.125},{-1.000000000000000},{1.000000000000000}}, "weights_conv");
 
-    //the 2 is dilation factor
+    // The dilation factor is 2
+    // The padding is 2,2,2,2
+    // This is SAME padding notation
+    // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
+    
     auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
     //add identity maxpool so concat will happen using storage elements
 

@@ -139,7 +139,8 @@ mv::Data::TensorIterator convertDilatedSubConvolutionToDPUTask(mv::OpModel& om, 
     auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
     auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
     auto outputTensorType = attrs.at("dType").get<mv::DType>();
-    auto outputShape = attrs.at("Shape").get<mv::Shape>();
+    auto outputShape = attrs.at("subConvShape").get<mv::Shape>();
+
     auto globalParams = om.getGlobalConfigParams();
     bool enableChannelMajor = globalParams->get<bool>("enable_channel_major_conv");
     unsigned group = attrs.at("group").get<unsigned>();
@@ -556,7 +557,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     mv::ControlModel cm(model);
     std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
     //Note: Eltwise might be UPA might be DPU task...
-    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise"};
+    std::vector<std::string> opsTypesToConvert = {"Conv", "DepthwiseConv", "MaxPool", "Eltwise", "DilatedSubConv"};
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
