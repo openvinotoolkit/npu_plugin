@@ -37,13 +37,18 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     for (auto opList : opsMap) {
         for (auto op : opList.second) {
+
+            bool solvedByMixedConversion = op->hasAttr("placeConversionToFloat") &&
+                op->get<bool>("placeConversionToFloat") &&
+                op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
+                mv::Tensor::MemoryLocation("NNCMX");
+
             if (op->hasAttr("floatPrecision") &&
                 op->get<bool>("floatPrecision") &&
                 referenceDevice == "A0" &&
                 (!op->hasAttr("inputActivationSparsity") ||
                 !op->get<bool>("inputActivationSparsity")) &&
-                (!op->hasAttr("placeConversionToFloat") ||
-                !op->get<bool>("placeConversionToFloat")))
+                !solvedByMixedConversion)
             {
                 op->set<bool>("activationSparsityCompilerSolving", true);
                 op->set<bool>("inputActivationSparsity", true);
