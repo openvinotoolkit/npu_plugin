@@ -55,6 +55,7 @@ namespace mv
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
+            std::string referenceDevice = "A0";
             int ddrBandwidth=128;
             int sysClock=500;
             bool globalEnableStreaming=true;
@@ -71,6 +72,7 @@ namespace mv
 
             void readGlobalConfigs()
             {
+                referenceDevice = globalConfig_["referenceDevice"].get<string>();
                 totalClusters = globalConfig_["totalClusters"].get<int>();
                 clusterMemoryKb = globalConfig_["clusterMemory"].get<int>();
                 dpuPerCluster = globalConfig_["dpuPerCluster"].get<int>();
@@ -784,7 +786,8 @@ namespace mv
                 // If Z-major Conv in Float precision then need to have weights Sparsity
                 if(op.getOpType() == "Conv" and
                     op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
-                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
+                        referenceDevice == "A0")
                         return true;
 
                 return false;
@@ -793,7 +796,8 @@ namespace mv
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
-                        and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
+                        and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
+                        referenceDevice == "A0")
                 {
                     return true;
                 }
@@ -805,7 +809,8 @@ namespace mv
                     if( clustering == "SplitOverH" and
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
                          op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1)
-                         and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16))
+                         and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16) and
+                            referenceDevice == "A0")
                          {
                             return true;
                          }
@@ -1156,7 +1161,7 @@ namespace mv
                     }
                     //If we aren't CM conv, kernel > 1 requires sparsity for SOH, so parent can't spill
                     else if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1)
+                            and  weightsShape[KERNEL_WIDTH] > 1 and referenceDevice == "A0")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
@@ -1176,7 +1181,8 @@ namespace mv
 
                 //NOTE: IF you have to spill your parent and the child is fp16 you are going to assign clustering on child
                 if(parentOp.getOpType() == "Eltwise" and parent["spilling"].get<bool>() &&
-                    childOp.hasAttr("floatPrecision") && childOp.get<bool>("floatPrecision") && childClustering != "Clustering")
+                    childOp.hasAttr("floatPrecision") && childOp.get<bool>("floatPrecision") && childClustering != "Clustering"
+                        and (referenceDevice == "A0"))
                 {
                     return INF;
                 }

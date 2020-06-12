@@ -32,6 +32,8 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     auto convOps = om.getOps("Conv");
+    auto globalParams = model.getGlobalConfigParams();
+    auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
     for (auto& convOp : convOps)
     {
@@ -42,7 +44,8 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR"))
         {
             //for now we are going to handle only the case that we have an op flaot16
-            if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision"))
+            if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision") &&
+                    referenceDevice == "A0")
             {
                 convOp->set<bool>("activationSparsityCompilerSolving", true);
                 convOp->set<bool>("inputActivationSparsity", true);
