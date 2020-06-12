@@ -60,6 +60,22 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         std::set <std::string> specialTensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         std::vector <mv::Data::TensorIterator> specialTensors;
+
+        //Todo:: the construction and logic of this pass needs to be refactored.
+        // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
+        // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
+        // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
+
+        auto implicitConcats = om.getOps("ImplicitConcat");
+        for(auto layer : implicitConcats)
+        {
+            auto outputTensor = layer->getOutputTensor(0);
+            if(outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto outputTensorName = layer->getOutputTensor(0)->getName();
+                tensorNames.insert(outputTensorName);
+            }
+        }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
@@ -110,6 +126,17 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensors.push_back(dm.getTensor(tensorName));
         subTensorsGen(model, tensors, numClusters, pass);
         subTensorsGen(model, specialTensors, numClusters, pass, 1);
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            if (opIt->getOpType() == "Crop" || opIt->getOpType() == "Concat" || opIt->getOpType() == "ImplicitConcat" || opIt->getOpType() == "Slice")
+            {
+                auto sinkOperators = findSinkLayers(dm, opIt->getOutputTensor(0));
+                if (sinkOperators[0]->getOpType() == "Align" || sinkOperators[0]->getOpType() == "Crop")
+                {
+                    subTensorsGen(model, {opIt->getOutputTensor(0)},numClusters, pass);
+                }
+            }
+        }
     }
     return;
 }
@@ -186,6 +213,8 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     //SplitOverHOverlapped happens only for CM Conv in the input layer. Have to step through DMATask and Align layers till we reach the DPUTask op
                     if (sinkOperators[0]->getOpType() == "DMATask" || sinkOperators[0]->getOpType() == "Align")
                         sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                    if (sinkOperators[0]->getOpType() == "DMATask" || sinkOperators[0]->getOpType() == "Align")
+                        sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
 
                     //Tiling logic is used to find the workloads with the overlaps
                     //SplitOverHOverlapped - so hardCoding to 'H' for axis
@@ -232,7 +261,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
                     if (!sinkOperators.empty())
                     {
-                        while (sinkOperators[0]->getOpType() != "DPUTask" and 
+                        while (sinkOperators[0]->getOpType() != "DPUTask" and
                                 sinkOperators[0]->getOpType() != "Output"){
                             sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
                         }
@@ -479,7 +508,51 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                 {
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
 
-                    //ASSUMPTION: all sink ops have the same strategy.
+                    if (opIt->getOutputTensor(0)->get<std::string>("splitStrategy") != "SplitOverHOverlapped")
+                    {
+                        if (sinkOperators[0]->getOpType() == "DPUTask")
+                        {
+                            if (sinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                            {
+                                if (sinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
+                                {
+                                    outputTensor->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                                    inputTensor->cleanSubtensors();
+                                    outputTensor->cleanSubtensors();
+                                    outputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                    inputTensor->set<std::string>("splitStrategy", "SplitOverH");
+                                    subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+                                }
+                            }
+                        }
+
+                        if (sinkOperators[0]->getOpType() == "Align")
+                        {
+                            auto nextSinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
+                            if (nextSinkOperators[0]->getOpType() == "DPUTask")
+                            {
+                                if (nextSinkOperators[0]->get<std::string>("taskOp") == "ChannelMajorConvolution")
+                                {
+                                     if (nextSinkOperators[0]->get<std::string>("splitStrategy") == "SplitOverH")
+                                     {
+                                         outputTensor->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                                         sinkOperators[0]->getOutputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
+                                         sinkOperators[0]->getInputTensor(0)->cleanSubtensors();
+                                         sinkOperators[0]->getOutputTensor(0)->cleanSubtensors();
+                                         sinkOperators[0]->getInputTensor(0)->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                         sinkOperators[0]->getOutputTensor(0)->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                         subTensorsGen(model, {sinkOperators[0]->getInputTensor(0), sinkOperators[0]->getOutputTensor(0)}, numClusters, pass);
+                                     }
+                                 }
+                             }
+                        }
+                    }
+
+                    //ASSUMPTION: all sink ops have the same strategy, except DMATask
+                    if (sinkOperators[0]->getOpType() == "DMATask") {
+                        continue;
+                    }
+
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
 

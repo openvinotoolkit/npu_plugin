@@ -243,7 +243,60 @@ void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, 
     }
 }
 
-void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void computeQuantMultShift(
+    std::vector<float>& scale,
+    std::vector<unsigned>& shift,
+    std::vector<unsigned>& mult)
+{
+    //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
+    auto bits = 15;
+    auto scaleSize = scale.size();
+    int exponent;
+    double mantissa;
+
+    {
+        for (size_t i = 0; i < scaleSize; i++)
+        {
+            mantissa = std::frexp(scale[i], &exponent);
+            shift[i] = bits - exponent;
+            mult[i] = (mantissa * pow(2, bits));
+        }
+    }
+}
+
+void updatePWLQuantParams(mv::Data::OpListIterator& op,
+    std::vector<float>& inputScale) {
+
+    if(!op->hasAttr("pwlQuantParams"))
+        return;
+
+    auto pwlQuant = op->get<mv::QuantizationParams>("pwlQuantParams");
+
+    auto reQuantScale = std::vector<float>(inputScale.begin(), inputScale.end());
+    auto quantSize = reQuantScale.size();
+
+    pwlQuant.setScale(
+        extendToK(quantSize, pwlQuant.getScale(), op->getName()));
+    pwlQuant.setZeroPoint(
+        extendToK(quantSize, pwlQuant.getZeroPoint(), op->getName()));
+
+    // (input_scale * weight_scale) / output_scale
+    std::transform(
+        reQuantScale.begin(),
+        reQuantScale.end(),
+        pwlQuant.getScale().begin(),
+        reQuantScale.begin(),
+        std::divides<float>());
+
+    std::vector<unsigned> reQuantShift(quantSize, 0);
+    std::vector<unsigned> reQuantMult(quantSize, 1);
+
+    computeQuantMultShift(reQuantScale, reQuantShift, reQuantMult);
+
+    op->get<mv::QuantizationParams>("pwlQuantParams").quantize(reQuantShift, reQuantMult);
+}
+
+void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -254,104 +307,104 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
 
     for(auto& opIt : dpuTasks)
     {
-         std::string taskOp = opIt->get<std::string>("taskOp");
+        std::string taskOp = opIt->get<std::string>("taskOp");
 
-         bool isEltwise = taskOp == "Eltwise";
-         bool isEltwiseMult = false;
-         bool isEltwiseAddSub = false;
-         if(isEltwise)
-         {
-             auto eltwiseType = opIt->get<std::string>("eltwiseType");
-             if(eltwiseType == "Add" || eltwiseType == "Subtract" || eltwiseType == "And")
-                 isEltwiseAddSub = true;
-             if(eltwiseType == "Multiply")
-                 isEltwiseMult = true;
-         }
-         bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
-         if (isConv || taskOp == "MaxPool" || isEltwiseMult || isEltwiseAddSub)
-         {
+        bool isEltwise = taskOp == "Eltwise";
+        bool isEltwiseMult = false;
+        bool isEltwiseAddSub = false;
+        if(isEltwise)
+        {
+            auto eltwiseType = opIt->get<std::string>("eltwiseType");
+            if(eltwiseType == "Add" || eltwiseType == "Subtract" || eltwiseType == "And")
+                isEltwiseAddSub = true;
+            if(eltwiseType == "Multiply")
+                isEltwiseMult = true;
+        }
+        bool isConv = (taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "ChannelMajorConvolution");
+        if (isConv || taskOp == "MaxPool" || isEltwiseMult || isEltwiseAddSub)
+        {
             auto output = opIt->getOutputTensor(0);
             auto input = opIt->getInputTensor(0);
             auto outputChannels = output->getShape()[mv::IO_CHANNEL_DIMENSION];
             outputChannels = mv::round_up(outputChannels, 16);
 
-            std::vector<int> shift(outputChannels, 0);
-            std::vector<int16_t> mScaled(outputChannels, 0);
+            std::vector<unsigned> shift(outputChannels, 0);
+            std::vector<unsigned> mult(outputChannels, 0);
 
             if (output->isQuantized() && input->isQuantized())
             {
-                 // Quantization for Gemmlowp output
-                 // S1 = weight scale
-                 // S2 = input activation scale
-                 // S3 = output activation scale
-                 // m  = (S1 * S2)/S3, scale for MAC output
-                 // zeroPointScaled = output zero point scaled to MAC output precision
-                 // biasScaled = bias scaled to MAC output precision
+                // Quantization for Gemmlowp output
+                // S1 = weight scale
+                // S2 = input activation scale
+                // S3 = output activation scale
+                // m  = (S1 * S2)/S3, scale for MAC output
+                // zeroPointScaled = output zero point scaled to MAC output precision
+                // biasScaled = bias scaled to MAC output precision
 
-                 auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
-                 //inputQuantization.extendParamsToOutputChannelSize(outputChannels);
+                auto& inputQuantization = input->get<mv::QuantizationParams>("quantParams");
+                //inputQuantization.extendParamsToOutputChannelSize(outputChannels);
 
-                 auto scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
-                 std::vector<float> S2(scale.begin(), scale.end());
+                auto scale = extendToK(outputChannels, inputQuantization.getScale(), input->getName());
+                std::vector<float> S2(scale.begin(), scale.end());
 
-                 std::vector <float> S3(outputChannels, 1);
-                 std::vector <float> floatScale(outputChannels, std::pow(2, -16));
-                 std::vector <int32_t> zeroPoint(outputChannels, 0);
-                 bool outputOfAccWithBias = true;
-                 mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
-                 if (!(output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32")))
-                 {
-                     //NOTE: Here I compute all the quantization parameters like they should be
-                     //in order to dequantize the output of the DPU TASK, as Int32
-                     //32 bit is not a correct statement, practically it is Int33 as
-                     //the output of the accumulator+bias is an int33 number, but in
-                     //graphfile and everywhere will be noted as Int32 for better exposing to the user
-                     outputOfAccWithBias = false;
-                     scale = extendToK(outputChannels, outputQuantization.getScale(), output->getName());
-                     S3 = {scale.begin(), scale.end()};
+                std::vector <float> S3(outputChannels, 1);
+                std::vector <float> floatScale(outputChannels, std::pow(2, -16));
+                std::vector <int64_t> zeroPoint(outputChannels, 0);
+                bool outputOfAccWithBias = true;
+                mv::QuantizationParams &outputQuantization = output->get<mv::QuantizationParams>("quantParams");
+                if (!(output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32")))
+                {
+                    //NOTE: Here I compute all the quantization parameters like they should be
+                    //in order to dequantize the output of the DPU TASK, as Int32
+                    //32 bit is not a correct statement, practically it is Int33 as
+                    //the output of the accumulator+bias is an int33 number, but in
+                    //graphfile and everywhere will be noted as Int32 for better exposing to the user
+                    outputOfAccWithBias = false;
+                    scale = extendToK(outputChannels, outputQuantization.getScale(), output->getName());
+                    S3 = {scale.begin(), scale.end()};
 
-                     auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
-                     zeroPoint = {zeroPointU.begin(), zeroPointU.end()};
-                 }
-                 if (opIt->hasAttr("mixedToFloat") && opIt->get<bool>("mixedToFloat"))
-                     S3 = {floatScale.begin(), floatScale.end()};
+                    auto zeroPointU =  extendToK(outputChannels, outputQuantization.getZeroPoint(), output->getName());
+                    zeroPoint = {zeroPointU.begin(), zeroPointU.end()};
+                }
+                if (opIt->hasAttr("mixedToFloat") && opIt->get<bool>("mixedToFloat"))
+                    S3 = {floatScale.begin(), floatScale.end()};
 
-                 bool isPooling = taskOp == "MaxPool";
-                 //Workaround for HW bug #227
-                 if (isPooling)
-                 {
-                     auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint(), input->getName());
-                     std::vector<int32_t> inputZeroPoint(inZP.begin(), inZP.end());
-                     std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
-                 }
+                bool isPooling = taskOp == "MaxPool";
+                //Workaround for HW bug #227
+                if (isPooling)
+                {
+                    auto inZP = extendToK(outputChannels, inputQuantization.getZeroPoint(), input->getName());
+                    std::vector<int64_t> inputZeroPoint(inZP.begin(), inZP.end());
+                    std::transform(zeroPoint.begin(), zeroPoint.end(), inputZeroPoint.begin(), zeroPoint.begin(), std::minus<int32_t>());
+                }
 
-                 auto m = S2;
+                auto m = S2;
 
-                 if ((opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights")) || isEltwiseMult)
-                 {
-                     auto weights = opIt->getInputTensor(1);
-                     auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
-                     scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
-                     std::vector<float> S1(scale.begin(), scale.end());
-                     //S1*S2
-                     std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
-                     if (output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32"))
-                     {
-                         std::vector<double> output_scale;
-                         output_scale = inputQuantization.getScale();
-                         std::transform(output_scale.begin(), output_scale.end(),
-                                        weightsQuantization.getScale().begin(), output_scale.begin(), std::multiplies<double>());
-                         outputQuantization.setScale(output_scale);
-                     }
+                if ((opIt->hasAttr("hasWeights") && opIt->get<bool>("hasWeights")) || isEltwiseMult)
+                {
+                    auto weights = opIt->getInputTensor(1);
+                    auto& weightsQuantization = weights->get<mv::QuantizationParams>("quantParams");
+                    scale = extendToK(outputChannels, weightsQuantization.getScale(), weights->getName());
+                    std::vector<float> S1(scale.begin(), scale.end());
+                    //S1*S2
+                    std::transform(m.begin(), m.end(), S1.begin(), m.begin(), std::multiplies<float>());
+                    if (output->hasAttr("dType") && output->get<mv::DType>("dType") == mv::DType("Int32"))
+                    {
+                        std::vector<double> output_scale;
+                        output_scale = inputQuantization.getScale();
+                        std::transform(output_scale.begin(), output_scale.end(),
+                                    weightsQuantization.getScale().begin(), output_scale.begin(), std::multiplies<double>());
+                        outputQuantization.setScale(output_scale);
+                    }
 
-                 }
-                 else if (isEltwiseAddSub) //Add Subtract
-                 {
-                     auto input2 = opIt->getInputTensor(1);
-                     auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
-                     auto input1Scale = inputQuantization.getScale();
-                     auto input2Scale = input2Quantization.getScale();
-                     
+                }
+                else if (isEltwiseAddSub) //Add Subtract
+                {
+                    auto input2 = opIt->getInputTensor(1);
+                    auto& input2Quantization = input2->get<mv::QuantizationParams>("quantParams");
+                    auto input1Scale = inputQuantization.getScale();
+                    auto input2Scale = input2Quantization.getScale();
+
                     auto size = input1Scale.size();
                     std::vector <double> scaleDifference(size), absRelativeErrorScale(size), relativeErrorScale(size);
                     std::transform(input1Scale.begin(), input1Scale.end(), input2Scale.begin(), scaleDifference.begin(), std::minus<double>());
@@ -363,73 +416,52 @@ void computeTensorsQuantParams(const mv::pass::PassEntry&, mv::ComputationModel&
                     {
                         if (*it > 0.01)
                             throw mv::RuntimeError(om, opIt->getName() + ": The relative difference in the input scales is > 1%. This is not supported for Eltwise operation."
-                                               + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
+                                                + std::to_string(input1Scale[0]) + " " + std::to_string(input2Scale[0]));
                     }
-                 }
-
-                 //Note: There are PPE Types SIGMOID, TAN, EXP, SQRT, RSQRT, FLEXARB that need their output
-                 //quantized to 13-bits, then runtime uses a LUT to correspond to 8-bit
-                 if (opIt->hasAttr("postOpTypes"))
-                 {
-                     auto ppeSigmoidIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
-                                               opIt->get<std::vector<std::string>>("postOpTypes").end(),
-                                               "Sigmoid");
-                     if (ppeSigmoidIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
-                     {
-                        auto ppeQuantumBits = 5;
-                        auto ppeQuantum = std::pow(2, ppeQuantumBits);
-                        std::transform(m.begin(), m.end(), m.begin(), std::bind(std::multiplies<float>(),
-                                                                                std::placeholders::_1, ppeQuantum));
-                     }
                 }
-                 // Fuse ReLU into quantization (i.e. make ReLU == saturation), will be done using a separate pass
 
-                 // m / S3
-                 std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
+                updatePWLQuantParams(opIt, m);
 
-                 //TODO need to handle 16bits case - per Alessandro bias need to be converted to int32
-                 auto bits = 15;
-                 auto mSize = m.size();
-                 int exponent;
-                 double mantissa;
+                // m / S3
+                std::transform(m.begin(), m.end(), S3.begin(), m.begin(), std::divides<float>());
 
-                 if (!outputOfAccWithBias)
-                 {
-                     for (size_t i = 0; i < mSize; i++)
-                     {
-                         mantissa = std::frexp(m[i], &exponent);
-                         shift[i] = bits - exponent;
-                         mScaled[i] = (mantissa * pow(2, bits));
-                     }
-                 }
-                 else
-                 {
-                     for (size_t i = 0; i < mSize; i++)
-                     {
-                         shift[i] = 0;
-                         mScaled[i] = 1;
-                     }
-                 }
+                if (outputOfAccWithBias)
+                {
+                    for (size_t i = 0; i < m.size(); i++)
+                    {
+                        shift[i] = 0;
+                        mult[i] = 1;
+                    }
+                }
+                else
+                    computeQuantMultShift(m, shift, mult);
 
-                 std::vector<int32_t> zeroPointScaled(m.size());
-                 std::transform(zeroPoint.begin(), zeroPoint.end() , m.begin(), zeroPointScaled.begin(), std::divides<float>());
+                outputQuantization.quantize(shift, mult);
 
-                 std::vector <unsigned> ser_shift = std::vector<unsigned>(shift.begin(), shift.end());
-                 std::vector <unsigned> ser_scale = std::vector<unsigned>(mScaled.begin(), mScaled.end());
-                 outputQuantization.quantize(ser_shift, ser_scale);
-                 if (opIt->hasAttr("postOpTypes"))
-                 {
-                     signed postShift = 0;
-                     auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
-                                               opIt->get<std::vector<std::string>>("postOpTypes").end(),
-                                               "FLEXARB");
-                     if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
+                // Custom PWL table, supports only Leaky Relu at this point
+                if (opIt->hasAttr("postOpTypes"))
+                {
+                    signed postShift = 0;
+                    auto ppeFlexARBdIterator = std::find(opIt->get<std::vector<std::string>>("postOpTypes").begin(),
+                                            opIt->get<std::vector<std::string>>("postOpTypes").end(),
+                                            "FLEXARB");
+                    // TODO: post_shist of 4 is just the current computed value for the sole
+                    // case of leaky relu done in PWL, need to provide a path from target descritptor
+                    // to pass logic to parametrize each custom PWL table entries.
+                    // We may just as well have two custom PWL tables during inference with diff params
+                    if (ppeFlexARBdIterator != opIt->get<std::vector<std::string>>("postOpTypes").end())
                         postShift = 4;
-                     mv::QuantizationParams postQuantization = {{outputQuantization.getZeroPoint()},{outputQuantization.getScale()},
-                                                                {outputQuantization.getMin()},{outputQuantization.getMax()},
-                                                                ser_shift, ser_scale, postShift};
+                    mv::QuantizationParams postQuantization = {
+                            {outputQuantization.getZeroPoint()},
+                            {outputQuantization.getScale()},
+                            {outputQuantization.getMin()},
+                            {outputQuantization.getMax()},
+                            shift,
+                            mult,
+                            postShift
+                        };
                     output->set<mv::QuantizationParams>("quantParams", postQuantization);
-                 }
+                }
 
             }
         }

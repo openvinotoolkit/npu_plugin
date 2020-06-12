@@ -16,9 +16,9 @@
  * Required environmental variables
  * VPUIP_HOME = <path to vpuip_2 repo>
  * DLDT_HOME  = <path to DLDT repo>
- * 
+ *
  * All the filenames are hardcoded. This should be updated.
- * 
+ *
  */
 
 // Error Code Guide
@@ -43,10 +43,10 @@ const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
 
 
-bool ParseAndCheckCommandLine(int argc, char *argv[]) 
+bool ParseAndCheckCommandLine(int argc, char *argv[])
 {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
-    if (FLAGS_h) 
+    if (FLAGS_h)
     {
         showUsage();
         return false;
@@ -54,21 +54,21 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
 
     if (FLAGS_mode == "validate")
     {
-        if (FLAGS_b.empty()) 
+        if (FLAGS_b.empty())
             throw std::logic_error("Parameter -b must be set in validation mode");
-        if (FLAGS_e.empty()) 
+        if (FLAGS_e.empty())
             throw std::logic_error("Parameter -e must be set in validation mode");
-        if (FLAGS_a.empty()) 
+        if (FLAGS_a.empty())
             throw std::logic_error("Parameter -a must be set in validation mode");
     }
     else    //normal operation
     {
-        if (FLAGS_m.empty()) 
+        if (FLAGS_m.empty())
             throw std::logic_error("Parameter -m is not set");
-        if (FLAGS_k.empty()) 
+        if (FLAGS_k.empty())
             throw std::logic_error("Parameter -k is not set");
     }
- 
+
     return true;
 }
 
@@ -77,9 +77,9 @@ std::string findBlob(std::string folderPath)
     // OpenVino blob is written to locations based on input xml.
     // Its probably DLDT/bin/intel64/Debug/release_kmb/release_kmb
     std::string blobPath("");
-    if (auto dir = opendir(folderPath.c_str())) 
+    if (auto dir = opendir(folderPath.c_str()))
     {
-        while (auto f = readdir(dir)) 
+        while (auto f = readdir(dir))
         {
             if (!f->d_name || f->d_name[0] == '.')
                 continue;
@@ -138,10 +138,10 @@ double klDivergence(std::vector<float>& P, std::vector<float>& Q)
         if(p == 0) p = 0.0000001;
 		if(q == 0) q = 0.0000001;
 		float log = std::log2(p / q);
-		
+
 		sum += p * log;
 	}
-	
+
 	return sum;
 }
 
@@ -181,7 +181,7 @@ std::vector<float> softmaxResults(std::vector<float>& results)
             normalized[i] = std::numeric_limits<float>::min();
     }
 
-    return normalized;    
+    return normalized;
 }
 
 bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResults, float tolerance, float allowedDeviation, bool fp)
@@ -238,10 +238,10 @@ bool compare(std::vector<float>& actualResults, std::vector<float>& expectedResu
     float avgPixelAccuracy = (sumDiff/expectedResults.size())*100;
     float l2_err = sqrt(sumSquareDiffs) / expectedResults.size();
     float countErrsPcent = (countErrs/actualResults.size()) * 100;
-    
+
     //print results report
     std::cout.setf( std::ios::fixed );
-    std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;   
+    std::cout << "\nMetric\t\t\t  Actual  Threshold\tStatus" << std::endl << "----------------------    ------  ---------\t-------" << std::endl;
     std::cout << "Min Pixel Accuracy\t" << std::setw(7) << std::setprecision(3) << maxRelErr << "%" << std::setw(10)  << std::setprecision(0)  << tolerance << "%" << std::setw(8) << ((maxRelErr < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "Average Pixel Accuracy\t" << std::setw(7) << std::setprecision(3) << avgPixelAccuracy << "%" << std::setw(10) << std::setprecision(0) << tolerance << "%" << std::setw(8) << ((avgPixelAccuracy < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
     std::cout << "% of Wrong Values\t" << std::setw(7) << std::setprecision(3) << countErrsPcent << "%" << std::setw(10) << std::setprecision(0) << tolerance << "%" << ((countErrsPcent < tolerance) ? "\t\033[1;32mPass" : "\t\033[1;31mFail") << "\033[0m" << std::endl;
@@ -286,7 +286,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW_RGB, FILE_CPU_INPUT_NHWC_RGB, FILE_CPU_INPUT_NCHW_BGR, FILE_CPU_INPUT_NHWC_BGR};
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
-    
+
     do
     {   //delete any previous blobs (different names each time)
         blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
@@ -294,7 +294,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << "Removing: " << fullBlobPath << std::endl;
         remove(fullBlobPath.c_str());
     } while (blobPath != "");
-    
+
     // check if we have 2 input xml models (CPU/KMB)
     std::vector<std::string> pathXMLvector;
     if ( pathXML.find(",") != std::string::npos)
@@ -308,7 +308,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
             pathXMLvector.push_back( subStr );
         }
     }
-    else 
+    else
     {   // single xml provided
         pathXMLvector.push_back( pathXML );
     }
@@ -316,7 +316,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " + 
+    std::string commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + "  && " +
         "./test_classification -m " + pathXMLvector[0] + " -d CPU";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
@@ -324,7 +324,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (FLAGS_r)
         commandline += (" -r ");
 
-    std::cout << commandline << std::endl; 
+    std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
@@ -333,7 +333,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     }
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
         return FAIL_CPU_PLUGIN;
-    
+
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
         return FAIL_CPU_PLUGIN;
 
@@ -349,7 +349,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     //
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
-    commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " + 
+    commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
     if (! FLAGS_i.empty() )
         commandline += (" -i " + pathImage);
@@ -361,7 +361,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << std::endl << "Error occurred running the test_classification (KMB mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    
+
     blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
     if (blobPath == "")
     {
@@ -375,7 +375,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 bool copyFile(std::string src, std::string dest)
 {
     std::string commandline = std::string("cp ") + src + std::string (" ") + dest;
-    std::cout << commandline << std::endl; 
+    std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
     {
@@ -399,7 +399,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
-     
+
     std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
@@ -435,7 +435,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     }
 
     // execute the blob
-    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " + 
+    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " +
         "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
@@ -446,7 +446,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     }
     if (!checkFilesExist({outputFile}))
          return FAIL_RUNTIME;
-    
+
     return RESULT_SUCCESS;
 }
 
@@ -470,7 +470,7 @@ int convertBlobToJson(std::string blobPath)
     }
     if (!checkFilesExist({outputFile}))
          return FAIL_ERROR;
-    
+
     return RESULT_SUCCESS;
 }
 
@@ -491,7 +491,7 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
         std::cout << "Typesize of output layer is unsupported: " << dtype << std::endl;
         return FAIL_ERROR;
     }
-    
+
     // Read the InferenceManagerDemo output file into a vector
     std::cout << "Reading in actual results... ";
     std::ifstream file(actualPath, std::ios::in | std::ios::binary);
@@ -574,10 +574,10 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     // compare
     bool pass = false;
     pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
-    std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl; 
+    std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
     if (pass)
         return RESULT_SUCCESS;
-    else 
+    else
         return FAIL_VALIDATION;
 }
 
@@ -603,11 +603,12 @@ int copyImage(std::string imagePath, std::string blobPath)
     if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
         zMajor = true;
 
-    if ((imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
+    if (!(imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
     {
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
         if(zMajor)
         {
+            std::cout << "ZMajor Starting?  " << std::endl;
             if(FLAGS_r){ // Use zmajor, rgb
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
@@ -622,6 +623,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         }
         else
         {
+            std::cout << "CMajor Starting?  " << std::endl;
             if(FLAGS_r){
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
@@ -634,7 +636,7 @@ int copyImage(std::string imagePath, std::string blobPath)
                 rename((binFolder + FILE_CPU_INPUT_NCHW_BGR).c_str(),(binFolder + FILE_CPU_INPUT).c_str() );
             }
         }
-        
+
         MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
         if (dtype == MVCNN::DType::DType_FP16)
         {
@@ -657,8 +659,8 @@ int copyImage(std::string imagePath, std::string blobPath)
             fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
             fileOut.close();
             fileIn.close();
-            rename(inputSource.c_str(), cpubackup.c_str());
-            rename(inputDest.c_str(), inputSource.c_str());
+            //rename(inputSource.c_str(), cpubackup.c_str());
+            //rename(inputDest.c_str(), inputSource.c_str());
         }
     }
     else
@@ -669,12 +671,12 @@ int copyImage(std::string imagePath, std::string blobPath)
             inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB;
         else
             inNHWC = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR;
-        
+
         std::string inNHWC_dest = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
         copyFile(inNHWC, inNHWC_dest);
     }
 
-    return RESULT_SUCCESS;    
+    return RESULT_SUCCESS;
 }
 
 int postProcessActualResults(std::string resultsPath, std::string blobPath)
@@ -683,7 +685,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     std::cout << "Deleting old output... " << std::endl;
     std::string outputFile = "./output_transposed.dat";
     remove(outputFile.c_str());
-    
+
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
 
@@ -709,11 +711,11 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     std::string dtypeStr = "U8";
     if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
     std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
-        std::string("/python/tools/post_process.py --file ") + resultsPath + " --dtype " + dtypeStr + " --shape " + 
+        std::string("/python/tools/post_process.py --file ") + resultsPath + " --dtype " + dtypeStr + " --shape " +
         std::to_string(outputShape[0]) + "," + std::to_string(outputShape[1]) + "," + std::to_string(outputShape[2]) + "," + std::to_string(outputShape[3]) + sZMajor;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
-    
+
     if (result > 0)
     {
         std::cout << "Error occured converting image using python script";
@@ -722,7 +724,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     if (!checkFilesExist({outputFile}))
          return FAIL_ERROR;
 
-    return RESULT_SUCCESS;    
+    return RESULT_SUCCESS;
 }
 
 int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
@@ -738,7 +740,7 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
 
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
-    
+
     // read in expected inference results
     std::string expectedInferencePath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + std::string("/inference_results.txt");
     std::ifstream inExpected(expectedInferencePath);
@@ -765,32 +767,32 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
             std::cout << str << " ";
         }
     }
-    
+
     // compare
     // bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
     bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
     std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
     if (pass)
         return RESULT_SUCCESS;
-    else 
+    else
         return FAIL_VALIDATION;
 }
 
-int main(int argc, char *argv[]) 
+int main(int argc, char *argv[])
 {
     if(std::getenv("DLDT_HOME") == NULL)
     {
         std::cout << "ERROR! Environmental variable DLDT_HOME must be set with path to DLDT repo" << std::endl << std::endl;
         return FAIL_GENERAL;
     }
-    
+
     if(std::getenv("VPUIP_HOME") == NULL)
     {
         std::cout << "ERROR! Environmental variable VPUIP_HOME must be set with path to VPUIP_2 repo" << std::endl << std::endl;
         return FAIL_GENERAL;
     }
 
-    if (!ParseAndCheckCommandLine(argc, argv)) 
+    if (!ParseAndCheckCommandLine(argc, argv))
         return FAIL_ERROR;
 
     if (FLAGS_mode == "validate")
@@ -821,7 +823,7 @@ int main(int argc, char *argv[])
     result = convertBlobToJson(blobPath);
     // if ( result > 0 ) return result;
 
-    if (! FLAGS_i.empty()) 
+    if (! FLAGS_i.empty())
     {
         result = copyImage(FLAGS_i, blobPath);
         if ( result > 0 ) return result;
@@ -844,7 +846,7 @@ int main(int argc, char *argv[])
     if ( result > 0 ) return result;
 
     validate(blobPath, expectedPath, actualPathProcessed);
-    
+
     // master test is if the top 1's match
     std::string networkType="classification";
     if (FLAGS_m.find("yolo") != std::string::npos)

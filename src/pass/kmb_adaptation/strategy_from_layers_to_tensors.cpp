@@ -65,8 +65,13 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
     }
     // ASSUMPTION: All the input tensors of a concat share the same
     // splitting strategy
-    //NOTE: Concats of concats need to start from the inner nested part
-    auto implicitConcatOps = om.getOps("ImplicitConcat");
+    std::vector<mv::Data::OpListIterator> implicitConcatOps;
+    auto sortedOps = om.topologicalSort();
+    for (auto& op : sortedOps)
+    {
+        if (op->getOpType() == "ImplicitConcat")
+            implicitConcatOps.push_back(op);
+    }
     for (auto implicitConcat : implicitConcatOps)
     {
         if (implicitConcat->getInputTensor(0)->hasAttr("splitStrategy"))
@@ -109,12 +114,14 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             || opType == "Concat" || opType == "ImplicitOutput" || opType == "ImplicitUnion")
         {
             if(!(layer->getInputTensor(0)->hasAttr("splitStrategy"))){
-                // HACK In this case we've found a priorbox concat, set all it's input tensors
+                // In this case we've found a concat with some populated inputs, set all it's input tensors
                 // to have strategy and location in the blob
                 auto input = layer.leftmostInput();
                 while(input != om.flowEnd()){
-                    input->getTensor()->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::BLOB);
-                    input->getTensor()->set<std::string>("splitStrategy", std::string("Clustering"));
+                    if(!input->getTensor()->hasAttr("splitStrategy"))
+                    {
+                        input->getTensor()->set<std::string>("splitStrategy", std::string("Clustering"));
+                    }
                     ++input;
                 }
             }
@@ -177,6 +184,9 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
         {
             auto outputTensor = layer->getOutputTensor(0);
             std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+            // Handle back to back slice operations
+            if(sinkOperators[0]->getOpType() == "Slice") 
+                sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
             auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
             outputTensor->set<std::string>("splitStrategy", opStrategy);
         }

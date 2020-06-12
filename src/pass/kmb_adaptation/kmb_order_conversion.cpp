@@ -3,6 +3,7 @@
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 
 static void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -20,8 +21,9 @@ namespace mv
 void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+ MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -33,10 +35,12 @@ void kmbOrderConversion(const mv::pass::PassEntry& pass, mv::ComputationModel& m
             {
                 // ChannelMajorConvolution is the only operation that requires input tensor in OUR ColMajor
                 dpuTask->getInputTensor(0)->setOrder(mv::Order(mv::Order::getColMajorID(4)));
-                if (om.getSourceOp(dpuTask->getInputTensor(0))->getOpType() == "Slice")
+                // the implicit ops like slice, crop, concat etc need to be accounted for
+                if (om.getSourceOp(dpuTask->getInputTensor(0))->isImplicit())
                 {
                     auto inputImplicitOp = om.getSourceOp(dpuTask->getInputTensor(0));
-                    inputImplicitOp->getInputTensor(0)->setOrder(mv::Order::getColMajorID(4));
+                    for (size_t inputs = 0; inputs < inputImplicitOp->inputSlots(); inputs++)
+                        inputImplicitOp->getInputTensor(inputs)->setOrder(mv::Order::getColMajorID(4));
                 }
 
                 // We also need to set weights shape to ColMajor (see document Order.ods)

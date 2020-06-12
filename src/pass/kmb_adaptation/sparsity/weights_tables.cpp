@@ -226,7 +226,10 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
     std::vector<int32_t> mShift(paddedOutputChannels, 0);
     if(output->hasAttr("quantParams"))
     {
-        quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        if (dpuTaskOp->hasAttr("pwlQuantParams"))
+            quantParams = dpuTaskOp->get<mv::QuantizationParams>("pwlQuantParams");
+        else
+            quantParams = dpuTaskOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         if (!quantParams.isEmpty())
         {
             auto mult = quantParams.getMult();
@@ -450,8 +453,8 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                 auto activationSparsityMap
                         = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("unpopulatedSparsityMapIndex"));
                 dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
-                dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
-                dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
+                dpuTaskOp->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
+                dpuTaskOp->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
                 populateActivationStorageElementMap(activationStorageElement, dpuTaskOp);
             }
         }
@@ -528,7 +531,7 @@ static void generateInstructionListTablesFcn(const mv::pass::PassEntry&, mv::Com
         if(dpuTaskOp->getOpType() == "DPUTask")
         {
             auto taskOpType = dpuTaskOp->get<std::string>("taskOp");
-            if(taskOpType == "Conv" && dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("firstConvWithLRelu")
+            if((taskOpType == "Conv" || taskOpType == "ChannelMajorConvolution") && dpuTaskOp->hasAttr("postOpTypes") && dpuTaskOp->hasAttr("firstConvWithLRelu")
                     && dpuTaskOp->get<bool>("firstConvWithLRelu"))
             {
                 auto ppeIterator = std::find(dpuTaskOp->get<std::vector<std::string>>("postOpTypes").begin(),
