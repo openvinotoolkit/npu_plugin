@@ -21,33 +21,6 @@ namespace mv
     }
 }
 
-void populateSubconvActivationStorageElementMap(mv::Data::TensorIterator activationStorageElement, mv::Data::TensorIterator input, unsigned int subConvIndex,
-    unsigned int dilationFactor, unsigned int originalWidth)
-{
-    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
-    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
-    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
-
-    std::vector<int64_t> unpopulated_offsets(width*height, 0);
-
-    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
-    long int subConvOffset = increment * subConvIndex;
-    long int subConvElementIncrement = increment * dilationFactor;
-    long int subConvRowIncrement = increment * originalWidth * dilationFactor;
-
-    unsigned i = 0;
-    unsigned rowOffset = subConvOffset;
-    for(unsigned h = 0; h < height; ++h)
-    {
-        for(unsigned w = 0; w < width; ++w)
-        {
-            unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement )<< SHIFT_FOR_STORAGE_ELEMENT);
-        }
-        rowOffset += subConvRowIncrement;
-    }
-    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
-}
-
 // void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 // {
 
@@ -171,7 +144,7 @@ void populateSubconvActivationStorageElementMap(mv::Data::TensorIterator activat
 // }
 
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape)
+                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx)
 {
     mv::Data::TensorIterator subConv;
     //TODO handle stride != 1
@@ -214,6 +187,8 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     subConvOp->set<bool>("DilatedSubConv", true);
     subConvOp->set<mv::Shape>("subConvInputShape", newShape);
     subConvOp->set<mv::Shape>("subConvOutputShape", outputShape);
+    subConvOp->set<unsigned>("originalDilationFactor", opIt->get<unsigned>("dilationFactor"));
+    subConvOp->set<unsigned>("subConvIndex", subConvIdx);
     if(opIt->hasAttr("opId"))
     {
         unsigned currentOpId = opIt->get<unsigned>("opId");
@@ -301,17 +276,22 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
                 size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
+                //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
                 std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
 
                 //Create sub dilated convs
+                size_t subConvIdx = 0;
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
                     std::vector<mv::Data::TensorIterator> currVec;
-                    mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1}); //TODO handle last slice of different shape
+                    mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
                     for (size_t j = 0; j < dilationFactor; j++)
+                    {
                         currVec.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
-                            newShape));
+                            newShape, subConvIdx++));
+                    }
+
                     subConvs.push_back(currVec);
                 }
 
@@ -352,7 +332,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                     opsToLink[j]->setInputTensor(concat, inputSlots[j], false);
                     om.defineFlow(concat, opsToLink[j], inputSlots[j]);
                 }
-
+                //TODO add StorageElement & sparsity MAp for following Op
             }
         }
     }

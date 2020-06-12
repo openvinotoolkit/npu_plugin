@@ -359,22 +359,39 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
 }
 
 // Sub function to generate storage element pointer for dilated convolution
+
 void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
 {
-    // This logic is just copied from function above
-    // Needs to be update as per design in slides
-
     auto input = dpuTaskOp->getInputTensor(0);
+    auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
+    auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
+    auto originalWidth = input->getShape()[mv::IO_WIDTH_DIMENSION];
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
-    auto height_width = activationStorageElement->getShape().totalSize();
+    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
 
-    std::vector<int64_t> unpopulated_offsets(height_width, 0);
+    std::vector<int64_t> unpopulated_offsets(width*height, 0);
+    unsigned subConvRowIdx = subConvIndex/dilationFactor;
+    unsigned subConvColIdx = subConvIndex%dilationFactor;
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
 
-    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8);
-    for(unsigned i = 0; i < height_width; ++i)
-        unpopulated_offsets[i] = (i * increment << SHIFT_FOR_STORAGE_ELEMENT);
+    long int subConvElementIncrement = increment * dilationFactor;
+    long int subConvRowIncrement = increment * originalWidth * dilationFactor;
+    long int subConvOffset = increment * subConvColIdx + subConvRowIdx*originalWidth*increment;
+
+    unsigned i = 0;
+    unsigned rowOffset = subConvOffset;
+    for(unsigned h = 0; h < height; ++h)
+    {
+        for(unsigned w = 0; w < width; ++w)
+        {
+            unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement )<< SHIFT_FOR_STORAGE_ELEMENT);
+        }
+        rowOffset += subConvRowIncrement;
+    }
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
+
 
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
 //This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
