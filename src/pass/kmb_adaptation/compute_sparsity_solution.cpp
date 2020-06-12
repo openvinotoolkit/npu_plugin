@@ -51,18 +51,18 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     }
 
-    // For dilated sub convs the compiler generates sparsity maps and SEPs for the input activations tensors for better performance 
+    // For dilated sub convs the compiler generates sparsity maps and SEPs for the input activations tensors for better performance
     // Here we add the attribute for this feature to be consistent with the current FP16 A0 WA
     for (auto& dilatedSubConvOp : dilatedSubConvOps)
     {
         auto inputTensor = dilatedSubConvOp->getInputTensor(0);
         auto inputTensorMemoryLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-       
-      
+
+
         if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR") || inputTensorMemoryLocation == mv::Tensor::MemoryLocation("INPUT"))
         {
             dilatedSubConvOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
-            dilatedSubConvOp->set<bool>("inputActivationSparsityForDilatedConv", true);    
+            dilatedSubConvOp->set<bool>("inputActivationSparsityForDilatedConv", true);
         }
     }
 }

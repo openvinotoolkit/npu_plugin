@@ -5,7 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/utils/data_generator.hpp"
-#include <algorithm>    
+#include <algorithm>
 
 static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 

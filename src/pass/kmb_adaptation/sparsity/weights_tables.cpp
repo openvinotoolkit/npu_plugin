@@ -361,7 +361,7 @@ void populateActivationStorageElementMap(mv::Data::TensorIterator activationStor
 // Sub function to generate storage element pointer for dilated convolution
 void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
 {
-    // This logic is just copied from function above 
+    // This logic is just copied from function above
     // Needs to be update as per design in slides
 
     auto input = dpuTaskOp->getInputTensor(0);
@@ -483,14 +483,14 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                 dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
                 dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
                 dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
-                
+
                 // NB this function still needs the correct logic to generate the SEPs
                 populateActivationStorageElementMapForDilatedConvolution(activationStorageElement, dpuTaskOp);
             }
         }
 
-        
-         
+
+
     }
 }
 
