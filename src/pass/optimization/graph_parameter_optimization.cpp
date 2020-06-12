@@ -696,7 +696,10 @@ namespace mv
                     contexts = {4,4,16,1};
                 }
 
-                if( (clustering == "SplitOverH") or (clustering == "SplitOverHOverlapped") or (clustering == "HKSwitch"))
+                if(opType == "Concat") {
+                    isiSplit = {1,1,1,1};
+                }
+                else if( (clustering == "SplitOverH") or (clustering == "SplitOverHOverlapped") or (clustering == "HKSwitch"))
                 {
                     isiSplit = {1,totalClusters,1,1};
                 }
@@ -1080,12 +1083,26 @@ namespace mv
                         return INF;
                     }
                 }
+
+                if((childOp.getOpType() == "Concat") || (childOp.getOpType() == "MaxPool")){
+                    if (parentClustering == "SplitOverK" || parentClustering == "Clustering"
+                            || parentClustering == "HKSwitch")
+                    {
+                        if (childClustering == "SplitOverH" || childClustering == "HKSwitch" || childClustering == "SplitOverHOverlapped")
+                        {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                return INF;
+                        }
+                    }
+                }
+
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (parent["spilling"].get<bool>())
+                if (parent["spilling"].get<bool>() and (parentOp.getOpType() != "Concat"))
                 {
-                    if ((childClustering == "HKSwitch") and (parentOp.getOpType() != "Concat"))
+                    if ((childClustering == "HKSwitch"))
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
@@ -1110,8 +1127,8 @@ namespace mv
                     //NOTE: If your parent is SplitOverH, your childs should be only Soh,HKSwitch
                     if (parentClustering == "SplitOverH")
                     {
-                        if ((childClustering == "SplitOverK" || childClustering == "Clustering") and childOp.getOpType() != "Concat")
-                        // if (childClustering == "SplitOverK" || childClustering == "Clustering")
+                        // if ((childClustering == "SplitOverK" || childClustering == "Clustering") and childOp.getOpType() != "Concat")
+                        if (childClustering == "SplitOverK" || childClustering == "Clustering")
                         {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");

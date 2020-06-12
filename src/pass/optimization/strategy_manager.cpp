@@ -28,7 +28,9 @@ Attribute& StrategyManager::getStrategy(mv::Op op,string strategy)
 {
     auto op_name = op.getName();
     auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
-    if (!(op.hasTypeTrait("optimizable")) || software)
+    
+    // if (!(op.hasTypeTrait("optimizable")) || software)
+    if ((!(op.hasTypeTrait("optimizable")) || software) and (op.getOpType() != "Concat"))
     {
         log(Logger::MessageType::Debug, "StrategyManager: using Default strategy for " + op_name + " op");
         op_name = "Default";
