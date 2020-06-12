@@ -640,7 +640,7 @@ namespace mv
 
                 // For each aligned-to-16 number of output channels possibility, add only the 
                 // minimum number of streams over k that will be aligned to that number
-                for(unsigned channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
+                for(int channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
                     auto possibleK = findBestK(alignedOutputChannelSize, channels);
                     if(splits.back() != possibleK and possibleK >= 1)
                         splits.push_back(possibleK);
