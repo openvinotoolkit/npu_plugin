@@ -227,13 +227,13 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 // I think it should be the full input tensor size ?
                 if (dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
                 {
-                    auto inputTensor = dpuTask->getInputTensor(0);
+                    auto inputTensorShape = dpuTask->get<mv::Shape>("subConvInputShape");
                     //every element of sparsity map describes 8 elements of normal tensor
 
                     // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
-                    auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                                               {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
+                    auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                               {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
+                                               {inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8},
                                                {1}});
 
                     std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
@@ -248,8 +248,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     // Here we generate a storage element pointer table of all 0's for the dilated conv case
                     // The logic to generate SEPs for dilated conv should be added in weight_tables.cpp - function populateActivationStorageElementMapForDilatedConvolution()
 
-                    mv::Shape storageElementShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                    mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                                               {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
                                                                {1},
                                                                {1}});
                     std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);

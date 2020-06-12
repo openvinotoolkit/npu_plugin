@@ -5,6 +5,7 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/utils/data_generator.hpp"
+#include "include/mcm/tensor/tiling.hpp"
 #include <algorithm>
 
 static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -174,11 +175,12 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
 {
     mv::Data::TensorIterator subConv;
     //TODO handle stride != 1
+    auto stride = opIt->get<std::array<unsigned short, 2>>("stride");
     if (opIt->getOpType() == "Conv")
     {
         subConv = om.conv(sourceTensor,
                 opIt->getInputTensor(1),
-                opIt->get<std::array<unsigned short, 2>>("stride"),
+                stride,
                 padding,
                 1,
                 opIt->get<unsigned>("group"),
@@ -190,19 +192,28 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     {
         subConv = om.depthwiseConv(sourceTensor,
                 opIt->getInputTensor(1),
-                opIt->get<std::array<unsigned short, 2>>("stride"),
+                stride,
                 padding,
                 1,
                 opIt->get<mv::DType>("dType"),
                 opIt->get<mv::QuantizationParams>("quantParams"),
                 name);
     }
-    subConv->setShape(newShape);
+    //calc output shape based on input shape
+    auto kernelShape = opIt->getInputTensor(1)->getShape();
 
+    auto W = mv::Tiling::inferOutputSize(newShape[mv::IO_WIDTH_DIMENSION], padding[0], padding[1], kernelShape[mv::KERNEL_WIDTH], stride[0]);
+    auto H = mv::Tiling::inferOutputSize(newShape[mv::IO_HEIGHT_DIMENSION], padding[2], padding[3], kernelShape[mv::KERNEL_HEIGHT], stride[1]);
+    auto C = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
+    auto N = newShape[mv::IO_BATCH_DIMENSION];
+
+    mv::Shape outputShape({W, H, C, N});
+    subConv->setShape(outputShape);
 
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DilatedSubConv", true);
-    subConvOp->set<mv::Shape>("subConvShape", newShape);
+    subConvOp->set<mv::Shape>("subConvInputShape", newShape);
+    subConvOp->set<mv::Shape>("subConvOutputShape", outputShape);
     if(opIt->hasAttr("opId"))
     {
         unsigned currentOpId = opIt->get<unsigned>("opId");
@@ -296,8 +307,11 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
                     std::vector<mv::Data::TensorIterator> currVec;
+                    mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1}); //TODO handle last slice of different shape
                     for (size_t j = 0; j < dilationFactor; j++)
-                        currVec.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding, name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j), {sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1}));
+                        currVec.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
+                            name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
+                            newShape));
                     subConvs.push_back(currVec);
                 }
 

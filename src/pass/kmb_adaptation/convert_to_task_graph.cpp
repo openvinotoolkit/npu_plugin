@@ -131,7 +131,7 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     {
         if (attrs.at("DilatedSubConv").get<bool>())
         {
-            auto outputShape = attrs.at("subConvShape").get<mv::Shape>();
+            auto outputShape = attrs.at("subConvOutputShape").get<mv::Shape>();
             dpuConv->setShape(outputShape);
         }
     }
@@ -167,7 +167,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
     {
         if (attrs.at("DilatedSubConv").get<bool>())
         {
-            auto outputShape = attrs.at("subConvShape").get<mv::Shape>();
+            auto outputShape = attrs.at("subConvOutputShape").get<mv::Shape>();
             dpuConv->setShape(outputShape);
         }
     }
