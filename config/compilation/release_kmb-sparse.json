@@ -7,12 +7,13 @@
                 "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
+                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
@@ -22,6 +23,8 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "PWLUsage": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -88,7 +91,8 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            }
+            },
+            "UseReferenceOps"
         ]
     },
     "quantization" : {
@@ -103,17 +107,23 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PreprocessForPWL",
+            "CheckPWLForRequantize",
             "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
+            "HandleGroupConvolution",
+            "TileOps",
+            "StreamBinaryDataWeights",
             "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
+                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
@@ -213,6 +223,7 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
+            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -280,7 +291,8 @@
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "PopulateInstructionListTables"
         ]
     },
     "scheduling": {
@@ -289,7 +301,9 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
-              "producer_bound" : 256
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : false,
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
