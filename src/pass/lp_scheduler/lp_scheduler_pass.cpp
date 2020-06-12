@@ -65,12 +65,13 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     begin = reader_t::begin_read(stringfile, om);
     end = reader_t::end_read();
 
-    mv::lp_scheduler::DDR_Address_Generator<dag_t>
-        ddr_address_generator(model, input_dag);
+    mv::lp_scheduler::DDR_Address_Generator<dag_t> ddr_address_generator(
+        model, input_dag, std::numeric_limits<int>::max());
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-        lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
-    UNUSED(status);
-    assert(status);
+        "lp_sched_ddr_address_dump.txt", add_ddr_control_edges);
+    if (!status) {
+      throw std::string("[DDR_Address_Generation]: insufficient DDR space");
+    }
   }
 
   for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
