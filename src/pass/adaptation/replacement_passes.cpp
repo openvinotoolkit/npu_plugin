@@ -800,9 +800,20 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         double paddedSize = ceil(eachSize) * factors.first;
         unsigned short pad = paddedSize - inputShape[mv::IO_HEIGHT_DIMENSION];
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
+        std::pair<bool, bool> producers_quantized(true, true);
+        auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
+        //NOTE: this condition needs to be extended in case that the next operation is float16 in general
+        if (sinkOps[0]->getOpType() == "Output")
+            if (sinkOps[0]->hasAttr("precision")
+                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                producers_quantized.first = true;
+                producers_quantized.second = false;
+            }
+
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kSize[0], factors.first, padding, true);
+                                                                            kSize[0], factors.first, padding, producers_quantized.first);
 
 	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -828,7 +839,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
 	    // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0},false);
+                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0}, producers_quantized.second);
 
 	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
