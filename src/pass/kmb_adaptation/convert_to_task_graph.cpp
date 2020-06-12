@@ -131,6 +131,48 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     return dpuConv;
 }
 
+mv::Data::TensorIterator convertDilatedSubConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                    const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
+{
+    auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    auto outputTensorType = attrs.at("dType").get<mv::DType>();
+    auto outputShape = attrs.at("Shape").get<mv::Shape>();
+    auto globalParams = om.getGlobalConfigParams();
+    bool enableChannelMajor = globalParams->get<bool>("enable_channel_major_conv");
+    unsigned group = attrs.at("group").get<unsigned>();
+    auto opType = attrs.at("dialtedConvType").get<std::string>();
+    mv::Data::TensorIterator dpuConv;
+    if (opType == "Conv")
+        dpuConv= om.dPUTaskConv(inputs, strides, padding, dilationFactor, group, outputTensorType, quantParams, mv::createDPUTaskName(name));
+    else
+      dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams,
+                                                mv::createDPUTaskName(name));
+
+    dpuConv->setShape(outputShape);
+    auto dpuConvOp = om.getSourceOp(dpuConv);
+    dpuConvOp->set<bool>("hasWeights", true);
+
+    //    NOTE: Thanks to proper padding handling we don't need this anymore
+    //    Leaving it here as an historical note... and now it's back as an option
+    //    Check if the dpuConvop is DW, if DW, it can't be channel major conv
+    bool notDW = true;
+    if(dpuConvOp->hasAttr("taskOp"))
+    {
+        if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
+            notDW = false;
+    }
+    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and notDW)
+    {
+        dpuConvOp->erase("taskOp");
+        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
+    }
+    dpuConvOp->set<bool>("DilatedSubConv", true);
+    return dpuConv;
+}
+
 mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
                     const std::map<std::string, mv::Attribute>& attrs, const std::string& name, bool software = false)
 {
@@ -527,6 +569,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             std::function<mv::Data::TensorIterator(mv::OpModel&, const std::vector<mv::Data::TensorIterator>&,
             const std::map<std::string, mv::Attribute>&, const std::string&, bool &)>> opsFunctors = {
     {"Conv", convertConvolutionToDPUTask},
+    {"DilatedSubConv", convertDilatedSubConvolutionToDPUTask},
     {"DepthwiseConv", convertDepthwiseConvolutionToDPUTask},
     {"MaxPool", convertMaxPoolToDPUTask},
     {"Eltwise", convertEltwiseToTask},

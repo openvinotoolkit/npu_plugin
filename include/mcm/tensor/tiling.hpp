@@ -121,7 +121,7 @@ namespace mv
 
             size_t kernelSize;
             std::string opType = opIt->getOpType();
-            if (opType == "Conv" || opType == "DepthwiseConv")
+            if (opType == "Conv" || opType == "DepthwiseConv" || opType == "DilatedSubConv")
             {
                 auto weightTensor = opIt->getInputTensor(1);
                 auto weightsShape = weightTensor->getShape();

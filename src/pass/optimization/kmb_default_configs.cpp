@@ -46,6 +46,15 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("outputActivationSparsity").insert(true)
     .registerSet("weightsSparsity").insert(true);
 
+
+MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
+    .enter("DilatedSubConv")
+    .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverW","StreamOverK"})
+    .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH"})
+    .registerSet("inputActivationSparsity").insert(true)
+    .registerSet("outputActivationSparsity").insert(true)
+    .registerSet("weightsSparsity").insert(true);
+
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthwiseConv")
     .registerSet("streamingStrategies").insert(vector<string>{"StreamOverH","StreamOverK"})
