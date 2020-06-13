@@ -43,6 +43,22 @@ namespace mv
     }
 }
 
+bool findSparseTensorIndex(
+    mv::Data::OpListIterator layer,
+    const std::string& name,
+    std::size_t tensorIdx)
+{
+    bool found = false;
+    if (layer->hasAttr(name))
+    {
+        auto tensorList = layer->get<std::vector<size_t>>(name);
+        if (std::find(tensorList.begin(), tensorList.end(), tensorIdx) !=
+            tensorList.end())
+            found = true;
+    }
+    return found;
+}
+
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::Element &)
 {
@@ -83,11 +99,9 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                if (layer->hasAttr("unpopulatedSparsityMapIndex"))
-                {
-                    if (i == layer->hasAttr("unpopulatedSparsityMapIndex"))
-                        specialTensorNames.insert(layer->getInputTensor(i)->getName());
-                }
+                if (findSparseTensorIndex(layer, "unpopulatedSparsityMapIndex", i) ||
+                    findSparseTensorIndex(layer, "storageElementIndex", i))
+                    specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
                     auto inputTensorName = layer->getInputTensor(i)->getName();
@@ -302,7 +316,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
                      tensor->get<std::string>("splitStrategy") == "SplitOverK")
