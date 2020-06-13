@@ -1973,40 +1973,30 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
     // 0 = cls_pred --> UPALayerTask.input_data
     // 1 = bbox_pred --> UPALayerTask.weights_data
     // 2 = im_info --> UPALayerTask.weights_table
-    // 3 = scale --> ProposalParams.ratio
-    // 4 = ratio --> ProposalParams.scale
     auto cls_pred = opIt->getInputTensor(0);
     auto bbox_pred = opIt->getInputTensor(1);
     auto im_info = opIt->getInputTensor(2);
-    auto scale = opIt->getInputTensor(3);
-    auto ratio = opIt->getInputTensor(4);
 
     // output tensor mapping:
     // 0 = output --> UPALayerTask.output_data
     auto output = opIt->getOutputTensor(0);
 
     // Build scale vector
-    auto scale_vector = std::vector<float>();
-    for (unsigned i = 0; i < scale->size(); ++i)
-        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at(i))));
+    auto scale_vector = opIt->get<std::vector<float>>("scale");
 
     // Build ratio vector
-    auto ratio_vector = std::vector<float>();
-    for (unsigned i = 0; i < ratio->size(); ++i)
-        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at(i))));
+    auto ratio_vector = opIt->get<std::vector<float>>("ratio");
 
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, bbox_pred)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, im_info)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, scale)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, ratio)));
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     // Fill in required params
-    softLayerParamsValue->ratio = ratio_vector;
-    softLayerParamsValue->scale = scale_vector;
+    softLayerParamsValue->ratio = std::move(ratio_vector);
+    softLayerParamsValue->scale = std::move(scale_vector);
     softLayerParamsValue->base_size = opIt->get<unsigned>("base_size");
     softLayerParamsValue->pre_nms_topn = opIt->get<unsigned>("pre_nms_topn");
     softLayerParamsValue->post_nms_topn = opIt->get<unsigned>("post_nms_topn");
