@@ -128,7 +128,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             // coincident with the data flow that carries the memory requirement
             if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
             {
-                if(inputOp->getOpType() != "ImplicitConcat")
+                if(inputOp->getOpType() != "ImplicitConcat" || inputOp->getOpType() != "ImplicitJoin")
                 {
                     if(cm.isFlowAllowed(inputOp, deallocateInputOp))
                     {

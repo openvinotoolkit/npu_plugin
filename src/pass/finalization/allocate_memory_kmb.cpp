@@ -424,7 +424,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
             //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
 
-            if(opType == "Concat" || opType == "ImplicitConcat")
+            if(opType == "Concat" || opType == "ImplicitConcat"  || opType == "ImplicitJoin")
             //this means that the Input tensors should be in the Output Tensor
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
@@ -445,21 +445,35 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 auto inputSlots = opIterator->inputSlots();
 
-                auto axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
                 std::vector<unsigned> running_concat_offset_LHS;
                 std::vector<unsigned> running_concat_offset_RHS;
 
                 auto prev_offset = 0;
                 auto offset = 0;
-
-                for(unsigned i = 0; i < inputSlots; i++)
+                unsigned int axis = 0;
+                if (opType != "ImplicitJoin")
                 {
-                    running_concat_offset_LHS.push_back(prev_offset + offset);
-                    prev_offset = prev_offset + offset;
-                    // Calculate for next tensor
-                    offset = opIterator->getInputTensor(i)->getShape()[axis];
-                    running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                    axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
+
+                    for(unsigned i = 0; i < inputSlots; i++)
+                    {
+                        running_concat_offset_LHS.push_back(prev_offset + offset);
+                        prev_offset = prev_offset + offset;
+                        // Calculate for next tensor
+                        offset = opIterator->getInputTensor(i)->getShape()[axis];
+                        running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                    }
                 }
+                else
+                {
+
+                    for(unsigned i = 0; i < inputSlots; i++)
+                    {
+                        running_concat_offset_LHS.push_back(prev_offset + offset);
+                        running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                    }
+                }
+
 
                 for(unsigned i = 0; i != inputSlots; i++)
                 {

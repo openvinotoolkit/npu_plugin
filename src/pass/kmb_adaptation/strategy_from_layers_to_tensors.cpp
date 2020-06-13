@@ -73,6 +73,21 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             implicitConcat->getOutputTensor(0)->set<std::string>("splitStrategy",
                                                     implicitConcat->getInputTensor(0)->get<std::string>("splitStrategy"));
     }
+
+    std::vector<mv::Data::OpListIterator> implicitJoinOps;
+    auto sortedOps2 = om.topologicalSort();
+    for (auto& op : sortedOps2)
+    {
+        if (op->getOpType() == "ImplicitJoin")
+            implicitJoinOps.push_back(op);
+    }
+    for (auto implicitJoin : implicitJoinOps)
+    {
+        if (implicitJoin->getInputTensor(0)->hasAttr("splitStrategy"))
+            implicitJoin->getOutputTensor(0)->set<std::string>("splitStrategy",
+                                                    implicitJoin->getInputTensor(0)->get<std::string>("splitStrategy"));
+    }
+
     auto implicitPermuteOps = om.getOps("ImplicitPermute");
     for (auto implicitPermute : implicitPermuteOps)
     {

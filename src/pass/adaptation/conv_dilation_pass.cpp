@@ -272,7 +272,7 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 auto originalShape = inputTensor->getShape();
                 auto numberOfSubConvs = dilationFactor * dilationFactor;
-                std::vector<std::vector<mv::Data::TensorIterator>> subConvs;
+                std::vector<mv::Data::TensorIterator> subConvs;
 
                 size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
                 size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
@@ -281,18 +281,19 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 //Create sub dilated convs
                 size_t subConvIdx = 0;
+                uint64_t leadingOffset = 0;
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
-                    std::vector<mv::Data::TensorIterator> currVec;
                     mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
                     for (size_t j = 0; j < dilationFactor; j++)
                     {
-                        currVec.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
+                        subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
                             newShape, subConvIdx++));
+                        subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
+                        leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
                     }
 
-                    subConvs.push_back(currVec);
                 }
 
                 // reconnect children to subgraph
@@ -310,27 +311,16 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
                 om.removeOp(opIt);
 
-                // emulate multi dim concat by using three concats
-                std::vector<mv::Data::TensorIterator> subConcat;
-                for (size_t i = 0; i < dilationFactor; i++)
-                {
-                    subConcat.push_back(om.concat(subConvs[i],
-                        "H",
+                auto join = om.implicitJoin(subConvs,
+                        "HW",
                         dtype,
                         quantParams,
-                        name + "dialtedconcat_H"+ std::to_string(i)));
-                    om.getSourceOp(subConcat[i])->set<unsigned>("opId", opId);
-                }
-                auto concat = om.concat(subConcat,
-                        "W",
-                        dtype,
-                        quantParams,
-                        name + "dialtedconcat_W");
-                om.getSourceOp(concat)->set<unsigned>("opId", opId);
+                        name + "dialtedjoin");
+                om.getSourceOp(join)->set<unsigned>("opId", opId);
                 for (unsigned j = 0; j < opsToLink.size(); ++j)
                 {
-                    opsToLink[j]->setInputTensor(concat, inputSlots[j], false);
-                    om.defineFlow(concat, opsToLink[j], inputSlots[j]);
+                    opsToLink[j]->setInputTensor(join, inputSlots[j], false);
+                    om.defineFlow(join, opsToLink[j], inputSlots[j]);
                 }
                 //TODO add StorageElement & sparsity MAp for following Op
             }

@@ -217,7 +217,11 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-    std::vector<uint32_t> numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+    std::vector<uint32_t> numericStrides;
+    if (t->hasAttr("leadingOffset"))
+        numericStrides = tensorBufferIt->getData()->computeNumericStrides();
+    else
+        numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 

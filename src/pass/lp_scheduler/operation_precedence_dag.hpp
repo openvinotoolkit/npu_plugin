@@ -284,7 +284,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitUnion"} ) {
+          "ImplicitInputSlice", "ImplicitUnion", "ImplicitJoin"} ) {
         init_from_model(model);
     }
 
@@ -697,11 +697,11 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") || 
+      return (op->getOpType() == "ImplicitConcat") ||
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
           (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
-          (op->getOpType() == "ImplicitInputSlice");
+          (op->getOpType() == "ImplicitInputSlice") || (op->getOpType() == "ImplicitJoin");
     }
 
 
@@ -908,7 +908,7 @@ class Operation_Dag {
           mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
-        (op_type == "ImplicitConcat") || 
+        (op_type == "ImplicitConcat") ||
         (implicit_op_types_.find(op_type) != implicit_op_types_.end());
     }
 

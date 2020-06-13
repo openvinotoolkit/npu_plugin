@@ -215,6 +215,7 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     // NOTE: At this moment in the model, all the concats are implicit
     auto implicitConcats = om.getOps("ImplicitConcat");
+    auto implicitJoins = om.getOps("ImplicitJoin");
     // NOTE: For now only operations with U8/DPU Tasks are streamed
     auto slices = om.getOps("Slice");
     std::vector<mv::Data::OpListIterator> slicesFP16 = {};
@@ -255,6 +256,21 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     addQuantizationLayers(om, implicitConcatsU8, U8);
     addQuantizationLayers(om, implicitConcatsFP16, FP16);
+
+    std::vector<mv::Data::OpListIterator> implicitJoinU8;
+    std::vector<mv::Data::OpListIterator> implicitJoinFP16;
+
+    for(auto& implicitJoin: implicitJoins)
+    {
+        auto outputDType = implicitJoin->getOutputTensor(0)->getDType();
+        if(outputDType == U8)
+            implicitJoinU8.push_back(implicitJoin);
+        else if(outputDType == FP16)
+            implicitJoinFP16.push_back(implicitJoin);
+    }
+
+    addQuantizationLayers(om, implicitJoinU8, U8);
+    addQuantizationLayers(om, implicitJoinFP16, FP16);
 }
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
