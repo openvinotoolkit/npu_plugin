@@ -1533,8 +1533,8 @@ namespace mv
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
                                        continue;
-                                    if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
-                                        continue;
+                                    //if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
+                                    //    continue;
 
                                     Shape streamShape({1,h,c,k,n});//Stream over W is 1 for now . TODO: implement stream W
 

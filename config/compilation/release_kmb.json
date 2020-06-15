@@ -125,7 +125,7 @@
                     "globalConfigs" : [
 
                         {"name" : "referenceDevice", "value" : "A0"},
-                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "totalClusters",  "value" : 1   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -136,7 +136,7 @@
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
                     ],
                     "globalStrategies" : [
-                        {"name" : "forceSpilling",    "value" : false       },
+                        {"name" : "forceSpilling",    "value" : true       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
