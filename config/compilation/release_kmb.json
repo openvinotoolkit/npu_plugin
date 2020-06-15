@@ -25,7 +25,6 @@
                 "PPEAccuracy": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
-                "RemoveSoftmax": false,
                 "split_strategy" :
                 [
                     {

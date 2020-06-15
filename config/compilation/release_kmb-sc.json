@@ -23,7 +23,6 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
-                "RemoveSoftmax": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
                 "split_strategy" :

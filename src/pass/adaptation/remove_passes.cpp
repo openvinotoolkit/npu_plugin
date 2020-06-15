@@ -5,7 +5,6 @@
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void removeSoftmax(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void removeReshapeNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 void removePermuteNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
@@ -38,10 +37,6 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     removeInterpNoOpFcn(pass, model);
     removeReshapeNoOpFcn(pass, model);
     removeSliceNoOpFcn(pass, model);
-    auto returnedParams = model.getGlobalConfigParams();
-    if (returnedParams->hasAttr("RemoveSoftmax"))
-        if(returnedParams->get<bool>("RemoveSoftmax"))
-            removeSoftmax(pass, model);
 }
 
 void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -65,19 +60,6 @@ void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
     mv::OpModel om(model);
     auto dropoutOps = om.getOps("Dropout");
     for (auto& opIt : dropoutOps)
-    {
-        auto sourceTensor = opIt->getInputTensor(0);
-        auto parentOpIt = om.getSourceOp(sourceTensor);
-        linkNewOperationsRemove(parentOpIt, om.tensorEnd(), om, opIt);
-    }
-}
-
-void removeSoftmax(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-    auto softmaxOps = om.getOps("Softmax");
-    for (auto& opIt : softmaxOps)
     {
         auto sourceTensor = opIt->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(sourceTensor);
