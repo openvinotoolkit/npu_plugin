@@ -297,6 +297,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
             toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
         }
+
+        // Here we add the sparsity required for dilated conv
+        if (t->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                            && t->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
+        {
+            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
+        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());

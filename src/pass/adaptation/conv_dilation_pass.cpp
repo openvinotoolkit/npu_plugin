@@ -264,6 +264,11 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
 
             if (dilationFactor > 1)
             {
+                // Specify that next layer requires sparse input
+                // At least for now until we have a way to convert a tensor with storage elements into a dense one
+                // Assuming that this will be done after SSD-512 
+                opIt.leftmostChild()->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
+
                 auto nonDilatedKernel = opIt->getInputTensor(1);
                 auto nonDilatedKernelShape = nonDilatedKernel->getShape();
                 auto inputTensor = opIt->getInputTensor(0);

@@ -31,11 +31,18 @@ int main()
     // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
 
     auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
-    //add identity maxpool so concat will happen using storage elements
 
-    auto identity_maxPool = om.maxPool(conv0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "identity_maxpool_0");
+    //auto identity_maxPool = om.maxPool(conv0, {1,1}, {1,1}, {0,0,0,0}, true, mv::DType("UInt8"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "identity_maxpool_0");
 
-    om.output(identity_maxPool);
+    mv::Shape kernel1 = mv::Shape({3,3,16,16});
+    std::vector<int64_t> weightsData1(kernel1.totalSize(), 0);
+
+    for(unsigned i = 64; i < 64+1; i++)
+        weightsData1[i] = 1;
+
+    auto weights1 = om.constantInt(weightsData1,kernel1, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1},{-1.000000000000000},{1.000000000000000}}, "weights_conv1");
+    auto conv1 = om.conv(conv0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv1");
+    om.output(conv1);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

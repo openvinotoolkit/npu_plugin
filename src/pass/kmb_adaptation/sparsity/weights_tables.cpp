@@ -9,6 +9,7 @@
 #include "include/mcm/tensor/shape.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/target/kmb/ppe_task.hpp"
+#include <cmath>
 #include <math.h>
 
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
@@ -52,7 +53,7 @@ namespace mv
             "remove bias tensors after been adding to all weight tables"
         );
         MV_REGISTER_PASS(PopulateStorageElementPointers)
-        .setFunc(populateStorageElementPointersFcn)
+    .setFunc(populateStorageElementPointersFcn)
         .setDescription(
             "Populate storage element maps for activations"
         );
@@ -385,10 +386,28 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIt
     {
         for(unsigned w = 0; w < width; ++w)
         {
-            unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement )<< SHIFT_FOR_STORAGE_ELEMENT);
+            unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement ) << SHIFT_FOR_STORAGE_ELEMENT);
         }
         rowOffset += subConvRowIncrement;
     }
+    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+}
+
+void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+
+    auto parentImplicitJoin = om.getSourceOp(dpuTaskOp->getInputTensor()[0]);
+    auto numberInputs = parentImplicitJoin.inputsSize();
+
+    //Original DF factor is sqrt() of inputs to ImplicitJoin 
+    auto originalDilationFactor = std::sqrt(numberInputs);
+
+    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
+
+    std::vector<int64_t> unpopulated_offsets(width*height, 0);
+   
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
@@ -501,8 +520,22 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                 dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
                 dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
 
-                // NB this function still needs the correct logic to generate the SEPs
                 populateActivationStorageElementMapForDilatedConvolution(activationStorageElement, dpuTaskOp);
+            }
+
+            if(dpuTaskOp->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                    && dpuTaskOp->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
+            {
+                auto activationStorageElement
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("storageElementIndex"));
+                auto activationSparsityMap
+                        = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::size_t>("unpopulatedSparsityMapIndex"));
+                dpuTaskOp->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
+                dpuTaskOp->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
+
+                // NB this function still needs the correct logic to generate the SEPs
+                populateActivationStorageElementMapForLayerAfterDilatedConvolution(activationStorageElement, dpuTaskOp, model);
             }
         }
 
