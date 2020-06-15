@@ -778,15 +778,13 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    auto MAX_KERNEL = 11; // hardware limitation
-
     auto averagePoolOps = om.getOps("AveragePool");
 
     for (auto& opIt : averagePoolOps)
     {
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
 
-        if(kSize[mv::KERNEL_WIDTH] <= MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= MAX_KERNEL) // can do as single depthwise, skip
+        if(kSize[mv::KERNEL_WIDTH] <= mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= mv::MAX_KERNEL) // can do as single depthwise, skip
             continue;//skip for this avgPool
 
         //figure out the bigger kernel dimension width or height when having an asymmetric kernel
@@ -795,9 +793,9 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         auto asymmetricCase = false;
         auto asymmetricBothKernelsLarge = false;
 
-        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) and (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL or kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL))
+        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) and (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL or kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL))
         {
-            if (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL)
+            if (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL)
                 asymmetricBothKernelsLarge = true;
 
             // deal with asymetric kernels when one dim is larger than MAX_KERNEL
@@ -828,7 +826,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         factors = getFactors(kernelSize);
         pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
-        if (factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
+        if (factors.first >  mv::MAX_KERNEL or factors.second >  mv::MAX_KERNEL)
         {
             //unable to split into appropriate size
             throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
@@ -840,7 +838,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             factorsDim2 = getFactors(kSize[1-largeDim]);//toggling between the two kernel sizes
             pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[1-largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
 
-            if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
+            if (factorsDim2.first >  mv::MAX_KERNEL or factorsDim2.second >  mv::MAX_KERNEL)
             {
                 //unable to split into appropriate size
                 throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
@@ -1088,7 +1086,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                         (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
                         (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
                         (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
-            std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j) );
+            std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto sliceInput = om.slice(inputTensor,
                             beginInputShape,
                             branchInputSize,
@@ -1190,23 +1188,21 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     mv::OpModel om(model);
     mv::DataModel dm(model);
 
-    const auto MAX_STRIDE = 8; // hardware limitation
-
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)	
     {
         //zm ops except eltwise
         if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv" || opIt->getOpType() == "MaxPool" || opIt->getOpType() == "AveragePool")
         {
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-            if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
+            if( (stride[mv::STRIDE_HORIZONTAL] <= mv::MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= mv::MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
             //stride supported not slicing, stride not supported slicing with slices dimensions of stride
             opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
-                                                            (stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            (stride[mv::STRIDE_VERTICAL] > MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            (stride[mv::STRIDE_HORIZONTAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            (stride[mv::STRIDE_VERTICAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                                             nextOp);
         }
     }
