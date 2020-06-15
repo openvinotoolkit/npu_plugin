@@ -35,6 +35,7 @@
 #include <Pool.h>
 #include <cma_allocation_helper.h>
 #include <mvMacros.h>
+#include <xlink_uapi.h>
 #endif
 
 #include <kmb_config.h>
@@ -62,6 +63,8 @@ public:
 
     virtual const InferenceEngine::InputsDataMap& getRuntimeInputs() const { return _runtimeInputs; }
     virtual const InferenceEngine::OutputsDataMap& getRuntimeOutputs() const { return _runtimeOutputs; }
+
+    static std::vector<std::string> getAvailableDevices();
 
     const KmbConfig& _config;
 
