@@ -43,6 +43,22 @@ namespace mv
     }
 }
 
+bool findSparseTensorIndex(
+    mv::Data::OpListIterator layer,
+    const std::string& name,
+    std::size_t tensorIdx)
+{
+    bool found = false;
+    if (layer->hasAttr(name))
+    {
+        auto tensorList = layer->get<std::vector<size_t>>(name);
+        if (std::find(tensorList.begin(), tensorList.end(), tensorIdx) !=
+            tensorList.end())
+            found = true;
+    }
+    return found;
+}
+
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::Element &)
 {
@@ -60,6 +76,22 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
         std::set <std::string> specialTensorNames;
         std::vector <mv::Data::TensorIterator> tensors;
         std::vector <mv::Data::TensorIterator> specialTensors;
+
+        //Todo:: the construction and logic of this pass needs to be refactored.
+        // The pass should not target specific ops to determine if it's output needs to have subtensors generated,
+        // but via location. If  the outputTensor is in NNCMX, then it needs a clustering strategy, and subtensors
+        // They can be also non DPUTasks like ConcatInCMX, Slice,Reshape etc...
+
+        auto implicitConcats = om.getOps("ImplicitConcat");
+        for(auto layer : implicitConcats)
+        {
+            auto outputTensor = layer->getOutputTensor(0);
+            if(outputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+            {
+                auto outputTensorName = layer->getOutputTensor(0)->getName();
+                tensorNames.insert(outputTensorName);
+            }
+        }
         auto dpuTasks = om.getOps("DPUTask");
         for(auto layer : dpuTasks)
         {
@@ -67,11 +99,9 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                if (layer->hasAttr("unpopulatedSparsityMapIndex"))
-                {
-                    if (i == layer->hasAttr("unpopulatedSparsityMapIndex"))
-                        specialTensorNames.insert(layer->getInputTensor(i)->getName());
-                }
+                if (findSparseTensorIndex(layer, "unpopulatedSparsityMapIndex", i) ||
+                    findSparseTensorIndex(layer, "storageElementIndex", i))
+                    specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
                     auto inputTensorName = layer->getInputTensor(i)->getName();
@@ -286,7 +316,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
                      tensor->get<std::string>("splitStrategy") == "SplitOverK")

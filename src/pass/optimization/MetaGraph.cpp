@@ -350,7 +350,6 @@ void MetaGraph::solve()
 {
     auto& firstLevel = levels[firstLevelIdx_];
     auto& lastLevel  = levels[lastLevelIdx_];
-
     bool foundPath = false;
     for( auto startNode : firstLevel.level)
         for( auto endNode : lastLevel.level)
@@ -392,6 +391,9 @@ void MetaGraph::solve()
                 criticalNodes->insert(criticalNodes->end(),edgeCriPath.begin(),edgeCriPath.end());
             }
 
+            if(cost < numeric_limits<double>::infinity())
+                foundPath = true;
+
             StrategySetPair newPair(&(*startNode),&(*endNode));
             CriticalPath newPath(criticalNodes,cost);
 
@@ -405,6 +407,8 @@ void MetaGraph::solve()
         }
 
     name = firstLevel.op->getName() +"==>"+levels[1].op->getName() + "==>" + lastLevel.op->getName();
+    if(!foundPath)
+        cout << "INFINITE PATH: " << name << endl;
     if(!foundPath){
     //    cout<< "ONLY INFINITE PATHS at " << name << endl;
         // TODO throw exception

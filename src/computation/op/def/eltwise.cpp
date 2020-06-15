@@ -17,14 +17,14 @@ namespace mv
             if(std::find(ELTWISES.begin(), ELTWISES.end(), eltwiseType) == ELTWISES.end())
             {
                 errMsg = "Unsupported eltwise";
-                return {false, 1};
+                return {false, 0};
             }
 
             auto inputSize = inputs.size();
             if(inputSize < 2)
             {
                 errMsg = "Eltwise needs at least two inputs";
-                return {false, 1};
+                return {false, 0};
             }
 
             // NOTE: Compiler assumption. It's very stupid
@@ -34,7 +34,7 @@ namespace mv
             if(inputs[0]->isPopulated())
             {
                 errMsg = "Input 0 of eltwise needs at least two inputs";
-                return {false, 1};
+                return {false, 0};
             }
 
             auto input0Shape = inputs[0]->getShape();
@@ -46,7 +46,7 @@ namespace mv
                     if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated())
                     {
                         errMsg = "All the inputs of eltwise ops have to share the same size or the other inputs must have size 1 and be populated";
-                        return {false, 1};
+                        return {false, 0};
                     }
                 }
             }

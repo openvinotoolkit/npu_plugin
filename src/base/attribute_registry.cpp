@@ -281,6 +281,7 @@ bool mv::attr::AttributeRegistry::checkInstanceTrait(const std::string& trait)
 #include    "src/base/attribute_def/std_vec_mv_data_element.cpp"
 #include    "src/base/attribute_def/std_vec_mv_element.cpp"
 #include    "src/base/attribute_def/std_vector_double.cpp"
+#include    "src/base/attribute_def/std_vector_float.cpp"
 #include    "src/base/attribute_def/std_vector_int64.cpp"
 #include    "src/base/attribute_def/std_vector_std_size_t.cpp"
 #include    "src/base/attribute_def/std_vector_std_string.cpp"

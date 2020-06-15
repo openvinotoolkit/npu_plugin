@@ -524,17 +524,11 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    for(auto dpuTaskOp = om.opBegin(); dpuTaskOp != om.opEnd(); ++dpuTaskOp)
+    for(auto op : om.getOps("DPUTask"))
     {
-        auto taskOp = dpuTaskOp->getOpType();
-        if (taskOp == "DPUTask")
-        {
-            if(dpuTaskOp->hasAttr("activationSparsityCompilerSolving")
-                    && dpuTaskOp->get<bool>("activationSparsityCompilerSolving"))
-            {
-                populateActivationStorageElementMap(dpuTaskOp, model);
-            }
-        }
+        if(op->hasAttr("activationSparsityCompilerSolving") &&
+            op->get<bool>("activationSparsityCompilerSolving"))
+            populateActivationStorageElementMap(op, model);
     }
 }
 

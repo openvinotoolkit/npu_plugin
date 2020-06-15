@@ -279,12 +279,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-        if (t->hasAttr("activationSparsityCompilerSolving")
-                            && t->get<bool>("activationSparsityCompilerSolving"))
-        {
-            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
-        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());
@@ -529,11 +523,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
-        // PR653 Streaming Refactoring code
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->data->data_index += leading_offset;
-        //
 
         toBuild->locale_index = std::vector<unsigned int>(1, clusterId);
 
@@ -545,13 +537,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
-    }
-
-    if (t->hasAttr("activationSparsityCompilerSolving")
-                        && t->get<bool>("activationSparsityCompilerSolving"))
-    {
-        toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-        toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
     }
 
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
@@ -909,6 +894,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
 
 void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
 {
+    // Note: Zero-padding populated tensor used for large kernel support needs to keep existing dst strides
+    auto skip_unstriding_dst = false;
+    if(src->hasAttr("is_pad") && src->get<bool>("is_pad"))
+        skip_unstriding_dst = true;
+
     if(tmp->src->locale == MVCNN::MemoryLocation_GraphFile)
     {
         unsigned totalSize = src->getSubTensor(i).getShape().totalSize();
@@ -935,6 +925,8 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->strides = strides;
         tmp->src->data_dtype = dtype;
 
+        if(skip_unstriding_dst)
+            return;
 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
@@ -973,7 +965,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     checkUnstridedDMA(src, -1, tmp);
 
     // Check if the HDE engine compressed the weights
-    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
+    if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
         tmp->compression =  true;
 
     toPush->task.value = tmp;
@@ -1265,6 +1257,127 @@ std::unique_ptr<MVCNN::PPETaskT> mv::RuntimeModel::buildPPETaskT()
     return toBuild;
 }
 
+using fakeSparseAdaptorFunc = std::function<void(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    mv::Control::OpListIterator opIt)>;
+
+void mv::RuntimeModel::adaptFakeSparsityIndex(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    Control::OpListIterator opIt,
+    int clusterId)
+{
+    auto seTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("storageElementIndex");
+    auto smTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("unpopulatedSparsityMapIndex");
+
+    const std::unordered_map<std::string, fakeSparseAdaptorFunc> fakeSparseAdaptors =
+    {
+        {
+            "Conv",
+            [seTensorIdx, smTensorIdx, clusterId](
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                    Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+            }
+        },
+        {
+            "Eltwise",
+            [seTensorIdx, smTensorIdx, clusterId](
+                    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                    Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv->weights_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[1])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+                inv->weights_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[1])
+                        ->getSubTensor(clusterId)
+                        .getAddress();
+            }
+        }
+    };
+
+    auto fakeSparseAdaptor = fakeSparseAdaptors.find(
+        opIt->get<std::string>("taskOp"));
+
+    if (fakeSparseAdaptor != fakeSparseAdaptors.cend())
+        fakeSparseAdaptor->second(inv, opIt);
+    else
+        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel",
+            opIt->getName() + ": No registered fake sparse adapter op type " +
+            opIt->get<std::string>("taskOp"));
+}
+
+void mv::RuntimeModel::adaptFakeSparsityIndex(
+    std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+    Control::OpListIterator opIt)
+{
+    auto seTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("storageElementIndex");
+    auto smTensorIdx = opIt->get<std::vector<std::size_t>>
+        ("unpopulatedSparsityMapIndex");
+
+    const std::unordered_map<std::string, fakeSparseAdaptorFunc> fakeSparseAdaptors =
+    {
+        {
+            "Conv",
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                     Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+            }
+        },
+        {
+            "Eltwise",
+            [seTensorIdx, smTensorIdx](std::unique_ptr<MVCNN::NCEInvariantFieldsT>& inv,
+                     Control::OpListIterator opIt) {
+                inv->input_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[0])
+                        ->getAddress();
+                inv->weights_data->data->storage_element_index =
+                    opIt->getInputTensor(seTensorIdx[1])
+                        ->getAddress();
+
+                inv->input_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[0])
+                        ->getAddress();
+                inv->weights_data->data->sparsity_index =
+                    opIt->getInputTensor(smTensorIdx[1])
+                        ->getAddress();
+            }
+        }
+    };
+
+    auto fakeSparseAdaptor = fakeSparseAdaptors.find(
+        opIt->get<std::string>("taskOp"));
+
+    if (fakeSparseAdaptor != fakeSparseAdaptors.cend())
+        fakeSparseAdaptor->second(inv, opIt);
+    else
+        Logger::log(mv::Logger::MessageType::Error, "RuntimeModel",
+            opIt->getName() + ": No registered fake sparse adapter op type " +
+            opIt->get<std::string>("taskOp"));
+}
+
 void mv::RuntimeModel::updatePWLTaskT(std::unique_ptr<MVCNN::NCEInvariantFieldsT>& toBuild , Control::OpListIterator& opIt){
     if (!opIt->hasAttr("pwlQuantParams"))
         return;
@@ -1486,6 +1599,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
+    if (opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving"))
+        adaptFakeSparsityIndex(toBuild, opIt);
+
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
     {
@@ -1629,6 +1746,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         default:
             break;
     }
+
+    if (opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving"))
+        adaptFakeSparsityIndex(toBuild, opIt, clusterId);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
@@ -1981,40 +2102,30 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAProposalTask(ComputationModel &c
     // 0 = cls_pred --> UPALayerTask.input_data
     // 1 = bbox_pred --> UPALayerTask.weights_data
     // 2 = im_info --> UPALayerTask.weights_table
-    // 3 = scale --> ProposalParams.ratio
-    // 4 = ratio --> ProposalParams.scale
     auto cls_pred = opIt->getInputTensor(0);
     auto bbox_pred = opIt->getInputTensor(1);
     auto im_info = opIt->getInputTensor(2);
-    auto scale = opIt->getInputTensor(3);
-    auto ratio = opIt->getInputTensor(4);
 
     // output tensor mapping:
     // 0 = output --> UPALayerTask.output_data
     auto output = opIt->getOutputTensor(0);
 
     // Build scale vector
-    auto scale_vector = std::vector<float>();
-    for (unsigned i = 0; i < scale->size(); ++i)
-        scale_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(scale->getIntData().at(i))));
+    auto scale_vector = opIt->get<std::vector<float>>("scale");
 
     // Build ratio vector
-    auto ratio_vector = std::vector<float>();
-    for (unsigned i = 0; i < ratio->size(); ++i)
-        ratio_vector.push_back(mv::fp16_to_fp32(static_cast<uint16_t>(ratio->getIntData().at(i))));
+    auto ratio_vector = opIt->get<std::vector<float>>("ratio");
 
     // Fill in tensors
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, cls_pred)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, bbox_pred)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, im_info)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, scale)));
-    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, ratio)));
 
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     // Fill in required params
-    softLayerParamsValue->ratio = ratio_vector;
-    softLayerParamsValue->scale = scale_vector;
+    softLayerParamsValue->ratio = std::move(ratio_vector);
+    softLayerParamsValue->scale = std::move(scale_vector);
     softLayerParamsValue->base_size = opIt->get<unsigned>("base_size");
     softLayerParamsValue->pre_nms_topn = opIt->get<unsigned>("pre_nms_topn");
     softLayerParamsValue->post_nms_topn = opIt->get<unsigned>("post_nms_topn");
@@ -2454,11 +2565,11 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAArgmaxTask(ComputationModel& cm
     return toBuild;
 }
 
-MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATopKTask(ComputationModel&, Element &, Control::OpListIterator)
 {
-    auto toBuild = new MVCNN::UPALayerTaskT();
     throw ArgumentError("tools:RuntimeModel", "UPATask", "Unsupported", "topK not implemented yet");
 
+    auto toBuild = new MVCNN::UPALayerTaskT();
     //TODO
     return toBuild;
 }
@@ -3079,5 +3190,7 @@ void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
 
 std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
 {
+    if(nullptr == binaryData_)
+        serialize();
     return binaryData_;
 }
