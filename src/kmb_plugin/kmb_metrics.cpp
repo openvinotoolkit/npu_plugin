@@ -53,8 +53,7 @@ KmbMetrics::KmbMetrics() {
 }
 
 std::vector<std::string> KmbMetrics::AvailableDevicesNames() const {
-    // TODO replace with xlink_get_device_list filtered via xlink_get_device_status when API becomes available
-    std::vector<std::string> availableDevices = {"Gen3 Intel(R) Movidius(TM) VPU code-named Keem Bay"};
+    std::vector<std::string> availableDevices = KmbExecutor::getAvailableDevices();
 
     std::sort(availableDevices.begin(), availableDevices.end());
     return availableDevices;

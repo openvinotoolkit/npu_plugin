@@ -29,13 +29,27 @@ TEST_F(GetMetricTest, getAvailableDevices) {
     ASSERT_NE(kmbAvalableDevMetricIter, kmbSupportedMetrics.end());
 
     std::vector<std::string> kmbDeviceIds = core->GetMetric(deviceName, METRIC_KEY(AVAILABLE_DEVICES));
-    ASSERT_FALSE(kmbDeviceIds.empty());
-    ASSERT_EQ(kmbDeviceIds.size(), 1);
-    ASSERT_NE(kmbDeviceIds.begin()->find("Keem Bay"), std::string::npos);
+#if defined(__arm__) || defined(__aarch64__)
+    bool runningOnARM = true;
+#else
+    bool runningOnARM = false;
+#endif
+    if (runningOnARM) {
+        ASSERT_FALSE(kmbDeviceIds.empty());
+        ASSERT_EQ(kmbDeviceIds.size(), 1);
+        ASSERT_NE(kmbDeviceIds.begin()->find("vpu-slice"), std::string::npos);
 
-    std::cout << "Found available KMB devices: " << std::endl;
-    for (const std::string& deviceId : kmbDeviceIds) {
-        std::cout << deviceId << std::endl;
+        std::cout << "Found available KMB devices: " << std::endl;
+        for (const std::string& deviceId : kmbDeviceIds) {
+            std::cout << deviceId << std::endl;
+        }
+    } else {
+        if (deviceName == "HDDL2") {
+            ASSERT_FALSE(kmbDeviceIds.empty());
+        } else {
+            // x86 host must not find any available devices in this test
+            ASSERT_TRUE(kmbDeviceIds.empty());
+        }
     }
 }
 
