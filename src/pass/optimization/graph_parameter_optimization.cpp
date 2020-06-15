@@ -818,96 +818,88 @@ namespace mv
                 return false;
             }
 
+            int8_t checkInOutSizes(mv::Op& op, size_t input_gate)
+            {
+                int8_t executableInHW = 0;
+                if (op.getInputTensor(input_gate)->getShape()[mv::IO_WIDTH_DIMENSION] > mv::MAX_DIM_SIZE ||
+                    op.getInputTensor(input_gate)->getShape()[mv::IO_HEIGHT_DIMENSION] > mv::MAX_DIM_SIZE ||
+                    op.getInputTensor(input_gate)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE ||
+
+                    op.getOutputTensor(input_gate)->getShape()[mv::IO_WIDTH_DIMENSION] > mv::MAX_DIM_SIZE ||
+                    op.getOutputTensor(input_gate)->getShape()[mv::IO_HEIGHT_DIMENSION] > mv::MAX_DIM_SIZE ||
+                    op.getOutputTensor(input_gate)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE )
+                        executableInHW = 1;
+                return executableInHW;
+            }
+
+            int8_t checkKernelSizes(mv::Op& op)
+            {
+                int8_t executableInHW = 0;
+                std::array<unsigned short, 4> kernel = {1,1,1,1};//for non conv IN OUT CHANNEL dims = 1
+                if (op.hasAttr("kSize"))
+                    if (op.getOpType() == "MaxPool" || op.getOpType() == "AveragePool" || op.getOpType() == "Eltwise")
+                    {
+                        kernel[mv::KERNEL_WIDTH] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_WIDTH];
+                        kernel[mv::KERNEL_HEIGHT] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
+                    }
+                    else if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                    {
+                        kernel[mv::KERNEL_WIDTH] = op.getInputTensor(1)->getShape()[mv::IO_WIDTH_DIMENSION];
+                        kernel[mv::KERNEL_HEIGHT] = op.getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION];
+                        kernel[mv::KERNEL_INPUT_CHANNELS] = op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS];
+                        kernel[mv::KERNEL_OUTPUT_CHANNELS] = op.getInputTensor(1)->getShape()[mv::KERNEL_OUTPUT_CHANNELS];
+                    }
+
+                if (kernel[mv::KERNEL_WIDTH] > mv::MAX_KERNEL || 
+                     kernel[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL ||
+                     kernel[mv::KERNEL_INPUT_CHANNELS] > mv::MAX_DIM_SIZE ||
+                     kernel[mv::KERNEL_OUTPUT_CHANNELS] > mv::MAX_DIM_SIZE  )
+                    executableInHW = 3;
+
+                if (kernel[mv::KERNEL_WIDTH] != kernel[mv::KERNEL_HEIGHT])
+                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric kernel sizes" + \
+                                                " k_w" + std::to_string(kernel[mv::KERNEL_WIDTH]) + \
+                                                " k_h" + std::to_string(kernel[mv::KERNEL_HEIGHT]));
+                return executableInHW;
+            }
+
+            int8_t checkStrideSizes(mv::Op& op)
+            {
+                int8_t executableInHW = 0;
+                std::array<unsigned short, 2> stride = {1,1};
+                if (op.hasAttr("stride"))
+                    stride = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
+                if (stride[mv::STRIDE_WIDTH] > mv::MAX_STRIDE || stride[mv::STRIDE_HEIGHT] > mv::MAX_STRIDE)
+                    executableInHW += 3;
+
+                if (stride[mv::STRIDE_WIDTH] != stride[mv::STRIDE_HEIGHT])
+                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric strides" + \
+                                                    " s_w" + std::to_string(stride[mv::STRIDE_WIDTH]) + \
+                                                    " s_h" + std::to_string(stride[mv::STRIDE_HEIGHT]));
+                return executableInHW;
+            }
+
             int8_t checkHWUnsupportedOp(mv::Op& op)
             {
                 int8_t executableInHW = 0;
-                if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "MaxPool"
-                        || op.getOpType() == "Eltwise")
+                if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" ||
+                        op.getOpType() == "MaxPool" || op.getOpType() == "AveragePool" ||
+                        op.getOpType() == "Eltwise")
                 {
                     for (std::size_t input_gates = 0; input_gates < op.getInputTensor().size(); input_gates++)
                     {
                         if (input_gates == 0)
                         {
-                            if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > mv::MAX_DIM_SIZE ||
-                                op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > mv::MAX_DIM_SIZE ||
-                                op.getInputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE ||
-                                op.getOutputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > mv::MAX_DIM_SIZE ||
-                                op.getOutputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > mv::MAX_DIM_SIZE ||
-                                op.getOutputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE )
-                                    executableInHW = 1;
-
-                            if ( (op.getOpType() == "MaxPool") || (op.getOpType() == "AveragePool") || (op.getOpType() == "Eltwise") )
-                            {
-                                auto kernel = op.get<std::array<unsigned short, 2>>("kSize");
-                                if (kernel[mv::KERNEL_WIDTH] > mv::MAX_KERNEL || kernel[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL)
-                                    executableInHW = 3;
-                                if (kernel[mv::KERNEL_WIDTH] != kernel[mv::KERNEL_HEIGHT])
-                                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric kernel sizes" + \
-                                                                " k_w" + std::to_string(kernel[mv::KERNEL_WIDTH]) + \
-                                                                " k_h" + std::to_string(kernel[mv::KERNEL_HEIGHT]));
-
-                                auto stride = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
-                                if (stride[mv::STRIDE_WIDTH] > mv::MAX_STRIDE || stride[mv::STRIDE_HEIGHT] > mv::MAX_STRIDE)
-                                    executableInHW = 3;
-                                if (stride[mv::STRIDE_WIDTH] != stride[mv::STRIDE_HEIGHT])
-                                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric strides" + \
-                                                                    " s_w" + std::to_string(stride[mv::STRIDE_WIDTH]) + \
-                                                                    " s_h" + std::to_string(stride[mv::STRIDE_HEIGHT]));
-                            }
-
-                            if (op.getOpType() != "MaxPool" && op.getOpType() != "AveragePool" && op.getOpType() != "Eltwise")
-                            //Note: all the ops have maximum a second input (weights) at G.O stage
-                            {
-                                if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] > mv::MAX_KERNEL ||
-                                    op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL ||
-                                    op.getInputTensor(input_gates)->getShape()[mv::KERNEL_INPUT_CHANNELS] > mv::MAX_DIM_SIZE ||
-                                    op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > mv::MAX_DIM_SIZE)
-                                    executableInHW = 2;
-
-                                if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] !=
-                                    op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT])
-                                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric kernel sizes" + \
-                                                                " k_w" + std::to_string(op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH]) + \
-                                                                " k_h" + std::to_string(op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT]));
-
-                                auto stride = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
-                                if (stride[mv::STRIDE_WIDTH] > mv::MAX_STRIDE || stride[mv::STRIDE_HEIGHT] > mv::MAX_STRIDE)
-                                    executableInHW = 3;
-                                if (stride[mv::STRIDE_WIDTH] != stride[mv::STRIDE_HEIGHT])
-                                    log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric strides" + \
-                                                                    " s_w" + std::to_string(stride[mv::STRIDE_WIDTH]) + \
-                                                                    " s_h" + std::to_string(stride[mv::STRIDE_HEIGHT]));
-                            }
+                            executableInHW += checkInOutSizes(op, input_gates);
+                            executableInHW += checkKernelSizes(op); //Note: all the ops have maximum a second input (weights) at G.O stage
+                            executableInHW += checkStrideSizes(op);
                         }
                         else if (input_gates == 1 && op.getOpType() == "Eltwise")
                         {
                             if (op.getInputTensor(input_gates)->getShape()[mv::IO_WIDTH_DIMENSION] > mv::MAX_DIM_SIZE ||
                                 op.getInputTensor(input_gates)->getShape()[mv::IO_HEIGHT_DIMENSION] > mv::MAX_DIM_SIZE ||
                                 op.getInputTensor(input_gates)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE)
-                                executableInHW = 1;
-                        }
-                        else if (op.getOpType() != "MaxPool" && op.getOpType() != "AveragePool" && op.getOpType() != "Eltwise")
-                        //Note: all the ops have maximum a second input (weights) at G.O stage
-                        {
-                            if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] > mv::MAX_KERNEL ||
-                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL ||
-                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_INPUT_CHANNELS] > mv::MAX_DIM_SIZE ||
-                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_OUTPUT_CHANNELS] > mv::MAX_DIM_SIZE)
-                                executableInHW = 2;
-
-                            if (op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH] !=
-                                op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT])
-                                log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric kernel sizes" + \
-                                                            " k_w" + std::to_string(op.getInputTensor(input_gates)->getShape()[mv::KERNEL_WIDTH]) + \
-                                                            " k_h" + std::to_string(op.getInputTensor(input_gates)->getShape()[mv::KERNEL_HEIGHT]));
-
-                            auto stride = op.getAttrs().at("stride").get<std::array<unsigned short, 2>>();
-                            if (stride[mv::STRIDE_WIDTH] > mv::MAX_STRIDE || stride[mv::STRIDE_HEIGHT] > mv::MAX_STRIDE)
-                                executableInHW = 3;
-                            if (stride[mv::STRIDE_WIDTH] != stride[mv::STRIDE_HEIGHT])
-                                log(mv::Logger::MessageType::Debug, op.getName() + "has asymmetric strides" + \
-                                                                " s_w" + std::to_string(stride[mv::STRIDE_WIDTH]) + \
-                                                                " s_h" + std::to_string(stride[mv::STRIDE_HEIGHT]));
+                                executableInHW += 1;
                         }
                     }
                 }
