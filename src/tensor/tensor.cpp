@@ -83,7 +83,6 @@ subTensors_(),
 kernelDataOffsets_(other.kernelDataOffsets_),
 noneZeroElements_(other.noneZeroElements_)
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_BASE)
 
     if (other.hasSubTensors())
@@ -91,6 +90,7 @@ noneZeroElements_(other.noneZeroElements_)
         for (std::size_t i = 0; i < other.numSubTensors(); i++)
         {
             subTensors_.push_back(std::make_shared<mv::Tensor>(*other.subTensors_[i]));
+            subTensors_.back()->setName(getName() + "sub" + std::to_string(i));
         }
     }
 
@@ -99,6 +99,18 @@ noneZeroElements_(other.noneZeroElements_)
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
+    } else if (other.isSparse()) {
+      // when copying an unpopulated sparse tensor create brand new sparsitymap
+      // and storage pointers as they cannot be shared like populated (read-only)
+      // tensors.
+      set<bool>("sparse", false);
+      for (size_t i=0; i<other.numSubTensors(); i++) {
+        subTensors_[i]->set<bool>("sparse", false);
+      }
+      setSparse();
+      if (other.hasAttr("address")) {
+        setAddress(other.get<size_t>("address"));
+      }
     }
 }
 
@@ -426,30 +438,32 @@ void mv::Tensor::setAddress(int64_t address)
     set<std::size_t>("address", address);
     if (isSparse())
     {
-        auto tensorSize = getClusterSize();
+        size_t tensorSize;
+
+        tensorSize = isPopulated() ? getClusterSize() : computeTotalSize();
 
         // Order assumed for unpopulated: Tensor - Storage Element - Sparsity Map
         // Order assumed for populated: Tensor (packed data) - Sparsity Map
         auto sparsitySize = sparsityMap_->getClusterSize();
+        sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
 
         if(!isPopulated())
         {
             auto storageElementSize = storageElement_->getClusterSize();
             storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
-        }
-        sparsityMap_->setAddress(address + (tensorSize - sparsitySize));
+        } 
     }
+   
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
     {
         subTensors_[tIdx]->setAddress(address);
         // Handle A0 SOH sparsity addressing
-        if (subTensors_[tIdx]->hasAttr("use_sub0_addrs") && subTensors_[tIdx]->get<bool>("use_sub0_addrs"))
-        {
+        if (subTensors_[tIdx]->hasAttr("use_sub0_addrs") && subTensors_[tIdx]->get<bool>("use_sub0_addrs")) {
             auto sm_addr = subTensors_[0]->getSparsityMap()->getAddress();
             auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
             subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
             subTensors_[tIdx]->getStorageElement()->setAddress(se_addr);
-        }
+        } 
     }
 }
 
@@ -486,6 +500,8 @@ bool mv::Tensor::setSparse()
     sparsityMap_->set<bool>("sparsityMap", true);
     noneZeroElements_ = 0;
 
+    
+
     //populate sparsity map
     if (isPopulated())
     {
@@ -501,8 +517,26 @@ bool mv::Tensor::setSparse()
         storageElement_  = std::make_shared<Tensor>(createStorageElementName(getName()), storageElementShape, mv::DType("Int32"), order);
     }
 
-    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
+    unsigned sm_offset_byte_index = 0UL, se_offset_byte_index = 0UL;
+    for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++) {
+        
         subTensors_[tIdx]->setSparse();
+        if (!isPopulated()) {
+          auto sub_sparsity_map = subTensors_[tIdx]->getSparsityMap();
+          // set offset_byte_index //
+          sub_sparsity_map->set<unsigned>("offset_byte_index",
+              sm_offset_byte_index );
+          sm_offset_byte_index += sub_sparsity_map->getClusterSize();
+          sparsityMap_->subTensors_.push_back(sub_sparsity_map);
+
+
+          auto sub_storage_element = subTensors_[tIdx]->getStorageElement();
+          sub_storage_element->set<unsigned>("offset_byte_index",
+              se_offset_byte_index);
+          se_offset_byte_index += sub_storage_element->getClusterSize();
+          storageElement_->subTensors_.push_back(sub_storage_element);
+        }
+    }
 
     return true;
 }
@@ -1124,10 +1158,32 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
+   
+
+    if (other.hasSubTensors())
+    {
+        for (std::size_t i = 0; i < other.numSubTensors(); i++)
+        {
+            subTensors_.push_back(std::make_shared<mv::Tensor>(*other.subTensors_[i]));
+        }
+    }
+
     if (other.isPopulated())
     {
         data_ = other.data_;
         blocks_ = other.blocks_;
+    } else if (other.isSparse()) {
+      // when copying an unpopulated sparse tensor create brand new sparsitymap
+      // and storage pointers as they cannot be shared like populated (read-only)
+      // tensors.
+      set<bool>("sparse", false);
+      for (size_t i=0; i<other.numSubTensors(); i++) {
+        subTensors_[i]->set<bool>("sparse", false);
+      }
+      setSparse();
+      if (other.hasAttr("address")) {
+        setAddress(other.get<size_t>("address"));
+      }
     }
 
     return *this;
@@ -1294,8 +1350,42 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     }
 }
 
+void mv::Tensor::splitPopulatedActivationAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
+{
+    auto shape = getShape();
+    for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+    {
+        size_t idx = wlItr - workloads.begin();
+        auto width = wlItr->MaxX - wlItr->MinX + 1;
+        auto height = wlItr->MaxY - wlItr->MinY + 1;
+        if (splitOverH)
+        {
+            mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
+            subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+            std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+        }
+        else
+        {
+            mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
+            subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+            std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+        }
+
+        if (hasAttr("quantParams"))
+            subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
+        if (isSparse())
+            subTensors_[idx]->setSparse();
+
+    }
+
+    set<bool>("broadcasted", (!splitOverH || multicast));
+}
+
 void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
 {
+
     if (isPopulated())
     {
         auto shape = getShape();
@@ -1357,6 +1447,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
             size_t idx = wlItr - workloads.begin();
             auto width = wlItr->MaxX - wlItr->MinX + 1;
             auto height = wlItr->MaxY - wlItr->MinY + 1;
+
             if (splitOverH)
             {
                 mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
@@ -1365,6 +1456,7 @@ void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool s
                 subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
                 auto is_last_subtensor = (workloads.size() - 1 == idx);
                 auto is_sparse = (isSparse() || ((this->hasAttr("needs_sparse") && this->get<bool>("needs_sparse"))));
+
                 if (is_sparse && is_last_subtensor){
                     subTensors_[idx]->set<bool>("use_sub0_addrs", true);
                 }

@@ -222,6 +222,9 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     {
         std::vector<mv::Data::OpListIterator> afterSlice =
                 mv::findSinkLayers(dm, slice->getOutputTensor(0));
+        // Handle back-to-back slices
+        if(afterSlice[0]->getOpType() == "Slice")
+            afterSlice[0] = afterSlice[0].leftmostOutput().sink();
         auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
                            afterSlice[0]->getName());
         if (it != dpuTasksFP16Names.end())

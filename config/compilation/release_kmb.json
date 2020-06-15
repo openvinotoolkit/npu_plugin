@@ -7,6 +7,7 @@
                 "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
+                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 1,
@@ -108,7 +109,7 @@
             "FusePostOps",
             "PreprocessForPWL",
             "CheckPWLForRequantize",
-            "AddReshapesToChangeSoftmaxAxis",
+            "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
             "TileOps",
@@ -122,7 +123,9 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "totalClusters",  "value" : 1   },
+
+                        {"name" : "referenceDevice", "value" : "A0"},
+                        {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
@@ -300,7 +303,8 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false
+              "remove_barriers_in_upa_tail" : false,
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
@@ -312,6 +316,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

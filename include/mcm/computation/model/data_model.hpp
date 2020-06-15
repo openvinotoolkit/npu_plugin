@@ -43,6 +43,7 @@ namespace mv
         Data::TensorIterator defineTensor(const std::string& name, const Shape& shape, DType dType, Order order, const std::vector<mv::DataElement>& data);
         Data::TensorIterator defineTensor(const Tensor& tensor);
         Data::TensorIterator defineTensor(std::shared_ptr<Tensor> tensor);
+        bool isTensorDefined(std::shared_ptr<Tensor> tensor) const;
         void undefineTensor(Data::TensorIterator tensor);
         void undefineTensor(const std::string& name);
         std::size_t tensorsCount() const;
