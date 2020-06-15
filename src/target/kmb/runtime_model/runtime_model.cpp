@@ -1490,10 +1490,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
 
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
-        adaptFakeSparsityIndex(toBuild, opIt);
-
     return toBuild;
 }
 
@@ -1637,10 +1633,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
             toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
     }
-
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
-        adaptFakeSparsityIndex(toBuild, opIt, clusterId);
 
     return toBuild;
 }
