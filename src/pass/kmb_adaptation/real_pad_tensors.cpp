@@ -335,7 +335,6 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
         if(taskOp == "Conv" || taskOp == "DepthwiseConv" || taskOp == "MaxPool" ||
             taskOp == "Eltwise")
         {
-            std::cout << "opIt Aligned Tensor Name: " << opIt->getName() << std::endl;
             auto numInputs = 1;
             if (taskOp == "Eltwise")
                 numInputs = opIt->getInputTensor().size();
