@@ -1049,12 +1049,39 @@ namespace mv
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (child["sohConcat"].get<bool>())
+                if (child["Concat"].get<string>() == "SOH")
                 {
                     if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                            return INF;
+                    }
+                }
+                else if (parent["Concat"].get<string>() == "SOH")
+                {
+                    if(childClustering == "SplitOverK")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                            return INF;
+                    }
+                }
+                else if (child["Concat"].get<string>() == "SOK")
+                {
+                    if(parentClustering == "SplitOverH")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                            return INF;
+                    }
+                }
+                else if (parent["Concat"].get<string>() == "SOK")
+                {
+                    if(childClustering == "SplitOverH" || childClustering == "HKSwitch")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
                             return INF;
                     }
                 }
@@ -1439,15 +1466,15 @@ namespace mv
                 else if(globalEnableWeightsSparsity)
                     weightsSparsity = decideWeightsSparsity(op);
 
-                vector<Attribute> sohConcatPool = {false};
+                vector<Attribute> ConcatPool = {string("None")};
                 if(op.getOpType() == "Concat")
                 {
                     if(allInputsSameSize(op))
-                        sohConcatPool = {true, false};
+                        ConcatPool = {string("SOH"), string("SOK")};
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto sohConcat : sohConcatPool){
+                for( const auto Concat : ConcatPool){
                 for( const auto spilling : spillingPool)
                 {
                     for( const auto clustering : clusteringStrategyPool)
@@ -1548,7 +1575,7 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
-                                    s["sohConcat"] = sohConcat;
+                                    s["Concat"] = Concat;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
