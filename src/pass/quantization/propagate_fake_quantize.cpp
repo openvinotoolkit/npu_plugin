@@ -185,7 +185,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     std::vector<mv::QuantizationParams> outQuantParams;
     for (size_t i = 0; i < current_ops.size(); i++) {
         if (current_ops[i]->getOpType() == "FakeQuantize") {
-            outQuantParams.push_back(extractQuantParamsO(current_ops[0], op->getOpType() != "Constant"));
+            outQuantParams.push_back(extractQuantParamsO(current_ops[i], op->getOpType() != "Constant"));
         }
     }
 
