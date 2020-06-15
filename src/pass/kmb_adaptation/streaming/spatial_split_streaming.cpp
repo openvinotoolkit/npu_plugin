@@ -790,7 +790,7 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
 void streamingOperationsFcn(const mv::pass::PassEntry& pass,
                                 mv::ComputationModel& model,
                                 mv::TargetDescriptor&,
-                                mv::Element&,
+                                mv::Element& passDesc,
                                 mv::Element&)
 {
 
@@ -826,6 +826,10 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && (opType != "Eltwise"))
             continue;
 
+        std::size_t alignment = 1;
+        if(passDesc.hasAttr("alignment"))
+            alignment = passDesc.get<int>("alignment");
+
         auto outputTensor = opIt->getOutputTensor(0);
         auto outputShape = outputTensor->getShape();
         auto inputTensor = opIt->getInputTensor(0);
@@ -849,7 +853,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 
         std::vector<mv::Tiling*> tiles = {&masterTile};
 
-        auto applyTiling = [&](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
+        auto applyTiling = [opIt, alignment, pass](mv::Element& split, mv::Tiling& tile) -> std::vector<mv::Tiling>*
         {
             //the axis&split are stored in a map with key-> val .....
             //Don't want to if-then-else over all possible values of the axis...
@@ -862,6 +866,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             if(numSplits > 1)
             {
                 tile.setAxis(axis);
+                tile.setAlignment(alignment);
                 tile.resizeNumberOfTiles(numSplits);
                 tile.generateTiling(opIt);
                 return &tile.childTiles();

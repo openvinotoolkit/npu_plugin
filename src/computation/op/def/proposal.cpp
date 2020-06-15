@@ -13,10 +13,10 @@ namespace mv
         {
 
             auto input = inputs[0];
-            if (inputs.size() != 5)
+            if (inputs.size() != 3)
             {
                 std::stringstream err;
-                err << "Incorrect number of inputs (must be 5): " << inputs.size();
+                err << "Incorrect number of inputs (must be 3): " << inputs.size();
                 errMsg = err.str();
                 return {false, 0};
             }
@@ -51,6 +51,8 @@ namespace mv
         MV_REGISTER_OP(Proposal)
         .setInputs({"inputs"})
         .setOutputs({"output"})
+        .setArg<std::vector<float>>("scale")
+        .setArg<std::vector<float>>("ratio")
         .setArg<unsigned>("base_size")
         .setArg<unsigned>("pre_nms_topn")
         .setArg<unsigned>("post_nms_topn")
