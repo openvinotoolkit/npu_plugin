@@ -270,6 +270,7 @@ namespace mv
                 }
 
                 Shape tensorShape = tensorToSize->getShape();
+
                 //update the streamingPool to the worst combination, based on slice sizes
                 size_t outputSize;
                 size_t numberOfSplits;
@@ -292,7 +293,7 @@ namespace mv
                     extraLines += (padding[3]? kHeight/2 : 0);
 
                     //the worst splits will round up, adding 1 to the division is not as accurate as ceiling
-                    auto worstNumberOfSplits = std::ceil(outputSize/ (newOutputSize + extraLines));
+                    auto worstNumberOfSplits = (size_t)std::ceil(outputSize/ (newOutputSize + extraLines));
                     //auto worstNumberOfSplits = (unsigned int)std::ceil(outputSize/ newOutputSize);- the worst, maximum
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
