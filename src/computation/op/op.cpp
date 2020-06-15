@@ -304,6 +304,23 @@ bool mv::Op::isImplicit() const
     return isImplicitOp;
 }
 
+bool mv::Op::isSparsityConsumer() const
+{
+    bool isSparseConsumerOp = false;
+    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise"};
+    if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(),
+        getOpType()))
+    {
+        isSparseConsumerOp = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(sparseConsumers.cbegin(),
+        sparseConsumers.cend(), get<std::string>("taskOp")))
+    {
+        isSparseConsumerOp = true;
+    }
+    return isSparseConsumerOp;
+}
+
 bool mv::Op::hasWeights() const
 {
     bool hasWeights = false;
@@ -314,7 +331,6 @@ bool mv::Op::hasWeights() const
         hasWeights = false;
     return hasWeights;
 }
-
 
 bool mv::Op::hasPWLActivation() const
 {
@@ -336,4 +352,9 @@ bool mv::Op::hasPWLActivation() const
         }
     }
     return hasPWL;
+}
+
+bool mv::Op::hasFloatPrecision() const
+{
+    return hasAttr("floatPrecision") && get<bool>("floatPrecision");
 }

@@ -13,7 +13,7 @@
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
@@ -110,7 +110,7 @@
             "FusePostOps",
             "PreprocessForPWL",
             "CheckPWLForRequantize",
-            "AddReshapesToChangeSoftmaxAxis",
+            "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
             "TileOps",
@@ -303,7 +303,8 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false
+              "remove_barriers_in_upa_tail" : false,
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
@@ -315,6 +316,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

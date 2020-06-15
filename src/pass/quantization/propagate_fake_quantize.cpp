@@ -166,27 +166,6 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
             op->getInputTensor(1)->getDType() == getDType(Precision::I8);
 }
 
-bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
-    if(left.size() != right.size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < left.size(); i++) {
-        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
-            return  false;
-        }
-    }
-    return true;
-}
-
-bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
-    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
-    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
-    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
-    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
-}
-
 mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
     //NOTE: If we have more than one child we have several cases
     //ALL branches without FQ -> initial quant params and float output
@@ -269,13 +248,13 @@ void propagateParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
-
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Eltwise" && op->getOpType() == "Concat") {
+        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
             assert(areAllInputQuantParamsEqual(om, op));
         }
 
-        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
+        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
+            || op->getOpType() == "Interp") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {

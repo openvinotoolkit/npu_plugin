@@ -31,26 +31,28 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-    auto convOps = om.getOps("Conv");
+    auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
-    for (auto& convOp : convOps)
-    {
-        auto inputTensor = convOp->getInputTensor(0);
-        auto inputTensorMemoryLocation = inputTensor->get<mv::Tensor::MemoryLocation>("Location");
-        //if the input Tensor is in ddr, it means that the previous op outputed in cmx and for
-        //memory requirements a travel to ddr is taking place so the previous op was streamed
-        if (inputTensorMemoryLocation == mv::Tensor::MemoryLocation("DDR"))
-        {
-            //for now we are going to handle only the case that we have an op flaot16
-            if (convOp->hasAttr("floatPrecision") && convOp->get<bool>("floatPrecision") &&
-                    referenceDevice == "A0")
+    for (auto opList : opsMap) {
+        for (auto op : opList.second) {
+
+            bool solvedByMixedConversion = op->hasAttr("placeConversionToFloat") &&
+                op->get<bool>("placeConversionToFloat") &&
+                op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
+                mv::Tensor::MemoryLocation("NNCMX");
+
+            if (op->hasAttr("floatPrecision") &&
+                op->get<bool>("floatPrecision") &&
+                referenceDevice == "A0" &&
+                (!op->hasAttr("inputActivationSparsity") ||
+                !op->get<bool>("inputActivationSparsity")) &&
+                !solvedByMixedConversion)
             {
-                convOp->set<bool>("activationSparsityCompilerSolving", true);
-                convOp->set<bool>("inputActivationSparsity", true);
+                op->set<bool>("activationSparsityCompilerSolving", true);
+                op->set<bool>("inputActivationSparsity", true);
             }
         }
     }
-
 }
