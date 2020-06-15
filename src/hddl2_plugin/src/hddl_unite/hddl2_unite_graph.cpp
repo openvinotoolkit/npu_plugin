@@ -21,7 +21,10 @@
 
 #include <string>
 
+#include "hddl2_metrics.h"
+
 using namespace vpu::HDDL2Plugin;
+namespace IE = InferenceEngine;
 
 static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& deviceID) {
     if (deviceID.empty()) return nullptr;
@@ -57,9 +60,15 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     statusCode =
         HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use);
 
-    if (statusCode != HddlStatusCode::HDDL_OK) {
+    if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
+        THROW_IE_EXCEPTION << IE::details::as_status << IE::StatusCode::NETWORK_NOT_LOADED;
+    } else if (statusCode != HddlStatusCode::HDDL_OK) {
+        if (!HDDL2Metrics::isServiceRunning()) {
+            _logger->error(FAILED_START_SCHEDULER.c_str());
+        }
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
+
     if (_uniteGraphPtr == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Graph information is not provided";
     }

@@ -43,9 +43,6 @@ protected:
 };
 
 void InferRequest_Tests::SetUp() {
-    // TODO Workaround [Track number: S#28523]
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
@@ -162,14 +159,14 @@ TEST_F(InferRequest_GetBlob, GetBlobWillContainsSameDataAsSetBlob_WithRemoteMemo
 }
 
 //------------------------------------------------------------------------------
-using InferRequestCreation_Tests = CoreAPI_Tests;
-// [Track number: S#30141]
-TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWithoutDaemon) {
+using InferRequestCreation_Tests = InferRequest_Tests;
+TEST_F(InferRequestCreation_Tests, CanCompileButCanNotCreateRequestWithoutDaemon) {
+    std::vector<std::string> devices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
+    if (!devices.empty()) {
+        GTEST_SKIP() << "Not possible to test it with device / service.";
+    }
     unsetenv("KMB_INSTALL_DIR");
-    ModelPooling_Helper modelPoolingHelper;
-    auto cnnNetwork = modelPoolingHelper.network;
 
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(cnnNetwork, pluginName));
     ASSERT_ANY_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
