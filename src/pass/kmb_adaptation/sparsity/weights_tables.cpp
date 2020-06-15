@@ -393,21 +393,61 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIt
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
+int64_t getSmallestInputAddress(mv::Data::OpListIterator implicitJoin)
+{
+    auto numberInputs = implicitJoin.inputsSize();
+    auto minBaseAddress = implicitJoin->getInputTensor(0)->getAddress();
+    for (size_t i=1; i < numberInputs; i++)
+    {
+        auto address = implicitJoin->getInputTensor(i)->getAddress();
+        if (address < minBaseAddress)
+            minBaseAddress = address;
+    }
+
+    std::cout << " minBaseAddress " << std::hex << minBaseAddress << std::endl;
+    return minBaseAddress;
+}
+
 void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
 
-    auto parentImplicitJoin = om.getSourceOp(dpuTaskOp->getInputTensor()[0]);
-    auto numberInputs = parentImplicitJoin.inputsSize();
+    auto input = dpuTaskOp->getInputTensor()[0];
+    auto parentImplicitJoin = om.getSourceOp(input);
+    auto numberSubConvs = parentImplicitJoin.inputsSize();
+    auto inputBaseAddress = getSmallestInputAddress(parentImplicitJoin);
 
-    //Original DF factor is sqrt() of inputs to ImplicitJoin 
-    auto originalDilationFactor = std::sqrt(numberInputs);
+    //Original DF factor is sqrt() of inputs to ImplicitJoin
+    unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
 
     auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
     auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
 
     std::vector<int64_t> unpopulated_offsets(width*height, 0);
-   
+
+
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
+
+    //for simplicity we pick base address as the smallest of all subconvs output addresses (to avoid negatives)
+    unsigned i = 0;
+    for(unsigned h = 0; h < height; ++h)
+    {
+        unsigned subConvRowIdx = (h%originalDilationFactor)*originalDilationFactor;
+        for(unsigned w = 0; w < width; ++w)
+        {
+            //get base address based on subConvIdx
+            unsigned subConvIdx = subConvRowIdx + w%originalDilationFactor;
+            auto subConvBaseAddressOffset = parentImplicitJoin->getInputTensor(subConvIdx)->getAddress() - inputBaseAddress;
+            auto subConvWidth = parentImplicitJoin->getInputTensor(subConvIdx)->getShape()[mv::IO_WIDTH_DIMENSION];
+            //calc offset from start of subconv
+            unsigned subConvElementIdx = (h/originalDilationFactor)*subConvWidth + (w/originalDilationFactor);
+            unsigned subConvElementOffset = subConvElementIdx * increment;
+
+            unpopulated_offsets[i++] = ((subConvBaseAddressOffset + subConvElementOffset) << SHIFT_FOR_STORAGE_ELEMENT);
+            //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+        }
+    }
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
