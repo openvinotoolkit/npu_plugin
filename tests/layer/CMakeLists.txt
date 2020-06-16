@@ -47,6 +47,9 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
+    add_executable(conv_fp16full conv_fp16full/conv_fp16full.cpp)
+    target_link_libraries(conv_fp16full cm)
+
     add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
     target_link_libraries(conv_int32_output cm)
 

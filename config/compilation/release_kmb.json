@@ -315,6 +315,13 @@
             }
         ]
     },
+    "makeDotFile": {
+                "name": "GenerateDot",
+                "output": "output/dots/graph.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true
+    },
     "root": {
         "Singular": [
             "initialize",
@@ -324,6 +331,7 @@
             "dma",
             "control_flows",
             "finalize",
+            "makeDotFile",
             "scheduling",
             "serialize"
         ]
