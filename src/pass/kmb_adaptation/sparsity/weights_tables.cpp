@@ -366,7 +366,7 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIt
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
-    auto originalWidth = input->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto originalWidth = dpuTaskOp->get<mv::Shape>("originalShape")[mv::IO_WIDTH_DIMENSION];
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
     auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
     auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
@@ -404,7 +404,7 @@ int64_t getSmallestInputAddress(mv::Data::OpListIterator implicitJoin)
             minBaseAddress = address;
     }
 
-    std::cout << " minBaseAddress " << std::hex << minBaseAddress << std::endl;
+    //std::cout << " minBaseAddress " << std::hex << minBaseAddress << std::endl;
     return minBaseAddress;
 }
 

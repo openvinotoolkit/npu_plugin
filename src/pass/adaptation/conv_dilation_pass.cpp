@@ -77,6 +77,7 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DilatedSubConv", true);
     subConvOp->set<unsigned>("originalDilationFactor", opIt->get<unsigned>("dilationFactor"));
+    subConvOp->set<mv::Shape>("originalShape", sourceTensor->getShape());
     subConvOp->set<unsigned>("subConvIndex", subConvIdx);
     if(opIt->hasAttr("opId"))
     {
