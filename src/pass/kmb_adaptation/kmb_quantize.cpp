@@ -259,22 +259,6 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     addQuantizationLayers(om, implicitConcatsU8, U8);
     addQuantizationLayers(om, implicitConcatsFP16, FP16);
 
-    auto implicitOutputs = om.getOps("ImplicitOutput");
-    std::vector<mv::Data::OpListIterator> implicitOutputU8;
-    std::vector<mv::Data::OpListIterator> implicitOutputFP16;
-
-    for(auto& implicitOutput: implicitOutputs)
-    {
-        auto outputDType = implicitOutput->getOutputTensor(0)->getDType();
-        if(outputDType == U8)
-            implicitOutputU8.push_back(implicitOutput);
-        else if(outputDType == FP16)
-            implicitOutputFP16.push_back(implicitOutput);
-    }
-    addQuantizationLayers(om, implicitOutputU8, U8);
-    addQuantizationLayers(om, implicitOutputFP16, FP16);
-
-
 }
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
