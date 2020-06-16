@@ -201,3 +201,38 @@ TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
     ASSERT_TRUE(exists.good());
     std::remove(testFileName.c_str());
 }
+
+class KmbConfigTestsWithParams :
+    public vpuLayersTests, public testing::WithParamInterface<std::string> {};
+
+TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
+    const std::string perfCount = GetParam();
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"PERF_COUNT", perfCount}});
+
+    InferenceEngine::InferRequest request;
+    request = network.CreateInferRequest();
+
+    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
+    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
+    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
+    inputBlob->allocate();
+    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
+
+    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
+    request.SetBlob(inputName, inputBlob);
+    ASSERT_NO_THROW(request.Infer());
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap = {};
+    // GetPerformanceCounts is still not implemented
+    ASSERT_ANY_THROW(perfMap = request.GetPerformanceCounts());
+}
+
+const static std::vector<std::string> perfCountModes = {CONFIG_VALUE(YES), CONFIG_VALUE(NO)};
+
+INSTANTIATE_TEST_CASE_P(perfCount, KmbConfigTestsWithParams, ::testing::ValuesIn(perfCountModes));

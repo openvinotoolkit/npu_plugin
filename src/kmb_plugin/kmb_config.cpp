@@ -47,6 +47,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
                                                   VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
                                                   VPU_KMB_CONFIG_KEY(USE_SIPP),
+                                                  CONFIG_KEY(PERF_COUNT),
                                               });
 
     return options;
