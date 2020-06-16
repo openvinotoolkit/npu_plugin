@@ -149,9 +149,22 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     mv::Data::TensorIterator subConv;
     //TODO handle stride != 1
     auto stride = opIt->get<std::array<unsigned short, 2>>("stride");
+
+    //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
+    mv::Data::TensorIterator sliceInput = om.slice(sourceTensor,
+                                 {0, 0, 0, 0},
+                                 newShape,
+                                 sourceTensor->get<mv::QuantizationParams>("quantParams"),
+                                 opIt->getName() + "_dilatedSlice_" + std::to_string(subConvIdx));
+
+    //sliceInput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
+    auto sliceInputOp = om.getSourceOp(sliceInput);
+
+    sliceInputOp->set<bool>("dilatedSlice", true);
+
     if (opIt->getOpType() == "Conv")
     {
-        subConv = om.conv(sourceTensor,
+        subConv = om.conv(sliceInput,
                 opIt->getInputTensor(1),
                 stride,
                 padding,
@@ -163,7 +176,7 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     }
     else
     {
-        subConv = om.depthwiseConv(sourceTensor,
+        subConv = om.depthwiseConv(sliceInput,
                 opIt->getInputTensor(1),
                 stride,
                 padding,
@@ -172,27 +185,16 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
                 opIt->get<mv::QuantizationParams>("quantParams"),
                 name);
     }
-    //calc output shape based on input shape
-    auto kernelShape = opIt->getInputTensor(1)->getShape();
-
-    auto W = mv::Tiling::inferOutputSize(newShape[mv::IO_WIDTH_DIMENSION], padding[0], padding[1], kernelShape[mv::KERNEL_WIDTH], stride[0]);
-    auto H = mv::Tiling::inferOutputSize(newShape[mv::IO_HEIGHT_DIMENSION], padding[2], padding[3], kernelShape[mv::KERNEL_HEIGHT], stride[1]);
-    auto C = kernelShape[mv::KERNEL_OUTPUT_CHANNELS];
-    auto N = newShape[mv::IO_BATCH_DIMENSION];
-
-    mv::Shape outputShape({W, H, C, N});
-    subConv->setShape(outputShape);
 
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DilatedSubConv", true);
-    subConvOp->set<mv::Shape>("subConvInputShape", newShape);
-    subConvOp->set<mv::Shape>("subConvOutputShape", outputShape);
     subConvOp->set<unsigned>("originalDilationFactor", opIt->get<unsigned>("dilationFactor"));
     subConvOp->set<unsigned>("subConvIndex", subConvIdx);
     if(opIt->hasAttr("opId"))
     {
         unsigned currentOpId = opIt->get<unsigned>("opId");
         subConvOp->set<unsigned>("opId", currentOpId);
+        sliceInputOp->set<unsigned>("opId", currentOpId);
     }
 
 

@@ -127,14 +127,7 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
 
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
-    if (attrs.find("DilatedSubConv") != attrs.end())
-    {
-        if (attrs.at("DilatedSubConv").get<bool>())
-        {
-            auto outputShape = attrs.at("subConvOutputShape").get<mv::Shape>();
-            dpuConv->setShape(outputShape);
-        }
-    }
+
     return dpuConv;
 }
 
@@ -163,14 +156,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
        dpuConvOp->erase("taskOp");
        dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
-    if (attrs.find("DilatedSubConv") != attrs.end())
-    {
-        if (attrs.at("DilatedSubConv").get<bool>())
-        {
-            auto outputShape = attrs.at("subConvOutputShape").get<mv::Shape>();
-            dpuConv->setShape(outputShape);
-        }
-    }
+
     return dpuConv;
 }
 

@@ -33,8 +33,6 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    mv::Data::OpListIterator dilatedConvolutionCommonDMA;
-    bool dilatedConvolutionCommonDMACreated = false;
 
     auto opIt = om.opBegin();
     while (opIt != om.opEnd())
@@ -103,51 +101,72 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 for (size_t i = 0; i < numInputs; i++)
                 {
                     auto inputMemoryLocation = opIt->getInputTensor(i)->get<mv::Tensor::MemoryLocation>("Location");
-                    if(inputMemoryLocation != mv::Tensor::MemoryLocation::NNCMX)
+                    if(inputMemoryLocation != mv::Tensor::MemoryLocation::NNCMX ||(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv")))
                     {
                         auto input = opIt->getInputTensor(i);
                         mv::QuantizationParams inputQuantParams = {{},{},{},{}};
                         if(input->hasAttr("quantParams"))
                             inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
 
-                        std::string memoryLocation = inputMemoryLocation.toString();
-                        if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
-                            memoryLocation = "DDR";
-                        std::string stringDirection(memoryLocation+"2NNCMX");
-                        mv::DmaDirection direction(stringDirection);
 
-                        if(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv") && dilatedConvolutionCommonDMA)
+
+                        if(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv"))
                         {
-                            if(dilatedConvolutionCommonDMA->getOutputTensor(0)->hasAttr("quantParams"))
-                                dilatedConvolutionCommonDMA->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
-
-                            auto flows = input->get<std::set<std::string>>("flows");
-
-                            for(auto flowStr: flows)
+                            if (om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "Slice")
                             {
-                                auto backupFlow = dm.getDataFlow(flowStr);
-                                auto idx = backupFlow->get<std::size_t>("sinkInput");
-                                if (backupFlow.sink()->getName() == opIt->getName())
-                                {
-                                    auto sink = backupFlow.sink();
-                                    om.undefineFlow(backupFlow);
-                                    sink->setInputTensor(dilatedConvolutionCommonDMA->getOutputTensor()[0], idx, false);
-                                    om.defineFlow(dilatedConvolutionCommonDMA, 0, sink, idx);
+                                auto slice = om.getSourceOp(opIt->getInputTensor(0));
+                                auto sliceInput  = slice->getInputTensor(0);
+                                auto sliceInputMemoryLocation = sliceInput->get<mv::Tensor::MemoryLocation>("Location");
+                                std::string memoryLocation = sliceInputMemoryLocation.toString();
+                                if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
+                                    memoryLocation = "DDR";
+                                else
                                     break;
+                                std::string stringDirection(memoryLocation+"2NNCMX");
+                                mv::DmaDirection direction(stringDirection);
+
+                                if (om.getSourceOp(sliceInput)->getOpType() != "DMATask")
+                                {
+                                    auto dpuCopyIn = om.dMATask(sliceInput, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
+                                    auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
+                                    if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
+                                        dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
+
+                                    dpuCopyInOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+
+                                    if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
+                                        dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());
+
+                                    auto flows = sliceInput->get<std::set<std::string>>("flows");
+
+                                    for(auto flowStr: flows)
+                                    {
+                                        auto backupFlow = dm.getDataFlow(flowStr);
+                                        auto idx = backupFlow->get<std::size_t>("sinkInput");
+                                        if (backupFlow.sink()->getOpType() != "DMATask")
+                                        {
+                                            auto sink = backupFlow.sink();
+                                            om.undefineFlow(backupFlow);
+                                            sink->setInputTensor(dpuCopyInOp->getOutputTensor()[0], idx, false);
+                                            sink->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
+                                            om.defineFlow(dpuCopyInOp, 0, sink, idx);
+                                            //break;
+                                        }
+                                    }
+
+                                    dpuCopyIn->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                                 }
                             }
                         }
-                        else 
+                        else
                         {
+                            std::string memoryLocation = inputMemoryLocation.toString();
+                            if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
+                                memoryLocation = "DDR";
+                            std::string stringDirection(memoryLocation+"2NNCMX");
+                            mv::DmaDirection direction(stringDirection);
                             auto dpuCopyIn = om.dMATask(input, direction, opIt->getName() + "_copyIn_" + std::to_string(i));
                             auto dpuCopyInOp = om.getSourceOp(dpuCopyIn);
-
-                            if(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv"))
-                            {
-                                dilatedConvolutionCommonDMA = dpuCopyInOp;
-                                dilatedConvolutionCommonDMACreated = true;
-
-                            }
 
                             if(dpuCopyInOp->getOutputTensor(0)->hasAttr("quantParams"))
                                 dpuCopyInOp->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams").quantize(inputQuantParams.getShift(), inputQuantParams.getMult());

@@ -227,9 +227,9 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 // I think it should be the full input tensor size ?
                 if (dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
                 {
-                    auto inputTensorShape = dpuTask->get<mv::Shape>("subConvInputShape");
+                    auto inputTensorShape = dpuTask->getInputTensor(0)->getShape();
                     //every element of sparsity map describes 8 elements of normal tensor
-
+                    //TODO re-use sparsity map if possible?
                     // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
                     auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
                                                {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
