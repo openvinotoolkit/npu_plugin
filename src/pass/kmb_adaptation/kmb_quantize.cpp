@@ -68,16 +68,6 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
-#if 1
-                if (task->getName() == "conv4_3_norm")
-                {
-                    auto quant_params = mv::QuantizationParams({{0},{0.026569},{},{}});
-                    quantize->set<mv::QuantizationParams>("quantParams", quant_params);
-                    quantizeOp->set<mv::QuantizationParams>("quantParams", quant_params);
-                    std::cout << quantizeOp->getName() << " (" << quantizeOp->getOpType() << "):  (" << quant_params.getZeroPoint()[0] << ", " << quant_params.getScale()[0] << ")" << std::endl;
-
-                }
-#endif
                 if (alignCase)
                 {
                     auto backup = previousOpIt.leftmostInput();
