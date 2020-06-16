@@ -118,35 +118,33 @@ namespace mv
         };
     }
 
-    namespace op {
+    namespace op
+    {
         MV_REGISTER_OP(Conv)
-        .setInputs({"data", "weights"})
-        .setOutputs({"output"})
-        .setArg<std::array<unsigned short, 2>>("stride")
-        .setArg<std::array<unsigned short, 4>>("padding")
-        .setOptionalArg<unsigned>("dilationFactor", 1)
-        .setOptionalArg<unsigned>("group", 1)
-        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
-        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
-        .setInputCheck(op_conv::inputCheckFcn)
-        .setOutputDef(op_conv::outputDefFcn)
-        .setTypeTrait({"executable", "exposed", "optimizable"});
-
-
-        MV_REGISTER_OP(DilatedSubConv)
             .setInputs({"data", "weights"})
             .setOutputs({"output"})
             .setArg<std::array<unsigned short, 2>>("stride")
             .setArg<std::array<unsigned short, 4>>("padding")
-            .setArg<mv::Shape>("subConvShape")
             .setOptionalArg<unsigned>("dilationFactor", 1)
-            .setOptionalArg<std::string>("dialtedConvType", std::string("Conv"))
             .setOptionalArg<unsigned>("group", 1)
             .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
             .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
             .setInputCheck(op_conv::inputCheckFcn)
-            .setOutputDef(op_conv::outputDefDilatedFcn)
-            .setTypeTrait({"executable", "optimizable"});
+            .setOutputDef(op_conv::outputDefFcn)
+            .setTypeTrait({"executable", "exposed", "optimizable"});
+
+        MV_REGISTER_OP(RefConv)
+            .setInputs({"data", "weights"})
+            .setOutputs({"output"})
+            .setArg<std::array<unsigned short, 2>>("stride")
+            .setArg<std::array<unsigned short, 4>>("padding")
+            .setOptionalArg<unsigned>("dilationFactor", 1)
+            .setOptionalArg<unsigned>("group", 1)
+            .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+            .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
+            .setInputCheck(op_conv::inputCheckFcn)
+            .setOutputDef(op_conv::outputDefFcn)
+            .setTypeTrait({"executable"});
     }
 
 }
