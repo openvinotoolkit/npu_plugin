@@ -697,11 +697,11 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") ||
+      return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
           (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
-          (op->getOpType() == "ImplicitInputSlice") || (op->getOpType() == "ImplicitJoin");
+          (op->getOpType() == "ImplicitInputSlice");
     }
 
 
@@ -740,7 +740,7 @@ class Operation_Dag {
     }
 
 
-    bool short_circuit_unit_indegree_op(operation_t& op) {
+    bool short_circuit_implicit_op(operation_t& op) {
       operation_t parent_op, child_op;
       adjacency_map_t::const_iterator adj_rev_itr = adj_map_rev_.find(op);
       adjacency_map_t::const_iterator adj_itr = adj_map_.find(op);
@@ -753,20 +753,19 @@ class Operation_Dag {
       const op_ref_list_t& parent_list = adj_rev_itr->second;
       const op_ref_list_t& child_list = adj_itr->second;
 
-      if (parent_list.size() != 1UL) {
-        return false;
-      }
+      for (const_ref_op_iterator_t pitr=parent_list.begin();
+          pitr!=parent_list.end(); ++pitr) {
+        parent_op = *(*pitr);
+        for (const_ref_op_iterator_t citr=child_list.begin();
+            citr!=child_list.end(); ++citr) {
+          child_op = *(*citr);
 
-      parent_op = *(parent_list.front());
-      for (const_ref_op_iterator_t citr=child_list.begin();
-          citr!=child_list.end(); ++citr) {
-        child_op = *(*citr);
-
-        printfInfo("OperationPrecedenceDAG",
-            "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
-            parent_op->getName().c_str(), op->getName().c_str(),
-            child_op->getName().c_str());
-        if (!add_directed_edge(parent_op, child_op)) { return false; }
+          printfInfo("OperationPrecedenceDAG",
+              "[Short-Circuiting: (%s) -> (%s) -> (%s)]\n",
+              parent_op->getName().c_str(), op->getName().c_str(),
+              child_op->getName().c_str());
+          if (!add_directed_edge(parent_op, child_op)) { return false; }
+        }
       }
       // remove this op from the DAG //
       remove_op_from_dag(op);
@@ -786,10 +785,10 @@ class Operation_Dag {
       }
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
-        bool short_circuited =
-            short_circuit_unit_indegree_op(*oitr);
-        UNUSED(short_circuited);
-        assert(short_circuited);
+        bool short_circuited = short_circuit_implicit_op(*oitr);
+        if (!short_circuited) {
+          throw std::string("[ImplicitOp-Short-Circuting]: failed");
+        }
       }
       return true;
     }
@@ -908,7 +907,7 @@ class Operation_Dag {
           mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
-        (op_type == "ImplicitConcat") ||
+        (op_type == "ImplicitConcat") || 
         (implicit_op_types_.find(op_type) != implicit_op_types_.end());
     }
 

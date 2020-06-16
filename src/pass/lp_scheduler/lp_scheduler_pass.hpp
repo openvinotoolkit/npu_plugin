@@ -364,7 +364,7 @@ class Control_Edge_Set {
       if (!generate_temporal_edges) {
         add_control_edges_between_compute_ops_and_writes(dag, model);
         add_memory_control_edges(dag, model, sbegin, send);
-        add_control_edges_for_implicit_concats(dag, model);
+        add_control_edges_for_implicit_concats_general(dag, model);
         add_control_edges_for_upa_tasks(dag, model);
       } else {
         add_temporal_control_edges(dag, sbegin, send, model,
@@ -590,8 +590,7 @@ class Control_Edge_Set {
       // calling this (CosumerControl) need to check avoiding edges between
       // the sibiling and then this check can be removed.
       if ( (flow_itr == cmodel.flowEnd()) &&
-          !(cmodel.pathExists(oitr_source, oitr_sink)) &&
-          !(cmodel.pathExists(oitr_sink, oitr_source)) ) {
+          !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
           printfInfo("LpScheduler:",
               "[cycle : edge (sink<-source) = (%s <- %s)]\n",
@@ -681,13 +680,12 @@ class Control_Edge_Set {
           add_control_edge(parent_op, op, model);
         }
       }
-
     }
 
-
-
+   
+    // This case works if the structure of concats is a Tree// 
     template<typename OpDag>
-    void add_control_edges_for_implicit_concats(const OpDag& dag,
+    void add_control_edges_for_implicit_concats_tree(const OpDag& dag,
         mv::ComputationModel& model) {
       typedef OpDag dag_t;
       typedef ImplicitConcat_Connected_Component<dag_t> connected_comp_algo_t;
@@ -720,6 +718,88 @@ class Control_Edge_Set {
         }
 
       }
+    }
+
+
+    // This case works if the structure of concats is a DAG //
+    struct in_out_adjacency_list_t {
+      std::set<operation_t> in_coming_;
+      std::set<operation_t> out_going_;
+      void clear() { in_coming_.clear(); out_going_.clear(); }
+    }; // struct in_out_adjacency_list_t //
+
+    template<typename OpDag>
+    void add_control_edges_for_implicit_concats_general(const OpDag& dag,
+        mv::ComputationModel& model) {
+      typedef OpDag dag_t;
+      typedef std::unordered_map<operation_t, in_out_adjacency_list_t>
+          concat_sub_graph_t;
+      concat_sub_graph_t concat_sub_graph;
+
+      //STEP-0: Build a subgraph with ImplicitConcats and nodes adjacent on
+      //them//
+      for (typename dag_t::const_operation_iterator_t itr=dag.begin_nodes();
+          itr!=dag.end_nodes(); ++itr) {
+        operation_t op = *itr;
+        if (!(op->getOpType() == "ImplicitConcat")) { continue; }
+
+        in_out_adjacency_list_t &in_out_adj_list = concat_sub_graph[op]; 
+
+        for (typename dag_t::const_operation_iterator_t
+            pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
+              ++pitr) {
+          operation_t parent_op = *pitr;
+          in_out_adj_list.in_coming_.insert(parent_op);
+          concat_sub_graph[parent_op].out_going_.insert(op);
+        }
+
+        for (typename dag_t::const_operation_iterator_t
+            citr=dag.begin_nodes(op); citr != dag.end_nodes(op); ++citr) {
+          operation_t child_op = *citr;
+          in_out_adj_list.out_going_.insert(child_op);
+          concat_sub_graph[child_op].in_coming_.insert(op);
+        }
+      }
+
+      //STEP-1: eliminate all the implicit concats from the subgraph but 
+      //still retaining the dependencies.
+      for (concat_sub_graph_t::iterator nitr=concat_sub_graph.begin();
+            nitr != concat_sub_graph.end(); ++nitr) {
+        operation_t op = nitr->first;
+        if (!(op->getOpType() == "ImplicitConcat")) { continue; }
+
+        // eliminate concat from the subgraph //
+        in_out_adjacency_list_t &in_out_adj_list = nitr->second;
+        std::set<operation_t>& in_coming = in_out_adj_list.in_coming_;
+        std::set<operation_t>& out_going = in_out_adj_list.out_going_;
+
+        for (auto pitr=in_coming.begin(); pitr!=in_coming.end(); ++pitr) {
+          operation_t parent_op = *pitr;
+          (concat_sub_graph[parent_op]).out_going_.erase(op);
+        }
+
+        for (auto citr=out_going.begin(); citr!=out_going.end(); ++citr) {
+          operation_t child_op = *citr;
+          (concat_sub_graph[child_op]).in_coming_.erase(op);
+        }
+
+        // explode control edges due o removal of ImplicitConcat //
+        for (auto pitr=in_coming.begin(); pitr!=in_coming.end(); ++pitr) {
+          for (auto citr=out_going.begin(); citr!=out_going.end(); ++citr) {
+            // add an edge (pitr->citr) //
+            operation_t src = *pitr;
+            operation_t sink = *citr;
+            (concat_sub_graph[sink]).in_coming_.insert(src);
+            (concat_sub_graph[src]).out_going_.insert(sink);
+
+            if (!(src->getOpType() == "ImplicitConcat") && 
+                  !(sink->getOpType() == "ImplicitConcat")) {
+              add_control_edge(src, sink, model);
+            }
+          }
+        }
+        in_out_adj_list.clear();
+      } // foreach ImplicitConcat //
     }
 
     template<typename OpDag>
@@ -1148,6 +1228,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           size_t idx = outputFlow->get<size_t>("sinkInput");
@@ -1163,6 +1249,12 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
         std::vector<mv::Data::FlowListIterator> flows;
+        // TODO: (Zoran) investigate the root logic issue and
+        // provide a proper fix
+        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
+          assert(spilled_op_itr->getOpType() == "Slice");
+          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
+        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           operation_t sink_op = &(*(outputFlow.sink()));
@@ -1540,14 +1632,18 @@ class DDR_Address_Generator {
               ddr_op_utility_t> address_generator_t;
     typedef typename address_generator_t::address_info_t address_info_t;
     typedef std::unordered_map<operation_t, address_info_t> ddr_address_table_t;
+    typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
 
     struct ddr_address_setter_t {
       ddr_address_setter_t(FILE *fptr=NULL,
-          ddr_address_table_t *address_table_ptr=NULL)
-        : address_table_ptr_(address_table_ptr), fptr_(fptr) {}
+          ddr_address_table_t *address_table_ptr=NULL,
+          const master_slave_relations_t *msrelations_ptr=NULL)
+        : address_table_ptr_(address_table_ptr), fptr_(fptr),
+          msrelations_ptr_(msrelations_ptr) {}
 
       bool operator=(const address_info_t& address_info) const {
-        mv::Op * const op_ptr = const_cast<mv::Op *>(address_info.op_);
+        mv::Op * const op_ptr = const_cast<mv::Op *>(
+            msrelations_ptr_->master_tensor_op(address_info.op_) );
         mv::Data::TensorIterator tensor_itr = op_ptr->getOutputTensor(0UL);
         assert(address_info.address_begin_ >= 1UL);
         size_t address = address_info.address_begin_ - 1UL;
@@ -1568,6 +1664,7 @@ class DDR_Address_Generator {
 
       ddr_address_table_t *address_table_ptr_;
       FILE *fptr_;
+      const master_slave_relations_t *msrelations_ptr_;
     }; // struct ddr_address_setter_t //
 
     struct sched_op_t{
@@ -1579,7 +1676,6 @@ class DDR_Address_Generator {
 
       sched_op_t(operation_t op, size_t time) : op_(op), time_(time) {}
     }; // struct sched_op_t //
-    typedef Master_Slave_Buffer_Relations<dag_t> master_slave_relations_t;
 
 
     template<typename dag_t>
@@ -1700,10 +1796,10 @@ class DDR_Address_Generator {
       update_dag_with_master_slave_relations(schedule.begin(), schedule.end(),
           msrelations);
 
-
       ddr_address_table_t ddr_address_table;
       FILE *fptr = file_name ?  fopen(file_name, "w") : NULL;
-      ddr_address_setter_t address_setter(fptr, &ddr_address_table);
+      ddr_address_setter_t address_setter(fptr, &ddr_address_table,
+            &msrelations);
 
 
       // STEP-3: generate addresses using new DAG and resource model //
