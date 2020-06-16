@@ -261,6 +261,12 @@ void propagateParameters(mv::ComputationModel& model) {
                 quant_params = getParentQuantParams(om, op);
             }
 
+#if 1
+            if (op->getName() == "conv4_3"){
+                quant_params = mv::QuantizationParams({{0},{2.13719},{},{}});
+                std::cout << op->getName() << " (" << op->getOpType() << "):  (" << quant_params.getZeroPoint()[0] << ", " << quant_params.getScale()[0] << ")" << std::endl;
+            }
+#endif
             setQuantizationParams(op, quant_params);
         } else if (op->getOpType() != "Input" && op->getOpType() != "ConstantInt") {
             auto parent = om.getSourceOp(op->getInputTensor(0));
@@ -268,6 +274,12 @@ void propagateParameters(mv::ComputationModel& model) {
                 continue;
 
             quant_params = getParentQuantParams(om, op);
+#if 1
+            if (op->getName() == "conv4_3_norm"){
+                quant_params = mv::QuantizationParams({{0},{0.026569},{},{}});
+                std::cout << op->getName() << " (" << op->getOpType() << "):  (" << quant_params.getZeroPoint()[0] << ", " << quant_params.getScale()[0] << ")" << std::endl;
+            }
+#endif
             setQuantizationParams(op, quant_params);
         }
     }
