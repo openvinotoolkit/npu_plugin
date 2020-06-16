@@ -834,9 +834,9 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         if (asymmetricBothKernelsLarge)
         {
-            pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(1-largeDim));
-            factorsDim2 = getFactors(kSize[1-largeDim]);//toggling between the two kernel sizes
-            pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[1-largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
+            pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(mv::KERNEL_HEIGHT - largeDim));
+            factorsDim2 = getFactors(kSize[mv::KERNEL_HEIGHT - largeDim]);//toggling between the two kernel sizes
+            pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[mv::KERNEL_HEIGHT - largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
 
             if (factorsDim2.first >  mv::MAX_KERNEL or factorsDim2.second >  mv::MAX_KERNEL)
             {
@@ -845,45 +845,59 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             }
         }
 
-        // Padding relationship is (input size + pad) / k = output size
-        unsigned short pad = getPad(factors, inputShape[largeDim], outputShape[largeDim]);
+        //cascading supported ops
+        //first op kernel [factor1.first, factor2.first]
+        //sequenced op kernel [factor1.second, factor2.second]
+        // Padding quantity relationship is (input size + pad) / k = output size, padding config is TRUE, FALSE
+        std::array<unsigned short, 4> padding = {0, 0, 0, 0};
+        std::array<unsigned short, 2> newKernel, newKernel_1 = {1,1};
 
-        std::array<unsigned short, 4> padding = {0, pad, 0, pad};
-        std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
-
+        newKernel[largeDim] = factors.first;//first was the large dimension
+        newKernel_1[largeDim] = factors.second;
         if (asymmetricCase)
         {
             if (asymmetricBothKernelsLarge)
             {
-                unsigned short pad2 = getPad(factorsDim2, inputShape[1-largeDim], outputShape[1-largeDim]);
-                if (largeDim == 0)
+                newKernel[mv::KERNEL_HEIGHT - largeDim] = factorsDim2.first;
+                newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factorsDim2.second;
+
+                padding[mv::PADDING_RIGHT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
+                padding[mv::PADDING_BOT] = (newKernel[1 - largeDim] * newKernel_1[1 - largeDim] > kSize[mv::KERNEL_HEIGHT - largeDim]) ? 1 : 0;
+                if (largeDim == mv::KERNEL_WIDTH)
                 {
-                    padding[3] = pad2;
-                    newKernel[1] = factorsDim2.first;
+                    /*mv::KERNEL_WIDTH -> compute padding needed*/
                 }
                 else
                 {
-                    padding[1] = pad2;
-                    newKernel[0] = factorsDim2.first;
+                    auto temp = padding[mv::PADDING_RIGHT];
+                    padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT];
+                    padding[mv::PADDING_BOT] = padding[mv::PADDING_RIGHT];
                 }
             }
             else
             {
-                if (largeDim == 0)
+                newKernel[mv::KERNEL_HEIGHT - largeDim] = kSize[mv::KERNEL_HEIGHT - largeDim];
+                newKernel_1[mv::KERNEL_HEIGHT - largeDim] = 1; //not kSize[mv::KERNEL_HEIGHT - largeDim];
+                if (largeDim == mv::KERNEL_WIDTH)
                 {
-                    padding[3] = 0;
-                    newKernel[1] = kSize[1];
+                    padding[mv::PADDING_RIGHT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
                 }
                 else
                 {
-                    padding[1] = 0;
-                    newKernel[0] = kSize[0];
+                    padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
                 }
             }
         }
+        else
+        {
+            newKernel[mv::KERNEL_HEIGHT - largeDim] = factors.first;
+            newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
+            padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
+        }
+        
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kernelSize, newKernel, padding);
+                                                                            kSize[largeDim], newKernel, padding);
 
         linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -912,43 +926,11 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             om.undefineFlow(flowsToRemove[flowIdx]);
         }
 
-        newKernel[0] = newKernel[1] = factors.second;
-        auto scaleVal = kSize[0];
-        if (asymmetricCase)
-        {
-            if (asymmetricBothKernelsLarge)
-            {
-                if (largeDim == 0)
-                {
-                    scaleVal = kSize[1];
-                    newKernel[1] = factorsDim2.second;
-                }
-                else
-                {
-                    scaleVal = kSize[0];
-                    newKernel[0] = factorsDim2.second;
-                }
-            }
-            else
-            {
-                if (largeDim == 0)
-                {
-                    scaleVal = kSize[1];
-                    newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
-                }
-                else
-                {
-                    scaleVal = kSize[0];
-                    newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
-                }
-            }
-
-        }
         pass.log(mv::Logger::MessageType::Debug, "newKernel " +  std::to_string(newKernel[0]) + " , " + std::to_string(newKernel[1]));
 
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0});
+                                                                        name + "_DepthwiseConv1", kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0});
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
