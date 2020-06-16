@@ -1070,10 +1070,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             beginInputShape = { (unsigned long)( (i)*widthSlice),
                                 (unsigned long)( (j)*heightSlice),
                                 0, 0};
-            //window of the slice equal to the kernel size as the stride becomes 1x1 so we have one operation per slicing with strides dimension
+            //window of the slice equal to the stride as the stride becomes 1x1 (if stride equal (MAX+1)x(MAX+1))so we have one operation per slicing with strides dimension
             //if tensor is sliced on a dimension, kernel is the window size, if not, the actual dimension does not change
-            branchWidth = (hslices > 1) ? kSize[mv::KERNEL_WIDTH] : width;
-            branchHeight = (vslices > 1) ? kSize[mv::KERNEL_HEIGHT] : height;
+            branchWidth = (hslices > 1) ? stride[mv::STRIDE_HORIZONTAL] : width;
+            branchHeight = (vslices > 1) ? stride[mv::STRIDE_VERTICAL] : height;
             //when slicing on a dimension the stride becomes 1
             newStride = {(hslices > 1) ? 1 : stride[mv::STRIDE_HORIZONTAL], (vslices > 1) ? 1 : stride[mv::STRIDE_VERTICAL]};
             model.log(mv::Logger::MessageType::Debug, "newStride hor=" + std::to_string(newStride[mv::STRIDE_HORIZONTAL])+ " , newStride vert=" + std::to_string(newStride[mv::STRIDE_VERTICAL]));
