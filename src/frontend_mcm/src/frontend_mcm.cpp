@@ -515,7 +515,9 @@ std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
 }
 
 void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
-    for (auto& layer : network) {
+    ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
+    for ( ; i != end; ++i) {
+        auto layer = *i;
         if (layer->type == "Eltwise") {
             auto inputs = getInputsFQ(*layer);
             size_t maxValues = 1;
@@ -553,7 +555,9 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
 }
 
 void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
-    for (auto& layer : network) {
+    ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
+    for ( ; i != end; ++i) {
+        auto layer = *i;
         if (layer->type == "Concat") {
             auto inputs = getInputsFQ(*layer);
             for (auto& input : inputs) {
@@ -611,7 +615,9 @@ bool isFakeQuantizeOnWeights(const InferenceEngine::CNNLayerPtr& fakeQuantizeLay
 }  // namespace
 
 void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
-    for (auto& layer : network) {
+    ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
+    for ( ; i != end; ++i) {
+        auto layer = *i;
         if (layer->type == "FakeQuantize") {
             if (!isFakeQuantizeOnWeights(layer)) {
                 continue;
