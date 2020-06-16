@@ -118,7 +118,7 @@
                 "name": "ConvertDot",
                 "input": "output/dots/beforeDil.dot"
             },
-            "ConvolutionDilation",
+            "ConvolutionDilation_Old",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/afterDil.dot",

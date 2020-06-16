@@ -8,16 +8,25 @@
 #include "include/mcm/tensor/tiling.hpp"
 #include <algorithm>
 
-static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convDilationNewFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convDilationOldFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(ConvolutionDilation)
-            .setFunc(convDilationFcn)
+        MV_REGISTER_PASS(ConvolutionDilation_New)
+            .setFunc(convDilationNewFcn)
             .setDescription(
-                "This pass dilates a kernel");
+                "This pass dilates a kernel using new method with SEPS");
+    }
+
+    namespace pass
+    {
+        MV_REGISTER_PASS(ConvolutionDilation_Old)
+            .setFunc(convDilationOldFcn)
+            .setDescription(
+                "This pass dilates a kernel using new method with SEPS");
     }
 }
 
@@ -126,94 +135,94 @@ std::array<unsigned short, 4> calcNewPadding(mv::Data::OpListIterator opIt, size
         return padding;
     }
 }
-// void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-// {
+void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
 
-//     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-//     using namespace mv;
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
 
-//     mv::OpModel om(model);
-//     mv::DataModel dm(model);
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
 
-//     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-//     {
-//         auto opType = opIt->getOpType();
-//         if (opType == "Conv" || opType == "DepthwiseConv")
-//         {
-//             auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        if (opType == "Conv" || opType == "DepthwiseConv")
+        {
+            auto dilationFactor = opIt->get<unsigned>("dilationFactor");
 
-//             if (dilationFactor > 1)
-//             {
-//                 // Specify that next layer requires sparse input
-//                 // At least for now until we have a way to convert a tensor with storage elements into a dense one
-//                 // Assuming that this will be done after SSD-512 
-//                 opIt.leftmostChild()->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
+            if (dilationFactor > 1)
+            {
+                // Specify that next layer requires sparse input
+                // At least for now until we have a way to convert a tensor with storage elements into a dense one
+                // Assuming that this will be done after SSD-512 
+                opIt.leftmostChild()->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
 
-//                 auto nonDilatedKernel = opIt->getInputTensor(1);
-//                 auto nonDilatedKernelShape = nonDilatedKernel->getShape();
-//                 auto inputTensor = opIt->getInputTensor(0);
-//                 auto parentOpIt = om.getSourceOp(inputTensor);
-//                 auto name = opIt->getName();
+                auto nonDilatedKernel = opIt->getInputTensor(1);
+                auto nonDilatedKernelShape = nonDilatedKernel->getShape();
+                auto inputTensor = opIt->getInputTensor(0);
+                auto parentOpIt = om.getSourceOp(inputTensor);
+                auto name = opIt->getName();
 
-//                 auto originalShape = inputTensor->getShape();
-//                 auto numberOfSubConvs = dilationFactor * dilationFactor;
-//                 std::vector<mv::Data::TensorIterator> subConvs;
+                auto originalShape = inputTensor->getShape();
+                auto numberOfSubConvs = dilationFactor * dilationFactor;
+                std::vector<mv::Data::TensorIterator> subConvs;
 
-//                 size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
-//                 size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
-//                 //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
-//                 std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
+                size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
+                size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
+                //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
+                std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
 
-//                 //Create sub dilated convs
-//                 size_t subConvIdx = 0;
-//                 uint64_t leadingOffset = 0;
-//                 for (size_t i = 0; i < dilationFactor; i++)
-//                 {
-//                     mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
-//                     for (size_t j = 0; j < dilationFactor; j++)
-//                     {
-//                         subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
-//                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
-//                             newShape, subConvIdx++));
-//                         subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
-//                         leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
-//                     }
+                //Create sub dilated convs
+                size_t subConvIdx = 0;
+                uint64_t leadingOffset = 0;
+                for (size_t i = 0; i < dilationFactor; i++)
+                {
+                    mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
+                    for (size_t j = 0; j < dilationFactor; j++)
+                    {
+                        subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
+                            name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
+                            newShape, subConvIdx++));
+                        subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
+                        leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
+                    }
 
-//                 }
+                }
 
-//                 // reconnect children to subgraph
-//                 std::vector<mv::Data::OpListIterator> opsToLink;
-//                 std::vector<std::size_t> inputSlots;
-//                 for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
-//                 {
-//                     opsToLink.push_back(sinkFlow.sink());
-//                     inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-//                 }
+                // reconnect children to subgraph
+                std::vector<mv::Data::OpListIterator> opsToLink;
+                std::vector<std::size_t> inputSlots;
+                for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+                {
+                    opsToLink.push_back(sinkFlow.sink());
+                    inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                }
 
-//                 auto dtype = opIt->get<mv::DType>("dType");
-//                 auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
-//                 auto opId = opIt->get<unsigned>("opId");
+                auto dtype = opIt->get<mv::DType>("dType");
+                auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+                auto opId = opIt->get<unsigned>("opId");
 
-//                 om.removeOp(opIt);
+                om.removeOp(opIt);
 
-//                 auto join = om.implicitJoin(subConvs,
-//                         "HW",
-//                         dtype,
-//                         quantParams,
-//                         name + "dialtedjoin");
-//                 om.getSourceOp(join)->set<unsigned>("opId", opId);
-//                 for (unsigned j = 0; j < opsToLink.size(); ++j)
-//                 {
-//                     opsToLink[j]->setInputTensor(join, inputSlots[j], false);
-//                     om.defineFlow(join, opsToLink[j], inputSlots[j]);
-//                 }
-//                 //TODO add StorageElement & sparsity MAp for following Op
-//             }
-//         }
-//     }
-// }
+                auto join = om.implicitJoin(subConvs,
+                        "HW",
+                        dtype,
+                        quantParams,
+                        name + "dialtedjoin");
+                om.getSourceOp(join)->set<unsigned>("opId", opId);
+                for (unsigned j = 0; j < opsToLink.size(); ++j)
+                {
+                    opsToLink[j]->setInputTensor(join, inputSlots[j], false);
+                    om.defineFlow(join, opsToLink[j], inputSlots[j]);
+                }
+                //TODO add StorageElement & sparsity MAp for following Op
+            }
+        }
+    }
+}
 
-void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void convDilationOldFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
