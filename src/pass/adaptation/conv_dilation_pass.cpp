@@ -45,6 +45,7 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
                                  opIt->getName() + "_dilatedSlice_" + std::to_string(subConvIdx));
 
     //sliceInput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
+    sliceInput->set<bool>("dilatedSlice", true);
     auto sliceInputOp = om.getSourceOp(sliceInput);
 
     sliceInputOp->set<bool>("dilatedSlice", true);
