@@ -102,6 +102,7 @@
     },
     "adapt": {
         "Singular": [
+            "ValidateQuantize",
             "RemoveOps",
             "ReplacementOps",
             "TensorsToU8",
