@@ -19,8 +19,6 @@
 #include <Inference.h>
 #include <helper_remote_context.h>
 
-#include "models/model_loader.h"
-
 using namespace InferenceEngine;
 
 // [Track number: S#30141]
@@ -41,24 +39,13 @@ TEST_F(LoadNetwork_Tests, DISABLED_CanCreateWithContext) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-// TODO FAIL - IE side problem
-TEST_F(LoadNetwork_Tests, DISABLED_CannotCreateWithNullContext) {
+TEST_F(LoadNetwork_Tests, CannotCreateWithNullContext) {
     RemoteContext::Ptr remoteContext = nullptr;
 
     ASSERT_ANY_THROW(executableNetwork = ie.LoadNetwork(network, remoteContext, {}));
 }
 
-// [Track number: S#30141]
-TEST_F(LoadNetwork_Tests, DISABLED_CanCreateInferRequestAfterLoadNetwork) {
-    ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
-}
-
-// TODO FAIL - SIGABRT on googlenet in mcm adapter
-TEST_F(LoadNetwork_Tests, DISABLED_CanCreateInferRequestAfterLoadNetwork_GoogleNet) {
-    const std::string _modelName = "googlenet/bvlc_googlenet_fp16";
-    ModelLoader_Helper::LoadModel(_modelName, network);
-
+TEST_F(LoadNetwork_Tests, CanCreateInferRequestAfterLoadNetwork) {
     ASSERT_NO_THROW(executableNetwork = ie.LoadNetwork(network, pluginName));
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }

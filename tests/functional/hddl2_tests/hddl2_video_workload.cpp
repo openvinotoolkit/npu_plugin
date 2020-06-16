@@ -147,7 +147,6 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
         Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
-//------------------------------------------------------------------------------
 TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupported) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
