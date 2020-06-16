@@ -335,6 +335,24 @@ bool mv::Op::isSparsityConsumer() const
     return isSparseConsumerOp;
 }
 
+bool mv::Op::isHardwarizable() const
+{
+    bool isHardwarizableOp = false;
+    std::vector<std::string> hardwarizableTypes =
+        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool"};
+    if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(),
+        getOpType()))
+    {
+        isHardwarizableOp = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(hardwarizableTypes.cbegin(),
+        hardwarizableTypes.cend(), get<std::string>("taskOp")))
+    {
+        isHardwarizableOp = true;
+    }
+    return isHardwarizableOp;
+}
+
 bool mv::Op::hasWeights() const
 {
     bool hasWeights = false;

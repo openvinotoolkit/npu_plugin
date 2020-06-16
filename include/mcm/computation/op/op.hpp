@@ -51,6 +51,7 @@ namespace mv
         bool isImplicit() const;
         bool isUPA() const;
         bool isSparsityConsumer() const;
+        bool isHardwarizable() const;
         bool hasWeights() const;
         bool hasPWLActivation() const;
         bool hasFloatPrecision() const;

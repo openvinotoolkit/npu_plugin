@@ -137,7 +137,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
     mv::Data::TensorIterator copyInput;
-    if(om.getSourceOp(inputTensor)->getOpType() != "Slice")
+    if(om.getSourceOp(inputTensor)->getOpType() != "Slice" &&
+        !om.getSourceOp(inputTensor)->isHardwarizable())
     {
         copyInput = om.slice(inputTensor,
                                 mv::Shape({0,0,0,0}),
