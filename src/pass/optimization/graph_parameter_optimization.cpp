@@ -248,7 +248,7 @@ namespace mv
                 size_t kHeight = 1;
                 if(  (op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") )
                     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
-                else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
+                else if (op.getOpType() == "MaxPool")
                     kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
                 //NOTE: assuming order of paddings: left,right,top,bottom
                 std::array<unsigned short, 4> padding;
@@ -290,8 +290,6 @@ namespace mv
 
                     if(extraLines < kHeight-1)
                         extraLines = kHeight -1;
-                    // Stream over H slices will overlap up to (kernel size - 1)  if  kernel size>=2
-                    //does the split fits in the NNCMX slice? it fits better than the full size
 
                     if(padding[2] > padding[3])
                         if(padding[2] > extraLines)
@@ -304,14 +302,16 @@ namespace mv
                     // extraLines += (padding[2]? kHeight/2 : 0);
                     // extraLines += (padding[3]? kHeight/2 : 0);
 
-                    //the worst splits will round up, adding 1 to the division is not as accurate as ceiling
-                    // auto worstNumberOfSplits = (size_t)std::ceil(outputSize/ (newOutputSize + extraLines));
-                    //auto worstNumberOfSplits = (unsigned int)std::ceil(outputSize/ newOutputSize);- the worst, maximum
+                    // Note: worst number of splits needs to be a floating point
+                    // The idea is that even if we split by some number, because of alignment and padding
+                    // that will come later, splitting into some number of streams is not equivalent to simply dividing
+                    // the whole tensor size by that number of splits.
+                    // Instead, we calculate the worstNumberOfSplits, which will be the actual divisor to use
+                    // for whole tensor size to represent the proportion the largest streamed chunk is of the whole
+                    // tensor. In other words, worstNumberOfSplits should be a floating point number SMALLER
+                    // than or equal to the real number of splits we are evaluating.
 
                     double worstNumberOfSplits = (double)outputSize/(newOutputSize + extraLines);
-
-                    if(op.getName() == "icnet_features/conv_sub2_bn_1/FusedBatchNorm/variance/Fused_Add_")
-                        std::cout << "H: " << numberOfSplits << " --- "<< worstNumberOfSplits << " = (" << outputSize << " / (" << newOutputSize << " + " << extraLines << "))" << endl; 
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
@@ -352,7 +352,6 @@ namespace mv
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
                 }
 
-                //TODO add handling for weights case if we dont align it to 16 always
                 double streamDivisor = 1;
                 for(auto stream: worstStreamPool)
                 {
@@ -601,27 +600,6 @@ namespace mv
                     splits++;
                 }while(splits <= upperBoundH);
 
-                // std::array<unsigned short, 4> padding;
-                // if (op.hasAttr("padding"))
-                //     padding = op.get<std::array<unsigned short, 4>>("padding");
-                // else
-                //     padding = {0, 0, 0, 0};
-                // size_t kHeight = 1;
-                // if ((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv"))
-                //     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
-                // else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
-                //     kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
-
-                // // Note: for convolution stream over H cannot be higher than dimension/kernel
-                // if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool"))
-                // {
-                //     auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
-                //     if(splits > dim/kHeight)
-                //         return dim/kHeight;
-                //     if(splits < 1)
-                //         return 1;
-                // }
-
                 if(op.getOpType() == "Conv")
                 {
                     auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
@@ -862,7 +840,7 @@ namespace mv
                 int8_t executableInHW = 0;
                 std::array<unsigned short, 4> kernel = {1,1,1,1};//for non conv IN OUT CHANNEL dims = 1
                 if (op.hasAttr("kSize"))
-                    if (op.getOpType() == "MaxPool" || op.getOpType() == "AveragePool" || op.getOpType() == "Eltwise")
+                    if (op.getOpType() == "MaxPool" || op.getOpType() == "Eltwise")
                     {
                         kernel[mv::KERNEL_WIDTH] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_WIDTH];
                         kernel[mv::KERNEL_HEIGHT] = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
@@ -908,7 +886,7 @@ namespace mv
             {
                 int8_t executableInHW = 0;
                 if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" ||
-                        op.getOpType() == "MaxPool" || op.getOpType() == "AveragePool" ||
+                        op.getOpType() == "MaxPool" ||
                         op.getOpType() == "Eltwise")
                 {
                     for (std::size_t input_gates = 0; input_gates < op.getInputTensor().size(); input_gates++)
@@ -1312,7 +1290,6 @@ namespace mv
                     if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
                       ( (parentMem.first + parentMem.second) > clusterMemory) )
                     {
-                            std::cout << "    parent outputsparsity: " << parentOutputSparsity << " : " << parentMem.first << " + " << parentMem.second << " = " << parentMem.first + parentMem.second << endl;
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
                             return INF;
