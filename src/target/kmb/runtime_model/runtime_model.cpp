@@ -2856,6 +2856,43 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& c
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAFakeQuantizeTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    const auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_FakeQuantizeParams;
+
+    const auto input = opIt->getInputTensor(0);
+    const auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    const auto input_low = opIt->getInputTensor(1)->getIntData();
+    const auto input_high = opIt->getInputTensor(2)->getIntData();
+    const auto output_low = opIt->getInputTensor(3)->getIntData();
+    const auto output_high = opIt->getInputTensor(4)->getIntData();
+
+    const auto softLayerParamsValue = new MVCNN::FakeQuantizeParamsT();
+
+    softLayerParamsValue->levels = opIt->get<unsigned>("levels");
+
+    softLayerParamsValue->input_low.resize(input_low.size());
+    std::copy_n(input_low.data(), input_low.size(), softLayerParamsValue->input_low.data());
+
+    softLayerParamsValue->input_high.resize(input_high.size());
+    std::copy_n(input_high.data(), input_high.size(), softLayerParamsValue->input_high.data());
+
+    softLayerParamsValue->output_low.resize(output_low.size());
+    std::copy_n(output_low.data(), output_low.size(), softLayerParamsValue->output_low.data());
+
+    softLayerParamsValue->output_high.resize(output_high.size());
+    std::copy_n(output_high.data(), output_high.size(), softLayerParamsValue->output_high.data());
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2917,6 +2954,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "RefConv")
         toReturn[0]->task.value = buildUPARefConvTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "FakeQuantize")
+        toReturn[0]->task.value = buildUPAFakeQuantizeTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
