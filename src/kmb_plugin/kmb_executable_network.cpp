@@ -112,7 +112,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
-            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network);
+            convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network, true);
             actualNetwork = convertedNetwork.get();
         }
 

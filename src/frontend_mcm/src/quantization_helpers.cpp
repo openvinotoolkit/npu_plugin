@@ -62,6 +62,16 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
     return zeroPoint;
 }
 
+bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network) {
+    for (auto& layer : network) {
+        if (layer->type == "FakeQuantize") {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 }  // namespace QuantizationHelpers
 }  // namespace vpu
 

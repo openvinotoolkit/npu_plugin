@@ -31,6 +31,8 @@ namespace QuantizationHelpers {
 // for symmetric case only, using mcm logic
 int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::Precision precision);
 
+bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network);
+
 }  // namespace QuantizationHelpers
 }  // namespace vpu
 

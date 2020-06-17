@@ -669,16 +669,19 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
 
 void FrontEndMcm::runCommonPasses(ie::ICNNNetwork& network) {
     auto cnnNet = ie::CNNNetwork(std::shared_ptr<ie::ICNNNetwork>(&network, [](ie::ICNNNetwork*) {}));
+    bool _isQuantized = QuantizationHelpers::isCNNNetworkQuantized(cnnNet);
+    if (_isQuantized) {
+        if (_config.eltwiseScalesAlignment()) {
+            alignEltwiseScales(cnnNet);
+        }
+        if (_config.concatScalesAlignment()) {
+            alignConcatScales(cnnNet);
+        }
+        if (_config.zeroPointsOnWeightsAlignment()) {
+            alignZeroPointsOnWeights(cnnNet);
+        }
+    }
 
-    if (_config.eltwiseScalesAlignment()) {
-        alignEltwiseScales(cnnNet);
-    }
-    if (_config.concatScalesAlignment()) {
-        alignConcatScales(cnnNet);
-    }
-    if (_config.zeroPointsOnWeightsAlignment()) {
-        alignZeroPointsOnWeights(cnnNet);
-    }
     if (!_config.serializeCNNBeforeCompileFile().empty()) {
         std::string origFileName = _config.serializeCNNBeforeCompileFile();
         auto baseFileName = (origFileName.substr(origFileName.length() - 4, 4) == ".xml")
