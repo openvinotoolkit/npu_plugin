@@ -261,7 +261,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // Here we generate the sparsity maps required for dilated convolution
             // Should the sparsity map be size of the full input tensor or just the "sub conv" input tensor ?
             // I think it should be the full input tensor size ?
-            if (dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
+            if ((dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+                (dpuTask->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") && dpuTask->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")) )
             {
                 auto inputTensorShape = dpuTask->getInputTensor(0)->getShape();
                 //every element of sparsity map describes 8 elements of normal tensor
@@ -290,50 +291,6 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                 mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
                                                            {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
-                                                           {1},
-                                                           {1}});
-                std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
-                std::string storageElementName = dpuTask->getName() + "storage_element_map";
-                auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, storageElementName);
-                om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
-                unsigned newSize = dpuTask->addInputTensor(storageElement);
-                om.defineFlow(storageElement, dpuTask, newSize - 1);
-                auto seTensorIdx = dpuTask->hasAttr("storageElementIndex") ?
-                    dpuTask->get<std::vector<size_t>>("storageElementIndex") :
-                    std::vector<size_t>();
-                seTensorIdx.push_back(newSize - 1);
-                dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
-            }
-
-            // Here we generate the SEPs for the input to the layer after a dilated conv
-            if (dpuTask->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") && dpuTask->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
-            {
-                auto inputTensor = dpuTask->getInputTensor(0);
-                //every element of sparsity map describes 8 elements of normal tensor
-
-                // if the sparsity map should only be the size of the "sub conv input tensor" then change this in future
-                auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                           {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                                           {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
-                                           {1}});
-
-                std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255); // 255 converts to all 1's in SM
-                mv::QuantizationParams quantParams = {{},{},{},{}};
-                std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
-                auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
-                om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
-                unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
-                om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
-                auto smTensorIdx = dpuTask->hasAttr("unpopulatedSparsityMapIndex") ?
-                        dpuTask->get<std::vector<size_t>>("unpopulatedSparsityMapIndex") :
-                        std::vector<size_t>();
-                smTensorIdx.push_back(newInputsSize - 1);
-                dpuTask->set<std::vector<size_t>>("unpopulatedSparsityMapIndex", smTensorIdx);
-
-                // Here we generate a storage element pointer table of all 0's for the layer after a dilated conv
-
-                 mv::Shape storageElementShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                                           {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
                                                            {1},
                                                            {1}});
                 std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
