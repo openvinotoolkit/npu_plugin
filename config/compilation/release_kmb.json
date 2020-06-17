@@ -5,25 +5,27 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "emulator_results" : true,
-                "verbose": "Error",
+                "emulator_results" : false,
+                "verbose": "Info",
                 "weights_form": "None",
+                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
-                "HuffmanCompression": true,
+                "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -90,7 +92,8 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            }
+            },
+            "UseReferenceOps"
         ]
     },
     "quantization" : {
@@ -106,7 +109,7 @@
             "TensorsToFP16",
             "FusePostOps",
             "PreprocessForPWL",
-            "AddReshapesToChangeSoftmaxAxis",
+            "CheckPWLForRequantize",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/beforeDil.dot",
@@ -114,11 +117,7 @@
                 "content": "full",
                 "html": true
             },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/beforeDil.dot"
-            },
-            "ConvolutionDilation_Old",
+            "ConvolutionDilation_New",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/afterDil.dot",
@@ -126,13 +125,11 @@
                 "content": "full",
                 "html": true
             },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/afterDil.dot"
-            },
+            "AddPermutesToChangeSoftmaxAxis",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
@@ -140,6 +137,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
+                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
@@ -225,6 +223,7 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
+            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
@@ -254,10 +253,6 @@
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/beforeDMA.dot"
             }
         ]
     },
@@ -270,10 +265,6 @@
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/1DMA.dot"
             },
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
@@ -297,13 +288,7 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/beforesch.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
+            "GenerateSparsityMapsEltwise",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -331,10 +316,6 @@
                 "content": "full",
                 "html": true
             },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/AllocateGraphfileTensorsKmb.dot"
-            },
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
             {
@@ -356,7 +337,8 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false
+              "remove_barriers_in_upa_tail" : false,
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
@@ -368,16 +350,13 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/original_model.dot",
                 "scope": "OpModel",
                 "content": "full",
                 "html": true
-            },
-            {
-                "name": "ConvertDot",
-                "input": "output/dots/original_model.dot"
             },
             {
                 "name": "GenerateBlobKmb",

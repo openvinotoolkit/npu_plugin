@@ -166,6 +166,21 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
                 auto sparsityMapIterator = dm.getTensor(sparsityMap->getName());
                 dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
             }
+        } else if (tensorIt->isSparse()) {
+
+          // unpopulated sparse tensor : also defines them. //
+          if (!dm.isTensorDefined(tensorIt->getSparsityMap())) {
+            auto sparsityMapIterator =
+                dm.defineTensor(tensorIt->getSparsityMap());
+            dm.allocateTensor("VPU_CMX_NN", stageIt, sparsityMapIterator);
+          }
+
+          if (!dm.isTensorDefined(tensorIt->getStorageElement())) {
+            auto storageElementIterator =
+                dm.defineTensor(tensorIt->getStorageElement());
+            dm.allocateTensor("VPU_CMX_NN", stageIt, storageElementIterator);
+          }
+
         }
         return toReturn;
     }
@@ -175,7 +190,22 @@ static mv::Data::BufferIterator allocateUnpopulatedTensor(const mv::pass::PassEn
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::DDR)
     {
-        return dm.allocateTensor("VPU_DDR_Heap",stageIt, tensorIt);
+        auto toReturn = dm.allocateTensor("VPU_DDR_Heap",stageIt, tensorIt);
+        if (!tensorIt->isPopulated() && tensorIt->isSparse()) {
+          // unpopulated sparse tensor : also defines them. //
+          if (!dm.isTensorDefined(tensorIt->getSparsityMap())) {
+            auto sparsityMapIterator =
+                dm.defineTensor(tensorIt->getSparsityMap());
+            dm.allocateTensor("VPU_DDR_Heap", stageIt, sparsityMapIterator);
+          }
+
+          if (!dm.isTensorDefined(tensorIt->getStorageElement())) {
+            auto storageElementIterator =
+                dm.defineTensor(tensorIt->getStorageElement());
+            dm.allocateTensor("VPU_DDR_Heap", stageIt, storageElementIterator);
+          }
+        }
+        return toReturn;
     }
     else if(logicalLocation == mv::Tensor::MemoryLocation::BLOB)
     {

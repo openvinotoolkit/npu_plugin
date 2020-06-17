@@ -1,0 +1,2 @@
+[lfs]
+	url = ssh://git@af01p-ir.devtools.intel.com:1339/artifactory/movidius-mig-core-ir-local

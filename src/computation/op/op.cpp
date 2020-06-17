@@ -304,6 +304,23 @@ bool mv::Op::isImplicit() const
     return isImplicitOp;
 }
 
+bool mv::Op::isSparsityConsumer() const
+{
+    bool isSparseConsumerOp = false;
+    const std::vector<std::string> sparseConsumers = {"Conv", "Eltwise"};
+    if (std::count(sparseConsumers.cbegin(), sparseConsumers.cend(),
+        getOpType()))
+    {
+        isSparseConsumerOp = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(sparseConsumers.cbegin(),
+        sparseConsumers.cend(), get<std::string>("taskOp")))
+    {
+        isSparseConsumerOp = true;
+    }
+    return isSparseConsumerOp;
+}
+
 bool mv::Op::hasWeights() const
 {
     bool hasWeights = false;
@@ -313,4 +330,31 @@ bool mv::Op::hasWeights() const
     else
         hasWeights = false;
     return hasWeights;
+}
+
+bool mv::Op::hasPWLActivation() const
+{
+    const std::vector<std::string> pwlActivations = {
+        "Sigmoid",
+        "Tanh"
+    };
+    bool hasPWL = false;
+    if (std::find(pwlActivations.cbegin(), pwlActivations.cend(),
+        getOpType()) != pwlActivations.cend())
+        hasPWL = true;
+    if (hasAttr("postOpTypes"))
+    {
+        for (auto postOp : get<std::vector<std::string>>("postOpTypes"))
+        {
+            if (std::find(pwlActivations.cbegin(), pwlActivations.cend(),
+                postOp) != pwlActivations.cend())
+                hasPWL = true;
+        }
+    }
+    return hasPWL;
+}
+
+bool mv::Op::hasFloatPrecision() const
+{
+    return hasAttr("floatPrecision") && get<bool>("floatPrecision");
 }

@@ -8,6 +8,13 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+
+    add_executable(avgpool_asymmetric_1d_large_kernel avgpool_asymmetric_1d_large_kernel/avgpool_asymmetric_1d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_1d_large_kernel cm)
+
+    add_executable(avgpool_asymmetric_2d_large_kernel avgpool_asymmetric_2d_large_kernel/avgpool_asymmetric_2d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
+
     add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
     target_link_libraries(single_conv_hde cm)
 
@@ -62,6 +69,9 @@ else()
     add_executable(conv_big_kernel conv_big_kernel/conv_big_kernel.cpp)
     target_link_libraries(conv_big_kernel cm)
 
+    add_executable(conv_big_kernel_simple conv_big_kernel_simple/conv_big_kernel_simple.cpp)
+    target_link_libraries(conv_big_kernel_simple cm)
+
     add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
     target_link_libraries(conv_leaky_relu cm)
 
@@ -79,6 +89,9 @@ else()
 
     add_executable(conv_sparsity conv_sparsity/conv_sparsity.cpp)
     target_link_libraries(conv_sparsity cm)
+
+    add_executable(conv_sparsity_spilling conv_sparsity_spilling/conv_sparsity_spilling.cpp)
+    target_link_libraries(conv_sparsity_spilling cm)
 
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
@@ -173,6 +186,21 @@ else()
     add_executable(eltwise_replacement eltwise_replacement/eltwise_replacement.cpp)
     target_link_libraries(eltwise_replacement cm)
 
+    add_executable(eltwise_sparsity_conv eltwise_sparsity_conv/eltwise_sparsity_conv.cpp)
+    target_link_libraries(eltwise_sparsity_conv cm)
+
+    add_executable(eltwise_sparsity_pool eltwise_sparsity_pool/eltwise_sparsity_pool.cpp)
+    target_link_libraries(eltwise_sparsity_pool cm)
+
+    add_executable(eltwise_sparsity_clustering_test_1 eltwise_sparsity_clustering_test_1/eltwise_sparsity_clustering_test_1.cpp)
+    target_link_libraries(eltwise_sparsity_clustering_test_1 cm)
+
+    add_executable(eltwise_sparsity_clustering_test_2 eltwise_sparsity_clustering_test_2/eltwise_sparsity_clustering_test_2.cpp)
+    target_link_libraries(eltwise_sparsity_clustering_test_2 cm)
+
+    add_executable(eltwise_sparsity_soh_strategy eltwise_sparsity_soh_strategy/eltwise_sparsity_soh_strategy.cpp)
+    target_link_libraries(eltwise_sparsity_soh_strategy cm)
+
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 
@@ -181,4 +209,26 @@ else()
 
     add_executable(norm norm/norm.cpp)
     target_link_libraries(norm cm)
+
+    add_executable(reorg_yolo_dpu reorg_yolo_dpu/reorg_yolo_dpu.cpp)
+    target_link_libraries(reorg_yolo_dpu cm)
+
+    add_executable(multiple_conv_sc multiple_conv_sc/multiple_conv_sc.cpp)
+    target_link_libraries(multiple_conv_sc cm)
+
+    add_executable(multiple_conv_mc multiple_conv_mc/multiple_conv_mc.cpp)
+    target_link_libraries(multiple_conv_mc cm)
+
+    add_executable(multiple_conv_sc_fp multiple_conv_sc_fp/multiple_conv_sc_fp.cpp)
+    target_link_libraries(multiple_conv_sc_fp cm)
+
+    add_executable(multiple_conv_mc_fp multiple_conv_mc_fp/multiple_conv_mc_fp.cpp)
+    target_link_libraries(multiple_conv_mc_fp cm)
+
+    add_executable(multiple_conv_eltwise_sc_fp multiple_conv_eltwise_sc_fp/multiple_conv_eltwise_sc_fp.cpp)
+    target_link_libraries(multiple_conv_eltwise_sc_fp cm)
+
+    add_executable(multiple_conv_eltwise_mc_fp multiple_conv_eltwise_mc_fp/multiple_conv_eltwise_mc_fp.cpp)
+    target_link_libraries(multiple_conv_eltwise_mc_fp cm)
+
 endif(MSVC)

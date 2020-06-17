@@ -559,18 +559,36 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
 {
     set<std::string> nodesFound;
     std::vector<mv::Data::OpListIterator> nonExclusiveNodes;
+    std::vector<mv::Data::OpListIterator> dfsStartNodes;
     // cout << "Getting non-exclusive nodes from " << opBegin->getName() << " to " << opEnd->getName() << endl;
 
     for(auto child = opBegin.leftmostChild(); child != model_.opEnd(); ++child)
+        dfsStartNodes.push_back(child);
+
+    size_t index = 0;
+    while(index < dfsStartNodes.size())
     {
-        mv::Data::OpBFSIterator it(child);
-        for( ;it != opEnd; ++it ){ // TODO more efficient way than comparing strings?
+        mv::Data::OpDFSIterator it(dfsStartNodes[index]);
+
+        for( ;it != opEnd; ++it ){
+            // Add other children not on this dfs path to dfsStartNodes
+            if(it.childrenSize() > 1)
+            {
+                auto childIt = it.leftmostChild();
+                ++childIt; // skip the path we're already on
+                while(childIt != model_.opEnd()){
+                    dfsStartNodes.push_back(childIt);
+                    ++childIt;
+                }
+            }
+            // TODO more efficient way than comparing strings?
             if((nodesFound.find(it->getName()) != nodesFound.end()) and
-                !(it.childrenSize() == countInputLayers(it)) )
-                    nonExclusiveNodes.push_back(it);
+                (countInputLayers(it) != 1) )
+                nonExclusiveNodes.push_back(it);
             else
                 nodesFound.insert(it->getName());
         }
+        index++;
     }
 
     return nonExclusiveNodes;

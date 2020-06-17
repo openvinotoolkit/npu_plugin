@@ -29,6 +29,8 @@ int main()
     //Note :: Switch on HDE in compilation descriptor
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
+    //Disabling CM Conv for the test
+    unit.compilationDescriptor().setPassArg("GlobalConfigParams", "enable_channel_major_conv", mv::Attribute(bool(false)));
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

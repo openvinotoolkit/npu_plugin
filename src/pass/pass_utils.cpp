@@ -361,8 +361,10 @@ std::vector<mv::Data::OpListIterator> mv::findSinkLayers(mv::DataModel &dataMode
     return sinkOperations;
 }
 
-bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
+bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
 {
+    if (referenceDevice != "A0")
+        return false;
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
 
@@ -384,4 +386,26 @@ bool mv::checkA0SOHSparsityBug(mv::Data::FlowListIterator flow)
 
     }
     return false;
+}
+
+
+bool mv::isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
+    if(left.size() != right.size()) {
+        return false;
+    }
+
+    for (int i = 0; i < left.size(); i++) {
+        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
+            return  false;
+        }
+    }
+    return true;
+}
+
+bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
+    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
+    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
+    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
+    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
 }
