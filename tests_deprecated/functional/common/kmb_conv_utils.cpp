@@ -4,7 +4,6 @@
 
 #include "kmb_conv_utils.hpp"
 
-#include <cnn_network_int8_normalizer.hpp>
 #include <conv_ref.hpp>
 #include <vpu_layers_tests.hpp>
 
