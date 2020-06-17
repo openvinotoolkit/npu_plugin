@@ -15,6 +15,7 @@
 //
 
 #include <hddl2_async_infer_request.h>
+#include <hddl2_exceptions.h>
 #include <hddl2_executable_network.h>
 #include <hddl2_helpers.h>
 #include <hddl2_infer_request.h>
@@ -30,6 +31,9 @@
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
 static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr& ieContext) {
     HDDL2RemoteContext::Ptr pluginContext = nullptr;
 
@@ -45,51 +49,56 @@ static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr
     return pluginContext;
 }
 
+//------------------------------------------------------------------------------
+void ExecutableNetwork::loadGraphToDevice() {
+    try {
+        if (_context == nullptr) {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _config.device_id(), _config.logLevel());
+        } else {
+            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, _config.logLevel());
+        }
+    } catch (const IE::details::InferenceEngineException& exception) {
+        if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
+            _logger->warning(GRAPH_NOT_LOADED.c_str());
+            _loadedGraph = nullptr;
+        } else {
+            throw exception;
+        }
+    }
+}
+
 ExecutableNetwork::ExecutableNetwork(
     const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
+    : _config(config),
+      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
+      _context(castIEContextToHDDL2(ieContext)) {
     _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
-    _context = castIEContextToHDDL2(ieContext);
-    if (_context == nullptr) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
-    } else {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
-    }
-
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
+
+    loadGraphToDevice();
 }
 
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
+    : _config(config),
+      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
+      _context(castIEContextToHDDL2(ieContext)) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
-    _context = castIEContextToHDDL2(ieContext);
 
-    if (HDDL2Metrics::isServiceAvailable()) {
-        if (_context == nullptr) {
-            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
-        } else {
-            _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
-        }
-    } else {
-        _logger->warning("HDDL2 Scheduler service is not available. "
-                         "Please make sure KMB_INSTALL_DIR is specified.");
-    }
+    loadGraphToDevice();
 }
 
 ExecutableNetwork::ExecutableNetwork(
     std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
+    : _config(config),
+      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
+      _context(castIEContextToHDDL2(ieContext)) {
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
-    _context = castIEContextToHDDL2(ieContext);
-    if (_context == nullptr) {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, config.device_id(), config.logLevel());
-    } else {
-        _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _context, config.logLevel());
-    }
     this->_networkInputs = _graphPtr->getInputsInfo();
     this->_networkOutputs = _graphPtr->getOutputsInfo();
+
+    loadGraphToDevice();
 }
 
 IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
@@ -117,6 +126,9 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
 }
 
 void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
+    if (_loadedGraph == nullptr) {
+        THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
+    }
     auto syncRequestImpl =
         std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, _loadedGraph, _context, _config);
 

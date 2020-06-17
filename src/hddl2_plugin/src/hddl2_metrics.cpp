@@ -72,8 +72,10 @@ bool HDDL2Metrics::isServiceAvailable() {
         std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
     const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
 
-    return specifiedService.good() || defaultService.good();
+    return specifiedService.good() || defaultService.good() || isServiceRunning();
 }
+
+bool HDDL2Metrics::isServiceRunning() { return HddlUnite::isServiceRunning(); }
 
 // TODO: Need to add the full name
 std::string HDDL2Metrics::GetFullDevicesNames() { return {""}; }
