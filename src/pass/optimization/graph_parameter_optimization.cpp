@@ -282,11 +282,11 @@ namespace mv
                     numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
                     auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
                     int newOutputSize = newOutputSizes.front();
-
-                    int remainderOutputSize = newOutputSizes.back();
-                    if (remainderOutputSize > newOutputSize)
-                        newOutputSize = remainderOutputSize;
-                    int extraLines = 2;
+                    // Always returns biggest first
+                    // int remainderOutputSize = newOutputSizes.back();
+                    // if (remainderOutputSize > newOutputSize)
+                    //     newOutputSize = remainderOutputSize;
+                    int extraLines = 0;
 
                     if(extraLines < kHeight-1)
                         extraLines = kHeight -1;
@@ -319,7 +319,7 @@ namespace mv
                 else if(streamingPool["B"] > 1) // If streaming over N
                 {
                     // Note: all streaming over batch must equal size of batch, other not enabled from runtime+workloads
-                    worstStreamPool[mv::IO_BATCH_DIMENSION] = streamingPool["B"];
+                    // worstStreamPool[mv::IO_BATCH_DIMENSION] = streamingPool["B"];
                     // outputSize = tensorShape[mv::IO_BATCH_DIMENSION];
                     // numberOfSplits = streamingPool[mv::IO_BATCH_DIMENSION];
                     // auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
@@ -1582,8 +1582,8 @@ namespace mv
                                         continue;
                                     if( enableNestedStreaming and ((h==1) or (k==1))) // If need nested streams, ignore non-nested
                                        continue;
-                                    //if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
-                                    //    continue;
+                                    if( ((h*k*c*n) > 1) and !spilling.get<bool>()) // If streaming and not spilling, skip
+                                       continue;
 
                                     Shape streamShape({1,h,c,k,n});//Stream over W is 1 for now . TODO: implement stream W
 
