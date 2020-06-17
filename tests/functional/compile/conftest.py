@@ -19,23 +19,23 @@ import tempfile
 from types import SimpleNamespace
 
 # Keem Bay KPI models list
-# find <models path> -wholename "*/FP32-INT8/*.xml"
+# find <models path> -wholename "*/FP16-INT8/*.xml"
 KMB_KPI_MODELS = [
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-ava-0001/FP32-INT8/yolo-v2-ava-0001.xml',
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-ava-sparse-35-0001/FP32-INT8/yolo-v2-ava-sparse-35-0001.xml',
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-ava-sparse-70-0001/FP32-INT8/yolo-v2-ava-sparse-70-0001.xml',
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-tiny-ava-0001/FP32-INT8/yolo-v2-tiny-ava-0001.xml',
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-tiny-ava-sparse-30-0001/FP32-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml',
-    '2020-04-14_13-18-02_intel-models-887/yolo-v2-tiny-ava-sparse-60-0001/FP32-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml',
-    '2020-04-14_21-19-12_public-models-337/resnet-50-pytorch/caffe2/FP32-INT8/resnet-50-pytorch.xml',
-    '2020-04-14_21-19-12_public-models-337/mobilenet-v2/caffe2/FP32-INT8/mobilenet-v2.xml',
-    '2020-04-14_21-19-12_public-models-337/googlenet-v1/tf/FP32-INT8/googlenet-v1.xml',
-    '2020-04-14_21-19-12_public-models-337/googlenet-v3/tf/FP32-INT8/googlenet-v3.xml',
-    '2020-04-14_21-19-12_public-models-337/squeezenet1.1/caffe2/FP32-INT8/squeezenet1.1.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/resnet-50-pytorch/caffe2/FP16-INT8/resnet-50-pytorch.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/mobilenet-v2/caffe2/FP16-INT8/mobilenet-v2.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/googlenet-v1/tf/FP16-INT8/googlenet-v1.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/googlenet-v3/tf/FP16-INT8/googlenet-v3.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml',
 
-    '2020-04-14_13-18-02_intel-models-887/faster-rcnn-resnet101-coco-sparse-60-0001/FP32-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml',
-    '2020-04-14_21-19-12_public-models-337/ssd512/caffe/FP32-INT8/ssd512.xml',
-    '2020-04-14_13-18-02_intel-models-887/icnet-camvid-ava-0001/FP32-INT8/icnet-camvid-ava-0001.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml',
+    'vd_kmb_models_public_ww22.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml',
+    'vd_kmb_models_intel_ww22.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml',
 ]
 
 
