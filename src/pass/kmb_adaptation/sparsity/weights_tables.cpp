@@ -633,7 +633,7 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("storageElementIndex")[0]);
                 auto activationSparsityMap
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("unpopulatedSparsityMapIndex")[0]);
-                op->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
+                op->set<bool>("activationSparsityCompilerSolving", true);
                 op->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
                 op->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
 
@@ -647,7 +647,7 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("storageElementIndex")[0]);
                 auto activationSparsityMap
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("unpopulatedSparsityMapIndex")[0]);
-                op->getInputTensor(0)->set<bool>("activationSparsityCompilerSolving", true);
+                op->set<bool>("activationSparsityCompilerSolving", true);
                 op->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
                 op->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
 
