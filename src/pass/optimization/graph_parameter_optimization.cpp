@@ -286,16 +286,32 @@ namespace mv
                     int remainderOutputSize = newOutputSizes.back();
                     if (remainderOutputSize > newOutputSize)
                         newOutputSize = remainderOutputSize;
-                    int extraLines = 0;
+                    int extraLines = 2;
+
+                    if(extraLines < kHeight-1)
+                        extraLines = kHeight -1;
                     // Stream over H slices will overlap up to (kernel size - 1)  if  kernel size>=2
                     //does the split fits in the NNCMX slice? it fits better than the full size
 
-                    extraLines += (padding[2]? kHeight/2 : 0);
-                    extraLines += (padding[3]? kHeight/2 : 0);
+                    if(padding[2] > padding[3])
+                        if(padding[2] > extraLines)
+                            extraLines = padding[2];
+                    else
+                        if(padding[3] > extraLines)
+                            extraLines = padding[3];
+                    
+
+                    // extraLines += (padding[2]? kHeight/2 : 0);
+                    // extraLines += (padding[3]? kHeight/2 : 0);
 
                     //the worst splits will round up, adding 1 to the division is not as accurate as ceiling
-                    auto worstNumberOfSplits = (size_t)std::ceil(outputSize/ (newOutputSize + extraLines));
+                    // auto worstNumberOfSplits = (size_t)std::ceil(outputSize/ (newOutputSize + extraLines));
                     //auto worstNumberOfSplits = (unsigned int)std::ceil(outputSize/ newOutputSize);- the worst, maximum
+
+                    double worstNumberOfSplits = (double)outputSize/(newOutputSize + extraLines);
+
+                    if(op.getName() == "icnet_features/conv_sub2_bn_1/FusedBatchNorm/variance/Fused_Add_")
+                        std::cout << "H: " << numberOfSplits << " --- "<< worstNumberOfSplits << " = (" << outputSize << " / (" << newOutputSize << " + " << extraLines << "))" << endl; 
 
                     if(worstNumberOfSplits <= 0) worstNumberOfSplits = 1;
                     worstStreamPool[mv::IO_HEIGHT_DIMENSION] = worstNumberOfSplits;
@@ -571,9 +587,6 @@ namespace mv
 
                 splits = splitsToFit;
 
-                if(op.getName() == "icnet_features/conv6_cls_1/BiasAdd/Add")
-                cout << op.getName() << ": Calculating streams over H... weights fit" << endl;
-
                 // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
                 auto inputHeight = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                 unsigned upperBoundH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
@@ -588,23 +601,35 @@ namespace mv
                     splits++;
                 }while(splits <= upperBoundH);
 
-                std::array<unsigned short, 4> padding;
-                if (op.hasAttr("padding"))
-                    padding = op.get<std::array<unsigned short, 4>>("padding");
-                else
-                    padding = {0, 0, 0, 0};
-                size_t kHeight = 1;
-                if ((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv"))
-                    kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
-                else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
-                    kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
+                // std::array<unsigned short, 4> padding;
+                // if (op.hasAttr("padding"))
+                //     padding = op.get<std::array<unsigned short, 4>>("padding");
+                // else
+                //     padding = {0, 0, 0, 0};
+                // size_t kHeight = 1;
+                // if ((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv"))
+                //     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
+                // else if ((op.getOpType() == "AveragePool") || (op.getOpType() == "MaxPool"))
+                //     kHeight = op.get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT];
 
-                // Note: for convolution stream over H cannot be higher than dimension/kernel
-                if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool"))
+                // // Note: for convolution stream over H cannot be higher than dimension/kernel
+                // if((op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") || (op.getOpType() == "AveragePool"))
+                // {
+                //     auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
+                //     if(splits > dim/kHeight)
+                //         return dim/kHeight;
+                //     if(splits < 1)
+                //         return 1;
+                // }
+
+                if(op.getOpType() == "Conv")
                 {
-                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] + (padding[2] ? kHeight/2 : 0)  + (padding[3] ? kHeight/2 : 0);
-                    if(splits > dim/kHeight)
-                        return dim/kHeight;
+                    auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto linesPerOutputSlice = outDim/splits;
+                    if(linesPerOutputSlice >= 1)
+                        return splits;
+                    else
+                        return 1;
                     if(splits < 1)
                         return 1;
                 }
@@ -1157,14 +1182,14 @@ namespace mv
                                 return INF;
                         }
                     }
-                    //NOTE: If the child layer is streamed over H or C the parent/input tensors needs to be in DDR
-                    if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["C"]
-                         * child["streaming"].get<Shape>()["W"]) > 1)
-                    {
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
-                            return INF;
-                    }
+                    // //NOTE: If the child layer is streamed over H or C the parent/input tensors needs to be in DDR
+                    // if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["C"]
+                    //      * child["streaming"].get<Shape>()["W"]) > 1)
+                    // {
+                    //     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                    //             + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
+                    //         return INF;
+                    // }
                 }
 
                 if( childOp.getOpType() == "Conv")
@@ -1284,9 +1309,10 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
                             return INF;
                     }
-                    if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
+                    if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
                       ( (parentMem.first + parentMem.second) > clusterMemory) )
                     {
+                            std::cout << "    parent outputsparsity: " << parentOutputSparsity << " : " << parentMem.first << " + " << parentMem.second << " = " << parentMem.first + parentMem.second << endl;
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
                             return INF;
@@ -1610,6 +1636,7 @@ namespace mv
                         }
                     }
                 }
+                // cout << endl;
 
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
