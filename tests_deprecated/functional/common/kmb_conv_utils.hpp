@@ -8,7 +8,6 @@
 #include <ie_layers.h>
 #include <precision_utils.h>
 
-#include <ie_icnn_network_stats.hpp>
 #include <ie_util_internal.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 
