@@ -848,6 +848,22 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
             t.set<bool>("Compression", false);
         }
     }
+    else if (t.getDType() == mv::DType("Float16") && !t.isSparse())
+    {
+        if (t.hasAttr("quantParams"))
+        {
+            const auto& quantParams = t.get<mv::QuantizationParams>("quantParams");
+            if (!quantParams.isEmpty() && !quantParams.isNeutral()) {
+                throw std::runtime_error("Bad quantParams for Float16 Binary Data");
+            }
+        }
+
+        auto dataPacked = t.getIntData();
+        toBuild->data = packToInt64(dataPacked, t.getDType());
+        toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+        toBuild->underlying_type = MVCNN::DType::DType_U8;
+        t.set<bool>("Compression", false);
+    }
     else
     {
         auto dataPacked = t.getDataPacked();
