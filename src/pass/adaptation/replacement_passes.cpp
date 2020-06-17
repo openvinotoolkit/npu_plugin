@@ -846,8 +846,8 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         }
 
         //cascading supported ops
-        //first op kernel [factor1.first, factor2.first]
-        //sequenced op kernel [factor1.second, factor2.second]
+        //first op kernel [factor1.first, factor2.first] - newKernel
+        //sequenced op kernel [factor1.second, factor2.second] - newKernel_1
         // Padding quantity relationship is (input size + pad) / k = output size, padding config is TRUE, FALSE
         std::array<unsigned short, 4> padding = {0, 0, 0, 0};
         std::array<unsigned short, 2> newKernel, newKernel_1 = {1,1};
@@ -861,15 +861,16 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 newKernel[mv::KERNEL_HEIGHT - largeDim] = factorsDim2.first;
                 newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factorsDim2.second;
 
+                //factors multiplication > kernel, we need padding
                 padding[mv::PADDING_RIGHT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
                 padding[mv::PADDING_BOT] = (newKernel[1 - largeDim] * newKernel_1[1 - largeDim] > kSize[mv::KERNEL_HEIGHT - largeDim]) ? 1 : 0;
                 if (largeDim == mv::KERNEL_WIDTH)
                 {
-                    /*mv::KERNEL_WIDTH -> compute padding needed*/
+                    /*mv::KERNEL_WIDTH -> compute padding done already*/
                 }
                 else
                 {
-                    auto temp = padding[mv::PADDING_RIGHT];
+                    auto temp = padding[mv::PADDING_RIGHT]; //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
                     padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT];
                     padding[mv::PADDING_BOT] = padding[mv::PADDING_RIGHT];
                 }
@@ -877,26 +878,31 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             else
             {
                 newKernel[mv::KERNEL_HEIGHT - largeDim] = kSize[mv::KERNEL_HEIGHT - largeDim];
-                newKernel_1[mv::KERNEL_HEIGHT - largeDim] = 1; //not kSize[mv::KERNEL_HEIGHT - largeDim];
+                newKernel_1[mv::KERNEL_HEIGHT - largeDim] = 1; //the 1-largeDim was not factorized, the multiplication kSize*1 covers the second depthwise
+
+                //factors multiplication > kernel, we need padding
+                padding[mv::PADDING_RIGHT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
+                padding[mv::PADDING_BOT] = 0;
                 if (largeDim == mv::KERNEL_WIDTH)
                 {
-                    padding[mv::PADDING_RIGHT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
+                    /*mv::KERNEL_WIDTH -> compute padding done already*/
                 }
                 else
                 {
-                    padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
+                    auto temp = padding[mv::PADDING_RIGHT]; //change the padding on the other dimensions as largeDim was not on the width dimension - PADD_RIGHT
+                    padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT];
+                    padding[mv::PADDING_BOT] = padding[mv::PADDING_RIGHT];
                 }
             }
         }
         else
         {
-            newKernel[mv::KERNEL_HEIGHT - largeDim] = factors.first;
+            newKernel[mv::KERNEL_HEIGHT - largeDim] = factors.first;//largeDim has the same kernel size as 1-largeDim
             newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
-        
-
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
+        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor,
+                                                                            name + "_DepthwiseConv0",
                                                                             kSize[largeDim], newKernel, padding);
 
         linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
@@ -930,7 +936,8 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0});
+                                                                        name + "_DepthwiseConv1",
+                                                                        kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0});
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
