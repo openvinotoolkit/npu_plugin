@@ -479,17 +479,27 @@ static void setFakeQuantizeParams(const InferenceEngine::CNNLayerPtr& fakeQuanti
 
 std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
     std::vector<CNNLayerPtr> result;
-
+    std::set<CNNLayerPtr> visited;
+    std::stack<CNNLayerPtr> layers;
     auto inputs = CNNNetworkHelper::getParents(layer);
     for (auto& input : inputs) {
+        layers.push(input);
+    }
+    while (!layers.empty()) {
+        auto input = layers.top();
+        layers.pop();
+        visited.insert(input);
         if ((input->type == "FakeQuantize") && (CNNNetworkHelper::getParent(*input)->type != "Const")) {
             result.push_back(input);
         } else {
-            auto parentInputs = getInputsFQ(*input);
-            result.insert(result.end(), parentInputs.begin(), parentInputs.end());
+            auto inputs = CNNNetworkHelper::getParents(*input);
+            for (auto&& newInput : inputs) {
+                if (!visited.count(newInput)) {
+                    layers.push(newInput);
+                }
+            }
         }
     }
-
     return result;
 }
 
