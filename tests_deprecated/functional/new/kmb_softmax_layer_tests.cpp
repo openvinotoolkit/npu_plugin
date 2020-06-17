@@ -75,7 +75,13 @@ const std::vector<SoftmaxTestParams> softmaxParams {
             .axisSet({1}),
         SoftmaxTestParams()
             .inDims({1, 1001, 2, 2})
-            .axisSet({1})
+            .axisSet({1}),
+        SoftmaxTestParams()
+            .inDims({1, 1000, 1, 1})
+            .axisSet({1}),
+        SoftmaxTestParams()
+            .inDims({1, 1001, 1, 1})
+            .axisSet({1}),
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
