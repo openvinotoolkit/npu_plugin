@@ -18,8 +18,7 @@ namespace
 
         mv::OpModel om(model);
 
-        auto convOps = om.getOps("Conv");
-        for (auto& origConvOp : convOps)
+        for (auto& origConvOp : om.getOps("Conv"))
         {
             const auto origName = origConvOp->getName();
 
@@ -29,11 +28,11 @@ namespace
             const auto group = origConvOp->get<unsigned>("group");
 
             const auto origInput = origConvOp->getInputTensor(0);
-            const auto origWeights = origConvOp->getInputTensor(1);
+            const auto weights = origConvOp->getInputTensor(1);
             const auto origOutput = origConvOp->getOutputTensor(0);
 
             auto newConvOutput = om.refConv(
-                    origInput, origWeights,
+                    origInput, weights,
                     strides, padding, dilationFactor, group,
                     mv::DType("Float16"), mv::QuantizationParams({},{},{},{}),
                     origName + "_ref");
@@ -55,6 +54,49 @@ namespace
 
             const auto origConvOutDataFlow = mv::getOutputDataFlow(om, origConvOp, true);
             mv::setOutputDataFlow(om, newConvOutput, origConvOutDataFlow);
+        }
+
+        // Merge bias operation into RefConv
+        for (auto& origBiasOp : om.getOps("Bias"))
+        {
+            const auto origInput = origBiasOp->getInputTensor(0);
+            const auto origBiases = origBiasOp->getInputTensor(1);
+            const auto origOutput = origBiasOp->getOutputTensor(0);
+
+            const auto convOp = om.getSourceOp(origInput);
+            if (convOp->getOpType() != "RefConv")
+            {
+                continue;
+            }
+
+            const auto biasesData = origBiases->getDoubleData();
+            const auto inputShape = origInput->getShape();
+
+            const auto newBiases = om.constant(
+                biasesData,
+                {1, 1, inputShape[mv::IO_CHANNEL_DIMENSION], 1},
+                origBiases->getDType(),
+                mv::Order::getZMajorID(4),
+                mv::QuantizationParams({},{},{},{}),
+                origBiasOp->getName() + "_reshaped");
+
+            if (origBiasOp->hasAttr("opId"))
+            {
+                const auto origOpId = origBiasOp->get<unsigned>("opId");
+                newBiases->set<unsigned>("opId", origOpId);
+
+                const auto newBiasesOp = om.getSourceOp(newBiases);
+                newBiasesOp->set<unsigned>("opId", origOpId);
+            }
+
+            convOp->addInputTensor(newBiases);
+            om.defineFlow(newBiases, convOp, 2);
+
+            auto convOutput = convOp->getOutputTensor(0);
+            const auto origOutDataFlow = mv::getOutputDataFlow(om, origBiasOp, true);
+            mv::setOutputDataFlow(om, convOutput, origOutDataFlow);
+
+            om.removeOp(om.getSourceOp(origBiases));
         }
     }
 }

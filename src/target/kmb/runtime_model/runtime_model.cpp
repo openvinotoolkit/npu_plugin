@@ -2790,12 +2790,20 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& c
     const auto toBuild = new MVCNN::UPALayerTaskT();
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConvolutionParams;
 
+    const auto numInputs = opIt->inputSlots();
+    assert(numInputs == 2 || numInputs == 3);
+
     const auto input = opIt->getInputTensor(0);
     const auto weights = opIt->getInputTensor(1);
     const auto output = opIt->getOutputTensor(0);
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    if (numInputs == 3)
+    {
+        const auto biases = opIt->getInputTensor(2);
+        toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, biases)));
+    }
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     const auto softLayerParamsValue = new MVCNN::ConvolutionParamsT();
