@@ -11,6 +11,7 @@
 #include <memory>
 #include <opencv2/gapi.hpp>
 #include <opencv2/gapi_sipp/sippinitinfo.hpp>
+#include <opencv2/gapi_m2i/preproc.hpp>
 #include <utility>
 #include <vector>
 
@@ -42,18 +43,18 @@ public:
         , _lpi(lpi) {
     }
 
-    virtual void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                    const ResizeAlgorithm& algorithm,
-                    ColorFormat in_fmt, ColorFormat out_fmt) override;
+    void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+            const ResizeAlgorithm& algorithm,
+            ColorFormat in_fmt, ColorFormat out_fmt) override;
 };
 
 class PrivM2I final: public SIPPPreprocEngine::Priv {
     std::unique_ptr<cv::GComputation> _comp = nullptr;
 
 public:
-    virtual void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                    const ResizeAlgorithm& algorithm,
-                    ColorFormat in_fmt, ColorFormat out_fmt) override;
+    void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+            const ResizeAlgorithm& algorithm,
+            ColorFormat in_fmt, ColorFormat out_fmt) override;
 };
 
 namespace {
@@ -160,8 +161,14 @@ cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     const auto& uv_blob = blob->uv();
     auto input_y   = bind_to_blob(y_blob);
     auto input_uv  = bind_to_blob(uv_blob);
+    if (input_y.data == nullptr) {
+        THROW_IE_EXCEPTION << "input_y.data is nullptr";
+    }
+    if (input_uv.data == nullptr) {
+        THROW_IE_EXCEPTION << "input_uv.data is nullptr";
+    }
     if (input_uv.data != input_y.data + input_y.rows*input_y.step) {
-        THROW_IE_EXCEPTION << "Input NV12 memory is not continuois";
+        THROW_IE_EXCEPTION << "Input NV12 memory is not continious";
     }
 
     // Extract the memory description based on Y plane only
@@ -173,12 +180,8 @@ cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     const auto stride       = desc.s.H*blob->element_size();
     const auto size         = cv::gapi::own::Size(desc.d.W, (desc.d.H/2)*3);
 
-    uint8_t* blob_ptr = static_cast<uint8_t*>(blob->buffer());
-    if (blob_ptr == nullptr) {
-        THROW_IE_EXCEPTION << "Blob buffer is nullptr";
-    }
     IE_ASSERT(ie_desc_blk.getOffsetPadding() == 0);
-    return {size.height, size.width, CV_8UC1, blob_ptr, stride};
+    return {size.height, size.width, CV_8UC1, input_y.data, stride};
 }
 
 cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
@@ -246,6 +249,10 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     IE_ASSERT(in_fmt == NV12);
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
 
+    if (out_fmt == ColorFormat::RGB) {
+        THROW_IE_EXCEPTION << "M2I PP: RGB output color format is not supported";
+    }
+
     auto inNV12Blob = as<NV12Blob>(inBlob);
     IE_ASSERT(inNV12Blob != nullptr);
 
@@ -259,7 +266,7 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         cv::GMat  out_i; // in the case of interleaved output
         cv::GMatP out_p; // in the case of planar output
 
-        const cv::gapi::m2i::CSC csc_code = [out_fmt](){
+        const cv::gapi::m2i::CSC csc_code = [out_fmt]() {
             switch (out_fmt) {
             case ColorFormat::RGB: return cv::gapi::m2i::CSC::NV12toRGB;
             case ColorFormat::BGR: return cv::gapi::m2i::CSC::NV12toBGR;
@@ -271,17 +278,17 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         if (outBlob->getTensorDesc().getLayout() == NCHW) {
             // planar output case
             out_sz.height /= 3; // see details in bind_to_blob()
-            out_p = gapi::M2Ip(in, csc_code, out_sz);
+            out_p = cv::gapi::M2Ip(in, csc_code, out_sz);
             _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_p)));
         } else {
             // interleaved output case
-            out_i = gapi::M2Ii(in, csc_code, out_sz);
+            out_i = cv::gapi::M2Ii(in, csc_code, out_sz);
             _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_i)));
         }
         IE_ASSERT(_comp != nullptr);
     }
     _comp->apply(cv::gin(input), cv::gout(output),
-                 cv::compile_args(gapi::preproc::m2i::kernels()));
+                 cv::compile_args(cv::gapi::preproc::m2i::kernels()));
 }
 
 SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
@@ -303,10 +310,6 @@ void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outB
                                         const ResizeAlgorithm& algorithm,
                                         ColorFormat in_fmt, ColorFormat out_fmt) {
     return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt);
-}
-
-cv::gapi::GKernelPackage gapi::preproc::m2i::kernels() {
-    THROW_IE_EXCEPTION << "Stub! Please use real g-api-vpu M2I instead";
 }
 
 }  // namespace InferenceEngine

@@ -294,6 +294,39 @@ cv::Rect getRandomRoi(cv::Size size) {
 
     return rect;
 }
+
+cv::Rect getFullImageRoi(cv::Size size) {
+    cv::Rect rect;
+    rect.x = 0;
+    rect.y = 0;
+    rect.width = size.width;
+    rect.height = size.height;
+    return rect;
+}
+
+std::pair<InferenceEngine::Blob::Ptr, InferenceEngine::Blob::Ptr> img2NV12Blobs(const cv::Mat& img, AllocHelper& allocator)
+{
+    IE_ASSERT(img.channels() == 1);
+    using namespace InferenceEngine;
+    constexpr auto prec = Precision::U8;
+    constexpr auto layout = Layout::NHWC;
+    using data_t = typename InferenceEngine::PrecisionTrait<prec>::value_type;
+    size_t yW = img.cols;
+    size_t yH = img.rows/3*2;
+    size_t uvW = yW/2;
+    size_t uvH = yH/2;
+
+    SizeVector  yDims{1, 1,  yH,  yW};
+    SizeVector uvDims{1, 2, uvH, uvW};
+
+    auto buf = reinterpret_cast<data_t*>(allocator.alloc(img.rows*img.cols));
+    Blob::Ptr  yBlob = make_shared_blob<data_t>(TensorDesc(prec,  yDims, layout), buf);
+    Blob::Ptr uvBlob = make_shared_blob<data_t>(TensorDesc(prec, uvDims, layout), buf + yW*yH);
+
+    std::copy_n(img.data, img.rows*img.cols, buf);
+
+    return std::make_pair(yBlob, uvBlob);
+}
 }  // anonymous namespace
 
 struct NV12toRGBpTestGAPI : public testing::TestWithParam<cv::Size> {};
@@ -445,10 +478,19 @@ INSTANTIATE_TEST_CASE_P(Merge3PTestSIPP, Merge3PTestGAPI,
                         Values(cv::Size(32, 8)));
 
 using namespace testing;
+std::ostream& operator << (std::ostream& os, InferenceEngine::SippPreproc::Path path) {
+    using InferenceEngine::SippPreproc::Path;
+    switch (path) {
+    case Path::SIPP: os << "SIPP"; return os;
+    case Path::M2I : os << "M2I" ; return os;
+    default: IE_ASSERT(false);
+    }
+}
 
 struct KmbSippPreprocEngineTest : public TestWithParam<std::tuple<
     std::pair<cv::Size, cv::Size>,
-    InferenceEngine::ColorFormat>> {};
+    InferenceEngine::ColorFormat,
+    InferenceEngine::SippPreproc::Path>> {};
 TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     using namespace InferenceEngine;
 
@@ -459,26 +501,33 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
     ColorFormat in_fmt = ColorFormat::NV12;
     ColorFormat out_fmt;
     std::pair<cv::Size,cv::Size> sizes;
-    std::tie(sizes, out_fmt) = GetParam();
+    SippPreproc::Path preprocPath;
+    std::tie(sizes, out_fmt, preprocPath) = GetParam();
     cv::Size y_size, out_size;
     std::tie(y_size, out_size) = sizes;
     cv::Size uv_size {y_size.width / 2, y_size.height / 2};
 
-    cv::Mat y_mat(y_size, CV_8UC1);
-    cv::Mat uv_mat(uv_size, CV_8UC2);
+    cv::Mat in_mat(cv::Size{y_size.width, y_size.height*3/2}, CV_8UC1);
+    cv::Mat y_mat(y_size, CV_8UC1, in_mat.data);
+    cv::Mat uv_mat(uv_size, CV_8UC2, in_mat.ptr<uchar>(y_mat.rows, 0));
     cv::Mat out_mat(out_size, CV_8UC3);
     cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
     cv::randu(uv_mat, cv::Scalar::all(0), cv::Scalar::all(255));
 
     AllocHelper allocator;
-    auto y_blob = img2Blob<prec>(y_mat, Layout::NHWC, allocator);
-    auto uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
+    auto nv12blobs = (preprocPath == SippPreproc::Path::SIPP)
+                     ? std::make_pair(img2Blob<prec>( y_mat, Layout::NHWC, allocator),
+                                      img2Blob<prec>(uv_mat, Layout::NHWC, allocator))
+                     : img2NV12Blobs(in_mat, allocator);
+    auto  y_blob = nv12blobs.first;
+    auto uv_blob = nv12blobs.second;
+
     auto out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
     unsigned int shaveFirst = 0;
-    unsigned int shaveLast = 1;
+    unsigned int shaveLast = 3;
     unsigned int lpi = 8;
-    SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi, SippPreproc::Path::SIPP);
+    SIPPPreprocEngine pe(shaveFirst, shaveLast, lpi, preprocPath);
 
     for (int i = 0; i < 10; i++) {
         auto y_roi = getRandomRoi(y_size);
@@ -504,9 +553,7 @@ TEST_P(KmbSippPreprocEngineTest, TestNV12Resize) {
         }
         cv::resize(rgb_mat, ocv_out_mat, out_size, 0, 0, cv::INTER_LINEAR);
 
-        cv::Mat absDiff;
-        cv::absdiff(ocv_out_mat, out_mat, absDiff);
-        EXPECT_EQ(cv::countNonZero(absDiff > 2), 0);
+        EXPECT_TRUE(cv::norm(ocv_out_mat, out_mat, cv::NORM_INF) <= 2);
     }
 }
 
@@ -514,28 +561,44 @@ INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocEngineTest,
                         Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(224, 224)),
                                        std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
                                 Values(InferenceEngine::ColorFormat::BGR,
-                                       InferenceEngine::ColorFormat::RGB)));
+                                       InferenceEngine::ColorFormat::RGB),
+                                Values(InferenceEngine::SippPreproc::Path::SIPP)));
+
+INSTANTIATE_TEST_CASE_P(PreprocM2I, KmbSippPreprocEngineTest,
+                        Combine(Values(std::make_pair(cv::Size(1920, 1080), cv::Size(416, 416))),
+                                Values(InferenceEngine::ColorFormat::BGR),
+                                Values(InferenceEngine::SippPreproc::Path::M2I)));
 
 struct KmbSippPreprocPoolTest: public TestWithParam<std::tuple<
     std::tuple<cv::Size, cv::Size, cv::Size>,
     InferenceEngine::Layout,
-    InferenceEngine::ColorFormat>> {};
+    InferenceEngine::ColorFormat,
+    InferenceEngine::SippPreproc::Path>> {};
 TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 {
     using namespace InferenceEngine;
 
     Layout out_layout;
     ColorFormat out_fmt;
+    SippPreproc::Path detectionPreprocPath;
     std::tuple<cv::Size,cv::Size,cv::Size> sizes;
-    std::tie(sizes, out_layout, out_fmt) = GetParam();
+    std::tie(sizes, out_layout, out_fmt, detectionPreprocPath) = GetParam();
     cv::Size y_size, detect_size, classify_size;
     std::tie(y_size, detect_size, classify_size) = sizes;
 
     constexpr int numThreads = 8;
 
+    enum class NNKind : int {
+        Classify = 0,
+        Detect
+    };
+
     struct TestContext {
         Layout out_layout;
+        NNKind nnKind;
+        SippPreproc::Path preprocPath;
 
+        cv::Mat in_mat;
         cv::Mat y_mat;
         cv::Mat uv_mat;
         cv::Mat out_mat;
@@ -549,18 +612,28 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
         std::map<std::string, PreProcessDataPtr> preprocDatas;
         BlobMap netInputs;
 
-        void init(cv::Size y_size, cv::Size out_size, Layout output_layout, AllocHelper& allocator) {
+        void init(cv::Size y_size, cv::Size out_size, Layout output_layout, AllocHelper& allocator, NNKind kind,
+                  SippPreproc::Path path = SippPreproc::Path::SIPP) {
+            IE_ASSERT(!(path == SippPreproc::Path::M2I && kind == NNKind::Classify));
+            nnKind = kind;
+            preprocPath = path;
             out_layout = output_layout;
             constexpr auto prec = Precision::U8;
             cv::Size uv_size {y_size.width / 2, y_size.height / 2};
-            y_mat = cv::Mat(y_size, CV_8UC1);
-            uv_mat = cv::Mat(uv_size, CV_8UC2);
+
+            in_mat = cv::Mat(cv::Size{y_size.width, y_size.height*3/2}, CV_8UC1);
+            y_mat = cv::Mat(y_size, CV_8UC1, in_mat.data);
+            uv_mat = cv::Mat(uv_size, CV_8UC2, in_mat.ptr<uchar>(y_mat.rows, 0));
             out_mat = cv::Mat(out_size, CV_8UC3);
             cv::randu(y_mat, cv::Scalar::all(0), cv::Scalar::all(255));
             cv::randu(uv_mat, cv::Scalar::all(128), cv::Scalar::all(128));
 
-            y_blob = img2Blob<prec>(y_mat, Layout::NHWC, allocator);
-            uv_blob = img2Blob<prec>(uv_mat, Layout::NHWC, allocator);
+            auto nv12blobs = (preprocPath == SippPreproc::Path::SIPP)
+                             ? std::make_pair(img2Blob<prec>( y_mat, Layout::NHWC, allocator),
+                                              img2Blob<prec>(uv_mat, Layout::NHWC, allocator))
+                             : img2NV12Blobs(in_mat, allocator);
+            y_blob  = nv12blobs.first;
+            uv_blob = nv12blobs.second;
             out_blob = img2Blob<prec>(out_mat, out_layout, allocator);
 
             inName = "input0";
@@ -579,18 +652,18 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 
     TestContext detectContexts[numThreads];
     for (int i = 0; i < numThreads; i++) {
-        detectContexts[i].init(y_size, detect_size, out_layout, allocator);
+        detectContexts[i].init(y_size, detect_size, out_layout, allocator, NNKind::Detect, detectionPreprocPath);
     }
 
     TestContext classifyContexts[numThreads];
     for (int i = 0; i < numThreads; i++) {
-        classifyContexts[i].init(y_size, classify_size, out_layout, allocator);
+        classifyContexts[i].init(y_size, classify_size, out_layout, allocator, NNKind::Classify);
     }
 
     auto threadFunc = [y_size, out_layout, out_fmt](TestContext& ctx, cv::Size out_size) {
         UNUSED(out_size);
-	for (int i = 0; i < 100; i++) {
-            auto y_roi = getRandomRoi(y_size);
+        for (int i = 0; i < 10; i++) {
+            auto y_roi = ctx.nnKind == (NNKind::Classify) ? getRandomRoi(y_size) : getFullImageRoi(y_size);
 
             cv::Rect uv_roi {y_roi.x / 2, y_roi.y / 2, y_roi.width / 2, y_roi.height / 2};
 
@@ -605,7 +678,7 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
             unsigned int nShaves = 4;
             unsigned int lpi = 8;
             SippPreproc::execSIPPDataPreprocessing(
-                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi);
+                ctx.netInputs, ctx.preprocDatas, ctx.inputInfos, out_fmt, nShaves, lpi, ctx.preprocPath);
         }
 
 #if 0
@@ -641,14 +714,23 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
     }
 }
 
-using testing::Combine;
 INSTANTIATE_TEST_CASE_P(Preproc, KmbSippPreprocPoolTest,
                         Combine(Values(std::make_tuple(cv::Size(1920, 1080),
-                                                       cv::Size(224, 224),
-                                                       cv::Size(416, 416))),
+                                                       cv::Size(416, 416),
+                                                       cv::Size(224, 224))),
                                 Values(InferenceEngine::Layout::NCHW,
                                        InferenceEngine::Layout::NHWC),
                                 Values(InferenceEngine::ColorFormat::BGR,
-                                       InferenceEngine::ColorFormat::RGB)));
+                                       InferenceEngine::ColorFormat::RGB),
+                                Values(InferenceEngine::SippPreproc::Path::SIPP)));
+
+INSTANTIATE_TEST_CASE_P(PreprocM2I, KmbSippPreprocPoolTest,
+                        Combine(Values(std::make_tuple(cv::Size(1920, 1080),
+                                                       cv::Size(416, 416),
+                                                       cv::Size(224, 224))),
+                                Values(InferenceEngine::Layout::NCHW,
+                                       InferenceEngine::Layout::NHWC),
+                                Values(InferenceEngine::ColorFormat::BGR),
+                                Values(InferenceEngine::SippPreproc::Path::M2I)));
 
 // clang-format on

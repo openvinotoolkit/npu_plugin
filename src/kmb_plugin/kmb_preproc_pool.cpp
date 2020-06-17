@@ -90,6 +90,8 @@ SippPreprocessorPool& SippPreprocPool::getPool(
         for (const auto& pool : _preprocPools) {
             firstFreeShave += pool.second->getNumberOfShaves();
         }
+        // FIXME?
+        // SIPP Preprocessing SHAVEs assigned to M2I will also affect this shave distribution!
         auto lastShave = firstFreeShave + numberOfShaves - 1;
 
         IE_ASSERT(lastShave < 16) << "SippPreprocPool error: attempt to execute preprocessing on " << firstFreeShave
