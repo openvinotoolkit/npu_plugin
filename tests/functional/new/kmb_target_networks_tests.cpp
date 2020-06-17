@@ -776,3 +776,14 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
 ////////////////////////////////////////////////////////////
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
+
+TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32),
+        "vpu/emotions-recognition-retail-0003.png",
+        3, 0.1f);
+}
