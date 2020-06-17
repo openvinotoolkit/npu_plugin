@@ -23,7 +23,6 @@
 #include <precision_utils.h>
 
 #include <description_buffer.hpp>
-#include <ie_plugin.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/perf_report.hpp>
