@@ -50,8 +50,6 @@ std::string Graph::extractFileName(const std::string& fullPath) {
 }
 
 //------------------------------------------------------------------------------
-//      class CompiledGraph Implementation
-//------------------------------------------------------------------------------
 CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) {
     _graphName = network.getName();
 
@@ -71,8 +69,6 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
     _blobContentString = std::string(graphBlob.begin(), graphBlob.end());
 }
 
-//------------------------------------------------------------------------------
-//      class ImportedGraph Implementation
 //------------------------------------------------------------------------------
 ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
     // TODO find usage for mcmConfig in case of imported network

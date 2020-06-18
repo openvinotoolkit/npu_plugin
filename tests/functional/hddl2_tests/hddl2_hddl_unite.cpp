@@ -31,17 +31,12 @@ using namespace HddlUnite;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests
-//------------------------------------------------------------------------------
 class HDDL2_HddlUnite_Tests : public ::testing::Test {
 public:
     WorkloadContext_Helper workloadContextHelper;
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests Initiation - construct
-//------------------------------------------------------------------------------
-
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();

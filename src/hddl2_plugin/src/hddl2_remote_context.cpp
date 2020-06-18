@@ -29,8 +29,6 @@ using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2ContextParams Implementation
-//------------------------------------------------------------------------------
 HDDL2ContextParams::HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap) {
     if (paramMap.empty()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for context is empty.";
@@ -49,8 +47,6 @@ InferenceEngine::ParamMap HDDL2ContextParams::getParamMap() const { return _para
 
 WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
 
-//------------------------------------------------------------------------------
-//      class HDDL2RemoteContext Implementation
 //------------------------------------------------------------------------------
 HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config)
     : _contextParams(paramMap),
