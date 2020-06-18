@@ -199,6 +199,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 {
     mv::DataModel dm(model);
     mv::ControlModel cm(model);
+    mv::OpModel om(model);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -266,12 +267,33 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0]; //for some reason we get double the value, for now take the proper one.
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
+        
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
         else
-//            toBuild->data->data_index = tensorBufferIt->getOffset();
-            toBuild->data->data_index = (*masterBuffer)->getOffset();
+        {
+            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution() 
+            // are calculated from the smallest address of the input tenor to the ImplicitUnion operation
+            // Here we have to ensure that the data_index of this tensor is the same smallest address otherwise the SEPs
+            // offsets will point to the wrong location 
+            auto parentOp = om.getSourceOp(t);
+            if(parentOp->getOpType() == "ImplicitJoin")
+            {
+                auto numberInputs = parentOp.inputsSize();
+                auto minBaseAddress = parentOp->getInputTensor(0)->getAddress();
+                for (size_t i=1; i < numberInputs; i++)
+                {
+                    auto address = parentOp->getInputTensor(i)->getAddress();
+                    if (address < minBaseAddress)
+                    minBaseAddress = address;
+                }
+                toBuild->data->data_index = minBaseAddress;
+            }
+            else
+                //toBuild->data->data_index = tensorBufferIt->getOffset();
+                toBuild->data->data_index = (*masterBuffer)->getOffset();
+        }
 
         toBuild->data->data_index += leading_offset;
 
