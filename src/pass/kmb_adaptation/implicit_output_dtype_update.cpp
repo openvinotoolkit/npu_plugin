@@ -35,14 +35,11 @@ void ImplicitOutputDTypeUpdateFcn(const mv::pass::PassEntry& pass, mv::Computati
     for(auto& implicitOutput : implicitOutputOps)
         if(implicitOutput->getInputTensor(0)->getDType() != implicitOutput->getOutputTensor(0)->getDType())
         {
-            std::cout << "ImplicitOutput DType Updated for: " << implicitOutput->getName() << std::endl;
             implicitOutput->getOutputTensor(0)->setDType(implicitOutput->getInputTensor(0)->getDType());
         }
         else
         {
             continue;
         }
-
-    std::cout << "Pass Finished Successfully" << std::endl;
 
 }

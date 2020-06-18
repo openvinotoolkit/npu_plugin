@@ -375,6 +375,8 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
                     // This will work because of the implicit flows compensatory DMA passes
 
+                    //If ParentOp memory location of Align is in DDR, then Align can get any strategy and should get strategy of the child Op instead of parent
+                    //Enables RetinaFace compilation, applicable to other networks too
                     auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
                     auto parentMemoryLocation = parentOpIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                     auto alignOp = om.getOp(alignOpName);
