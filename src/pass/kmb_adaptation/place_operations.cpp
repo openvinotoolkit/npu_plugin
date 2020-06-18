@@ -254,7 +254,6 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         int64_t real_bias_fp16;
                         std::vector<double> weightsScale = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams").getScale();
                         weightsScale = extendToK(outputShape[mv::IO_CHANNEL_DIMENSION], weightsScale, bias->getName());
-                        std::cout << inputScale[0] << std::endl;
                         for (size_t k = 0; k < outputShape[mv::IO_CHANNEL_DIMENSION]; k++)
                         {
                             biasOldScale = weightsScale[k] * inputScale[0];

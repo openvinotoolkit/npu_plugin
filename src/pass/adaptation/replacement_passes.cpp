@@ -854,15 +854,10 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
         std::pair<bool, bool> producers_quantized(true, true);
         auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
-        //NOTE: this condition needs to be extended in case that the next operation is float16 in general
-        if (sinkOps[0]->getOpType() == "Output")
-            if (sinkOps[0]->hasAttr("precision")
-                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
-            {
-                producers_quantized.first = true;
-                producers_quantized.second = false;
-            }
-
+        if (sinkOps[0]->isUPA()){
+            producers_quantized.first = true;
+            producers_quantized.second = false;
+        }
 
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 

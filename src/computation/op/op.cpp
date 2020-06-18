@@ -315,8 +315,6 @@ bool mv::Op::isUPA() const
     {
         isUPATask = true;
     }
-    else
-        isUPATask = false;
     return isUPATask;
 }
 
