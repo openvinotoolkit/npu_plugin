@@ -1169,6 +1169,19 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
                     }
+                    else if(childClustering == "SplitOverH")
+                    {
+                        auto outputTensorShape = childOp.getOutputTensor(0)->getShape();
+                        unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
+                        unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
+                        unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
+
+                        if ((W*H*C)%128 != 0)
+                        {
+                            log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
+                            return INF;
+                        }
+                    }
                 }
                 //Note: last op should not be HKSwitch
                 else if (childOp.getOpType() == "Output")
