@@ -205,21 +205,7 @@
     },
     "kmb_adapt": {
         "Singular": [
-	   {
-                "name": "GenerateDot",
-                "output": "output/dots/Before_ConcatAsImplicit.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ConcatAsImplicit",
-	    {
-                "name": "GenerateDot",
-                "output": "output/dots/After_ConcatAsImplicit.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
@@ -296,21 +282,7 @@
             "ArrangeKmbExecution",
             "AllocateInputOutputTensorsKmb",
             "AllocateGraphfileTensorsKmb",
-	    {
-                "name": "GenerateDot",
-                "output": "output/dots/Before_ReAllocatePass.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ReAllocateImplicitOperationsKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/After_ReAllocatePass.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "AllocateCMXTensorsKmb",
             {
               "name": "LpScheduler",
