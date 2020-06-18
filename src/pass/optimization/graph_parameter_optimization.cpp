@@ -1146,12 +1146,6 @@ namespace mv
                     return INF;
                 }
 
-                if(parentOp.isUPA() and parent["spilling"].get<bool>() &&
-                    childOp.hasAttr("floatPrecision") && childOp.get<bool>("floatPrecision") && childClustering != "Clustering"
-                        and (referenceDevice == "A0"))
-                {
-                    return INF;
-                }
                 //Note: Input clustering strategy should match first layer, if it is Z-major
                 if(parentOp.getOpType() == "Input" and not
                     (childOp.getOpType() == "Conv" and enableChannelMajorConv
@@ -1177,11 +1171,6 @@ namespace mv
                     childInputSparsity = false;
                 }
 
-                if(parent["spilling"].get<bool>() && parentOp.isUPA() && childOp.getOpType() == "Conv"
-                        && childOp.hasAttr("floatPrecision")){
-                    parentOutputSparsity = true;
-                    childInputSparsity = true;
-                }
                 // In cases where real activation sparsity  will be required later
                 // ensure there is enough memory for them
                 if(requiresRealActivationSparsity(childOp, childClustering)){
@@ -1225,7 +1214,6 @@ namespace mv
                             return INF;
                     }
                     if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
-                            parentOp.hasTypeTrait("optimizable") and
                       ( (parentMem.first + parentMem.second) > clusterMemory) )
                     {
                             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()

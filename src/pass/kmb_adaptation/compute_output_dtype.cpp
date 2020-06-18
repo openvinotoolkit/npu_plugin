@@ -6,7 +6,6 @@
 #include <cmath>
 
 static void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void validateQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void updateOutputQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void tensorsToFP16Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void tensorsToU8Fcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -257,25 +256,6 @@ namespace mv
         .setDescription(
             "This pass handles the DPU's output Tensor Data Type."
         );
-
-        MV_REGISTER_PASS(ValidateQuantize)
-        .setFunc(validateQuantize)
-        .setDescription(
-            "This pass prints the quantparams."
-        );
-    }
-}
-
-void validateQuantize(const mv::pass::PassEntry&  , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    using namespace mv;
-    OpModel om(model);
-
-    auto modelOp = om.opBegin();
-    while (modelOp != om.opEnd())
-    {
-        std::cout << modelOp->getName() + " with type " + modelOp->getOpType() + " with quantization scale " + std::to_string(modelOp->get<mv::QuantizationParams>("quantParams").getScale()[0]) << std::endl;
-        ++modelOp;
     }
 }
 

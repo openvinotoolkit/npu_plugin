@@ -70,7 +70,7 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
     }
 }
 
-void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     using namespace mv;
     OpModel om(model);
@@ -179,13 +179,8 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
             if (opIt->get<bool>("placeConversionToFloat"))
             {
                 auto previousOpIt = om.getSourceOp(opIt->getInputTensor(0));
-                bool conversionPlaced = false;
                 std::vector<double> inputScale = opIt->getInputTensor(0)->get<mv::QuantizationParams>("quantParams").getScale();
-                if (!previousOpIt->isUPA())
-                {
-                    conversionPlaced = true;
-                    placeEltwiseDequantize(om, opIt);
-                }
+                placeEltwiseDequantize(om, opIt);
                 //NOTE: For now take for granted that the next guy is a convolution
                 opIt->set<bool>("floatPrecision", true);
                 opIt->set<mv::DType>("dType", mv::DType("Float16"));
@@ -269,13 +264,10 @@ void placementOfOps(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
                         om.addAttr(opIt, "bias", floatBiasName);
                         bias->set<mv::DType>("dType", mv::DType("Float16"));
                     }
-                    if (conversionPlaced)
+                    for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
                     {
-                        for (auto sourceFlow = opIt.leftmostInput(); sourceFlow != om.flowEnd(); ++sourceFlow)
-                        {
-                            if (sourceFlow.source()->getName() == previousOpIt->getName())
-                                om.undefineFlow(sourceFlow);
-                        }
+                        if (sourceFlow.source()->getName() == previousOpIt->getName())
+                            om.undefineFlow(sourceFlow);
                     }
                     om.removeOp(om.getSourceOp(opIt->getInputTensor(1)));
                     opIt->setInputTensor(weights, 1, false);
