@@ -1029,6 +1029,15 @@ class Operation_Dag {
       }
     }
 
+      // short circuit implicit ops //
+    void shorting_implicit_ops() {
+      for (auto short_circuit_itr=implicit_op_types_.begin();
+          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
+        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
+            *short_circuit_itr);
+      }
+    }
+
     void init_from_model(mv::ControlModel& model) {
       clear_state();
       build_adj_tables(model);
@@ -1041,6 +1050,7 @@ class Operation_Dag {
       create_resource_utility_table_for_cmx_scheduling(model);
 
       // Transform OpModel for scheduling //
+      shorting_implicit_ops();
 
       // connect all non-unit outdegree DMAS to input //
       for (op_itr_t itr = mtraits::begin_operations(model);
@@ -1051,13 +1061,6 @@ class Operation_Dag {
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
         if (op_has_unit_out_degree(op)) { continue; }
         add_directed_edge_from_input(op);
-      }
-
-      // short circuit implicit ops //
-      for (auto short_circuit_itr=implicit_op_types_.begin();
-          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
-        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
-            *short_circuit_itr);
       }
 
       update_resource_utility_for_aligned_dma_ops(model);

@@ -43,6 +43,22 @@ namespace mv
     }
 }
 
+bool findSparseTensorIndex(
+    mv::Data::OpListIterator layer,
+    const std::string& name,
+    std::size_t tensorIdx)
+{
+    bool found = false;
+    if (layer->hasAttr(name))
+    {
+        auto tensorList = layer->get<std::vector<size_t>>(name);
+        if (std::find(tensorList.begin(), tensorList.end(), tensorIdx) !=
+            tensorList.end())
+            found = true;
+    }
+    return found;
+}
+
 void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&,
                              mv::Element &)
 {
@@ -83,11 +99,9 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
             tensorNames.insert(outputTensorName);
             for(std::size_t i = 0; i < layer->inputSlots(); ++i)
             {
-                if (layer->hasAttr("unpopulatedSparsityMapIndex"))
-                {
-                    if (i == layer->hasAttr("unpopulatedSparsityMapIndex"))
-                        specialTensorNames.insert(layer->getInputTensor(i)->getName());
-                }
+                if (findSparseTensorIndex(layer, "unpopulatedSparsityMapIndex", i) ||
+                    findSparseTensorIndex(layer, "storageElementIndex", i))
+                    specialTensorNames.insert(layer->getInputTensor(i)->getName());
                 else
                 {
                     auto inputTensorName = layer->getInputTensor(i)->getName();
@@ -302,7 +316,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
-                tensor->splitAcrossClusters(subTensors, true, false);
+                tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
             else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
                      tensor->get<std::string>("splitStrategy") == "SplitOverK")
@@ -520,8 +534,22 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                     inputTensor->cleanSubtensors();
                                     outputTensor->cleanSubtensors();
                                     outputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                    inputTensor->set<std::string>("splitStrategy", "SplitOverH");
+                                    inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
                                     subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+
+                                    // support for input->slice->DMA->CMConv
+
+                                    auto sourceOp = om.getSourceOp(inputTensor);
+                                    if (sourceOp->getOpType() == "Slice")
+                                    {
+                                        sourceOp->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        auto sourceOpInputTensor = sourceOp->getInputTensor(0);
+                                        sourceOpInputTensor->cleanSubtensors();
+                                        sourceOpInputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        inputTensor->cleanSubtensors();
+                                        inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        subTensorsGen(model, {inputTensor, sourceOpInputTensor}, numClusters, pass);
+                                    }
                                 }
                             }
                         }

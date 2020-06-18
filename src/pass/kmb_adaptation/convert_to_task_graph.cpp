@@ -205,6 +205,8 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
     auto dtype = attrs.at("dType").get<mv::DType>();
 
     // Required params
+    auto scale = attrs.at("scale").get<std::vector<float>>();
+    auto ratio = attrs.at("ratio").get<std::vector<float>>();
     auto base_size = attrs.at("base_size").get<unsigned>();
     auto pre_nms_topn = attrs.at("pre_nms_topn").get<unsigned>();
     auto post_nms_topn = attrs.at("post_nms_topn").get<unsigned>();
@@ -222,7 +224,7 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
     auto framework = attrs.at("framework").get<std::string>();
     auto for_deformable = attrs.at("for_deformable").get<bool>();
 
-    return om.uPATaskProposal(inputs, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
+    return om.uPATaskProposal(inputs, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
                                                               pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable,
                                                               dtype, quantParams, name);
 }
