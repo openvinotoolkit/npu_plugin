@@ -30,7 +30,7 @@ int main()
     // This is SAME padding notation
     // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
 
-    auto conv0 = om.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 2, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
+    auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
 
     // Identidy conv - this should not change output of dilated conv
     // Output of dilated Conv is all 3f's
@@ -42,8 +42,8 @@ int main()
         weightsData1[i] = 1;
 
     auto weights1 = om.constantInt(weightsData1,kernel1, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1},{-1.000000000000000},{1.000000000000000}}, "weights_conv1");
-    auto conv1 = om.conv(conv0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv1");
-    
+    auto conv1 = om.conv(conv0, weights1, {1, 1}, {1, 1, 1, 1}, 1, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv1");
+
     om.output(conv1);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
