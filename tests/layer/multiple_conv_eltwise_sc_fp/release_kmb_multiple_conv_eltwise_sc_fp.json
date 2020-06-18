@@ -43,7 +43,7 @@
                         "strategy" : "Clustering"
                     },
                     {
-                        "name_filter" : "fc_2",
+                        "name_filter" : "add_2",
                         "strategy" : "Clustering"
                     },
                     {
@@ -88,7 +88,7 @@
                     },
                     {
                         "mem_location": "NNCMX",
-                        "name_filter": "fc_2"
+                        "name_filter": "add_2"
                     },
                     {
                         "mem_location": "NNCMX",
@@ -125,7 +125,7 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 22}
+                            {"K" : 4}
                         ]
                     },
                     {
@@ -134,16 +134,16 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 16}
+                            {"K" : 4}
                         ]
                     },
                     {
-                        "name_filter" : "fc_2",
+                        "name_filter" : "add_2",
                         "splits" : [
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 2}
+                            {"K" : 1}
                         ]
                     },
                     {
@@ -187,9 +187,9 @@
                     },
                     {
                         "inputActivationSparsity": false,
-                        "name_filter": "fc_2",
+                        "name_filter": "add_2",
                         "outputActivationSparsity": false,
-                        "weightsSparsity": true
+                        "weightsSparsity": false
                     },
                     {
                         "inputActivationSparsity": false,

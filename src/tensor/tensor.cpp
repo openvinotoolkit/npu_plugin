@@ -1350,6 +1350,39 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
     }
 }
 
+void mv::Tensor::splitPopulatedActivationAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
+{
+    auto shape = getShape();
+    for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
+    {
+        size_t idx = wlItr - workloads.begin();
+        auto width = wlItr->MaxX - wlItr->MinX + 1;
+        auto height = wlItr->MaxY - wlItr->MinY + 1;
+        if (splitOverH)
+        {
+            mv::Shape newShape = { static_cast<size_t>(width), static_cast<size_t>(height) ,shape[2], shape[3]};
+            subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+            std::vector<std::size_t> offset = {static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY), 0 , 0};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+        }
+        else
+        {
+            mv::Shape newShape = { shape[0], shape[1] , static_cast<size_t>(width), static_cast<size_t>(height)};
+            subTensors_.push_back(std::make_shared<mv::Tensor>(getName() + "sub" + std::to_string(idx), newShape, getDType(), getOrder()));
+            std::vector<std::size_t> offset =  {0 , 0, static_cast<size_t>(wlItr->MinX), static_cast<size_t>(wlItr->MinY)};
+            subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+        }
+
+        if (hasAttr("quantParams"))
+            subTensors_[idx]->set<mv::QuantizationParams>("quantParams", get<mv::QuantizationParams>("quantParams"));
+        if (isSparse())
+            subTensors_[idx]->setSparse();
+
+    }
+
+    set<bool>("broadcasted", (!splitOverH || multicast));
+}
+
 void mv::Tensor::splitAcrossClusters(std::vector<mv::Workload> workloads, bool splitOverH, bool multicast)
 {
 

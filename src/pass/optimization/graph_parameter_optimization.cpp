@@ -572,13 +572,16 @@ namespace mv
                     splits++;
                 }while(splits <= upperBoundH);
 
-                // Note: for convolution stream over H cannot be higher than dimension/kernel
+                //NOTE: the idea here is that when the number of streams lead to less than one line of output
+                //->means kernel size in the input the result is that we can not stream
                 if(op.getOpType() == "Conv")
                 {
-                    auto kernelSize = op.getInputTensor(1)->getShape()[KERNEL_HEIGHT];
-                    auto dim = op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                    if(splits > dim/kernelSize)
-                        return dim/kernelSize;
+                    auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto linesPerOutputSlice = outDim/splits;
+                    if(linesPerOutputSlice >= 1)
+                        return splits;
+                    else
+                        return 1;
                     if(splits < 1)
                         return 1;
                 }
@@ -1475,7 +1478,8 @@ namespace mv
 
 
                         // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
-                        if(hasStreamOverK and (streamsOverK.size() > 1) and hasStreamOverH and ((memoryMaxH > clusterMemory) and (memoryMaxK > clusterMemory))){
+                        if(hasStreamOverK and (streamsOverK.size() > 1) and hasStreamOverH
+                                and ((memoryMaxH > clusterMemory) and (memoryMaxK > clusterMemory))){
                             enableNestedStreaming = true;
                             // Note: Adjusting maxSplitOverH appropriately for nested is now handled on the fly
                             // for each possible stream over K, a single stream over H option that fits is chosen
