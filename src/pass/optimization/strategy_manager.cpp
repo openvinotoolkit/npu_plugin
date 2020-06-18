@@ -557,9 +557,13 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
 std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::Data::OpListIterator opBegin, 
                                                                                 mv::Data::OpListIterator opEnd)
 {
-    set<std::string> nodesFound;
     std::vector<mv::Data::OpListIterator> nonExclusiveNodes;
     std::vector<mv::Data::OpListIterator> dfsStartNodes;
+
+    set<std::string> nodesSeen;
+    set<std::string> nodesAdded;
+    set<std::string> dfsNodesFound;
+
     // cout << "Getting non-exclusive nodes from " << opBegin->getName() << " to " << opEnd->getName() << endl;
 
     for(auto child = opBegin.leftmostChild(); child != model_.opEnd(); ++child)
@@ -577,16 +581,27 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
                 auto childIt = it.leftmostChild();
                 ++childIt; // skip the path we're already on
                 while(childIt != model_.opEnd()){
-                    dfsStartNodes.push_back(childIt);
+                    if(dfsNodesFound.find(childIt->getName()) == dfsNodesFound.end()){
+                        dfsStartNodes.push_back(childIt);
+                    }
+                    dfsNodesFound.insert(childIt->getName());
                     ++childIt;
                 }
             }
             // TODO more efficient way than comparing strings?
-            if((nodesFound.find(it->getName()) != nodesFound.end()) and
-                (countInputLayers(it) != 1) )
-                nonExclusiveNodes.push_back(it);
+            if((nodesSeen.find(it->getName()) != nodesSeen.end()) and
+                !(it.childrenSize() == countInputLayers(it)) )
+                {
+                    if(nodesAdded.find(it->getName()) == nodesAdded.end())
+                    {
+                        nonExclusiveNodes.push_back(it);
+                        nodesAdded.insert(it->getName());
+                    }
+                }
             else
-                nodesFound.insert(it->getName());
+            {
+                nodesSeen.insert(it->getName());
+            }
         }
         index++;
     }
