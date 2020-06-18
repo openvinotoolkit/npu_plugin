@@ -534,8 +534,22 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                     inputTensor->cleanSubtensors();
                                     outputTensor->cleanSubtensors();
                                     outputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
-                                    inputTensor->set<std::string>("splitStrategy", "SplitOverH");
+                                    inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
                                     subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+
+                                    // support for input->slice->DMA->CMConv
+
+                                    auto sourceOp = om.getSourceOp(inputTensor);
+                                    if (sourceOp->getOpType() == "Slice")
+                                    {
+                                        sourceOp->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        auto sourceOpInputTensor = sourceOp->getInputTensor(0);
+                                        sourceOpInputTensor->cleanSubtensors();
+                                        sourceOpInputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        inputTensor->cleanSubtensors();
+                                        inputTensor->set<std::string>("splitStrategy", "SplitOverHOverlapped");
+                                        subTensorsGen(model, {inputTensor, sourceOpInputTensor}, numClusters, pass);
+                                    }
                                 }
                             }
                         }
