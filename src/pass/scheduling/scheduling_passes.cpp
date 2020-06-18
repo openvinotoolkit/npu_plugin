@@ -10,6 +10,8 @@
 #include <cmath>
 #include <unordered_set>
 
+using std::to_string;
+
 static void generateSchedulingFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void barrierIndexAssignmentFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void updateBarrierRefsFcn(const mv::pass::PassEntry&, mv::ComputationModel&, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -18,7 +20,7 @@ static void updateCountsFcn(const mv::pass::PassEntry&, mv::ComputationModel& mo
 static void hackExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void correctExecutionScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
 static void reorderDmasInScheduleFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor& target, mv::Element&, mv::Element&);
-static void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
+static void layoutDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&);
 
 namespace mv
 {
@@ -689,13 +691,13 @@ struct PortInfo
     std::uint64_t busyUntil;
 };
 
-OpInfo analyzeOp(mv::Op& op)
+OpInfo analyzeOp(const mv::LogSender& logger, mv::Op& op)
 {
+    logger.log(mv::Logger::MessageType::Debug,
+               "Modeling task:\n" + op.toString() + "\n");
+
     if (op.getOpType() == "DPUTask")
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Modeling DPU task:\n" << op.toString() << "\n";
-#endif
         // TODO: Better models for DPU tasks.
         //
         // For now, we assume that DPU tasks execute in time proportional
@@ -721,9 +723,6 @@ OpInfo analyzeOp(mv::Op& op)
 
     if (op.getOpType() == "DMATask")
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Modeling DMA task:\n" << op.toString() << "\n";
-#endif
         // We assume that DMA tasks execute in time proportional to
         // the smaller of the input tensor size and output tensor size
         // (which might not be equal, due to slicing), with a
@@ -731,18 +730,22 @@ OpInfo analyzeOp(mv::Op& op)
         std::uint64_t inSize = 0;
         for (auto& tensor : op.getInputTensor())
         {
-#ifdef DEBUG_LAYOUT_PASS
-          std::cerr << "LayoutDMA: Input Tensor:\n" << tensor->toString() << "\n  size=" << tensor->computeTotalSize() << "\n  shape=" << tensor->getShape().toString() << "\n";
-#endif
+            logger.log(mv::Logger::MessageType::Debug,
+                       "Input Tensor:\n" + tensor->toString()
+                       + "\n  size=" + to_string(tensor->computeTotalSize())
+                       + "\n  shape=" + tensor->getShape().toString()
+                       + "\n");
             inSize += tensor->computeTotalSize();
         }
 
         std::uint64_t outSize = 0;
         for (auto& tensor : op.getOutputTensor())
         {
-#ifdef DEBUG_LAYOUT_PASS
-          std::cerr << "LayoutDMA: Output Tensor:\n" << tensor->toString() << "\n  size=" << tensor->computeTotalSize() << "\n  shape=" << tensor->getShape().toString() << "\n";
-#endif
+            logger.log(mv::Logger::MessageType::Debug,
+                       "Output Tensor:\n" + tensor->toString()
+                       + "\n  size=" + to_string(tensor->computeTotalSize())
+                       + "\n  shape=" + tensor->getShape().toString()
+                       + "\n");
             outSize += tensor->computeTotalSize();
         }
 
@@ -775,7 +778,8 @@ OpInfo analyzeOp(mv::Op& op)
 // ) The DMA port assignments for each operation
 // ) The time at which each barrier is expected to become ready
 // ) The time when each operation is expected to start
-std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
+std::uint64_t simRunModel(const mv::LogSender& logger,
+                          std::vector<OpInfo>* opInfos,
                           std::vector<BarrierInfo>* barrierInfos,
                           std::vector<PortInfo>* portInfos)
 {
@@ -796,22 +800,22 @@ std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
     std::uint64_t overallLatency = 0;
     for (auto& opInfo : *opInfos)
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Scanning Op=" << opInfo.op->getName()
-                  << " ty=" << opInfo.op->getOpType()
-                  << " size=" << opInfo.size
-                  << " wait=";
+        std::string logMsg = "Scanning Op=" + opInfo.op->getName()
+          + " ty=" + opInfo.op->getOpType()
+          + " size=" + to_string(opInfo.size)
+          + " wait=";
         for (auto wait : opInfo.deps.getWait())
         {
-            std::cerr << wait << " ";
+            logMsg += to_string(wait) + " ";
         }
-        std::cerr << " update=";
+        logMsg += " update=";
         for (auto update : opInfo.deps.getUpdate())
         {
-            std::cerr << update << " ";
+            logMsg += to_string(update) + " ";
         }
-        std::cerr << "\nLayoutDMA: Latency prediction=" << opInfo.latencyNS << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug, logMsg);
+        logger.log(mv::Logger::MessageType::Debug, "Latency prediction=" + to_string(opInfo.latencyNS));
+
         opInfo.startNS = 0;
         for (auto depWait : opInfo.deps.getWait())
         {
@@ -832,22 +836,16 @@ std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
             opInfo.portIdx = portIdx;
             opInfo.startNS = std::max(opInfo.startNS, (*portInfos)[portIdx].busyUntil);
             (*portInfos)[portIdx].busyUntil = opInfo.completeNS();
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA: Assigned port=" << portIdx << "\n";
-#endif
+            logger.log(mv::Logger::MessageType::Debug, "Assigned port=" + to_string(portIdx));
         }
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Op startNS=" << opInfo.startNS << "\n";
-        std::cerr << "LayoutDMA: Op completeNS=" << opInfo.completeNS() << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug, "Op startNS=" + to_string(opInfo.startNS));
+        logger.log(mv::Logger::MessageType::Debug, "Op completeNS=" + to_string(opInfo.completeNS()));
+
         for (auto depUpdate : opInfo.deps.getUpdate())
         {
             (*barrierInfos)[depUpdate].startNS = std::max((*barrierInfos)[depUpdate].startNS, opInfo.completeNS());
         }
         overallLatency = std::max(opInfo.completeNS(), overallLatency);
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "\n";
-#endif
     }
 
     return overallLatency;
@@ -861,20 +859,19 @@ std::uint64_t simRunModel(std::vector<OpInfo>* opInfos,
 // TODO: This should also take into account the next operation that
 // uses the port, since moving the current tensor to CSRAM might
 // make that port available earlier.
-void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
+void computePortSlack(const mv::LogSender& logger,
+                      std::vector<BarrierInfo>* barrierInfos,
                       std::size_t portLimit)
 {
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: Computing slack\n";
-#endif
-
+    logger.log(mv::Logger::MessageType::Debug, "Computing slack");
+  
     // Compute per-barrier/per-port slack latencies.
     for (size_t barrierIdx = 0; barrierIdx < barrierInfos->size(); ++barrierIdx)
     {
         auto& barrierInfo = (*barrierInfos)[barrierIdx];
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA:   Considering barrier=" << barrierIdx << "; startNS=" << barrierInfo.startNS << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug,
+                   "Considering barrier=" + to_string(barrierIdx)
+                   + "; startNS=" + to_string(barrierInfo.startNS));
         if (!barrierInfo.waitOpInfos.size())
         {
             barrierInfo.earliestNS = barrierInfo.startNS;
@@ -890,31 +887,27 @@ void computePortSlack(std::vector<BarrierInfo>* barrierInfos,
                 ++waitIt;
             }
         }
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA:   earliestNS=" << barrierInfo.earliestNS << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug,
+                   "Considering barrier=" + to_string(barrierIdx)
+                   + "; earliestNS=" + to_string(barrierInfo.earliestNS));
 
         for (std::size_t portIdx = 0; portIdx < portLimit; ++portIdx)
         {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA:     Considering portIdx=" << portIdx << "\n";
-#endif
+            logger.log(mv::Logger::MessageType::Debug, "Considering portIdx=" + to_string(portIdx));
             std::uint64_t portCompleteNS = 0;
             for (auto opInfo : barrierInfo.updateOpInfos)
             {
                 if (opInfo->isDMA && opInfo->portIdx == portIdx)
                 {
                     portCompleteNS = std::max(portCompleteNS, opInfo->completeNS());
-#ifdef DEBUG_LAYOUT_PASS
-                    std::cerr << "LayoutDMA:       Updated port completion to "
-                              << portCompleteNS << "\n";
-#endif
+                    logger.log(mv::Logger::MessageType::Debug, "Updated port completion to " + to_string(portCompleteNS));
                 }
             }
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "LayoutDMA:       Port[" << portIdx << "].slack="
-                      << barrierInfo.earliestNS - portCompleteNS << "\n";
-#endif
+
+            logger.log(mv::Logger::MessageType::Debug,
+                       "Port[" + to_string(portIdx) + "].slack="
+                       + to_string(barrierInfo.earliestNS - portCompleteNS));
+
             barrierInfo.portSlackNS[portIdx] = barrierInfo.earliestNS - portCompleteNS;
         }
     }
@@ -946,16 +939,16 @@ bool operator<(const Benefit& lhs, const Benefit& rhs)
 }
 
 // Computes the overall benefit of moving a tensor to CSRAM.
-Benefit computeBenefit(TensorInfo* tensorInfo,
+Benefit computeBenefit(const mv::LogSender& logger,
+                       TensorInfo* tensorInfo,
                        std::vector<BarrierInfo>* barrierInfos,
                        std::vector<PortInfo>* portInfos,
                        std::uint64_t overallLatency)
 {
     auto benefit = Benefit{tensorInfo, 0, overallLatency};
 
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA:   Initial slack=" << benefit.slackNS << "\n";
-#endif
+    logger.log(mv::Logger::MessageType::Debug,
+               "Computing benefit; initial slack=" + to_string(benefit.slackNS));
 
     for (auto* opInfo : tensorInfo->readers)
     {
@@ -964,15 +957,13 @@ Benefit computeBenefit(TensorInfo* tensorInfo,
             portInfo = PortInfo{0};
         }
 
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Looking at reader Op=" << opInfo->op->getName()
-                  << " ty=" << opInfo->op->getOpType()
-                  << ": latency=" << opInfo->latencyNS
-                  << " csramNS=" << opInfo->csramNS
-                  << " size=" << opInfo->size
-                  << " port=" << opInfo->portIdx
-                  << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug,
+                   "Looking at reader Op=" + opInfo->op->getName()
+                   + " ty=" + opInfo->op->getOpType()
+                   + ": latency=" + to_string(opInfo->latencyNS)
+                   + " csramNS=" + to_string(opInfo->csramNS)
+                   + " size=" + to_string(opInfo->size)
+                   + " port=" + to_string(opInfo->portIdx));
 
         for (auto depUpdate : opInfo->deps.getUpdate())
         {
@@ -986,9 +977,8 @@ Benefit computeBenefit(TensorInfo* tensorInfo,
                 if (opInfoT->isDMA)
                 {
                     (*portInfos)[opInfoT->portIdx].busyUntil = std::max((*portInfos)[opInfoT->portIdx].busyUntil, completeNS);
-#ifdef DEBUG_LAYOUT_PASS
-                    std::cerr << "LayoutDMA:   Port " << opInfoT->portIdx << " barrier slack=" << barrierInfo.portSlackNS[opInfoT->portIdx] << "\n";
-#endif
+                    logger.log(mv::Logger::MessageType::Debug,
+                               "Port " + to_string(opInfoT->portIdx) + " barrier slack=" + to_string(barrierInfo.portSlackNS[opInfoT->portIdx]));
                     benefit.slackNS = std::min(barrierInfo.portSlackNS[opInfoT->portIdx], benefit.slackNS);
                 }
                 else
@@ -1034,7 +1024,7 @@ Benefit computeBenefit(TensorInfo* tensorInfo,
 // Sets the tensor (and sub-tensors) to the indicated graph file
 // index, and returns the next graph file index to use for
 // assignments.
-unsigned setTensorIndex(unsigned numClusters, TensorInfo* ti, unsigned idx)
+unsigned setTensorIndex(const mv::LogSender& logger, unsigned numClusters, TensorInfo* ti, unsigned idx)
 {
     // N.B. This is essentially duplicating the logic for
     // graphFileIndex assignment used in allocate_memory_kmb.
@@ -1045,31 +1035,25 @@ unsigned setTensorIndex(unsigned numClusters, TensorInfo* ti, unsigned idx)
     {
         for (unsigned j = 0; j < numClusters; ++j)
         {
-#ifdef DEBUG_LAYOUT_PASS
-            std::cerr << "Setting graphFileIndex (dense SplitOverK " << j << " of " << ti->tensor
-                      << " / " << &ti->tensor->getSubTensor(j) << "): " << idx << "\n";
-#endif
+            logger.log(mv::Logger::MessageType::Debug,
+                       "Setting graphFileIndex (dense SplitOverK " + to_string(j)
+                       + " of " + ti->tensor->getLogID() + "): " + to_string(idx));
             ti->tensor->getSubTensor(j).set<unsigned>("graphFileIndex", idx++);
         }
     }
     else
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "Setting graphFileIndex (fallback " << ti->tensor << "): " << idx << "\n";
-#endif
+        logger.log(mv::Logger::MessageType::Debug,
+                   "Setting graphFileIndex (fallback " + ti->tensor->getLogID() + "): " + to_string(idx));
         ti->tensor->set<unsigned>("graphFileIndex", idx++);
     }
     ti->updatedGraphfileIndex = true;
     return idx;
 }
 
-void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+void layoutDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: Begin\n";
-#endif
 
     auto globalConfig = model.getGlobalConfigParams();
 
@@ -1084,19 +1068,17 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     }
     else
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: No CSRAM attr\n";
-#endif
+        pass.log(mv::Logger::MessageType::Debug, "No CSRAM available (missing CSRAM attribute)");
         return;
     }
 
     if (csramLimit <= 0)
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: CSRAM=" << csramLimit << "\n";
-#endif
+        pass.log(mv::Logger::MessageType::Debug, "No CSRAM available: CSRAM limit=" + to_string(csramLimit));
         return;
     }
+
+    pass.log(mv::Logger::MessageType::Debug, "CSRAM limit=" + to_string(csramLimit));
 
     int portLimit = 1;
     if (passDesc.hasAttr("dmaControllers"))
@@ -1108,17 +1090,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         portLimit = globalConfig->get<int>("dmaControllers");
     }
 
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: csramLimit=" << csramLimit
-              << " portLimit=" << portLimit
-              << "\n";
-
-    std::cerr << "LayoutDMA: Initial Tensors:\n";
-    for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
-    {
-        std::cerr << "\nTensor " << &*ti << ": " << ti->toString() << "\n";
-    }
-#endif
+    pass.log(mv::Logger::MessageType::Debug, "DMA Port limit=" + to_string(portLimit));
 
     mv::DataModel dataModel(model);
     unsigned numClusters = dataModel.getGlobalConfigParams()->get<int>("Number_of_Clusters");
@@ -1225,29 +1197,22 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // Gather operation infos, including latencies.
     for (auto op : ops)
     {
-        auto opInfo = opInfos.emplace(opInfos.end(), analyzeOp(*op));
+        auto opInfo = opInfos.emplace(opInfos.end(), analyzeOp(pass, *op));
         opInfo->deps = op->get<mv::BarrierDependencies>("BarrierDeps");
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Found Op=" << op->getName()
-                  << " ty=" << op->getOpType()
-                  << ": wait=";
+        std::string logMsg = "Found Op=" + op->getName()
+          + " ty=" + op->getOpType()
+          + ": wait=";
         for (auto wait : opInfo->deps.getWait())
         {
-            std::cerr << wait << " ";
+            logMsg += to_string(wait) + " ";
         }
-        std::cerr << " update=";
+        logMsg += " update=";
         for (auto update : opInfo->deps.getUpdate())
         {
-            std::cerr << update << " ";
+            logMsg += to_string(update) + " ";
         }
-        std::cerr << "size=" << opInfo->size
-                  << op->toString() << "\n";
-        if (opInfo->isDMA)
-        {
-            std::cerr << op->getInputTensor(0)->toString() << "\n";
-        }
-        std::cerr << "\n";
-#endif
+        logMsg += " size=" + to_string(opInfo->size) + op->toString();
+        pass.log(mv::Logger::MessageType::Debug, logMsg);
     }
 
     std::vector<BarrierInfo> barrierInfos(barrierMax+1, BarrierInfo{0, 0, {}, {}, std::vector<std::uint64_t>(portLimit, 0)});
@@ -1290,25 +1255,19 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         }
     }
 
-    std::uint64_t overallLatency = simRunModel(&opInfos, &barrierInfos, &portInfos);
-    computePortSlack(&barrierInfos, portLimit);
+    std::uint64_t overallLatency = simRunModel(pass, &opInfos, &barrierInfos, &portInfos);
+    computePortSlack(pass, &barrierInfos, portLimit);
 
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: overallLatency=" << overallLatency << "\n";
-#endif
+    pass.log(mv::Logger::MessageType::Debug, "OverallLatency=" + to_string(overallLatency));
 
     // Compute the benefit for each candidate tensor movement.
     std::list<Benefit> benefits;
     for (auto& tensorInfo : tensorInfos)
     {
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA: Looking at tensor=" << tensorInfo.tensor << "\n";
-#endif
-        auto benefit = computeBenefit(&tensorInfo, &barrierInfos, &portInfos, overallLatency);
+        auto benefit = computeBenefit(pass, &tensorInfo, &barrierInfos, &portInfos, overallLatency);
 
-#ifdef DEBUG_LAYOUT_PASS
-        std::cerr << "LayoutDMA:   benefit=" << benefit.benefitNS << " slack=" << benefit.slackNS << "\n";
-#endif
+        pass.log(mv::Logger::MessageType::Debug,
+                 "Benefit=" + to_string(benefit.benefitNS) + " slack=" + to_string(benefit.slackNS));
         benefits.emplace_back(std::move(benefit));
     }
 
@@ -1331,7 +1290,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
         if (benefit.tensorInfo->size <= csramAvailable)
         {
             csramAvailable -= benefit.tensorInfo->size;
-            currentGraphfileIndex = setTensorIndex(numClusters, benefit.tensorInfo, currentGraphfileIndex);
+            currentGraphfileIndex = setTensorIndex(pass, numClusters, benefit.tensorInfo, currentGraphfileIndex);
             for (auto updateOpInfo : benefit.tensorInfo->readers)
             {
                 updateOpInfo->latencyNS = updateOpInfo->csramNS;
@@ -1349,11 +1308,11 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     // CSRAM available at runtime.
     for (auto& benefit : benefits)
     {
-        currentGraphfileIndex = setTensorIndex(numClusters, benefit.tensorInfo, currentGraphfileIndex);
+        currentGraphfileIndex = setTensorIndex(pass, numClusters, benefit.tensorInfo, currentGraphfileIndex);
     }
 
     // Recompute port assignments based on updated tensor placements.
-    simRunModel(&opInfos, &barrierInfos, &portInfos);
+    simRunModel(pass, &opInfos, &barrierInfos, &portInfos);
 
     // At this point, we have pretty good port assignments for all
     // operations in the opInfos vector, so update the actual operations.
@@ -1370,17 +1329,7 @@ void layoutDMAFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::T
     {
         if (!ti.updatedGraphfileIndex)
         {
-            currentGraphfileIndex = setTensorIndex(numClusters, &ti, currentGraphfileIndex);
+            currentGraphfileIndex = setTensorIndex(pass, numClusters, &ti, currentGraphfileIndex);
         }
     }
-
-#ifdef DEBUG_LAYOUT_PASS
-    std::cerr << "LayoutDMA: Final Tensors:\n";
-    for (auto ti = model.tensorBegin(); ti != model.tensorEnd(); ++ti)
-    {
-        std::cerr << "\n" << ti->toString() << "\n";
-    }
-
-    std::cerr << "LayoutDMA: End\n";
-#endif
 }
