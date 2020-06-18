@@ -590,7 +590,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, unsigned short newKernel,
+                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
                                                  std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
@@ -852,7 +852,6 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         unsigned short pad = getPad(factors, inputShape[largeDim], outputShape[largeDim]);
 
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
-<<<<<<< HEAD
         std::pair<bool, bool> producers_quantized(true, true);
         auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
         //NOTE: this condition needs to be extended in case that the next operation is float16 in general
@@ -865,9 +864,6 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             }
 
 
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kSize[0], factors.first, padding, producers_quantized.first);
-=======
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 
         if (asymmetricCase)
@@ -902,8 +898,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         }
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kernelSize, newKernel, padding);
->>>>>>> master
+                                                                            kernelSize, newKernel, padding, producers_quantized.first);
 
         linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -968,7 +963,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0}, producers_quantized.second);
+                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0}, producers_quantized.second);
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
