@@ -196,6 +196,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     dm.defineTensor(weightsTensor->getSparsityMap());
             }
             //NOTE: Here is handled a specific case and this is why is treated seperately
+
             if (dpuTask->isSparsityConsumer() &&
                 dpuTask->hasAttr("activationSparsityCompilerSolving") &&
                 dpuTask->get<bool>("activationSparsityCompilerSolving"))

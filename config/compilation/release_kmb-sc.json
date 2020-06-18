@@ -23,6 +23,7 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "ScaleFuseInput": true,
                 "PWLUsage": true,
                 "ReferenceMode": false,
                 "split_strategy" :

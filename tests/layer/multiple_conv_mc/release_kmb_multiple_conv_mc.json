@@ -343,6 +343,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
