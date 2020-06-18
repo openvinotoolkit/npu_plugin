@@ -535,26 +535,49 @@ namespace mv
                     inputSize += fakeSparsitySize;
                 }
                 if(inputActivationSparsity){
+                    //Alignment due to input channels mult of 16 requirement
+                    //Only ZM Conv and Elwise are sparse consumers, both need
+                    //input channels mult of 16
+                    auto tensorSize = op.getInputTensor(0)->computeTotalSize(16, false, false, true);
                     size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["C"];
-                    //w*h*c, 1 bit per byte of tensor.
-                    auto sparseInputSize = (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]* op.getInputTensor(0)->getShape()[2]) / 8;
-                    //storage element
-                    sparseInputSize += (op.getInputTensor(0)->getShape()[0] * op.getInputTensor(0)->getShape()[1]);
+                    //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+                    auto sparseInputSize = std::ceil((double)tensorSize /
+                        (8 * op.getInputTensor(0)->getDType().getSizeInBytes()));
+                    //Storage element table calculation, 4 bytes pointers
+                    //Bigger with C streaming
+                    sparseInputSize += op.getInputTensor(0)->getShape()[IO_WIDTH_DIMENSION] *
+                        op.getInputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] *
+                        streamConfig["C"] * 4;
+                    //Alignment due to bus access requirements
                     sparseInputSize = mv::round_up(sparseInputSize, 16);
                     inputSize += (sparseInputSize / streamDivisor);
                 }
                 if(outputActivationSparsity){
+                    //Alignment due to output channels mult of 16 requirement
+                    //Only ZM Conv and Elwise are sparse consumers
+                    auto tensorSize = op.getOutputTensor(0)->computeTotalSize(16, false, false, true);
                     size_t streamDivisor = streamConfig["W"] * streamConfig["H"] * streamConfig["K"];
-                    //w*h*c, 1 bit per byte of tensor.
-                    auto sparseOutputSize = (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]* op.getOutputTensor(0)->getShape()[2]) / 8;
-                    //storage element
-                    sparseOutputSize += (op.getOutputTensor(0)->getShape()[0] * op.getOutputTensor(0)->getShape()[1]);
+                    //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+                    auto sparseOutputSize = std::ceil((double)tensorSize /
+                        (8 * op.getOutputTensor(0)->getDType().getSizeInBytes()));
+                    //Storage element table calculation, 4 bytes pointers
+                    //Bigger with K streaming
+                    sparseOutputSize += op.getOutputTensor(0)->getShape()[IO_WIDTH_DIMENSION] *
+                        op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION] *
+                        streamConfig["K"] * 4;
+                    //Alignment due to bus access requirements
                     sparseOutputSize = mv::round_up(sparseOutputSize, 16);
                     outputSize += (sparseOutputSize / streamDivisor);
                 }
                 if(weightsSparsity){
-                    auto sparseWeightSize = (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]* op.getInputTensor(1)->getShape()[2]) / 8;
-                    sparseWeightSize += (op.getInputTensor(1)->getShape()[0] * op.getInputTensor(1)->getShape()[1]);
+                    //Alignment due to output/input channels mult of 16 requirement
+                    auto tensorSize = op.getInputTensor(1)->getShape()[KERNEL_WIDTH] *
+                        op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] *
+                        mv::round_up(op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS], 16) *
+                        mv::round_up(op.getInputTensor(1)->getShape()[KERNEL_OUTPUT_CHANNELS], 16);
+                    //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
+                    auto sparseWeightSize = std::ceil((double)tensorSize / 8);
+                    //Sparse pointers taken into account in weight table ...
                     sparseWeightSize = mv::round_up(sparseWeightSize, 16);
                     weightSize += sparseWeightSize; //TODO probably overcounting now if SOK
                 }
@@ -814,9 +837,15 @@ namespace mv
 
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
-                if (op.isSparsityConsumer() and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
-                        and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
-                        referenceDevice == "A0")
+                bool isCMConv = enableChannelMajorConv and
+                    op.getOpType() == "Conv" and
+                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+
+                if (op.isSparsityConsumer() and
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
+                    !isCMConv and
+                    referenceDevice == "A0")
+                {
                     return true;
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
