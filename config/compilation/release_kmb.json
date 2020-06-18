@@ -95,7 +95,14 @@
     "quantization" : {
         "Singular" : [
 	    "SelectiveCMconv",
-            "FakeQuantize"
+            "FakeQuantize",
+            {
+                "name": "GenerateDot",
+                "output": "output/graph.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true 
+            }
         ]
     },
     "adapt": {
