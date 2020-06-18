@@ -25,6 +25,7 @@
                 "PPEAccuracy": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
