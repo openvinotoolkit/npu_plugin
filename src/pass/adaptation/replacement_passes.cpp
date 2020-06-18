@@ -858,6 +858,14 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             producers_quantized.first = true;
             producers_quantized.second = false;
         }
+        else if (sinkOps[0]->getOpType() == "Output"){
+            if (sinkOps[0]->hasAttr("precision")
+                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                producers_quantized.first = true;
+                producers_quantized.second = false;
+            }
+        }
 
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 
