@@ -416,7 +416,9 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
                 tensorNeedsSparsity = true;
                 break;
             }
-            else if (checkA0FloatSparsityBug(flow, referenceDevice) && !compilerSolvesSparsity(flow))
+            else if (flow.sink()->isSparsityConsumer() &&
+                checkA0FloatSparsityBug(flow, referenceDevice) &&
+                !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
                 break;

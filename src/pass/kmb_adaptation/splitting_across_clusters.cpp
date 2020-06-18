@@ -313,13 +313,14 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);
             std::vector<mv::Workload> subTensors;
 
-            if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
+            const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
+            if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
+                tensor->get<std::string>("splitStrategy")) != segmentableStrategies.cend())
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                 tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
-            else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
-                     tensor->get<std::string>("splitStrategy") == "SplitOverK")
+            else
             {
                 for (unsigned i = 0; i < nWorkloads; i++)
                 {

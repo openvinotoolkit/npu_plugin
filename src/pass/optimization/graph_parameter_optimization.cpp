@@ -814,7 +814,7 @@ namespace mv
 
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
-                if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
+                if (op.isSparsityConsumer() and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
                         and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
                         referenceDevice == "A0")
                     return true;
