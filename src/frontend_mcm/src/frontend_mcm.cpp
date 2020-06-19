@@ -38,6 +38,7 @@
 #include <vpu/utils/error.hpp>
 
 #include "dims_parser.hpp"
+#include "ie_macro.hpp"
 
 #ifdef ENABLE_MCM_COMPILER
 
@@ -1899,7 +1900,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     kernelParams.reserve(workGroupDims * 3 + 2 + kernelArgs.size());
 
     std::copy(begin(localWorkGroupSize), end(localWorkGroupSize), back_inserter(kernelParams));
-    for (int i = 0; i < localWorkGroupSize.size(); i++) {
+    for (size_t i = 0; i < localWorkGroupSize.size(); i++) {
         IE_ASSERT(globalWorkGroupSize[i] % localWorkGroupSize[i] == 0);
         kernelParams.push_back(globalWorkGroupSize[i] / localWorkGroupSize[i]);
     }
@@ -1929,7 +1930,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     const auto outputInfo = TensorInfoFromDesc(outputDescs[0]);
 
     auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData, outputInfo.order,
-        outputInfo.shape, outputInfo.dtype, initialQuantParams, layer->name);
+        outputInfo.shape, outputInfo.dtype, initialQuantParams(), layer->name);
 
     IE_ASSERT(custom->getShape() == outputInfo.shape);
 
@@ -2130,7 +2131,7 @@ CustomLayer::Ptr FrontEndMcm::getSuitableCustomLayer(
     const auto inputsLayoutMatch = [&](const SmallVector<CustomDataFormat>& cnnEdges,
                                        const std::map<int, CustomDataFormat>& clEdges) {
         for (const auto clEdge : clEdges) {
-            const auto port = clEdge.first;
+            size_t port = clEdge.first;
             VPU_THROW_UNLESS(
                 port < cnnEdges.size(), "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
 

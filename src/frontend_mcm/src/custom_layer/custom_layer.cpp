@@ -178,7 +178,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 
         VPU_THROW_UNLESS(stageOrder.begin()->first == 0,
             "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
-        VPU_THROW_UNLESS(stageOrder.rbegin()->first == stageOrder.size() - 1,
+        VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
             "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
 
         for (auto& stage : stageOrder) {
