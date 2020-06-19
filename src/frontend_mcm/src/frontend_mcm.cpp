@@ -1773,12 +1773,12 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
     auto nms_thresh = layer->GetParamAsFloat("nms_thresh");
     auto box_coordinate_scale = layer->GetParamAsFloat("box_coordinate_scale", 1.0);
     auto box_size_scale = layer->GetParamAsFloat("box_size_scale", 1.0);
-    auto scale_data = layer->GetParamAsFloats("scale", {});
-    auto ratio_data = layer->GetParamAsFloats("ratio", {});
+    auto scale = layer->GetParamAsFloats("scale", {});
+    auto ratio = layer->GetParamAsFloats("ratio", {});
     auto normalize = layer->GetParamAsBool("normalize", false);
     auto clip_before_nms = layer->GetParamAsBool("clip_before_nms", true);
     auto clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
-    auto framework = layer->GetParamAsString("framework", "");
+    auto framework = layer->GetParamAsString("framework", "caffe");
     auto for_deformable = layer->GetParamAsBool("for_deformable", false);
     // NB: IR doens't contain this parameter
     float pre_nms_thresh = 0.0f;
@@ -1793,22 +1793,11 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
     for (const auto& input : inputs) {
         proposal_ins.push_back(input->getMcmNode());
     }
+    IE_ASSERT(proposal_ins.size() == 3u);
 
-    // FIXME mcmCompiler doesn't support std::vector<float> for constant operation
-    auto scale = _modelMcm.constant(std::vector<double>(scale_data.begin(), scale_data.end()),
-        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams(),
-        "scale");
-
-    auto ratio = _modelMcm.constant(std::vector<double>(ratio_data.begin(), ratio_data.end()),
-        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams(),
-        "ratio");
-
-    proposal_ins.push_back(scale);
-    proposal_ins.push_back(ratio);
-
-    auto proposal = _modelMcm.proposal(proposal_ins, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride,
-        min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale,
-        framework, for_deformable, mv::DType("Default"));
+    auto proposal = _modelMcm.proposal(proposal_ins, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh,
+        feat_stride, min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale,
+        box_coordinate_scale, framework, for_deformable, mv::DType("Default"));
 
     bindOutput(proposal, layer->outData[0]);
 }
