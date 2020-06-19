@@ -1178,8 +1178,9 @@ namespace mv
                         unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
                         unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
                         unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
+                        unsigned dy = std::ceil(static_cast<double>(H) / 4);
 
-                        if ((W*H*C)%128 != 0)
+                        if ((W*dy*C)%128 != 0)
                         {
                             log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
                             return INF;
