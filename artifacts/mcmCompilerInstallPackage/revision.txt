@@ -1,1 +1,1 @@
-6756c41cd8cada0e709d3edf1efee80cd5903c13 tag: NN_Compiler_v1.3.7
+2abc18d495d67cf5bdc2631fe7818727bf967c6f tag: NN_Compiler_v1.3.8.1
