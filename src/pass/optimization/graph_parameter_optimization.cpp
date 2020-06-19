@@ -1178,7 +1178,7 @@ namespace mv
                         unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
                         unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
                         unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
-                        unsigned dy = std::ceil(static_cast<double>(H) / 4);
+                        unsigned dy = std::ceil(static_cast<double>(H) / totalClusters);
 
                         if ((W*dy*C)%128 != 0)
                         {
