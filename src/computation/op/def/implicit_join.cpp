@@ -93,8 +93,10 @@ namespace mv
                     inputShape0[numericAxisToConcat[axis]] += inputShape[numericAxisToConcat[axis]];
 
             }
+
+            unsigned df = sqrt(inputs.size());//we assume that W/H have the same subconv numbers
             for(size_t axis = 0; axis < numericAxisToConcat.size(); axis++)
-                inputShape0[numericAxisToConcat[axis]] /= numericAxisToConcat.size();
+                inputShape0[numericAxisToConcat[axis]] /= df;
 
             //NOTE/ASSUMPTION: If input DTypes are different, we concatenate with smallest DType.
             auto dTypeToUse = inputs[0]->getDType();
