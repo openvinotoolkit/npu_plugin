@@ -107,6 +107,9 @@ else()
 
     add_executable(conv_dilated_icv_design conv_dilated_icv_design/conv_dilated_icv_design.cpp)
     target_link_libraries(conv_dilated_icv_design cm)
+    
+    add_executable(conv_dilated_icv_design_unequal_subconvs conv_dilated_icv_design_unequal_subconvs/conv_dilated_icv_design_unequal_subconvs.cpp)
+    target_link_libraries(conv_dilated_icv_design_unequal_subconvs cm)
 
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
