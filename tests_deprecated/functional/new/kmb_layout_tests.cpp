@@ -113,7 +113,7 @@ TEST_P(KmbLayoutTests, SetUnsupportedLayout) {
     );
 
     if (!is_supported(userInDesc.getPrecision(), userInDesc.getLayout(), userOutDesc.getPrecision(), userOutDesc.getLayout())) {
-        SKIP_INFER_ON("KMB", "Parameters are not supported, no graph to infer");
+        SKIP_INFER_ON("KMB", "VPUX", "Parameters are not supported, no graph to infer");
     }
 
     const auto netBuidler = [&](TestNetwork& testNet) {
