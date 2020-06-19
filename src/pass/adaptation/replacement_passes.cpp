@@ -591,7 +591,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                  std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
-                                                 std::array<unsigned short, 4> padding)
+                                                 std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
 
@@ -613,6 +613,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+    double inf = std::numeric_limits<double>::infinity();
 
 
     // Create weights tensor
@@ -637,7 +638,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
     // Create depthwise conv
 	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized())
+	if (sourceTensor->isQuantized() && quantRequired)
 	{
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
@@ -645,7 +646,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
 	else
 	{
-        mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+        mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
  	}
 
@@ -851,6 +852,21 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         unsigned short pad = getPad(factors, inputShape[largeDim], outputShape[largeDim]);
 
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
+        std::pair<bool, bool> producers_quantized(true, true);
+        auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
+        if (sinkOps[0]->isUPA()){
+            producers_quantized.first = true;
+            producers_quantized.second = false;
+        }
+        else if (sinkOps[0]->getOpType() == "Output"){
+            if (sinkOps[0]->hasAttr("precision")
+                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                producers_quantized.first = true;
+                producers_quantized.second = false;
+            }
+        }
+
         std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
 
         if (asymmetricCase)
@@ -885,7 +901,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         }
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kernelSize, newKernel, padding);
+                                                                            kernelSize, newKernel, padding, producers_quantized.first);
 
         linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -950,13 +966,14 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0});
+                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0}, producers_quantized.second);
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
             opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
-        }
+	    }
+
     } // end for
 }
 
