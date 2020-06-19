@@ -283,7 +283,7 @@ class Operation_Dag {
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
-          "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
+          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
           "ImplicitInputSlice"} ) {
         init_from_model(model);
     }
@@ -697,7 +697,7 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") ||
+      return (op->getOpType() == "ImplicitConcat") || 
           (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
           (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
           (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
@@ -907,7 +907,7 @@ class Operation_Dag {
           mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
-        (op_type == "ImplicitConcat") ||
+        (op_type == "ImplicitConcat") || 
         (implicit_op_types_.find(op_type) != implicit_op_types_.end());
     }
 
@@ -1001,7 +1001,7 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        resource_t resource_utility;
+        resource_t resource_utility; 
 
         if ( !does_the_op_run_on_hardware(op) ||
             is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
@@ -1019,9 +1019,9 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        resource_t resource_utility = 0UL;
+        resource_t resource_utility = 0UL; 
         if (does_the_op_run_on_hardware(op)) {
-          resource_utility =
+          resource_utility = 
             mv::RuntimeModel::countProducerConsumerTasks(model, itr);
         }
         // resource utility //
@@ -1334,3 +1334,4 @@ typedef Feasible_Memory_Schedule_Generator< mv::scheduler::Operation_Dag<> >
 
 
 #endif
+
