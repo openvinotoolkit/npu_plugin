@@ -26,6 +26,10 @@
 #include <memory>
 #include <string>
 
+#ifndef UNUSED
+#define UNUSED(var) (void)var
+#endif
+
 namespace vpu {
 namespace MCMAdapter {
 #ifdef ENABLE_MCM_COMPILER
@@ -115,6 +119,7 @@ static InferenceEngine::Data deserializeTensor(const MVCNN::TensorReference& ten
 #endif
 
 void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkInputs) {
+    UNUSED(networkInputs);
     IE_ASSERT(nullptr != data);
 #ifdef ENABLE_MCM_COMPILER
     const MVCNN::GraphFile* file = MVCNN::GetGraphFile(data);
@@ -138,6 +143,7 @@ void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkI
 }
 
 void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networkOutputs) {
+    UNUSED(networkOutputs);
     IE_ASSERT(nullptr != data);
 #ifdef ENABLE_MCM_COMPILER
     const MVCNN::GraphFile* file = MVCNN::GetGraphFile(data);

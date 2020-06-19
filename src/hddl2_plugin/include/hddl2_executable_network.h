@@ -53,6 +53,8 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
 private:
+    void loadGraphToDevice();
+
     const HDDL2Config _config;
     const Logger::Ptr _logger;
     Graph::Ptr _graphPtr = nullptr;

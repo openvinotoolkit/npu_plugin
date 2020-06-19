@@ -41,6 +41,7 @@ public:
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
     static bool isServiceAvailable();
+    static bool isServiceRunning();
 
     ~HDDL2Metrics() = default;
 

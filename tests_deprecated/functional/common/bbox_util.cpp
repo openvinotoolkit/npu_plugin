@@ -32,7 +32,7 @@ Dtype get_orient_by_bin_index(Dtype bin_index, int num_orient_bins) {
 template float get_orient_by_bin_index(float bin_index, int num_orient_bins);
 template double get_orient_by_bin_index(double bin_index, int num_orient_bins);
 
-float get_orient_by_class_index(int class_index, int num_orient_classes) {
+float get_orient_by_class_index(int class_index) {
     switch (class_index) {
     case 0:
         return -0.5f * PI;
@@ -57,7 +57,7 @@ Dtype get_orientation_impl(const ArrayDtype& bin_vals, bool interpolate_orientat
     }
 
     if (num_bins == 3) {
-        Dtype orient = get_orient_by_class_index(max_index, num_bins);
+        Dtype orient = get_orient_by_class_index(max_index);
         return orient;
     }
 

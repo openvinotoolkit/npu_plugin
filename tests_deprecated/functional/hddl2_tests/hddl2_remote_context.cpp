@@ -23,13 +23,8 @@
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Tests Declaration
-//------------------------------------------------------------------------------
 class HDDL2_Remote_Context_Tests : public CoreAPI_Tests {};
 
-//------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Tests Initiation
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     WorkloadID workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
 
@@ -46,8 +41,6 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Manipulation_Tests Declaration
-//------------------------------------------------------------------------------
 class HDDL2_Remote_Context_Manipulation_Tests : public HDDL2_Remote_Context_Tests {
 public:
     void SetUp() override;
@@ -62,9 +55,6 @@ void HDDL2_Remote_Context_Manipulation_Tests::SetUp() {
     params = Remote_Context_Helper::wrapWorkloadIdToMap(workloadId);
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_Remote_Context_Manipulation_Tests Initiation
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetDeviceName) {
     InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 

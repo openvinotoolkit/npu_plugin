@@ -21,7 +21,10 @@
 
 #include <string>
 
+#include "hddl2_metrics.h"
+
 using namespace vpu::HDDL2Plugin;
+namespace IE = InferenceEngine;
 
 static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& deviceID) {
     if (deviceID.empty()) return nullptr;
@@ -37,7 +40,8 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID) {
+HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID, const LogLevel& logLevel)
+    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
 
     const std::string graphName = graphPtr->getGraphName();
@@ -48,25 +52,31 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     const HddlUnite::Device::Ptr core = getUniteDeviceByID(deviceID);
     if (core != nullptr) {
         devices_to_use.push_back(*core);
-        std::cout << "Graph: " << graphName << " to device id: " << core->getSwDeviceId()
-                  << " | Device: " << core->getName() << std::endl;
+        _logger->info("Graph: %s to device id: %d | Device: %s ", graphName, core->getSwDeviceId(), core->getName());
     } else {
-        // TODO Use logger here
-        std::cout << "All devices will be used." << std::endl;
+        _logger->info("All devices will be used.");
     }
 
     statusCode =
         HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use);
 
-    if (statusCode != HddlStatusCode::HDDL_OK) {
+    if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
+        THROW_IE_EXCEPTION << IE::details::as_status << IE::StatusCode::NETWORK_NOT_LOADED;
+    } else if (statusCode != HddlStatusCode::HDDL_OK) {
+        if (!HDDL2Metrics::isServiceRunning()) {
+            _logger->error(FAILED_START_SCHEDULER.c_str());
+        }
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
+
     if (_uniteGraphPtr == nullptr) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Graph information is not provided";
     }
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr) {
+HddlUniteGraph::HddlUniteGraph(
+    const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr, const LogLevel& logLevel)
+    : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";

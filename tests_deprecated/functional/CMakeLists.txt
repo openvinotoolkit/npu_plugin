@@ -56,4 +56,5 @@ endif()
 target_compile_options(${TARGET_NAME}
     PRIVATE
         -Wall
-        -Werror)
+        -Werror
+        -Wextra)

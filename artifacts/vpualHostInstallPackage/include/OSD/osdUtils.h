@@ -62,6 +62,10 @@ static inline void OsduLL2Cinval(const void *addr, size_t size){
     // Do nothing. - TODO remove
 }
 
+//Compiler-independent random algo (xorshift)
+void     ciSrand(unsigned int seed);
+uint32_t ciRand();
+
 #ifdef __cplusplus
 } //extern "C"
 #endif

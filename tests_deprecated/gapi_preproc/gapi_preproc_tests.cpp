@@ -18,6 +18,10 @@
 #include "gapi_test_computations.hpp"
 #include "kmb_vpusmm_allocator.h"
 
+#ifndef UNUSED
+#define UNUSED(var) (void)var
+#endif
+
 // clang-format off
 namespace {
 
@@ -62,7 +66,7 @@ void own_NV12toBGR(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
     uint yidx = 0;
     uint uvidx = 0;
     uint bgridx = 0;
-    int yy, u, v, r, g, b;
+    int yy, u, v;
     for (j = 0; j < inY.rows; j++) {
         y = inY.data + j * inY.step;
         yidx = 0;
@@ -102,7 +106,7 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
     uint yidx = 0;
     uint uvidx = 0;
     uint rgbidx = 0;
-    int yy, u, v, r, g, b;
+    int yy, u, v;
     for (j = 0; j < inY.rows; j++) {
         y = inY.data + j * inY.step;
         yidx = 0;
@@ -520,7 +524,6 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 {
     using namespace InferenceEngine;
 
-    constexpr auto prec = Precision::U8;
     Layout out_layout;
     ColorFormat out_fmt;
     std::tuple<cv::Size,cv::Size,cv::Size> sizes;
@@ -585,7 +588,8 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
     }
 
     auto threadFunc = [y_size, out_layout, out_fmt](TestContext& ctx, cv::Size out_size) {
-        for (int i = 0; i < 100; i++) {
+        UNUSED(out_size);
+	for (int i = 0; i < 100; i++) {
             auto y_roi = getRandomRoi(y_size);
 
             cv::Rect uv_roi {y_roi.x / 2, y_roi.y / 2, y_roi.width / 2, y_roi.height / 2};

@@ -93,7 +93,7 @@ size_t getFCWeightsByteSize(const size_t inChannels, const size_t outChannels, c
 
 template <typename wei_data_t, typename bias_data_t>
 void ref_fc(const Blob::Ptr src, const wei_data_t* weights, const size_t weightsSize, const bias_data_t* biases,
-    const size_t biasSize, Blob::Ptr dst, uint32_t out_c, SizeVector input_dims) {
+    Blob::Ptr dst, uint32_t out_c, SizeVector input_dims) {
     size_t IW = 1;
     size_t IH = 1;
     size_t IC = 1;
@@ -180,7 +180,6 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     size_t weightsByteSize = getFCWeightsByteSize(input_dims[1], outChannels, "FP32");
     size_t weightsSize = weightsByteSize / sizeof(float);
     size_t biasByteSize = outChannels * sizeof(float);
-    size_t biasSize = outChannels;
 
     auto weightsBuffer =
         make_shared_blob<uint8_t>({Precision::U8, {weightsByteSize + biasByteSize + weightsBufferOffset}, Layout::C});
@@ -206,7 +205,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
     fillRealBuffer(data_ref, refOutputBlob->byteSize() / sizeof(float), 0.0f, 0.0f);
 
     // calc reference blob
-    ref_fc(inputBlobFP32, weightsData, weightsSize, bias_data, biasSize, refOutputBlob, outChannels, input_dims);
+    ref_fc(inputBlobFP32, weightsData, weightsSize, bias_data, refOutputBlob, outChannels, input_dims);
 
     float* fqParamsData = weightsBufferData;
 
@@ -335,7 +334,7 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
     data = refOutputBlob->buffer().as<uint8_t*>();
     std::fill(data, data + refOutputBlob->byteSize(), 0);
 
-    ref_fc(inputBlob, weightsData, weightsSize, bias_data, biasSize, refOutputBlob, outChannels, input_dims);
+    ref_fc(inputBlob, weightsData, weightsSize, bias_data, refOutputBlob, outChannels, input_dims);
 
     ASSERT_NO_THROW(inferRequest.Infer());
     Blob::Ptr outputBlobFP32 = ConvertU8ToFP32(outputBlob);

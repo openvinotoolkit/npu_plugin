@@ -26,5 +26,12 @@ namespace HDDL2Plugin {
 #define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
 #define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
 
+#define FAILED_START_SCHEDULER                                   \
+    std::string("Couldn't start the device scheduler service.\n" \
+                "Please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
+#define GRAPH_NOT_LOADED                                                         \
+    std::string("Graph was not loaded on the device, only export can be made.\n" \
+                "For execution, please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
+
 }  //  namespace HDDL2Plugin
 }  //  namespace vpu

@@ -40,8 +40,6 @@ static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2BlobParams Implementation
-//------------------------------------------------------------------------------
 HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const HDDL2Config& config)
     : _logger(std::make_shared<Logger>("HDDL2BlobParams", config.logLevel(), consoleOutput())) {
     if (params.empty()) {
@@ -87,8 +85,6 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
     _paramMap = params;
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2RemoteBlob Implementation
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params, const HDDL2Config& config)
