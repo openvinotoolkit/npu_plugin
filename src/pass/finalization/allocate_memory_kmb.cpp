@@ -497,10 +497,19 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                 else
                 {
 
+                    auto axisToConcat = opIterator->get<std::string>("axis");
+                    size_t axis_shape=0;
+                    for (size_t i = 0; i < axisToConcat.size(); i++)
+                        axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
+
                     for(unsigned i = 0; i < inputSlots; i++)
                     {
-                        running_concat_offset_LHS.push_back(prev_offset + offset);
-                        running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                        running_concat_offset_LHS.push_back(0);
+                        offset = 0;
+                        for (size_t j = 0; j < axisToConcat.size(); j++)
+                            offset += opIterator->getInputTensor(i)->getShape()[mv::Shape::getAxis(axisToConcat.substr(j,1))];
+
+                        running_concat_offset_RHS.push_back(axis_shape  - offset);
                     }
                 }
 
