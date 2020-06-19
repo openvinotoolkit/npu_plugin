@@ -37,7 +37,6 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     //TODO handle stride != 1
     auto stride = opIt->get<std::array<unsigned short, 2>>("stride");
 
-    //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
     mv::Data::TensorIterator sliceInput = om.slice(sourceTensor,
                                  {0, 0, 0, 0},
                                  newShape,
@@ -172,20 +171,30 @@ void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
 
                 size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
                 size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
-                //TODO handle last slice in case of originalShape[mv::IO_WIDTH_DIMENSION]%dilationFactor !=0
                 std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
 
                 //Create sub dilated convs
                 size_t subConvIdx = 0;
                 uint64_t leadingOffset = 0;
+                mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
-                    mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
+                    mv::Shape subConvShape = newShape;
+                    if (sliceWidth*dilationFactor != originalShape[mv::IO_WIDTH_DIMENSION] && //uneven subconvs on width
+                            i == (dilationFactor-1)) // last row
+                    {
+                        subConvShape[mv::IO_WIDTH_DIMENSION] = originalShape[mv::IO_WIDTH_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_WIDTH_DIMENSION];
+                    }
                     for (size_t j = 0; j < dilationFactor; j++)
                     {
+                        if (sliceHeight*dilationFactor != originalShape[mv::IO_HEIGHT_DIMENSION] && //uneven subconvs on height
+                                j == (dilationFactor-1)) // last row
+                        {
+                            subConvShape[mv::IO_HEIGHT_DIMENSION] = originalShape[mv::IO_HEIGHT_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_HEIGHT_DIMENSION];
+                        }
                         subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
-                            newShape, subConvIdx++));
+                            subConvShape, subConvIdx++));
                         subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
                         leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
                     }
@@ -218,7 +227,6 @@ void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
                     opsToLink[j]->setInputTensor(join, inputSlots[j], false);
                     om.defineFlow(join, opsToLink[j], inputSlots[j]);
                 }
-                //TODO add StorageElement & sparsity MAp for following Op
             }
         }
     }
