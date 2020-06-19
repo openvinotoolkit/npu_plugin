@@ -105,6 +105,9 @@ else()
     add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
     target_link_libraries(conv_dilated cm)
 
+    add_executable(conv_dilated_icv_full_ones conv_dilated_icv_full_ones/conv_dilated_icv_full_ones.cpp)
+    target_link_libraries(conv_dilated_icv_full_ones cm)
+
     add_executable(conv_dilated_icv_design conv_dilated_icv_design/conv_dilated_icv_design.cpp)
     target_link_libraries(conv_dilated_icv_design cm)
     

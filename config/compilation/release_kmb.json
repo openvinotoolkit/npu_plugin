@@ -117,7 +117,7 @@
                 "content": "full",
                 "html": true
             },
-            "ConvolutionDilation_New",
+            "ConvolutionDilation",
             {
                 "name": "GenerateDot",
                 "output": "output/dots/afterDil.dot",
@@ -133,6 +133,13 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_go.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -214,7 +221,14 @@
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
-            "StreamCopyOperations"
+            "StreamCopyOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/adapt.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            }
         ]
     },
     "kmb_adapt": {

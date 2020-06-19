@@ -108,8 +108,6 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         if(input->hasAttr("quantParams"))
                             inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
 
-
-
                         if(opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv"))
                         {
                             if (om.getSourceOp(opIt->getInputTensor(0))->getOpType() == "Slice")

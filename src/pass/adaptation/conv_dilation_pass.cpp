@@ -8,26 +8,26 @@
 #include "include/mcm/tensor/tiling.hpp"
 #include <algorithm>
 
-static void convDilationNewFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void convDilationOldFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void convDilationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+//static void convDilationOldFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
     namespace pass
     {
-        MV_REGISTER_PASS(ConvolutionDilation_New)
-            .setFunc(convDilationNewFcn)
+        MV_REGISTER_PASS(ConvolutionDilation)
+            .setFunc(convDilationFcn)
             .setDescription(
                 "This pass dilates a kernel using new method with SEPS");
     }
 
-    namespace pass
-    {
-        MV_REGISTER_PASS(ConvolutionDilation_Old)
-            .setFunc(convDilationOldFcn)
-            .setDescription(
-                "This pass dilates a kernel using new method with SEPS");
-    }
+//    namespace pass
+//    {
+//        MV_REGISTER_PASS(ConvolutionDilation_Old)
+//            .setFunc(convDilationOldFcn)
+//            .setDescription(
+//                "This pass dilates a kernel using new method with SEPS");
+//    }
 }
 
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
@@ -136,14 +136,15 @@ std::array<unsigned short, 4> calcNewPadding(mv::Data::OpListIterator opIt, size
         return padding;
     }
 }
-void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::OpModel om(model);
-    mv::DataModel dm(model);
+    auto returnedParams = model.getGlobalConfigParams();
+    double CMX = returnedParams->get<unsigned>("cmx");
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
@@ -158,15 +159,16 @@ void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
                 // At least for now until we have a way to convert a tensor with storage elements into a dense one
                 // Assuming that this will be done after SSD-512 
                 opIt.leftmostChild()->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
-
+                auto nextOp = opIt.leftmostChild();
                 auto nonDilatedKernel = opIt->getInputTensor(1);
                 auto nonDilatedKernelShape = nonDilatedKernel->getShape();
                 auto inputTensor = opIt->getInputTensor(0);
-                auto parentOpIt = om.getSourceOp(inputTensor);
+                auto outputTensor = opIt->getOutputTensor(0);
+                auto outputShape = outputTensor->getShape();
+                auto outputTensorMemory = outputShape.totalSize() * std::ceil(outputTensor->getDType().getSizeInBits()/8.0);
                 auto name = opIt->getName();
 
                 auto originalShape = inputTensor->getShape();
-                auto numberOfSubConvs = dilationFactor * dilationFactor;
                 std::vector<mv::Data::TensorIterator> subConvs;
 
                 size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
@@ -215,98 +217,171 @@ void convDilationNewFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
                 auto opId = opIt->get<unsigned>("opId");
 
                 om.removeOp(opIt);
+                //NOTE: if the output tensor can fit on one moment on cmx, then it can be concatenated
+                //on cmx by the use of the storage element of the next operation. If it can not then
+                //the idea is that we will spill the sub dilation convs to ddr and we will bring them
+                //back to a re-order z-major convolution which will unfold and provide the correct tensor
+                mv::Data::TensorIterator concatIt;
+                bool needSparse2SparseOp = false;
 
-                auto join = om.implicitJoin(subConvs,
+                if (outputTensorMemory > CMX)
+                {
+                    concatIt = om.implicitConcat(subConvs, "HW", quantParams, name + "DDR_join");
+                    needSparse2SparseOp = true;
+
+                }
+                else
+                {
+                    concatIt = om.implicitJoin(subConvs,
                         "HW",
                         dtype,
                         quantParams,
                         name + "dialtedjoin");
-                om.getSourceOp(join)->set<unsigned>("opId", opId);
-                for (unsigned j = 0; j < opsToLink.size(); ++j)
+                    for (unsigned j = 0; j < opsToLink.size(); ++j)
+                    {
+                        opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                        om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                    }
+                }
+                om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+
+
+                //NOTE: for now i will place a neutral z-major convolution just for re-order
+                //but under chat with runtime we can make it work without computations, with by-passing
+                if (needSparse2SparseOp)
                 {
-                    opsToLink[j]->setInputTensor(join, inputSlots[j], false);
-                    om.defineFlow(join, opsToLink[j], inputSlots[j]);
+                    mv::Shape weightsShape({1, 1, outputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_CHANNEL_DIMENSION]});
+                    std::vector<int64_t> weightsData(weightsShape.totalSize());
+                    for (unsigned k = 0; k < weightsShape[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
+                    {
+                        for (unsigned c = 0; c < weightsShape[mv::KERNEL_INPUT_CHANNELS]; ++c)
+                        {
+                            for (unsigned h = 0; h < weightsShape[mv::KERNEL_HEIGHT]; ++h)
+                            {
+                                for (unsigned w = 0; w < weightsShape[mv::KERNEL_WIDTH]; ++w)
+                                {
+                                    const size_t idx = (k * weightsShape[mv::KERNEL_INPUT_CHANNELS] * weightsShape[mv::KERNEL_WIDTH] * weightsShape[mv::KERNEL_HEIGHT]) +
+                                                       (c * weightsShape[mv::KERNEL_WIDTH] * weightsShape[mv::KERNEL_HEIGHT]) +
+                                                       (h * weightsShape[mv::KERNEL_WIDTH]) +
+                                                        w;
+                                    if (c == k)
+                                        weightsData[idx] = 255;
+                                    else
+                                        weightsData[idx] = 0;
+                                }
+                            }
+                        }
+                    }
+
+                    auto sparse2SparseWeights = om.constantInt(
+                        weightsData,
+                        weightsShape,
+                        nonDilatedKernel->get<mv::DType>("dType"),
+                        mv::Order("NHWC"),
+                        {{0},{0.00392156862745098},{0.0},{1.0}},
+                        nonDilatedKernel->getName() + "_DilatedSparse2SparseWeights");
+
+                    auto sparse2SparseConv = om.conv(concatIt,
+                            sparse2SparseWeights,
+                            {1, 1},
+                            {1, 1, 1, 1},
+                            1,
+                            1,
+                            nonDilatedKernel->get<mv::DType>("dType"),
+                            concatIt->get<mv::QuantizationParams>("quantParams"),
+                            nonDilatedKernel->getName() + "_DilatedSparse2SparseConv");
+
+                    auto sparse2SparseConvOp = om.getSourceOp(sparse2SparseConv);
+                    auto sparse2SparseWeightsOp = om.getSourceOp(sparse2SparseWeights);
+                    sparse2SparseConvOp->set<unsigned>("opId", om.getSourceOp(concatIt)->get<unsigned>("opId"));
+                    sparse2SparseWeightsOp->set<unsigned>("opId", om.getSourceOp(concatIt)->get<unsigned>("opId"));
+
+                    for (unsigned j = 0; j < opsToLink.size(); ++j)
+                    {
+                        opsToLink[j]->setInputTensor(sparse2SparseConv, inputSlots[j], false);
+                        om.defineFlow(sparse2SparseConv, opsToLink[j], inputSlots[j]);
+                    }
                 }
             }
         }
     }
 }
 
-void convDilationOldFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
+//void convDilationOldFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+//{
 
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
+//    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+//    using namespace mv;
 
-    mv::OpModel om(model);
-    mv::DataModel dm(model);
+//    mv::OpModel om(model);
+//    mv::DataModel dm(model);
 
-    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-    {
-        if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
-        {
-            auto dilationFactor = opIt->get<unsigned>("dilationFactor");
+//    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+//    {
+//        if (opIt->getOpType() == "Conv" || opIt->getOpType() == "DepthwiseConv")
+//        {
+//            auto dilationFactor = opIt->get<unsigned>("dilationFactor");
 
-            if (dilationFactor > 1)
-            {
+//            if (dilationFactor > 1)
+//            {
 
-                /*Get the kernel attributes*/
-                auto nonDilatedKernel = opIt->getInputTensor(1);
-                auto nonDilatedKernelWidth = nonDilatedKernel->getShape()[KERNEL_WIDTH];
-                auto nonDilatedKernelHeight = nonDilatedKernel->getShape()[KERNEL_HEIGHT];
-                auto nonDilatedKernelInputChannels = nonDilatedKernel->getShape()[KERNEL_INPUT_CHANNELS];
-                auto nonDilatedKernelOutpuChannels = nonDilatedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
-                auto nonDilatedKernelShape = nonDilatedKernel->getShape();
+//                /*Get the kernel attributes*/
+//                auto nonDilatedKernel = opIt->getInputTensor(1);
+//                auto nonDilatedKernelWidth = nonDilatedKernel->getShape()[KERNEL_WIDTH];
+//                auto nonDilatedKernelHeight = nonDilatedKernel->getShape()[KERNEL_HEIGHT];
+//                auto nonDilatedKernelInputChannels = nonDilatedKernel->getShape()[KERNEL_INPUT_CHANNELS];
+//                auto nonDilatedKernelOutpuChannels = nonDilatedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
+//                auto nonDilatedKernelShape = nonDilatedKernel->getShape();
 
 
-                /** Calculate dilated kernel shape
-                  *
-                  * dilatedWidth = kw + (kw - 1)(df - 1)
-                  * dilatedHeight = kh + (kh - 1)(df - 1)
-                  */
-                mv::Shape dilatedKernelShape = mv::Shape({nonDilatedKernelWidth + (nonDilatedKernelWidth - 1) * (dilationFactor - 1),
-                                                          nonDilatedKernelHeight + (nonDilatedKernelHeight - 1) * (dilationFactor - 1),
-                                                          nonDilatedKernelInputChannels, nonDilatedKernelOutpuChannels});
-                auto nonDilatedKernelOp = opIt.rightmostParent();
-                unsigned currentOpId = nonDilatedKernelOp->get<unsigned>("opId");
-                auto quantParams = nonDilatedKernelOp->get<mv::QuantizationParams>("quantParams");
-                /*Populate dilated tensor with zeros*/
+//                /** Calculate dilated kernel shape
+//                  *
+//                  * dilatedWidth = kw + (kw - 1)(df - 1)
+//                  * dilatedHeight = kh + (kh - 1)(df - 1)
+//                  */
+//                mv::Shape dilatedKernelShape = mv::Shape({nonDilatedKernelWidth + (nonDilatedKernelWidth - 1) * (dilationFactor - 1),
+//                                                          nonDilatedKernelHeight + (nonDilatedKernelHeight - 1) * (dilationFactor - 1),
+//                                                          nonDilatedKernelInputChannels, nonDilatedKernelOutpuChannels});
+//                auto nonDilatedKernelOp = opIt.rightmostParent();
+//                unsigned currentOpId = nonDilatedKernelOp->get<unsigned>("opId");
+//                auto quantParams = nonDilatedKernelOp->get<mv::QuantizationParams>("quantParams");
+//                /*Populate dilated tensor with zeros*/
 
-                /*Create Dilated Kernel Tensor*/
+//                /*Create Dilated Kernel Tensor*/
 
-                //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
-                std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
-                mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
+//                //build the dilated kernel with zero points corresponding to each channel - KMB does not support different zp per channel
+//                std::vector<int64_t> defaultData(dilatedKernelShape.totalSize(), quantParams.getZeroPoint(0));
+//                mv::Tensor dilatedKernel("dilatedKernel", dilatedKernelShape, nonDilatedKernel->getDType(), mv::Order(mv::Order::getRowMajorID(dilatedKernelShape.ndims())), defaultData);
 
-                for (unsigned oc = 0; oc < nonDilatedKernelOutpuChannels; ++oc)
-                    for (unsigned ic = 0; ic < nonDilatedKernelInputChannels; ++ic)
-                        for (unsigned kcolumn = 0; kcolumn < nonDilatedKernelHeight; ++kcolumn)
-                            for (unsigned krow = 0; krow < nonDilatedKernelWidth; ++krow)
-                                /*Copy non-dilated weights into the dilated kernel*/
-                                if (krow != 0 || kcolumn != 0)
-                                    dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
-                                else
-                                    dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
+//                for (unsigned oc = 0; oc < nonDilatedKernelOutpuChannels; ++oc)
+//                    for (unsigned ic = 0; ic < nonDilatedKernelInputChannels; ++ic)
+//                        for (unsigned kcolumn = 0; kcolumn < nonDilatedKernelHeight; ++kcolumn)
+//                            for (unsigned krow = 0; krow < nonDilatedKernelWidth; ++krow)
+//                                /*Copy non-dilated weights into the dilated kernel*/
+//                                if (krow != 0 || kcolumn != 0)
+//                                    dilatedKernel.at({krow + (dilationFactor - 1) * krow, kcolumn + (dilationFactor - 1) * kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
+//                                else
+//                                    dilatedKernel.at({krow, kcolumn, ic, oc}) = nonDilatedKernel->at({krow, kcolumn, ic, oc});
 
-                auto dilatedKernelOp = om.constantDataElement(
-                    dilatedKernel.getData(),
-                    dilatedKernelShape,
-                    dilatedKernel.getDType(),
-                    dilatedKernel.getOrder(),
-                    quantParams,
-                    nonDilatedKernelOp->getName() + "_Dilated");
+//                auto dilatedKernelOp = om.constantDataElement(
+//                    dilatedKernel.getData(),
+//                    dilatedKernelShape,
+//                    dilatedKernel.getDType(),
+//                    dilatedKernel.getOrder(),
+//                    quantParams,
+//                    nonDilatedKernelOp->getName() + "_Dilated");
 
-                om.removeOp(nonDilatedKernelOp);
-                om.defineFlow(dilatedKernelOp, opIt, 1);
-                opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
-                opIt->setInputTensor(dilatedKernelOp, 1, false);
-                opIt->set<unsigned>("dilationFactor", 1);
-                auto DilatedKernelOpFetched = opIt.rightmostParent();
-                DilatedKernelOpFetched->set<unsigned>("opId", currentOpId);
-            }
+//                om.removeOp(nonDilatedKernelOp);
+//                om.defineFlow(dilatedKernelOp, opIt, 1);
+//                opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
+//                opIt->setInputTensor(dilatedKernelOp, 1, false);
+//                opIt->set<unsigned>("dilationFactor", 1);
+//                auto DilatedKernelOpFetched = opIt.rightmostParent();
+//                DilatedKernelOpFetched->set<unsigned>("opId", currentOpId);
+//            }
 
-        }
+//        }
 
-    }
+//    }
 
-}
+//}

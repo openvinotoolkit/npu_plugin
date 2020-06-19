@@ -592,9 +592,6 @@ namespace mv
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
             {
-                auto opType = op.getOpType();
-
-
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
                 size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
@@ -606,7 +603,7 @@ namespace mv
 
                 // For each aligned-to-16 number of output channels possibility, add only the 
                 // minimum number of streams over k that will be aligned to that number
-                for(unsigned channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
+                for(int channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
                     auto possibleK = findBestK(alignedOutputChannelSize, channels);
                     if(splits.back() != possibleK and possibleK >= 1)
                         splits.push_back(possibleK);
