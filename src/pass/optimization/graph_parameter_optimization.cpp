@@ -1160,14 +1160,14 @@ namespace mv
                                 return INF;
                         }
                     }
-                    // //NOTE: If the child layer is streamed over H or C the parent/input tensors needs to be in DDR
-                    // if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["C"]
-                    //      * child["streaming"].get<Shape>()["W"]) > 1)
-                    // {
-                    //     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                    //             + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
-                    //         return INF;
-                    // }
+                    //NOTE: If the child layer is streamed over H or C the parent/input tensors needs to be in DDR
+                    if ((child["streaming"].get<Shape>()["H"] * child["streaming"].get<Shape>()["C"]
+                         * child["streaming"].get<Shape>()["W"]) > 1)
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by stream after not spilling");
+                            return INF;
+                    }
                 }
 
                 if( childOp.getOpType() == "Conv")
