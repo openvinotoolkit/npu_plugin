@@ -64,7 +64,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
-
+                
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
@@ -258,7 +258,6 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
 
     addQuantizationLayers(om, implicitConcatsU8, U8);
     addQuantizationLayers(om, implicitConcatsFP16, FP16);
-
 }
 
 static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -268,7 +267,6 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
     mv::OpModel om(model);
     //Note: Always a vector of one element
     auto outputOp = om.getOps("Output");
-
     if (outputOp[0]->hasAttr("precision") && outputOp[0]->get<mv::DType>("precision") != mv::DType("Default"))
     {
         auto inputTypeofOutput = outputOp[0]->getInputTensor(0)->getDType();
@@ -282,10 +280,10 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
             }
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
                         outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
-
+            
             if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
                 quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
-
+            
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
             outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",
