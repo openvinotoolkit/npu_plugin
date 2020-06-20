@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_net_reader.h>
+#include <cpp/ie_cnn_network.h>
 #include <ie_api.h>
 
 #include <sstream>

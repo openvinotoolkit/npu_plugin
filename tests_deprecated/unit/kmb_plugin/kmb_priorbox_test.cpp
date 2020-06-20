@@ -14,7 +14,6 @@
 // stated in the License.
 //
 
-#include <cpp/ie_cnn_net_reader.h>
 #include <gtest/gtest.h>
 
 #include <ie_core.hpp>
