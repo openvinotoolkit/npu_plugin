@@ -178,6 +178,7 @@ private:
     void alignEltwiseScales(ie::CNNNetwork& network);
     void alignConcatScales(ie::CNNNetwork& network);
     void alignZeroPointsOnWeights(ie::CNNNetwork& network);
+    bool needsConcatScaleAlignment(const ie::CNNLayerPtr& layer);
 
     mv::OpModel& _modelMcm;
     McmNodePtrList _nodes;
