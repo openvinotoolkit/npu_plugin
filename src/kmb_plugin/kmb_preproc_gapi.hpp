@@ -9,26 +9,26 @@
 #include <ie_preprocess.hpp>
 #include <memory>
 
-#include "kmb_preproc.hpp"  // SippPreproc::Path
+#include "kmb_preproc.hpp"  // KmbPreproc::Path
 
 // clang-format off
 namespace InferenceEngine {
+namespace KmbPreproc {
 
-class SIPPPreprocEngine {
+class PreprocEngine {
 public:
-    SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi, SippPreproc::Path ppPath);
-    ~SIPPPreprocEngine();
+    PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi, Path ppPath);
+    ~PreprocEngine();
 
-    // TODO: Drop SIPP from the name
-    void preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                         const ResizeAlgorithm& algorithm,
-                         ColorFormat in_fmt, ColorFormat out_fmt);
-
+    void preproc(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                 const ResizeAlgorithm& algorithm,
+                 ColorFormat in_fmt, ColorFormat out_fmt);
     class Priv;
 
 private:
     std::unique_ptr<Priv> _priv;
 };
 
+}  // namespace KmbPreproc
 }  // namespace InferenceEngine
 // clang-format on

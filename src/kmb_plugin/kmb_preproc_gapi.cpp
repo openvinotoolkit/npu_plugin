@@ -10,8 +10,8 @@
 
 #include <memory>
 #include <opencv2/gapi.hpp>
-#include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <opencv2/gapi_m2i/preproc.hpp>
+#include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <utility>
 #include <vector>
 
@@ -20,8 +20,9 @@
 
 // clang-format off
 namespace InferenceEngine {
+namespace KmbPreproc {
 
-class SIPPPreprocEngine::Priv {
+class PreprocEngine::Priv {
 public:
     virtual ~Priv() = default;
 
@@ -30,7 +31,7 @@ public:
                     ColorFormat in_fmt, ColorFormat out_fmt) = 0;
 };
 
-class PrivSIPP final: public SIPPPreprocEngine::Priv {
+class PrivSIPP final: public PreprocEngine::Priv {
     std::unique_ptr<cv::GComputation> _comp = nullptr;
     unsigned int _shaveFirst;
     unsigned int _shaveLast;
@@ -48,7 +49,7 @@ public:
             ColorFormat in_fmt, ColorFormat out_fmt) override;
 };
 
-class PrivM2I final: public SIPPPreprocEngine::Priv {
+class PrivM2I final: public PreprocEngine::Priv {
     std::unique_ptr<cv::GComputation> _comp = nullptr;
 
 public:
@@ -291,12 +292,12 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  cv::compile_args(cv::gapi::preproc::m2i::kernels()));
 }
 
-SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
-                                     unsigned int lpi, SippPreproc::Path ppPath) {
-    IE_ASSERT(ppPath == SippPreproc::Path::SIPP || ppPath == SippPreproc::Path::M2I);
-    if (ppPath == SippPreproc::Path::SIPP) {
+PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
+                             unsigned int lpi, Path ppPath) {
+    IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
+    if (ppPath == Path::SIPP) {
         _priv.reset(new PrivSIPP(shaveFirst, shaveLast, lpi));
-    } else if (ppPath == SippPreproc::Path::M2I) {
+    } else if (ppPath == Path::M2I) {
         _priv.reset(new PrivM2I());
     } else {
         THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
@@ -304,14 +305,15 @@ SIPPPreprocEngine::SIPPPreprocEngine(unsigned int shaveFirst, unsigned int shave
     }
 }
 
-SIPPPreprocEngine::~SIPPPreprocEngine() = default;
+PreprocEngine::~PreprocEngine() = default;
 
-void SIPPPreprocEngine::preprocWithSIPP(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
-                                        const ResizeAlgorithm& algorithm,
-                                        ColorFormat in_fmt, ColorFormat out_fmt) {
+void PreprocEngine::preproc(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
+                            const ResizeAlgorithm& algorithm,
+                            ColorFormat in_fmt, ColorFormat out_fmt) {
     return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt);
 }
 
+}  // namespace KmbPreproc
 }  // namespace InferenceEngine
 // clang-format on
 #endif

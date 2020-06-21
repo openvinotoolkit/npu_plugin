@@ -12,9 +12,7 @@
 #include <string>
 
 namespace InferenceEngine {
-
-// TODO: Drop SIPP from the name
-namespace SippPreproc {
+namespace KmbPreproc {
 
 enum class Path : int { SIPP = 0, M2I };
 
@@ -22,9 +20,9 @@ bool useSIPP();
 bool isApplicable(
     const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData, InputsDataMap& networkInputs);
 
-void execSIPPDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
+void execDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
     InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi,
     Path path = Path::SIPP);
 
-}  // namespace SippPreproc
+}  // namespace KmbPreproc
 }  // namespace InferenceEngine
