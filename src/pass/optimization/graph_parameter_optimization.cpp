@@ -207,17 +207,6 @@ namespace mv
                 return attr;
             }
 
-            bool allInputsSameSize(mv::Op op)
-            {
-                auto inputs = op.getInputTensor();
-                auto size = op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION];
-                for(auto input : inputs)
-                    if(size != input->getShape()[mv::IO_CHANNEL_DIMENSION])
-                        return false;
-                
-                return true;
-            }
-
             size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
@@ -1052,7 +1041,7 @@ namespace mv
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (child["Concat"].get<string>() == "SOH")
+                if (child["Concat"].get<string>() == "SplitOverH")
                 {
                     if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
                     {
@@ -1061,7 +1050,7 @@ namespace mv
                             return INF;
                     }
                 }
-                else if (parent["Concat"].get<string>() == "SOH")
+                else if (parent["Concat"].get<string>() == "SplitOverH")
                 {
                     if(childClustering == "SplitOverK")
                     {
@@ -1070,7 +1059,7 @@ namespace mv
                             return INF;
                     }
                 }
-                else if (child["Concat"].get<string>() == "SOK")
+                else if (child["Concat"].get<string>() == "SplitOverK")
                 {
                     if(parentClustering == "SplitOverH")
                     {
@@ -1079,7 +1068,7 @@ namespace mv
                             return INF;
                     }
                 }
-                else if (parent["Concat"].get<string>() == "SOK")
+                else if (parent["Concat"].get<string>() == "SplitOverK")
                 {
                     if(childClustering == "SplitOverH" || childClustering == "HKSwitch")
                     {
@@ -1486,8 +1475,7 @@ namespace mv
                 vector<Attribute> ConcatPool = {string("None")};
                 if(op.getOpType() == "Concat")
                 {
-                    if(allInputsSameSize(op))
-                        ConcatPool = {string("SOH"), string("SOK")};
+                    ConcatPool = {string("SplitOverH"), string("SplitOverK")};
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
