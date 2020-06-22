@@ -1041,39 +1041,39 @@ namespace mv
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (child["Concat"].get<string>() == "SplitOverH")
+                if (child["concat"].get<string>() == "SplitOverH")
                 {
                     if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOK/HKSwitch/clustering to concat SOH");
                             return INF;
                     }
                 }
-                else if (parent["Concat"].get<string>() == "SplitOverH")
+                else if (parent["concat"].get<string>() == "SplitOverH")
                 {
                     if(childClustering == "SplitOverK")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by concat SOH to SOK");
                             return INF;
                     }
                 }
-                else if (child["Concat"].get<string>() == "SplitOverK")
+                else if (child["concat"].get<string>() == "SplitOverK")
                 {
                     if(parentClustering == "SplitOverH")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling before HKSwitch");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to concat SOK");
                             return INF;
                     }
                 }
-                else if (parent["Concat"].get<string>() == "SplitOverK")
+                else if (parent["concat"].get<string>() == "SplitOverK")
                 {
                     if(childClustering == "SplitOverH" || childClustering == "HKSwitch")
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by incompatible clustering strategies");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by concat SOK to SOH/HKSwitch");
                             return INF;
                     }
                 }
@@ -1472,14 +1472,14 @@ namespace mv
                 else if(globalEnableWeightsSparsity)
                     weightsSparsity = decideWeightsSparsity(op);
 
-                vector<Attribute> ConcatPool = {string("None")};
+                vector<Attribute> concatPool = {string("None")};
                 if(op.getOpType() == "Concat")
                 {
-                    ConcatPool = {string("SplitOverH"), string("SplitOverK")};
+                    concatPool = {string("SplitOverH"), string("SplitOverK")};
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto Concat : ConcatPool){
+                for( const auto concat : concatPool){
                 for( const auto spilling : spillingPool)
                 {
                     for( const auto clustering : clusteringStrategyPool)
@@ -1581,7 +1581,7 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
-                                    s["Concat"] = Concat;
+                                    s["concat"] = concat;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
