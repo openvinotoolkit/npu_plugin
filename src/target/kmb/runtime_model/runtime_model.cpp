@@ -255,6 +255,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
         else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
+        if (*tensorAllocatorName == "ProgrammableOutput" && t->hasAttr("leadingOffset")) //HACK TO BE REMOVED
+            leading_offset = t->get<uint64_t>("leadingOffset");
 
         if (leading_offset)
             toBuild->data->data_index += leading_offset;
