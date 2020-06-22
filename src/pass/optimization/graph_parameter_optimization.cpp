@@ -243,7 +243,7 @@ namespace mv
             }
 
 
-            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, mv::Op& op)
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, string clustering, const Shape& streamingPool, bool isCMConv, mv::Op& op)
             {
                 size_t kHeight = 1;
                 if(  (op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") )
@@ -352,6 +352,22 @@ namespace mv
                     worstStreamPool[mv::KERNEL_OUTPUT_CHANNELS] = worstNumberOfSplits;
                 }
 
+                double clusteringDivisor = 1;
+                if(clustering == "SplitOverH")
+                {
+                    outputSize = tensorShape[mv::IO_HEIGHT_DIMENSION];
+                    numberOfSplits = streamingPool[mv::IO_HEIGHT_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(outputSize, numberOfSplits);
+                    int newOutputSize = newOutputSizes.front();
+
+                    auto workloadHeight = ceil((double)newOutputSize / (double)totalClusters);
+
+                    clusteringDivisor = (double)outputSize/(workloadHeight * numberOfSplits);
+
+                    // std::cout << op.getName() << " clusteringDivisor is " << clusteringDivisor << ", streaming H = " << streamingPool["H"]<< std::endl;
+                }
+                worstStreamPool.push_back(clusteringDivisor);
+
                 double streamDivisor = 1;
                 for(auto stream: worstStreamPool)
                 {
@@ -411,10 +427,10 @@ namespace mv
                     isCMConv = true;
 
                 if(opType != "Input"){
-                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op);
+                    inputSize = maxTensorSize(op.getInputTensor(0),clusterStrategy,{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op);
                 }
                 if(opType != "Output"){
-                    outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, op);
+                    outputSize = maxTensorSize(op.getOutputTensor(0),clusterStrategy,{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, op);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -446,7 +462,7 @@ namespace mv
                 {
                     weightTableSize = 0;
                     weightSize = 0; //TODO think about
-                    inputSize += maxTensorSize(op.getInputTensor(1),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv, op);
+                    inputSize += maxTensorSize(op.getInputTensor(1),clusterStrategy,{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,1}, isCMConv, op);
                 }
 
                 //Additional memory footprint for sparsity
@@ -533,20 +549,12 @@ namespace mv
 
                 weightSize += weightTableSize; // todo probably overcounts for sok now
 
-                if(clusterStrategy == "Clustering")
+                if(clusterStrategy == "Clustering" || clusterStrategy == "SplitOverH" || clusterStrategy == "SplitOverK")
                 {
+                    // Note: for SOH and SOK, division by number of clusters is done in maxTensorSize
+                    // and alignedWeightsSize, respectively. This allows greater precision than dividing
+                    // totalClusters. Multiclustering doesn't perfectly split tensor, depends on subtensor size!
                     totalActivationSize = inputSize + outputSize;
-                    totalWeightsSize = weightSize;
-                }
-                else if(clusterStrategy == "SplitOverH")
-                {
-                    totalActivationSize = div(inputSize,totalClusters) + div(outputSize,totalClusters);
-                    totalWeightsSize = weightSize;
-                }
-                else if(clusterStrategy == "SplitOverK")
-                {
-                    totalActivationSize = inputSize + outputSize;
-                    // totalWeightsSize =  div(weightSize,totalClusters); not precise enough, taken into account earlier see alignedweightssize
                     totalWeightsSize = weightSize;
                 }
                 else if(clusterStrategy == "HKSwitch")
