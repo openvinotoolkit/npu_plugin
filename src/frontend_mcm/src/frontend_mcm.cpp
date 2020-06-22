@@ -923,6 +923,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
 
         constWeightTensor->setShape(newWeightsShape);
         mvWeights->setShape(newWeightsShape);
+        sourceWeightsOp->set<mv::Shape>("shape", newWeightsShape);
 
         mvConv = _modelMcm.depthwiseConv(input->getMcmNode(), mvWeights,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
