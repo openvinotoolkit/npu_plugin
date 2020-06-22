@@ -283,8 +283,8 @@ class Operation_Dag {
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
-          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitUnion"} ) {
+          "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
+          "ImplicitInputSlice"} ) {
         init_from_model(model);
     }
 

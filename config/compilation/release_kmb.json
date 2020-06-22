@@ -25,6 +25,7 @@
                 "PPEAccuracy": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
@@ -231,6 +232,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+	    "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
