@@ -1038,9 +1038,11 @@ namespace mv
                         return INF;
                     }
                 }
-                //NOTE: If you Spill a parent a child can be everything...the only thing
-                //that has no sense if is your parent is spilling to be HKSwitch as
-                //this strategy exists in order to reverse strategies in CMX
+                
+                //NOTE: The logic dynamically enables "Concate" with SplitOverH and SplitOverK 
+                //to indicate splitoverH/splitoverK are allowed, so that the upper conv can 
+                //choose both SOH/SOK. For now we add conditions to align split strategy
+                //before and after Concate and avoid Concate's parents choose different split strategy.
                 if (child["concat"].get<string>() == "SplitOverH")
                 {
                     if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
@@ -1077,6 +1079,9 @@ namespace mv
                             return INF;
                     }
                 }
+                //NOTE: If you Spill a parent a child can be everything...the only thing
+                //that has no sense if is your parent is spilling to be HKSwitch as
+                //this strategy exists in order to reverse strategies in CMX
                 else if (parent["spilling"].get<bool>())
                 {
                     if (childClustering == "HKSwitch")
