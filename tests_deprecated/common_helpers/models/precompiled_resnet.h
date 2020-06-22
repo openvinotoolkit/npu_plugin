@@ -16,8 +16,7 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_net_reader.h>
-#include <ie_api.h>
+#include <cpp/ie_cnn_network.h>
 #include "test_model_path.hpp"
 
 struct modelBlobInfo {

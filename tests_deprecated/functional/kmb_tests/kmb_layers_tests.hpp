@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_net_reader.h>
 #include <gtest/gtest.h>
 
 #include <algorithm>

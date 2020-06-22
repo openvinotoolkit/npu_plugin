@@ -9,7 +9,6 @@
 
 #include <gtest/gtest.h>
 #include <ie_version.hpp>
-#include <cpp/ie_cnn_net_reader.h>
 #include <inference_engine.hpp>
 #include "tests_common.hpp"
 #include <algorithm>
