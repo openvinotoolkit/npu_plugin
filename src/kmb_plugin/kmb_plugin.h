@@ -54,8 +54,13 @@ public:
     InferenceEngine::ExecutableNetwork ImportNetworkImpl(
         std::istream& networkModel, const std::map<std::string, std::string>& config) override;
 
+    InferenceEngine::ExecutableNetwork ImportNetworkImpl(std::istream& networkModel, const RemoteContext::Ptr& context,
+        const std::map<std::string, std::string>& config) override;
+
     InferenceEngine::Parameter GetMetric(
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
+
+    RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 
 private:
     KmbConfig _parsedConfig;

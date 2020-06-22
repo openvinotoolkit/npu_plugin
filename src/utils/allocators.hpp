@@ -37,6 +37,8 @@ public:
     virtual ~VPUSMMAllocator();
     void* allocate(size_t requestedSize) override;
     void* getAllocatedChunkByIndex(size_t chunkIndex) override;
+    int allocateDMA(size_t requestedSize);
+    void* importDMA(const int& fileDesc);
 private:
     std::vector< std::tuple<int, void*, size_t> > _memChunks;
     static uint32_t _pageSize;

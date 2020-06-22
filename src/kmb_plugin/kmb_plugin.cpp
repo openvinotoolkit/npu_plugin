@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
+#include <kmb_remote_context.h>
 
 #include "ie_macro.hpp"
 
@@ -156,6 +157,23 @@ InferenceEngine::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
+    return std::make_shared<KmbPlugin::KmbRemoteContext>(map, _parsedConfig);
+}
+
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+    std::istream& networkModel, const RemoteContext::Ptr&, const std::map<std::string, std::string>& config) {
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
+
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
+
+    return InferenceEngine::ExecutableNetwork {IExecutableNetwork::Ptr(
+        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork), [](ie::details::IRelease* p) {
+            p->Release();
+        })};
 }
 
 IE_SUPPRESS_DEPRECATED_START

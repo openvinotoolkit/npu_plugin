@@ -33,6 +33,7 @@
 #include "kmb_xml_tests.hpp"
 #include "low_precision_transformations/transformer.hpp"
 #include "tests_timeout.hpp"
+#include "vpu/kmb_params.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -842,4 +843,82 @@ INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath, ::testing::Va
 
 INSTANTIATE_TEST_CASE_P(
     inferenceWithTop3Networks, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
+
+class RemoteCtxTest : public vpuLayersTests, public testing::WithParamInterface<std::tuple<TopNetTest, bool>> {};
+
+INSTANTIATE_TEST_CASE_P(inferenceWithTop3Networks, RemoteCtxTest,
+    ::testing::Combine(::testing::ValuesIn(pathToTop3PreCompiledGraph), ::testing::ValuesIn({true, false})));
+
+TEST_P(RemoteCtxTest, remoteCtx) {
+    const modelBlobsInfo blobsInfo = std::get<0>(GetParam()).info;
+    const std::string graphPath = ModelsPath() + blobsInfo._graphPath;
+    const std::string refInputPath = ModelsPath() + blobsInfo._inputPath;
+    const std::string refOutputPath = ModelsPath() + blobsInfo._outputPath;
+    const bool userAllocation = std::get<1>(GetParam());
+
+    const ParamMap ctxParams = {{"LOG_LEVEL", "LOG_DEBUG"}};
+    InferenceEngine::Core ie;
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext("KMB", ctxParams);
+
+    std::filebuf blobFile;
+    if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
+        blobFile.close();
+        THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
+    }
+    std::istream graphBlob(&blobFile);
+
+    const std::map<std::string, std::string> netParams = {{"LOG_LEVEL", "LOG_DEBUG"}};
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, netParams);
+    InferenceEngine::InferRequest inferRequest = executableNetwork.CreateInferRequest();
+
+    auto inputsInfo = executableNetwork.GetInputsInfo();
+    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
+    InferenceEngine::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+    const TensorDesc& inputTensorDesc = inputInfoPtr->getTensorDesc();
+    const size_t bytesPerElement = inputTensorDesc.getPrecision().size();
+    auto binaryMul = [](const size_t& multiplier, const size_t& multiplicand) -> size_t {
+        return multiplier * multiplicand;
+    };
+    auto vpuAllocator = std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
+    size_t imageSize = std::accumulate(
+        inputTensorDesc.getDims().begin(), inputTensorDesc.getDims().end(), bytesPerElement, binaryMul);
+    auto remoteMemoryFd = vpuAllocator->allocateDMA(imageSize);
+    InferenceEngine::ParamMap blobParamMap = {
+        {InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
+        {InferenceEngine::KMB_PARAM_KEY(COLOR_FORMAT), ColorFormat::RAW},
+    };
+
+    void* virtAddr = nullptr;
+    if (userAllocation) {
+        virtAddr = vpuAllocator->importDMA(remoteMemoryFd);
+    }
+
+    InferenceEngine::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensorDesc, blobParamMap);
+    ASSERT_NE(nullptr, remoteBlobPtr);
+
+    if (userAllocation) {
+        InferenceEngine::Blob::Ptr userBlob = make_shared_blob<uint8_t>(inputTensorDesc);
+        userBlob->allocate();
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, userBlob));
+        std::memcpy(virtAddr, userBlob->buffer(), userBlob->byteSize());
+    } else {
+        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, remoteBlobPtr));
+    }
+    inferRequest.SetBlob(inputName, remoteBlobPtr);
+    inferRequest.Infer();
+
+    // --- Get output
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
+    outputRefBlob->allocate();
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+
+    // --- Compare with expected output
+    constexpr size_t numberOfTopClassesToCompare = 5;
+    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+}
 #endif
