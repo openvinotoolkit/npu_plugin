@@ -458,10 +458,9 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIt
     auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
 
     std::vector<int64_t> unpopulated_offsets(width*height, 0);
-    //unsigned subConvRowIdx = subConvIndex/dilationFactor;
-    //unsigned subConvColIdx = subConvIndex%dilationFactor;
-    unsigned subConvRowIdx = subConvIndex%dilationFactor;
-    unsigned subConvColIdx = subConvIndex/dilationFactor;
+    unsigned subConvRowIdx = subConvIndex/dilationFactor;
+    unsigned subConvColIdx = subConvIndex%dilationFactor;
+
     long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
 
     long int subConvElementIncrement = increment * dilationFactor;
