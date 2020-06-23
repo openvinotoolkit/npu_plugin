@@ -9,7 +9,6 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/plugin_tests
             ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
         DEFINES
             INSTANTIATE_TESTS=1
