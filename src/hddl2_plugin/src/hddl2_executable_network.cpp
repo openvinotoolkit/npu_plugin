@@ -51,6 +51,11 @@ static HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr
 
 //------------------------------------------------------------------------------
 void ExecutableNetwork::loadGraphToDevice() {
+    if (!HDDL2Metrics::isServiceAvailable()) {
+        _logger->warning(GRAPH_NOT_LOADED.c_str());
+        _loadedGraph = nullptr;
+        return;
+    }
     try {
         if (_context == nullptr) {
             _loadedGraph = std::make_shared<HddlUniteGraph>(_graphPtr, _config.device_id(), _config.logLevel());
@@ -59,7 +64,7 @@ void ExecutableNetwork::loadGraphToDevice() {
         }
     } catch (const IE::details::InferenceEngineException& exception) {
         if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
-            _logger->warning(GRAPH_NOT_LOADED.c_str());
+            _logger->error(FAILED_LOAD_NETWORK.c_str());
             _loadedGraph = nullptr;
         } else {
             throw exception;
