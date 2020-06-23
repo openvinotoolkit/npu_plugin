@@ -18,10 +18,10 @@
 
 #include <cpp_interfaces/exception2status.hpp>
 #include <map>
+#include <private_vpu_compiler_config.hpp>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
-#include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/numeric.hpp>
 
 using namespace vpu;

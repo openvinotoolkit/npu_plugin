@@ -47,8 +47,7 @@ target_include_directories(${TARGET_NAME}
         ${CMAKE_CURRENT_SOURCE_DIR}/base
         ${CMAKE_CURRENT_SOURCE_DIR}/common
         ${CMAKE_CURRENT_SOURCE_DIR}/regression_tests/helpers
-        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include)
+        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE

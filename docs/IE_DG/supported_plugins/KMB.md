@@ -34,6 +34,10 @@ The KMB plugin accepts the following options:
 | `VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION`    | `YES`/`NO` | `NO` | Enable or disable blob transfer to device if LoadNetwork is called |
 | `VPU_KMB_PREPROCESSING_SHAVES`    | positive integer | 4 | Number of SHAVEs to be used during preprocessing |
 | `VPU_KMB_PREPROCESSING_LPI`    | positive integer | 8 | Lines per iteration value to be used during preprocessing |
+| `VPU_KMB_COMPILATION_DESCRIPTOR_PATH`    | string | 'mcm_config/compilation' | Path to folder with compilation config files |
+| `VPU_KMB_COMPILATION_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for network compilation |
+| `VPU_KMB_TARGET_DESCRIPTOR_PATH`    | string | 'mcm_config/target' | Path to folder with target config files |
+| `VPU_KMB_TARGET_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for target device |
 
 ## See Also
 

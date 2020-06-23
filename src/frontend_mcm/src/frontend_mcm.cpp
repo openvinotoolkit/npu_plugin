@@ -14,7 +14,6 @@
 // stated in the License.
 //
 
-#include <graph_transformer.h>
 #include <precision_utils.h>
 
 #include <algorithm>

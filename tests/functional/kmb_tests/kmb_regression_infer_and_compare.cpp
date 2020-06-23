@@ -21,7 +21,6 @@
 #include <mutex>
 #include <regression_tests.hpp>
 #include <vpu/kmb_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
 #include "kmb_layers_tests.hpp"

@@ -39,10 +39,6 @@ TEST_P(kmbLayersTestsScaleParams, TestsScale) {
     std::map<std::string, std::string> params;
     TBlob<uint8_t>::Ptr weightsBlob(GenWeights<uint16_t>(weightsSize + biasesSize));
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("ScaleShift", &params, weightsSize, biasesSize, weightsBlob,

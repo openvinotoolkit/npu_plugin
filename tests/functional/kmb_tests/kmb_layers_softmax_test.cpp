@@ -37,10 +37,6 @@ TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
     std::map<std::string, std::string> params;
     params["axis"] = std::to_string(axis);
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("SoftMax", &params, 0, 0, nullptr,

@@ -14,7 +14,6 @@
 #include <regression_tests.hpp>
 #include <test_model/kmb_test_utils.hpp>
 #include <vpu/kmb_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
 using namespace ::testing;

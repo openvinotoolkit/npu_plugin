@@ -48,9 +48,6 @@ TEST_P(kmbLayersTestsClampParams_nightly, DISABLED_TestsClamp) {
     params["min"] = std::to_string(p.min);
     params["max"] = std::to_string(p.max);
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
     SetInputTensor(tensor);
     SetOutputTensor(tensor);
     NetworkInit("Clamp", &params, 0, 0, nullptr,
