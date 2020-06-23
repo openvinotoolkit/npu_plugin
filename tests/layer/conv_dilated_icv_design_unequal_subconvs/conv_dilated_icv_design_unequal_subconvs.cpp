@@ -30,7 +30,7 @@ int main()
     // This is SAME padding notation
     // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
 
-    auto conv0 = om.conv(data_0, weights0, {1, 1}, {6, 6, 6, 6}, 6, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
+    auto conv0 = om.conv(data_0, weights0, {1, 1}, {3, 3, 3, 3}, 3, 1,  mv::DType("UInt8"),{{32},{4},{-inf},{inf},{0},{1}} , "conv");
 
     // Identidy conv - this should not change output of dilated conv
     // Output of dilated Conv is all 3f's

@@ -14,7 +14,6 @@
 //NOTE: There are 2 passes implemented for dilation convolution. The one solution is based to the idea that we push
 //zero points inside the weight tensor of the convolution in order to simulate dilated conv and this pass is used by emulator.
 //This idea might lead to really big kernel sizes so in order to implement dilation in kmb we use the storage element to slice/concat.
-
 static void convDilationUsingWeightsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -27,7 +26,6 @@ namespace mv
             .setDescription(
                 "This pass dilates a kernel using new method with SEPS");
     }
-
     namespace pass
     {
         MV_REGISTER_PASS(ConvDilationUsingWeights)
@@ -175,8 +173,12 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 auto originalShape = inputTensor->getShape();
                 std::vector<mv::Data::TensorIterator> subConvs;
 
-                size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
-                size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
+                double width = originalShape[mv::IO_WIDTH_DIMENSION];
+                double height = originalShape[mv::IO_HEIGHT_DIMENSION];
+                size_t sliceWidth = std::ceil(width/dilationFactor);
+                size_t sliceHeight = std::ceil(height/dilationFactor);
+                //size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
+                //size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
                 std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
 
                 //Create sub dilated convs
@@ -186,17 +188,17 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
                     mv::Shape subConvShape = newShape;
-                    if (sliceWidth*dilationFactor != originalShape[mv::IO_WIDTH_DIMENSION] && //uneven subconvs on width
+                    if (sliceWidth*dilationFactor != originalShape[mv::IO_HEIGHT_DIMENSION] && //uneven subconvs on width
                             i == (dilationFactor-1)) // last row
                     {
-                        subConvShape[mv::IO_WIDTH_DIMENSION] = originalShape[mv::IO_WIDTH_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_WIDTH_DIMENSION];
+                        subConvShape[mv::IO_HEIGHT_DIMENSION] = originalShape[mv::IO_HEIGHT_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_HEIGHT_DIMENSION];
                     }
                     for (size_t j = 0; j < dilationFactor; j++)
                     {
-                        if (sliceHeight*dilationFactor != originalShape[mv::IO_HEIGHT_DIMENSION] && //uneven subconvs on height
-                                j == (dilationFactor-1)) // last row
+                        if (sliceHeight*dilationFactor != originalShape[mv::IO_WIDTH_DIMENSION] && //uneven subconvs on height
+                                j == (dilationFactor-1)) // last col
                         {
-                            subConvShape[mv::IO_HEIGHT_DIMENSION] = originalShape[mv::IO_HEIGHT_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_HEIGHT_DIMENSION];
+                            subConvShape[mv::IO_WIDTH_DIMENSION] = originalShape[mv::IO_WIDTH_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_WIDTH_DIMENSION];
                         }
                         subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
@@ -337,7 +339,6 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
     using namespace mv;
 
     mv::OpModel om(model);
-    mv::DataModel dm(model);
 
     for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
     {
@@ -354,7 +355,6 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
                 auto nonDilatedKernelHeight = nonDilatedKernel->getShape()[KERNEL_HEIGHT];
                 auto nonDilatedKernelInputChannels = nonDilatedKernel->getShape()[KERNEL_INPUT_CHANNELS];
                 auto nonDilatedKernelOutpuChannels = nonDilatedKernel->getShape()[KERNEL_OUTPUT_CHANNELS];
-                auto nonDilatedKernelShape = nonDilatedKernel->getShape();
 
 
                 /** Calculate dilated kernel shape
@@ -406,5 +406,4 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
         }
 
     }
-
 }
