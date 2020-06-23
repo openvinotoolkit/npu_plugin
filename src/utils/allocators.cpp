@@ -181,7 +181,7 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 #endif
 }
 
-int NativeAllocator::getFileDescByVirtAddr(void* virtAddr) {
+int NativeAllocator::getFileDescByVirtAddr(void*) {
     return -1;
 }
 

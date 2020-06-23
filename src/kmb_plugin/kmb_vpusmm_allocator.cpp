@@ -93,7 +93,10 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 
 void* KmbVpusmmAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    auto physAddr = vpusmm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT);
+    auto physAddr = vpusmm_ptr_to_vpu(memHandle);
+    if (physAddr == 0) {
+        physAddr = vpusmm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT);
+    }
 
     MemoryDescriptor memDesc = {
         size,            // size

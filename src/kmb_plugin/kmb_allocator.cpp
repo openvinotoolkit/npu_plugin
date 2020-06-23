@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <sys/mman.h>
 
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
