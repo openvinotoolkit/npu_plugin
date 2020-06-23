@@ -562,8 +562,9 @@ TEST_P(KmbSippPreprocPoolTest, TestNV12Resize)
 
             inName = "input0";
             inputInfos[inName] = std::make_shared<InputInfo>();
-            SizeVector dims {1, 1, static_cast<size_t>(y_size.height), static_cast<size_t>(y_size.width)};
-            inputInfos[inName]->setInputData(std::make_shared<Data>(inName, dims, prec, Layout::NHWC));
+            SizeVector dims {static_cast<size_t>(y_size.width), static_cast<size_t>(y_size.height), 1, 1};
+            inputInfos[inName]->setInputData(std::make_shared<InferenceEngine::Data>(inName,
+                InferenceEngine::TensorDesc { prec, dims, Layout::NHWC }));
             inputInfos[inName]->getPreProcess().setResizeAlgorithm(RESIZE_BILINEAR);
             inputInfos[inName]->getPreProcess().setColorFormat(NV12);
             inputInfos[inName]->setLayout(Layout::NHWC);
