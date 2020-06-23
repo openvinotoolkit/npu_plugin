@@ -1043,6 +1043,8 @@ namespace mv
                 //to indicate splitoverH/splitoverK are allowed, so that the upper conv can 
                 //choose both SOH/SOK. For now we add conditions to align split strategy
                 //before and after Concate and avoid Concate's parents choose different split strategy.
+                //NOTE: Normally in ddr concatenation input and output tensor strategies are not mandatory to share same
+                //split strategies, solving it like that temporary till all the pair-concats on ddr strategies are tested
                 if (child["concat"].get<string>() == "SplitOverH")
                 {
                     if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
