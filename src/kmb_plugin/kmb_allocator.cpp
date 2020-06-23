@@ -65,8 +65,8 @@ std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
     return allocator;
 }
 
-void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept {
-    void* virtAddr = mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_SHARED, remoteMemoryFd, 0);
+void* KmbAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
+    void* virtAddr = mmap(memHandle, size, PROT_READ | PROT_WRITE, MAP_SHARED, remoteMemoryFd, 0);
 
     if (virtAddr == MAP_FAILED) return nullptr;
 

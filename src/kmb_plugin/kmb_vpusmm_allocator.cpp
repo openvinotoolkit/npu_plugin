@@ -26,6 +26,7 @@
 
 using namespace vpu::KmbPlugin;
 
+#if defined(__arm__) || defined(__aarch64__)
 static size_t alignMemorySize(const size_t& size) {
     size_t pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
@@ -36,6 +37,7 @@ static size_t alignMemorySize(const size_t& size) {
     }
     return realSize;
 }
+#endif
 
 void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
@@ -89,27 +91,22 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 #endif
 }
 
-void* KmbAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept {
+void* KmbVpusmmAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    size_t realSize = alignMemorySize(size);
-
     auto physAddr = vpusmm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT);
-    // TODO find out whether mmap call here is necessary when buffer has already been imported
-    void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, remoteMemoryFd, 0);
-
-    if (virtAddr == MAP_FAILED) return nullptr;
 
     MemoryDescriptor memDesc = {
-        realSize,        // size
+        size,            // size
         remoteMemoryFd,  // file descriptor
         physAddr         // physical address
     };
-    _allocatedMemory[virtAddr] = memDesc;
+    _allocatedMemory[memHandle] = memDesc;
 
-    return virtAddr;
+    return memHandle;
 #else
     UNUSED(remoteMemoryFd);
     UNUSED(size);
+    UNUSED(memHandle);
     return nullptr;
 #endif
 }

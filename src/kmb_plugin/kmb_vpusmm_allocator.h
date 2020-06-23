@@ -26,6 +26,7 @@ public:
     void* alloc(size_t size) noexcept override;
     bool free(void* handle) noexcept override;
     bool isValidPtr(void* ptr) noexcept override;
+    void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept override;
 };
 
 }  // namespace KmbPlugin

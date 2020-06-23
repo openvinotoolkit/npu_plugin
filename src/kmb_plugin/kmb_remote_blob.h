@@ -33,13 +33,13 @@ public:
 
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
+    KmbHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
     KmbRemoteMemoryFD _remoteMemoryFd;
-    InferenceEngine::ColorFormat _colorFormat;
     const Logger::Ptr _logger;
+    KmbHandleParam _remoteMemoryHandle;
 };
 
 class KmbRemoteBlob : public InferenceEngine::RemoteBlob {
@@ -79,8 +79,6 @@ public:
 
     KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
 
-    InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-
     size_t size() const noexcept override;
 
     size_t byteSize() const noexcept override;
@@ -94,7 +92,6 @@ protected:
 
     const KmbConfig& _config;
     const KmbRemoteMemoryFD _remoteMemoryFd;
-    const InferenceEngine::ColorFormat _colorFormat;
     const Logger::Ptr _logger;
 
     void* getHandle() const noexcept override;

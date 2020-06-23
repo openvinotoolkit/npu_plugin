@@ -90,6 +90,18 @@ void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 #endif
 }
 
+int VPUSMMAllocator::getFileDescByVirtAddr(void* virtAddr) {
+    auto virtAddrPredicate = [virtAddr](const std::tuple<int, void*, size_t> & chunk) -> bool {
+        return virtAddr == std::get<1>(chunk);
+    };
+
+    auto memChunksIter = std::find_if(_memChunks.begin(), _memChunks.end(), virtAddrPredicate);
+    if (memChunksIter == _memChunks.end()) {
+        throw std::runtime_error("getFileDescByVirtAddrHelper: failed to find virtual address");
+    }
+    return std::get<0>(*memChunksIter);
+}
+
 int VPUSMMAllocator::allocateDMA(size_t requestedSize) {
 #if defined(__arm__) || defined(__aarch64__)
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
@@ -167,6 +179,10 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
     UNUSED(chunkIndex);
     return nullptr;
 #endif
+}
+
+int NativeAllocator::getFileDescByVirtAddr(void* virtAddr) {
+    return -1;
 }
 
 NativeAllocator::~NativeAllocator() {

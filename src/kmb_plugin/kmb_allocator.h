@@ -43,7 +43,7 @@ public:
 
     virtual ~KmbAllocator() = default;
 
-    virtual void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept;
+    virtual void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
 
 protected:
     struct MemoryDescriptor {

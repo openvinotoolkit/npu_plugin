@@ -37,18 +37,18 @@ KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const KmbC
     try {
         _remoteMemoryFd = remoteMemoryFdIter->second.as<KmbRemoteMemoryFD>();
     } catch (...) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory fd param has incorrect type information";
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory fd param has incorrect type";
     }
 
-    auto colorFormatIter = params.find(InferenceEngine::KMB_PARAM_KEY(COLOR_FORMAT));
-    if (colorFormatIter == params.end()) {
+    auto remoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
+    if (remoteMemoryHandleIter == params.end()) {
         THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: "
-                           << "Param map does not contain color format information";
+                           << "Param map does not contain remote memory handle information";
     }
     try {
-        _colorFormat = colorFormatIter->second.as<InferenceEngine::ColorFormat>();
+        _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
     } catch (...) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Color format param has incorrect type information";
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
     }
 }
 
@@ -59,7 +59,6 @@ KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, cons
       _remoteContextPtr(contextPtr),
       _config(config),
       _remoteMemoryFd(_params.getRemoteMemoryFD()),
-      _colorFormat(_params.getColorFormat()),
       _logger(std::make_shared<Logger>("KmbRemoteBlob", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Remote context is null.";
@@ -71,7 +70,7 @@ KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, cons
     KmbAllocator::Ptr kmbAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: KmbRemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = kmbAllocatorPtr->wrapRemoteMemory(_remoteMemoryFd, this->size());
+    _memoryHandle = kmbAllocatorPtr->wrapRemoteMemory(_remoteMemoryFd, this->size(), _params.getRemoteMemoryHandle());
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << "Allocation error";
     }
@@ -124,32 +123,8 @@ const std::shared_ptr<InferenceEngine::IAllocator>& KmbRemoteBlob::getAllocator(
     return _allocatorPtr;
 }
 
-static void getImageSize(InferenceEngine::TensorDesc tensorDesc, size_t& outWidth, size_t& outHeight) {
-    const auto layout = tensorDesc.getLayout();
-    const auto dims = tensorDesc.getDims();
-    outHeight = 0;
-    outWidth = 0;
-    if (layout == InferenceEngine::Layout::NCHW) {
-        outHeight = dims.at(2);
-        outWidth = dims.at(3);
-    } else if (layout == InferenceEngine::Layout::NHWC) {
-        outHeight = dims.at(1);
-        outWidth = dims.at(2);
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported layout.";
-    }
-}
-
 size_t KmbRemoteBlob::size() const noexcept {
-    if (_colorFormat == InferenceEngine::ColorFormat::NV12) {
-        if (tensorDesc.getLayout() == InferenceEngine::Layout::SCALAR) return 1;
-        // FIXME It's a very bad solution
-        size_t width, height;
-        getImageSize(tensorDesc, width, height);
-        return (3 * width * height) / 2;
-    } else {
-        return MemoryBlob::size();
-    }
+    return MemoryBlob::size();
 }
 
 size_t KmbRemoteBlob::byteSize() const noexcept { return size() * element_size(); }
