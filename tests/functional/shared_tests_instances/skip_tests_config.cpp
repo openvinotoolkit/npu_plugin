@@ -24,5 +24,10 @@ std::vector<std::string> disabledTestPatterns() {
         ".*InferConfigInTests\\.CanInferWithConfig.*",
         ".*InferConfigTests\\.withoutExclusiveAsyncRequests.*",
         ".*InferConfigTests\\.canSetExclusiveAsyncRequests.*",
+
+        // [Track number: S#27334]
+        ".*BehaviorTests.*",
+        ".*BehaviorTestInput.*",
+        ".*BehaviorTestOutput.*",
     };
 }
