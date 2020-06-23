@@ -43,6 +43,8 @@ sudo apt install python3-dev
 sudo apt install python-numpy
 # install metis:
 sudo apt install libmetis-dev libmetis5 metis
+# boost  
+sudo apt install libboost-all-dev
 
 # Begin to make DLDT for KMB-Plugin
 echo "=============== Build DLDT ==============="
