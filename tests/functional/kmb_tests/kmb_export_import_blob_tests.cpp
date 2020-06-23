@@ -101,10 +101,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Convolution_After_S
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ExportImportBlobToFromFile(deviceName, network, config, "Convolution_After_Scale_Shift");
 }
@@ -121,10 +117,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_Pooling) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ExportImportBlobToFromFile(deviceName, network, config, "Pooling");
 }
@@ -141,10 +133,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ExportImportBlobToFromFile(deviceName, network, config, "ReLU");
 }

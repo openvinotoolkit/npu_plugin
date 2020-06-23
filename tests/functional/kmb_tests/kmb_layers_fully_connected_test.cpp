@@ -241,7 +241,6 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(network, deviceName, config));
@@ -309,7 +308,6 @@ TEST_P(kmbLayersTestsFullyConnectedWithIR, fc_only_u8) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
     (executableNetwork = core->LoadNetwork(network, deviceName, config));

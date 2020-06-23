@@ -16,15 +16,7 @@
 
 using namespace InferenceEngine;
 
-void setCommonConfig(std::map<std::string, std::string>& config) {
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(NO);
-
-    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
-
-    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS)] = test_info->name();
-}
+void setCommonConfig(std::map<std::string, std::string>&) {}
 
 size_t precisionToBytesize(const std::string& precision) {
     size_t type_size = 1lu;
@@ -371,7 +363,6 @@ void vpuLayersTests::setup(
     config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
     config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
-    config[VPU_CONFIG_KEY(PERF_REPORT_MODE)] = VPU_CONFIG_VALUE(PER_STAGE);
 
     _exeNetwork = core->LoadNetwork(network, deviceName, config);
     _inputsInfo = network.getInputsInfo();

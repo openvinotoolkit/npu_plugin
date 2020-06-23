@@ -108,13 +108,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConcatenationAfterSoftmax) {
     std::map<std::string, std::string> config;
     setCommonConfig(config);
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 #endif

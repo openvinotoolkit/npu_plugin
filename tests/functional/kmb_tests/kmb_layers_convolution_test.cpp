@@ -74,13 +74,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShift) {
     std::map<std::string, std::string> config;
     setCommonConfig(config);
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
 
@@ -105,13 +98,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsConvolutionAfterScaleShiftNoBias) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 }
@@ -162,7 +148,6 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = core->LoadNetwork(network, deviceName, config));
@@ -400,8 +385,6 @@ TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
@@ -469,8 +452,6 @@ TEST_P(ConvolutionTest, DISABLED_convolution_and_relu_u8) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
@@ -613,8 +594,6 @@ TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
@@ -782,8 +761,6 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;

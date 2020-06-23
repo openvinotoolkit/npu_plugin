@@ -27,7 +27,6 @@
 #include <regression_tests.hpp>
 #include <test_model/kmb_test_utils.hpp>
 #include <vpu/kmb_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
 #include "kmb_layers_tests.hpp"
@@ -82,8 +81,6 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
 
     Core ie;

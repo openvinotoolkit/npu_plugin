@@ -54,8 +54,6 @@ static constexpr char iop_message[] = "Optional. Specifies precision for input/o
 "                                             Example: -iop \"input:FP16, output:FP16\".\n"
 "                                             Notice that quotes are required.\n"
 "                                             Overwrites precision from ip and op options for specified layers.";
-static constexpr char dump_blob_as_json_message[] = "Optional. Dumps generated blob in json representation for debugging.";
-static constexpr char dump_blob_as_dot_message[] = "Optional. Dumps generated blob in dot representation for debugging.";
 static constexpr char mcm_target_descriptor_message[] = "Optional. Compilation target descriptor file.";
 
 DEFINE_bool(h, false, help_message);
@@ -67,8 +65,6 @@ DEFINE_string(ip, "", inputs_precision_message);
 DEFINE_string(op, "", outputs_precision_message);
 DEFINE_string(iop, "", iop_message);
 DEFINE_string(VPU_PLATFORM, "", platform_message);
-DEFINE_bool(GENERATE_JSON, false, dump_blob_as_json_message);
-DEFINE_bool(GENERATE_DOT, false, dump_blob_as_dot_message);
 DEFINE_string(TARGET_DESCRIPTOR, "", mcm_target_descriptor_message);
 
 static const InferenceEngine::Precision defaultInputPrecision = InferenceEngine::Precision::U8;
@@ -86,16 +82,8 @@ static void showUsage() {
     std::cout << "    -ip                          <value>     "   << inputs_precision_message     << std::endl;
     std::cout << "    -op                          <value>     "   << outputs_precision_message    << std::endl;
     std::cout << "    -iop                        \"<value>\"    " << iop_message                  << std::endl;
-    std::cout << "    -GENERATE_JSON                           "   << dump_blob_as_json_message << std::endl;
-    std::cout << "    -GENERATE_DOT                            "   << dump_blob_as_dot_message << std::endl;
     std::cout << "    -TARGET_DESCRIPTOR           <value>     "   << mcm_target_descriptor_message << std::endl;
     std::cout << std::endl;
-}
-
-static std::string filedirname(const std::string &filepath) {
-    auto pos = filepath.rfind('/');
-    if (pos == std::string::npos) return ".";
-    return filepath.substr(0, pos);
 }
 
 static bool parseCommandLine(int *argc, char ***argv) {
@@ -134,21 +122,10 @@ static std::map<std::string, std::string> configure(const std::string &configFil
         config[VPU_KMB_CONFIG_KEY(PLATFORM)] = FLAGS_VPU_PLATFORM;
     }
 
-    if (FLAGS_GENERATE_JSON) {
-        config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-    }
-
-    if (FLAGS_GENERATE_DOT) {
-        config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    }
-
     if (!FLAGS_TARGET_DESCRIPTOR.empty()) {
         config[VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR)] = FLAGS_TARGET_DESCRIPTOR;
     }
 
-    if (!FLAGS_o.empty()) {
-        config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = filedirname(FLAGS_o);
-    }
     return config;
 }
 
