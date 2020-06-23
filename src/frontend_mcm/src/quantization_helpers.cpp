@@ -63,7 +63,9 @@ int64_t calculateZeroPoint(float high, float low, int levels, InferenceEngine::P
 }
 
 bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network) {
-    for (auto& layer : network) {
+    details::CNNNetworkIterator i(&static_cast<const InferenceEngine::ICNNNetwork&>(network)), end;
+    for ( ; i != end; ++i) {
+        auto layer = *i;
         if (layer->type == "FakeQuantize") {
             return true;
         }
