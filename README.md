@@ -49,6 +49,9 @@ The following environment variables should be set:
 
     `lib**.so: file format not recognized; treating as linker script`
 
+5. Boost library  
+    `sudo apt install libboost-all-dev`
+
 ### Build for X86_64
 
 The X86_64 build is needed to get reference results for the tests.

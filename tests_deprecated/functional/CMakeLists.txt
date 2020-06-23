@@ -50,7 +50,10 @@ addIeTargetTest(
 
 add_dependencies(${TARGET_NAME} kmbPlugin)
 if (X86 OR X86_64)
-    add_dependencies(${TARGET_NAME} HDDL2Plugin VPUXPlugin)
+    add_dependencies(${TARGET_NAME} VPUXPlugin)
+    if(ENABLE_HDDL2)
+        add_dependencies(${TARGET_NAME} HDDL2Plugin)
+    endif()
 endif()
 
 target_compile_options(${TARGET_NAME}
