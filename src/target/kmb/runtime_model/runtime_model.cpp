@@ -219,7 +219,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
     std::vector<uint32_t> numericStrides;
-    if (t->hasAttr("leadingOffset") || t->hasAttr("dilatedSlice"))
+    if ((t->hasAttr("leadingOffset") && *tensorAllocatorName == "VPU_CMX_NN" ) ||
+            (t->hasAttr("dilatedSlice") && *tensorAllocatorName == "VPU_CMX_NN" ))
         numericStrides = tensorBufferIt->getData()->computeNumericStrides();
     else
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
