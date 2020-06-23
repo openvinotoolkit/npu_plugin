@@ -13,7 +13,7 @@ IE_Core_Helper::IE_Core_Helper()
 InferenceEngine::Blob::Ptr IE_Core_Helper::loadCatImage(const InferenceEngine::Layout& targetImageLayout) {
     std::string catImagePath = "224x224/cat3.bmp";
     std::ostringstream imageFilePath;
-    imageFilePath << TestsCommon::get_data_path() << "/" << catImagePath;
+    imageFilePath << TestDataHelpers::get_data_path() << "/" << catImagePath;
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);
