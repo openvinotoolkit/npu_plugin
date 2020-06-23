@@ -381,7 +381,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv")
+               (sink->get<std::string>("taskOp") != "Conv" && sink->get<std::string>("taskOp") != "Eltwise"))
             {
                 tensorSparsifiable = false;
                 break;
