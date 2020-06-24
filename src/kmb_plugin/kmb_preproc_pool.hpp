@@ -6,7 +6,6 @@
 
 #include <ie_blob.h>
 
-#include <atomic>
 #include <condition_variable>
 #include <ie_input_info.hpp>
 #include <ie_preprocess_data.hpp>

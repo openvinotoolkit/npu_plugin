@@ -6,12 +6,8 @@
 
 #include "kmb_preproc_pool.hpp"
 
-#include <atomic>
-#include <condition_variable>
-#include <map>
-#include <memory>
+#include <mutex>
 #include <sstream>
-#include <vector>
 
 #include "kmb_preproc_gapi.hpp"
 
