@@ -176,7 +176,7 @@ void vpuLayersTests::genLayer(std::string layer_type, std::map<std::string, std:
     out += genPorts(outTensors, inoutIndex, "output");
 }
 
-void vpuLayersTests::genWeights(int weights_size, int biases_size, size_t* inoutIndex, std::string& out) {
+void vpuLayersTests::genWeights(int weights_size, int biases_size, std::string& out) {
     std::string result;
     std::string weights_str = std::to_string(weights_size);
     if (weights_size != 0) {
@@ -192,7 +192,7 @@ void vpuLayersTests::genWeights(int weights_size, int biases_size, size_t* inout
 }
 
 void vpuLayersTests::genWeights(
-    int weights_size, int biases_size, int weights_offset, int biases_offset, size_t* inoutIndex, std::string& out) {
+    int weights_size, int biases_size, int weights_offset, int biases_offset, std::string& out) {
     std::string result;
     if (weights_size != 0) {
         std::string weights_str = std::to_string(weights_size);
@@ -260,7 +260,7 @@ void vpuLayersTests::genXML(const std::string& layer_type, std::map<std::string,
         model += "        </layer>";
     }
     genLayer(layer_type, params, &inoutIndex, model, _inputTensors, _outputTensors);
-    genWeights(weights_size, biases_size, &inoutIndex, model);
+    genWeights(weights_size, biases_size, model);
     model += R"V0G0N(
     </layers>
     <edges>
@@ -611,7 +611,7 @@ void vpuLayersTests::genNetwork(bool useHWOpt, int version) {
             genLayer(elem.layer_type, &elem.params, &inoutIndex, layers, elem.inDim, elem.outDim, &elem.layer_name);
         }
         genWeights(elem.weights_size * sizeof(uint16_t), elem.biases_size * sizeof(uint16_t),
-            elem.weights_offset * sizeof(uint16_t), elem.biases_offset * sizeof(uint16_t), &inoutIndex, layers);
+            elem.weights_offset * sizeof(uint16_t), elem.biases_offset * sizeof(uint16_t), layers);
 
         std::string val =
             R"V0G0N(       <edge from-layer="_INDX_OUT_" from-port="_PORT_OUT_" to-layer="_LAYER_" to-port="_INDX_IN_"/>

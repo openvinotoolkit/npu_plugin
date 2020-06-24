@@ -19,7 +19,7 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
-#include <zconf.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <sstream>

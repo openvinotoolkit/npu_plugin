@@ -31,17 +31,12 @@ using namespace HddlUnite;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests
-//------------------------------------------------------------------------------
 class HDDL2_HddlUnite_Tests : public ::testing::Test {
 public:
     WorkloadContext_Helper workloadContextHelper;
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2_HddlUnite_Tests Initiation - construct
-//------------------------------------------------------------------------------
-
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
@@ -427,8 +422,8 @@ TEST_F(HddlUnite_Stress, DISABLED_MultipleAllocations) {
     const size_t amountOfAllocations = 100;
 
     HddlUnite::Inference::Graph::Ptr graphPtr = nullptr;
-    const std::string graphName = PrecompiledResNet_Helper::resnet50_dpu.graphName;
-    const std::string graphPath = PrecompiledResNet_Helper::resnet50_dpu.graphPath;
+    const std::string graphName = PrecompiledResNet_Helper::resnet50.graphName;
+    const std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
 
     for (size_t i = 0; i < amountOfAllocations; ++i) {
         ASSERT_EQ(HddlUnite::Inference::loadGraph(graphPtr, graphName, graphPath), HDDL_OK);

@@ -25,8 +25,6 @@
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Remote_Blob_Tests
-//------------------------------------------------------------------------------
 class HDDL2_Remote_Blob_Tests : public CoreAPI_Tests {
 public:
     void SetUp() override;

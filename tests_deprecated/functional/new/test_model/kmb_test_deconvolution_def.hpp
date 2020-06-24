@@ -111,4 +111,4 @@ struct DeconvolutionLayerDef final {
     TestNetwork& build();
 };
 
-TensorDesc getDeconvDwWeightsDesc(const DeconvolutionParams& params, size_t inChannels, Precision precision);
+TensorDesc getDeconvDwWeightsDesc(const DeconvolutionParams& params, Precision precision);

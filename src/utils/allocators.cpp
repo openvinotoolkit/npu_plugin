@@ -35,9 +35,9 @@ namespace KmbPlugin {
 
 namespace utils {
 
-int VPUSMMAllocator::_pageSize = getpagesize();
+uint32_t VPUSMMAllocator::_pageSize = getpagesize();
 
-static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
+static uint32_t calculateRequiredSize(uint32_t blobSize, uint32_t pageSize) {
     uint32_t blobSizeRem = blobSize % pageSize;
     uint32_t requiredSize = (blobSize / pageSize) * pageSize;
     if (blobSizeRem) {
@@ -52,8 +52,8 @@ static uint32_t calculateRequiredSize(uint32_t blobSize, int pageSize) {
 }
 
 void* VPUSMMAllocator::allocate(size_t requestedSize) {
-#if defined(__arm__) || defined(__aarch64__)
     const uint32_t requiredBlobSize = calculateRequiredSize(requestedSize, _pageSize);
+#if defined(__arm__) || defined(__aarch64__)
     int fileDesc = vpusmm_alloc_dmabuf(requiredBlobSize, VPUSMMTYPE_COHERENT);
     if (fileDesc < 0) {
         throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_alloc_dmabuf failed");
@@ -74,6 +74,7 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
     return virtAddr;
 #else
     UNUSED(requestedSize);
+    UNUSED(requiredBlobSize);
     return nullptr;
 #endif
 }

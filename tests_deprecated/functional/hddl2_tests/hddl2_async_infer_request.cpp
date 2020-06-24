@@ -25,6 +25,7 @@
 #include "cases/core_api.h"
 #include "comparators.h"
 #include "file_reader.h"
+#include "ie_utils.hpp"
 #include "models/precompiled_resnet.h"
 
 namespace IE = InferenceEngine;
@@ -34,22 +35,23 @@ public:
     const int REQUEST_LIMIT = 10;
     const int MAX_WAIT = 60000;
 
-    const int TOP_CLASSES_TO_COMPARE = 3;
+    const int TOP_CLASSES_TO_COMPARE = 1;
 
     std::string refInputPath;
     std::string refOutputPath;
 
 protected:
-    modelBlobInfo _blobInfo = PrecompiledResNet_Helper::resnet50_dpu;
+    modelBlobInfo _blobInfo = PrecompiledResNet_Helper::resnet50;
 
     void SetUp() override;
 
     std::vector<InferenceEngine::InferRequest> createRequests(const int& numberOfRequests);
 
-    static void loadReferenceToBlobForRequests(const std::string& pathToReference, const std::string& blobName,
-        std::vector<InferenceEngine::InferRequest>& requests);
+    static void loadCatImageToBlobForRequests(
+        const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests);
 
-    IE::Blob::Ptr loadReferenceToBlob(const std::string& pathToReference);
+    IE::Blob::Ptr loadReferenceToBlob(
+        const std::string& pathToReference, const IE::Precision& precision = IE::Precision::FP16);
 };
 
 void AsyncInferRequest_Tests::SetUp() {
@@ -68,21 +70,23 @@ std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createReques
     return requests;
 }
 
-void AsyncInferRequest_Tests::loadReferenceToBlobForRequests(const std::string& pathToReference,
+void AsyncInferRequest_Tests::loadCatImageToBlobForRequests(
     const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests) {
     for (auto currentRequest : requests) {
         IE::Blob::Ptr blobPtr;
-        ASSERT_NO_THROW(blobPtr = currentRequest.GetBlob(blobName));
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(pathToReference, blobPtr));
+        auto inputBlob = loadCatImage();
+        currentRequest.SetBlob(blobName, inputBlob);
     }
 }
 
-IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(const std::string& pathToReference) {
+IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(
+    const std::string& pathToReference, const IE::Precision& precision) {
     IE::ConstOutputsDataMap outputInfo = executableNetwork.GetOutputsInfo();
     if (outputInfo.size() != 1) {
         THROW_IE_EXCEPTION << "Only one output is supported";
     }
     auto outputTensorDesc = outputInfo.begin()->second->getTensorDesc();
+    outputTensorDesc.setPrecision(precision);
     auto refBlob = make_blob_with_precision(outputTensorDesc);
     refBlob->allocate();
     vpu::KmbPlugin::utils::fromBinaryFile(pathToReference, refBlob);
@@ -101,7 +105,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
         // --- Create requests
         std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-        loadReferenceToBlobForRequests(refInputPath, inputBlobName, requests);
+        loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Sync execution
         start_sync = Now();
@@ -117,7 +121,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
         // --- Create requests
         std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-        loadReferenceToBlobForRequests(refInputPath, inputBlobName, requests);
+        loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Specify callback
         std::mutex requestCounterGuard;
@@ -161,7 +165,7 @@ TEST_F(AsyncInferRequest_Tests, correctResultSameInput) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    loadReferenceToBlobForRequests(refInputPath, inputBlobName, requests);
+    loadCatImageToBlobForRequests(inputBlobName, requests);
 
     // --- Specify callback
     std::mutex requestCounterGuard;
@@ -197,7 +201,7 @@ TEST_F(AsyncInferRequest_Tests, correctResultSameInput) {
     for (auto currentRequest : requests) {
         IE::Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = currentRequest.GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, TOP_CLASSES_TO_COMPARE));
+        ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), TOP_CLASSES_TO_COMPARE));
     }
 }
 
@@ -259,9 +263,8 @@ TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
             // ---- Set NV12 blob with preprocessing information
             requests.at(i).SetBlob(inputBlobName, nv12InputBlob, preprocInfo);
         } else {
-            IE::Blob::Ptr blobPtr;
-            ASSERT_NO_THROW(blobPtr = requests.at(i).GetBlob(inputBlobName));
-            ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(references.at(i).inputReferencePath, blobPtr));
+            auto inputBlob = loadCatImage();
+            ASSERT_NO_THROW(requests.at(i).SetBlob(inputBlobName, inputBlob));
         }
     }
 
@@ -295,9 +298,15 @@ TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
         // --- Reference Blob
-        IE::Blob::Ptr refBlob = loadReferenceToBlob(references.at(i).outputReferencePath);
+        IE::Blob::Ptr refBlob;
+        if (references.at(i).isNV12) {
+            refBlob = loadReferenceToBlob(references.at(i).outputReferencePath, IE::Precision::U8);
+        } else {
+            refBlob = loadReferenceToBlob(references.at(i).outputReferencePath);
+        }
+
         IE::Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = requests.at(i).GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClasses(outputBlob, refBlob, TOP_CLASSES_TO_COMPARE));
+        ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), TOP_CLASSES_TO_COMPARE));
     }
 }

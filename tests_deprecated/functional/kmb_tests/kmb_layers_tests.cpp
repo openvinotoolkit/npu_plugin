@@ -28,13 +28,13 @@ using namespace InferenceEngine;
 
 void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params,
     int weights_size, int biases_size, InferenceEngine::TBlob<uint8_t>::Ptr weights,
-    InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision, bool useHWOpt) {
+    InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
     ASSERT_NO_FATAL_FAILURE(
         doNetworkInit(layer_type, params, weights_size, biases_size, weights, outputPrecision, inputPrecision););
 }
 
-void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
-    InferenceEngine::Precision inputPrecision, bool useHWOpt) {
+void kmbLayersTests_nightly::setup(
+    const CNNNetwork& network, InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
@@ -58,7 +58,7 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::m
     genXML(layer_type, params, weights_size, biases_size, xml);
     CNNNetwork network;
     ASSERT_NO_THROW(network = core->ReadNetwork(xml, weights));
-    setup(network, outputPrecision, inputPrecision, true);
+    setup(network, outputPrecision, inputPrecision);
 }
 
 std::map<std::string, std::string> KmbPerLayerTest::getCommonConfig() const {

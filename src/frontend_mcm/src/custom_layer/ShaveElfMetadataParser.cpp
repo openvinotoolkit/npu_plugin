@@ -2,6 +2,7 @@
 // Copyright (C) Intel Corporation. All Rights Reserved.
 
 #include <custom_layer/ShaveElfMetadataParser.hpp>
+#include "ie_macro.hpp"
 
 namespace {
 
@@ -28,6 +29,7 @@ uint32_t md_parser_t::evaluate_expr(const md_expr_t *expr,
                                     const uint32_t *param,
                                     uint32_t param_count) const
 {
+  UNUSED(param_count);
   // find the nodes for the given expr_index
   assert(expr->node_first < hdr->expr_node_count);
   const md_expr_node_t *node = expr_node + expr->node_first;

@@ -38,6 +38,7 @@
 #include <vpu/utils/error.hpp>
 
 #include "dims_parser.hpp"
+#include "ie_macro.hpp"
 
 #ifdef ENABLE_MCM_COMPILER
 
@@ -500,17 +501,27 @@ static void setFakeQuantizeParams(const InferenceEngine::CNNLayerPtr& fakeQuanti
 
 std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
     std::vector<CNNLayerPtr> result;
-
+    std::set<CNNLayerPtr> visited;
+    std::stack<CNNLayerPtr> layers;
     auto inputs = CNNNetworkHelper::getParents(layer);
     for (auto& input : inputs) {
+        layers.push(input);
+    }
+    while (!layers.empty()) {
+        auto input = layers.top();
+        layers.pop();
+        visited.insert(input);
         if ((input->type == "FakeQuantize") && (CNNNetworkHelper::getParent(*input)->type != "Const")) {
             result.push_back(input);
         } else {
-            auto parentInputs = getInputsFQ(*input);
-            result.insert(result.end(), parentInputs.begin(), parentInputs.end());
+            auto inputs = CNNNetworkHelper::getParents(*input);
+            for (auto&& newInput : inputs) {
+                if (!visited.count(newInput)) {
+                    layers.push(newInput);
+                }
+            }
         }
     }
-
     return result;
 }
 
@@ -730,11 +741,11 @@ void FrontEndMcm::getInputData(const ie::CNNLayerPtr& layer, McmNodeVector& inpu
     }
 }
 
-std::string getDimLabel(int dimIndex, ie::Layout ieLayout) {
+std::string getDimLabel(size_t dimIndex, ie::Layout ieLayout) {
     std::ostringstream ostr;
     ostr << ieLayout;
     const auto layoutStr = ostr.str();
-    IE_ASSERT(dimIndex >= 0 && dimIndex < layoutStr.size());
+    IE_ASSERT(dimIndex < layoutStr.size());
     return std::string(1, layoutStr[dimIndex]);
 }
 
@@ -752,7 +763,12 @@ void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, con
 }
 
 double inf = std::numeric_limits<double>::infinity();
-mv::QuantizationParams initialQuantParams = {{0}, {1}, {-inf}, {inf}};
+
+// PATCH(mcm2): This is needed to avoid a static initializer fiasco.
+static const mv::QuantizationParams& initialQuantParams() {
+    static mv::QuantizationParams init {{0}, {1}, {-inf}, {inf}};
+    return init;
+};
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
     const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16};
@@ -802,7 +818,7 @@ void FrontEndMcm::parseInputData() {
         bool networkInput = true;
 
         auto mvInput = _modelMcm.input(inputShape, precisionToDType(inputPrecision),
-            layoutToOrder(InferenceEngine::Layout::NHWC), initialQuantParams, networkInput, netInput->name());
+            layoutToOrder(InferenceEngine::Layout::NHWC), initialQuantParams(), networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }
@@ -943,14 +959,14 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            static_cast<unsigned>(dilationX), convolutionDataType, initialQuantParams, convLayer->name);
+            static_cast<unsigned>(dilationX), convolutionDataType, initialQuantParams(), convLayer->name);
     } else {
         mvConv = _modelMcm.conv(input->getMcmNode(), mvWeights,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), convolutionDataType, initialQuantParams,
-            convLayer->name);
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), convolutionDataType,
+            initialQuantParams(), convLayer->name);
     }
 
     //  Need quantize bias, this logic provide by MCM team, need check
@@ -958,7 +974,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
         mvConvOnly = mvConv;
         auto mvBiases = inputs[2]->getMcmNode();
         mvConv =
-            _modelMcm.bias(mvConvOnly, mvBiases, mv::DType("Default"), initialQuantParams, convLayer->name + ":bias");
+            _modelMcm.bias(mvConvOnly, mvBiases, mv::DType("Default"), initialQuantParams(), convLayer->name + ":bias");
         _logger->debug(
             "'%s' layer '%s': Bias part (%s) added to mcmModel", convLayer->type, convLayer->name, mvConv->getName());
     }
@@ -1009,14 +1025,14 @@ void FrontEndMcm::parsePooling(const ie::CNNLayerPtr& layer, const McmNodeVector
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams(), poolLayer->name);
     } else {
         mvPooling = _modelMcm.maxPool(inputs[0]->getMcmNode(),
             {static_cast<uint16_t>(kernelSizeX), static_cast<uint16_t>(kernelSizeY)},
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
-            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams, poolLayer->name);
+            poolLayer->_exclude_pad, mv::DType("Default"), initialQuantParams(), poolLayer->name);
     }
 
     bindOutput(mvPooling, layerOutput);
@@ -1040,12 +1056,12 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
     auto mvWeights = inputs[1]->getMcmNode();
     mv::DType layerDataType("Default");
     auto mvFullyConnected =
-        _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, layerDataType, initialQuantParams, FClayer->name);
+        _modelMcm.fullyConnected(input->getMcmNode(), mvWeights, layerDataType, initialQuantParams(), FClayer->name);
 
     if (inputs.size() == 3) {
         auto mvBiases = inputs[2]->getMcmNode();
         mvFullyConnected = _modelMcm.bias(
-            mvFullyConnected, mvBiases, mv::DType("Default"), initialQuantParams, FClayer->name + ":bias");
+            mvFullyConnected, mvBiases, mv::DType("Default"), initialQuantParams(), FClayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", FClayer->type, FClayer->name,
             mvFullyConnected->getName());
     }
@@ -1066,10 +1082,10 @@ void FrontEndMcm::parseReLU(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     float negativeSlope = reluLayer->negative_slope;
     mv::Data::TensorIterator mvRelu;
     if (std::fabs(negativeSlope) < std::numeric_limits<float>::epsilon()) {
-        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams, reluLayer->name);
+        mvRelu = _modelMcm.relu(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams(), reluLayer->name);
     } else {
         mvRelu = _modelMcm.leakyRelu(
-            inputs[0]->getMcmNode(), negativeSlope, mv::DType("Default"), initialQuantParams, reluLayer->name);
+            inputs[0]->getMcmNode(), negativeSlope, mv::DType("Default"), initialQuantParams(), reluLayer->name);
     }
 
     bindOutput(mvRelu, layer->outData[0]);
@@ -1090,7 +1106,7 @@ void FrontEndMcm::parseSoftMax(const ie::CNNLayerPtr& layer, const McmNodeVector
     const auto ieLayout = ie::TensorDesc::getLayoutByDims(inputs[0]->desc().getDims());
     std::string mcmAxis = getDimLabel(softMaxLayer->axis, ieLayout);
     auto mvSoftmax = _modelMcm.softmax(
-        inputs[0]->getMcmNode(), mcmAxis, mv::DType("Default"), initialQuantParams, softMaxLayer->name);
+        inputs[0]->getMcmNode(), mcmAxis, mv::DType("Default"), initialQuantParams(), softMaxLayer->name);
 
     bindOutput(mvSoftmax, layer->outData[0]);
 
@@ -1108,7 +1124,7 @@ void FrontEndMcm::parseNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     auto beta = static_cast<double>(normLayer->_beta);
     std::string region = std::to_string(normLayer->_k);
     auto mvLRN = _modelMcm.norm(inputs[0]->getMcmNode(), alpha, beta, region, normLayer->_size, mv::DType("Default"),
-        initialQuantParams, normLayer->name);
+        initialQuantParams(), normLayer->name);
 
     bindOutput(mvLRN, layer->outData[0]);
 
@@ -1125,9 +1141,10 @@ void FrontEndMcm::parseScaleImpl(
 
     mv::Shape weightsShape = {weights.size()};
     auto mvWeights = _modelMcm.constant(
-        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams);
+        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
 
-    auto scale = _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), initialQuantParams, layer->name);
+    auto scale =
+        _modelMcm.scale(input->getMcmNode(), mvWeights, mv::DType("Default"), initialQuantParams(), layer->name);
     auto scaleShift = scale;
 
     std::vector<double> biasData;
@@ -1135,9 +1152,10 @@ void FrontEndMcm::parseScaleImpl(
         biasData = packBlobToVector<double>(biases, biases->size());
         mv::Shape shiftShape {biases->size()};
         auto shiftData = _modelMcm.constant(
-            biasData, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams);
+            biasData, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
         // TODO: return logging
-        scaleShift = _modelMcm.bias(scale, shiftData, mv::DType("Default"), initialQuantParams, layer->name + ":bias");
+        scaleShift =
+            _modelMcm.bias(scale, shiftData, mv::DType("Default"), initialQuantParams(), layer->name + ":bias");
     }
 
     bindOutput(scaleShift, layer->outData[0]);
@@ -1179,12 +1197,12 @@ void FrontEndMcm::parsePermute(const ie::CNNLayerPtr& layer, const McmNodeVector
     }
 
     auto mvPerm = _modelMcm.permute(
-        inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"), initialQuantParams, layer->name);
+        inputs[0]->getMcmNode(), mv::Order(newOrder), mv::DType("Default"), initialQuantParams(), layer->name);
 
     // Workaround to avoid parsing stage crash:
     // 'ArgumentError: attribute identifer quantParams - Undefined identifier'
     // [Track number: D#2284, D#2237]
-    mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams);
+    mvPerm->set<mv::QuantizationParams>("quantParams", initialQuantParams());
 
     bindOutput(mvPerm, layer->outData[0]);
 
@@ -1217,10 +1235,10 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
     switch (eltwiseLayer->_operation) {
     case ie::EltwiseLayer::eOperation::Sub:
         mvEltwise =
-            _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), initialQuantParams, eltwiseLayer->name);
+            _modelMcm.eltwise(mvInputs, "Subtract", mv::DType("Default"), initialQuantParams(), eltwiseLayer->name);
         break;
     case ie::EltwiseLayer::eOperation::Sum:
-        mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), initialQuantParams, eltwiseLayer->name);
+        mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), initialQuantParams(), eltwiseLayer->name);
         break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
@@ -1247,14 +1265,14 @@ void FrontEndMcm::parseBias(const ie::CNNLayerPtr& layer, const McmNodeVector& i
 
         auto mvBiasValues = _modelMcm.constant(biasData, biasShape, mv::DType("Float16"), mv::Order("W"));
         mvBias =
-            _modelMcm.bias(input->getMcmNode(), mvBiasValues, mv::DType("Default"), initialQuantParams, layer->name);
+            _modelMcm.bias(input->getMcmNode(), mvBiasValues, mv::DType("Default"), initialQuantParams(), layer->name);
     } else if (inputs.size() == 2) {
         logParsingStartHelper(_logger, layer, inputs);
 
         auto input = inputs[0];
         auto input1 = inputs[1];
         mvBias = _modelMcm.bias(
-            input->getMcmNode(), input1->getMcmNode(), mv::DType("Default"), initialQuantParams, layer->name);
+            input->getMcmNode(), input1->getMcmNode(), mv::DType("Default"), initialQuantParams(), layer->name);
     } else {
         VPU_THROW_EXCEPTION << "Bias layer does not support " << inputs.size() << " inputs";
     }
@@ -1273,9 +1291,9 @@ void FrontEndMcm::parseClamp(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     logParsingStartHelper(_logger, layer, inputs);
 
     auto mvClampMin = _modelMcm.minimum(inputs[0]->getMcmNode(), clampLayer->max_value, mv::DType("Default"),
-        initialQuantParams, clampLayer->name + "clamp-min");
+        initialQuantParams(), clampLayer->name + "clamp-min");
     auto mvClampMax = _modelMcm.maximum(
-        mvClampMin, clampLayer->min_value, mv::DType("Default"), initialQuantParams, clampLayer->name + "clamp-max");
+        mvClampMin, clampLayer->min_value, mv::DType("Default"), initialQuantParams(), clampLayer->name + "clamp-max");
     bindOutput(mvClampMax, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvClampMax->getName());
@@ -1298,7 +1316,7 @@ void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector
     // McmCompiler accept only input in WHCN format
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
     auto mvReshape =
-        _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, mv::DType("Default"), initialQuantParams, layer->name);
+        _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(mvReshape, layer->outData[0]);
 
@@ -1323,7 +1341,7 @@ void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector&
     }
 
     auto mvConcat =
-        _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), initialQuantParams, concatLayer->name);
+        _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), initialQuantParams(), concatLayer->name);
     bindOutput(mvConcat, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvConcat->getName());
@@ -1341,7 +1359,7 @@ void FrontEndMcm::parseRegionYolo(const ie::CNNLayerPtr& layer, const McmNodeVec
     auto mask = layer->GetParamAsUInts("mask", {});
 
     auto region = _modelMcm.regionYolo(inputs[0]->getMcmNode(), coords, classes, do_softmax, num, mask,
-        mv::DType("Default"), initialQuantParams, layer->name);
+        mv::DType("Default"), initialQuantParams(), layer->name);
     bindOutput(region, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, region->getName());
@@ -1355,7 +1373,7 @@ void FrontEndMcm::parseReorgYolo(const ie::CNNLayerPtr& layer, const McmNodeVect
     auto stride = layer->GetParamAsUInt("stride");
 
     auto reorg =
-        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), initialQuantParams, layer->name);
+        _modelMcm.reorgYolo(inputs[0]->getMcmNode(), stride, mv::DType("Default"), initialQuantParams(), layer->name);
     bindOutput(reorg, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, reorg->getName());
@@ -1380,6 +1398,7 @@ bool isInteger(ie::Precision iePrecision) {
 }  // namespace
 
 void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    UNUSED(inputs);
     IE_ASSERT(layer->type == "Const");
     auto foundBlob = layer->blobs.begin();
     if (foundBlob == layer->blobs.end()) {
@@ -1392,7 +1411,7 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         std::vector<int64_t> constData = packBlobToVector<int64_t>(constBlob, constBlob->size());
         auto constMCM =
             _modelMcm.constantInt(constData, mcmShape, precisionToDType(constBlob->getTensorDesc().getPrecision()),
-                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
+                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams(), layer->name);
         bindOutput(constMCM, layer->outData[0]);
     } else {
         std::vector<double> constData = packBlobToVector<double>(constBlob, constBlob->size());
@@ -1402,7 +1421,7 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
                 // but as Work Around it is set to: precisionToDType(Precision(Precision::ePrecision::FP32)).
                 // It is so just because mcmCompiler has not supported FP16 yet.
                 // Do not forget to redo it when support for FP16 will be available in mcmCompiler.
-                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams, layer->name);
+                mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams(), layer->name);
         bindOutput(constMCM, layer->outData[0]);
     }
 }
@@ -1432,7 +1451,7 @@ void FrontEndMcm::parseTopK(const ie::CNNLayerPtr& layer, const McmNodeVector& i
     _modelMcm.removeOp(_modelMcm.getSourceOp(inputs[1]->getMcmNode()));
 
     auto topK = _modelMcm.topK(
-        inputs[0]->getMcmNode(), sort, mode, k, axis, mv::DType("Default"), initialQuantParams, layer->name);
+        inputs[0]->getMcmNode(), sort, mode, k, axis, mv::DType("Default"), initialQuantParams(), layer->name);
     bindOutput(topK, layer->outData[0]);
     auto topKOp = _modelMcm.getSourceOp(topK);
     if (topKOp->outputSlots() > 1) bindOutput(topKOp->getOutputTensor(1), layer->outData[1]);
@@ -1514,7 +1533,7 @@ void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNo
     mvDetectionOutput = _modelMcm.detectionOutput(detectionInputs, num_classes, keep_top_k, nms_threshold,
         background_label_id, top_k, variance_encoded_in_target, code_type, share_location, confidence_threshold,
         clip_before_nms, clip_after_nms, decrease_label_id, normalized, input_height, input_width, objectness_score,
-        mv::DType("Default"), initialQuantParams, layer->name);
+        mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(mvDetectionOutput, layer->outData[0]);
 
@@ -1543,8 +1562,10 @@ void FrontEndMcm::parsePReLU(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
 }
 
-void FrontEndMcm::parseBatchNorm(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "PReLU layer is not supported by kmbPlugin";
+void FrontEndMcm::parseBatchNorm(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    UNUSED(inputs);
+    UNUSED(layer);
+    VPU_THROW_EXCEPTION << "BatchNorm layer is not supported by kmbPlugin";
 }
 
 void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1610,7 +1631,7 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
                 static_cast<uint16_t>(padBottom)},
             static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), true, convolutionDataType,
-            initialQuantParams, deconvLayer->name);
+            initialQuantParams(), deconvLayer->name);
     } else {
         VPU_THROW_EXCEPTION << "Non depthwise Deconvolution layer is not supported by kmbPlugin";
     }
@@ -1620,7 +1641,7 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
         mvDeconvOnly = mvDeconv;
         auto mvBiases = inputs[2]->getMcmNode();
         mvDeconv = _modelMcm.bias(
-            mvDeconvOnly, mvBiases, mv::DType("Default"), initialQuantParams, deconvLayer->name + ":bias");
+            mvDeconvOnly, mvBiases, mv::DType("Default"), initialQuantParams(), deconvLayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", deconvLayer->type, deconvLayer->name,
             mvDeconv->getName());
         std::cout << "mcm deconv bias done" << std::endl;
@@ -1667,12 +1688,12 @@ void FrontEndMcm::parseCrop(const ie::CNNLayerPtr& layer, const McmNodeVector& i
         mv::Shape mvOutDims(ndims);
 
         // fill offsets and out dimensions size with conversion NCHW->WHCN
-        for (int i = 0; i < ndims; ++i) {
+        for (int i = 0; i < static_cast<int>(ndims); ++i) {
             mvOffsets[ndims - 1 - axisParam[i]] = offsetParam[i];
             mvOutDims[ndims - 1 - axisParam[i]] = dimParam[i];
         }
         // _modelMcm.crop is single dimensional and _modelMcm.slice is multdimensional
-        mvSlice = _modelMcm.slice(input->getMcmNode(), mvOffsets, outShape, initialQuantParams, layer->name);
+        mvSlice = _modelMcm.slice(input->getMcmNode(), mvOffsets, outShape, initialQuantParams(), layer->name);
 
         bindOutput(mvSlice, layer->outData[0]);
     } else if (layer->CheckParamPresence("axis") && layer->CheckParamPresence("crop_begin") &&
@@ -1719,7 +1740,7 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
     mv::Data::TensorIterator mvNormalize;
 
     mvNormalize = _modelMcm.normalize(inputs[0]->getMcmNode(), mvWeightsValues, eps, across_spatial, channel_shared,
-        mv::DType("Default"), initialQuantParams, layer->name);
+        mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(mvNormalize, layer->outData[0]);
 
@@ -1741,7 +1762,7 @@ void FrontEndMcm::parseInterp(const ie::CNNLayerPtr& layer, const McmNodeVector&
     auto align_corners = layer->GetParamAsInt("align_corners", 0) == 1;
 
     auto mvInterp = _modelMcm.interp(inputs[0]->getMcmNode(), factor, pad_begin, pad_end, height, width, align_corners,
-        mv::DType("Default"), initialQuantParams, layer->name);
+        mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(mvInterp, layer->outData[0]);
     _logger->debug(FINISH_PARSING_STR, mvInterp->getName());
@@ -1756,12 +1777,12 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
     auto nms_thresh = layer->GetParamAsFloat("nms_thresh");
     auto box_coordinate_scale = layer->GetParamAsFloat("box_coordinate_scale", 1.0);
     auto box_size_scale = layer->GetParamAsFloat("box_size_scale", 1.0);
-    auto scale_data = layer->GetParamAsFloats("scale", {});
-    auto ratio_data = layer->GetParamAsFloats("ratio", {});
+    auto scale = layer->GetParamAsFloats("scale", {});
+    auto ratio = layer->GetParamAsFloats("ratio", {});
     auto normalize = layer->GetParamAsBool("normalize", false);
     auto clip_before_nms = layer->GetParamAsBool("clip_before_nms", true);
     auto clip_after_nms = layer->GetParamAsBool("clip_after_nms", false);
-    auto framework = layer->GetParamAsString("framework", "");
+    auto framework = layer->GetParamAsString("framework", "caffe");
     auto for_deformable = layer->GetParamAsBool("for_deformable", false);
     // NB: IR doens't contain this parameter
     float pre_nms_thresh = 0.0f;
@@ -1776,22 +1797,11 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
     for (const auto& input : inputs) {
         proposal_ins.push_back(input->getMcmNode());
     }
+    IE_ASSERT(proposal_ins.size() == 3u);
 
-    // FIXME mcmCompiler doesn't support std::vector<float> for constant operation
-    auto scale = _modelMcm.constant(std::vector<double>(scale_data.begin(), scale_data.end()),
-        mv::Shape({1, scale_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
-        "scale");
-
-    auto ratio = _modelMcm.constant(std::vector<double>(ratio_data.begin(), ratio_data.end()),
-        mv::Shape({1, ratio_data.size(), 1, 1}), mv::DType("Float32"), mv::Order::getZMajorID(4), initialQuantParams,
-        "ratio");
-
-    proposal_ins.push_back(scale);
-    proposal_ins.push_back(ratio);
-
-    auto proposal = _modelMcm.proposal(proposal_ins, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride,
-        min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale,
-        framework, for_deformable, mv::DType("Default"));
+    auto proposal = _modelMcm.proposal(proposal_ins, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh,
+        feat_stride, min_size, pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale,
+        box_coordinate_scale, framework, for_deformable, mv::DType("Default"));
 
     bindOutput(proposal, layer->outData[0]);
 }
@@ -1816,7 +1826,7 @@ void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeV
     }
 
     auto psroi = _modelMcm.pSROIPooling(psroi_ins, output_dim, group_size, spatial_scale, pooled_h, pooled_w,
-        spatial_bins_x, spatial_bins_y, mode, mv::DType("Default"), initialQuantParams, layer->name);
+        spatial_bins_x, spatial_bins_y, mode, mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(psroi, layer->outData[0]);
 }
@@ -1890,7 +1900,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     kernelParams.reserve(workGroupDims * 3 + 2 + kernelArgs.size());
 
     std::copy(begin(localWorkGroupSize), end(localWorkGroupSize), back_inserter(kernelParams));
-    for (int i = 0; i < localWorkGroupSize.size(); i++) {
+    for (size_t i = 0; i < localWorkGroupSize.size(); i++) {
         IE_ASSERT(globalWorkGroupSize[i] % localWorkGroupSize[i] == 0);
         kernelParams.push_back(globalWorkGroupSize[i] / localWorkGroupSize[i]);
     }
@@ -1920,7 +1930,7 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     const auto outputInfo = TensorInfoFromDesc(outputDescs[0]);
 
     auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData, outputInfo.order,
-        outputInfo.shape, outputInfo.dtype, initialQuantParams, layer->name);
+        outputInfo.shape, outputInfo.dtype, initialQuantParams(), layer->name);
 
     IE_ASSERT(custom->getShape() == outputInfo.shape);
 
@@ -1946,9 +1956,6 @@ void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVecto
     logParsingStartHelper(_logger, layer, inputs);
 
     auto antialias = layer->GetParamAsBool("antialias", 0);
-    auto factor = layer->GetParamAsFloat("factor", 2.0);
-    auto height = layer->GetParamAsUInt("height", 0);
-    auto width = layer->GetParamAsUInt("width", 0);
     auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
 
     auto layerOutput = layer->outData[0];
@@ -1956,7 +1963,7 @@ void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVecto
     mv::Shape output_shape(getWHCN(layerOutput->getTensorDesc()).getDims());
 
     auto resample_result = _modelMcm.resample(inputs[0]->getMcmNode(), interpolationMap.at(interpolation), antialias,
-        output_shape, mv::DType("Default"), initialQuantParams, layer->name);
+        output_shape, mv::DType("Default"), initialQuantParams(), layer->name);
 
     bindOutput(resample_result, layer->outData[0]);
 
@@ -2001,7 +2008,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
 
     auto boxes = ParseLayersHelpers::computePriorbox(param);
     auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
-        initialQuantParams, layer->name + "_const");
+        initialQuantParams(), layer->name + "_const");
 
     bindOutput(priorbox, layer->outData[0]);
 
@@ -2009,6 +2016,7 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
 }
 
 void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    UNUSED(inputs);
     if (layer->insData.size() != 2 || layer->outData.empty()) {
         THROW_IE_EXCEPTION << "Incorrect number of input/output edges!";
     }
@@ -2123,7 +2131,7 @@ CustomLayer::Ptr FrontEndMcm::getSuitableCustomLayer(
     const auto inputsLayoutMatch = [&](const SmallVector<CustomDataFormat>& cnnEdges,
                                        const std::map<int, CustomDataFormat>& clEdges) {
         for (const auto clEdge : clEdges) {
-            const auto port = clEdge.first;
+            size_t port = clEdge.first;
             VPU_THROW_UNLESS(
                 port < cnnEdges.size(), "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
 

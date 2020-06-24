@@ -59,7 +59,7 @@ TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
     );
 
     registerBlobGenerator(
-        "weights", getDeconvDwWeightsDesc(p._deconvParams, p._inDims.at(1), netPresicion),
+        "weights", getDeconvDwWeightsDesc(p._deconvParams, netPresicion),
         [&](const TensorDesc& desc) {
             return makeSingleValueBlob(desc, 1.0f);
         }

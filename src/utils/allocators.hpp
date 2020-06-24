@@ -39,7 +39,7 @@ public:
     void* getAllocatedChunkByIndex(size_t chunkIndex);
 private:
     std::vector< std::tuple<int, void*, size_t> > _memChunks;
-    static int _pageSize;
+    static uint32_t _pageSize;
 };
 
 class NativeAllocator : public VPUAllocator {

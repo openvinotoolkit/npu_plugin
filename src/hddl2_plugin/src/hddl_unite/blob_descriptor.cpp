@@ -180,9 +180,6 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
     if (_isNV12Data) {
         blobDesc.m_format = HddlUnite::Inference::FourCC::NV12;
     }
-
-    const IE::Layout layout = _desc->getLayout();
-
     // NN input dims
     IE::SizeVector dims = _desc->getDims();
 
@@ -191,17 +188,9 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
         dims = getNV12ImageDims(_blobPtr);
     }
 
-    uint H_index;
-    uint W_index;
-    if (layout == IE::NCHW) {
-        H_index = 2;
-        W_index = 3;
-    } else if (layout == IE::NHWC) {
-        H_index = 1;
-        W_index = 2;
-    } else {
-        THROW_IE_EXCEPTION << "Failed to create blob description for " << layout << " layout.";
-    }
+    // Dims stored in NCHW format
+    const uint H_index = 2;
+    const uint W_index = 3;
 
     blobDesc.m_resHeight = dims[H_index];
     blobDesc.m_resWidth = blobDesc.m_widthStride = dims[W_index];

@@ -129,6 +129,8 @@ namespace mv
             static MVCNN::UPALayerTaskT * buildUPATopKTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPACustomTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
             static MVCNN::UPALayerTaskT * buildUPADeconvTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPATileTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
+            static MVCNN::UPALayerTaskT * buildUPACTCDecoderTask(ComputationModel& cm, Element &compilationDescriptor, Control::OpListIterator opIt);
 
             // UTILS
             static unsigned countProducerConsumerTasks(mv::ComputationModel& cm, mv::Control::OpListIterator opIt);

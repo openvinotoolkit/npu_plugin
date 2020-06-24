@@ -281,15 +281,9 @@ bool vpu::MCMAdapter::isMCMCompilerAvailable() {
 
 #else
 
-void vpu::MCMAdapter::compileNetwork(
-    InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob) {
-    THROW_IE_EXCEPTION << "Compiler is disabled";
-}
+void vpu::MCMAdapter::compileNetwork() { THROW_IE_EXCEPTION << "Compiler is disabled"; }
 
-std::set<std::string> vpu::MCMAdapter::getSupportedLayers(
-    InferenceEngine::ICNNNetwork& network, const MCMConfig& config) {
-    THROW_IE_EXCEPTION << "Compiler is disabled";
-}
+std::set<std::string> vpu::MCMAdapter::getSupportedLayers() { THROW_IE_EXCEPTION << "Compiler is disabled"; }
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
 

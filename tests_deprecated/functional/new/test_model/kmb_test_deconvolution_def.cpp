@@ -109,7 +109,7 @@ TestNetwork& DeconvolutionLayerDef::build() {
     return testNet.addLayer(name, deconvNode, refDeconv);
 }
 
-TensorDesc getDeconvDwWeightsDesc(const DeconvolutionParams& params, size_t inChannels, Precision precision) {
+TensorDesc getDeconvDwWeightsDesc(const DeconvolutionParams& params, Precision precision) {
     return {precision, {params._group , 1, 1, params._kernel.y, params._kernel.x}, Layout::GOIHW};
 }
 

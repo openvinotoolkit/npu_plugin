@@ -59,7 +59,7 @@ void SippPreprocessorPool::execSIPPDataPreprocessing(const PreprocTask& task) {
             return !_free_preprocs.empty();
         });
     }
-    auto& preproc = _free_preprocs.front();
+    auto preproc = _free_preprocs.front();
     _free_preprocs.pop();
     lock.unlock();
 
