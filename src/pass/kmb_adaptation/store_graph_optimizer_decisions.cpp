@@ -8,6 +8,7 @@
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeConcatDDRFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -51,6 +52,8 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     storeLayerSplitStrategyFcn(pass, model);
     storeLayerSparsityStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
+    //NOTE: Only for validation-debug reasons, makes all the concats to be executed on ddr
+    storeConcatDDRFcn(pass, model);
 }
 
 void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -276,4 +279,16 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
         }
     }
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
+}
+
+void storeConcatDDRFcn(const mv::pass::PassEntry& pass,
+                                mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto concats = om.getOps("ImplicitConcat");
+    for ( auto concat : concats)
+    {
+        auto outputTensor = concat->getOutputTensor()[0];
+        outputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+    }
 }

@@ -62,7 +62,7 @@ int main()
     auto weights1 = om.constantInt(weightsData1,kernel1, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{-1.000000000000000},{1.000000000000000}}, "weights_conv1");
     auto conv1 = om.conv(conv0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{0.5647058823529412},{-inf},{inf},{0},{1}} , "conv1");
 
-    om.output(conv1,mv::DType("Float16"), {{},{},{},{}});
+    om.output(conv1,mv::DType("UInt8"), {{},{},{},{}});
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
