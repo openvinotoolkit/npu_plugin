@@ -60,10 +60,10 @@ public:
 
 protected:
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
-    void relocationAndExecSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    void relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
         unsigned int lpi);
-    virtual void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+    virtual void execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
         std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
         unsigned int lpi);

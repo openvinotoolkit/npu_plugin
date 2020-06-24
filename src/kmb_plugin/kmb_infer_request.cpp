@@ -178,12 +178,12 @@ void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     IE_PROFILING_AUTO_SCOPE(execPreprocessing);
     // TODO: [Track number: S#31121]
     // Get rid of environment variable USE_SIPP
-    if ((_config.useSIPP() || SippPreproc::useSIPP()) &&
-        SippPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
-        relocationAndExecSIPPDataPreprocessing(
+    if ((_config.useSIPP() || _config.useM2I() || KmbPreproc::useSIPP()) &&
+        KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+        relocationAndExecKmbDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
-        _logger->warning("SIPP is enabled but configuration is not supported.");
+        _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }
@@ -193,7 +193,7 @@ static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob) {
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
-void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
     unsigned int lpi) {
     std::map<std::string, PreProcessDataPtr> preprocDataRealloc;
@@ -225,16 +225,18 @@ void KmbInferRequest::relocationAndExecSIPPDataPreprocessing(InferenceEngine::Bl
                 InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(kmbYBlob, kmbUVBlob);
             preprocDataRealloc[preProcDataIter->first]->setRoiBlob(nv12Blob);
         } else {
-            THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to SIPP preprocessing.";
+            THROW_IE_EXCEPTION << "Attempt to pass non-NV12 image to Kmb preprocessing.";
         }
     }
-    this->execSIPPDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
+    this->execKmbDataPreprocessing(inputs, preprocDataRealloc, networkInputs, out_format, numShaves, lpi);
 }
 
-void KmbInferRequest::execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs,
+void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
-    SippPreproc::execSIPPDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi);
+    IE_ASSERT(_config.useSIPP() || _config.useM2I());
+    const KmbPreproc::Path ppPath = _config.useSIPP() ? KmbPreproc::Path::SIPP : KmbPreproc::Path::M2I;
+    KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
 }
 
 static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {
