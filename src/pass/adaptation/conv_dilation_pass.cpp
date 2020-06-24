@@ -184,7 +184,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 //Create sub dilated convs
                 size_t subConvIdx = 0;
                 uint64_t leadingOffset = 0;
-                mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_OUTPUT_CHANNELS], 1});
+                mv::Shape newShape({sliceWidth, sliceHeight, nonDilatedKernelShape[mv::KERNEL_INPUT_CHANNELS], 1});
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
                     mv::Shape subConvShape = newShape;
