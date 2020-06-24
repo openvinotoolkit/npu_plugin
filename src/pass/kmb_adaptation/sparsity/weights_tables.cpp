@@ -548,26 +548,29 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
             for(unsigned w = 0; w < width; ++w)
             {
                 unsigned subConvElementIdx;
-                if (h < 8)
-                    if (w < 8)
-                        subConvElementIdx = originalDilationFactor * w
-                                + h * originalDilationFactor * width;
+                if (h % originalDilationFactor == 0)
+                {
+                    if (w % originalDilationFactor == 0)
+                        subConvElementIdx = (w + h * width)/originalDilationFactor;
                     else
-                        subConvElementIdx = 1 + (w-8)*originalDilationFactor
-                                + h * originalDilationFactor * width;
+                        subConvElementIdx = (w/originalDilationFactor)
+                                + (h + 1) * (width/originalDilationFactor);
+                }
                 else
-                    if (w < 8)
-                        subConvElementIdx = (originalDilationFactor * (h-8) + 1) * width
-                                + w * originalDilationFactor;
+                {
+                    if (w % originalDilationFactor == 0)
+                        subConvElementIdx = (h%originalDilationFactor * width * height/originalDilationFactor)
+                                + w/originalDilationFactor;
                     else
-                        subConvElementIdx = (originalDilationFactor * (h-8) + 1) * width
-                                + (w-8) * originalDilationFactor + 1;
-
+                        subConvElementIdx = (h%originalDilationFactor * width * height/originalDilationFactor)
+                                + w/originalDilationFactor + (width/originalDilationFactor);
+                    subConvElementIdx += ((h+1)/originalDilationFactor -1) * width;
+                }
                 unsigned subConvElementOffset = subConvElementIdx * increment;
 
                 unpopulated_offsets[i++] = (subConvElementOffset << SHIFT_FOR_STORAGE_ELEMENT);
 //                unpopulated_offsets[i++] = (subConvElementIdx);
-                //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+//                std::cout << " row " << h << " col " << w << " address "  <<  unpopulated_offsets[i-1] << std::endl;
             }
         }
     }
