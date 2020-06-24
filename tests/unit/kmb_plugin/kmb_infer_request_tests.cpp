@@ -97,7 +97,6 @@ public:
             InferenceEngine::InputsDataMap&, InferenceEngine::ColorFormat, unsigned int, unsigned int));
     MOCK_METHOD2(execDataPreprocessing, void(InferenceEngine::BlobMap&, bool));
     MOCK_METHOD1(reallocateBlob, ie::Blob::Ptr(const ie::Blob::Ptr&));
-    MOCK_CONST_METHOD2(dumpInputBlobHelper, void(const InferenceEngine::Blob::Ptr&, const std::string&));
 };
 
 // FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
@@ -242,17 +241,6 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-TEST_F(kmbInferRequestUseCasesUnitTests, requestDumpsBlobIfCorrespondingEnvSet) {
-    setenv("IE_VPU_KMB_DUMP_INPUT_PATH", ".", 1 /*overwrite*/);
-
-    ie::Blob::Ptr input;
-    auto inputName = _inputs.begin()->first.c_str();
-    _inferRequest->GetBlob(inputName, input);
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), dumpInputBlobHelper(input, _))
-        .Times(_inputs.size());
-
-    ASSERT_NO_THROW(_inferRequest->InferAsync());
-}
 // tracking number: S#32515
 TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_CanGetTheSameBlobAfterSetNV12Blob) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
