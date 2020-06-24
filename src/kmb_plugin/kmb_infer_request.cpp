@@ -103,19 +103,20 @@ void KmbInferRequest::InferImpl() {
     GetResult();
 }
 
-void KmbInferRequest::dumpOutputBlobHelper(const Blob::Ptr& outputBlobPtr, const std::string& dst) {
+void KmbInferRequest::dumpOutputBlobHelper(
+    const Blob::Ptr& outputBlobPtr, const std::string& dst, const Logger::Ptr& logger) {
     static unsigned dumpOutputCounter = 0;
     std::ostringstream inputFullPath;
     inputFullPath << dst;
     inputFullPath << "/output-dump";
     inputFullPath << dumpOutputCounter++;
     inputFullPath << ".bin";
-    _logger->info("dumpOutputBlobHelper: dump to file ", inputFullPath.str());
+    logger->info("dumpOutputBlobHelper: dump to file %s", inputFullPath.str());
     std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
     if (dumper.good()) {
         dumper.write(outputBlobPtr->cbuffer().as<char*>(), outputBlobPtr->byteSize());
     } else {
-        _logger->warning("dumpOutputBlobHelper: failed to open ", inputFullPath.str());
+        logger->warning("dumpOutputBlobHelper: failed to open %s", inputFullPath.str());
     }
     dumper.close();
 }
@@ -125,7 +126,7 @@ void KmbInferRequest::InferAsync() {
     execPreprocessing(_inputs);
 
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
-        dumpInputs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"));
+        dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), dumpInputBlobHelper);
     }
 
     // TODO: would be better to find a better place for such checks
@@ -304,30 +305,31 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
     }
 }
 
-void KmbInferRequest::dumpInputs(const InferenceEngine::BlobMap& inputs, const std::string dstPath) const {
+void KmbInferRequest::dumpBlobs(
+    const InferenceEngine::BlobMap& blobMap, const std::string dstPath, const dumpFunctor_t& dumpFunctor) const {
     if (dstPath.empty()) {
-        _logger->warning(
-            "Can not dump inputs since destination path is empty. Please check IE_VPU_KMB_DUMP_INPUT_PATH.");
+        _logger->warning("KmbInferRequest::dumpBlobs: destination path is not set.");
         return;
     }
-    for (const auto& input : inputs) {
-        dumpInputBlobHelper(input.second, dstPath);
+    for (const auto& blob : blobMap) {
+        dumpFunctor(blob.second, dstPath, _logger);
     }
 }
 
-void KmbInferRequest::dumpInputBlobHelper(const Blob::Ptr& inputBlobPtr, const std::string& dst) const {
+void KmbInferRequest::dumpInputBlobHelper(
+    const Blob::Ptr& inputBlobPtr, const std::string& dst, const Logger::Ptr& logger) {
     static unsigned dumpInputCounter = 0;
     std::ostringstream inputFullPath;
     inputFullPath << dst;
     inputFullPath << "/input-dump";
     inputFullPath << dumpInputCounter++;
     inputFullPath << ".bin";
-    _logger->info("dumpInputBlobHelper: dump to file ", inputFullPath.str());
+    logger->info("dumpInputBlobHelper: dump to file %s", inputFullPath.str());
     std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
     if (dumper.good()) {
         dumper.write(inputBlobPtr->cbuffer().as<char*>(), inputBlobPtr->byteSize());
     } else {
-        _logger->warning("dumpInputBlobHelper: failed to open ", inputFullPath.str());
+        logger->warning("dumpInputBlobHelper: failed to open %s", inputFullPath.str());
     }
     dumper.close();
 }
@@ -391,7 +393,7 @@ void KmbInferRequest::GetResult() {
 
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
-        dumpOutputBlobHelper(outputBlobRef, dumpOutputPathEnv);
+        dumpBlobs(_outputs, dumpOutputPathEnv, dumpOutputBlobHelper);
     }
 }
 
