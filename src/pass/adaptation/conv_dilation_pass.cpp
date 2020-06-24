@@ -246,6 +246,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                     }
                     concatIt = om.implicitConcat(firstLevelConcats, "W", quantParams, name + "DDR_WIDTH_join");
                     om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+                    om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
+                    om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
                     needSparse2SparseOp = true;
                 }
                 else
@@ -323,7 +325,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                         opsToLink[j]->setInputTensor(sparse2SparseConv, inputSlots[j], false);
                         om.defineFlow(sparse2SparseConv, opsToLink[j], inputSlots[j]);
                     }
-//                    sparse2SparseConvOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
+                    sparse2SparseConvOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
                 }
             }
         }

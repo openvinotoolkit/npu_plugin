@@ -460,7 +460,6 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIt
     std::vector<int64_t> unpopulated_offsets(width*height, 0);
     unsigned subConvRowIdx = subConvIndex/dilationFactor;
     unsigned subConvColIdx = subConvIndex%dilationFactor;
-
     long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
 
     long int subConvElementIncrement = increment * dilationFactor;
@@ -500,41 +499,79 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
     mv::OpModel om(model);
 
     auto input = dpuTaskOp->getInputTensor()[0];
-    auto parentImplicitJoin = om.getSourceOp(input);
-    auto numberSubConvs = parentImplicitJoin.inputsSize();
-    auto inputBaseAddress = getSmallestInputAddress(parentImplicitJoin);
-
-    //Original DF factor is sqrt() of inputs to ImplicitJoin
-    unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
-
+    auto parentImplicitOp = om.getSourceOp(input);
+    std::size_t numberSubConvs = 0;
+    int64_t inputBaseAddress = 0;
     auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
     auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
-
     std::vector<int64_t> unpopulated_offsets(width*height, 0);
-
-
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
     long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
 
-    //for simplicity we pick base address as the smallest of all subconvs output addresses (to avoid negatives)
-    unsigned i = 0;
-    for(unsigned h = 0; h < height; ++h)
+    if (parentImplicitOp->getOpType() == "ImplicitJoin")
     {
-        unsigned subConvRowIdx = (h%originalDilationFactor)*originalDilationFactor;
-        for(unsigned w = 0; w < width; ++w)
-        {
-            //get base address based on subConvIdx
-            unsigned subConvIdx = subConvRowIdx + w%originalDilationFactor;
-            auto subConvBaseAddressOffset = parentImplicitJoin->getInputTensor(subConvIdx)->getAddress() - inputBaseAddress;
-            auto subConvWidth = parentImplicitJoin->getInputTensor(subConvIdx)->getShape()[mv::IO_WIDTH_DIMENSION];
-            //calc offset from start of subconv
-            unsigned subConvElementIdx = (h/originalDilationFactor)*subConvWidth + (w/originalDilationFactor);
-            unsigned subConvElementOffset = subConvElementIdx * increment;
+        numberSubConvs = parentImplicitOp.inputsSize();
+        inputBaseAddress = getSmallestInputAddress(parentImplicitOp);
+        //Original DF factor is sqrt() of inputs to ImplicitJoin
+        unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
 
-            unpopulated_offsets[i++] = ((subConvBaseAddressOffset + subConvElementOffset) << SHIFT_FOR_STORAGE_ELEMENT);
-            //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+        //for simplicity we pick base address as the smallest of all subconvs output addresses (to avoid negatives)
+        unsigned i = 0;
+        for(unsigned h = 0; h < height; ++h)
+        {
+            unsigned subConvRowIdx = (h%originalDilationFactor)*originalDilationFactor;
+            for(unsigned w = 0; w < width; ++w)
+            {
+                //get base address based on subConvIdx
+                unsigned subConvIdx = subConvRowIdx + w%originalDilationFactor;
+                auto subConvBaseAddressOffset = parentImplicitOp->getInputTensor(subConvIdx)->getAddress() - inputBaseAddress;
+                auto subConvWidth = parentImplicitOp->getInputTensor(subConvIdx)->getShape()[mv::IO_WIDTH_DIMENSION];
+                //calc offset from start of subconv
+                unsigned subConvElementIdx = (h/originalDilationFactor)*subConvWidth + (w/originalDilationFactor);
+                unsigned subConvElementOffset = subConvElementIdx * increment;
+
+                unpopulated_offsets[i++] = ((subConvBaseAddressOffset + subConvElementOffset) << SHIFT_FOR_STORAGE_ELEMENT);
+                //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+            }
         }
     }
+    else if (parentImplicitOp->getOpType() == "DMATask" &&
+             om.getSourceOp(parentImplicitOp->getInputTensor()[0])->getOpType() == "ImplicitConcat" &&
+             om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<bool>("joinSimulation"))
+    {
+        numberSubConvs = om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<size_t>("dilationSubConvs");
+        unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
+        unsigned i = 0;
+
+        for(unsigned h = 0; h < height; ++h)
+        {
+            for(unsigned w = 0; w < width; ++w)
+            {
+                unsigned subConvElementIdx;
+                if (h < 8)
+                    if (w < 8)
+                        subConvElementIdx = originalDilationFactor * w
+                                + h * originalDilationFactor * width;
+                    else
+                        subConvElementIdx = 1 + (w-8)*originalDilationFactor
+                                + h * originalDilationFactor * width;
+                else
+                    if (w < 8)
+                        subConvElementIdx = (originalDilationFactor * (h-8) + 1) * width
+                                + w * originalDilationFactor;
+                    else
+                        subConvElementIdx = (originalDilationFactor * (h-8) + 1) * width
+                                + (w-8) * originalDilationFactor + 1;
+
+                unsigned subConvElementOffset = subConvElementIdx * increment;
+
+                unpopulated_offsets[i++] = (subConvElementOffset << SHIFT_FOR_STORAGE_ELEMENT);
+//                unpopulated_offsets[i++] = (subConvElementIdx);
+                //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+            }
+        }
+    }
+
     activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
 }
 
