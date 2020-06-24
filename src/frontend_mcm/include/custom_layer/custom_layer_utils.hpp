@@ -12,7 +12,7 @@
 
 using namespace InferenceEngine;
 
-using half = ushort;
+using half = unsigned short;
 
 namespace vpu {
 

@@ -23,7 +23,6 @@
 #include <map>
 #include <memory>
 #include <queue>
-#include <sstream>
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <vector>

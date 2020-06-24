@@ -35,8 +35,8 @@ class VPUSMMAllocator : public VPUAllocator {
 public:
     VPUSMMAllocator() {};
     virtual ~VPUSMMAllocator();
-    void* allocate(size_t requestedSize);
-    void* getAllocatedChunkByIndex(size_t chunkIndex);
+    void* allocate(size_t requestedSize) override;
+    void* getAllocatedChunkByIndex(size_t chunkIndex) override;
 private:
     std::vector< std::tuple<int, void*, size_t> > _memChunks;
     static uint32_t _pageSize;
@@ -46,8 +46,8 @@ class NativeAllocator : public VPUAllocator {
 public:
     NativeAllocator() {};
     virtual ~NativeAllocator();
-    void* allocate(size_t requestedSize);
-    void* getAllocatedChunkByIndex(size_t chunkIndex);
+    void* allocate(size_t requestedSize) override;
+    void* getAllocatedChunkByIndex(size_t chunkIndex) override;
 private:
     std::vector< uint8_t* > _memChunks;
 };

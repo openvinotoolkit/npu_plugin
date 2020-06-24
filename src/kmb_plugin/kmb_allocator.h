@@ -17,7 +17,6 @@
 #pragma once
 
 #include <ie_allocator.hpp>
-#include <memory>
 #include <unordered_map>
 
 namespace vpu {
