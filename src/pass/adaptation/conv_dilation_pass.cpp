@@ -171,10 +171,10 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 auto originalShape = inputTensor->getShape();
                 std::vector<mv::Data::TensorIterator> subConvs;
 
-                double width = originalShape[mv::IO_WIDTH_DIMENSION];
-                double height = originalShape[mv::IO_HEIGHT_DIMENSION];
-                size_t sliceWidth = std::ceil(width/dilationFactor);
-                size_t sliceHeight = std::ceil(height/dilationFactor);
+                size_t width = originalShape[mv::IO_WIDTH_DIMENSION];
+                size_t height = originalShape[mv::IO_HEIGHT_DIMENSION];
+                size_t sliceWidth = std::ceil(((double)width)/dilationFactor);
+                size_t sliceHeight = std::ceil(((double)height)/dilationFactor);
                 //size_t sliceWidth = originalShape[mv::IO_WIDTH_DIMENSION]/dilationFactor;
                 //size_t sliceHeight = originalShape[mv::IO_HEIGHT_DIMENSION]/dilationFactor;
                 std::array<unsigned short, 4> padding = calcNewPadding(opIt, sliceWidth, sliceHeight);
@@ -186,17 +186,15 @@ void convDilationFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
                     mv::Shape subConvShape = newShape;
-                    if (sliceWidth*dilationFactor != originalShape[mv::IO_HEIGHT_DIMENSION] && //uneven subconvs on width
-                            i == (dilationFactor-1)) // last row
+                    if (height%dilationFactor != 0 && i >= (height%dilationFactor))
                     {
-                        subConvShape[mv::IO_HEIGHT_DIMENSION] = originalShape[mv::IO_HEIGHT_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_HEIGHT_DIMENSION];
+                        subConvShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] - 1;
                     }
                     for (size_t j = 0; j < dilationFactor; j++)
                     {
-                        if (sliceHeight*dilationFactor != originalShape[mv::IO_WIDTH_DIMENSION] && //uneven subconvs on height
-                                j == (dilationFactor-1)) // last col
+                        if (width%dilationFactor != 0 && j >= (width%dilationFactor))
                         {
-                            subConvShape[mv::IO_WIDTH_DIMENSION] = originalShape[mv::IO_WIDTH_DIMENSION] - (dilationFactor-1)*newShape[mv::IO_WIDTH_DIMENSION];
+                            subConvShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] - 1;
                         }
                         subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
