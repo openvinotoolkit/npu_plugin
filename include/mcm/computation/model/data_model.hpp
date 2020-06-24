@@ -57,7 +57,7 @@ namespace mv
         Data::BufferIterator allocateTensor(const std::string& allocatorName, Data::BufferIterator buffer, Data::TensorIterator tensor,
             const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding);
         Data::BufferIterator moveTensor(const std::string& allocatorName, Data::BufferIterator slaveBuffer, Data::BufferIterator masterBuffer,
-            const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding);
+            const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves=false);
         void padLeft(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding);
         void padRight(const std::string& allocatorName, Data::BufferIterator buffer, const std::vector<std::size_t>& padding);
         bool deallocateTensor(const std::string& allocatorName, Control::StageIterator& stage, Data::TensorIterator& tensor);
