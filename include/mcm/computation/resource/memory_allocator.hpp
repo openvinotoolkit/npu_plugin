@@ -237,7 +237,7 @@ namespace mv
          * @return BufferIterator Modified slaveBuffer, of the same offset and size that overlaps the memory space owned by the masterBuffer
          */
         BufferIterator move(BufferIterator slaveBuffer, BufferIterator masterBuffer, const std::vector<std::size_t>& leftPadding,
-            const std::vector<std::size_t>& rightPadding);
+            const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves=false);
         BufferIterator getTopMasterBuffer(BufferIterator t);
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
