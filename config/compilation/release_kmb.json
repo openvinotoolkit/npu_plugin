@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "emulator_results" : true,
+                "emulator_results" : false,
                 "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
@@ -244,7 +244,21 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_tasks.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "ConvertOpsToTasks",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/after_tasks.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",

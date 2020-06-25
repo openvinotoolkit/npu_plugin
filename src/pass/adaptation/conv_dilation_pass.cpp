@@ -149,6 +149,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
     using namespace mv;
 
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto returnedParams = model.getGlobalConfigParams();
     double CMX = returnedParams->get<unsigned>("cmx");
 
@@ -161,7 +162,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
 
             if (dilationFactor > 1)
             {
-                auto nextOp = opIt.leftmostChild();
+                auto nextOp = findSinkLayers(dm, opIt->getInputTensor(0))[0];
                 auto nonDilatedKernel = opIt->getInputTensor(1);
                 auto nonDilatedKernelShape = nonDilatedKernel->getShape();
                 auto inputTensor = opIt->getInputTensor(0);
@@ -230,21 +231,22 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 std::vector<mv::Data::TensorIterator> subConvsPerColumn;
                 std::vector<mv::Data::TensorIterator> firstLevelConcats;
 
-                if (outputTensorMemory > CMX)
+                if (outputTensorMemory < CMX)
                 {
                     for (size_t i = 0; i < dilationFactor; i++)
                     {
                         for (size_t j = 0; j < dilationFactor; j++)
                         {
-                            subConvsPerColumn.push_back(subConvs[i*dilationFactor + j]);
+                            subConvsPerColumn.push_back(subConvs[i*dilationFactor + (dilationFactor - 1) - j]);
                         }
-                        concatIt = om.implicitConcat(subConvsPerColumn, "H", quantParams,
-                                        name + std::to_string(i) + "DDR_HEIGHT_join");
+                        concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
+                                        name + std::to_string(i) + "DDR_WIDTH_join");
                         om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                         firstLevelConcats.push_back(concatIt);
                         subConvsPerColumn.clear();
                     }
-                    concatIt = om.implicitConcat(firstLevelConcats, "W", quantParams, name + "DDR_WIDTH_join");
+                    concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
+
                     om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                     om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
                     om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
@@ -272,7 +274,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
 
                 //NOTE: for now i will place a neutral z-major convolution just for re-order
                 //but under chat with runtime we can make it work without computations, with by-passing
-                if (needSparse2SparseOp)
+                if (needSparse2SparseOp || nextOp->isSparsityConsumer())
                 {
                     mv::Shape weightsShape({1, 1, outputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_CHANNEL_DIMENSION]});
                     std::vector<int64_t> weightsData(weightsShape.totalSize());
