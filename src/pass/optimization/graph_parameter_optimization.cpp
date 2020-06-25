@@ -589,7 +589,7 @@ namespace mv
             }
 
             unsigned findBestK(unsigned alignedSize, unsigned channels){
-                return std::ceil(alignedSize / ((alignedSize/2) - channels));
+                return std::ceil((double)alignedSize / ((alignedSize/2) - channels));
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
