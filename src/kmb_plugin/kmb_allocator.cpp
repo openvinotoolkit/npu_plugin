@@ -16,11 +16,7 @@
 
 #include "kmb_allocator.h"
 
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
-#include <iostream>
+#include <memory>
 #include <string>
 
 #include "kmb_native_allocator.h"

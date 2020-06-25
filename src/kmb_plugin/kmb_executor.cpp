@@ -19,17 +19,10 @@
 #include <fcntl.h>
 #include <ie_common.h>
 #include <stdio.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include <algorithm>
-#include <chrono>
 #include <cstring>
-#include <fstream>
-#include <iostream>
 #include <map>
-#include <mutex>
-#include <thread>
 #include <utility>
 #include <vector>
 #include <vpu/utils/extra.hpp>

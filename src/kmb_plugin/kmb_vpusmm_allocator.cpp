@@ -16,15 +16,12 @@
 
 #include "kmb_vpusmm_allocator.h"
 
+#if defined(__arm__) || defined(__aarch64__)
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#if defined(__arm__) || defined(__aarch64__)
 #include <vpusmm/vpusmm.h>
 #endif
-
-#include <iostream>
 
 using namespace vpu::KmbPlugin;
 

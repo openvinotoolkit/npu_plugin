@@ -16,8 +16,6 @@
 
 #include "kmb_async_infer_request.h"
 
-#include <memory>
-
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
