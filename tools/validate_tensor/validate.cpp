@@ -435,7 +435,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     }
 
     // execute the blob
-    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " +
+    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + std::getenv("TEST_RUNTIME") + " && " +
         "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
