@@ -20,7 +20,6 @@
 #include <kmb_private_config.hpp>
 #include <map>
 #include <string>
-#include <unordered_map>
 #include <unordered_set>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/numeric.hpp>

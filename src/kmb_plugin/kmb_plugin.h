@@ -26,7 +26,6 @@
 #include "kmb_metrics.h"
 #include <memory>
 #include <string>
-#include <vector>
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"

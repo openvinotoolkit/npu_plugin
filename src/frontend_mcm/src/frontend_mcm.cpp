@@ -917,7 +917,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
         }
         constWeightTensor->set<bool>("is_depthwise_weights", true);
         sourceWeightsOp->set<bool>("is_depthwise_weights", true);
-        auto newWeightsShape = {
+        const std::initializer_list<std::size_t> newWeightsShape = {
             static_cast<std::size_t>(kernelSizeX), static_cast<std::size_t>(kernelSizeY), inputGroupSize, 1lu};
 
         constWeightTensor->setShape(newWeightsShape);

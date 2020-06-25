@@ -18,7 +18,6 @@
 
 #include <ie_icnn_network.hpp>
 #include <iomanip>
-#include <map>
 #include <memory>
 #include <string>
 #include <utility>
