@@ -6,10 +6,23 @@
 #include <functional>
 #include <string>
 
+// Main, per-op funcs
 void removeSimpleOp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
 void removeShapeRelevant(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
+// For backward compatiibility
+void removeOneFullOp(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string opType);
+
+void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void removeInterpNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void removeReshapeNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void removePermuteNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void removeSliceNoOpFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+//Linking function
 void linkNewOperationsRemove(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element&, mv::Element&);
+// Main function
 static void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
@@ -77,4 +90,58 @@ void removeShapeRelevant(mv::Data::OpListIterator &opIt, mv::ComputationModel &m
     }
 }
 
+// For backward compatibility / targeted replaceement.
+void removeOneFullOp(const mv::pass::PassEntry& pass, mv::ComputationModel& model, std::string opType)
+{
+    mv::OpModel om(model);
+    auto identityOps = om.getOps(opType);
+
+    if ((opType == "Identity") || (opType == "Dropout"))
+    {
+        for (auto& opIt : identityOps)
+            removeSimpleOp(opIt, model, opType);
+    }
+    else
+    {
+        for (auto& opIt : identityOps)
+            removeShapeRelevant(opIt, model, opType);
+    }
+
+}
+
+void removeIdentityOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Identity");
+}
+
+void removeDropOut(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Dropout");
+}
+
+void removeInterpNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Interp");
+}
+
+void removeReshapeNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Reshape");
+}
+
+void removePermuteNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Permute");
+}
+
+void removeSliceNoOpFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    removeOneFullOp(pass, model, "Slice");
+}
 
