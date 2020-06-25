@@ -60,8 +60,14 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
+
+                auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
+
+                if (task->get<std::string>("taskOp") == "Normalize")
+                    quant_params = task->get<mv::QuantizationParams>("quantParams");
+
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
+                            quant_params, "Quantize" + task->getName() + std::to_string(id));
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                 
