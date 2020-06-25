@@ -12,6 +12,7 @@
 
 #include "blob_factory.hpp"
 #include "functional_test_utils/plugin_cache.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "ie_memcpy.h"
 
 using namespace InferenceEngine;
@@ -666,9 +667,7 @@ void vpuLayersTests::ReferenceGraph(const CNNNetwork& net) {
     for (size_t ind = 0; ind < _testNet.size(); ++ind) {
         if (_testNet[ind].fillWeights != nullptr) {
             auto& refLayer = _referenceGraph.callbacks[ind];
-            CNNLayerPtr layer;
-            auto status = network.getLayerByName(_testNet[ind].layer_name.c_str(), layer, &_resp);
-            ASSERT_EQ(status, (int)StatusCode::OK);
+            CNNLayerPtr layer = CommonTestUtils::getLayerByName(&network, _testNet[ind].layer_name);
             if (layer->type == "PReLU") {
                 /* PReLU is a custom layer */
                 auto it = layer->blobs.find("weights");
