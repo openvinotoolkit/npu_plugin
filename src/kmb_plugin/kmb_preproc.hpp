@@ -12,17 +12,14 @@
 #include <string>
 
 namespace InferenceEngine {
-namespace KmbPreproc {
-
-enum class Path : int { SIPP = 0, M2I };
+namespace SippPreproc {
 
 bool useSIPP();
 bool isApplicable(
     const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData, InputsDataMap& networkInputs);
 
-void execDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
-    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi,
-    Path path = Path::SIPP);
+void execSIPPDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
+    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi);
 
-}  // namespace KmbPreproc
+}  // namespace SippPreproc
 }  // namespace InferenceEngine

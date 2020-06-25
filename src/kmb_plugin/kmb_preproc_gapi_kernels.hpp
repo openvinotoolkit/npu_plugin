@@ -14,7 +14,7 @@ namespace preproc {
 // we can't let clang-format tool work with this code. It would ruin everything
 
 G_TYPED_KERNEL(GNV12toRGBp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12torgbp") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &inY, const cv::GMatDesc &inUV) {
+    static cv::GMatDesc outMeta(cv::GMatDesc inY, cv::GMatDesc inUV) {
         GAPI_Assert(inY.depth == CV_8U);
         GAPI_Assert(inUV.depth == CV_8U);
         GAPI_Assert(inY.chan == 1);
@@ -28,7 +28,7 @@ G_TYPED_KERNEL(GNV12toRGBp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tor
 };
 
 G_TYPED_KERNEL(GNV12toBGRp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tobgrp") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &inY, const cv::GMatDesc &inUV) {
+    static cv::GMatDesc outMeta(cv::GMatDesc inY, cv::GMatDesc inUV) {
         GAPI_Assert(inY.depth == CV_8U);
         GAPI_Assert(inUV.depth == CV_8U);
         GAPI_Assert(inY.chan == 1);
@@ -42,7 +42,7 @@ G_TYPED_KERNEL(GNV12toBGRp, <cv::GMatP(cv::GMat, cv::GMat)>, "ie.preproc.nv12tob
 };
 
 G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.preproc.resizeP") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in, const cv::gapi::own::Size& sz, int interp) {
+    static cv::GMatDesc outMeta(cv::GMatDesc in, const cv::gapi::own::Size& sz, int interp) {
         GAPI_Assert(in.depth == CV_8U);
         GAPI_Assert(in.chan == 3);
         GAPI_Assert(in.planar);
@@ -52,7 +52,7 @@ G_TYPED_KERNEL(GResizeP, <cv::GMatP(cv::GMatP, cv::gapi::own::Size, int)>, "ie.p
 };
 
 G_TYPED_KERNEL(GMerge3p, <cv::GMat(cv::GMatP)>, "ie.preproc.merge3p") {
-    static cv::GMatDesc outMeta(const cv::GMatDesc &in) {
+    static cv::GMatDesc outMeta(cv::GMatDesc in) {
         GAPI_Assert(in.depth == CV_8U);
         GAPI_Assert(in.chan == 3);
         GAPI_Assert(in.planar);
