@@ -803,15 +803,11 @@ INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTests
 INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTests,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
 
-INSTANTIATE_TEST_CASE_P(
-    preprocessingM2I, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
-
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "3", false),
-        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false),
-        std::make_tuple("VPU_KMB_USE_M2I", "YES", true), std::make_tuple("VPU_KMB_USE_M2I", "USE", false)));
+        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false)));
 
 #endif

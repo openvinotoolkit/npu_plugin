@@ -15,8 +15,8 @@
 #endif
 
 namespace InferenceEngine {
-namespace KmbPreproc {
 
+namespace SippPreproc {
 bool useSIPP() {
 #if defined(__arm__) || defined(__aarch64__)
     const bool USE_SIPP = [](const char* str) -> bool {
@@ -60,14 +60,14 @@ bool isApplicable(const InferenceEngine::BlobMap& inputs, const std::map<std::st
 #endif
 }
 
-void execDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
+void execSIPPDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
     InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
-    unsigned int lpi, Path ppPath) {
+    unsigned int lpi) {
 #if defined(__arm__) || defined(__aarch64__)
     IE_ASSERT(numShaves > 0 && numShaves <= 16)
-        << "KmbPreproc::execDataPreprocessing "
-        << "attempt to set invalid number of shaves: " << numShaves << ", valid numbers are from 1 to 16";
-    preprocPool().execDataPreprocessing({inputs, preprocData, networkInputs, out_format}, numShaves, lpi, ppPath);
+        << "SippPreproc::execSIPPDataPreprocessing "
+        << "attempt to set invalid number of shaves for SIPP: " << numShaves << ", valid numbers are from 1 to 16";
+    sippPreprocPool().execSIPPDataPreprocessing({inputs, preprocData, networkInputs, out_format}, numShaves, lpi);
 #else
     UNUSED(inputs);
     UNUSED(preprocData);
@@ -75,9 +75,8 @@ void execDataPreprocessing(InferenceEngine::BlobMap& inputs, std::map<std::strin
     UNUSED(out_format);
     UNUSED(numShaves);
     UNUSED(lpi);
-    UNUSED(ppPath);
     THROW_IE_EXCEPTION << "VPUAL is disabled. Used only for arm";
 #endif
 }
-}  // namespace KmbPreproc
+}  // namespace SippPreproc
 }  // namespace InferenceEngine
