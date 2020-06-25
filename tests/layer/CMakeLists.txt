@@ -8,6 +8,8 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(avgpool_asymmetric_large_stride avgpool_asymmetric_large_stride/avgpool_asymmetric_large_stride.cpp)
+    target_link_libraries(avgpool_asymmetric_large_stride cm)
 
     add_executable(avgpool_asymmetric_1d_large_kernel avgpool_asymmetric_1d_large_kernel/avgpool_asymmetric_1d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_1d_large_kernel cm)
