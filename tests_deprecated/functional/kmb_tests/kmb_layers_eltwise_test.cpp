@@ -19,6 +19,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "common_test_utils/common_layers_params.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 
@@ -170,7 +171,7 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseAfterScaleShift) {
 
     // set up weights fot the scale shift layer
     const size_t ssWeightsByteSize = sizeof(uint8_t) * input_dims()[1];
-    CNNLayerPtr cnl = network.getLayerByName("scale_shift1");
+    CNNLayerPtr cnl = CommonTestUtils::getLayerByName(network, "scale_shift1");
     std::shared_ptr<ScaleShiftLayer> ssl = std::static_pointer_cast<ScaleShiftLayer>(cnl);
     ssl->_weights.reset(
         new InferenceEngine::TBlob<uint8_t>(TensorDesc({Precision::U8, {ssWeightsByteSize}, Layout::C})));

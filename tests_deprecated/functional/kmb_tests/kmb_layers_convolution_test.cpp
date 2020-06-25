@@ -23,6 +23,7 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "common_test_utils/common_layers_params.hpp"
+#include "common_test_utils/common_utils.hpp"
 #include "kmb_layers_tests.hpp"
 #include "kmb_xml_tests.hpp"
 
@@ -596,7 +597,7 @@ TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
     _inputsInfo["input"]->setPrecision(Precision::U8);
     _inputsInfo["input"]->setLayout(Layout::NCHW);
 
-    CNNLayerPtr convPtr = network.getLayerByName("output");
+    CNNLayerPtr convPtr = CommonTestUtils::getLayerByName(network, "output");
     ConvolutionLayer* convLayer = dynamic_cast<ConvolutionLayer*>(convPtr.get());
 
     // build identity kernel which transforms the tensor to copy of itself
