@@ -26,12 +26,24 @@ set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
 include(dependency_solver)
 
-reset_deps_cache(HDDL_UNITE)
+if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
+    set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
+elseif(DEFINED THIRDPARTY_SERVER_PATH)
+    set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
+else()
+    message(WARNING "Hddl unite is not found.")
+endif()
 
-RESOLVE_DEPENDENCY(HDDL_UNITE
-        ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}.tgz"
-        ENVIRONMENT "HDDL_UNITE"
-        TARGET_PATH "${TEMP}/hddl_unite")
+if(DEFINED IE_PATH_TO_DEPS)
+    reset_deps_cache(HDDL_UNITE)
+
+    RESOLVE_DEPENDENCY(HDDL_UNITE
+            ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}.tgz"
+            ENVIRONMENT "HDDL_UNITE"
+            TARGET_PATH "${TEMP}/hddl_unite")
+
+    unset(IE_PATH_TO_DEPS)
+endif()
 
 find_library(HDDL_UNITE_LIBRARY
         NAMES  HddlUnite

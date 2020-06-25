@@ -38,7 +38,8 @@ endif()
 #
 # OpenCL compiler
 #
-set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.03.18")
+
+set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.06.03")
 
 if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -72,7 +73,7 @@ if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
             "[KMB] OpenCL compiler")
 
         find_program(VPU_CLC_MA2X9X_COMMAND clc)
-#        unset(IE_PATH_TO_DEPS)
+        unset(IE_PATH_TO_DEPS)
     endif()
 endif()
 
@@ -118,7 +119,6 @@ function(add_kmb_compile_custom_kernels)
                 ${CMAKE_COMMAND} -E env
                     "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/"
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
-                    "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
                 ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header ${cl_file} -o ${out_file}
             MAIN_DEPENDENCY ${cl_file}

@@ -16,6 +16,10 @@ uint32_t md_eval_expression_type_op_2(
   case md_type_op_udiv:    return lhs / rhs;
   case md_type_op_add:     return (int32_t)lhs + (int32_t)rhs;
   case md_type_op_sub:     return (int32_t)lhs - (int32_t)rhs;
+  case md_type_op_min:     return std::min((int32_t)lhs, (int32_t)rhs);
+  case md_type_op_max:     return std::max((int32_t)lhs, (int32_t)rhs);
+  case md_type_op_umin:    return std::min(lhs, rhs);
+  case md_type_op_umax:    return std::max(lhs, rhs);
   default:
     assert(!"unknown node type");
     return 0;
@@ -44,10 +48,14 @@ uint32_t md_parser_t::evaluate_expr(const md_expr_t *expr,
     case md_type_immediate:
       values.push_back(v.value);
       break;
-    case md_type_op_umul:
-    case md_type_op_udiv: {
+    case md_type_op_umul: {
+    case md_type_op_udiv:
     case md_type_op_add:
     case md_type_op_sub:
+    case md_type_op_min:
+    case md_type_op_max:
+    case md_type_op_umin:
+    case md_type_op_umax:
       uint32_t rhs = values.rbegin()[0];
       uint32_t lhs = values.rbegin()[1];
       values.pop_back();

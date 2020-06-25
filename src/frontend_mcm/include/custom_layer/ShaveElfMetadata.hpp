@@ -11,9 +11,8 @@ enum {
 
 enum md_version_t {
   md_version_1_0 = 0x00010000,  // version 1.0
-
-  // tracks the metadata version understood by the parser
-  md_version_parser = md_version_1_0
+  md_version_1_1 = 0x00010001,  // version 1.1
+  md_version_latest = md_version_1_1
 };
 
 struct md_header_t {
@@ -67,6 +66,7 @@ enum md_kernel_variant_type_t {
   md_variant_sipp_dma_vectorized,  // vectorized sipp dma kernel
   md_variant_dma_preload,          // kernel preload function
   md_variant_dma_postwrite,        // kernel postwrite function
+  md_variant_dma_fallback,         // kernel fallback function
   md_VARIANT_COUNT
 };
 
@@ -98,7 +98,7 @@ struct md_kernel_descriptor_t {
 enum md_arg_addr_space_t {
   md_addr_space_private = 0,
   md_addr_space_global,         // global address space (ddr)
-  md_addr_space_constant,       // constant address space
+  md_addr_space_constant,       //
   md_addr_space_local,          // local address space (cmx)
 
   md_addr_space_undef,          // none of the others
@@ -113,7 +113,7 @@ enum md_arg_flags_t {
 
 struct md_kernel_argument_t {
   uint32_t flags;                  // bitfield of md_arg_flags_t
-  int32_t name;                   // argument name
+  uint32_t name;                   // argument name
   uint32_t array_size_expr;        // index to a `kernel_expr_t` type for evaluating total number of element
   uint32_t size_elm;               // size in bytes of the underlying element
   md_arg_addr_space_t addr_space;  // the arguments address space
@@ -122,7 +122,7 @@ struct md_kernel_argument_t {
 };
 
 struct md_kernel_sipp_info_t {
-  uint32_t num_dims;            // number of dimentions of the dma
+  uint32_t num_dims;            // number of dimensions of the dma
   uint32_t span_x;
   uint32_t span_y;
 
@@ -150,6 +150,11 @@ enum md_expr_node_type_t {
 
   md_type_op_add,               // add
   md_type_op_sub,               // subtract
+
+  md_type_op_min,               // signed min
+  md_type_op_max,               // signed max
+  md_type_op_umin,              // unsigned min
+  md_type_op_umax,              // unsigned max
 
   // more operators as needed
   // ...
