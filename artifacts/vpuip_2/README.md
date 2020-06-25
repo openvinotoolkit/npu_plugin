@@ -1,4 +1,4 @@
-Built from https://github.com/movidius/vpuip_2 40256609295b2f7a1a38d8b6bc42a21239a8f397 tag: NN_Runtime_v2.33.0
+Built from https://github.com/movidius/vpuip_2 104cb5d48f51c5d28779eee798f209a8592b39d7 (without tag)
 
 ```
 cd vpuip_2/application/vpuFirmware
