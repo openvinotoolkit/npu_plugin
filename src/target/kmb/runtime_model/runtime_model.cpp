@@ -198,7 +198,6 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string &allocatorName)
 {
     mv::DataModel dm(model);
-    mv::ControlModel cm(model);
     mv::OpModel om(model);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
@@ -216,6 +215,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto underlyingTensor = tensorBufferIt->getData();
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
+    //NOTE: the buffer strides are used only for changing between the normal strides and the buffer strides
+    std::vector<unsigned> dilatedStrides(4, 0);
+    std::vector<unsigned> bufferStrides(4, 0);
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
     std::vector<uint32_t> numericStrides;
@@ -224,6 +226,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         numericStrides = tensorBufferIt->getData()->computeNumericStrides();
     else
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+
+    if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+    {
+        //NOTE: Covered only strides for z-major convolution
+        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        {
+            auto dilationFactor = t->get<unsigned>("dilationFactor");
+            if (idx == 0)
+                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
+            else if (idx == 1)
+                dilatedStrides[idx] = std::pow(dilationFactor, 2) * numericStrides[idx];
+            else if (idx == 3)
+                dilatedStrides[idx] = std::pow(dilationFactor, 2) * numericStrides[idx];
+            else
+                dilatedStrides[idx] = numericStrides[idx];
+        }
+        bufferStrides = numericStrides;
+        numericStrides = dilatedStrides;
+        dilatedStrides = bufferStrides;
+    }
+
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
@@ -298,7 +321,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->data_index = (*masterBuffer)->getOffset();
         }
 
-        toBuild->data->data_index += leading_offset;
+
+        if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+        {
+                toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+                toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+        }
+        else
+            toBuild->data->data_index += leading_offset;
 
         if(t->isSparse())
         {
@@ -1086,7 +1116,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
-    mv::ControlModel controlM(cm);
 
     auto direction = opIt->get<mv::DmaDirection>("direction");
     auto globalConfigParams = cm.getGlobalConfigParams();

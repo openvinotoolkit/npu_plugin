@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "emulator_results" : false,
+                "emulator_results" : true,
                 "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
@@ -302,7 +302,21 @@
             },
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/2DMA.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "ResolveImplicitOperations",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/3DMA.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureSplitStrategiesForSpilling"

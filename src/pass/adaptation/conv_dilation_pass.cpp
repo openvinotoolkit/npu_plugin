@@ -162,7 +162,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
 
             if (dilationFactor > 1)
             {
-                auto nextOp = findSinkLayers(dm, opIt->getInputTensor(0))[0];
+                auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
                 auto nonDilatedKernel = opIt->getInputTensor(1);
                 auto nonDilatedKernelShape = nonDilatedKernel->getShape();
                 auto inputTensor = opIt->getInputTensor(0);
@@ -231,7 +231,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 std::vector<mv::Data::TensorIterator> subConvsPerColumn;
                 std::vector<mv::Data::TensorIterator> firstLevelConcats;
 
-                if (outputTensorMemory < CMX)
+                if (outputTensorMemory > CMX)
                 {
                     for (size_t i = 0; i < dilationFactor; i++)
                     {
@@ -242,11 +242,13 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                         concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
                                         name + std::to_string(i) + "DDR_WIDTH_join");
                         om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+                        om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
+                        om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
+                        om.getSourceOp(concatIt)->set<unsigned>("dilationFactor", dilationFactor);
                         firstLevelConcats.push_back(concatIt);
                         subConvsPerColumn.clear();
                     }
                     concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
-
                     om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                     om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
                     om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
@@ -327,7 +329,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                         opsToLink[j]->setInputTensor(sparse2SparseConv, inputSlots[j], false);
                         om.defineFlow(sparse2SparseConv, opsToLink[j], inputSlots[j]);
                     }
-                    sparse2SparseConvOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
+//                    sparse2SparseConvOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
                 }
             }
         }

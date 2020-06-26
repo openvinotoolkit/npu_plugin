@@ -108,6 +108,23 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
+
+                    if (opIt->hasAttr("dilatedWidthConcat") && opIt->get<bool>("dilatedWidthConcat"))
+                    {
+                        std::size_t slot = 0;
+                        for (std::size_t inputConcatTensorIdx = 0; inputConcatTensorIdx < opIt->getInputTensor().size();
+                             inputConcatTensorIdx++)
+                            if (opIt->getInputTensor()[inputConcatTensorIdx]->getName() == inputTensor->getName())
+                                slot = inputConcatTensorIdx;
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        compensatorOutput->set<bool>("dilatedWidthConcat", true);
+                        compensatorOutput->set<unsigned>("dilationFactor",
+                                                         opIt->get<unsigned>("dilationFactor"));
+                        compensatorOutput->set<std::size_t>("inputConcatTensorIdx", slot);
+                        compensatorOutput->set<std::size_t>("lineofConcatHeight",
+                                                    opIt->get<std::size_t>("lineofConcatHeight"));
+                    }
+
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
