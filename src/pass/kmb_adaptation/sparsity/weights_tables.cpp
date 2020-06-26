@@ -542,35 +542,42 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
         numberSubConvs = om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<size_t>("dilationSubConvs");
         unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
         unsigned i = 0;
-
+        unsigned subConvHeight = ceil(height / originalDilationFactor); //height of bigger subconvs
+        unsigned subConvWidth = ceil(width / originalDilationFactor); //width of bigger subconvs
         for(unsigned h = 0; h < height; ++h)
         {
             for(unsigned w = 0; w < width; ++w)
             {
-                unsigned subConvElementIdx;
-                if (h % originalDilationFactor == 0)
+                unsigned totalNumberOfRows=0;
+                unsigned totalNumberOfCols=0;
+
+                //calc number of rows
+                if((height % originalDilationFactor) == 0 || h < (height % originalDilationFactor))  // all the sub conv to the left are of full width
                 {
-                    if (w % originalDilationFactor == 0)
-                        subConvElementIdx = (w + h * width)/originalDilationFactor;
-                    else
-                        subConvElementIdx = (w/originalDilationFactor)
-                                + (h + 1) * (width/originalDilationFactor);
+                    totalNumberOfRows = h%originalDilationFactor * subConvHeight;
                 }
                 else
                 {
-                    if (w % originalDilationFactor == 0)
-                        subConvElementIdx = (h%originalDilationFactor * width * height/originalDilationFactor)
-                                + w/originalDilationFactor;
-                    else
-                        subConvElementIdx = (h%originalDilationFactor * width * height/originalDilationFactor)
-                                + w/originalDilationFactor + (width/originalDilationFactor);
-                    subConvElementIdx += ((h+1)/originalDilationFactor -1) * width;
+                    //add height of subconvRows of full height first and then add remaining of smaller height
+                    totalNumberOfRows = (height % originalDilationFactor) * subConvHeight + (h/originalDilationFactor - height%originalDilationFactor)*(subConvHeight - 1);
                 }
+                totalNumberOfRows += h / originalDilationFactor;
+                //calc number of cols
+                if((width % originalDilationFactor) == 0 || w < (width % originalDilationFactor))  // all the sub conv to the left are of full width
+                {
+                    totalNumberOfCols = w%originalDilationFactor * subConvWidth;
+                }
+                else
+                {
+                    //add width*subConvWidth for of full subConvWidth  + (subConvWidth-1) for the rows of smaller subconvs
+                    totalNumberOfCols = (width % originalDilationFactor) * subConvWidth + (w/originalDilationFactor - width%originalDilationFactor)*(subConvWidth - 1);
+                }
+                totalNumberOfCols += w / originalDilationFactor;
+                unsigned subConvElementIdx = (totalNumberOfCols + totalNumberOfRows*width);
+
                 unsigned subConvElementOffset = subConvElementIdx * increment;
 
                 unpopulated_offsets[i++] = (subConvElementOffset << SHIFT_FOR_STORAGE_ELEMENT);
-//                unpopulated_offsets[i++] = (subConvElementIdx);
-//                std::cout << " row " << h << " col " << w << " address "  <<  unpopulated_offsets[i-1] << std::endl;
             }
         }
     }
