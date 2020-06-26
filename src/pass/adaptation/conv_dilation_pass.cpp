@@ -237,7 +237,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                     {
                         for (size_t j = 0; j < dilationFactor; j++)
                         {
-                            subConvsPerColumn.push_back(subConvs[i*dilationFactor + (dilationFactor - 1) - j]);
+                            subConvsPerColumn.push_back(subConvs[i*dilationFactor + j]);
                         }
                         concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
                                         name + std::to_string(i) + "DDR_WIDTH_join");

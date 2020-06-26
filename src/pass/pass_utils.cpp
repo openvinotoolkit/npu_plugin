@@ -3,11 +3,15 @@
 std::vector<std::pair<mv::Data::OpListIterator,size_t>> mv::getOutputDataFlow(mv::OpModel& om, mv::Data::OpListIterator &opIt, bool deleteOp)
 {
     std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+    auto outputTensor = opIt->getOutputTensor()[0];
 
     for(auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
     {
         auto consumer = output.sink();
-        auto slot = output->get<size_t>("sinkInput");
+        std::size_t slot = 0;
+        for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
+            if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
+                slot = input_idx;
         toReturn.push_back(std::make_pair(consumer, slot));
     }
 
