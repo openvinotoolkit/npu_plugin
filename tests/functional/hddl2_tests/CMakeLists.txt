@@ -49,6 +49,7 @@ target_compile_options(${TARGET_NAME}
 
 target_link_libraries(${TARGET_NAME} PRIVATE
         IE::IESharedTests
+        IE::vpu_common_lib
         HddlUnite
         XLink
         kmb_utils
