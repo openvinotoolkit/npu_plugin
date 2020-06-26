@@ -9,8 +9,8 @@ int main()
     mv::OpModel& om = unit.model();
 
     auto input0 = om.input({45,60,512,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input0");
-    //auto interp0 = om.interp(input0, 2.0, 0, 0 , 0, 0, false, mv::DType("Float16"));
-    auto interp0 = om.interp(input0, 0, 0, 0 ,30,23, true, mv::DType("Float16"));
+    //auto interp0 = om.interp(input0, 1.0, 0, 0 , 0, 0, false, mv::DType("Float16"));
+    auto interp0 = om.interp(input0, 1.0, 0, 0 ,30,23, true, mv::DType("Float16"));
     om.output(interp0);
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
