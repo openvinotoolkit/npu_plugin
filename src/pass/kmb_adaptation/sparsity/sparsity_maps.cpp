@@ -121,7 +121,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                 mv::DType dataType = mv::DType("UInt8");
 
-                if (isPooling || isDepthWiseConv)
+                if (isPooling || isDepthWiseConv || isChannelMajorConv)
                 {
                     if (dpuTask->hasAttr("floatPrecision") && dpuTask->get<bool>("floatPrecision"))
                     {
