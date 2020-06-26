@@ -811,10 +811,13 @@ namespace mv
             bool requiresWeightsSparsity(Op& op)
             {
                 // If Z-major Conv in Float precision then need to have weights Sparsity
+                bool isCMConv = enableChannelMajorConv and
+                    op.getOpType() == "Conv" and
+                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+
                 if(op.getOpType() == "Conv" and
-                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] >= 16 and
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
-                        referenceDevice == "A0")
+                    !isCMConv and referenceDevice == "A0")
                         return true;
 
                 return false;
