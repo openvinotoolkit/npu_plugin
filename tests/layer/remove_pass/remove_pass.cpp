@@ -5,7 +5,7 @@
 int main()
 {
 
-    mv::CompilationUnit unit("UInt8Demo");
+    mv::CompilationUnit unit("RemovePass");
     mv::OpModel& om = unit.model();
 
     //Input full of -0.5s
