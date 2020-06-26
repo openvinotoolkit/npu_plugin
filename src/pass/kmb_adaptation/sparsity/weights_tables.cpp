@@ -494,7 +494,7 @@ int64_t getSmallestInputAddress(mv::Data::OpListIterator implicitJoin)
     return minBaseAddress;
 }
 
-void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     mv::OpModel om(model);
 
@@ -502,6 +502,7 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
     auto parentImplicitOp = om.getSourceOp(input);
     std::size_t numberSubConvs = 0;
     int64_t inputBaseAddress = 0;
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
     auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
     std::vector<int64_t> unpopulated_offsets(width*height, 0);
@@ -681,7 +682,8 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("storageElementIndex")[0]);
                 auto activationSparsityMap
                         = op->getInputTensor(op->get<std::vector<std::size_t>>("unpopulatedSparsityMapIndex")[0]);
-                op->set<bool>("activationSparsityCompilerSolving", true);
+                //NOTE : These attributes should not be defined for the input tensors, see how it is done in the
+                //populateActivationStorageElementMap function for the ops cause on stream over k you will fall in overwriting
                 op->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
                 op->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
 
@@ -691,16 +693,8 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
             if(op->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
                     && op->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
             {
-                auto activationStorageElement
-                        = op->getInputTensor(op->get<std::vector<std::size_t>>("storageElementIndex")[0]);
-                auto activationSparsityMap
-                        = op->getInputTensor(op->get<std::vector<std::size_t>>("unpopulatedSparsityMapIndex")[0]);
-                op->set<bool>("activationSparsityCompilerSolving", true);
-                op->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
-                op->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
-
                 // NB this function still needs the correct logic to generate the SEPs
-                populateActivationStorageElementMapForLayerAfterDilatedConvolution(activationStorageElement, op, model);
+                populateActivationStorageElementMapForLayerAfterDilatedConvolution(op, model);
             }
         }
     }

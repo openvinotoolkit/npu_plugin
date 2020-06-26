@@ -347,13 +347,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
         }
 
-        // Here we add the sparsity required for dilated conv
-        if (t->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                            && t->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
-        {
-            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
-            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
-        }
+//        // Here we add the sparsity required for dilated conv
+//        if (t->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+//                            && t->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
+//        {
+//            toBuild->data->sparsity_index = t->get<std::size_t>("unpopulatedSparsityMapIndex");
+//            toBuild->data->storage_element_index = t->get<std::size_t>("storageElementAddress");
+//        }
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());
@@ -1561,8 +1561,10 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
+    if ((opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
@@ -1705,9 +1707,11 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
-        adaptFakeSparsityIndex(toBuild, opIt, clusterId);
+    if ((opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
+        adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
