@@ -103,6 +103,13 @@
     "adapt": {
         "Singular": [
             "RemoveOps",
+            {
+                "name": "GenerateDot",
+                "output": "output/after_remove_ops.dot",
+                "scope": "OpControlModel",
+                "content": "full",
+                "html": true 
+            },
             "ReplacementOps",
             "TensorsToU8",
             "TensorsToFP16",
