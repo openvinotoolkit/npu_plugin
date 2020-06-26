@@ -389,18 +389,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 {
     // Clean old results
     std::cout << "Deleting old kmb results files... " << std::endl;
-    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
+    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/output-0.bin");
     remove(outputFile.c_str());
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     // std::string inputCPU = FILE_CONVERTED_IMAGE;
-    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
+    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/input-0.bin");
     // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
-    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
+    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/test.blob");
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
