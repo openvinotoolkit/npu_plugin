@@ -63,6 +63,8 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
 
                 auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
 
+                // NOTE: workaround for SSD-512 to avoid fp16 overflow in Normalize kernel
+                //       to be removed when VPUNND-3235 is resolved
                 if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Normalize")
                     quant_params = task->get<mv::QuantizationParams>("quantParams");
 
