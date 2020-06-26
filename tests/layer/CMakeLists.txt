@@ -203,6 +203,9 @@ else()
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 
+    add_executable(interp_different_factor interp_different_factor/interp_different_factor.cpp)
+    target_link_libraries(interp_different_factor cm)
+
     add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
     target_link_libraries(interp_noalign cm)
 
