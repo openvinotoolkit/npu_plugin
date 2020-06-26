@@ -63,7 +63,7 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
 
                 auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
 
-                if (task->get<std::string>("taskOp") == "Normalize")
+                if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Normalize")
                     quant_params = task->get<mv::QuantizationParams>("quantParams");
 
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
