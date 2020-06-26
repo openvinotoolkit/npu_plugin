@@ -228,6 +228,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         om.constantInt(unpopulatedSparsityMapData, mapShape,
                                     mv::DType("UInt8"), mv::Order("NHWC"),
                                     quantParams, unpopulatedSparsityMapName);
+                    unpopulatedSparsityMap->set<bool>("solvedSparsity", true);
                     om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
                     om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
@@ -249,6 +250,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         om.constantInt(storageElementData, storageElementShape,
                                     mv::DType("Int32"), mv::Order("NHWC"),
                                     quantParams, storageElementName);
+                    storageElement->set<bool>("solvedSparsity", true);
                     om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     newInputsSize = dpuTask->addInputTensor(storageElement);
                     om.defineFlow(storageElement, dpuTask, newInputsSize - 1);

@@ -259,6 +259,19 @@ namespace mv
             return true; //by default is true
         }
 
+        inline bool isAllocatedPerCluster() const
+        {
+            // SOK non-sparse weights are also serialised individually
+            // so that they can be compressed by the HDE
+            return hasAttr("splitStrategy") &&
+                get<std::string>("splitStrategy") == "SplitOverK" &&
+                !hasAttr("weightTable") &&
+                !hasAttr("sparsityMap") &&
+                !hasAttr("solvedSparsity") &&
+                !hasAttr("dilatedSubConvSM") &&
+                !hasAttr("dilatedSubConvSE");
+        }
+
         inline unsigned size() const
         {
             return shape_.totalSize();
