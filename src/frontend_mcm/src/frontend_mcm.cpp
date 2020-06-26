@@ -540,9 +540,23 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
     }
 }
 
+bool FrontEndMcm::needsConcatScaleAlignment(const ie::CNNLayerPtr& layer) {
+    auto inputs = CNNNetworkHelper::getParents(*layer);
+    for (auto& input : inputs) {
+        if (input->type == "PriorBox") {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     for (auto& layer : network) {
         if (layer->type == "Concat") {
+            if (!needsConcatScaleAlignment(layer)) {
+                continue;
+            }
             auto inputs = getInputsFQ(*layer);
             for (auto& input : inputs) {
                 IE_ASSERT(input->type == "FakeQuantize");
