@@ -168,6 +168,9 @@ else()
     add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
     target_link_libraries(proposal_caffe cm)
 
+    add_executable(remove_passes remove_passes/remove_passes.cpp)
+    target_link_libraries(remove_passes cm)
+
     add_executable(resample resample/resample.cpp)
     target_link_libraries(resample cm)
 
