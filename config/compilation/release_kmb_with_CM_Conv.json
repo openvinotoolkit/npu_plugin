@@ -109,7 +109,6 @@
             "FusePostOps",
             "PreprocessForPWL",
             "CheckPWLForRequantize",
-            "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
             "TileOps",
