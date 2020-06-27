@@ -165,7 +165,7 @@ namespace mv
         class iterable : public unique_element
         {
 
-        protected:
+          protected:
 
             graph& graph_;
             iterable_access_set<T_iterable> children_;
@@ -354,7 +354,8 @@ namespace mv
                 return parents_.size();
             }
 
-            child_iterator<T_iterable, T_content> leftmost_child()
+            //TODO(vamsikku): make this const //
+            child_iterator<T_iterable, T_content> leftmost_child() 
             {
                 return child_iterator<T_iterable, T_content>(children_, children_.begin());
             }
@@ -1065,7 +1066,7 @@ namespace mv
         class child_iterator : public relative_iterator<T_iterable, T_content>
         {
 
-            friend child_iterator iterable<T_iterable, T_content>::leftmost_child();
+            friend child_iterator iterable<T_iterable, T_content>::leftmost_child() ;
             friend child_iterator iterable<T_iterable, T_content>::rightmost_child();
 
         protected:
@@ -1157,6 +1158,8 @@ namespace mv
         typedef parent_iterator<edge, T_edge> edge_parent_iterator;
         typedef sibling_iterator<node, T_node> node_sibling_iterator;
         typedef sibling_iterator<edge, T_edge> edge_sibling_iterator;
+        typedef node node_t;
+        typedef edge edge_t;
 
     protected:
 

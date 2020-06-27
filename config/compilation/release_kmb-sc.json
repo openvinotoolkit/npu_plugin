@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
@@ -263,10 +263,24 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/input_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/output_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",
