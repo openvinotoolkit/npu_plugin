@@ -56,6 +56,8 @@ public:
     }
 
     void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
+    void SetConfig(const std::map<std::string, ie::Parameter>& config, ie::ResponseDesc* resp) override;
+    void GetConfig(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
 
     ie::InferRequestInternal::Ptr CreateInferRequestImpl(
         ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
@@ -103,6 +105,7 @@ private:
     std::vector<char> _graphBlob;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
+    std::map<std::string, ie::Parameter> _parsedConfig;
     std::vector<std::string> _supportedMetrics;
 
     const size_t _maxTaskExecutorGetResultCount = 1;
