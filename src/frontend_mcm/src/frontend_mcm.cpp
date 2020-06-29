@@ -14,7 +14,6 @@
 // stated in the License.
 //
 
-#include <graph_transformer.h>
 #include <precision_utils.h>
 
 #include <algorithm>
@@ -565,11 +564,25 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
     }
 }
 
+bool FrontEndMcm::needsConcatScaleAlignment(const ie::CNNLayerPtr& layer) {
+    auto inputs = CNNNetworkHelper::getParents(*layer);
+    for (auto& input : inputs) {
+        if (input->type == "PriorBox") {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
     for ( ; i != end; ++i) {
         auto layer = *i;
         if (layer->type == "Concat") {
+            if (!needsConcatScaleAlignment(layer)) {
+                continue;
+            }
             auto inputs = getInputsFQ(*layer);
             for (auto& input : inputs) {
                 IE_ASSERT(input->type == "FakeQuantize");
@@ -954,6 +967,7 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
 
         constWeightTensor->setShape(newWeightsShape);
         mvWeights->setShape(newWeightsShape);
+        sourceWeightsOp->set<mv::Shape>("shape", newWeightsShape);
 
         mvConv = _modelMcm.depthwiseConv(input->getMcmNode(), mvWeights,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},

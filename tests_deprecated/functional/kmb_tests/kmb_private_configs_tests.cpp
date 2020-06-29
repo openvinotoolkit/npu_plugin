@@ -33,10 +33,10 @@ TEST_F(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
     SKIP();
 #endif
     std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPEnabled = USE_SIPP.find("1") != std::string::npos;
+    bool isSIPPDisabled = USE_SIPP.find("0") != std::string::npos;
 
-    if (!isSIPPEnabled) {
-        SKIP() << "The test is intended to be run with enviroment USE_SIPP=1";
+    if (isSIPPDisabled) {
+        SKIP() << "The test is intended to be run with SIPP enabled";
     }
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 

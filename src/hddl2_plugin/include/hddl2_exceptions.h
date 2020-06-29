@@ -29,6 +29,10 @@ namespace HDDL2Plugin {
 #define FAILED_START_SCHEDULER                                   \
     std::string("Couldn't start the device scheduler service.\n" \
                 "Please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
+#define FAILED_LOAD_NETWORK                                   \
+    std::string("Couldn't load the graph into the device.\n"  \
+                "Please check the service logs for errors.\n" \
+                "A reboot may be required to restore the device to a functional state.")
 #define GRAPH_NOT_LOADED                                                         \
     std::string("Graph was not loaded on the device, only export can be made.\n" \
                 "For execution, please start the service or check the environment variable \"KMB_INSTALL_DIR\".")

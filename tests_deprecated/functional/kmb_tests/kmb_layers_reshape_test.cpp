@@ -38,10 +38,6 @@ TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
 
     std::map<std::string, std::string> params;
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-
     SetInputTensor(inputTensor);
     SetOutputTensor(outputTensor);
     NetworkInit("Reshape", &params, 0, 0, nullptr,

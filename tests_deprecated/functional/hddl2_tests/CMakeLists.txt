@@ -44,6 +44,7 @@ addIeTargetTest(
     LINK_LIBRARIES
         IE::IESharedTests
         HDDL2Plugin
+        IE::vpu_common_lib
         HddlUnite
         XLink
         kmb_utils

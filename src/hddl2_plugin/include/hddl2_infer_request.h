@@ -46,6 +46,7 @@ public:
     void WaitInferDone();
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
+    InferenceEngine::Layout GetSupportedLayout() const { return deviceSupportedLayout; }
 
     void GetResult();
 
@@ -61,13 +62,15 @@ protected:
     HDDL2RemoteContext::Ptr _context = nullptr;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
+    const InferenceEngine::Layout deviceSupportedLayout = InferenceEngine::Layout::NHWC;
 
     // TODO [Workaround] Avoid allocation inferData each time. If size of inputs is changed, need
     //  to recreating (not implemented yet)
     std::once_flag _onceFlagInferData;
 
 private:
-    InferenceEngine::Blob::Ptr prepareInputForInference(const InferenceEngine::Blob::Ptr& actualInput);
+    InferenceEngine::Blob::Ptr prepareInputForInference(
+        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::Layout& expectedLayout);
 };
 
 }  //  namespace HDDL2Plugin

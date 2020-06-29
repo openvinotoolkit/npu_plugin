@@ -36,6 +36,10 @@ The KMB plugin accepts the following options:
 | `VPU_KMB_PREPROCESSING_LPI`    | positive integer | 8 | Lines per iteration value to be used during preprocessing |
 | `VPU_COMPILER_COMPILATION_PASS_BAN_LIST` | std::string | empty | List of mcm passes to be removed from mcm compilation descriptor (value example: kmb_adapt,KMBQuantizeConversion;adapt,TileOps) |
 | `VPU_COMPILER_CUSTOM_LAYERS` | std::string | empty | Path to custom layer binding xml file. Custom layer has higher priority over native implementation. |
+| `VPU_KMB_COMPILATION_DESCRIPTOR_PATH`    | string | 'mcm_config/compilation' | Path to folder with compilation config files |
+| `VPU_KMB_COMPILATION_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for network compilation |
+| `VPU_KMB_TARGET_DESCRIPTOR_PATH`    | string | 'mcm_config/target' | Path to folder with target config files |
+| `VPU_KMB_TARGET_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for target device |
 
 ## See Also
 

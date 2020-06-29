@@ -14,7 +14,6 @@
 #include <regression_tests.hpp>
 #include <test_model/kmb_test_utils.hpp>
 #include <vpu/kmb_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
 using namespace ::testing;
@@ -791,6 +790,26 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
         return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
                curIterationNet2 == static_cast<size_t>(iterationCount);
     });
+}
+
+TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+
+    InferenceEngine::ExecutableNetwork importedNetwork;
+
+    std::map<std::string, std::string> config;
+    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "8";
+    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
+
+    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
+    importedNetwork.SetConfig(
+        {{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}, {VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "2"}});
+    InferenceEngine::Parameter param1 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES));
+    InferenceEngine::Parameter param2 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI));
+    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES) << "; value: " << param1.as<std::string>()
+              << std::endl;
+    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI) << "; value: " << param2.as<std::string>()
+              << std::endl;
 }
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
