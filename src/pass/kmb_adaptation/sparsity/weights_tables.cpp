@@ -543,8 +543,8 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
         numberSubConvs = om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<size_t>("dilationSubConvs");
         unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
         unsigned i = 0;
-        unsigned subConvHeight = ceil(height / originalDilationFactor); //height of bigger subconvs
-        unsigned subConvWidth = ceil(width / originalDilationFactor); //width of bigger subconvs
+        unsigned subConvHeight = ceil((double)height / originalDilationFactor); //height of bigger subconvs
+        unsigned subConvWidth = ceil((double)width / originalDilationFactor); //width of bigger subconvs
         for(unsigned h = 0; h < height; ++h)
         {
             for(unsigned w = 0; w < width; ++w)
@@ -553,25 +553,25 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
                 unsigned totalNumberOfCols=0;
 
                 //calc number of rows
-                if((height % originalDilationFactor) == 0 || h < (height % originalDilationFactor))  // all the sub conv to the left are of full width
+                if((height % originalDilationFactor) == 0 || (h % originalDilationFactor)  < (height % originalDilationFactor))  // all the sub conv to the left are of full width
                 {
                     totalNumberOfRows = h%originalDilationFactor * subConvHeight;
                 }
                 else
                 {
                     //add height of subconvRows of full height first and then add remaining of smaller height
-                    totalNumberOfRows = (height % originalDilationFactor) * subConvHeight + (h/originalDilationFactor - height%originalDilationFactor)*(subConvHeight - 1);
+                    totalNumberOfRows = (height % originalDilationFactor) * subConvHeight + (h%originalDilationFactor - height%originalDilationFactor)*(subConvHeight - 1);
                 }
                 totalNumberOfRows += h / originalDilationFactor;
                 //calc number of cols
-                if((width % originalDilationFactor) == 0 || w < (width % originalDilationFactor))  // all the sub conv to the left are of full width
+                if((width % originalDilationFactor) == 0 || (w % originalDilationFactor)  < (width % originalDilationFactor))  // all the sub conv to the left are of full width
                 {
                     totalNumberOfCols = w%originalDilationFactor * subConvWidth;
                 }
                 else
                 {
                     //add width*subConvWidth for of full subConvWidth  + (subConvWidth-1) for the rows of smaller subconvs
-                    totalNumberOfCols = (width % originalDilationFactor) * subConvWidth + (w/originalDilationFactor - width%originalDilationFactor)*(subConvWidth - 1);
+                    totalNumberOfCols = (width % originalDilationFactor) * subConvWidth + (w%originalDilationFactor - width%originalDilationFactor)*(subConvWidth - 1);
                 }
                 totalNumberOfCols += w / originalDilationFactor;
                 unsigned subConvElementIdx = (totalNumberOfCols + totalNumberOfRows*width);

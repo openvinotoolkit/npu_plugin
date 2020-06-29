@@ -259,7 +259,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                     // Specify that next layer requires sparse input
                     // At least for now until we have a way to convert a tensor with storage elements into a dense one
                     // Assuming that this will be done after SSD-512
-                    nextOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
+                    if (nextOp->isSparsityConsumer())
+                        nextOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
                     concatIt = om.implicitJoin(subConvs,
                         "HW",
                         dtype,
@@ -276,7 +277,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
 
                 //NOTE: for now i will place a neutral z-major convolution just for re-order
                 //but under chat with runtime we can make it work without computations, with by-passing
-                if (needSparse2SparseOp || nextOp->isSparsityConsumer())
+                if (needSparse2SparseOp || !nextOp->isSparsityConsumer())
                 {
                     mv::Shape weightsShape({1, 1, outputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_CHANNEL_DIMENSION]});
                     std::vector<int64_t> weightsData(weightsShape.totalSize());
