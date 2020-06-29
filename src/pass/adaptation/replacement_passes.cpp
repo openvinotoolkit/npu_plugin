@@ -1190,8 +1190,8 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             //stride supported not slicing, stride not supported slicing with slices dimensions of stride
             opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
-                                                            (stride[mv::STRIDE_HORIZONTAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            (stride[mv::STRIDE_VERTICAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                                             nextOp);
         }
     }
