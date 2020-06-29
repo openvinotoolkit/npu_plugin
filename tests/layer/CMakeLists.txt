@@ -203,8 +203,12 @@ else()
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
 
-    add_executable(interp_different_factor interp_different_factor/interp_different_factor.cpp)
-    target_link_libraries(interp_different_factor cm)
+    add_executable(interp_different_width_height_upsample interp_different_width_height_upsample/interp_different_width_height_upsample.cpp)
+    target_link_libraries(interp_different_width_height_upsample cm)
+
+
+    add_executable(interp_different_width_height_subsample interp_different_width_height_subsample/interp_different_width_height_subsample.cpp)
+    target_link_libraries(interp_different_width_height_subsample cm)
 
     add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
     target_link_libraries(interp_noalign cm)
