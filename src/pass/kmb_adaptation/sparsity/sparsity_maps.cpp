@@ -279,6 +279,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
                 om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                 unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
+                unpopulatedSparsityMap->set<bool>("dilatedSubConvSM", true);
                 om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
                 auto smTensorIdx = dpuTask->hasAttr("unpopulatedSparsityMapIndex") ?
                         dpuTask->get<std::vector<size_t>>("unpopulatedSparsityMapIndex") :
@@ -296,6 +297,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
                 std::string storageElementName = dpuTask->getName() + "storage_element_map";
                 auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, storageElementName);
+                storageElement->set<bool>("dilatedSubConvSE", true);
                 om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                 unsigned newSize = dpuTask->addInputTensor(storageElement);
                 om.defineFlow(storageElement, dpuTask, newSize - 1);
