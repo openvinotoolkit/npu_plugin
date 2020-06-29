@@ -1188,11 +1188,23 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
             //stride supported not slicing, stride not supported slicing with slices dimensions of stride
-            opIt = splitOperationSlicingFixedWidthHeight (om,
+            if((opIt->hasAttr("asymmetricKernel")))
+            {
+                opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
-                                                            opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            (stride[mv::STRIDE_HORIZONTAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            (stride[mv::STRIDE_VERTICAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                                             nextOp);
+            }
+            else
+            {
+                opIt = splitOperationSlicingFixedWidthHeight (om,
+                                                            opIt,
+                                                            stride[mv::STRIDE_HORIZONTAL],
+                                                            stride[mv::STRIDE_VERTICAL],
+                                                            nextOp);
+            }
+            
         }
     }
 }
