@@ -38,21 +38,11 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteContext>;
     using CPtr = std::shared_ptr<const KmbRemoteContext>;
 
-    /**
-     * @brief Constructor with parameters, to initialize from workload id
-     */
     explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const KmbConfig& config);
 
-    /**
-     * @brief CreateBlob provide ability to create RemoteBlob from remote memory fd
-     */
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
 
-    /**
-     * @brief Provide device name attached to current context.
-     * Format: {plugin prefix}.{device name}
-     */
     std::string getDeviceName() const noexcept override;
 
     InferenceEngine::ParamMap getParams() const override;

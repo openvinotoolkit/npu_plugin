@@ -51,7 +51,7 @@ protected:
 
 class MockExecutor : public KmbExecutor {
 public:
-    MockExecutor(const KmbConfig& config): KmbExecutor(config) {}
+    MockExecutor(const KmbConfig& config): KmbExecutor(config, getKmbAllocator()) {}
 
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));

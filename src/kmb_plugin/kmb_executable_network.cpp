@@ -30,6 +30,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 #include "ngraph_mcm_frontend/frontend.hpp"
+#include "kmb_remote_context.h"
 
 // clang-format on
 
@@ -69,14 +70,15 @@ void ExecutableNetwork::LoadBlob() {
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config): _config(config) {
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx):
+    _config(config), _remoteContext(ctx) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
 
     _netName = network.getName();
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config);
+    _executor = std::make_shared<KmbExecutor>(_config, _remoteContext->as<KmbRemoteContext>()->getAllocator());
 
     const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
     if (kmb_use_ngraph || _config.useNGraphParser()) {
@@ -128,10 +130,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config): _config(config) {
+ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx):
+    _config(config), _remoteContext(ctx) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config);
+    _executor = std::make_shared<KmbExecutor>(_config, _remoteContext->as<KmbRemoteContext>()->getAllocator());
 
     std::ostringstream blobContentStream;
     blobContentStream << strm.rdbuf();

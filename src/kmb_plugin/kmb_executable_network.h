@@ -32,6 +32,7 @@
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "mcm_adapter.hpp"
+#include "ie_remote_context.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -41,8 +42,8 @@ class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config);
-    explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config);
+    explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
+    explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
 
     ~ExecutableNetwork() {
         try {
@@ -114,6 +115,7 @@ private:
     ie::InputsDataMap _runtimeInputs;
     ie::OutputsDataMap _runtimeOutputs;
     std::string _netName;
+    ie::RemoteContext::Ptr _remoteContext = nullptr;
 };
 
 }  // namespace KmbPlugin

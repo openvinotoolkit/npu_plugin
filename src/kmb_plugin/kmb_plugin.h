@@ -29,6 +29,7 @@
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"
+#include "kmb_remote_context.h"
 
 // clang-format on
 
@@ -61,10 +62,12 @@ public:
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
+    RemoteContext::Ptr GetDefaultContext() override;
 
 private:
     KmbConfig _parsedConfig;
     KmbMetrics _metrics;
+    KmbRemoteContext::Ptr _defaultContext;
 };
 
 }  // namespace KmbPlugin

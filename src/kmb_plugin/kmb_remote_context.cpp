@@ -33,7 +33,7 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
     try {
         auto smart_this = shared_from_this();
     } catch (...) {
-        _logger->warning("Please use smart ptr to context instead of instance of class\n");
+        _logger->warning("Please use smart pointer to context instead of instance of class\n");
         return nullptr;
     }
     try {
