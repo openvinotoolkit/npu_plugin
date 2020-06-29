@@ -113,6 +113,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     auto kernelTensor = op->getInputTensor(1);
     auto outputTensor = op->getOutputTensor(0);
     mv::Shape kernelShape  = kernelTensor->getShape();
+    auto kernelOp = om.getSourceOp(kernelTensor);
 
     mv::QuantizationParams inputQuantParams = {{},{},{},{}};
     if(inputTensor->hasAttr("quantParams"))
@@ -133,6 +134,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
     size_t biasStartIndex = 0;
     size_t biasEndIndex = 0;
+
+    bool isDilatedConv = op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv");
 
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
@@ -160,52 +163,79 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         auto kernelSliceStart = childTiles[split].getKernelStart();
         kernelSliceShape[mv::KERNEL_HEIGHT] = kernelShape[mv::KERNEL_HEIGHT]; //the tiling does not contain KERNEL W/H Info
         kernelSliceShape[mv::KERNEL_WIDTH] = kernelShape[mv::KERNEL_WIDTH];
-        //todo:: clean this if-then-else quantParams logic
-        if (kernelTensor->hasAttr("quantParams"))
-        {
-            auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
-            if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size() > 1)
-            {
-                std::size_t outputChannelsofSlice = 0, starting_point = 0;
-                if (op->getOpType() == "Conv")
-                {
-                    outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];
-                    starting_point = childTiles[split].getStartCoord()[mv::KERNEL_OUTPUT_CHANNELS];
-                }
-                else if (op->getOpType() == "DepthwiseConv")
-                {
-                    outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_INPUT_CHANNELS];
-                    starting_point = childTiles[split].getStartCoord()[mv::KERNEL_INPUT_CHANNELS];
-                }
-                std::vector<double> scales(outputChannelsofSlice);
-                std::vector<int64_t> zeros(outputChannelsofSlice);
-                for (std::size_t i = starting_point; i < starting_point + outputChannelsofSlice; i++)
-                {
-                    scales.at(i - starting_point) = sliceQuantParams.getScale()[i];
-                    zeros.at(i - starting_point) = sliceQuantParams.getZeroPoint()[i];
-                }
-                sliceQuantParams = mv::QuantizationParams(zeros,
-                                                            scales,
-                                                            sliceQuantParams.getMin(),
-                                                            sliceQuantParams.getMax());
-            }
 
-            slice = om.slice(kernelTensor,
-                            kernelSliceStart,
-                            kernelSliceShape,
-                            sliceQuantParams,
-                            kernelTensor->getName() + inputTensor->getName() + "_sliceK" + std::to_string(split));
+        if (isDilatedConv && kernelOp->hasAttr("dilationConvKernelSliced") && kernelOp->get<bool>("dilationConvKernelSliced")) //already handled this dilated Conv, nothing to do
+        {
+            //find the proper slice
+            bool sliceFound = false;
+            for (mv::Data::FlowSiblingIterator sinkFlow(kernelOp.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            {
+                auto sinkOp = sinkFlow.sink();
+                if (sinkOp->getOpType() == "Slice" && sinkOp->hasAttr("dilatedConvKernelSliceIdx") && sinkOp->get<unsigned>("dilatedConvKernelSliceIdx") == split)
+                {
+                    slice = sinkOp->getOutputTensor(0);
+                    sliceFound = true;
+                    break;
+                }
+            }
+            if (!sliceFound)
+                std::cout << "ERROR: Slice for dilatedConv weights hasn't been found although kernel was marked as already Sliced!" << std::endl;
+            assert(sliceFound);
         }
         else
         {
-            slice = om.slice(kernelTensor,
-                            kernelSliceStart,
-                            kernelSliceShape,
-                            {{}, {}, {}, {}},
-                            kernelTensor->getName() + "_sliceK" + std::to_string(split));
-        }
-        om.getSourceOp(slice)->set<unsigned>("opId", opId);
 
+            //todo:: clean this if-then-else quantParams logic
+            if (kernelTensor->hasAttr("quantParams"))
+            {
+                auto sliceQuantParams = kernelTensor->get<mv::QuantizationParams>("quantParams");
+                if (kernelTensor->get<mv::QuantizationParams>("quantParams").getScale().size() > 1)
+                {
+                    std::size_t outputChannelsofSlice = 0, starting_point = 0;
+                    if (op->getOpType() == "Conv")
+                    {
+                        outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_OUTPUT_CHANNELS];
+                        starting_point = childTiles[split].getStartCoord()[mv::KERNEL_OUTPUT_CHANNELS];
+                    }
+                    else if (op->getOpType() == "DepthwiseConv")
+                    {
+                        outputChannelsofSlice = childTiles[split].getSize()[mv::KERNEL_INPUT_CHANNELS];
+                        starting_point = childTiles[split].getStartCoord()[mv::KERNEL_INPUT_CHANNELS];
+                    }
+                    std::vector<double> scales(outputChannelsofSlice);
+                    std::vector<int64_t> zeros(outputChannelsofSlice);
+                    for (std::size_t i = starting_point; i < starting_point + outputChannelsofSlice; i++)
+                    {
+                        scales.at(i - starting_point) = sliceQuantParams.getScale()[i];
+                        zeros.at(i - starting_point) = sliceQuantParams.getZeroPoint()[i];
+                    }
+                    sliceQuantParams = mv::QuantizationParams(zeros,
+                                                                scales,
+                                                                sliceQuantParams.getMin(),
+                                                                sliceQuantParams.getMax());
+                }
+
+                slice = om.slice(kernelTensor,
+                                kernelSliceStart,
+                                kernelSliceShape,
+                                sliceQuantParams,
+                                kernelTensor->getName() + inputTensor->getName() + "_sliceK" + std::to_string(split));
+            }
+            else
+            {
+                slice = om.slice(kernelTensor,
+                                kernelSliceStart,
+                                kernelSliceShape,
+                                {{}, {}, {}, {}},
+                                kernelTensor->getName() + "_sliceK" + std::to_string(split));
+            }
+            om.getSourceOp(slice)->set<unsigned>("opId", opId);
+
+            if(isDilatedConv) //first time streaming if we are here, mark slice index for other subConvs
+            {
+                om.getSourceOp(slice)->set<unsigned>("dilatedConvKernelSliceIdx", split);
+            }
+        }
         std::string streamingOpName = op->getName() + "_streamK" + std::to_string(split);
         mv::Data::TensorIterator newTensor;
         //todo:: clean this if-then-else conv/DpthwiseConv logic... it's just bloatware code
@@ -370,7 +400,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
-
+    if(isDilatedConv && !kernelOp->hasAttr("dilationConvKernelSliced"))
+    {
+        kernelOp->set<bool>("dilationConvKernelSliced", true);
+    }
     return concat;
 }
 
