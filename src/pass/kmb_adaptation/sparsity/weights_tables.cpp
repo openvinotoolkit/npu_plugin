@@ -447,10 +447,11 @@ void populateActivationStorageElementMap(
 
 // Sub function to generate storage element pointer for dilated convolution
 
-void populateActivationStorageElementMapForDilatedConvolution(mv::Data::TensorIterator activationStorageElement, mv::Data::OpListIterator dpuTaskOp)
+void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
     auto originalWidth = dpuTaskOp->get<mv::Shape>("originalShape")[mv::IO_WIDTH_DIMENSION];
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
@@ -678,16 +679,7 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
             if(op->hasAttr("activationSparsityCompilerSolvingForDilatedConv")
                     && op->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
             {
-                auto activationStorageElement
-                        = op->getInputTensor(op->get<std::vector<std::size_t>>("storageElementIndex")[0]);
-                auto activationSparsityMap
-                        = op->getInputTensor(op->get<std::vector<std::size_t>>("unpopulatedSparsityMapIndex")[0]);
-                //NOTE : These attributes should not be defined for the input tensors, see how it is done in the
-                //populateActivationStorageElementMap function for the ops cause on stream over k you will fall in overwriting
-                op->getInputTensor(0)->set<std::size_t>("storageElementAddress", activationStorageElement->getAddress());
-                op->getInputTensor(0)->set<std::size_t>("unpopulatedSparsityMapIndex", activationSparsityMap->getAddress());
-
-                populateActivationStorageElementMapForDilatedConvolution(activationStorageElement, op);
+                populateActivationStorageElementMapForDilatedConvolution(op, model);
             }
 
             if(op->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")

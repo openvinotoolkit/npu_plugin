@@ -361,11 +361,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
+    auto concat = om.implicitConcat(final_outputs,
                     "C",
-                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
+    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
@@ -585,12 +585,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
+    auto concat = om.implicitConcat(final_outputs,
                     tiling.getAxis(),
-                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
+    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
@@ -775,11 +775,11 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.concat(final_outputs,
+    auto concat = om.implicitConcat(final_outputs,
                     tiling.getAxis(),
-                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
+    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
@@ -795,7 +795,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
 {
 
     mv::OpModel om(model);
-    mv::ControlModel cm(model);
 
     auto globalParams = model.getGlobalConfigParams();
     if (!globalParams->hasAttr("streaming_strategy"))
@@ -830,12 +829,9 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         if(passDesc.hasAttr("alignment"))
             alignment = passDesc.get<int>("alignment");
 
-        auto outputTensor = opIt->getOutputTensor(0);
-        auto outputShape = outputTensor->getShape();
         auto inputTensor = opIt->getInputTensor(0);
         auto inputShape = inputTensor->getShape();
 
-        auto zeroStartAxis = mv::Shape({0,0,0,0});
         mv::Tiling masterTile;
         if((opType == "Conv") || (opType == "DepthwiseConv"))
         {
@@ -935,7 +931,6 @@ static void streamBinaryDataWeightsFcn(const mv::pass::PassEntry& ,
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
         std::string opType = opIterator->getOpType();
-        std::vector<mv::Data::TensorIterator> toSort;
 
         if (opType == "Slice" && opIterator->getInputTensor(0)->isPopulated())
         {

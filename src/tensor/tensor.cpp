@@ -1231,12 +1231,13 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
 }
 
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned
-                                         , bool graphOptimizer) const
+                                         , bool graphOptimizer, bool dilation) const
 {
     std::size_t res;
 
     auto shape = getShape();
-
+    if (dilation)
+        shape = get<mv::Shape>("originalShape");
     //use shape of master
     if (!isBase && hasAttr("master"))
     {

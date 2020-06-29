@@ -243,7 +243,7 @@ namespace mv
             }
 
 
-            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, size_t kHeight)
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamingPool, bool isCMConv, size_t kHeight, bool dilation = false)
             {
                 // auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -255,6 +255,8 @@ namespace mv
                 }
 
                 Shape tensorShape = tensorToSize->getShape();
+                if (dilation)
+                    tensorShape = tensorToSize->get<mv::Shape>("originalShape");
                 //update the streamingPool to the worst combination, based on slice sizes
                 size_t outputSize;
                 size_t numberOfSplits;
@@ -325,8 +327,8 @@ namespace mv
 
                 if(isCMConv)
                     return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor);
-
-                return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor);
+                //NOTE: dilation case will need the original shape that is located on cmx
+                return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, true, dilation)/streamDivisor);
             }
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, string clustering){
@@ -364,6 +366,10 @@ namespace mv
                 size_t outputSize = 0;
                 size_t weightSize = 0;
                 size_t weightTableSize = 0;
+                //NOTE: here is done a trick for the sub-dilated convolutions, if you are
+                //dilated on your cmx as input is the original shape tensor which is before
+                //the input of the slice...
+                bool dilatedLayerInputMemory = false;
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
@@ -379,8 +385,11 @@ namespace mv
                 if(opType == "Conv")
                     kHeight = op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT];
 
+                if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
+                    dilatedLayerInputMemory = true;
+
                 if(opType != "Input"){
-                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, kHeight);
+                    inputSize = maxTensorSize(op.getInputTensor(0),{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, kHeight, dilatedLayerInputMemory);
                 }
                 if(opType != "Output"){
                     outputSize = maxTensorSize(op.getOutputTensor(0),{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, kHeight);
@@ -750,11 +759,10 @@ namespace mv
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
                         and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
                         referenceDevice == "A0")
-                {
                     return true;
-                }
-
-
+                else if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
+                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
+                    return true;
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
                 if ( op.getOpType() == "Conv" ) {
@@ -763,9 +771,7 @@ namespace mv
                          op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1)
                          and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16) and
                             referenceDevice == "A0")
-                         {
                             return true;
-                         }
                 }
 
                 return false;
