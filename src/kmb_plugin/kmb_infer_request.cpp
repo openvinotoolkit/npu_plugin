@@ -174,17 +174,24 @@ void KmbInferRequest::InferAsync() {
     }
 }
 
-void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
-    IE_PROFILING_AUTO_SCOPE(execPreprocessing);
-    // TODO: [Track number: S#31121]
-    // Get rid of environment variable USE_SIPP
-    if ((_config.useSIPP() || KmbPreproc::useSIPP() || _config.useM2I()) &&
-        KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+void KmbInferRequest::checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp) {
+    if ((useSipp || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
+    }
+}
+
+void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+    IE_PROFILING_AUTO_SCOPE(execPreprocessing);
+    // TODO: [Track number: S#31121]
+    // Get rid of environment variable USE_SIPP
+    if (getenv("USE_SIPP") != nullptr) {
+        checkConfigsAndExecPreprocessing(inputs, KmbPreproc::useSIPP());
+    } else {
+        checkConfigsAndExecPreprocessing(inputs, _config.useSIPP());
     }
 }
 
