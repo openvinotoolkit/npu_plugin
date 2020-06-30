@@ -179,6 +179,7 @@ void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& m
                 for(auto output : op->getOutputTensor()){
                     if (!output->isQuantized())
                         continue;
+                    op->set<mv::QuantizationParams>("quantParams", pwlOutputQuant);
                     output->set<mv::QuantizationParams>("quantParams", pwlOutputQuant);
                 }
 
