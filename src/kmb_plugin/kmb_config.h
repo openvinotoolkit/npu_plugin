@@ -42,11 +42,14 @@ public:
 
     int SIPPLpi() const { return _SIPPLpi; }
 
+    // FIXME: drop SIPP from the method name
     InferenceEngine::ColorFormat outColorFmtSIPP() { return _outColorFmtSIPP; }
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
 
     bool useSIPP() const { return _useSIPP; }
+
+    bool useM2I() const { return _useM2I; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -77,6 +80,10 @@ private:
     // FIXME: have to be true, disabled due to not working vpu runtime
     // tracking number: h#18011604382
     bool _useSIPP = false;
+
+    // FIXME: Likely has to be true by default as well.
+    // NB.: Currently applies to the detection use-case only
+    bool _useM2I = false;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

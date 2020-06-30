@@ -653,34 +653,48 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
 
 class VpuPreprocessingConfigAndInferTests :
     public vpuLayersTests,
-    public testing::WithParamInterface<std::tuple<const char*, const char*>> {};
-TEST_P(VpuPreprocessingConfigAndInferTests, setConfigAndInfer) {
-    std::string key, value;
-    std::tie(key, value) = GetParam();
+    public testing::WithParamInterface<std::tuple<const char*, const char*>> {
+protected:
+    std::map<std::string, std::string> _config;
 
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+public:
+    void setConfigAndInfer() {
+        std::string key, value;
+        std::tie(key, value) = GetParam();
 
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
-        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+        std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
 
-    InferenceEngine::ExecutableNetwork importedNetwork;
+        std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+            buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
 
-    std::map<std::string, std::string> config;
-    config[key] = value;
-    ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
+        InferenceEngine::ExecutableNetwork importedNetwork;
 
-    ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
+        _config[key] = value;
+        ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, _config));
 
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
+        ConstInputsDataMap inputInfo = importedNetwork.GetInputsInfo();
 
-    inputInfo = importedNetwork.GetInputsInfo();
-    std::string input_name = inputInfo.begin()->first;
+        InferenceEngine::InferRequest inferRequest;
+        ASSERT_NO_THROW(inferRequest = importedNetwork.CreateInferRequest());
 
-    setRandomNV12(input_name, inferRequest, kmbAllocator, 1920, 1080);
+        inputInfo = importedNetwork.GetInputsInfo();
+        std::string input_name = inputInfo.begin()->first;
 
-    ASSERT_NO_THROW(inferRequest.Infer());
-}
+        setRandomNV12(input_name, inferRequest, kmbAllocator, 1920, 1080);
+
+        ASSERT_NO_THROW(inferRequest.Infer());
+    }
+};
+TEST_P(VpuPreprocessingConfigAndInferTests, setConfigAndInfer) { setConfigAndInfer(); }
+
+class VpuPreprocessingConfigAndInferTestsSipp : public VpuPreprocessingConfigAndInferTests {
+public:
+    VpuPreprocessingConfigAndInferTestsSipp() {
+        // All Sipp-related config options require Sipp to be enabled
+        _config["VPU_KMB_USE_SIPP"] = "YES";
+    }
+};
+TEST_P(VpuPreprocessingConfigAndInferTestsSipp, setConfigAndInfer) { setConfigAndInfer(); }
 
 class VpuPreprocessingConfigTests :
     public vpuLayersTests,
@@ -817,17 +831,21 @@ const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTests,
+INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTests,
+INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
+
+INSTANTIATE_TEST_CASE_P(DISABLED_preprocessingM2I, VpuPreprocessingConfigAndInferTests,
+    Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
 
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "3", false),
-        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false)));
+        std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false),
+        std::make_tuple("VPU_KMB_USE_M2I", "YES", true), std::make_tuple("VPU_KMB_USE_M2I", "USE", false)));
 
 #endif
