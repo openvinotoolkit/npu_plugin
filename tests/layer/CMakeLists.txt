@@ -17,6 +17,17 @@ else()
     add_executable(avgpool_asymmetric_2d_large_kernel avgpool_asymmetric_2d_large_kernel/avgpool_asymmetric_2d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
 
+
+    add_executable(avgpool_asymmetric_icnet_large_stride avgpool_asymmetric_icnet_large_stride/avgpool_asymmetric_icnet_large_stride.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_large_stride cm)
+
+    add_executable(avgpool_asymmetric_icnet_1d_large_kernel avgpool_asymmetric_icnet_1d_large_kernel/avgpool_asymmetric_icnet_1d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_1d_large_kernel cm)
+
+    add_executable(avgpool_asymmetric_icnet_2d_large_kernel avgpool_asymmetric_icnet_2d_large_kernel/avgpool_asymmetric_icnet_2d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_2d_large_kernel cm)
+
+
     add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
     target_link_libraries(single_conv_hde cm)
 
