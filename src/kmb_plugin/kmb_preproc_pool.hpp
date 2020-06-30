@@ -15,7 +15,10 @@
 #include <string>
 #include <vector>
 
+#include "kmb_preproc.hpp"  // KmbPreproc::Path
+
 namespace InferenceEngine {
+namespace KmbPreproc {
 
 struct PreprocTask {
     InferenceEngine::BlobMap& inputs;
@@ -24,57 +27,61 @@ struct PreprocTask {
     InferenceEngine::ColorFormat out_format;
 };
 
-class SIPPPreprocEngine;
+class PreprocEngine;
 
-class SIPPPreprocessor {
-    std::unique_ptr<SIPPPreprocEngine> _preproc;
+class Preprocessor {
+    std::unique_ptr<PreprocEngine> _preproc;
 
 public:
-    SIPPPreprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi);
-    ~SIPPPreprocessor();
+    Preprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi, Path ppPath);
+    ~Preprocessor();
 
-    void execSIPPDataPreprocessing(const PreprocTask& task);
+    void execDataPreprocessing(const PreprocTask& task);
 };
 
-class SippPreprocessorPool {
-    std::vector<std::unique_ptr<SIPPPreprocessor>> _preprocs;
-    std::queue<SIPPPreprocessor*> _free_preprocs;
+class PreprocessorPool {
+    std::vector<std::unique_ptr<Preprocessor>> _preprocs;
+    std::queue<Preprocessor*> _free_preprocs;
     std::mutex _mutex;
     std::condition_variable _free_cond;
     unsigned int _numberOfShaves;
 
 public:
-    SippPreprocessorPool(unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi);
-    void execSIPPDataPreprocessing(const PreprocTask& task);
+    // TODO: This is an absolute ugliness to specify the Path here
+    // Pool should be neutral to the underlying engine it manages
+    PreprocessorPool(
+        unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi, Path ppPath);
+    void execDataPreprocessing(const PreprocTask& task);
     unsigned int getNumberOfShaves() const;
 };
 
-// SippPreprocPool allows Sipp pipelines to be shared between infer requests
+// PreprocPool allows Sipp/Flic pipelines to be shared between infer requests
 // to reduce CMX consumption and LeonRT load.
 //
-// When infer request needs preprocessing to be executed, it asks SippPreprocPool to perform preprocessing.
-// SippPreprocPool has few specialized pools which are mapped by particular output tensor size so
+// When infer request needs preprocessing to be executed, it asks PreprocPool to perform preprocessing.
+// PreprocPool has few specialized pools which are mapped by particular output tensor size so
 // there is different pools for different output tensor sizes. Each specialized pool has a vector
-// of SIPPPreprocessor-s which do actual preprocessing work. SIPPPreprocessor has a SippPipeline inside
+// of Preprocessor-s which do actual preprocessing work. Preprocessor has a Sipp or Flic Pipeline inside
 // created for particular output size so reschedule mechanism can be utilized as only input size can change.
-// If there is no free SIPPPreprocessor at the moment, infer request waits until some of preprocessors free.
+// If there is no free Preprocessor at the moment, infer request waits until some of preprocessors free.
 
-class SippPreprocPool {
+class PreprocPool {
     static unsigned int firstShave;
     static constexpr unsigned int defaultFirstShave = 4;
     static constexpr unsigned int maxPools = 2;
     static constexpr unsigned int pipesPerPool = 1;
 
-    friend SippPreprocPool& sippPreprocPool();
-    std::map<int, std::unique_ptr<SippPreprocessorPool>> _preprocPools;
+    friend PreprocPool& preprocPool();
+    std::map<int, std::unique_ptr<PreprocessorPool>> _preprocPools;
     std::mutex _mutex;
-    SippPreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi);
+    PreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
 
 public:
-    void execSIPPDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi);
+    void execDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
 };
 
-SippPreprocPool& sippPreprocPool();
+PreprocPool& preprocPool();
 
+}  // namespace KmbPreproc
 }  // namespace InferenceEngine
 #endif  // #if defined(__arm__) || defined(__aarch64__)
