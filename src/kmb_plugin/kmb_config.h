@@ -79,7 +79,7 @@ private:
     bool _forceNCHWToNHWC = false;
     // FIXME: have to be true, disabled due to not working vpu runtime
     // tracking number: h#18011604382
-    bool _useSIPP = false;
+    bool _useSIPP = true;
 
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only

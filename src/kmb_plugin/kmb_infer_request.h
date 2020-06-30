@@ -77,6 +77,7 @@ protected:
         dumpFunctor_t;
     void dumpBlobs(
         const InferenceEngine::BlobMap& blobMap, const std::string dstPath, const dumpFunctor_t& dumpFunctor) const;
+    void checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp);
 
 private:
     Logger::Ptr _logger;
