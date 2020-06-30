@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include <ie_common.h>
 #include <mcm_config.h>
 
+#include <hddl2/hddl2_plugin_config.hpp>
 #include <map>
 #include <string>
 #include <unordered_set>
@@ -29,6 +31,7 @@ public:
     const std::string& platform() const { return _platform; }
     const std::string& device_id() const { return _device_id; }
     bool performance_counting() const { return _performance_counting; }
+    InferenceEngine::ColorFormat getGraphColorFormat() const { return _graph_color_format; }
 
     // FIXME [Workaround to change default log lvl]
     LogLevel logLevel() const;
@@ -43,6 +46,7 @@ private:
     LogLevel _logLevel = LogLevel::Warning;
     std::string _device_id;
     bool _performance_counting = false;
+    InferenceEngine::ColorFormat _graph_color_format = InferenceEngine::ColorFormat::BGR;
 };
 
 }  // namespace vpu

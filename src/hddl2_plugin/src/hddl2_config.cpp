@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -26,7 +26,6 @@ using namespace vpu;
 namespace IE = InferenceEngine;
 
 const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
-    // TODO: Add new config header for HDDL2
     static const std::unordered_set<std::string> options =
         merge(MCMConfig::getCompileOptions(), {
                                                   VPU_KMB_CONFIG_KEY(PLATFORM),
@@ -39,6 +38,7 @@ const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
         merge(ParsedConfigBase::getRunTimeOptions(), {
                                                          CONFIG_KEY(PERF_COUNT),
                                                          CONFIG_KEY(DEVICE_ID),
+                                                         VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT),
                                                      });
 
     return options;
@@ -52,9 +52,13 @@ void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
         {CONFIG_VALUE(LOG_INFO), LogLevel::Info}, {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},
         {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
 
+    static const std::unordered_map<std::string, IE::ColorFormat> colorFormat = {
+        {VPU_HDDL2_CONFIG_VALUE(BGR), IE::ColorFormat::BGR}, {VPU_HDDL2_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
+
     setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
     setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
     setOption(_performance_counting, switches, config, CONFIG_KEY(PERF_COUNT));
+    setOption(_graph_color_format, colorFormat, config, VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT));
 }
 
 LogLevel HDDL2Config::logLevel() const { return _logLevel; }
