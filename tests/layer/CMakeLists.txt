@@ -33,8 +33,8 @@ else()
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
 
-    add_executable(conv_elu conv_elu/conv_elu.cpp)
-    target_link_libraries(conv_elu cm)
+    #add_executable(conv_elu conv_elu/conv_elu.cpp)
+    #target_link_libraries(conv_elu cm)
 
     add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
     target_link_libraries(conv_fakequantize cm)
@@ -54,8 +54,8 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
-    add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
-    target_link_libraries(conv_int32_output cm)
+    #add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
+    #target_link_libraries(conv_int32_output cm)
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
     target_link_libraries(conv_output_quant cm)
@@ -78,8 +78,8 @@ else()
     add_executable(conv_leaky_icv conv_leaky_icv/conv_leaky_icv.cpp)
     target_link_libraries(conv_leaky_icv cm)
 
-    add_executable(group_convolution group_convolution/group_convolution.cpp)
-    target_link_libraries(group_convolution cm)
+    #add_executable(group_convolution group_convolution/group_convolution.cpp)
+    #target_link_libraries(group_convolution cm)
 
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
