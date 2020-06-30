@@ -63,7 +63,6 @@ void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::m
 
 std::map<std::string, std::string> KmbPerLayerTest::getCommonConfig() const {
     std::map<std::string, std::string> config;
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
 
     return config;
 }
@@ -80,14 +79,6 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
     config = config;
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(NO);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(NO);
     config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
-
-    const ::testing::TestInfo* const test_info = ::testing::UnitTest::GetInstance()->current_test_info();
-
-    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH)] = test_info->test_case_name();
-    config[VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS)] = test_info->name();
 }

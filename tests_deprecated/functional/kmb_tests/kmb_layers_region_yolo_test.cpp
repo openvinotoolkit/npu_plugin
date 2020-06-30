@@ -73,7 +73,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
 };

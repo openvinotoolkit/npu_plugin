@@ -43,7 +43,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: Arbitrary string. Empty means ("ma2490"), default: "";
+ * Type: Arbitrary string. Default: "release_kmb";
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR);
 
@@ -55,47 +55,9 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: Arbitrary string. Empty means ("debug_ma2490"), default: "";
+ * Type: Arbitrary string. Default: "release_kmb";
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR);
-
-/**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB);
-/**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(PARSING_ONLY);
-
-/**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(GENERATE_JSON);
-
-/**
- * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(GENERATE_DOT);
-
-/**
- * @brief [Only for vpu compiler]
- * Type: Arbitrary string. Empty means ("."), default: "";
- * path where the mcmCompilator resulting files (blob, json, dot and png) should be placed
- * in folders named "<TARGET_DESCRIPTOR>/<COMPILATION_DESCRIPTOR>"
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS_PATH);
-
-/**
- * @brief [Only for vpu compiler]
- * Type: Arbitrary string. Empty means ("<network name>"), default: "";
- * name of mcmCompilator resulting files (blob, json, dot and png)
- */
-DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_RESULTS);
 
 /**
  * @brief [Only for vpu compiler]

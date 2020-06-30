@@ -149,6 +149,21 @@ void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, Re
     }
 }
 
+void ExecutableNetwork::SetConfig(const std::map<std::string, Parameter>& config, ResponseDesc* /* resp */) {
+    for (const auto& entry : config) {
+        _parsedConfig[entry.first] = entry.second;
+    }
+}
+
+void ExecutableNetwork::GetConfig(const std::string& name, Parameter& result, ResponseDesc* /* resp */) const {
+    auto res = _parsedConfig.find(name);
+    if (res != _parsedConfig.end()) {
+        result = res->second;
+    } else {
+        THROW_IE_EXCEPTION << name << " not found in the ExecutableNetwork config";
+    }
+}
+
 ie::ITaskExecutor::Ptr ExecutableNetwork::getNextTaskExecutor() {
     std::string id = _taskExecutorGetResultIds.front();
 

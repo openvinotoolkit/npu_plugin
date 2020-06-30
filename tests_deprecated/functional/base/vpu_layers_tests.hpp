@@ -17,7 +17,6 @@
 #include "tests_common.hpp"
 #include "single_layer_common.hpp"
 #include <vpu/vpu_plugin_config.hpp>
-#include <vpu/private_plugin_config.hpp>
 #include <random>
 #include "layers_reference_functions.hpp"
 #include "comparators.h"

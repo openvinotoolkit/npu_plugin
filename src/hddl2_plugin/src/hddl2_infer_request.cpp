@@ -39,6 +39,14 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
+
+// TODO [Track number: S#21391]
+// FIXME: does not work for batch != 1
+static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
+    size_t ones = std::count(dims.begin(), dims.end(), 1);
+    return (dims.size() - ones) == 1;
+}
+
 static void checkNetworkPrecision(const IE::Precision& precision) {
     if (precision != IE::Precision::FP32 && precision != IE::Precision::FP16 && precision != IE::Precision::U8 &&
         precision != IE::Precision::I8) {
@@ -116,6 +124,7 @@ void HDDL2InferRequest::InferAsync() {
     IE_PROFILING_AUTO_SCOPE(InferAsync)
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needUnitePreProcessing = false;
+    InferenceEngine::BlobMap updatedInputs;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
@@ -132,9 +141,13 @@ void HDDL2InferRequest::InferAsync() {
             needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
         }
 
+        const auto deviceInputLayout = GetSupportedLayout();
+
         // TODO [Design flaw] If preprocessing is required, blob is stored inside _preprocData, not in _networkInputs.
         if (!needUnitePreProcessing) {
-            foundInputBlob->second = prepareInputForInference(foundInputBlob->second);
+            updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
+        } else {
+            updatedInputs[foundInputBlob->first] = foundInputBlob->second;
         }
     }
 
@@ -153,8 +166,8 @@ void HDDL2InferRequest::InferAsync() {
 
             _inferDataPtr->prepareUniteInput(blobForPreprocessing, inputDesc);
         } else {
-            auto foundInputBlob = _inputs.find(inputName);
-            if (foundInputBlob == _inputs.end()) {
+            auto foundInputBlob = updatedInputs.find(inputName);
+            if (foundInputBlob == updatedInputs.end()) {
                 THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
             }
             const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
@@ -189,7 +202,8 @@ static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE:
     return newBlob;
 }
 
-IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const IE::Blob::Ptr& actualInput) {
+IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
+    const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
     IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
     if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
         /** Currently we ignore information of what type of remote blob we are using **/
@@ -202,7 +216,22 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(const IE::Blob::Ptr& a
 
     _logger->info("Input blob is inconsistent with network input. Need to do re-layout.");
     IE::Blob::Ptr inputForInference;
-    inputForInference = reallocateBlobToLayout(actualInput, IE::Layout::NHWC);
+
+    if (is2DTensor(actualInput->getTensorDesc().getDims())) {
+        auto tensorDims = actualInput->getTensorDesc().getDims();
+        for (size_t dimInd = actualInput->getTensorDesc().getDims().size(); dimInd < 4; dimInd++) {
+            tensorDims.push_back(1);
+        }
+        IE::TensorDesc TensorDesc = {actualInput->getTensorDesc().getPrecision(), tensorDims, expectedLayout};
+        inputForInference = make_blob_with_precision(TensorDesc);
+        inputForInference->allocate();
+
+        ie_memcpy(
+            inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
+    } else {
+        inputForInference = reallocateBlobToLayout(actualInput, expectedLayout);
+    }
+
     return inputForInference;
 }
 
@@ -235,6 +264,9 @@ void HDDL2InferRequest::GetResult() {
         auto tempUniteOutputTensorDesc = networkTensorDesc;
         // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
         tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
+        if (outputBlobPtr->getTensorDesc().getDims().size() == 4) {
+            tempUniteOutputTensorDesc.setLayout(IE::Layout::NHWC);
+        }
 
         IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
         tempFP16Blob->allocate();
@@ -253,8 +285,19 @@ void HDDL2InferRequest::GetResult() {
             THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
         }
         copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
+        if (!is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+            outputBlobPtr->getTensorDesc().setLayout(IE::Layout::NHWC);
+        }
     }
-    _outputs[outputName] = outputBlobPtr;
+    if (is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+        _outputs[outputName] = outputBlobPtr;
+    } else {
+        if (outputBlobPtr->getTensorDesc().getLayout() != networkTensorDesc.getLayout()) {
+            _outputs[outputName] = reallocateBlobToLayout(outputBlobPtr, networkTensorDesc.getLayout());
+        } else {
+            _outputs[outputName] = outputBlobPtr;
+        }
+    }
 }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(

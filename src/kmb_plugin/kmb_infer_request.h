@@ -69,10 +69,14 @@ protected:
         unsigned int lpi);
     virtual InferenceEngine::Blob::Ptr reallocateBlob(const InferenceEngine::Blob::Ptr& blob);
 
-    void dumpInputs(const InferenceEngine::BlobMap& inputs, const std::string dstPath) const;
-    virtual void dumpInputBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst) const;
-
-    void dumpOutputBlobHelper(const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst);
+    static void dumpInputBlobHelper(
+        const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst, const Logger::Ptr& _logger);
+    static void dumpOutputBlobHelper(
+        const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst, const Logger::Ptr& _logger);
+    typedef std::function<void(const InferenceEngine::Blob::Ptr&, const std::string&, const Logger::Ptr&)>
+        dumpFunctor_t;
+    void dumpBlobs(
+        const InferenceEngine::BlobMap& blobMap, const std::string dstPath, const dumpFunctor_t& dumpFunctor) const;
 
 private:
     Logger::Ptr _logger;

@@ -110,7 +110,7 @@ TEST_P(KmbConvolutionLayerTests, FakeQuantize_ScaleShift) {
             .setUserOutput(PortInfo("conv"), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .finalize();
 
-        testNet.setCompileConfig({{VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER), CONFIG_VALUE(YES)}});
+        testNet.setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}});
     };
 
     runTest(netBuidler, tolerance, CompareMethod::Absolute);

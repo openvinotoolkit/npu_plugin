@@ -25,10 +25,12 @@
 #include <chrono>
 #include <ie_core.hpp>
 #include <thread>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "comparators.h"
 #include "creators/creator_blob_nv12.h"
 #include "ie_metric_helpers.hpp"
+#include "ie_utils.hpp"
 #include "models/model_pooling.h"
 
 namespace IE = InferenceEngine;
@@ -179,6 +181,8 @@ public:
     std::string refInputPath;
     std::string refOutputPath;
 
+    const size_t numberOfTopClassesToCompare = 5;
+
 protected:
     void SetUp() override;
 };
@@ -270,4 +274,51 @@ TEST_F(InferenceWithPerfCount, SyncInferenceWithPerfCount) {
 
     // --- Get performance
     ASSERT_NO_THROW(dumpPerformance(inferRequest.GetPerformanceCounts()));
+}
+
+class InferenceWithCheckLayout : public Inference_onSpecificDevice {
+protected:
+    void SetUp() override;
+};
+
+void InferenceWithCheckLayout::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
+
+    executableNetwork = ie.ImportNetwork(graphPath, pluginName);
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
+TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    const auto layoutOrig = inputBlob->getTensorDesc().getLayout();
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    ASSERT_EQ(inferRequest.GetBlob(inputBlobName)->getTensorDesc().getLayout(), layoutOrig);
+}
+
+TEST_F(InferenceWithCheckLayout, CheckInputsLayoutAfterTwoInferences) {
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto firstOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
+
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto secondOutputBlob = inferRequest.GetBlob(outputBlobName);
+
+    ASSERT_NO_THROW(
+        Comparators::compareTopClasses(toFP32(firstOutputBlob), toFP32(secondOutputBlob), numberOfTopClassesToCompare));
 }

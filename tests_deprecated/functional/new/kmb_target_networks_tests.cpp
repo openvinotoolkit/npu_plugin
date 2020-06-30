@@ -20,13 +20,14 @@
 // ResNet50 FP16 IRv10
 //
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
-    SKIP_INFER_ON("KMB", "compile error");
+    // [Track number: D#3222]
+    SKIP_ON("KMB", "HDDL2", "VPU", "MemoryAllocator:VPU_DDR_Heap - ArgumentError");
     runTest(
         TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
             .setUserInputPresision("input", Precision::FP16)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP16)
-            .setCompileConfig({{VPU_COMPILER_CONFIG_KEY(PARSING_ONLY), CONFIG_VALUE(YES)}}),
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         "224x224/cat3.bmp",
         3, 1e-5f);
 }
@@ -414,7 +415,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngra
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32)
-            .setCompileConfig({{VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER), CONFIG_VALUE(YES)}}),
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("224x224/husky.bmp", false),
         3, 0.7f);
 }
@@ -772,3 +773,14 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
 ////////////////////////////////////////////////////////////
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
+
+TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32),
+        "vpu/emotions-recognition-retail-0003.png",
+        3, 0.1f);
+}

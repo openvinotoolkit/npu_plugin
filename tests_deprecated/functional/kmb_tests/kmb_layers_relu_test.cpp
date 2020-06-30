@@ -129,13 +129,6 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
     std::map<std::string, std::string> config;
     setCommonConfig(config);
 
-    // Parsing only is enabled because mcmCompiler can't compile layers.
-    // TODO: turn off parsing only when mcmCompiler will be able to compile this layers.
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_BLOB)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_DOT)] = CONFIG_VALUE(YES);
-    config[VPU_COMPILER_CONFIG_KEY(GENERATE_JSON)] = CONFIG_VALUE(YES);
-
     ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
@@ -189,15 +182,13 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
     _outputsInfo["relu_test"]->setPrecision(Precision::FP16);
 
     std::map<std::string, std::string> config;
-    // LoadNetwork returns (-1) when MCM_PARSING_ONLY is set to NO
-    // TODO disable 'parse only' and find out why LoadNetwork fails
     setCommonConfig(config);
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
 
-TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
+// [Track number: S#34238]
+TEST_P(kmbLayersTestsReLUParams, DISABLED_TestsReLUNetInit) {
     auto param = GetParam();
     tensor_test_params tensor = param;
 
@@ -230,9 +221,6 @@ TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
         outputInfo.second->setLayout(Layout::NHWC);
     }
     std::map<std::string, std::string> config;
-    // LoadNetwork results in 'Null pointer dereference' response
-    // TODO disable 'parse only' and find out why LoadNetwork fails
-    config[VPU_COMPILER_CONFIG_KEY(PARSING_ONLY)] = CONFIG_VALUE(YES);
 
     ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
