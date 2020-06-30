@@ -177,6 +177,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 }
 
 RemoteContext::Ptr Engine::GetDefaultContext() {
+    std::lock_guard<std::mutex> contextCreateGuard(_contextCreateMutex);
     if (nullptr == _defaultContext) {
         _defaultContext = std::make_shared<KmbPlugin::KmbRemoteContext>(ParamMap(), _parsedConfig);
     }

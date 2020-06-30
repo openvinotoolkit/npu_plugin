@@ -49,15 +49,13 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())),
+      _deallocateHelper([this](uint8_t* ptr) { this->_executor->getKmbAllocator()->free(ptr); }),
       _inputBuffer(nullptr, _deallocateHelper),
       _outputBuffer(nullptr, _deallocateHelper) {
     IE_PROFILING_AUTO_SCOPE(KmbInferRequest);
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
-    _deallocateHelper = [this](uint8_t* ptr) -> void {
-        this->_executor->getKmbAllocator()->free(ptr);
-    };
 
     size_t inputsTotalSize = 0;
     for (auto& networkInput : _networkInputs) {
@@ -77,7 +75,6 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
     if (_networkInputs.size() > 1) {
         uint8_t* inputsRawPtr = reinterpret_cast<uint8_t*>(_executor->getKmbAllocator()->alloc(inputsTotalSize));
         _inputBuffer.reset(inputsRawPtr);
-        _inputBuffer.get_deleter() = _deallocateHelper;
     }
 
     size_t outputsTotalSize = 0;
@@ -98,7 +95,6 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
     }
     uint8_t* outputsRawPtr = reinterpret_cast<uint8_t*>(_executor->getKmbAllocator()->alloc(outputsTotalSize));
     _outputBuffer.reset(outputsRawPtr);
-    _outputBuffer.get_deleter() = _deallocateHelper;
 }
 void KmbInferRequest::InferImpl() {
     InferAsync();

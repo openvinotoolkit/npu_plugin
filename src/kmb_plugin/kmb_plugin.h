@@ -68,6 +68,7 @@ private:
     KmbConfig _parsedConfig;
     KmbMetrics _metrics;
     KmbRemoteContext::Ptr _defaultContext;
+    std::mutex _contextCreateMutex;
 };
 
 }  // namespace KmbPlugin
