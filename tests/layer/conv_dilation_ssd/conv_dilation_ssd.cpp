@@ -20,7 +20,7 @@ int main()
     auto weights0 = om.constantInt(weightsData0,kernel, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{-inf},{inf}}, "weights_conv");
 
 
-    auto conv0 = om.conv(data_0, weights0, {1, 1}, {2,2,2,2}, 2, 1,  mv::DType("UInt8"),{{0},{18504.282352941176},{-inf},{inf},{0},{1}} , "conv");
+    auto conv0 = om.conv(data_0, weights0, {1, 1}, {6,6,6,6}, 6, 1,  mv::DType("UInt8"),{{0},{18504.282352941176},{-inf},{inf},{0},{1}} , "conv");
 
     om.output(conv0);
 
