@@ -662,7 +662,7 @@ public:
         std::string key, value;
         std::tie(key, value) = GetParam();
 
-        std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
+        std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
 
         std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
             buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));

@@ -242,8 +242,7 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
     IE_ASSERT(_config.useSIPP() || KmbPreproc::useSIPP() || _config.useM2I());
-    const KmbPreproc::Path ppPath =
-        (_config.useSIPP() || KmbPreproc::useSIPP()) ? KmbPreproc::Path::SIPP : KmbPreproc::Path::M2I;
+    const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
 }
 
