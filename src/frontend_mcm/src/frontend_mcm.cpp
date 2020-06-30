@@ -1870,7 +1870,7 @@ const static std::map<std::string, std::string> interpolationMap = {
 void FrontEndMcm::parseResample(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
     logParsingStartHelper(_logger, layer, inputs);
 
-    auto antialias = layer->GetParamAsBool("antialias", 0);
+    auto antialias = false;
     auto interpolation = layer->GetParamAsString("type", "caffe.ResampleParameter.NEAREST");
 
     auto layerOutput = layer->outData[0];
