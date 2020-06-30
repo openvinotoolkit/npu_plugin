@@ -5,15 +5,15 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "A0",
+                "referenceDevice": "B0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 16777216,
+                "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": false,
@@ -23,36 +23,15 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "PWLUsage": true,
+                "ReferenceMode": false,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
                         "name_filter" : "Example",
                         "cluster_filter" : 0,
                         "strategy" : "Example"
-                    },
-                    {
-                        "name_filter": "Input_0",
-                        "strategy": "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "fc_0",
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "fc_1",
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "add_2",
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter" : "fc_3",
-                        "strategy" : "SplitOverH"
-                    },
-                    {
-                        "name_filter": "Output_0",
-                        "strategy": "SplitOverH"
                     }
                 ],
                 "default_tensor_placement" : "NNCMX",
@@ -77,27 +56,8 @@
                     {
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
-                    },
-                    {
-                        "mem_location": "NNCMX",
-                        "name_filter": "fc_0"
-                    },
-                    {
-                        "mem_location": "NNCMX",
-                        "name_filter": "fc_1"
-                    },
-                    {
-                        "mem_location": "NNCMX",
-                        "name_filter": "add_2"
-                    },
-                    {
-                        "mem_location": "NNCMX",
-                        "name_filter": "fc_3"
-                    },
-                    {
-                        "mem_location": "DDR",
-                        "name_filter": "Input_0"
                     }
+
                 ],
                 "streaming_strategy" :
                 [
@@ -107,99 +67,16 @@
                             {"W" : 1},
                             {"H" : 1},
                             {"C" : 1},
-                            {"K" : 1}
-                        ]
-                    },
-                    {
-                        "name_filter" : "Input_0",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 1}
-                        ]
-                    },
-                    {
-                        "name_filter" : "fc_0",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 4}
-                        ]
-                    },
-                    {
-                        "name_filter" : "fc_1",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 4}
-                        ]
-                    },
-                    {
-                        "name_filter" : "add_2",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 1}
-                        ]
-                    },
-                    {
-                        "name_filter" : "fc_3",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 1}
-                        ]
-                    },
-                    {
-                        "name_filter" : "Output_0",
-                        "splits" : [
-                            {"W" : 1},
-                            {"H" : 1},
-                            {"C" : 1},
-                            {"K" : 1}
+                            {"K" : 1},
+                            {"N" : 1}
                         ]
                     }
                 ],
                 "sparsity_strategy" :
                 [
                     {
+                        "name_filter": "Example",
                         "inputActivationSparsity": false,
-                        "name_filter": "Output_0",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
-                    },
-                    {
-                        "inputActivationSparsity": false,
-                        "name_filter": "fc_0",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": true
-                    },
-                    {
-                        "inputActivationSparsity": false,
-                        "name_filter": "fc_1",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": true
-                    },
-                    {
-                        "inputActivationSparsity": false,
-                        "name_filter": "add_2",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": false
-                    },
-                    {
-                        "inputActivationSparsity": false,
-                        "name_filter": "fc_3",
-                        "outputActivationSparsity": false,
-                        "weightsSparsity": true
-                    },
-                    {
-                        "inputActivationSparsity": false,
-                        "name_filter": "Input_0",
                         "outputActivationSparsity": false,
                         "weightsSparsity": false
                     }
@@ -215,7 +92,13 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            }
+            },
+            "UseReferenceOps"
+        ]
+    },
+    "quantization" : {
+        "Singular" : [
+            "FakeQuantize"
         ]
     },
     "adapt": {
@@ -225,18 +108,98 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
+            "PreprocessForPWL",
+            "CheckPWLForRequantize",
+            "AddPermutesToChangeSoftmaxAxis",
             "ConvolutionDilation",
             "HandleGroupConvolution",
+            "TileOps",
+            "StreamBinaryDataWeights",
             "DecideOutputDataType",
+            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            {
+                "name" : "GraphParameterOptimization",
+                "graphOptimizerConfig" : {
+                    "globalConfigs" : [
+                        {"name" : "referenceDevice", "value" : "A0"},
+                        {"name" : "totalClusters",  "value" : 4   },
+                        {"name" : "clusterMemory",  "value" : 896 },
+                        {"name" : "dpuPerCluster",  "value" : 5   },
+                        {"name" : "ddrBandwidth",   "value" : 128 },
+                        {"name" : "systemClockMhz", "value" : 500 },
+                        {"name" : "FathomSafetyFactor", " value" : 1.0},
+                        {"name" : "createStrategyDots", "value" : false},
+                        {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
+                        {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
+                    ],
+                    "globalStrategies" : [
+                        {"name" : "forceSpilling",    "value" : false       },
+                        {"name" : "enableStreaming",   "value" : true       },
+                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
+                        {"name" : "clusteringStrategy","value" : "Automatic"}
+                    ],
+                    "layerStrategies" : [
+                        {
+                            "name" : "Conv",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : true},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : true}
+                            ]
+                        },
+                        {
+                            "name" : "DepthwiseConv",
+                            "strategies": [
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "MaxPool",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Concat",
+                            "strategies": [
+                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
+                            ]
+                        },
+                        {
+                            "name" : "Add",
+                            "strategies": [
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
+                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "outputActivationSparsity",             "value" : true},
+                                {"name" : "weightsSparsity",                      "value" : false}
+                            ]
+                        }
+                    ]
+                }
+            },
             "StoreGraphOptimizerDecisions",
             "ComputeSparsitySolution",
-            {
-                "name": "StreamingOperations",
-                "alignment" : 16
-            },
+            "StreamingOperations",
             "StreamBinaryDataWeights",
             "StreamCopyOperations"
         ]
@@ -247,6 +210,7 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
+            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
@@ -260,6 +224,7 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
+            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -267,10 +232,11 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
     },
-    "dma": {
+  "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
             "SetUPATasksMemoryLocation",
@@ -286,10 +252,6 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
-            {
-                "name": "HangingDmaControlFlows",
-                "weights_prefetch": 2
-            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -299,14 +261,18 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "AddDeallocationTasks",
+            "GenerateSparsityMapsEltwise",
+            { "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "ddr_address_generation" : true,
+              "no_temporal_edges" : true
+            },
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "MarkLastNodeForMaxTopologicalCut",
-            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
+            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -318,24 +284,28 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
-            "TensorGraphColoring",
-            "RemoveDeallocationTasks",
-            "TransitiveReduction",
             {
-                "name" : "InsertBarrierTasks",
-                "barrier_reuse_window" : 0
+              "name": "LpScheduler",
+              "output" : "lp_scheduler_output.txt",
+              "allocator_mode": true,
+              "ddr_control_edges" : true
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers"
+            "PopulateStorageElementPointers",
+            "PopulateInstructionListTables"
         ]
     },
     "scheduling": {
         "Singular": [
-            "StoreBarriersNamesInTasks",
-            "GenerateExecutionSchedule",
-            "BarrierIndexAssignment",
-            "UpdateBarrierRefs"
+            {
+              "name" : "BarrierSchedulerPass",
+              "real_physical_barriers": 32,
+              "barrier_bound" : 16,
+              "producer_bound" : 256,
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true
+            }
         ]
     },
     "validate": {
@@ -350,37 +320,19 @@
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
-            },
-            {
-                "name": "ConvertFlatbuffer",
-                "input": "output/mcm.blob"
             }
-
         ]
     },
     "root": {
         "Singular": [
             "initialize",
+            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
             "control_flows",
             "finalize",
             "scheduling",
-            {
-                "name": "GenerateDot",
-                "output": "output/controlModel_MC_pref2.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
-                "name": "GenerateDot",
-                "output": "output/opControlModel_MC_pref2.dot",
-                "scope": "OpControlModel",
-                "content": "full",
-                "html": true
-            },
             "serialize"
         ]
     }

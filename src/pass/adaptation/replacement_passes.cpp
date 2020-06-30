@@ -593,7 +593,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                  std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
-                                                 std::array<unsigned short, 4> padding)
+                                                 std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
 
@@ -615,6 +615,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+    double inf = std::numeric_limits<double>::infinity();
 
 
     // Create weights tensor
@@ -639,7 +640,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
     // Create depthwise conv
 	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized())
+	if (sourceTensor->isQuantized() && quantRequired)
 	{
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
@@ -647,7 +648,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
 	else
 	{
-        mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+        mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
  	}
 
@@ -846,13 +847,27 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
                 throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
             }
         }
-
         //cascading supported ops
         //first op kernel [factor1.first, factor2.first] - newKernel
         //sequenced op kernel [factor1.second, factor2.second] - newKernel_1
         // Padding quantity relationship is (input size + pad) / k = output size, padding config is TRUE, FALSE
         std::array<unsigned short, 4> padding = {0, 0, 0, 0};
         std::array<unsigned short, 2> newKernel, newKernel_1 = {1,1};
+        std::pair<bool, bool> producers_quantized(true, true);
+        auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
+        if (sinkOps[0]->isUPA()){
+            producers_quantized.first = true;
+            producers_quantized.second = false;
+        }
+        else if (sinkOps[0]->getOpType() == "Output"){
+            if (sinkOps[0]->hasAttr("precision")
+                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                producers_quantized.first = true;
+                producers_quantized.second = false;
+            }
+        }
+
 
         newKernel[largeDim] = factors.first;//first was the large dimension
         newKernel_1[largeDim] = factors.second;
@@ -905,7 +920,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         }
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor,
                                                                             name + "_DepthwiseConv0",
-                                                                            kSize[largeDim], newKernel, padding);
+                                                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
 
         linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
@@ -939,13 +954,14 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         // Now generate the second depthwise conv
         mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
                                                                         name + "_DepthwiseConv1",
-                                                                        kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0});
+                                                                        kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
             opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
-        }
+	    }
+
     } // end for
 }
 

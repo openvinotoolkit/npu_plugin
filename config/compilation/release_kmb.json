@@ -25,6 +25,7 @@
                 "PPEAccuracy": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
@@ -239,6 +240,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+	    "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -310,8 +312,8 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false,
-              "remove_redundant_wait_barriers" : true
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true	
             }
         ]
     },

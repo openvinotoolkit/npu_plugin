@@ -893,16 +893,52 @@ class Dynamic_Spill_Node_Inserter {
     typedef typename dag_t::const_operation_iterator_t
         const_operation_iterator_t;
     typedef std::list<operation_t> op_list_t;
+    typedef typename op_list_t::iterator op_list_iterator_t;
 
+    struct implicit_sub_structure_t {
+      implicit_sub_structure_t(operation_t head=NULL, operation_t tail=NULL)
+        : head_(head), tail_(tail) {} 
+
+      bool is_valid() const { return (head_!=NULL) && (tail_!=NULL); }
+      bool operator<(const implicit_sub_structure_t& o) const {
+        return (head_ != o.head_) ? (head_ < o.head_) : (tail_ < o.tail_);
+      }
+      operation_t head_;
+      operation_t tail_;
+    };
+
+    typedef std::unordered_map<operation_t, operation_t> effective_child_map_t;
+    typedef std::set<operation_t> effective_children_t;
     struct spilled_read_subtree_t {
-      spilled_read_subtree_t() : read_op_(), consumer_list_() {}
+      spilled_read_subtree_t() : read_op_(), consumer_list_(),
+        implicit_sub_structure_() {}
 
       spilled_read_subtree_t(operation_t read_op)
-        : read_op_(read_op), consumer_list_() {}
+        : read_op_(read_op), consumer_list_(), implicit_sub_structure_() {}
+
+      spilled_read_subtree_t(const implicit_sub_structure_t& substr)
+        : read_op_(), consumer_list_(), implicit_sub_structure_(substr) {}
+
+      spilled_read_subtree_t(const spilled_read_subtree_t& o)
+        : read_op_(o.read_op_), consumer_list_(o.consumer_list_), 
+          effective_children_(o.effective_children_), 
+          effective_child_map_(o.effective_child_map_) {}
+
+      spilled_read_subtree_t& operator=(const spilled_read_subtree_t& o) {
+        read_op_ = o.read_op_; consumer_list_ = o.consumer_list_;
+        effective_children_ = o.effective_children_;
+        effective_child_map_ = o.effective_child_map_;
+      }
 
       void add_spill_read_consumer(operation_t consumer) {
         consumer_list_.push_back(consumer);
       }
+
+      bool has_implicit_sub_structure() const {
+        return implicit_sub_structure_.is_valid();
+      }
+
+      bool is_refined() const { return has_implicit_sub_structure(); }
 
       void print() const {
         printfInfo("LpScheduler:",
@@ -914,10 +950,29 @@ class Dynamic_Spill_Node_Inserter {
         printfInfo("LpScheduler:", " }\n");
       }
 
+      // Precondition: effective_child_map_ must be populated //
+      void compute_effective_children() {
+        effective_children_.clear();
+        for (auto citr=consumer_list_.begin(); citr!=consumer_list_.end();
+              ++citr) {
+          auto eitr = effective_child_map_.find(*citr);
+          if (eitr == effective_child_map_.end()) {
+            effective_children_.insert(*citr);
+          } else {
+            effective_children_.insert(eitr->second);
+          }
+        }
+      }
+
       operation_t read_op_;
       op_list_t consumer_list_;
+      implicit_sub_structure_t implicit_sub_structure_;
+      effective_child_map_t effective_child_map_;
+      effective_children_t effective_children_;
     }; // struct spilled_read_subtree_t //
     typedef std::list<spilled_read_subtree_t> spilled_read_subtrees_t;
+    typedef typename spilled_read_subtrees_t::iterator
+        spilled_read_subtrees_iterator_t;
 
     struct spilled_subtree_t {
 
@@ -1184,6 +1239,438 @@ class Dynamic_Spill_Node_Inserter {
       } //foreach scheduled op //
     }
 
+    bool refine_subtrees_using_path_splitting_uniq_paths(mv::OpModel& om,
+        operation_t spilled_op, spilled_read_subtrees_t &read_subtrees) {
+
+      bool atleast_one_subtree_refined = false;
+      const dag_t& dag = input_dag_;
+      std::unordered_set<operation_t> direct_children;
+
+      //STEP-0: determine directly connected children //
+      mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
+      for (auto citr=spilled_op_itr.leftmostChild(); citr!=om.opEnd(); ++citr) {
+        operation_t op = &(*citr);
+        direct_children.insert(op);
+      }
+
+
+      //STEP-1: Refine each subtree if necessary. //
+      spilled_read_subtrees_iterator_t subtree_itr = read_subtrees.begin();
+
+      while (subtree_itr!=read_subtrees.end()) {
+        // We have an unrefined spill read structure //
+        // 
+        // Refinement Procedure:
+        // 
+        // STEP-1.1: filter the in direct children out leaving only the indirect
+        //           children. Note that short-circuiting of implicit ops can
+        //           create indirect children.
+        //
+        // STEP-1.2: om.pathSplit(spill_op_itr, I.begin(), I.end())
+        // 
+        // STEP-1.3: determine additional reads based on divergence in the paths
+        //           since the structure is a tree there is exactly one path
+        //           between spilled_op and op in I //
+        //
+        // STEP-1.4: insert back the refined trees back into the main list of
+        // spill read sub trees.
+        spilled_read_subtree_t &curr_subtree = *subtree_itr;
+        op_list_t& orig_child_list = curr_subtree.consumer_list_;
+
+        // STEP-1.1 //
+        std::list< op_list_iterator_t > indirect_children_itrs;
+        for (op_list_iterator_t child_itr=orig_child_list.begin();
+              child_itr!=orig_child_list.end(); ++child_itr) {
+          operation_t child_op = *child_itr;
+          if (direct_children.find(child_op) == direct_children.end()) {
+            indirect_children_itrs.push_back(child_itr);
+          }
+        } // foreach children //
+
+       
+        // NOTE: the current subtree subtree_itr is now updated and has only
+        // direct children //
+        std::list< mv::Data::OpListIterator  > indirect_children;
+        for (auto iitr=indirect_children_itrs.begin();
+              iitr!=indirect_children_itrs.end(); ++iitr) {
+          operation_t op = *(*iitr);
+          indirect_children.push_back(om.getOp(op->getName()));
+          orig_child_list.erase(*iitr);
+        }
+
+        if (!indirect_children.empty()) {
+          // STEP-1.2 //
+          om.pathSplitImplicit(spilled_op_itr,
+                indirect_children.begin(), indirect_children.end());
+
+          // STEP-1.3 : we have to create a new read for each unique path from
+          // the spilled op to one of these children. The purpose of this loop
+          // is to determine these unique paths. 
+          //
+          //
+          // NOTE: since the structure is a tree there is exactly one path from
+          // the spilled_op to each of these children and we use the end points
+          // to determine which ones are unique.//
+          std::map<implicit_sub_structure_t, op_list_t> unique_paths;
+          for (auto ichild=indirect_children.begin();
+                ichild!=indirect_children.end(); ++ichild) {
+
+            std::list<mv::Data::OpListIterator> implicit_path;
+            om.getImplicitPath(spilled_op_itr, *ichild, implicit_path);
+
+            if (implicit_path.empty()){
+              throw "Implicit path between " + spilled_op_itr->getName() +
+                  " and " + (*ichild)->getName() + " cannot be empty";
+            }
+
+            operation_t child = &(*(*ichild));
+            operation_t head = &(*(*implicit_path.begin()));
+            operation_t tail = &(*(*implicit_path.rbegin()));
+
+            implicit_sub_structure_t key(head, tail);
+            unique_paths[ key ].push_back(child); 
+            atleast_one_subtree_refined = true;
+          }
+
+          // STEP-1.4: //
+          spilled_read_subtrees_iterator_t
+              next_unrefined_subtree_itr = subtree_itr;
+          ++next_unrefined_subtree_itr;
+         
+          // We insert all the refined subtrees before the next unrefined
+          // subtree in the list of subtrees corresponding to spill.
+          for (auto uniq_path_itr=unique_paths.begin();
+              // uniqu_path_itr->first = implicit_sub_structure_t //
+                uniq_path_itr!=unique_paths.end(); ++uniq_path_itr) {
+            spilled_read_subtrees_iterator_t refined_subtree_itr =
+                read_subtrees.insert(next_unrefined_subtree_itr,
+                      spilled_read_subtree_t(uniq_path_itr->first) );
+            spilled_read_subtree_t &refined_subtree = *refined_subtree_itr;
+            refined_subtree.consumer_list_ = uniq_path_itr->second;
+          }
+
+          spilled_read_subtrees_iterator_t curr_subtree_itr = subtree_itr;
+          if (orig_child_list.empty()) {
+            read_subtrees.erase(curr_subtree_itr);
+          }
+          subtree_itr = next_unrefined_subtree_itr;
+        } else {
+          // if subtree has no indirect children then no need of refinement //
+          ++subtree_itr;
+        }
+      } // while (subtree_itr != read_subtrees.end()) //
+
+      return atleast_one_subtree_refined;
+    }
+
+    bool refine_subtrees_using_path_splitting(mv::OpModel& om,
+        operation_t spilled_op, spilled_read_subtrees_t &read_subtrees) {
+
+      bool atleast_one_subtree_refined = false;
+      const dag_t& dag = input_dag_;
+      std::unordered_set<operation_t> direct_children;
+
+      //STEP-0: determine directly connected children //
+      mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
+      for (auto citr=spilled_op_itr.leftmostChild(); citr!=om.opEnd(); ++citr) {
+        operation_t op = &(*citr);
+        direct_children.insert(op);
+      }
+
+
+      //STEP-1: Refine each subtree if necessary. //
+      spilled_read_subtrees_iterator_t subtree_itr = read_subtrees.begin();
+
+      for (;subtree_itr!=read_subtrees.end(); ++subtree_itr) {
+        // We have an unrefined spill read structure //
+        // 
+        // Refinement Procedure:
+        // 
+        // STEP-1.1: filter the in direct children out leaving only the indirect
+        //           children. Note that short-circuiting of implicit ops can
+        //           create indirect children.
+        //
+        // STEP-1.2: om.pathSplit(spill_op_itr, I.begin(), I.end())
+        // 
+        // STEP-1.3: for each indirect child determine effective child of the 
+        //           spilled op.
+        spilled_read_subtree_t &curr_subtree = *subtree_itr;
+        op_list_t& orig_child_list = curr_subtree.consumer_list_;
+
+        // STEP-1.1 //
+        std::list< mv::Data::OpListIterator  > indirect_children;
+        for (op_list_iterator_t child_itr=orig_child_list.begin();
+              child_itr!=orig_child_list.end(); ++child_itr) {
+          operation_t child_op = *child_itr;
+          if (direct_children.find(child_op) == direct_children.end()) {
+            indirect_children.push_back(om.getOp(child_op->getName()));
+          }
+        } // foreach children //
+
+        if (!indirect_children.empty()) {
+          // STEP-1.2 //
+          om.pathSplitImplicit(spilled_op_itr,
+                indirect_children.begin(), indirect_children.end());
+
+          effective_child_map_t &effective_child_map =
+              subtree_itr->effective_child_map_;
+          for (auto ichild=indirect_children.begin();
+                ichild!=indirect_children.end(); ++ichild) {
+
+            std::list<mv::Data::OpListIterator> implicit_path;
+            om.getImplicitPath(spilled_op_itr, *ichild, implicit_path);
+
+            if (implicit_path.empty()){
+              throw "Implicit path between " + spilled_op_itr->getName() +
+                  " and " + (*ichild)->getName() + " cannot be empty";
+            }
+
+            operation_t child = &(*(*ichild));
+            operation_t head = &(*(*implicit_path.begin()));
+            effective_child_map.insert(std::make_pair(child, head));
+            atleast_one_subtree_refined = true;
+          }
+        }
+        subtree_itr->compute_effective_children();
+      } // foreach read subtree //
+      return atleast_one_subtree_refined;
+    }
+
+    typedef std::unordered_map<operation_t, size_t> input_tensor_index_map_t;
+    typedef typename spilled_read_subtrees_t::iterator
+        spilled_read_subtree_iterator_t;
+
+    // Creates a spilled read substructure where there are spilled op is
+    // connected to consumers of its output via an implicit op substructure.
+    //
+    // Precondition:
+    // spilled_read_subtree_itr->has_implicit_sub_structure() = true
+    void create_spilled_read_substructure_in_model_with_implicit_ops(
+        mv::OpModel& om, operation_t spilled_op,
+        mv::Data::TensorIterator spill_write_tensor_itr,
+        spilled_read_subtree_iterator_t spilled_read_subtree_itr,
+        size_t& read_index) {
+      /*
+      // Once we get to this point the spill_read_subtree_t is already refined
+      // and has implicit_sub_structure.
+      //
+      // Incoming OpModel:
+      // 
+      //   spilled_op---+-------+
+      //                |       |
+      //                |       v
+      //                |      _spilledWrite(DMA WRITE)
+      //                |          
+      //                v 
+      //           head(implicit) 
+      //                |
+      //                |
+      //   ..complex path of implict ops..
+      //               |
+      //               v
+      //           tail(implict)
+      //             / | \
+      //            /  |  \
+      //           /   |   \
+      //          c1    c2  c3
+      //
+      //
+      // Resultant OpModel:
+      //
+      //
+      //   spilled_op---+
+      //                |
+      //                v
+      //              _spilledWrite (DMA WRITE)
+      //                |\
+      //                v 
+      //           head(implicit) 
+      //                |
+      //                |
+      //   ..complex path of implict ops..
+      //                |
+      //                |
+      //                v
+      //           tail(implict)
+      //                |
+      //                v
+      //              _spilledRead (new DMA READ)
+      //              / | \
+      //             /  |  \
+      //            /   |   \
+      //           c1    c2  c3
+      // STEP-1: get the sinkInput index of head
+      // STEP-2: remove the data flow between spilled_op and head.
+      // STEP-3: create a data flow between _spilledWrite and head 
+      // STEP-4: create a lookup table for sinkInput index of c1,c2...cn by
+      //         looking at the flows between tail and {c1, c2.... }
+      // STEP-5: clear all the flows between tail and {c1, c2, ... }
+      // STEP-6: create a new DMA READ and update the read_op value in the
+      //         subtree
+      // STEP-7: add data flows between _spilledRead and {c1,c2....} use the
+      //         lookup table to find out the index.
+      */
+
+      mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
+
+      input_tensor_index_map_t input_tensor_index_map;
+      std::vector<mv::Data::FlowListIterator> data_flows_to_erase;
+      const implicit_sub_structure_t &implicit_sub_structure=
+          spilled_read_subtree_itr->implicit_sub_structure_;
+      const op_list_t &children = spilled_read_subtree_itr->consumer_list_;
+      operation_t head = implicit_sub_structure.head_;
+      operation_t tail = implicit_sub_structure.tail_;
+
+      // locate sinkInput for head //
+      for (auto data_flow_itr=spilled_op_itr.leftmostOutput();
+            data_flow_itr!=om.flowEnd(); ++data_flow_itr) {
+        operation_t sink_op = &(*(data_flow_itr.sink()));
+        if (sink_op == head) {
+          input_tensor_index_map[head] =
+              data_flow_itr->get<size_t>("sinkInput");
+          data_flows_to_erase.push_back(data_flow_itr);
+          break;
+        }
+      }
+
+      if (input_tensor_index_map.find(head) == input_tensor_index_map.end()) {
+        throw std::string("[ImplicitSubtree] invalid implicit substructure");
+      }
+
+
+      // STEPS-1,2,4,5  are combined.//
+      // locate sinkInputs between tail and consumers //
+      {
+        std::set<operation_t> children_set;
+        for (auto citr=children.begin(); citr!=children.end(); ++citr) {
+          children_set.insert(*citr);
+        }
+
+        mv::Data::OpListIterator tail_itr = om.getOp(tail->getName());
+        for (auto data_flow_itr=tail_itr.leftmostOutput();
+              data_flow_itr!=om.flowEnd(); ++data_flow_itr) {
+          operation_t sink_op = &(*(data_flow_itr.sink()));
+          if (children_set.find(sink_op) == children_set.end()) { continue;}
+          input_tensor_index_map[sink_op] =
+              data_flow_itr->get<size_t>("sinkInput");
+          data_flows_to_erase.push_back(data_flow_itr);
+        }
+      }
+
+      if (input_tensor_index_map.size() != (children.size() + 1UL) ) {
+        throw std::string("[ImplicitSubstructure] unable to locate dataflows"
+              " forall childrent");
+      }
+      
+      for (auto flow : data_flows_to_erase) om.undefineFlow(flow);
+      // STEP-1,2,4,5 are combined above //
+
+
+      //STEP-3//
+      size_t head_sink_input = input_tensor_index_map[head];
+      mv::Data::OpListIterator head_itr = om.getOp(head->getName());
+      head_itr->setInputTensor(spill_write_tensor_itr, head_sink_input, false);
+      om.defineFlow(spill_write_tensor_itr, head_itr, head_sink_input);
+
+      //STEP-6://
+      mv::Data::OpListIterator tail_itr = om.getOp(tail->getName());
+      mv::Data::TensorIterator tail_tensor_itr = tail_itr->getOutputTensor(0UL);
+
+      mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
+      std::string dma_read_op_name = spilled_op->getName() + "-" +
+        head->getName() + "_implicitSpilledRead" + std::to_string(read_index++);
+      mv::Data::TensorIterator spill_read_tensor_itr =
+          om.dMATask(tail_tensor_itr, read_dma_direction, dma_read_op_name);
+      mv::Data::OpListIterator read_op_itr =
+          om.getSourceOp(spill_read_tensor_itr);
+      read_op_itr->setInputTensor(tail_tensor_itr, 0UL, false);
+
+      // save the read op into the structure//
+      spilled_read_subtree_itr->read_op_ = &(*read_op_itr);
+
+      // STEP-7 //
+      for (auto citr=children.begin(); citr!=children.end(); ++citr) {
+        operation_t child_op = *citr;
+
+        if (input_tensor_index_map.find(child_op) ==
+              input_tensor_index_map.end()) {
+          throw std::string("[ImplicitSpillStructure]: cannot find  " +
+                child_op->getName() + " in the input tensor index map");
+        }
+
+
+        size_t idx = input_tensor_index_map[child_op];
+
+        // define flow //
+        mv::Data::OpListIterator child_op_itr = om.getOp(child_op->getName());
+        child_op_itr->setInputTensor(spill_read_tensor_itr, idx, false);
+        om.defineFlow(spill_read_tensor_itr, child_op_itr, idx );
+      }
+
+    }
+
+    void create_spilled_read_substructure_in_model(mv::OpModel& om,
+        operation_t spilled_op, mv::Data::TensorIterator spill_write_tensor_itr,
+        const input_tensor_index_map_t& input_tensor_index_map,
+        spilled_read_subtree_iterator_t spilled_read_subtree_itr,
+        size_t& read_index) {
+
+      // STEP-0: create a read DMA //
+      mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
+      std::string dma_read_op_name = spilled_op->getName() + "_spilledRead" +
+          std::to_string(read_index++);
+      mv::Data::TensorIterator spill_read_tensor_itr =
+          om.dMATask(spill_write_tensor_itr, read_dma_direction,
+              dma_read_op_name);
+      mv::Data::OpListIterator read_op_itr =
+          om.getSourceOp(spill_read_tensor_itr);
+      read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);
+      
+      // save the read op into the structure//
+      spilled_read_subtree_itr->read_op_ = &(*read_op_itr);
+    
+      // Use effective children instead of original children:
+      const effective_children_t &children =
+          spilled_read_subtree_itr->effective_children_;
+
+      // Erase all flows from spilled_op to effective children //
+      //////////////////////////////////////////////////////////////////////////
+      // STEP-3: erase all outgoing flows from the spilled op and direct 
+      // children in spill sub tree
+      {
+        mv::Data::OpListIterator spilled_op_itr =
+            om.getOp(spilled_op->getName());
+        std::vector<mv::Data::FlowListIterator> flows;
+
+        for(auto outputFlow = spilled_op_itr.leftmostOutput();
+          outputFlow != om.flowEnd(); ++outputFlow) {
+          operation_t sink_op = &(*(outputFlow.sink()));
+          if (children.find(sink_op) != children.end()) {
+            flows.push_back(outputFlow);
+          }
+        }
+
+        for (auto flow : flows) om.undefineFlow(flow);
+      }
+
+
+
+      for (auto child=children.begin(); child!=children.end(); ++child) {
+        operation_t child_op = *child;
+        mv::Data::OpListIterator child_op_itr = om.getOp(child_op->getName());
+        // find the input index in the original spilled op //
+        auto idx_itr = input_tensor_index_map.find(child_op);
+        if (idx_itr == input_tensor_index_map.end()) {
+          throw std::string("[RefinementInvariant]: failed effective children "
+              " must have a input_tensor_index_map entry");
+        }
+        size_t idx = idx_itr->second;
+        child_op_itr->setInputTensor(spill_read_tensor_itr, idx, false);
+        om.defineFlow(spill_read_tensor_itr, child_op_itr, idx);
+      }
+    }
+
+
     // Creates a spill subtree structure under the given op whose output
     // got spilled. Additionally the new write op addresses are added into
     // the substructure
@@ -1191,11 +1678,18 @@ class Dynamic_Spill_Node_Inserter {
           spilled_subtree_t& spilled_sub_tree) {
       mv::Op *spilled_op = const_cast<mv::Op *>(spilled_op_in);
       mv::OpModel om(model_);
-      mv::DataModel dm(model_);
-      std::string dma_op_name = spilled_op->getName() + "_spilledWrite";
+      spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
+
+      //STEP-0: refine read subtrees before introducing the spill structure.
+      //This will mark the read subtrees into two categories:
+      //  a.) subtrees with implicit substructure
+      //  b.) subtrees with no implicit substructue
+      refine_subtrees_using_path_splitting(om, spilled_op, read_subtrees);
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-1: create one DMA write op //
+      mv::DataModel dm(model_);
+      std::string dma_op_name = spilled_op->getName() + "_spilledWrite";
       mv::DmaDirection write_dma_direction(std::string("NNCMX2DDR"));
       mv::Data::TensorIterator spilled_op_output_tensor_itr =
           spilled_op->getOutputTensor(0UL);
@@ -1228,12 +1722,6 @@ class Dynamic_Spill_Node_Inserter {
       {
         mv::Data::OpListIterator spilled_op_itr =
           om.getOp(spilled_op->getName());
-        // TODO: (Zoran) investigate the root logic issue and
-        // provide a proper fix
-        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
-          assert(spilled_op_itr->getOpType() == "Slice");
-          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
-        }
         for(auto outputFlow = spilled_op_itr.leftmostOutput();
           outputFlow != om.flowEnd(); ++outputFlow) {
           size_t idx = outputFlow->get<size_t>("sinkInput");
@@ -1241,66 +1729,20 @@ class Dynamic_Spill_Node_Inserter {
           input_tensor_index_map[sink_op] = idx;
         }
       }
-
-
-      //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and children in
-      // spill sub tree
-      {
-        mv::Data::OpListIterator spilled_op_itr = om.getOp(spilled_op->getName());
-        std::vector<mv::Data::FlowListIterator> flows;
-        // TODO: (Zoran) investigate the root logic issue and
-        // provide a proper fix
-        while (spilled_op_itr.leftmostOutput().sink()->isImplicit()){
-          assert(spilled_op_itr->getOpType() == "Slice");
-          spilled_op_itr = spilled_op_itr.leftmostOutput().sink();
-        }
-        for(auto outputFlow = spilled_op_itr.leftmostOutput();
-          outputFlow != om.flowEnd(); ++outputFlow) {
-          operation_t sink_op = &(*(outputFlow.sink()));
-          if (spilled_sub_tree.has_child(sink_op)) {
-            flows.push_back(outputFlow);
-          }
-        }
-
-        for (auto flow : flows) om.undefineFlow(flow);
-      }
+      //STEP-3: erasing of old flows is now moved to
+      //create_spilled_read_substructure
 
       //////////////////////////////////////////////////////////////////////////
       // STEP-4: create a new spill read ops by connecting spill_write tensor
       // to each of them as inputs.
       size_t read_index = 0UL;
-      mv::DmaDirection read_dma_direction(std::string("DDR2NNCMX"));
-      spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
 
       for (typename spilled_read_subtrees_t::iterator
             spill_read_itr=read_subtrees.begin();
               spill_read_itr!=read_subtrees.end(); ++spill_read_itr) {
-        dma_op_name =
-          spilled_op->getName() + "_spilledRead" + std::to_string(read_index++);
-        mv::Data::TensorIterator spill_read_tensor_itr =
-          om.dMATask(spill_write_tensor_itr, read_dma_direction, dma_op_name);
-        Data::OpListIterator read_op_itr =
-            om.getSourceOp(spill_read_tensor_itr);
-        read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);
-
-        // save the read op //
-        spill_read_itr->read_op_ = &(*read_op_itr);
-
-        // now connect output of this read all ops in this subtree //
-        const op_list_t &children = spill_read_itr->consumer_list_;
-        for (auto child=children.begin(); child!=children.end(); ++child) {
-          operation_t child_op = *child;
-          Data::OpListIterator child_op_itr = om.getOp(child_op->getName());
-          assert(child_op_itr != om.opEnd());
-
-          // find the input index in the original spilled op //
-          auto idx_itr = input_tensor_index_map.find(child_op);
-          assert(idx_itr != input_tensor_index_map.end());
-          size_t idx = idx_itr->second;
-          child_op_itr->setInputTensor(spill_read_tensor_itr, idx, false);
-          om.defineFlow(spill_read_tensor_itr, child_op_itr, idx);
-        }
+        create_spilled_read_substructure_in_model(om, spilled_op_in,
+            spill_write_tensor_itr, input_tensor_index_map, spill_read_itr,
+              read_index);
       }
     }
 

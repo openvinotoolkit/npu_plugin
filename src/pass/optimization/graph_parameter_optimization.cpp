@@ -242,8 +242,8 @@ namespace mv
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
-
             size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, string clustering, const Shape& streamingPool, bool isCMConv, mv::Op& op)
+
             {
                 size_t kHeight = 1;
                 if(  (op.getOpType() == "Conv") || (op.getOpType() == "DepthwiseConv") )
@@ -608,6 +608,8 @@ namespace mv
                     splits++;
                 }while(splits <= upperBoundH);
 
+                //NOTE: the idea here is that when the number of streams lead to less than one line of output
+                //->means kernel size in the input the result is that we can not stream
                 if(op.getOpType() == "Conv")
                 {
                     auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
@@ -624,7 +626,7 @@ namespace mv
             }
 
             unsigned findBestK(unsigned alignedSize, unsigned channels){
-                return std::ceil(alignedSize / ((alignedSize/2) - channels));
+                return std::ceil((double)alignedSize / ((alignedSize/2) - channels));
             }
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
@@ -1121,10 +1123,53 @@ namespace mv
                         return INF;
                     }
                 }
+                
+                //NOTE: The logic dynamically enables "Concate" with SplitOverH and SplitOverK 
+                //to indicate splitoverH/splitoverK are allowed, so that the upper conv can 
+                //choose both SOH/SOK. For now we add conditions to align split strategy
+                //before and after Concate and avoid Concate's parents choose different split strategy.
+                //NOTE: Normally in ddr concatenation input and output tensor strategies are not mandatory to share same
+                //split strategies, solving it like that temporary till all the pair-concats on ddr strategies are tested
+                if (child["concat"].get<string>() == "SplitOverH")
+                {
+                    if(parentClustering == "SplitOverK" || parentClustering == "HKSwitch" || parentClustering == "Clustering")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOK/HKSwitch/clustering to concat SOH");
+                            return INF;
+                    }
+                }
+                else if (parent["concat"].get<string>() == "SplitOverH")
+                {
+                    if(childClustering == "SplitOverK")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by concat SOH to SOK");
+                            return INF;
+                    }
+                }
+                else if (child["concat"].get<string>() == "SplitOverK")
+                {
+                    if(parentClustering == "SplitOverH")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to concat SOK");
+                            return INF;
+                    }
+                }
+                else if (parent["concat"].get<string>() == "SplitOverK")
+                {
+                    if(childClustering == "SplitOverH" || childClustering == "HKSwitch")
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by concat SOK to SOH/HKSwitch");
+                            return INF;
+                    }
+                }
                 //NOTE: If you Spill a parent a child can be everything...the only thing
                 //that has no sense if is your parent is spilling to be HKSwitch as
                 //this strategy exists in order to reverse strategies in CMX
-                if (parent["spilling"].get<bool>())
+                else if (parent["spilling"].get<bool>())
                 {
                     if (childClustering == "HKSwitch")
                     {
@@ -1207,6 +1252,20 @@ namespace mv
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
                             return INF;
+                    }
+                    else if(childClustering == "SplitOverH")
+                    {
+                        auto outputTensorShape = childOp.getOutputTensor(0)->getShape();
+                        unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
+                        unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
+                        unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
+                        unsigned dy = std::ceil(static_cast<double>(H) / totalClusters);
+
+                        if ((W*dy*C)%128 != 0)
+                        {
+                            log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
+                            return INF;
+                        }
                     }
                 }
                 //Note: last op should not be HKSwitch
@@ -1505,8 +1564,14 @@ namespace mv
                 else if(globalEnableWeightsSparsity)
                     weightsSparsity = decideWeightsSparsity(op);
 
+                vector<Attribute> concatPool = {string("None")};
+                if(op.getOpType() == "Concat")
+                {
+                    concatPool = {string("SplitOverH"), string("SplitOverK")};
+                }
 
                 //TODO:: replace nested loops with clean cartesian product function
+                for( const auto concat : concatPool){
                 for( const auto spilling : spillingPool)
                 {
                     for( const auto clustering : clusteringStrategyPool)
@@ -1560,7 +1625,8 @@ namespace mv
 
 
                         // If streaming is enabled, but streaming over k or h alone doesn't fit, enable nested streaming
-                        if(hasStreamOverK and (streamsOverK.size() > 1) and hasStreamOverH and ((memoryMaxH > clusterMemory) and (memoryMaxK > clusterMemory))){
+                        if(hasStreamOverK and (streamsOverK.size() > 1) and hasStreamOverH
+                                and ((memoryMaxH > clusterMemory) and (memoryMaxK > clusterMemory))){
                             enableNestedStreaming = true;
                             // Note: Adjusting maxSplitOverH appropriately for nested is now handled on the fly
                             // for each possible stream over K, a single stream over H option that fits is chosen
@@ -1608,6 +1674,7 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
+                                    s["concat"] = concat;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
@@ -1621,8 +1688,6 @@ namespace mv
                         }
                     }
                 }
-                // cout << endl;
-
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
             }

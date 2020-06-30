@@ -185,7 +185,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     std::vector<mv::QuantizationParams> outQuantParams;
     for (size_t i = 0; i < current_ops.size(); i++) {
         if (current_ops[i]->getOpType() == "FakeQuantize") {
-            outQuantParams.push_back(extractQuantParamsO(current_ops[0], op->getOpType() != "Constant"));
+            outQuantParams.push_back(extractQuantParamsO(current_ops[i], op->getOpType() != "Constant"));
         }
     }
 
@@ -270,7 +270,7 @@ void propagateParameters(mv::ComputationModel& model) {
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp") { //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -284,6 +284,7 @@ void propagateParameters(mv::ComputationModel& model) {
                 continue;
 
             quant_params = getParentQuantParams(om, op);
+
             setQuantizationParams(op, quant_params);
         }
     }
@@ -484,8 +485,11 @@ void quantizeIO(mv::ComputationModel& model) {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
 
+        std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+        bool scaleFuseInput = globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false;
+
         //Fuse scaleshift(multiply+add) into quantization parameters to boost performance 
-        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale") {
+        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale" && scaleFuseInput) {
             auto child_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
             if(child_ops.size() == 1 && child_ops[0]->getOpType() == "Bias") {
                 auto next_child_ops = findSinkLayers(dm, child_ops[0]->getOutputTensor(0));
