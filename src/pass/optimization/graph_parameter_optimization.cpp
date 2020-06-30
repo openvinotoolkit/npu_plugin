@@ -1688,6 +1688,7 @@ namespace mv
                         }
                     }
                 }
+				}
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
             }
