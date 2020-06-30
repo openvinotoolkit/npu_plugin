@@ -30,39 +30,7 @@ int main()
     // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
 
     auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{0},{0.5647058823529412},{0},{144},{0},{1}} , "conv");
-//    auto conv0 = om.conv(data_0, weights0, {1, 1}, {1,1,1,1}, 1, 1,  mv::DType("UInt8"),{{0},{0.5647058823529412},{0},{144},{0},{1}} , "conv");
-
-    // Identidy conv - this should not change output of dilated conv
-    // Output of dilated Conv is all 3f's
-
-    mv::Shape kernel1 = mv::Shape({1,1,16,16});
-    std::vector<int64_t> weightsData1(kernel1.totalSize(), 0);
-
-    for (unsigned k = 0; k < kernel1[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
-    {
-        for (unsigned c = 0; c < kernel1[mv::KERNEL_INPUT_CHANNELS]; ++c)
-        {
-            for (unsigned h = 0; h < kernel1[mv::KERNEL_HEIGHT]; ++h)
-            {
-                for (unsigned w = 0; w < kernel1[mv::KERNEL_WIDTH]; ++w)
-                {
-                    const size_t idx = (k * kernel1[mv::KERNEL_INPUT_CHANNELS] * kernel1[mv::KERNEL_WIDTH] * kernel1[mv::KERNEL_HEIGHT]) +
-                                       (c * kernel1[mv::KERNEL_WIDTH] * kernel1[mv::KERNEL_HEIGHT]) +
-                                       (h * kernel1[mv::KERNEL_WIDTH]) +
-                                        w;
-                    if (c == k)
-                        weightsData1[idx] = 255;
-                    else
-                        weightsData1[idx] = 0;
-                }
-            }
-        }
-    }
-
-    auto weights1 = om.constantInt(weightsData1,kernel1, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{-1.000000000000000},{1.000000000000000}}, "weights_conv1");
-    auto conv1 = om.conv(conv0, weights1, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{0},{0.5647058823529412},{-inf},{inf},{0},{1}} , "conv1");
-
-    om.output(conv1,mv::DType("UInt8"), {{},{},{},{}});
+    om.output(conv0,mv::DType("UInt8"), {{},{},{},{}});
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);

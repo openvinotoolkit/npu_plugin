@@ -236,9 +236,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             if (idx == 0)
                 dilatedStrides[idx] = dilationFactor * numericStrides[idx];
             else if (idx == 1)
-                dilatedStrides[idx] = std::pow(dilationFactor, 2) * numericStrides[idx];
+                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
             else if (idx == 3)
-                dilatedStrides[idx] = std::pow(dilationFactor, 2) * numericStrides[idx];
+                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
             else
                 dilatedStrides[idx] = numericStrides[idx];
         }
@@ -379,7 +379,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator s, mv::Data::TensorIterator d, unsigned clusterId, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
-    mv::OpModel om(cm);
 
     auto tensorAllocators = s->get<std::set<std::string>>("allocators");
 
@@ -394,7 +393,6 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     // Shape is always of the subtensor
     // If the tensor is broadcasted, then the shape of the subtensor is equal to the shape of the master tensor
     // if not, the subtensor shape is adjusted accordingly
-    std::vector<uint32_t> dimensions = subtensor.getShape();
 
     // Strides are computed depending on the memory location
     // Since subtensors are split only in CMX

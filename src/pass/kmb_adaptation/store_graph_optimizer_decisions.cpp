@@ -8,7 +8,7 @@
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-static void storeConcatDDRFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeConcatDDRFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -281,7 +281,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
 }
 
-void storeConcatDDRFcn(const mv::pass::PassEntry& pass,
+void storeConcatDDRFcn(const mv::pass::PassEntry&,
                                 mv::ComputationModel& model)
 {
     mv::OpModel om(model);
