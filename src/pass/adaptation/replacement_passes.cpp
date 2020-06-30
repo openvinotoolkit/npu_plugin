@@ -18,6 +18,7 @@ static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -50,6 +51,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeAvgPoolFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
+    replaceAvgPoolAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
@@ -1064,7 +1066,6 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             branchWidth = (hslices > 1) ? stride[mv::STRIDE_HORIZONTAL] : width;
             branchHeight = (vslices > 1) ? stride[mv::STRIDE_VERTICAL] : height;
             //when slicing on a dimension the stride becomes 1
-            newStride = {(hslices > 1) ? 1 : stride[mv::STRIDE_HORIZONTAL], (vslices > 1) ? 1 : stride[mv::STRIDE_VERTICAL]};
             model.log(mv::Logger::MessageType::Debug, "newStride hor=" + std::to_string(newStride[mv::STRIDE_HORIZONTAL])+ " , newStride vert=" + std::to_string(newStride[mv::STRIDE_VERTICAL]));
             branchInputSize = {branchWidth,
                                 branchHeight,
@@ -1185,26 +1186,42 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             if( (stride[mv::STRIDE_HORIZONTAL] <= mv::MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= mv::MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
-        pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
+
+            pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
             //stride supported not slicing, stride not supported slicing with slices dimensions of stride
-            if((opIt->hasAttr("asymmetricKernel")))
-            {
-                opIt = splitOperationSlicingFixedWidthHeight (om,
-                                                            opIt,
-                                                            (stride[mv::STRIDE_HORIZONTAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            (stride[mv::STRIDE_VERTICAL] > mv::MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
-                                                            nextOp);
-            }
-            else
-            {
                 opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
                                                             stride[mv::STRIDE_HORIZONTAL],
                                                             stride[mv::STRIDE_VERTICAL],
                                                             nextOp);
-            }
-            
+        }
+    }
+}
+
+
+void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    {
+        if ( (opIt->getOpType() == "AveragePool")  || (opIt->getOpType() == "DepthwiseConv") )
+        {
+            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+            if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
+                continue;
+            pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
+            auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+            //stride supported not slicing, stride not supported slicing with slices dimensions of stride
+            opIt = splitOperationSlicingFixedWidthHeight (om,
+                                                        opIt,
+                                                        stride[mv::STRIDE_HORIZONTAL],
+                                                        stride[mv::STRIDE_VERTICAL],
+                                                        nextOp);
         }
     }
 }
