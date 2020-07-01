@@ -16,6 +16,7 @@
 
 #include <file_reader.h>
 #include <gtest/gtest.h>
+#include <fstream>
 
 #include <allocators.hpp>
 #include <test_model/kmb_test_utils.hpp>
