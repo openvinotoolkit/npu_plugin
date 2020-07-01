@@ -9,6 +9,7 @@
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeConcatDDRFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+static void validateDilationSubConvolutions(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
@@ -48,12 +49,12 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
 
 void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
     storeLayerSplitStrategyFcn(pass, model);
     storeLayerSparsityStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
     //NOTE: Only for validation-debug reasons, makes all the concats to be executed on ddr
     storeConcatDDRFcn(pass, model);
+    validateDilationSubConvolutions(pass, model);
 }
 
 void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -290,5 +291,40 @@ void storeConcatDDRFcn(const mv::pass::PassEntry&,
     {
         auto outputTensor = concat->getOutputTensor()[0];
         outputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+    }
+}
+
+void validateDilationSubConvolutions(const mv::pass::PassEntry&,
+                                mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto convs = om.getOps("Conv");
+    auto globalParams = model.getGlobalConfigParams();
+    std::map<std::string, std::set<std::vector<mv::Element>>> subdilationsStrategies;
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    for (auto layerNameStrategy : strategyList)
+    {
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        std::set<std::vector<mv::Element>> setOfStrategies;
+        for (auto conv : convs)
+        {
+            bool isDilatedConv = conv->hasAttr("DilatedSubConv") && conv->get<bool>("DilatedSubConv");
+            if (isDilatedConv && nodeName == conv->getName())
+            {
+                auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                setOfStrategies.insert(streaming_strategy);
+                subdilationsStrategies.insert(std::make_pair(conv->get<std::string>("parentOp"),
+                                                             setOfStrategies));
+            }
+        }
+        auto it = subdilationsStrategies.begin();
+        while (it != subdilationsStrategies.end())
+        {
+            auto setOfDilationStrategies = it->second;
+            //NOTE: Subdilation convolutions should have same strategy,
+            //if not disable the optimization of streaming with same weigths
+            assert (setOfDilationStrategies.size() == 1);
+            it++;
+        }
     }
 }

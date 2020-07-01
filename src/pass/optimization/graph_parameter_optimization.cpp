@@ -1095,12 +1095,19 @@ namespace mv
                             return INF;
                     }
                 }
-
+                //NOTE: Subdilation storage element population is not implemented for the SOH case
+                if (childOp.getOpType() == "Conv"  && childOp.hasAttr("DilatedSubConv")
+                        && childOp.get<bool>("DilatedSubConv")
+                        && childClustering == "SplitOverH")
+                    return INF;
+                if (parentOp.getOpType() == "Conv" && parentOp.hasAttr("DilatedSubConv")
+                        && parentOp.get<bool>("DilatedSubConv")
+                        && parentClustering == "SplitOverH")
+                    return INF;
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     //This rule only relevant for channel major convs
                     if( enableChannelMajorConv and numInChannels % 16)

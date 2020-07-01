@@ -233,11 +233,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         for (unsigned idx = 0; idx < numericStrides.size(); idx++)
         {
             auto dilationFactor = t->get<unsigned>("dilationFactor");
-            if (idx == 0)
-                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
-            else if (idx == 1)
-                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
-            else if (idx == 3)
+            if (idx == 0 || idx == 1)
                 dilatedStrides[idx] = dilationFactor * numericStrides[idx];
             else
                 dilatedStrides[idx] = numericStrides[idx];

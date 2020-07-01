@@ -84,6 +84,7 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     sliceInput->set<mv::Shape>("originalShape", sourceTensor->getShape());
     subConv->set<mv::Shape>("originalShape", sourceTensor->getShape());
     subConvOp->set<mv::Shape>("originalShape", sourceTensor->getShape());
+    subConvOp->set<std::string>("parentOp", opIt->getName());
     subConvOp->set<unsigned>("subConvIndex", subConvIdx);
     if(opIt->hasAttr("opId"))
     {
