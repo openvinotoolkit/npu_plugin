@@ -261,12 +261,12 @@ void propagateParameters(mv::ComputationModel& model) {
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
+        if (op->getOpType() == "Eltwise") {
             if ( false == areAllInputQuantParamsEqual(om, op) )
             {
-                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"));
+                //throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"));
+                model.log(mv::Logger::MessageType::Debug, " Warning-Error: inputs of the Eltwise/Concat do not have the same QuantParams");
             }
-
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
