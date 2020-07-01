@@ -901,21 +901,25 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         if(masterTile.childTiles().size() > 1)
         {
             auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
-
+            //NOTE: FlowSibling iterators seem to lose some sinks so they are replced...
             // reconnect children to subgraph
-            std::vector<mv::Data::OpListIterator> opsToLink;
-            std::vector<std::size_t> inputSlots;
-            for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            std::vector<std::pair<mv::Data::OpListIterator,size_t>> toReturn;
+            auto outputTensor = opIt->getOutputTensor()[0];
+            for (auto output = opIt.leftmostOutput(); output != om.flowEnd(); ++output)
             {
-                opsToLink.push_back(sinkFlow.sink());
-                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                auto consumer = output.sink();
+                std::size_t slot = 0;
+                for (std::size_t input_idx = 0; input_idx < consumer->getInputTensor().size(); input_idx++)
+                    if (consumer->getInputTensor()[input_idx]->getName() == outputTensor->getName())
+                        slot = input_idx;
+                toReturn.push_back(std::make_pair(consumer, slot));
             }
 
             om.removeOp(opIt);
-            for (unsigned j = 0; j < opsToLink.size(); ++j)
+            for (unsigned j = 0; j < toReturn.size(); ++j)
             {
-                opsToLink[j]->setInputTensor(result, inputSlots[j], false);
-                om.defineFlow(result, opsToLink[j], inputSlots[j]);
+                toReturn[j].first->setInputTensor(result, toReturn[j].second, false);
+                om.defineFlow(result, toReturn[j].first, toReturn[j].second);
             }
         }
 }
