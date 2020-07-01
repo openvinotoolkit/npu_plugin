@@ -59,7 +59,8 @@ namespace mv
             int ddrBandwidth=128;
             int sysClock=500;
             bool globalEnableStreaming=true;
-            bool globalEnableActivationSparsity=false;
+            bool globalEnableActivationSparsity=true;
+            bool globalForceActivationSparsity=false;
             bool globalEnableWeightsSparsity=false;
             bool globalForceSpilling=false;
             bool enableChannelMajorConv=false;
@@ -67,7 +68,7 @@ namespace mv
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp",
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled",
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight"};
+            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK"};
 
 
             void readGlobalConfigs()
@@ -86,7 +87,8 @@ namespace mv
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
-                globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
+                // globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
+                globalForceActivationSparsity = globalStrategies_["forceActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
             }
@@ -943,6 +945,13 @@ namespace mv
                         return 11;
                 }
 
+                if(requiresRealActivationSparsity(op, clustering) && !strategy["inputSparsity"].get<bool>())
+                    return 12;
+
+
+                if(strategy["inputSparsity"].get<bool>() && (clustering == "SplitOverK"))
+                    return 13;
+
 
                 return 0; //good strategy
             }
@@ -1216,23 +1225,38 @@ namespace mv
                 }
 
 
-                //These sparsity rules apply pairwise, and effect memory size and execution time.
-                //Make a local decision to get the correct runtime and execution time, but don't persist
-                //Sparsity will not be applied where disallowed in later passes
+                // These sparsity rules apply pairwise, and effect memory size and execution time.
+                // Note: Activation sparsity now decided by GO
                 bool parentOutputSparsity = parent["outputSparsity"].get<bool>();
                 bool childInputSparsity = child["inputSparsity"].get<bool>();
 
+                // Sparsity must match
+                if(parentOutputSparsity != childInputSparsity)
+                {
+                    log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
+                           return INF;
+                }
+
                 if(parent["spilling"].get<bool>()){
-                    parentOutputSparsity = false;
-                    childInputSparsity = false;
+                    if(parent["outputSparsity"].get<bool>() ||
+                       child["inputSparsity"].get<bool>()){
+                           log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling to sparsity");
+                           return INF;
+                       }
                 }
 
                 // In cases where real activation sparsity  will be required later
                 // ensure there is enough memory for them
-                if(requiresRealActivationSparsity(childOp, childClustering)){
-
-                    parentOutputSparsity = true;
-                    childInputSparsity = true;
+                if(requiresRealActivationSparsity(childOp, childClustering))
+                {
+                    // Note: equivalent child check happens in checkForBadStrategy
+                    if(!parent["outputSparsity"].get<bool>()){
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by dense output, sparse input");
+                           return INF;
+                    }
                 }
 
                 bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
@@ -1241,42 +1265,45 @@ namespace mv
                     childInputSparsity = true;
                 }
 
+                
+                // Note: Should no longer need to recheck for sparse memory size - we check the actual sparse memory size
+                // when generating the strategies now!
                 //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
                 //does not exceed CMX
-                if(childInputSparsity)
-                {
-                    auto parentMem = memorySize(parentOp,
-                                            parentClustering,
-                                            false,
-                                            parentOutputSparsity,
-                                            parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(),
-                                            requiresFakeActivationSparsity(parentOp));
+                // if(childInputSparsity)
+                // {
+                //     auto parentMem = memorySize(parentOp,
+                //                             parentClustering,
+                //                             false,
+                //                             parentOutputSparsity,
+                //                             parent["weightsSparsity"].get<bool>(),
+                //                             parent["streaming"].get<Shape>(),
+                //                             requiresFakeActivationSparsity(parentOp));
 
-                    auto childMem = memorySize(childOp,
-                                            childClustering,
-                                            childInputSparsity,
-                                            false,
-                                            child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>(),
-                                            requiresFakeSparsity);
+                //     auto childMem = memorySize(childOp,
+                //                             childClustering,
+                //                             childInputSparsity,
+                //                             false,
+                //                             child["weightsSparsity"].get<bool>(),
+                //                             child["streaming"].get<Shape>(),
+                //                             requiresFakeSparsity);
 
 
-                    if( (childOp.getOpType() != "Output") and
-                      ( (childMem.first + childMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
-                            return INF;
-                    }
-                    if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
-                      ( (parentMem.first + parentMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
-                            return INF;
-                    }
-                }
+                //     if( (childOp.getOpType() != "Output") and
+                //       ( (childMem.first + childMem.second) > clusterMemory) )
+                //     {
+                //             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                //                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
+                //             return INF;
+                //     }
+                //     if( (parentOp.getOpType() != "Input") and (parentOp.getOpType() != "Concat") and
+                //       ( (parentMem.first + parentMem.second) > clusterMemory) )
+                //     {
+                //             log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                //                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
+                //             return INF;
+                //     }
+                // }
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
@@ -1465,14 +1492,6 @@ namespace mv
                 }
 
 
-                bool inputActivationSparsity = false;
-                bool outputActivationSparsity = false;
-                if(globalEnableActivationSparsity)
-                {
-                    inputActivationSparsity = createStrategyFromBool(op,"inputActivationSparsity");
-                    outputActivationSparsity = createStrategyFromBool(op,"outputActivationSparsity");
-                }
-
                 bool weightsSparsity = false;
                 if(requiresWeightsSparsity(op))
                     weightsSparsity = true;
@@ -1492,10 +1511,24 @@ namespace mv
                     for( const auto clustering : clusteringStrategyPool)
                     {
                         // Make decision about input activation sparsity, depending on clustering strategy
-                        bool iAS = inputActivationSparsity;
+                        vector<Attribute> inputActivationSparsity = {false};
+                        vector<Attribute> outputActivationSparsity = {false};
+                        if(globalEnableActivationSparsity)
+                        {
+                            inputActivationSparsity = createTFStrategyPoolFromBool(op,"inputActivationSparsity");
+                            outputActivationSparsity = createTFStrategyPoolFromBool(op,"outputActivationSparsity");
+                        }
+                        if(globalForceActivationSparsity)
+                        {
+                            inputActivationSparsity = {createStrategyFromBool(op,"inputActivationSparsity")};
+                            outputActivationSparsity = {createStrategyFromBool(op,"outputActivationSparsity")};
+                        }
+                        for(const auto inputSparsity : inputActivationSparsity)
+                        {
+                        for(const auto outputSparsity : outputActivationSparsity)
+                        {
                         bool fakeSparsity = requiresFakeActivationSparsity(op);
-                        if (!iAS and requiresActivationSparsity(op, clustering.get<string>()))
-                            iAS = true;
+
 
                         // Determine streaming options
                         // 0. Determine if streams over H are possible
@@ -1508,7 +1541,7 @@ namespace mv
                         unsigned minSplitOverH = 1;
                         if(hasStreamOverH)
                         {
-                            maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,1,1},fakeSparsity);
+                            maxSplitOverH = getStreamsOverH(op,clustering,inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,1,1},fakeSparsity);
                             if(maxSplitOverH < 1) maxSplitOverH = 1;
                         }
 
@@ -1533,9 +1566,9 @@ namespace mv
 
                         bool enableNestedStreaming = false;
                         auto maxK = streamsOverK.front();
-                        auto memK = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,maxK,n},fakeSparsity);
+                        auto memK = memorySize(op,clustering,inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,maxK,n},fakeSparsity);
                         auto memoryMaxK = memK.first + memK.second;
-                        auto memH = memorySize(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,maxSplitOverH,1,1,n},fakeSparsity);
+                        auto memH = memorySize(op,clustering,inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,maxSplitOverH,1,1,n},fakeSparsity);
                         auto memoryMaxH = memH.first + memH.second;
 
 
@@ -1553,7 +1586,7 @@ namespace mv
                         {
                             if(enableNestedStreaming) // generate h on the fly
                             {
-                                maxSplitOverH = getStreamsOverH(op,clustering,iAS,outputActivationSparsity,weightsSparsity,{1,1,1,k,1},fakeSparsity);
+                                maxSplitOverH = getStreamsOverH(op,clustering,inputSparsity.get<bool>(),outputSparsity.get<bool>(),weightsSparsity,{1,1,1,k,1},fakeSparsity);
                                 minSplitOverH = maxSplitOverH -1;
                             }
                             if(minSplitOverH < 1) minSplitOverH = 1;
@@ -1579,11 +1612,12 @@ namespace mv
                                     s["name"] = op.getName();
                                     s["id"] = (unique_ctr++);
                                     //Input sparsity is always enabled/disabled by global switch, except in this case were it is disallowed
-                                    if(clustering.get<string>() == "SplitOverK")
-                                        s["inputSparsity"] = false;
-                                    else
-                                        s["inputSparsity"] = inputActivationSparsity;
-                                    s["outputSparsity"] = outputActivationSparsity;
+                                    // if(clustering.get<string>() == "SplitOverK")
+                                    //     s["inputSparsity"] = false;
+                                    // else
+                                    //     s["inputSparsity"] = inputActivationSparsity;
+                                    s["inputSparsity"] = inputSparsity;
+                                    s["outputSparsity"] = outputSparsity;
                                     s["weightsSparsity"] = weightsSparsity;
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
@@ -1598,6 +1632,7 @@ namespace mv
 
                                     strategyVec.push_back(s);
                                 }
+                            }}
                             }
                         }
                     }
