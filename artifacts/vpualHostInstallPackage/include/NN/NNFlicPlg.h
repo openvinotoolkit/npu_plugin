@@ -58,6 +58,7 @@ class NNFlicPlg : public PluginStub{
     void SetNumberOfThreads(int32_t threadNum);
     void SetNumberOfShaves(int32_t shaves);
     void SetScratchBuffer(const std::vector<void *> &physAddrs) const;
+    void SetPrefetchBuffer(void* physAddrs, unsigned int size, bool skipInit = false) const;
 
     NNPlgState GetLatestState();
 

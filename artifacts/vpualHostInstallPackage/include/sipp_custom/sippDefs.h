@@ -243,6 +243,7 @@ enum SippFilters {
     svuHistogram                          = BASE_SW_ID + 194,
     svuEqualizeHist                       = BASE_SW_ID + 195,
     svuDilateGeneric                      = BASE_SW_ID + 196,
+    svuCvtInterleavedtoPlanar             = BASE_SW_ID + 197,
 };
 
 // SIPP function identifiers.

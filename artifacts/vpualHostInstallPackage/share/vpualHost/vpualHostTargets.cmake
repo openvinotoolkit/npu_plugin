@@ -62,7 +62,7 @@ add_library(RemoteFlic SHARED IMPORTED)
 
 set_target_properties(RemoteFlic PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/RemoteFlic"
-  INTERFACE_LINK_LIBRARIES "VpualDispatcher"
+  INTERFACE_LINK_LIBRARIES "VpualDispatcher;pthread"
 )
 
 # Create imported target NN
@@ -70,7 +70,7 @@ add_library(NN SHARED IMPORTED)
 
 set_target_properties(NN PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/NN"
-  INTERFACE_LINK_LIBRARIES "XLink;RemoteFlic;VpualDispatcher"
+  INTERFACE_LINK_LIBRARIES "XLink;RemoteFlic;VpualDispatcher;pthread"
 )
 
 # Create imported target OSD
