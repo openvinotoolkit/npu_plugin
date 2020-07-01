@@ -765,7 +765,7 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
     }
 
     // read in actual inference results
-    std::string actualInferencePath = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/actual_inference_results.txt");
+    std::string actualInferencePath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/actual_inference_results.txt");
     std::ifstream inActual(actualInferencePath);
     std::vector<std::string> actualInferenceResults;
     std::cout << std::endl << "Actual top 10:   ";
