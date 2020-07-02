@@ -170,7 +170,7 @@ mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpLi
             {
                 auto backUp = paramOp;
                 ++paramOp;
-                //om.removeOp(backUp); //Hack for Dilated conv test
+                om.removeOp(backUp);
             }
             else
                 ++paramOp;
