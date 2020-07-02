@@ -27,45 +27,24 @@ namespace mv
 
 }
 
-void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
-{
+namespace mv {
 
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-
-    if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
-
-    bool verbose = false;
-    if (passDesc.hasAttr("verbose"))
-        verbose = passDesc.get<bool>("verbose");
-
-    std::string outputScope = passDesc.get<std::string>("scope");
-
-    if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
-        outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
-        throw ArgumentError(model, "scope", outputScope, "Invalid model scope");
-
-    std::string contentLevel = passDesc.get<std::string>("content");
-//    if (contentLevel != "full" && outputScope != "name")
-//        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
-
-    bool htmlLike = passDesc.get("html");
+void GenerateDotFromModel(mv::ComputationModel& model, 
+    const std::string& outputScope, const std::string& outputFile,
+    const std::string& contentLevel, bool htmlLike, bool verbose) {
 
     std::ofstream ostream;
-    std::string outputFile = passDesc.get<std::string>("output");
-
     mv::utils::validatePath(outputFile);
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw ArgumentError(model, "output", outputFile, "Unable to open output file");
+        throw mv::ArgumentError(model, "output", outputFile, "Unable to open output file");
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
 
     if (outputScope != "DataModel")
     {
-        OpModel opModel(model);
+      mv::OpModel opModel(model);
 
         for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
         {
@@ -149,7 +128,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
         if (outputScope == "OpModel" || outputScope == "ExecOpModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
 
-            DataModel dataModel(model);
+          mv::DataModel dataModel(model);
 
             for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
             {
@@ -224,7 +203,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         if (outputScope == "ControlModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-            ControlModel controlModel(model);
+          mv::ControlModel controlModel(model);
 
             for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
             {
@@ -290,7 +269,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     else
     {
 
-        DataModel dataModel(model);
+      mv::DataModel dataModel(model);
 
         for (auto tIt = dataModel.tensorBegin(); tIt != dataModel.tensorEnd(); ++tIt)
         {
@@ -395,4 +374,38 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     ostream << "}\n";
     ostream.close();
+}
+
+}
+
+
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
+        throw mv::ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
+
+    bool verbose = false;
+    if (passDesc.hasAttr("verbose"))
+        verbose = passDesc.get<bool>("verbose");
+
+    std::string outputScope = passDesc.get<std::string>("scope");
+
+    if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
+        outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
+        throw mv::ArgumentError(model, "scope", outputScope, "Invalid model scope");
+
+    std::string contentLevel = passDesc.get<std::string>("content");
+//    if (contentLevel != "full" && outputScope != "name")
+//        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
+
+    bool htmlLike = passDesc.get("html");
+
+    std::string outputFile = passDesc.get<std::string>("output");
+    mv::GenerateDotFromModel(model, outputScope, outputFile,
+          contentLevel, htmlLike, verbose);
+
 }

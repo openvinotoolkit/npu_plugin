@@ -60,10 +60,19 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
+
+                auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
+
+                // NOTE: workaround for SSD-512 to avoid fp16 overflow in Normalize kernel
+                //       to be removed when VPUNND-3235 is resolved
+                if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Normalize")
+                    quant_params = task->get<mv::QuantizationParams>("quantParams");
+
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
-                quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                            quant_params, "Quantize" + task->getName() + std::to_string(id));
+                if (tensor->hasAttr("splitStrategy"))
+                    quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
+                
                 auto quantizeOp = om.getSourceOp(quantize);
                 quantizeOp->set<unsigned>("opId", task->get<unsigned>("opId"));
 
@@ -161,8 +170,8 @@ void addSliceQuantizationLayer(mv::OpModel om, std::vector<mv::Data::OpListItera
                 {
                     quantize = om.uPATaskQuantize({tensor}, outputDType,
                             tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + slice->getName() + std::to_string(id));
-                    quantize->set<std::string>("splitStrategy",
-                            tensor->get<std::string>("splitStrategy"));
+                    if (tensor->hasAttr("splitStrategy"))
+                        quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                     auto quantizeOp = om.getSourceOp(quantize);
                     quantizeOp->set<unsigned>("opId", slice->get<unsigned>("opId"));
                 }
@@ -221,6 +230,9 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     {
         std::vector<mv::Data::OpListIterator> afterSlice =
                 mv::findSinkLayers(dm, slice->getOutputTensor(0));
+        // Handle back-to-back slices
+        if(afterSlice[0]->getOpType() == "Slice")
+            afterSlice[0] = afterSlice[0].leftmostOutput().sink();
         auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
                            afterSlice[0]->getName());
         if (it != dpuTasksFP16Names.end())
@@ -276,8 +288,10 @@ static void configureOutputPrecisionFcn(const mv::pass::PassEntry&, mv::Computat
             }
             auto quantize = om.uPATaskQuantize({outputOp[0]->getInputTensor(0)}, wantedPrecision,
                         outputOp[0]->getInputTensor(0)->get<mv::QuantizationParams>("quantParams"), "Precision" + outputOp[0]->getName());
-            quantize->set<std::string>("splitStrategy",
-                        outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
+            if (outputOp[0]->getInputTensor(0)->hasAttr("splitStrategy"))
+                quantize->set<std::string>("splitStrategy", outputOp[0]->getInputTensor(0)->get<std::string>("splitStrategy"));
+            
             quantize->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::OUTPUT);
             outputOp[0]->getInputTensor(0)->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
             outputOp[0]->getInputTensor(0)->set<mv::QuantizationParams>("quantParams",

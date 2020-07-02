@@ -373,7 +373,15 @@ class Control_Model_Barrier_Scheduler {
       recomputeProducerConsumerCounts();
 
       btask_count -= removed_barriers;
+
       return btask_count;
+    }
+
+    void remove_redundant_wait_barriers() {
+      mv::OpModel om(control_model_);
+      locate_and_remove_redundant_wait_barriers();
+      renumberBarrierTasks(om);
+      recomputeProducerConsumerCounts();
     }
 
     void remove_barriers_in_upa_chain_connected_to_output() {
@@ -384,6 +392,32 @@ class Control_Model_Barrier_Scheduler {
       get_tailing_upa_chain(std::back_inserter(upa_chain));
 
       if (!upa_chain.empty() && is_barrier_op(upa_chain.back())) {
+        //Updating barriers of the parents of the barrier task of first UPA Layer //
+        mv::Data::OpListIterator upaBitr = om.getOp(upa_chain.back()->getName());
+        const mv::Barrier& currB =
+          upaBitr->get<mv::Barrier>("Barrier");
+        unsigned currB_index = currB.getIndex();
+        mv::Control::OpListIterator upaCBitr = cm.switchContext(upaBitr);
+
+        for (mv::Control::OpParentIterator pitr=upaCBitr.leftmostParent();
+            pitr!=cm.opEnd(); ++pitr){
+          mv::BarrierDependencies& barrierRefParent =
+            pitr->get<mv::BarrierDependencies>("BarrierDeps");
+          std::vector<unsigned> updateB = barrierRefParent.getUpdate();
+          barrierRefParent.clearUpdateBarriers();
+
+          for(auto t = 0; t < updateB.size(); t++){
+            if(updateB[t] == currB_index)
+              continue;
+            barrierRefParent.addUpdateBarrier(updateB[t]);
+          }
+          // Adding control edge between parents of barrier and first UPA Layer //
+          for(mv::Control::OpChildIterator childItr=upaCBitr.leftmostChild();
+                childItr!=cm.opEnd(); ++childItr) {
+            cm.defineFlow(om.getOp(pitr->getName()), om.getOp(childItr->getName()));
+          }
+        }
+        om.removeOp(om.getOp(upa_chain.back()->getName()));
         upa_chain.pop_back();
       }
       if (upa_chain.empty()) { return; }
@@ -395,20 +429,19 @@ class Control_Model_Barrier_Scheduler {
         assert( is_upa_op(curr_op) || is_barrier_op(curr_op) );
 
         if (is_upa_op(curr_op)) {
+          //removing barrier references for UPA Tailing Layers //
+          mv::BarrierDependencies& barrierRef =
+             om.getOp(curr_op->getName())->get<mv::BarrierDependencies>("BarrierDeps");
+          barrierRef.clear();
+          om.getOp(curr_op->getName())->set<bool>("trailing", true);
           // add control edge prev_upa->curr_upa //
           if (prev_upa_op) {
             auto prev_upa_itr = om.getOp(prev_upa_op->getName());
             auto curr_upa_itr = om.getOp(curr_op->getName());
             cm.defineFlow(prev_upa_itr, curr_upa_itr);
-            // clear barrier references if any to avoid runtime warnings //
-            mv::BarrierDependencies& barrierRef =
-              curr_upa_itr->get<mv::BarrierDependencies>("BarrierDeps");
-            barrierRef.clear();
-            curr_upa_itr->set<bool>("trailing", true);
-          }
+	  }
           prev_upa_op = curr_op;
-        } else {
-          // remove the barrier //
+          } else {
           om.removeOp(om.getOp(curr_op->getName()));
         }
       }
@@ -429,8 +462,9 @@ class Control_Model_Barrier_Scheduler {
     }
 
     bool has_in_degree_equal_to_k(control_op_iterator_t itr, size_t k) const {
-      control_op_iterator_t pitr=itr.leftmostParent(),
-                            pitr_end=control_model_.opEnd();
+      mv::Control::OpParentIterator pitr=itr.leftmostParent(), 
+          pitr_end=control_model_.opEnd();
+
       size_t degree=0UL; 
       for (;(pitr!=pitr_end) && (degree < k); ++pitr, ++degree) {}
 
@@ -441,6 +475,14 @@ class Control_Model_Barrier_Scheduler {
       return has_in_degree_equal_to_k(itr, 1UL);
     }
 
+    bool has_unit_out_degree(control_op_iterator_t itr) const {
+      mv::Control::OpChildIterator citr = itr.leftmostChild(), 
+          citr_end=control_model_.opEnd();
+      if (citr == citr_end) { return false; }
+      ++citr;
+      return (citr == citr_end);
+    }
+
     bool has_non_zero_in_degree(control_op_iterator_t itr) const {
       return itr.leftmostParent() !=  control_model_.opEnd();
     }
@@ -448,6 +490,12 @@ class Control_Model_Barrier_Scheduler {
     template<typename T>
     bool is_upa_op(T itr) const {
       return itr->getOpType() == "UPATask";
+    }
+
+    template<typename T>
+    bool is_real_task_in_blob(T itr) const {
+      return (itr->getOpType() == "UPATask") || (itr->getOpType() == "DMATask")
+        || (itr->getOpType() == "DPUTask");
     }
 
     bool is_input_or_output_op(control_op_iterator_t itr) const {
@@ -516,6 +564,102 @@ class Control_Model_Barrier_Scheduler {
       }
     }
 
+
+    size_t locate_and_remove_redundant_wait_barriers() {
+      mv::OpModel om(control_model_);
+
+      FILE *fptr = fopen("redundant_barriers.txt", "w");
+      size_t total = 0;
+      for (op_iterator_t oitr=omtraits::begin_operations(om);
+            oitr!=omtraits::end_operations(om); ++oitr) {
+        if (!is_real_task_in_blob(oitr)) { continue; }
+        size_t rcount = remove_redundant_wait_barriers(oitr);
+
+        if (rcount) {
+          fprintf(fptr, "op=%s rcount=%lu\n", oitr->getName().c_str(),
+              rcount);
+        }
+        total += rcount;
+      }
+      fprintf(fptr, "total=%lu\n", total);
+      fclose(fptr);
+
+      return total;
+    }
+
+    size_t remove_redundant_wait_barriers(mv::Data::OpListIterator op_itr) {
+      mv::ControlModel &cm = control_model_;
+      mv::Control::OpListIterator cop_itr = cm.switchContext(op_itr);
+      mv::OpModel om(control_model_);
+
+
+      std::vector<std::string> barriers_with_unit_out_degree;
+
+      for (mv::Control::OpParentIterator pitr=cop_itr.leftmostParent();
+            pitr!=cm.opEnd(); ++pitr) {
+        const mv::Barrier& barrier = pitr->get<mv::Barrier>("Barrier");
+        size_t consumer_count = (barrier.getConsumers()).size();
+        if (consumer_count == 1UL) {
+          barriers_with_unit_out_degree.push_back(pitr->getName());
+        }
+      }
+
+      if (barriers_with_unit_out_degree.size() > 1UL) {
+        //STEP-0 //
+        mv::Data::OpListIterator canonical_barrier_itr =
+            om.getOp(barriers_with_unit_out_degree[0]);
+        mv::Barrier& canonical_barrier =
+            canonical_barrier_itr->get<mv::Barrier>("Barrier");
+        unsigned canonical_barrier_index = canonical_barrier.getIndex();
+
+        for (size_t i=1; i<barriers_with_unit_out_degree.size(); ++i) {
+          // STEP-1.1: add parents of this barrier to the producer list of
+          // the canonical barrier.
+          // STEP-1.2: remove this barrier from update list of each parent.
+          // STEP-1.3: remove this barrier.
+          // STEP-1.4: add the canonical barrier to the update list of each 
+          // parent 
+          // STEP-1.5: add control edges between the parents and canonical 
+          // barrier
+
+          mv::Data::OpListIterator curr_op_bitr =
+              om.getOp(barriers_with_unit_out_degree[i]);
+          const mv::Barrier& curr_barrier =
+              curr_op_bitr->get<mv::Barrier>("Barrier");
+          unsigned curr_barrier_index = curr_barrier.getIndex();
+          mv::Control::OpListIterator cbitr = cm.switchContext(curr_op_bitr);
+          
+          for (mv::Control::OpParentIterator pitr=cbitr.leftmostParent();
+                pitr!=cm.opEnd(); ++pitr) {
+            mv::BarrierDependencies& barrier_deps =
+                pitr->get<mv::BarrierDependencies>("BarrierDeps");
+            std::vector<unsigned> update_barriers = barrier_deps.getUpdate();
+            barrier_deps.clearUpdateBarriers();
+
+            // STEP-1.1 //
+            canonical_barrier.addProducer(pitr->getName());
+
+            for (size_t idx=0; idx<update_barriers.size(); ++idx) {
+              if (update_barriers[idx] == curr_barrier_index) {
+                // STEP-1.2 , 1.4 //
+                update_barriers[idx] = canonical_barrier_index;
+              }
+              barrier_deps.addUpdateBarrier(update_barriers[idx]);
+            }
+
+            mv::Data::OpListIterator source = om.getOp(pitr->getName());
+            mv::Data::OpListIterator sink = canonical_barrier_itr;
+            // STEP-1.5 //
+            cm.defineFlow(source, sink);
+          }
+          // STEP-1.3 //
+          om.removeOp(curr_op_bitr);
+        }
+      }
+
+      return barriers_with_unit_out_degree.empty()
+          ? 0UL : (barriers_with_unit_out_degree.size()-1UL);
+    }
 
 
     // mostly barriers connected to output //

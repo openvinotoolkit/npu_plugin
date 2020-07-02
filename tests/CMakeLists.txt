@@ -61,6 +61,10 @@ file(GLOB transitive_reduction_algorithm
     "${CMAKE_SOURCE_DIR}/tests/unit/graph/graph_transitive_reduction.cpp"
 )
 
+file(GLOB path_splitter_unit_tests 
+    "${CMAKE_SOURCE_DIR}/tests/unit/graph/path_spiltter_test.cpp"
+)
+
 file(GLOB barrier_deps_test 
     "${CMAKE_SOURCE_DIR}/tests/unit/target/kmb/barriers_test.cpp"
 )
@@ -101,6 +105,7 @@ add_executable(mcm_unit_tests
     ${runtime_model_unit_tests}
     ${barrier_deps_test}
     ${transitive_reduction_algorithm}
+    ${path_splitter_unit_tests}
     ${fake_quantize_processing_unit_tests}
 )
 

@@ -3,24 +3,24 @@
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
+#include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task);
 void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -39,29 +39,9 @@ namespace mv
         .setDescription(
             "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
         );
-
-        MV_REGISTER_PASS(DecideTasksPrecision)
-        .setFunc(decideTasksPrecisionFcn)
-        .setDescription(
-            "Replaces DPU Tasks with no Quant Params with float DPU Tasks"
-        );
     }
 
 }
-
-void placeNeutralMaxPoolBefore(mv::OpModel om, mv::Data::OpListIterator task)
-{
-    auto inputFlow = task.leftmostInput();
-    auto neutralMaxPool = om.maxPool(task->getInputTensor(0), {1,1}, {1,1}, {0, 0, 0, 0},
-                                     false, mv::DType("Float16"), {{0}, {1.0f}, {}, {}}, task->getName() + "MaxPool");
-    auto maxPoolOp = om.getSourceOp(neutralMaxPool);
-    maxPoolOp->set<unsigned>("opId", task->get<unsigned>("opId"));
-    maxPoolOp->set<bool>("softwareExecuted", true);
-    om.undefineFlow(inputFlow);
-    task->setInputTensor(neutralMaxPool, 0, false);
-    om.defineFlow(neutralMaxPool, task, 0);
-}
-
 
 void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                        mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -76,9 +56,10 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
     replaceConcatOfPopulatedTensorsFcn(pass, model);
+    reorgYoloAsConvConcatFcn(pass, model);
 }
 
-void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -132,7 +113,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 
 //NOTE: This pass will handle cases that we have Convs -> Eltwise for testing ResNet first of all....
 //General solution dequantize the input Tensors of these special Elwise, even with sw de-quantize
-void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void handleEltWiseDifferentScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -181,55 +162,6 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
-void decideTasksPrecisionFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    //Note: This pass will be dis-abled and enabled only for cases that we want to execute fp16 precision dpu tasks
-    //these tasks are marked cause they have no quant params...Important here is that the Z-major Convolution has
-    //the limitation of sparse tensors, so we need to have a maxpool(neutral) before that
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-    mv::OpModel om(model);
-    std::vector<std::string> futere_dpu_types = {"Eltwise", "DepthwiseConv","MaxPool"};
-    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operationsOfType
-            = om.getOpsOfTypes(futere_dpu_types);
-    mv::QuantizationParams emptyQuantizationParams = {{}, {}, {}, {}};
-    mv::QuantizationParams neutralQuantizationParams = {{0}, {1.0}, {}, {}};
-    std::vector<mv::Data::OpListIterator> simpleDpuCases = operationsOfType["Eltwise"];
-    std::merge(operationsOfType["DepthwiseConv"].begin(), operationsOfType["DepthwiseConv"].end(),
-            operationsOfType["MaxPool"].begin(), operationsOfType["MaxPool"].end(), simpleDpuCases.begin());
-
-    for (auto& opIt : simpleDpuCases)
-    {
-        if(opIt->get<bool>("softwareExecuted"))
-            continue;
-
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-    }
-
-    auto convOps = om.getOps("Conv");
-    for (auto& opIt : convOps)
-    {
-        if (opIt->get<mv::QuantizationParams>("quantParams").isEmpty())
-            opIt->set<bool>("softwareExecuted", true);
-        else
-        {
-            if (opIt->get<mv::QuantizationParams>("quantParams").isNeutral())
-                opIt->set<bool>("softwareExecuted", true);
-        }
-        if (opIt->hasAttr("softwareExecuted"))
-        {
-             if (opIt->get<bool>("softwareExecuted"))
-                placeNeutralMaxPoolBefore(om, opIt);
-        }
-    }
-}
-
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
 
@@ -256,7 +188,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
               (inHeight / outHeight) == inWidth / outWidth)
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto factor = inHeight / outHeight;
+            auto factor = (unsigned short) (inHeight / outHeight);
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             std::array<unsigned short, 2> kSize({factor, factor});
@@ -286,6 +218,88 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
         }
+    }
+}
+
+void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto reorgYoloOps = om.getOps("ReorgYolo");
+
+    for (auto &opIt : reorgYoloOps)
+    {
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto sourceTensor = opIt->getInputTensor(0);
+        auto parentOpIt = om.getSourceOp(sourceTensor);
+        auto inputShape = sourceTensor->getShape();
+        unsigned stride = opIt->get<unsigned>("stride");
+        unsigned C = inputShape[2];
+        mv::QuantizationParams weightsTensorQuantizationParams = {{0}, {1.}, {}, {}};
+        mv::QuantizationParams outputTensorQuantizationParams = {{}, {}, {}, {}};
+
+        if (opIt->getInputTensor(0)->isQuantized())
+        {
+            outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        }
+        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+
+        std::vector<mv::Data::TensorIterator> convOutputs;
+
+        int kernelStep = stride * stride;
+        for (unsigned rowIdx = 0; rowIdx < stride; rowIdx++)
+        {
+            for (unsigned colIdx = 0; colIdx < stride; colIdx++)
+            {
+                int kernelOffset = colIdx + stride * rowIdx;
+                mv::Data::TensorIterator weight;
+                if (sourceTensor->isDoubleType())
+                {
+                    std::vector<double> weightData(C * stride * stride, 0.);
+                    for (unsigned cIdx = 0; cIdx < C; cIdx++)
+                    {
+                        weightData[kernelOffset + cIdx * kernelStep] = 1.;
+                    }
+                    weight = om.constant(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
+                                         mv::Order(mv::Order::getRowMajorID(4)),
+                                         weightsTensorQuantizationParams);
+                }
+                else
+                {
+                    std::vector<int64_t> weightData(C * stride * stride, 0);
+                    for (unsigned cIdx = 0; cIdx < C; cIdx++)
+                    {
+                        weightData[kernelOffset + cIdx * kernelStep] = 1;
+                    }
+                    weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
+                                            mv::Order(mv::Order::getRowMajorID(4)),
+                                            weightsTensorQuantizationParams);
+                }
+                auto gridConv = om.depthwiseConv(sourceTensor, weight, {stride, stride}, {0, 0, 0, 0}, 1, outputTensorType,
+                                                 outputTensorQuantizationParams,
+                                                 opIt->getName() + "_DepthwiseConvGrid" + ":_" + std::to_string(rowIdx) + "_" + std::to_string(colIdx) + "_");
+                auto convOp = om.getSourceOp(gridConv);
+                auto weightOp = om.getSourceOp(weight);
+                if (opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    convOp->set<unsigned>("opId", currentOpId);
+                    weightOp->set<unsigned>("opId", currentOpId);
+                }
+                convOutputs.push_back(gridConv);
+            }
+        }
+        auto concat = om.concat(convOutputs, "C", outputTensorType, outputTensorQuantizationParams, opIt->getName() + "_Concat");
+        auto concatOp = om.getSourceOp(concat);
+        if (opIt->hasAttr("opId"))
+        {
+            unsigned currentOpId = opIt->get<unsigned>("opId");
+            concatOp->set<unsigned>("opId", currentOpId);
+        }
+        linkNewOperationsReplacement(parentOpIt, concat, om, opIt);
+        concat->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
 
@@ -345,7 +359,7 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void averageAsDepthWiseFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -433,7 +447,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
     }
 }
 
-void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void topKAsArgMaxFcn(const mv::pass::PassEntry& , mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -483,7 +497,7 @@ void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mode
     }
 }
 
-void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void flattenAsReshapeFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -521,7 +535,7 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
     }
 }
 
-std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short n)
+std::vector<std::pair<unsigned short, unsigned short>> getFactorsList(unsigned short n)
 {
     std::vector<std::pair<unsigned short, unsigned short>> factors;
     for(int i = 2; i <= sqrt(n); i++)
@@ -535,16 +549,56 @@ std::vector<std::pair<unsigned short, unsigned short>> getFactors(unsigned short
     return factors;
 }
 
+std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
+{
+    std::vector<std::pair<unsigned short, unsigned short>> allFactors = getFactorsList(kernelSize);
+    std::pair<unsigned short, unsigned short> factors;
+    if (allFactors.empty()) // Original kernel size IS PRIME
+    {
+        // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
+        allFactors = getFactorsList(kernelSize - 1);
+        factors = allFactors.back(); // Get the most equal factors
+
+        // These factors are for ksize - 1, so increase smaller factor by 1
+        if( factors.first == factors.second)
+            factors.first++;
+        else
+            factors.second++;
+
+
+        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) || 
+                (factors.first * factors.second > (kernelSize + factors.second/2) ) )
+        {
+            // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
+            allFactors = getFactorsList(kernelSize + 1);
+            factors = allFactors.back(); // Get the most equal factors
+        }
+    }
+    else // Original kernel size NOT PRIME
+    {
+        factors = allFactors.back(); // Get the most equal factors
+    }
+    return factors;
+}
+
+unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t inputShape, size_t outputShape)
+{
+    double updatedOutput = outputShape * factors.second;
+    unsigned short pad = updatedOutput*factors.first -  inputShape;
+
+    return pad;
+}
+
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, unsigned short newKernel,
-                                                 std::array<unsigned short, 4> padding)
+                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
+                                                 std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
 
     // Calculate strides based on new kernel sizes
-    std::array<unsigned short, 2> stride = {newKernel, newKernel};
+    std::array<unsigned short, 2> stride = {newKernel[0], newKernel[1]};
 
-    unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel * newKernel;
+    unsigned int total_shape = 1 * inputShape[mv::IO_CHANNEL_DIMENSION] * newKernel[0] * newKernel[1];
 
     unsigned short channel_multiplier = 1;
 
@@ -559,6 +613,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+    double inf = std::numeric_limits<double>::infinity();
 
 
     // Create weights tensor
@@ -568,7 +623,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 		std::vector<double> weightsData(total_shape, weightsValue);
 		//NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
 		weights = om.constant(weightsData,
-                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
     }
 	else
@@ -578,12 +633,12 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 		// If the input model is quantized, then the replacement pass needs to create
 		// quantization params for the weights parameter of the depthwise convolution.
 		weights = om.constantInt(weightsData,
-                                {newKernel, newKernel, inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
 	}
     // Create depthwise conv
 	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized())
+	if (sourceTensor->isQuantized() && quantRequired)
 	{
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
@@ -591,7 +646,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
 	}
 	else
 	{
-        mv::QuantizationParams emptyQuantParams({{}, {}, {}, {}});
+        mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
  	}
 
@@ -645,11 +700,11 @@ bool canReplaceAveragePool(mv::Data::OpListIterator first, mv::Data::OpListItera
     // This condition handles these cases
     // nx1 -> reshape -> reshape -> nx1
     // nx1 -> reshape -> 1xn
-    return (first_kernel[0] == second_kernel[1] && first_kernel[1] == second_kernel[0] == 1) ||
+    return (first_kernel[0] == second_kernel[1] && first_kernel[1] == 1 && second_kernel[0] == 1) ||
             (first_kernel == second_kernel && first_kernel[0] == 1 && reshape_dims[0] == 1);
 }
 
-void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model) {
+void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationModel& model) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     // Note: Pattern is reversed. First AveragePool in vector is the last AveragePool in graph
@@ -732,95 +787,193 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     {
         std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
 
-        if(kSize[0] < MAX_KERNEL and kSize[1] < MAX_KERNEL) // can do as single depthwise, skip
-            continue;
+        if(kSize[mv::KERNEL_WIDTH] <= MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= MAX_KERNEL) // can do as single depthwise, skip
+            continue;//skip for this avgPool
 
-        if((kSize[0] != kSize[1]) and (kSize[0] > MAX_KERNEL or kSize[1] > MAX_KERNEL))
+        //figure out the bigger kernel dimension width or height when having an asymmetric kernel
+        auto kernelSize = kSize[mv::KERNEL_WIDTH];
+        auto largeDim = mv::KERNEL_WIDTH;
+        auto asymmetricCase = false;
+        auto asymmetricBothKernelsLarge = false;
+
+        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) and (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL or kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL))
         {
-            // TODO deal with asymetric kernels too large
-            continue;
+            if (kSize[mv::KERNEL_WIDTH] > MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] > MAX_KERNEL)
+                asymmetricBothKernelsLarge = true;
+
+            // deal with asymetric kernels when one dim is larger than MAX_KERNEL
+            asymmetricCase = true;
+            if (kSize[mv::KERNEL_WIDTH] <  kSize[mv::KERNEL_HEIGHT])
+            {
+                kernelSize = kSize[mv::KERNEL_HEIGHT];
+                largeDim = mv::KERNEL_HEIGHT;
+            }
         }
 
+        pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(largeDim));
         auto name = opIt->getName();
         auto sourceTensor = opIt->getInputTensor(0);
 
         auto parentOpIt = om.getSourceOp(sourceTensor);
 
         auto inputShape = sourceTensor->getShape();
+        auto outputShape = opIt->getOutputTensor()[0]->getShape();
 
-	    std::vector<std::pair<unsigned short, unsigned short>> allFactors ;
-        std::pair<unsigned short, unsigned short> factors ;
+        std::vector<std::pair<unsigned short, unsigned short>> allFactors;
+        std::pair<unsigned short, unsigned short> factors;
+        std::pair<unsigned short, unsigned short> factorsDim2;
 
         // If average pool kernel size is greater than 11, we will turn it in to multiple depthwise convs here
         // Note: Kernel sizes should be chosen so the output tensor of the second depthwise
         // is the correct size for the network. The division scale of the weights will be used to improve accuracy.
 
-	    allFactors = getFactors(kSize[0]);
-
-        if (allFactors.empty()) // Original kernel size IS PRIME
+        factors = getFactors(kernelSize);
+        pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
+        if (factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
         {
-            // Use the factors for kernel size - 1, this is guaranteed to have factors, as it will be an even number > 11
-	        allFactors = getFactors(kSize[0] - 1);
-	        factors = allFactors.back(); // Get the most equal factors
-
-            // These factors are for ksize - 1, so increase smaller factor by 1
-            if( factors.first == factors.second)
-                factors.first++;
-            else
-                factors.second++;
-	    }
-        else // Original kernel size NOT PRIME
-        {
-            factors = allFactors.back(); // Get the most equal factors
+            //unable to split into appropriate size
+            throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
         }
 
-	    if ( factors.first > MAX_KERNEL or factors.second > MAX_KERNEL)
+        if (asymmetricBothKernelsLarge)
         {
-       	     //TODO throw error, unable to split into appropriate size
-             continue;
-	    }
+            pass.log(mv::Logger::MessageType::Debug, "largeKernel " +  std::to_string(kernelSize) + " kernelDim " + std::to_string(1-largeDim));
+            factorsDim2 = getFactors(kSize[1-largeDim]);//toggling between the two kernel sizes
+            pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[1-largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
 
-        // Padding relationship is (input size + pad ) / k = output size
-        // pad = output*k - input
-        double eachSize = (double) kSize[0] / factors.first;
-        double paddedSize = ceil(eachSize) * factors.first;
-        unsigned short pad = paddedSize - inputShape[mv::IO_HEIGHT_DIMENSION];
+            if (factorsDim2.first > MAX_KERNEL or factorsDim2.second > MAX_KERNEL)
+            {
+                //unable to split into appropriate size
+                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
+            }
+        }
+
+        // Padding relationship is (input size + pad) / k = output size
+        unsigned short pad = getPad(factors, inputShape[largeDim], outputShape[largeDim]);
+
         std::array<unsigned short, 4> padding = {0, pad, 0, pad};
+        std::pair<bool, bool> producers_quantized(true, true);
+        auto sinkOps = findSinkLayers(dm, opIt->getOutputTensor(0));
+        if (sinkOps[0]->isUPA()){
+            producers_quantized.first = true;
+            producers_quantized.second = false;
+        }
+        else if (sinkOps[0]->getOpType() == "Output"){
+            if (sinkOps[0]->hasAttr("precision")
+                && sinkOps[0]->get<mv::DType>("precision") == mv::DType("Float16"))
+            {
+                producers_quantized.first = true;
+                producers_quantized.second = false;
+            }
+        }
+
+        std::array<unsigned short, 2> newKernel = {factors.first, factors.first};
+
+        if (asymmetricCase)
+        {
+            if (asymmetricBothKernelsLarge)
+            {
+                unsigned short pad2 = getPad(factorsDim2, inputShape[1-largeDim], outputShape[1-largeDim]);
+                if (largeDim == 0)
+                {
+                    padding[3] = pad2;
+                    newKernel[1] = factorsDim2.first;
+                }
+                else
+                {
+                    padding[1] = pad2;
+                    newKernel[0] = factorsDim2.first;
+                }
+            }
+            else
+            {
+                if (largeDim == 0)
+                {
+                    padding[3] = 0;
+                    newKernel[1] = kSize[1];
+                }
+                else
+                {
+                    padding[1] = 0;
+                    newKernel[0] = kSize[0];
+                }
+            }
+        }
 
         mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor, name + "_DepthwiseConv0",
-                                                                            kSize[0], factors.first, padding);
+                                                                            kernelSize, newKernel, padding, producers_quantized.first);
 
-	    linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
 
-	    // Remove old flow, remember to it to put next depthwise into model in correct place
-	    std::vector<mv::Data::OpListIterator> opsToLink;
-	    std::vector<std::size_t> inputSlots;
-	    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+        // Remove old flow, remember to it to put next depthwise into model in correct place
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
         auto depthwiseOp0 = om.getSourceOp(depthwise_conv0);
-	    auto sourceFlowStart = depthwiseOp0.leftmostOutput();
+        auto sourceFlowStart = depthwiseOp0.leftmostOutput();
 
- 	    for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-	    {
+        if (asymmetricCase)
+        {
+            depthwiseOp0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimension we need workload to stride over.
+        }
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             flowsToRemove.push_back(sinkFlow);
-	    }
- 	    // Remove old flow before creating new dw
-	    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-	    {
-		    om.undefineFlow(flowsToRemove[flowIdx]);
-	    }
-
-	    // Now generate the second depthwise conv
-        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1", kSize[0], factors.second, {0,0,0,0});
-
-	    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        }
+        // Remove old flow before creating new dw
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
         {
-        	opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
+
+        newKernel[0] = newKernel[1] = factors.second;
+        auto scaleVal = kSize[0];
+        if (asymmetricCase)
+        {
+            if (asymmetricBothKernelsLarge)
+            {
+                if (largeDim == 0)
+                {
+                    scaleVal = kSize[1];
+                    newKernel[1] = factorsDim2.second;
+                }
+                else
+                {
+                    scaleVal = kSize[0];
+                    newKernel[0] = factorsDim2.second;
+                }
+            }
+            else
+            {
+                if (largeDim == 0)
+                {
+                    scaleVal = kSize[1];
+                    newKernel[1] =  outputShape[1]/depthwise_conv0->getShape()[1];
+                }
+                else
+                {
+                    scaleVal = kSize[0];
+                    newKernel[0] = outputShape[0]/depthwise_conv0->getShape()[0];
+                }
+            }
+
+        }
+        pass.log(mv::Logger::MessageType::Debug, "newKernel " +  std::to_string(newKernel[0]) + " , " + std::to_string(newKernel[1]));
+
+        // Now generate the second depthwise conv
+        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
+                                                                        name + "_DepthwiseConv1", scaleVal, newKernel, {0,0,0,0}, producers_quantized.second);
+
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
+            opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
             om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
 	    }
+
     } // end for
 }
 
@@ -899,6 +1052,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     auto width = inputShape[mv::IO_WIDTH_DIMENSION];
     auto height = inputShape[mv::IO_HEIGHT_DIMENSION];
     std::array<unsigned short, 2> stride = operation->get<std::array<unsigned short, 2>>("stride");
+    std::array<unsigned short, 2> newStride = {1,1};
     std::array<unsigned short, 2> kSize;
     if ( operation->hasAttr("kSize") )
         kSize = operation->get<std::array<unsigned short, 2>>("kSize");
@@ -939,6 +1093,9 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             //if tensor is sliced on a dimension, kernel is the window size, if not, the actual dimension does not change
             branchWidth = (hslices > 1) ? kSize[mv::KERNEL_WIDTH] : width;
             branchHeight = (vslices > 1) ? kSize[mv::KERNEL_HEIGHT] : height;
+            //when slicing on a dimension the stride becomes 1
+            newStride = {(hslices > 1) ? 1 : stride[mv::STRIDE_HORIZONTAL], (vslices > 1) ? 1 : stride[mv::STRIDE_VERTICAL]};
+            model.log(mv::Logger::MessageType::Debug, "newStride hor=" + std::to_string(newStride[mv::STRIDE_HORIZONTAL])+ " , newStride vert=" + std::to_string(newStride[mv::STRIDE_VERTICAL]));
             branchInputSize = {branchWidth,
                                 branchHeight,
                                 inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
@@ -962,7 +1119,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.averagePool(sliceInput,
                     kSize,
-                    {1,1},
+                    newStride,
                     padding,
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -973,7 +1130,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op  = om.depthwiseConv(sliceInput,
                     operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                    {1,1},//no stride
+                    newStride,
                     padding,
                     operation->get<unsigned>("dilationFactor"),
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -984,7 +1141,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.conv(sliceInput,
                     operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET),
-                    {1,1},
+                    newStride,
                     padding,
                     operation->get<unsigned>("dilationFactor"),
                     1,//no group dilation
@@ -996,7 +1153,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
             {
                 op = om.maxPool(sliceInput,
                     kSize,
-                    {1,1},
+                    newStride,
                     padding,
                     true,//exclude pad
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
@@ -1060,11 +1217,13 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
             if( (stride[mv::STRIDE_HORIZONTAL] <= MAX_STRIDE) && (stride[mv::STRIDE_VERTICAL] <= MAX_STRIDE) ) // can do as single operation in DPU, skip
                 continue;
+        pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
             auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+            //stride supported not slicing, stride not supported slicing with slices dimensions of stride
             opIt = splitOperationSlicingFixedWidthHeight (om,
                                                             opIt,
-                                                            stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
-                                                            stride[mv::STRIDE_VERTICAL] > MAX_STRIDE ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
+                                                            (stride[mv::STRIDE_HORIZONTAL] > MAX_STRIDE) ? stride[mv::STRIDE_HORIZONTAL] : opIt->getInputTensor(0)->getShape()[mv::IO_WIDTH_DIMENSION],
+                                                            (stride[mv::STRIDE_VERTICAL] > MAX_STRIDE) ? stride[mv::STRIDE_VERTICAL] : opIt->getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION],
                                                             nextOp);
         }
     }

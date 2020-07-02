@@ -125,6 +125,8 @@ mv::Data::TensorIterator convertDepthwiseConvolutionToDPUTask(mv::OpModel& om, c
     auto dpuConv = om.dPUTaskDepthwiseConv(inputs, strides, padding, dilationFactor, outputTensorType, quantParams,
                                            mv::createDPUTaskName(name));
 
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
     auto dpuConvOp = om.getSourceOp(dpuConv);
     dpuConvOp->set<bool>("hasWeights", true);
 
@@ -163,6 +165,9 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
     }
 
+    if(attrs.find("asymmetricKernel") != attrs.end())
+        dpuConv->set<unsigned>("asymmetricKernel", attrs.at("asymmetricKernel").get<unsigned>());
+
     return dpuConv;
 }
 
@@ -200,6 +205,8 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
     auto dtype = attrs.at("dType").get<mv::DType>();
 
     // Required params
+    auto scale = attrs.at("scale").get<std::vector<float>>();
+    auto ratio = attrs.at("ratio").get<std::vector<float>>();
     auto base_size = attrs.at("base_size").get<unsigned>();
     auto pre_nms_topn = attrs.at("pre_nms_topn").get<unsigned>();
     auto post_nms_topn = attrs.at("post_nms_topn").get<unsigned>();
@@ -217,7 +224,7 @@ mv::Data::TensorIterator convertProposalToUPATask(mv::OpModel& om, const std::ve
     auto framework = attrs.at("framework").get<std::string>();
     auto for_deformable = attrs.at("for_deformable").get<bool>();
 
-    return om.uPATaskProposal(inputs, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
+    return om.uPATaskProposal(inputs, scale, ratio, base_size, pre_nms_topn, post_nms_topn, nms_thresh, feat_stride, min_size,
                                                               pre_nms_thresh, clip_before_nms, clip_after_nms, normalize, box_size_scale, box_coordinate_scale, framework, for_deformable,
                                                               dtype, quantParams, name);
 }
@@ -533,6 +540,22 @@ mv::Data::TensorIterator convertCTCDecoderToUPATask(mv::OpModel& om, const std::
     return om.uPATaskCTCDecoder(inputs, merge_repeated, dtype, quantParams, name);
 }
 
+mv::Data::TensorIterator convertRefConvToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    const auto strides = attrs.at("stride").get<std::array<unsigned short, 2>>();
+    const auto padding = attrs.at("padding").get<std::array<unsigned short, 4>>();
+    const auto dilationFactor = attrs.at("dilationFactor").get<unsigned>();
+    const auto group = attrs.at("group").get<unsigned>();
+
+    const auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+    const auto outputTensorType = attrs.at("dType").get<mv::DType>();
+
+    return om.uPATaskRefConv(
+        inputs, strides, padding, dilationFactor, group, outputTensorType, quantParams, name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -545,7 +568,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv"};
 
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
@@ -579,7 +602,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Sigmoid", convertSigmoidToUPATask},
     {"Deconv", convertDeconvToUPATask},
     {"Tile", convertTileToUPATask},
-    {"CTCDecoder", convertCTCDecoderToUPATask}
+    {"CTCDecoder", convertCTCDecoderToUPATask},
+    {"RefConv", convertRefConvToUPATask},
     };
 
     for(auto& opType: opsTypesToConvert)
@@ -654,7 +678,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
         auto inputs = concatOp->getInputTensor();
         for (auto& input : inputs)
         {
-            if (!((om.getSourceOp(input)->getOpType() == "UPATask")  && (input->get<mv::DType>("dType") == mv::DType("Float16"))))
+            if (!((om.getSourceOp(input)->getOpType() == "UPATask" || om.getSourceOp(input)->getOpType() == "ImplicitReshape")  &&
+                (input->get<mv::DType>("dType") == mv::DType("Float16"))))
                 all_inputs_are_fp16 = false;
         }
         if (all_inputs_are_fp16)
@@ -785,7 +810,14 @@ int32_t computeClampLow(mv::Data::OpListIterator &opIt, bool flex)
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getMin()[0] /
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
-        clamp = -128;
+    {
+        auto alpha = opIt->get<double>("leakyAlpha");
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto minimum = outputQuantParams.getMin()[0];
+        minimum /= alpha;
+        clamp = round(minimum/outputQuantParams.getScale()[0]);
+        clamp = std::max(clamp, -128);
+    }
 
     return clamp;
 }
@@ -849,7 +881,13 @@ int32_t computeClampHigh(mv::Data::OpListIterator &opIt, bool flex)
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getMax()[0] /
             opIt->get<mv::QuantizationParams>("pwlQuantParams").getScale()[0])));
     if (flex)
-        clamp = 127;
+    {
+        mv::QuantizationParams outputQuantParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+        auto maximum = outputQuantParams.getMax()[0];
+        clamp = round(maximum/outputQuantParams.getScale()[0]);
+        clamp = std::min(clamp, 127);
+    }
+
     return clamp;
 }
 

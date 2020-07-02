@@ -24,7 +24,8 @@ class Operation_Dag_Test : public ::testing::Test {
 
     Operation_Dag_Test() : three_layer_conv_input_("3layer_conv"),
       upa_chain_ending_with_dpu_("upa_chain_ending_with_dpu"),
-      upa_chain_with_single_link_("upa_chain_with_single_link_") {}
+      upa_chain_with_single_link_("upa_chain_with_single_link_"),
+      upa_chain_with_multiple_link_("upa_chain_with_multiple_link_") {}
 
     mv::OpModel& three_layer_conv_model() {
       return three_layer_conv_input_.model();
@@ -328,9 +329,45 @@ class Operation_Dag_Test : public ::testing::Test {
     }
 
 
+    void setup_upa_chain_with_multiple_link() {
+      mv::CompilationUnit &unit = upa_chain_with_multiple_link_;
+      mv::OpModel& om = unit.model();
+
+      auto input0 = om.input({1,1,500,1}, mv::DType("Float64"),
+          mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "input:0#4");
+
+      auto input1 = om.input({1,1,500,1}, mv::DType("Float64"),
+          mv::Order::getZMajorID(4), {{0}, {1,0}, {}, {}}, "input:1#5");
+
+      std::string axis = "C";
+
+      auto implConcat = om.implicitConcat({input0,input1},axis, {{0},{1.0},{},{}}, "concat:2#1");
+
+      auto softmax0 = om.softmax(implConcat, axis);
+      auto softmax1 = om.softmax(softmax0, axis);
+      auto softmax2 = om.softmax(softmax1, axis, mv::DType("Float64"),
+            {{135},{0.0025439101736992598},{-0.3435550332069397},
+              {0.3051420748233795}});
+      auto softmax3 = om.softmax(softmax2, axis);
+
+      om.output(softmax3);
+
+      std::string compDescPath(comp_desc_path_);
+      unit.loadCompilationDescriptor(compDescPath);
+
+      unit.loadTargetDescriptor(mv::Target::ma2490);
+      unit.initialize();
+      unit.run();
+    }
+    
+    mv::OpModel& upa_chain_with_multiple_link() {
+      return upa_chain_with_multiple_link_.model();
+    }
+
     mv::CompilationUnit three_layer_conv_input_;
     mv::CompilationUnit upa_chain_ending_with_dpu_;
     mv::CompilationUnit upa_chain_with_single_link_;
+    mv::CompilationUnit upa_chain_with_multiple_link_;	
     std::string comp_desc_path_;
 }; // class Operation_Dag_Test //
 
@@ -730,6 +767,28 @@ TEST_F(Barrier_Control_Dag_Test, upa_chain_with_single_link) {
 
   // compiler puts a quantize before softmax and two barriers//
   ASSERT_EQ(upa_chain.size(), 4UL);
+
+  barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
+  EXPECT_TRUE(does_barrier_ids_have_no_gaps(cm));
+}
+
+TEST_F(Barrier_Control_Dag_Test, upa_chain_with_multiple_link) {
+  setup_upa_chain_with_multiple_link();
+
+  mv::OpModel &om = upa_chain_with_multiple_link();
+  mv::ControlModel cm(om);
+
+  clear_control_model_and_remove_barriers(om);
+
+  // run the barrier scheduler on the underlying opmodel//
+  barrier_scheduler_t barrier_scheduler(cm, 7UL, 256UL);
+
+  barrier_scheduler.schedule();
+
+  op_chain_t upa_chain = get_tailing_upa_chain(barrier_scheduler);
+
+  // compiler puts a quantize before softmax and two barriers//
+  ASSERT_EQ(upa_chain.size(), 7UL);
 
   barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
   EXPECT_TRUE(does_barrier_ids_have_no_gaps(cm));

@@ -196,36 +196,66 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     dm.defineTensor(weightsTensor->getSparsityMap());
             }
             //NOTE: Here is handled a specific case and this is why is treated seperately
-            if (dpuTask->getOpType() == "DPUTask" && dpuTask->get<std::string>("taskOp") == "Conv")
+
+            if (dpuTask->isSparsityConsumer() &&
+                dpuTask->hasAttr("activationSparsityCompilerSolving") &&
+                dpuTask->get<bool>("activationSparsityCompilerSolving"))
             {
-                if (dpuTask->hasAttr("activationSparsityCompilerSolving") && dpuTask->get<bool>("activationSparsityCompilerSolving"))
+                std::vector<mv::Data::TensorIterator> activationTensors;
+                if (dpuTask->get<std::string>("taskOp") == "Conv")
                 {
-                    auto inputTensor = dpuTask->getInputTensor(0);
+                    activationTensors.push_back(dpuTask->getInputTensor(0));
+                }
+                else if (dpuTask->get<std::string>("taskOp") == "Eltwise")
+                {
+                    activationTensors.push_back(dpuTask->getInputTensor(0));
+                    activationTensors.push_back(dpuTask->getInputTensor(1));
+                }
+
+                for (size_t tidx = 0; tidx < activationTensors.size(); tidx++) {
+                    auto inputTensor  = activationTensors[tidx];
                     //every element of sparsity map describes 8 elements of normal tensor
                     auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                                               {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
-                                               {1}});
+                                            {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                                            {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
+                                            {1}});
                     std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
                     mv::QuantizationParams quantParams = {{},{},{},{}};
-                    std::string unpopulatedSparsityMapName = dpuTask->getName() + "activation_map";
-                    auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, unpopulatedSparsityMapName);
+                    std::string unpopulatedSparsityMapName = dpuTask->getName() +
+                        "activation_map_" + std::to_string(tidx);
+                    auto unpopulatedSparsityMap =
+                        om.constantInt(unpopulatedSparsityMapData, mapShape,
+                                    mv::DType("UInt8"), mv::Order("NHWC"),
+                                    quantParams, unpopulatedSparsityMapName);
                     om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
                     om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
-                    dpuTask->set<size_t>("unpopulatedSparsityMapIndex", newInputsSize - 1);
+                    auto smTensorIdx = dpuTask->hasAttr("unpopulatedSparsityMapIndex") ?
+                        dpuTask->get<std::vector<size_t>>("unpopulatedSparsityMapIndex") :
+                        std::vector<size_t>();
+                    smTensorIdx.push_back(newInputsSize - 1);
+                    dpuTask->set<std::vector<size_t>>("unpopulatedSparsityMapIndex", smTensorIdx);
 
-                    mv::Shape storageElementShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
-                                                               {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
-                                                               {1},
-                                                               {1}});
+                    mv::Shape storageElementShape =
+                        mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
+                            {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
+                            {1},
+                            {1}});
                     std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
-                    std::string storageElementName = dpuTask->getName() + "storage_element_map";
-                    auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), quantParams, storageElementName);
+                    std::string storageElementName = dpuTask->getName() +
+                        "storage_element_map" + std::to_string(tidx);
+                    auto storageElement =
+                        om.constantInt(storageElementData, storageElementShape,
+                                    mv::DType("Int32"), mv::Order("NHWC"),
+                                    quantParams, storageElementName);
                     om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
-                    unsigned newSize = dpuTask->addInputTensor(storageElement);
-                    om.defineFlow(storageElement, dpuTask, newSize - 1);
-                    dpuTask->set<size_t>("storageElementIndex", newSize - 1);
+                    newInputsSize = dpuTask->addInputTensor(storageElement);
+                    om.defineFlow(storageElement, dpuTask, newInputsSize - 1);
+                    auto seTensorIdx = dpuTask->hasAttr("storageElementIndex") ?
+                        dpuTask->get<std::vector<size_t>>("storageElementIndex") :
+                        std::vector<size_t>();
+                    seTensorIdx.push_back(newInputsSize - 1);
+                    dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
                 }
             }
         }
@@ -241,8 +271,10 @@ bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
     return false;
 }
 
-bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow)
+bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice)
 {
+    if (referenceDevice != "A0")
+        return false;
     auto source = flow.source();
     auto sink = flow.sink();
     auto tensor = flow->getTensor();
@@ -300,6 +332,8 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::DataModel dm(model);
     mv::OpModel om(model);
+    auto globalParams = model.getGlobalConfigParams();
+    auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
@@ -327,12 +361,12 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow))
+            if(checkA0SOHSparsityBug(flow, referenceDevice))
             {
                 tensorNeedsSparsity = true;
                 break;
             }
-            else if (checkA0FloatSparsityBug(flow) && !compilerSolvesSparsity(flow))
+            else if (checkA0FloatSparsityBug(flow, referenceDevice) && !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
                 break;
@@ -348,7 +382,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv")
+               (sink->get<std::string>("taskOp") != "Conv" && sink->get<std::string>("taskOp") != "Eltwise"))
             {
                 tensorSparsifiable = false;
                 break;

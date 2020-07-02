@@ -166,27 +166,6 @@ bool isOpQuantized(mv::OpModel& om, mv::Data::OpListIterator op) {
             op->getInputTensor(1)->getDType() == getDType(Precision::I8);
 }
 
-bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right) {
-    if(left.size() != right.size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < left.size(); i++) {
-        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
-            return  false;
-        }
-    }
-    return true;
-}
-
-bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-    bool isZpEqual = left.getZeroPoint() == right.getZeroPoint();
-    bool isMinEqual = isVectorsEqual(left.getMin(), right.getMin());
-    bool isMaxEqual = isVectorsEqual(left.getMax(), right.getMax());
-    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
-    return isZpEqual && isMinEqual && isMaxEqual && isScaleEqual;
-}
-
 mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Data::OpListIterator op) {
     //NOTE: If we have more than one child we have several cases
     //ALL branches without FQ -> initial quant params and float output
@@ -206,7 +185,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     std::vector<mv::QuantizationParams> outQuantParams;
     for (size_t i = 0; i < current_ops.size(); i++) {
         if (current_ops[i]->getOpType() == "FakeQuantize") {
-            outQuantParams.push_back(extractQuantParamsO(current_ops[0], op->getOpType() != "Constant"));
+            outQuantParams.push_back(extractQuantParamsO(current_ops[i], op->getOpType() != "Constant"));
         }
     }
 
@@ -269,13 +248,13 @@ void propagateParameters(mv::ComputationModel& model) {
     mv::OpModel om(model);
     mv::QuantizationParams quant_params{{}, {}, {}, {}};
     auto sorted_ops = om.topologicalSort();
-
     for (auto& op : sorted_ops) {
-        if (op->getOpType() == "Eltwise" && op->getOpType() == "Concat") {
+        if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
             assert(areAllInputQuantParamsEqual(om, op));
         }
 
-        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant") { // NOTE: float16 case is not handled here
+        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
+            || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -289,6 +268,7 @@ void propagateParameters(mv::ComputationModel& model) {
                 continue;
 
             quant_params = getParentQuantParams(om, op);
+
             setQuantizationParams(op, quant_params);
         }
     }
@@ -480,14 +460,142 @@ void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
     mv::DataModel dm(om);
-    for (size_t i = 0; i < inputs.size(); i++) {
-        auto input = inputs.at(i);
+    for (size_t idx = 0; idx < inputs.size(); idx++) {
+        auto input = inputs.at(idx);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
         mv::QuantizationParams inputQuantParams = initial_quant_params();
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
+
+        std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
+        bool scaleFuseInput = globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false;
+
+        //Fuse scaleshift(multiply+add) into quantization parameters to boost performance 
+        if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale" && scaleFuseInput) {
+            auto child_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
+            if(child_ops.size() == 1 && child_ops[0]->getOpType() == "Bias") {
+                auto next_child_ops = findSinkLayers(dm, child_ops[0]->getOutputTensor(0));
+                if(next_child_ops.size() == 1 && next_child_ops[0]->getOpType() == "FakeQuantize") {
+                    auto inputC = input->getOutputTensor(0)->getShape()[2];
+
+                    if (current_ops[0]->getInputTensor(1)->isDoubleType()) {
+                        std::runtime_error("Unsupported fuse scaleshift DType");
+                    }
+                    std::vector<int64_t> scaleData = current_ops[0]->getInputTensor(1)->getIntData();
+                    auto biasData = child_ops[0]->getInputTensor(1)->getIntData();
+                    std::vector<double> realScaleValue(inputC);
+                    std::vector<double> realBiasValue(inputC);
+
+                    //calculate real scale values
+                    auto scaleDataQuantParams = om.getSourceOp(current_ops[0]->getInputTensor(1))->get<mv::QuantizationParams>("quantParams");
+                    auto s = scaleDataQuantParams.get<std::vector<double>>("scale");
+                    auto zp = scaleDataQuantParams.get<std::vector<int64_t>>("zeroPoint");
+                    std::vector<double> s_extend(inputC);
+                    std::vector<int64_t> zp_extend(inputC);
+                    std::vector<int64_t> scaleData_extend(inputC);
+
+                    if (s.size() < inputC) {
+                        assert(s.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            s_extend[i] = s[0];
+                        }
+                    }
+                    else {
+                        s_extend = s;
+                    }
+
+                    if (zp.size() < inputC) {
+                        assert(zp.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            zp_extend[i] = zp[0];
+                        }
+                    }
+                    else {
+                        zp_extend = zp;
+                    }
+
+                    if (scaleData.size() < inputC) {
+                        assert(scaleData.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            scaleData_extend[i] = scaleData[0];
+                        }
+                    }
+                    else {
+                        scaleData_extend = scaleData;
+                    }
+
+                    for (size_t i = 0; i < inputC; i++) {
+                        realScaleValue[i] = (scaleData_extend[i] - zp_extend[i]) * s_extend[i];
+                    }
+
+                    //calculate real bias values
+                    auto biasDataQuantParams = om.getSourceOp(child_ops[0]->getInputTensor(1))->get<mv::QuantizationParams>("quantParams");
+                    s = biasDataQuantParams.get<std::vector<double>>("scale");
+                    zp = biasDataQuantParams.get<std::vector<int64_t>>("zeroPoint");
+                    std::vector<int64_t> biasData_extend(inputC);
+
+                    if (s.size() < inputC) {
+                        assert(s.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            s_extend[i] = s[0];
+                        }
+                    }
+                    else {
+                        s_extend = s;
+                    }
+
+                    if (zp.size() < inputC) {
+                        assert(zp.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            zp_extend[i] = zp[0];
+                        }
+                    }
+                    else {
+                        zp_extend = zp;
+                    }
+
+                    if (biasData.size() < inputC) {
+                        assert(biasData.size() == 1);
+                        for (size_t i = 0; i < inputC; i++) {
+                            biasData_extend[i] = biasData[0];
+                        }
+                    }
+                    else {
+                        biasData_extend = biasData;
+                    };
+
+                    for (size_t i = 0; i < inputC; i++) {
+                        realBiasValue[i] = (biasData_extend[i] - zp_extend[i]) * s_extend[i];
+                    }
+
+                    //update new zp/scale/min/max
+                    auto levels = next_child_ops[0]->get<unsigned>("levels");
+                    std::vector<int64_t> zero_points;
+                    std::vector<double> scales;
+                    std::vector<double> min;
+                    std::vector<double> max;
+
+                    float output_min_value = (realBiasValue[0] * realScaleValue[0] + 
+                    realBiasValue[1] * realScaleValue[1] + realBiasValue[2] * realScaleValue[2]) / 3;
+
+                    float output_max_value = ((realBiasValue[0] + 255) * realScaleValue[0] + 
+                    (realBiasValue[1] + 255) * realScaleValue[1] + (realBiasValue[2] + 255) * realScaleValue[2]) / 3;
+
+                    zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
+                    scales.push_back(calculateScales(output_min_value, output_max_value, levels));
+                    min.push_back(output_min_value);
+                    max.push_back(output_max_value);
+
+                    inputQuantParams = mv::QuantizationParams{zero_points, scales, min, max};
+
+                    linkNewOperationsRemove(input, input->getOutputTensor(0), om, current_ops[0]);
+                    linkNewOperationsRemove(input, input->getOutputTensor(0), om, child_ops[0]);
+                }
+            }
+        }
+
         setQuantizationParams(input, inputQuantParams);
     }
 
