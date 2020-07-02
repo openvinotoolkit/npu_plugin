@@ -320,7 +320,7 @@
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
             "EnsureNoOddDMAsBetweenDDROutput",
-            "EnsureSplitStrategiesForSpilling",
+            "EnsureSplitStrategiesForSpilling"
         ]
     },
     "control_flows":{
