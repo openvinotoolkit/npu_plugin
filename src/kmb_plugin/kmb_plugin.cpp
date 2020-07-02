@@ -165,6 +165,10 @@ RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& ctx, const std::map<std::string, std::string>& config) {
+    if (std::dynamic_pointer_cast<KmbRemoteContext>(ctx) == nullptr) {
+        THROW_IE_EXCEPTION << "Remote context is not compatible";
+    }
+
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config, ConfigMode::RunTime);
 

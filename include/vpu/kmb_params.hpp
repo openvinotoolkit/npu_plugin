@@ -25,7 +25,7 @@
 #include <string>
 #include <ie_blob.h>
 
-typedef int KmbRemoteMemoryFD;
+using KmbRemoteMemoryFD = int;
 using KmbHandleParam = void*;
 
 namespace InferenceEngine {
