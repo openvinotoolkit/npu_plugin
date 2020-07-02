@@ -5,7 +5,7 @@
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
 static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -13,6 +13,10 @@ namespace mv
     {
         MV_REGISTER_PASS(ResolveImplicitOperations)
                 .setFunc(resolveImplicitOperationsFcn)
+                .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
+
+        MV_REGISTER_PASS(EnsureNoOddDMAsBetweenDDROutput)
+                .setFunc(ensureNoOddDMAsBetweenDDROutputFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
 }
@@ -97,7 +101,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 pass.log(mv::Logger::MessageType::Debug, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
                 pass.log(mv::Logger::MessageType::Debug, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
-                if (inputLocation != outputLocation)
+                if (inputLocation != outputLocation &&
+                        !(inputLocation == mv::Tensor::MemoryLocation::DDR &&
+                          outputLocation == mv::Tensor::MemoryLocation::OUTPUT))
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
@@ -226,4 +232,55 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
             opIt->get<mv::ImplicitFlow>("ImplicitFlow").resolve();
         }
     }
+}
+
+void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    mv::OpModel om(model);
+    bool changedLocation;
+    for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+    {
+        mv::Data::TensorIterator outputTensor;
+        if (opIt->getOpType() != "Output")
+        {
+            outputTensor = opIt->getOutputTensor(0);
+            auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+            if (outputLocation == mv::Tensor::MemoryLocation::OUTPUT)
+            {
+                for (auto input : opIt->getInputTensor())
+                {
+                    auto previousOp = om.getSourceOp(input);
+                    if (previousOp->isImplicit())
+                        for (auto inputTensor : previousOp->getInputTensor())
+                        {
+                            auto parentOp = om.getSourceOp(inputTensor);
+                            if (parentOp->getOpType() == "DMATask" &&
+                                    parentOp->hasAttr("direction") &&
+                                    parentOp->get<mv::DmaDirection>("direction") ==
+                                    mv::DmaDirectionEnum::NNCMX2DDR)
+                            {
+                                changedLocation = true;
+                                parentOp->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location",
+                                                    mv::Tensor::MemoryLocation::OUTPUT);
+                            }
+                        }
+                }
+            }
+        }
+    }
+    if (changedLocation)
+    {
+        for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+        {
+            if (opIt->getOpType() == "Output")
+            {
+                auto previousOp = om.getSourceOp(opIt->getInputTensor()[0]);
+                for (auto inp : previousOp->getInputTensor())
+                    inp->set<mv::Tensor::MemoryLocation>("Location",
+                                                         mv::Tensor::MemoryLocation::OUTPUT);
+            }
+        }
+    }
+
 }

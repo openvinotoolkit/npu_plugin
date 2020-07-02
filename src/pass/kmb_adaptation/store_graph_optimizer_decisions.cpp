@@ -53,7 +53,7 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     storeLayerSparsityStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
     //NOTE: Only for validation-debug reasons, makes all the concats to be executed on ddr
-//    storeConcatDDRFcn(pass, model);
+    storeConcatDDRFcn(pass, model);
     validateDilationSubConvolutions(pass, model);
 }
 
@@ -289,8 +289,8 @@ void storeConcatDDRFcn(const mv::pass::PassEntry&,
     auto concats = om.getOps("ImplicitConcat");
     for ( auto concat : concats)
     {
-        auto outputTensor = concat->getOutputTensor()[0];
-        outputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+        for (auto inputTensor : concat->getInputTensor())
+            inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
     }
 }
 

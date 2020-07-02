@@ -230,10 +230,9 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                 //the idea is that we will spill the sub dilation convs to ddr and we will bring them
                 //back to a re-order z-major convolution which will unfold and provide the correct tensor
                 mv::Data::TensorIterator concatIt;
-                bool needSparse2SparseOp = false;
                 std::vector<mv::Data::TensorIterator> subConvsPerColumn;
                 std::vector<mv::Data::TensorIterator> firstLevelConcats;
-
+                bool needSparse2SparseOp = false;
                 if (outputTensorMemory > CMX)
                 {
                     for (size_t i = 0; i < dilationFactor; i++)

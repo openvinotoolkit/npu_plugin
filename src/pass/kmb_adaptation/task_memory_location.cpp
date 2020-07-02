@@ -53,6 +53,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                 {
                     auto sink = opIt.leftmostOutput().sink();
                     std::string opTypeAfter = sink->getOpType();
+                    //NOTE: this is used for subdilation convolutions which are going to have only 1 sink
+                    auto sinkOp = findSinkLayers(dm, opIt->getOutputTensor()[0])[0];
 
                     auto opItBackup = opIt;
                     if (opTypeAfter == "Crop")
@@ -83,6 +85,21 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     std::string stringDirection("NNCMX2"+memoryLocation);
                     mv::DmaDirection direction(stringDirection);
                     auto dpuCopyOut = om.dMATask(output, direction,opIt->getName() + "_copyOut");
+                    if (sinkOp->hasAttr("dilatedWidthConcat") && sinkOp->get<bool>("dilatedWidthConcat"))
+                    {
+                        std::size_t slot = 0;
+                        for (std::size_t inputConcatTensorIdx = 0; inputConcatTensorIdx < sinkOp->getInputTensor().size();
+                             inputConcatTensorIdx++)
+                            if (sinkOp->getInputTensor()[inputConcatTensorIdx]->getName() == output->getName())
+                                slot = inputConcatTensorIdx;
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        dpuCopyOut->set<bool>("dilatedWidthConcat", true);
+                        dpuCopyOut->set<unsigned>("dilationFactor",
+                                                         sinkOp->get<unsigned>("dilationFactor"));
+                        dpuCopyOut->set<std::size_t>("inputConcatTensorIdx", slot);
+                        dpuCopyOut->set<std::size_t>("lineofConcatHeight",
+                                                    sinkOp->get<std::size_t>("lineofConcatHeight"));
+                    }
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))

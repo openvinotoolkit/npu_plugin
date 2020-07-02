@@ -264,10 +264,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
-        auto strides = tensorBufferIt->getStrides();
-        //NOTΕ: Leading offset Computation ???
-//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
-        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
 
@@ -275,12 +271,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("inputIndex");
         else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
-        //if (*tensorAllocatorName == "ProgrammableOutput" && t->hasAttr("leadingOffset")) //HACK TO BE REMOVED
-         //   leading_offset = t->get<uint64_t>("leadingOffset");
 
-        if (leading_offset)
-            toBuild->data->data_index += leading_offset;
-        // No need to set sparsity_index for input/output tensor of the network
+        if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+        {
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+
+        }
+        else
+        {
+            auto strides = tensorBufferIt->getStrides();
+            auto leading_offset = strides[0];
+            if (leading_offset)
+                toBuild->data->data_index += leading_offset;
+        }
     }
     else
     {
