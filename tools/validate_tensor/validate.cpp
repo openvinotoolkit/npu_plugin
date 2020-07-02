@@ -735,6 +735,12 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
 
 int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
 {
+    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") == std::string("true"))
+    {
+        // InferencePerformanceCheck has no results to report
+        return RESULT_SUCCESS;
+    }
+
     // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
@@ -744,11 +750,9 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
     else if (networkType == "ssd") 
         commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/ssd_bbox.py ") + imagePath;
 
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
-    {
-        std::cout << commandline << std::endl;
-        int result = std::system(commandline.c_str());
-    }
+
+    std::cout << commandline << std::endl;
+    int result = std::system(commandline.c_str());
 
     // read in expected inference results
     std::string expectedInferencePath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + std::string("/inference_results.txt");
