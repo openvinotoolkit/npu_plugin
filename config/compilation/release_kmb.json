@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "emulator_results" : true,
+                "emulator_results" : false,
                 "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
