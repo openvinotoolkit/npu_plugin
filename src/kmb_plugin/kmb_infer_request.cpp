@@ -324,8 +324,7 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
     const auto& actualDesc = actualInput->getTensorDesc();
     const auto& deviceLayout = deviceDesc.getLayout();
 
-    IE_ASSERT(deviceLayout == Layout::NHWC) << "The Plugin relies on the fact that runtime works with NHWC layout";
-    if (needRepackForNHWC(actualDesc)) {
+    if (needRepackForNHWC(actualDesc) && deviceLayout == Layout::NHWC) {
         _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy

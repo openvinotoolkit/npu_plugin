@@ -402,16 +402,23 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
-// Track: https://jira.devtools.intel.com/browse/CVS-31767
-TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_from_fp32) {
+const static std::vector<InferenceEngine::Layout> specificLayout = {
+        InferenceEngine::Layout::NHWC,
+        InferenceEngine::Layout::NCHW};
+
+class KmbClassifyNetworkTestWithSpecificLayout : public KmbClassifyNetworkTest, public testing::WithParamInterface<InferenceEngine::Layout> {};
+
+TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_dense_int8_IRv10_from_fp32) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
+            .setUserInputLayout("input", GetParam())
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("224x224/husky.bmp", false),
         1, 0.7f);
 }
+
+INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
 
 TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
