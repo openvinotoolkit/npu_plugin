@@ -53,7 +53,7 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     storeLayerSparsityStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
     //NOTE: Only for validation-debug reasons, makes all the concats to be executed on ddr
-    storeConcatDDRFcn(pass, model);
+//    storeConcatDDRFcn(pass, model);
     validateDilationSubConvolutions(pass, model);
 }
 

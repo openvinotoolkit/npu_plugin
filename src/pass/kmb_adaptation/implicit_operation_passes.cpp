@@ -101,9 +101,10 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 pass.log(mv::Logger::MessageType::Debug, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
                 pass.log(mv::Logger::MessageType::Debug, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
-                if (inputLocation != outputLocation &&
-                        !(inputLocation == mv::Tensor::MemoryLocation::DDR &&
-                          outputLocation == mv::Tensor::MemoryLocation::OUTPUT))
+//                if (inputLocation != outputLocation &&
+//                        !(inputLocation == mv::Tensor::MemoryLocation::DDR &&
+//                          outputLocation == mv::Tensor::MemoryLocation::OUTPUT))
+                if (inputLocation != outputLocation)
                 {
                     //TODO:: QUant params inherited for concat
                     //TODO:: PRONE TO ERRORS! correlate with Class Direction
