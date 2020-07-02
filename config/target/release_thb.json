@@ -395,12 +395,12 @@
 
             {
                 "name": "DMAControllers",
-                "totalNumber": 2
+                "totalNumber": 1
             },
 
             {
                 "name": "CSRAM",
-                "totalNumber": 6291456
+                "totalNumber": 25165824
             }
         ],
         "huffman_decode_engine":
