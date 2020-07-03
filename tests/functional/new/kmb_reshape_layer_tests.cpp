@@ -92,87 +92,112 @@ const std::vector<ReshapeTestParams> supportedReshapeParams {
     ReshapeTestParams()
         .in_dims({2048})
         .shape({1, 32, 32, 2}),
+
     ReshapeTestParams()
           .in_dims({4})
           .shape({1, 1, 2, 2}),
+
     ReshapeTestParams()
           .in_dims({1, 16})
           .shape({1, 4, 2, 2}),
+
     ReshapeTestParams()
          .in_dims({2, 2, 16})
          .shape({1, 4, 8, 2}),
+
     ReshapeTestParams()
           .in_dims({1, 2, 16})
           .shape({1, 4, 4, 2}),
+
     ReshapeTestParams()
           .in_dims({1, 4, 2, 2})
           .shape({1, 2, 4, 2}),
+
     ReshapeTestParams()
         .in_dims({1, 4, 2, 2})
         .shape({1, 16}),
-};
 
-const std::vector<ReshapeTestParams> unsupportedReshapeParams {
-    /* FIXME: "Output layout is not supported: CHW" thrown in the test body
-     * [Track number: D#2703] */
-    ReshapeTestParams()
-        .in_dims({1, 4, 2, 2})
-        .shape({1, 8, 2}),
-    /* FIXME: "Output layout is not supported: C"
-     * [Track number: D#3106] */
-    ReshapeTestParams()
-        .in_dims({2, 4, 2, 2})
-        .shape({32}),
-     /* FIXME: "Output layout is not supported: CHW" thrown in the test body
-      * [Track number: D#2703] */
-    ReshapeTestParams()
-        .in_dims({8, 2, 4})
-        .shape({4, 4, 4}),
-    /* FIXME: "Flic NN doesn't support batch not equal to one"
-     * [Track number: H#18011923106] */
-    ReshapeTestParams()
-        .in_dims({2048})
-        .shape({32, 64}),
-     /* FIXME: "Output layout is not supported: CHW" thrown in the test body
-      * [Track number: D#3106] */
-    ReshapeTestParams()
-        .in_dims({2048})
-        .shape({32, 32, 2}),
-    /* FIXME: "Output layout is not supported: CHW" thrown in the test body
-     * [Track number: D#3106] */
-    ReshapeTestParams()
-        .in_dims({32, 64})
-        .shape({8, 4, 64}),
-    /* FIXME: "Flic NN doesn't support batch not equal to one"
-     * [Track number: H#18011923106] */
-    ReshapeTestParams()
-        .in_dims({2, 4})
-        .shape({1, 8}),
-     /* FIXME: "Flic NN doesn't support batch not equal to one"
-      * [Track number: H#18011923106] */
-     ReshapeTestParams()
-         .in_dims({2048})
-         .shape({8, 4, 32, 2}),
-     /* FIXME: Hangs when input has the same dimensions as the output
-      * Even if they have different orders */
-    ReshapeTestParams()
-        .in_dims({1, 1, 1, 4})
-        .shape({1, 1, 1, 4}),
-    /* FIXME: Hangs when input has the same dimensions as the output
-     * Even if they have different orders */
-    ReshapeTestParams()
-        .in_dims({1, 1, 1, 4})
-        .shape({1, 1, 4, 1}),
-    /* FIXME: Hangs when input has the same dimensions as the output
-     * Even if they have different orders */
-    ReshapeTestParams()
-        .in_dims({1, 4})
-        .shape({1, 4}),
-    /* FIXME: "Output layout is not supported: C"
-     * [Track number: D#3106] */
     ReshapeTestParams()
         .in_dims({1, 4, 2, 4})
         .shape({32}),
+
+    ReshapeTestParams()
+        .in_dims({1, 2, 2})
+        .shape({4}),
+
+    ReshapeTestParams()
+        .in_dims({1, 8, 2, 4})
+        .shape({1, 8, 8}),
+
+    ReshapeTestParams()
+        .in_dims({1, 8, 2, 4})
+        .shape({2, 4, 8}),
+
+    ReshapeTestParams()
+        .in_dims({8, 2, 4})
+        .shape({1, 8, 8}),
+
+    ReshapeTestParams()
+        .in_dims({8, 2, 4})
+        .shape({2, 4, 8}),
+
+    ReshapeTestParams()
+        .in_dims({1, 32})
+        .shape({2, 2, 8}),
+
+    ReshapeTestParams()
+        .in_dims({1, 32})
+        .shape({1, 16, 2}),
+
+    ReshapeTestParams()
+        .in_dims({1, 32})
+        .shape({8, 2, 2}),
+};
+
+const std::vector<ReshapeTestParams> unsupportedReshapeParams {
+    /* FIXME: "Flic NN doesn't support batch not equal to one"
+     * [Track number: H#18011923106] */
+    ReshapeTestParams()
+        .in_dims({8, 2, 4})
+        .shape({4, 4, 4}),
+
+    ReshapeTestParams()
+        .in_dims({2048})
+        .shape({32, 64}),
+
+    ReshapeTestParams()
+        .in_dims({2048})
+        .shape({32, 32, 2}),
+
+    ReshapeTestParams()
+        .in_dims({32, 64})
+        .shape({8, 4, 64}),
+
+    ReshapeTestParams()
+        .in_dims({2, 4})
+        .shape({1, 8}),
+
+    ReshapeTestParams()
+        .in_dims({2048})
+        .shape({8, 4, 32, 2}),
+
+    /* FIXME: Hangs when input has the same dimensions as the output
+     * Even if they have different orders */
+    ReshapeTestParams()
+        .in_dims({1, 1, 1, 4})
+        .shape({1, 1, 1, 4}),
+
+    ReshapeTestParams()
+        .in_dims({1, 1, 1, 4})
+        .shape({1, 1, 4, 1}),
+
+    ReshapeTestParams()
+        .in_dims({1, 4})
+        .shape({1, 4}),
+
+    ReshapeTestParams()
+        .in_dims({4})
+        .shape({4}),
 };
 
 INSTANTIATE_TEST_CASE_P(SupportedCases, KmbReshapeLayerTests, testing::ValuesIn(supportedReshapeParams));
