@@ -18,7 +18,7 @@
 
 #include <blob_factory.hpp>
 
-#include <ngraph/op/experimental/layers/psroi_pooling.hpp>
+#include <ngraph/op/psroi_pooling.hpp>
 
 namespace {
 

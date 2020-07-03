@@ -16,7 +16,7 @@
 
 #include "kmb_test_proposal_def.hpp"
 
-#include <ngraph/op/experimental/layers/proposal.hpp>
+#include <ngraph/op/proposal.hpp>
 
 #include <blob_factory.hpp>
 
