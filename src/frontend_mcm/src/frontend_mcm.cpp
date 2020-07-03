@@ -282,7 +282,7 @@ void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork&
     std::unordered_set<ie::CNNLayerPtr> visitedInitialLayers;
 
     for (const auto& inputData : allInputDatas) {
-        for (const auto& consumer : inputData->getInputTo()) {
+        for (const auto& consumer : getInputTo(inputData)) {
             auto initialLayer = consumer.second;
             IE_ASSERT(initialLayer != nullptr);
 
@@ -631,7 +631,7 @@ bool needAlignZeroPoints(std::vector<T> lowValues, std::vector<T> highValues, co
 bool isFakeQuantizeOnWeights(const InferenceEngine::CNNLayerPtr& fakeQuantizeLayer) {
     InferenceEngine::DataPtr inputData = fakeQuantizeLayer->insData[0].lock();
     IE_ASSERT(inputData != nullptr);
-    auto parentLayer = inputData->getCreatorLayer().lock();
+    auto parentLayer = getCreatorLayer(inputData).lock();
 
     //  Check that FQ on weights
     return parentLayer->type == "Const" ? true : false;
@@ -816,7 +816,7 @@ void FrontEndMcm::parseInputData() {
         const auto& dataDesc = ieData->getTensorDesc();
         mv::Shape inputShape(getWHCN(dataDesc).getDims());
 
-        auto inputLayerPtr = ieData->getCreatorLayer().lock();
+        auto inputLayerPtr = getCreatorLayer(ieData).lock();
 
         const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
         if (!isInputLayoutSupported(inputLayout)) {
@@ -1397,7 +1397,7 @@ InferenceEngine::CNNLayerPtr getInputLayerSafe(const InferenceEngine::CNNLayerPt
     IE_ASSERT(index < layer->insData.size());
     auto inputData = layer->insData[index].lock();
     IE_ASSERT(inputData != nullptr);
-    auto inputLayer = inputData->getCreatorLayer().lock();
+    auto inputLayer = getCreatorLayer(inputData).lock();
     IE_ASSERT(inputLayer != nullptr);
     return inputLayer;
 }
