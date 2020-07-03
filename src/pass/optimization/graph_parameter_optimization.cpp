@@ -948,13 +948,8 @@ namespace mv
                 if(requiresRealActivationSparsity(op, clustering) && !strategy["inputSparsity"].get<bool>())
                     return 12;
 
-
-                if(strategy["inputSparsity"].get<bool>() && (clustering == "SplitOverK"))
+                if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
                     return 13;
-
-                if(strategy["outputSparsity"].get<bool>() && (clustering == "HKSwitch"))
-                    return 13;
-
 
                 return 0; //good strategy
             }
@@ -1403,6 +1398,12 @@ namespace mv
                 //TODO remove this hack. currently ensures when cluster and soh are equal, soh occurs. only matters for CMconv
                 if(parentClustering == "SplitOverHOverlapped")
                     execTime1 = execTime1 - 1;
+
+                if(parentOutputSparsity)
+                    execTime1 = execTime1 + 1;
+
+                if(childInputSparsity)
+                    execTime2 = execTime2 + 1;
 
                 return execTime1 + execTime2;
         }
