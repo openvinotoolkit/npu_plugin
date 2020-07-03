@@ -7,7 +7,7 @@
                 "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "A0",
+                "referenceDevice": "B0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
@@ -232,7 +232,6 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -305,7 +304,7 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true	
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },

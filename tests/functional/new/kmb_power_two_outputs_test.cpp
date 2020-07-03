@@ -38,8 +38,9 @@ std::ostream& operator<<(std::ostream& os, const PowerTwoOutputsTestParams& p) {
 
 class KmbPowerTwoOutputsTest : public KmbLayerTestBase, public testing::WithParamInterface<PowerTwoOutputsTestParams> {};
 
+// [Track number: D#3226]
 TEST_P(KmbPowerTwoOutputsTest, powerWithSigmoid) {
-    SKIP_INFER_ON("KMB", "Error: output precision conversion from U8 to FP16 is not supported");
+    SKIP_ON("KMB", "Error: output precision conversion from U8 to FP16 is not supported");
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
@@ -86,10 +87,69 @@ TEST_P(KmbPowerTwoOutputsTest, powerWithSigmoid) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
+TEST_P(KmbPowerTwoOutputsTest, twoPowerWithSigmoid) {
+    SKIP_INFER_ON("KMB", "Error: output precision conversion from U8 to FP16 is not supported");
+    const auto &p = GetParam();
+
+    const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(p._outPrecision, Layout::NHWC);
+
+    const auto inputRange = std::make_pair(0.0f, 10.0f);
+
+    const auto tolerance = 1e-2f;
+    const auto netPrecision = Precision::FP32;
+
+    registerBlobGenerator(
+            "input", userInDesc,
+            [&](const TensorDesc& desc) {
+                return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
+            }
+    );
+
+    const auto powerTensorDesc = TensorDesc(Precision::FP32, {1, 1, 1, 1}, Layout::NHWC);
+    registerBlobGenerator(
+            "scale", powerTensorDesc,
+            [&](const TensorDesc& desc) {
+                return makeSingleValueBlob(desc, 1.f);
+            }
+    );
+
+    registerBlobGenerator(
+            "scale1", powerTensorDesc,
+            [&](const TensorDesc& desc) {
+                return makeSingleValueBlob(desc, 1.f);
+            }
+    );
+
+    const auto netBuidler = [&](TestNetwork& testNet) {
+        testNet
+                .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
+                .addNetInput("input", userInDesc.getDims(), netPrecision)
+                .addLayer<PowerLayerDef>("power")
+                    .input1("input")
+                    .input2(getBlobByName("scale"))
+                    .build()
+                .addLayer<SigmoidLayerDef>("sigmoid")
+                    .input("power")
+                    .build()
+                .addNetOutput(PortInfo("sigmoid"))
+                .setUserOutput(PortInfo("sigmoid"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+                .addLayer<PowerLayerDef>("power1")
+                        .input1("input")
+                        .input2(getBlobByName("scale1"))
+                        .build()
+                .setUserOutput(PortInfo("power1"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+                .addNetOutput(PortInfo("power1"))
+                .finalize();
+    };
+
+    runTest(netBuidler, tolerance, CompareMethod::Absolute);
+}
+
 const std::vector<PowerTwoOutputsTestParams> powerParams {
         PowerTwoOutputsTestParams()
-            .inDims({1, 3, 32, 32})
-            .outPrecision(Precision::FP16),
+                .inDims({1, 3, 32, 32})
+                .outPrecision(Precision::FP16),
 };
 
 INSTANTIATE_TEST_CASE_P(SomeCase, KmbPowerTwoOutputsTest, testing::ValuesIn(powerParams));

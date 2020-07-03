@@ -24,6 +24,9 @@ struct DetectionOutputParamsT;
 struct DeconvolutionParams;
 struct DeconvolutionParamsT;
 
+struct ConvolutionParams;
+struct ConvolutionParamsT;
+
 struct FlattenParams;
 struct FlattenParamsT;
 
@@ -352,11 +355,12 @@ enum SoftwareLayerParams {
   SoftwareLayerParams_PSROIPoolingParams = 31,
   SoftwareLayerParams_DeconvolutionParams = 32,
   SoftwareLayerParams_UnaryOpParams = 33,
+  SoftwareLayerParams_ConvolutionParams = 34,
   SoftwareLayerParams_MIN = SoftwareLayerParams_NONE,
-  SoftwareLayerParams_MAX = SoftwareLayerParams_UnaryOpParams
+  SoftwareLayerParams_MAX = SoftwareLayerParams_ConvolutionParams
 };
 
-inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[34] {
+inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[35] {
   static const SoftwareLayerParams values[] = {
     SoftwareLayerParams_NONE,
     SoftwareLayerParams_DummyParams,
@@ -391,7 +395,8 @@ inline const SoftwareLayerParams (&EnumValuesSoftwareLayerParams())[34] {
     SoftwareLayerParams_TileParams,
     SoftwareLayerParams_PSROIPoolingParams,
     SoftwareLayerParams_DeconvolutionParams,
-    SoftwareLayerParams_UnaryOpParams
+    SoftwareLayerParams_UnaryOpParams,
+    SoftwareLayerParams_ConvolutionParams
   };
   return values;
 }
@@ -432,13 +437,14 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
     "PSROIPoolingParams",
     "DeconvolutionParams",
     "UnaryOpParams",
+    "ConvolutionParams",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_UnaryOpParams) return "";
+  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_ConvolutionParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -577,6 +583,10 @@ template<> struct SoftwareLayerParamsTraits<DeconvolutionParams> {
 
 template<> struct SoftwareLayerParamsTraits<UnaryOpParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_UnaryOpParams;
+};
+
+template<> struct SoftwareLayerParamsTraits<ConvolutionParams> {
+  static const SoftwareLayerParams enum_value = SoftwareLayerParams_ConvolutionParams;
 };
 
 struct SoftwareLayerParamsUnion {
@@ -874,6 +884,14 @@ struct SoftwareLayerParamsUnion {
   const UnaryOpParamsT *AsUnaryOpParams() const {
     return type == SoftwareLayerParams_UnaryOpParams ?
       reinterpret_cast<const UnaryOpParamsT *>(value) : nullptr;
+  }
+  ConvolutionParamsT *AsConvolutionParams() {
+    return type == SoftwareLayerParams_ConvolutionParams ?
+      reinterpret_cast<ConvolutionParamsT *>(value) : nullptr;
+  }
+  const ConvolutionParamsT *AsConvolutionParams() const {
+    return type == SoftwareLayerParams_ConvolutionParams ?
+      reinterpret_cast<const ConvolutionParamsT *>(value) : nullptr;
   }
 };
 
@@ -1696,6 +1714,115 @@ inline flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(
 }
 
 flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ConvolutionParamsT : public flatbuffers::NativeTable {
+  typedef ConvolutionParams TableType;
+  std::unique_ptr<order3> kernel;
+  std::unique_ptr<order3> strides;
+  std::unique_ptr<order3> dilations;
+  std::unique_ptr<order3> pads_begin;
+  std::unique_ptr<order3> pads_end;
+  int32_t group;
+  ConvolutionParamsT()
+      : group(0) {
+  }
+};
+
+struct ConvolutionParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ConvolutionParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_KERNEL = 4,
+    VT_STRIDES = 6,
+    VT_DILATIONS = 8,
+    VT_PADS_BEGIN = 10,
+    VT_PADS_END = 12,
+    VT_GROUP = 14
+  };
+  const order3 *kernel() const {
+    return GetStruct<const order3 *>(VT_KERNEL);
+  }
+  const order3 *strides() const {
+    return GetStruct<const order3 *>(VT_STRIDES);
+  }
+  const order3 *dilations() const {
+    return GetStruct<const order3 *>(VT_DILATIONS);
+  }
+  const order3 *pads_begin() const {
+    return GetStruct<const order3 *>(VT_PADS_BEGIN);
+  }
+  const order3 *pads_end() const {
+    return GetStruct<const order3 *>(VT_PADS_END);
+  }
+  int32_t group() const {
+    return GetField<int32_t>(VT_GROUP, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<order3>(verifier, VT_KERNEL) &&
+           VerifyField<order3>(verifier, VT_STRIDES) &&
+           VerifyField<order3>(verifier, VT_DILATIONS) &&
+           VerifyField<order3>(verifier, VT_PADS_BEGIN) &&
+           VerifyField<order3>(verifier, VT_PADS_END) &&
+           VerifyField<int32_t>(verifier, VT_GROUP) &&
+           verifier.EndTable();
+  }
+  ConvolutionParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ConvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ConvolutionParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ConvolutionParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_kernel(const order3 *kernel) {
+    fbb_.AddStruct(ConvolutionParams::VT_KERNEL, kernel);
+  }
+  void add_strides(const order3 *strides) {
+    fbb_.AddStruct(ConvolutionParams::VT_STRIDES, strides);
+  }
+  void add_dilations(const order3 *dilations) {
+    fbb_.AddStruct(ConvolutionParams::VT_DILATIONS, dilations);
+  }
+  void add_pads_begin(const order3 *pads_begin) {
+    fbb_.AddStruct(ConvolutionParams::VT_PADS_BEGIN, pads_begin);
+  }
+  void add_pads_end(const order3 *pads_end) {
+    fbb_.AddStruct(ConvolutionParams::VT_PADS_END, pads_end);
+  }
+  void add_group(int32_t group) {
+    fbb_.AddElement<int32_t>(ConvolutionParams::VT_GROUP, group, 0);
+  }
+  explicit ConvolutionParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ConvolutionParamsBuilder &operator=(const ConvolutionParamsBuilder &);
+  flatbuffers::Offset<ConvolutionParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<ConvolutionParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<ConvolutionParams> CreateConvolutionParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const order3 *kernel = 0,
+    const order3 *strides = 0,
+    const order3 *dilations = 0,
+    const order3 *pads_begin = 0,
+    const order3 *pads_end = 0,
+    int32_t group = 0) {
+  ConvolutionParamsBuilder builder_(_fbb);
+  builder_.add_group(group);
+  builder_.add_pads_end(pads_end);
+  builder_.add_pads_begin(pads_begin);
+  builder_.add_dilations(dilations);
+  builder_.add_strides(strides);
+  builder_.add_kernel(kernel);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<ConvolutionParams> CreateConvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
 struct FlattenParamsT : public flatbuffers::NativeTable {
   typedef FlattenParams TableType;
@@ -4492,6 +4619,9 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
     return softLayerParams_type() == SoftwareLayerParams_UnaryOpParams ? static_cast<const UnaryOpParams *>(softLayerParams()) : nullptr;
   }
+  const ConvolutionParams *softLayerParams_as_ConvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ConvolutionParams ? static_cast<const ConvolutionParams *>(softLayerParams()) : nullptr;
+  }
   const TensorReference *input_data() const {
     return GetPointer<const TensorReference *>(VT_INPUT_DATA);
   }
@@ -4671,6 +4801,10 @@ template<> inline const DeconvolutionParams *UPALayerTask::softLayerParams_as<De
 
 template<> inline const UnaryOpParams *UPALayerTask::softLayerParams_as<UnaryOpParams>() const {
   return softLayerParams_as_UnaryOpParams();
+}
+
+template<> inline const ConvolutionParams *UPALayerTask::softLayerParams_as<ConvolutionParams>() const {
+  return softLayerParams_as_ConvolutionParams();
 }
 
 struct UPALayerTaskBuilder {
@@ -4893,6 +5027,9 @@ struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
     return softLayerParams_type() == SoftwareLayerParams_UnaryOpParams ? static_cast<const UnaryOpParams *>(softLayerParams()) : nullptr;
   }
+  const ConvolutionParams *softLayerParams_as_ConvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ConvolutionParams ? static_cast<const ConvolutionParams *>(softLayerParams()) : nullptr;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
@@ -5035,6 +5172,10 @@ template<> inline const DeconvolutionParams *SNNLayerTask::softLayerParams_as<De
 
 template<> inline const UnaryOpParams *SNNLayerTask::softLayerParams_as<UnaryOpParams>() const {
   return softLayerParams_as_UnaryOpParams();
+}
+
+template<> inline const ConvolutionParams *SNNLayerTask::softLayerParams_as<ConvolutionParams>() const {
+  return softLayerParams_as_ConvolutionParams();
 }
 
 struct SNNLayerTaskBuilder {
@@ -6307,6 +6448,47 @@ inline flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(flatbu
       _pads_end,
       _output_padding,
       _is_depthwise);
+}
+
+inline ConvolutionParamsT *ConvolutionParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new ConvolutionParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void ConvolutionParams::UnPackTo(ConvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = dilations(); if (_e) _o->dilations = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = group(); _o->group = _e; };
+}
+
+inline flatbuffers::Offset<ConvolutionParams> ConvolutionParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateConvolutionParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ConvolutionParams> CreateConvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ConvolutionParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _kernel = _o->kernel ? _o->kernel.get() : 0;
+  auto _strides = _o->strides ? _o->strides.get() : 0;
+  auto _dilations = _o->dilations ? _o->dilations.get() : 0;
+  auto _pads_begin = _o->pads_begin ? _o->pads_begin.get() : 0;
+  auto _pads_end = _o->pads_end ? _o->pads_end.get() : 0;
+  auto _group = _o->group;
+  return MVCNN::CreateConvolutionParams(
+      _fbb,
+      _kernel,
+      _strides,
+      _dilations,
+      _pads_begin,
+      _pads_end,
+      _group);
 }
 
 inline FlattenParamsT *FlattenParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
@@ -8002,6 +8184,10 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const UnaryOpParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
+    case SoftwareLayerParams_ConvolutionParams: {
+      auto ptr = reinterpret_cast<const ConvolutionParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
     default: return false;
   }
 }
@@ -8152,6 +8338,10 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const UnaryOpParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_ConvolutionParams: {
+      auto ptr = reinterpret_cast<const ConvolutionParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -8290,6 +8480,10 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       auto ptr = reinterpret_cast<const UnaryOpParamsT *>(value);
       return CreateUnaryOpParams(_fbb, ptr, _rehasher).Union();
     }
+    case SoftwareLayerParams_ConvolutionParams: {
+      auto ptr = reinterpret_cast<const ConvolutionParamsT *>(value);
+      return CreateConvolutionParams(_fbb, ptr, _rehasher).Union();
+    }
     default: return 0;
   }
 }
@@ -8426,6 +8620,10 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_UnaryOpParams: {
       value = new UnaryOpParamsT(*reinterpret_cast<UnaryOpParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_ConvolutionParams: {
+      FLATBUFFERS_ASSERT(false);  // ConvolutionParamsT not copyable.
       break;
     }
     default:
@@ -8597,6 +8795,11 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_UnaryOpParams: {
       auto ptr = reinterpret_cast<UnaryOpParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_ConvolutionParams: {
+      auto ptr = reinterpret_cast<ConvolutionParamsT *>(value);
       delete ptr;
       break;
     }

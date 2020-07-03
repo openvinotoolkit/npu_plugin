@@ -186,8 +186,8 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUOnly) {
 
     ASSERT_NO_THROW(_exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
-
-TEST_P(kmbLayersTestsReLUParams, TestsReLUNetInit) {
+// [Track number: S#34238]
+TEST_P(kmbLayersTestsReLUParams, DISABLED_TestsReLUNetInit) {
     auto param = GetParam();
     tensor_test_params tensor = param;
 

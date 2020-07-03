@@ -27,8 +27,10 @@ namespace mv
 
     class ComputationModel : public LogSender
     {
+      public:
+        typedef dataGraph data_graph_t;
 
-    protected:
+      protected:
 
         std::string name_;
         /*
@@ -103,6 +105,8 @@ namespace mv
         bool isValid(Control::FlowListIterator it) const;
         bool isValid(GroupIterator it) const;
         bool isValid(Control::StageIterator it) const;
+
+        data_graph_t& getDataGraph() { return dataGraph_; }
 
         GroupIterator addGroup(const std::string &name);
         GroupIterator groupBegin();

@@ -45,7 +45,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_ResNet_50) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -122,7 +122,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
         3, 2.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -257,7 +257,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
         1, 1e-1f);
 }
 
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_TF_IRv7_Inception_V3) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -346,6 +346,8 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
 //
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
+    // Track number: H#18012088819
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
