@@ -19,7 +19,7 @@ std::vector<std::string> devices = {
 };
 
 std::pair<std::string, std::string> plugins[] = {
-        std::make_pair(std::string("kmbPlugin"), std::string(CommonTestUtils::DEVICE_MYRIAD)),
+        std::make_pair(std::string("kmbPlugin"), std::string(CommonTestUtils::DEVICE_KEEMBAY)),
 };
 
 //
@@ -110,13 +110,13 @@ INSTANTIATE_TEST_CASE_P(
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
-        ::testing::Values(std::string(CommonTestUtils::DEVICE_MYRIAD), "HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD)));
+        ::testing::Values(std::string(CommonTestUtils::DEVICE_KEEMBAY), "HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY)));
 
 #if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
 
 INSTANTIATE_TEST_CASE_P(
         smoke_IEClassImportExportTestP_HETERO_CPU, IEClassNetworkTestP_VPU,
-        ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_MYRIAD) + ",CPU"));
+        ::testing::Values("HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY) + ",CPU"));
 #endif
 
 //
