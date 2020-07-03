@@ -413,12 +413,17 @@ void KmbInferRequest::GetResult() {
 
             // copy blob with correct precision to the output blob
             // copyBlob does layout conversion on its own
-            if (inferOutputDesc.getLayout() == InferenceEngine::Layout::NC) {
-                // NC tensors are copied to blob buffer as is
-                copyBlob(blobWithCorrectPrecision, deviceOutputDesc.getLayout(), outputBlob->buffer());
+            const auto outputMemoryBlob = as<MemoryBlob>(outputBlob);
+            const auto outputMemory = outputMemoryBlob->rmap();
+            const auto outputPtr = outputMemory.as<void*>();
+            if (needRepackForNHWC(inferOutputDesc)) {
+                _logger->warning("Output blob is inconsistent with network output. Need to do re-layout.");
+                // NB: It's possible to make repack data only with the same number of dimensions
+                // So just make a view without any copy
+                const auto actualView4D = make_blob_with_precision(getNCHW(inferOutputDesc), outputPtr);
+                copyBlob(blobWithCorrectPrecision, actualView4D);
             } else {
-                // do layout conversion
-                copyBlob(blobWithCorrectPrecision, outputBlob);
+                copyBlob(blobWithCorrectPrecision, deviceOutputDesc.getLayout(), outputPtr);
             }
 
             outputBufferOffset += devOutBlob->byteSize();

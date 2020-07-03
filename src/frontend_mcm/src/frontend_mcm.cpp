@@ -769,7 +769,8 @@ bool isOutputPrecisionSupported(const ie::Precision& outputPrecision) {
 }
 
 bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
-    std::set<ie::Layout> supportedOutLayouts = {ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::NC};
+    std::set<ie::Layout> supportedOutLayouts = {
+        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C};
     return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
 }
 
