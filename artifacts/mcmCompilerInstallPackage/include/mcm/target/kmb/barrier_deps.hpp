@@ -23,9 +23,13 @@ namespace mv
         void addWaitBarrier(int barrierId);
 
         void clear() { waitBarriers_.clear(); updateBarriers_.clear(); }
+        void clearUpdateBarriers(void) { updateBarriers_.clear(); }
 
         const std::vector<unsigned>& getWait();
         const std::vector<unsigned>& getUpdate();
+
+        size_t getUpdateSize() const { return updateBarriers_.size(); }
+        size_t getWaitSize() const { return waitBarriers_.size(); }
 
         bool hasWaitBarrierWithID(unsigned id) const {
           for (auto itr=waitBarriers_.begin();

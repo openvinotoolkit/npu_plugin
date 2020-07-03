@@ -158,6 +158,9 @@ TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
     std::string inputSuffix = blobsInfo._inputPath;
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        SKIP() << "Disabled due to H#18012088819";
+    }
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -212,6 +215,9 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
     std::string inputSuffix = blobsInfo._inputPath;
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        SKIP() << "Disabled due to H#18012088819";
+    }
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -294,6 +300,9 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
     std::string inputSuffix = blobsInfo._inputPath;
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        SKIP() << "Disabled due to H#18012088819";
+    }
 
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));
@@ -376,6 +385,9 @@ TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
     std::string inputSuffix = blobsInfo._inputPath;
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        SKIP() << "Disabled due to H#18012088819";
+    }
 
     InferenceEngine::ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName));

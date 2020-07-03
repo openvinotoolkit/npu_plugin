@@ -49,7 +49,12 @@ namespace mv
         std::size_t inputSlots() const;
         std::size_t outputSlots() const;
         bool isImplicit() const;
+        bool isUPA() const;
+        bool isSparsityConsumer() const;
+        bool isHardwarizable() const;
         bool hasWeights() const;
+        bool hasPWLActivation() const;
+        bool hasFloatPrecision() const;
 
         std::string getLogID() const override;
 
