@@ -583,7 +583,7 @@ TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
 
     // build identity kernel which transforms the tensor to copy of itself
     DataPtr kernelWeights = convLayer->insData[1].lock();
-    CNNLayer::Ptr kernelWeightsLayer = kernelWeights->getCreatorLayer().lock();
+    CNNLayer::Ptr kernelWeightsLayer = getCreatorLayer(kernelWeights).lock();
     Blob::Ptr kernelWeightsBlob = kernelWeightsLayer->blobs.begin()->second;
     IE_ASSERT(kernelWeightsBlob != nullptr);
     IE_ASSERT(kernelWeightsBlob->getTensorDesc().getLayout() == Layout::NCHW);
