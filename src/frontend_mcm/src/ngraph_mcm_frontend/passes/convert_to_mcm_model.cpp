@@ -40,9 +40,9 @@
 #include "ngraph/op/softmax.hpp"
 // not needed #include <ngraph_ops/prior_box_ie.hpp>
 #include "ngraph/op/fused/prelu.hpp"
-#include "ngraph/op/experimental/layers/region_yolo.hpp"
+#include "ngraph/op/region_yolo.hpp"
 
-#include "ngraph/op/experimental/layers/reorg_yolo.hpp"
+#include "ngraph/op/reorg_yolo.hpp"
 
 #include <ngraph_ops/power.hpp>
 
