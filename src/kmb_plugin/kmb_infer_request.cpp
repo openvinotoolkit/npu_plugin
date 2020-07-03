@@ -28,16 +28,10 @@
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/perf_report.hpp>
 
+#include "dims_parser.hpp"
 #include "ie_utils.hpp"
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
-
-// TODO [Track number: S#21391]
-// FIXME: does not work for batch != 1
-static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
-    size_t ones = std::count(dims.begin(), dims.end(), 1);
-    return (dims.size() - ones) == 1;
-}
 
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
@@ -151,8 +145,8 @@ void KmbInferRequest::InferAsync() {
 
     if (_inputs.size() == 1) {
         // avoid memory copy for single input
-        const auto deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
-        const auto input = _inputs.begin()->second;
+        const auto& deviceInputDesc = deviceInputs.begin()->second->getTensorDesc();
+        const auto& input = _inputs.begin()->second;
         auto updatedInput = prepareInputForInference(input, deviceInputDesc);
         _executor->queueInference(updatedInput->buffer().as<void*>(), updatedInput->byteSize());
     } else {
@@ -246,11 +240,31 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
 }
 
-static bool needRepacking(const Blob::Ptr& actualInput, const TensorDesc& deviceTensorDesc) {
-    // TODO: is2DTensor is a workaround for NHWC -> NC case
-    // remove when mcm will support different input layout
-    return (deviceTensorDesc.getLayout() != actualInput->getTensorDesc().getLayout() &&
-            !is2DTensor(actualInput->getTensorDesc().getDims()));
+static bool needRepackForNHWC(const TensorDesc& actualDesc) {
+    /* NB: Brief overview:
+     * Runtime works only with NHWC layout, but actual input layout can be different
+     * therefore it should be repacked, let's to observe cases:
+         1) NC & C there isn't necessary to do repacking,
+            because these layouts has the same representation in NCHW & NHWC
+         2) NHWC isn't necessary to do repacking obviously
+         3) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
+         4) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
+     */
+    const auto actualLayout = actualDesc.getLayout();
+    const auto& actualDims = actualDesc.getDims();
+    switch (actualLayout) {
+    case Layout::NHWC:
+    case Layout::NC:
+    case Layout::C:
+        return false;
+    case Layout::NCHW:
+        return (actualDims[0] != 1) || (actualDims[1] != 1);
+    case Layout::CHW:
+        return actualDims[0] != 1;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported layout for actual blob: " << actualLayout;
+    }
+    IE_ASSERT(false);
 }
 
 static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
@@ -272,7 +286,7 @@ static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
     return dstBlob;
 }
 
-static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout layout) {
+static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, Layout layout) {
     auto allocator = getKmbAllocator();
 
     TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
@@ -290,28 +304,39 @@ Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
 }
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
-    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& expectedDesc) {
+    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc) {
     IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
+
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.forceNCHWToNHWC()) {
         _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
         return reallocateBlobToLayoutIgnoringOriginalLayout(actualInput, Layout::NCHW, Layout::NHWC);
-    } else {
-        Blob::Ptr inputForInference;
-        if (!isBlobPlacedInShareableMemory(actualInput)) {
-            _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
-            inputForInference = reallocateBlob(actualInput);
-        } else {
-            inputForInference = actualInput;
-        }
-
-        if (needRepacking(actualInput, expectedDesc)) {
-            _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
-            inputForInference = reallocateBlobToLayout(actualInput, expectedDesc.getLayout());
-        }
-
-        return inputForInference;
     }
+
+    Blob::Ptr inputForInference;
+    if (!isBlobPlacedInShareableMemory(actualInput)) {
+        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+        inputForInference = reallocateBlob(actualInput);
+    } else {
+        inputForInference = actualInput;
+    }
+
+    const auto& actualDesc = actualInput->getTensorDesc();
+    const auto& deviceLayout = deviceDesc.getLayout();
+
+    IE_ASSERT(deviceLayout == Layout::NHWC) << "The Plugin relies on the fact that runtime works with NHWC layout";
+    if (needRepackForNHWC(actualDesc)) {
+        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+        // NB: It's possible to make repack data only with the same number of dimensions
+        // So just make a view without any copy
+        const auto outputMemoryBlob = as<MemoryBlob>(actualInput);
+        const auto outputMemory = outputMemoryBlob->rmap();
+        const auto outputPtr = outputMemory.as<void*>();
+        Blob::Ptr actualView4D = make_blob_with_precision(getNCHW(actualInput->getTensorDesc()), outputPtr);
+        inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout);
+    }
+
+    return inputForInference;
 }
 
 void KmbInferRequest::dumpBlobs(

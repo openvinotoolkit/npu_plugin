@@ -758,7 +758,8 @@ bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
 }
 
 bool isInputLayoutSupported(const ie::Layout& inputLayout) {
-    const std::set<ie::Layout> supportedInLayouts = {ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::NC};
+    const std::set<ie::Layout> supportedInLayouts = {
+        ie::Layout::NHWC, ie::Layout::NCHW, ie::Layout::CHW, ie::Layout::NC, ie::Layout::C};
     return supportedInLayouts.find(inputLayout) != supportedInLayouts.end();
 }
 
