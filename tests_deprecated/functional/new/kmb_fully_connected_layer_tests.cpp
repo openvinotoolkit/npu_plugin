@@ -103,4 +103,4 @@ const std::vector<FCTestParams> fcParams {
         .fcParams(FullyConnectedParams().outChannels(1000))
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbFullyConnectedLayerTests, testing::ValuesIn(fcParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbFullyConnectedLayerTests, testing::ValuesIn(fcParams));

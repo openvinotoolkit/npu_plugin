@@ -461,7 +461,7 @@ TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
 
 const static std::vector<bool> isSyncVec = {false, true};
 
-INSTANTIATE_TEST_CASE_P(multipleInference, VpuInferAndCompareTestsWithParam,
+INSTANTIATE_TEST_CASE_P(precommit, VpuInferAndCompareTestsWithParam,
     ::testing::Combine(::testing::ValuesIn(isSyncVec), ::testing::ValuesIn(pathToPreCompiledGraph)));
 
 TEST_P(VpuInferWithPath, compareSetBlobAndGetBlobInput) {
@@ -846,8 +846,7 @@ TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(refBlob), NUMBER_OF_TOP_CLASSES));
 }
 
-INSTANTIATE_TEST_CASE_P(inferenceWithParameters, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
+INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));
 
-INSTANTIATE_TEST_CASE_P(
-    inferenceWithTop3Networks, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
+INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPathForTop3Net, ::testing::ValuesIn(pathToTop3PreCompiledGraph));
 #endif

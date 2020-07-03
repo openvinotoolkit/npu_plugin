@@ -487,7 +487,7 @@ TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
     });
 }
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingWithTwoNetworksTests,
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
     Values(std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1080x1080-nv12.bin", 1080, 1080,
                "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080),
         std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1920x1080-nv12.bin", 1920, 1080,
@@ -1183,19 +1183,19 @@ TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
 
 INSTANTIATE_TEST_CASE_P(
-    preprocessingM2I, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
+    precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
