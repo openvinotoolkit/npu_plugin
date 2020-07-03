@@ -192,11 +192,6 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworksFail = {
     TestingNetworkParameters {"ssd512_caffe_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.bin", "/512x512/dog_croped512.bmp"},
-    // very long time compilation
-    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
-        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
-        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
-        "/448x448/cat3.bmp"},
 };
 
 std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
@@ -206,6 +201,10 @@ std::vector<TestingNetworkParameters> vpuCompileTargetNetworks = {
     TestingNetworkParameters {"yolo_v2_uint8_int8_weights_pertensor",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml",
         "/KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.bin", "/416x416/person.bmp"},
+    TestingNetworkParameters {"tiny_yolo_v1_uint8_int8_weights_pertensor",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.xml",
+        "/KMB_models/INT8/public/YoloTiny-v1-caffe/tiny_yolo_v1_caffe_uint8_int8_weights_per_tensor.bin",
+        "/416x416/person.bmp"},
 };
 
 // [Track number: S#xxxxx]
