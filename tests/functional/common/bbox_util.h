@@ -86,7 +86,12 @@ template <typename T>
 struct ArrayWrapper {
     ArrayWrapper(): _data(NULL), _count(0) {}
     ArrayWrapper(const T* data, int count): _data(data), _count(count) {}
-    ArrayWrapper(const ArrayWrapper& other): _data(other._data), _count(other._count) {}
+    ArrayWrapper<T>& operator=(const ArrayWrapper<T>& other) {
+        this->_data = other._data;
+        this->_count = other._count;
+        return *this;
+    }
+    ArrayWrapper(const ArrayWrapper& other) { operator=(other); }
     size_t size() const { return _count; }
     size_t sizeb() const { return _count * sizeof(T); }
 
@@ -100,7 +105,11 @@ template <typename Dtype>
 struct BBoxArrayWrapper : public ArrayWrapper<BBox<Dtype>> {
     BBoxArrayWrapper() {}
     BBoxArrayWrapper(const BBox<Dtype>* data, int count): ArrayWrapper<BBox<Dtype>>(data, count) {}
-    BBoxArrayWrapper(const BBoxArrayWrapper& other): ArrayWrapper<BBox<Dtype>>(other) {}
+    BBoxArrayWrapper<Dtype>& operator=(const BBoxArrayWrapper<Dtype>& other) {
+        ArrayWrapper<BBox<Dtype>>::operator=(other);
+        return *this;
+    }
+    BBoxArrayWrapper<Dtype>(const BBoxArrayWrapper<Dtype>& other) { operator=(other); }
 };
 
 class DetectionResult {
