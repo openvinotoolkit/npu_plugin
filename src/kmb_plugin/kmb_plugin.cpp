@@ -24,6 +24,7 @@
 #include <memory>
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
+#include <kmb_remote_context.h>
 
 #include "ie_macro.hpp"
 
@@ -61,7 +62,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         transformator.fullTrim();
     }
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, GetDefaultContext());
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
@@ -92,7 +93,7 @@ void Engine::QueryNetwork(
 #endif
 }
 
-Engine::Engine(): _metrics() {
+Engine::Engine(): _metrics(), _defaultContext(nullptr) {
     _pluginName = "KMB";
 
 #ifdef ENABLE_MCM_COMPILER
@@ -130,7 +131,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config, ConfigMode::RunTime);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, GetDefaultContext());
 
     return InferenceEngine::ExecutableNetwork {IExecutableNetwork::Ptr(
         new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork), [](ie::details::IRelease* p) {
@@ -156,6 +157,35 @@ InferenceEngine::Parameter Engine::GetMetric(
         IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
+RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
+    return std::make_shared<KmbPlugin::KmbRemoteContext>(map, _parsedConfig);
+}
+
+InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
+    std::istream& networkModel, const RemoteContext::Ptr& ctx, const std::map<std::string, std::string>& config) {
+    if (std::dynamic_pointer_cast<KmbRemoteContext>(ctx) == nullptr) {
+        THROW_IE_EXCEPTION << "Remote context is not compatible";
+    }
+
+    auto parsedConfigCopy = _parsedConfig;
+    parsedConfigCopy.update(config, ConfigMode::RunTime);
+
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, ctx);
+
+    return InferenceEngine::ExecutableNetwork {IExecutableNetwork::Ptr(
+        new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork), [](ie::details::IRelease* p) {
+            p->Release();
+        })};
+}
+
+RemoteContext::Ptr Engine::GetDefaultContext() {
+    std::lock_guard<std::mutex> contextCreateGuard(_contextCreateMutex);
+    if (nullptr == _defaultContext) {
+        _defaultContext = std::make_shared<KmbPlugin::KmbRemoteContext>(ParamMap(), _parsedConfig);
+    }
+    return std::dynamic_pointer_cast<RemoteContext>(_defaultContext);
 }
 
 IE_SUPPRESS_DEPRECATED_START

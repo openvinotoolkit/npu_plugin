@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <sys/mman.h>
 
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
@@ -63,4 +64,12 @@ std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
         }
     }
     return allocator;
+}
+
+void* KmbAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
+    void* virtAddr = mmap(memHandle, size, PROT_READ | PROT_WRITE, MAP_SHARED, remoteMemoryFd, 0);
+
+    if (virtAddr == MAP_FAILED) return nullptr;
+
+    return virtAddr;
 }

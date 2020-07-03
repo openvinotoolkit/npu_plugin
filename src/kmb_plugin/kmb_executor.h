@@ -48,7 +48,7 @@ class KmbExecutor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
-    explicit KmbExecutor(const KmbConfig& config);
+    explicit KmbExecutor(const KmbConfig& config, const KmbAllocator::Ptr& allocator);
     virtual ~KmbExecutor() = default;
 
     virtual void allocateGraph(const std::vector<char>& graphFileContent, const ie::InputsDataMap& networkInputs,
@@ -64,6 +64,7 @@ public:
     virtual const InferenceEngine::OutputsDataMap& getRuntimeOutputs() const { return _runtimeOutputs; }
 
     static std::vector<std::string> getAvailableDevices();
+    KmbAllocator::Ptr getKmbAllocator() const { return _allocator; }
 
     const KmbConfig& _config;
 
@@ -93,7 +94,7 @@ private:
     InferenceEngine::InputsDataMap _runtimeInputs;
     InferenceEngine::OutputsDataMap _runtimeOutputs;
 
-    std::shared_ptr<KmbAllocator> allocator;
+    KmbAllocator::Ptr _allocator;
     void initVpualObjects();
 
     const int xlinkChannel = 0;

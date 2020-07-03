@@ -84,6 +84,7 @@ private:
     InferenceEngine::Blob::Ptr prepareInputForInference(
         const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::TensorDesc& expectedDesc);
 
+    std::function<void(uint8_t*)> _deallocateHelper;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 };

@@ -19,11 +19,14 @@
 #include <ie_allocator.hpp>
 #include <unordered_map>
 
+#include "vpu/kmb_params.hpp"
+
 namespace vpu {
 namespace KmbPlugin {
 
 class KmbAllocator : public InferenceEngine::IAllocator {
 public:
+    using Ptr = std::shared_ptr<KmbAllocator>;
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;
@@ -39,6 +42,8 @@ public:
     virtual bool isValidPtr(void* ptr) noexcept;
 
     virtual ~KmbAllocator() = default;
+
+    virtual void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
 
 protected:
     struct MemoryDescriptor {
