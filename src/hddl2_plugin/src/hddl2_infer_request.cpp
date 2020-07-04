@@ -237,65 +237,63 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
 
 void HDDL2InferRequest::GetResult() {
     IE_PROFILING_AUTO_SCOPE(GetResult)
-    if (_networkOutputs.size() != 1) {
-        THROW_IE_EXCEPTION << "Only one output is supported!";
-    }
-
-    const std::string outputName = _networkOutputs.begin()->first;
-    auto foundOutputBlob = _outputs.find(outputName);
-    if (foundOutputBlob == _outputs.end()) {
-        THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
-    }
-    IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
-
-    const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
-
-    const auto networkOutputPrecision = _networkOutputs.begin()->second->getPrecision();
-    const auto blobOutputPrecision = outputBlobPtr->getTensorDesc().getPrecision();
-
-    InferenceEngine::TensorDesc networkTensorDesc = _networkOutputs.begin()->second->getTensorDesc();
-    InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
-
-    if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
-        if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
-            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
-                               << blobOutputPrecision << " is not supported.";
+    for (const auto& inferOutput : _outputs) {
+        const std::string outputName = inferOutput.first;
+        auto foundOutputBlob = _outputs.find(outputName);
+        if (foundOutputBlob == _outputs.end()) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
         }
-        auto tempUniteOutputTensorDesc = networkTensorDesc;
-        // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
-        tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
-        if (outputBlobPtr->getTensorDesc().getDims().size() == 4) {
-            tempUniteOutputTensorDesc.setLayout(IE::Layout::NHWC);
-        }
+        IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
 
-        IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
-        tempFP16Blob->allocate();
-        copyDataToBlob(tempFP16Blob, outputUniteData.data(), outputUniteData.size());
-        if (tempUniteOutputTensorDesc.getPrecision() != blobOutputPrecision) {
-            outputBlobPtr = utils::convertPrecision(tempFP16Blob, outputBlobTensorDesc.getPrecision());
+        const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
+
+        InferenceEngine::TensorDesc networkTensorDesc = inferOutput.second->getTensorDesc();
+        InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
+
+        const auto networkOutputPrecision = networkTensorDesc.getPrecision();
+        const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
+
+        if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
+            if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                                   << blobOutputPrecision << " is not supported.";
+            }
+            auto tempUniteOutputTensorDesc = networkTensorDesc;
+            // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
+            tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
+            if (outputBlobPtr->getTensorDesc().getDims().size() == 4) {
+                tempUniteOutputTensorDesc.setLayout(IE::Layout::NHWC);
+            }
+
+            IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
+            tempFP16Blob->allocate();
+            copyDataToBlob(tempFP16Blob, outputUniteData.data(), outputUniteData.size());
+            if (tempUniteOutputTensorDesc.getPrecision() != blobOutputPrecision) {
+                outputBlobPtr = utils::convertPrecision(tempFP16Blob, outputBlobTensorDesc.getPrecision());
+            } else {
+                outputBlobPtr = tempFP16Blob;
+            }
         } else {
-            outputBlobPtr = tempFP16Blob;
+            if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                                   << blobOutputPrecision << " is not supported.";
+            }
+            if (outputUniteData.size() != outputBlobPtr->byteSize()) {
+                THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
+            }
+            copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
+            if (!is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+                outputBlobPtr->getTensorDesc().setLayout(IE::Layout::NHWC);
+            }
         }
-    } else {
-        if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
-            THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
-                               << blobOutputPrecision << " is not supported.";
-        }
-        if (outputUniteData.size() != outputBlobPtr->byteSize()) {
-            THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
-        }
-        copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
-        if (!is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
-            outputBlobPtr->getTensorDesc().setLayout(IE::Layout::NHWC);
-        }
-    }
-    if (is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
-        _outputs[outputName] = outputBlobPtr;
-    } else {
-        if (outputBlobPtr->getTensorDesc().getLayout() != networkTensorDesc.getLayout()) {
-            _outputs[outputName] = reallocateBlobToLayout(outputBlobPtr, networkTensorDesc.getLayout());
-        } else {
+        if (is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
             _outputs[outputName] = outputBlobPtr;
+        } else {
+            if (outputBlobPtr->getTensorDesc().getLayout() != networkTensorDesc.getLayout()) {
+                _outputs[outputName] = reallocateBlobToLayout(outputBlobPtr, networkTensorDesc.getLayout());
+            } else {
+                _outputs[outputName] = outputBlobPtr;
+            }
         }
     }
 }

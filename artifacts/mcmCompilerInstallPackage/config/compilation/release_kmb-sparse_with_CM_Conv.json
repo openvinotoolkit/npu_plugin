@@ -16,7 +16,7 @@
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
@@ -140,7 +140,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "enableActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : true },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -232,7 +232,6 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -305,7 +304,7 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true	
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
