@@ -445,6 +445,7 @@ void populateActivationStorageElementMap(
     }
 }
 
+
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
 //This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
 //Idea: We use the equation: ((x << m) + b) >> s, and train its variables in order to find a close solution that always satisfies the

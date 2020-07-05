@@ -283,8 +283,8 @@ class Operation_Dag {
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
-          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitUnion"} ) {
+          "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
+          "ImplicitInputSlice"} ) {
         init_from_model(model);
     }
 
@@ -698,9 +698,11 @@ class Operation_Dag {
 
     bool is_implicit_op(operation_t op) const {
       return (op->getOpType() == "ImplicitConcat") || 
-          (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
-          (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
-          (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
+          (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || 
+          (op->getOpType() == "Copy") || (op->getOpType() == "Align") || 
+          (op->getOpType() == "ImplicitOutput") ||
+          (op->getOpType() == "ImplicitUnion") || 
+          (op->getOpType() == "ImplicitInput") ||
           (op->getOpType() == "ImplicitInputSlice");
     }
 
@@ -1029,6 +1031,15 @@ class Operation_Dag {
       }
     }
 
+      // short circuit implicit ops //
+    void shorting_implicit_ops() {
+      for (auto short_circuit_itr=implicit_op_types_.begin();
+          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
+        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
+            *short_circuit_itr);
+      }
+    }
+
     void init_from_model(mv::ControlModel& model) {
       clear_state();
       build_adj_tables(model);
@@ -1041,6 +1052,7 @@ class Operation_Dag {
       create_resource_utility_table_for_cmx_scheduling(model);
 
       // Transform OpModel for scheduling //
+      shorting_implicit_ops();
 
       // connect all non-unit outdegree DMAS to input //
       for (op_itr_t itr = mtraits::begin_operations(model);
@@ -1051,13 +1063,6 @@ class Operation_Dag {
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
         if (op_has_unit_out_degree(op)) { continue; }
         add_directed_edge_from_input(op);
-      }
-
-      // short circuit implicit ops //
-      for (auto short_circuit_itr=implicit_op_types_.begin();
-          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
-        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
-            *short_circuit_itr);
       }
 
       update_resource_utility_for_aligned_dma_ops(model);

@@ -416,7 +416,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::
 }
 
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer,
-    const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding)
+    const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves)
 {
 
     auto tensor = (*slaveBuffer)->getData();
@@ -467,17 +467,27 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
         slaves.erase(std::remove(slaves.begin(), slaves.end(), slaveBuffer), slaves.end());
     }
 
-    (*slaveBuffer)->offset = (*masterBuffer)->offset;
-    (*slaveBuffer)->masterBuffer = masterBuffer;
     (*masterBuffer)->slaveBuffers.push_back(slaveBuffer);
-    auto masterTensor = (*masterBuffer)->getData();
-    (*slaveBuffer)->leftPad = std::vector<std::size_t>(shape.ndims());
-    (*slaveBuffer)->rightPad = std::vector<std::size_t>(shape.ndims());
-    std::fill((*slaveBuffer)->strides.begin(), (*slaveBuffer)->strides.end(), 0);
-    std::fill((*slaveBuffer)->leftPad.begin(), (*slaveBuffer)->leftPad.end(), 0);
-    std::fill((*slaveBuffer)->rightPad.begin(), (*slaveBuffer)->rightPad.end(), 0);
-    padLeft(slaveBuffer, leftPadding);
-    padRight(slaveBuffer, rightPadding);
+
+    auto slaveBuf = slaveBuffer;
+    while (*slaveBuf != nullptr)
+    {
+        (*slaveBuf)->offset = (*masterBuffer)->offset;
+        (*slaveBuf)->masterBuffer = masterBuffer;
+        auto masterTensor = (*masterBuffer)->getData();
+        (*slaveBuf)->leftPad = std::vector<std::size_t>(shape.ndims());
+        (*slaveBuf)->rightPad = std::vector<std::size_t>(shape.ndims());
+        std::fill((*slaveBuf)->strides.begin(), (*slaveBuf)->strides.end(), 0);
+        std::fill((*slaveBuf)->leftPad.begin(), (*slaveBuf)->leftPad.end(), 0);
+        std::fill((*slaveBuf)->rightPad.begin(), (*slaveBuf)->rightPad.end(), 0);
+        padLeft(slaveBuf, leftPadding);
+        padRight(slaveBuf, rightPadding);
+
+        if ((propagate_to_slaves == false) || (*slaveBuf)->getSlaves().size() == 0)
+            break;
+
+        slaveBuf = (*slaveBuf)->getSlaves()[0];
+    }
 
     if ((*masterBuffer)->getData()->isPopulated())
         bindData_(slaveBuffer, true);

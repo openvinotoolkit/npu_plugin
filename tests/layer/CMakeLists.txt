@@ -8,12 +8,25 @@ if (MSVC)
 else()
     add_subdirectory(test_runner)
 
+    add_executable(avgpool_asymmetric_large_stride avgpool_asymmetric_large_stride/avgpool_asymmetric_large_stride.cpp)
+    target_link_libraries(avgpool_asymmetric_large_stride cm)
 
     add_executable(avgpool_asymmetric_1d_large_kernel avgpool_asymmetric_1d_large_kernel/avgpool_asymmetric_1d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_1d_large_kernel cm)
 
     add_executable(avgpool_asymmetric_2d_large_kernel avgpool_asymmetric_2d_large_kernel/avgpool_asymmetric_2d_large_kernel.cpp)
     target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
+
+
+    add_executable(avgpool_asymmetric_icnet_large_stride avgpool_asymmetric_icnet_large_stride/avgpool_asymmetric_icnet_large_stride.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_large_stride cm)
+
+    add_executable(avgpool_asymmetric_icnet_1d_large_kernel avgpool_asymmetric_icnet_1d_large_kernel/avgpool_asymmetric_icnet_1d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_1d_large_kernel cm)
+
+    add_executable(avgpool_asymmetric_icnet_2d_large_kernel avgpool_asymmetric_icnet_2d_large_kernel/avgpool_asymmetric_icnet_2d_large_kernel.cpp)
+    target_link_libraries(avgpool_asymmetric_icnet_2d_large_kernel cm)
+
 
     add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
     target_link_libraries(single_conv_hde cm)
@@ -33,8 +46,8 @@ else()
     add_executable(conv_clamp conv_clamp/conv_clamp.cpp)
     target_link_libraries(conv_clamp cm)
 
-    add_executable(conv_elu conv_elu/conv_elu.cpp)
-    target_link_libraries(conv_elu cm)
+    #add_executable(conv_elu conv_elu/conv_elu.cpp)
+    #target_link_libraries(conv_elu cm)
 
     add_executable(conv_fakequantize conv_fakequantize/conv_fakequantize.cpp)
     target_link_libraries(conv_fakequantize cm)
@@ -54,8 +67,11 @@ else()
     add_executable(conv_fp16output conv_fp16output/conv_fp16output.cpp)
     target_link_libraries(conv_fp16output cm)
 
-    add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
-    target_link_libraries(conv_int32_output cm)
+    add_executable(conv_uint8_demo conv_uint8_demo/conv_uint8_demo.cpp)
+    target_link_libraries(conv_uint8_demo cm)
+
+    #add_executable(conv_int32_output conv_int32_output/conv_int32_output.cpp)
+    #target_link_libraries(conv_int32_output cm)
 
     add_executable(conv_output_quant conv_output_quant/conv_output_quant.cpp)
     target_link_libraries(conv_output_quant cm)
@@ -78,8 +94,8 @@ else()
     add_executable(conv_leaky_icv conv_leaky_icv/conv_leaky_icv.cpp)
     target_link_libraries(conv_leaky_icv cm)
 
-    add_executable(group_convolution group_convolution/group_convolution.cpp)
-    target_link_libraries(group_convolution cm)
+    #add_executable(group_convolution group_convolution/group_convolution.cpp)
+    #target_link_libraries(group_convolution cm)
 
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
@@ -200,6 +216,13 @@ else()
 
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
+
+    add_executable(interp_different_width_height_upsample interp_different_width_height_upsample/interp_different_width_height_upsample.cpp)
+    target_link_libraries(interp_different_width_height_upsample cm)
+
+
+    add_executable(interp_different_width_height_subsample interp_different_width_height_subsample/interp_different_width_height_subsample.cpp)
+    target_link_libraries(interp_different_width_height_subsample cm)
 
     add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
     target_link_libraries(interp_noalign cm)
