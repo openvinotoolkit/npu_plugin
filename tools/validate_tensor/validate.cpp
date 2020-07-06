@@ -281,6 +281,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 {
     //
     // Clean any old files
+    std::cout << std::endl << "====== Generate blob ======" << std::endl;
     std::cout << "Deleting old emulator results files... " << std::endl;
     std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
     std::vector<std::string> filesDelete = {FILE_CPU_OUTPUT, FILE_CPU_INPUT_NCHW_RGB, FILE_CPU_INPUT_NHWC_RGB, FILE_CPU_INPUT_NCHW_BGR, FILE_CPU_INPUT_NHWC_BGR};
@@ -389,18 +390,18 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 {
     // Clean old results
     std::cout << "Deleting old kmb results files... " << std::endl;
-    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
+    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/output-0.bin");
     remove(outputFile.c_str());
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     // std::string inputCPU = FILE_CONVERTED_IMAGE;
-    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/input-0.bin");
+    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/input-0.bin");
     // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
-    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/test.blob");
+    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/test.blob");
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
@@ -435,7 +436,8 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     }
 
     // execute the blob
-    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo  && " +
+    std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
+    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + std::getenv("TEST_RUNTIME") + " && " +
         "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
@@ -444,8 +446,12 @@ int runKmbInference(std::string evmIP, std::string blobPath)
         std::cout << std::endl << "Error occurred executing blob on runtime!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist({outputFile}))
-         return FAIL_RUNTIME;
+    std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << std::getenv("INFERENCE_PERFORMANCE_CHECK") << std::string("'") << std::endl;
+    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    {
+        if (!checkFilesExist({outputFile}))
+            return FAIL_RUNTIME;
+    }
 
     return RESULT_SUCCESS;
 }
@@ -729,6 +735,12 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
 
 int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
 {
+    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") == std::string("true"))
+    {
+        // InferencePerformanceCheck has no results to report
+        return RESULT_SUCCESS;
+    }
+
     // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
@@ -737,6 +749,7 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
         commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/yolo_bbox.py ") + imagePath;
     else if (networkType == "ssd") 
         commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/ssd_bbox.py ") + imagePath;
+
 
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
@@ -839,13 +852,16 @@ int main(int argc, char *argv[])
     if ( result > 0 ) return result;
 
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
-    std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/application/demo/InferenceManagerDemo/output-0.bin");
+    std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/output-0.bin");
     std::string actualPathProcessed = "./output_transposed.dat";
 
-    result = postProcessActualResults(actualPath, blobPath);
-    if ( result > 0 ) return result;
+    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    {
+        result = postProcessActualResults(actualPath, blobPath);
+        if ( result > 0 ) return result;
 
-    validate(blobPath, expectedPath, actualPathProcessed);
+        validate(blobPath, expectedPath, actualPathProcessed);
+    }
 
     // master test is if the top 1's match
     std::string networkType="classification";
