@@ -120,6 +120,7 @@ function(add_kmb_compile_custom_kernels)
                     "SHAVE_LDSCRIPT_DIR=${VPU_CLC_MA2X9X}/ldscripts/"
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
+                    "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"
                 ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header ${cl_file} -o ${out_file}
             MAIN_DEPENDENCY ${cl_file}
             DEPENDS ${VPU_CLC_MA2X9X_COMMAND}
