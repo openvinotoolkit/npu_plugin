@@ -41,7 +41,7 @@ public:
 
     virtual bool isValidPtr(void* ptr) noexcept;
 
-    virtual ~KmbAllocator() = default;
+    virtual ~KmbAllocator();
 
     virtual void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
 
