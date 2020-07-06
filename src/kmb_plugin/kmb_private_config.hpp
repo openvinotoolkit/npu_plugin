@@ -26,7 +26,7 @@ namespace VPUConfigParams {
  * @brief [Only for kmbPlugin]
  * Type: "RGB", "BGR", default is "BGR"
  * This option allows to specify output format of image after SIPP preprocessing.
- * Does not affect preprocessing running on CPU. If a wrong value specified an expeption will be thrown
+ * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
  */
 DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
 
