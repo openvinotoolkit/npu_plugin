@@ -39,6 +39,7 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
                                                     std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx)
 {
     mv::Data::TensorIterator subConv;
+    bool hasBias = opIt->hasAttr("bias");
     //TODO handle stride != 1
     auto stride = opIt->get<std::array<unsigned short, 2>>("stride");
 
@@ -86,11 +87,16 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     subConvOp->set<mv::Shape>("originalShape", sourceTensor->getShape());
     subConvOp->set<std::string>("parentOp", opIt->getName());
     subConvOp->set<unsigned>("subConvIndex", subConvIdx);
+    subConvOp->set<std::vector<std::size_t>>("subConvsCoordinates", {i, j});
     if(opIt->hasAttr("opId"))
     {
         unsigned currentOpId = opIt->get<unsigned>("opId");
         subConvOp->set<unsigned>("opId", currentOpId);
         sliceInputOp->set<unsigned>("opId", currentOpId);
+    }
+    if (hasBias)
+    {
+        om.addAttr(subConvOp, "bias", opIt->get<std::string>("bias"));
     }
 
 

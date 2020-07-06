@@ -30,7 +30,10 @@ int main()
     // Therefore subconvs padding will be 1,1,1,1 (as in slide 3 of design)
 
     auto conv0 = om.conv(data_0, weights0, {1, 1}, {2, 2, 2, 2}, 2, 1,  mv::DType("UInt8"),{{0},{0.5647058823529412},{0},{144},{0},{1}} , "conv");
-    om.output(conv0,mv::DType("UInt8"), {{},{},{},{}});
+    std::vector<int64_t> biasData0 = mv::utils::generateSequence<int64_t> (16, 0, 0);
+    auto bias0 = om.constantInt(biasData0, {16}, mv::DType("Int32"), mv::Order::getRowMajorID(1), {{0}, {std::pow(0.00392156862745098,2)}, {}, {}});
+    auto bias = om.bias(conv0, bias0, mv::DType("UInt8"), {{0}, {0.000000768935}, {}, {}});
+    om.output(bias,mv::DType("UInt8"), {{},{},{},{}});
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
