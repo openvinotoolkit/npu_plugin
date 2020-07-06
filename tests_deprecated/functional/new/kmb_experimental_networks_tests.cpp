@@ -20,9 +20,9 @@ TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) 
     SKIP_INFER_ON("KMB", "Wrong results"); // [Track number: S#30561]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPrecision("output", Precision::FP32),
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
@@ -31,9 +31,9 @@ TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
     SKIP_INFER_ON("KMB", "Wrong results"); // [Track number: S#30561]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPrecision("output", Precision::FP32),
         "28x28/image_1_28x28.bmp",
         1, 0.5f);
 }
@@ -42,9 +42,9 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
     SKIP_INFER_ON("KMB", "hangs on infer");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet2_pytorch_int8_dense_cifar10.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPrecision("output", Precision::FP32),
         "32x32/0_cat.bmp",
         1, 0.5f);
 }
@@ -52,9 +52,9 @@ TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
 TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet3_mobilenet_v1.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16)
+            .setUserOutputPrecision("output", Precision::FP16)
             .setUserOutputLayout("output", Layout::NHWC),
         "224x224/cat3.bmp",
         1, 0.5f);

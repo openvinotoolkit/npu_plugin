@@ -48,9 +48,9 @@ The tool has the following required command line arguments:
 
 The tool has the following optional command line arguments:
 
-* `--input_precision <precision>` - presision for the network input. Supported values: `U8`, `FP16`, `FP32`.
+* `--input_precision <precision>` - precision for the network input. Supported values: `U8`, `FP16`, `FP32`.
 * `--input_layout <layout>` - layout for the network input. Supported values: `NCHW`, `NHWC`, `NCDHW`, `NDHWC`.
-* `--output_precision <precision>` - presision for the network output. Supported values: `FP16`, `FP32`.
+* `--output_precision <precision>` - precision for the network output. Supported values: `FP16`, `FP32`.
 * `--output_layout <layout>` - layout for the network output. Supported values: `NCHW`, `NHWC`, `NCDHW`, `NDHWC`.
 * `--black_list <comma separated list>` - the list of network layers to exclude from analysis:
   * Both layer name and layer type can be used.
