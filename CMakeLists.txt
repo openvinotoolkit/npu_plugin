@@ -349,6 +349,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/scheduling/layout_dma.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
