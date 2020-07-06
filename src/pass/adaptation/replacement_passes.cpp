@@ -783,15 +783,20 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
     {
-        if(  (opIt->getOpType() == "AveragePool") || (opIt->getOpType() == "MaxPool") )
+        if(  (opIt->getOpType() == "AveragePool") || (opIt->getOpType() == "MaxPool")  || (opIt->getOpType() == "DepthwiseConv"))
         {
             //supported big kernels for ops: AvgPool & MaxPool
         }
         else
             continue;
-
-        std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-
+        std::array<unsigned short, 2> kSize;
+        if (opIt->hasAttr("kSize"))
+            kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+        else
+        {
+            kSize[mv::KERNEL_HEIGHT] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT];
+            kSize[mv::KERNEL_WIDTH] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH];
+        }
         if(kSize[mv::KERNEL_WIDTH] <= mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= mv::MAX_KERNEL) // can do as single depthwise, skip
             continue;//skip for this avgPool
 
@@ -923,7 +928,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
         mv::Data::TensorIterator op0;
-        if (opIt->getOpType() == "AveragePool")
+        if (opIt->getOpType() == "AveragePool" || opIt->getOpType() == "DepthwiseConv" )
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
                                             name + "_DepthwiseConv0",
                                             kSize[largeDim], newKernel, padding, producers_quantized.first);
