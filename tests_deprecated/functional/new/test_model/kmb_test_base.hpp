@@ -212,7 +212,7 @@ class TestNetworkDesc final {
 public:
     explicit TestNetworkDesc(std::string irFileName) : _irFileName(std::move(irFileName)) {}
 
-    TestNetworkDesc& setUserInputPresision(
+    TestNetworkDesc& setUserInputPrecision(
             const std::string& name,
             const Precision& precision) {
         _inputPrecisions[name] = precision;
@@ -225,7 +225,7 @@ public:
         return *this;
     }
 
-    TestNetworkDesc& setUserOutputPresision(
+    TestNetworkDesc& setUserOutputPrecision(
             const std::string& name,
             const Precision& precision) {
         _outputPrecisions[name] = precision;
