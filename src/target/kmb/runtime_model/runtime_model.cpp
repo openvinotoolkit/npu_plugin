@@ -276,6 +276,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamId"))
+                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
 
         }
         else
@@ -289,8 +291,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
-        auto leading_offset = strides[0]; //for some reason we get double the value, for now take the proper one.
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         
@@ -324,8 +325,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
         if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
         {
-                toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
-                toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamId"))
+                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
         }
         else
             toBuild->data->data_index += leading_offset;

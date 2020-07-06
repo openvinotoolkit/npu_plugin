@@ -36,7 +36,7 @@ namespace mv
 }
 
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx)
+                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
 {
     mv::Data::TensorIterator subConv;
     bool hasBias = opIt->hasAttr("bias");
@@ -210,7 +210,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                         }
                         subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                             name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
-                            subConvShape, subConvIdx++));
+                            subConvShape, subConvIdx++, i, j));
                         subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
                         leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
                     }

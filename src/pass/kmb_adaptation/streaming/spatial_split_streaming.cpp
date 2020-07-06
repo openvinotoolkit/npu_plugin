@@ -253,6 +253,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     streamingOpName);
+            if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
+            {
+                om.getSourceOp(newTensor)->set<unsigned>("streamId", split);
+            }
         }
         else if (op->getOpType() == "DepthwiseConv")
         {
@@ -306,7 +310,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             std::vector<mv::DataElement>::const_iterator biasLast = oiginalBiasData.begin() + biasEndIndex;
             std::vector<mv::DataElement> subBiasData(biasFirst, biasLast);
             std::string newBiasTensorName = mv::createBiasName(op->getName() + "_split_" + std::to_string(split));
-            mv::Data::TensorIterator biasTensor;
             mv::Data::TensorIterator biasTensorX;
             if (originalBiasTensor->hasAttr("quantParams"))
             {
@@ -391,11 +394,12 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.implicitConcat(final_outputs,
+    auto concat = om.concat(final_outputs,
                     "C",
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
-    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
+
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
 
@@ -618,12 +622,12 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.implicitConcat(final_outputs,
+    auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
-    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
@@ -808,11 +812,12 @@ mv::Data::TensorIterator solveBatchTiling(mv::ComputationModel& model,
         final_outputs[split] = out;
     }
 
-    auto concat = om.implicitConcat(final_outputs,
+    auto concat = om.concat(final_outputs,
                     tiling.getAxis(),
+                    op->get<mv::DType>("dType"),
                     op->get<mv::QuantizationParams>("quantParams"),
                     op->getName() + "concat_");
-    concat->set<mv::DType>("dType", op->get<mv::DType>("dType"));
+
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));

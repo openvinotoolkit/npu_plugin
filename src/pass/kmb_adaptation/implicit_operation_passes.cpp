@@ -41,6 +41,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {
@@ -116,6 +117,10 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                     dmaDirectionStrings[directionString],
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
 
+                    //NOTE: When the dilated convolution is streamed, the dmas could be placed between
+                    //the dputtask and the concat which is designed for streaming so in that cases we
+                    //need to check if the next concat of the streaming has the attributes
+                    auto sinkOp = mv::findSinkLayers(dm, opIt->getOutputTensor(0))[0];
                     if (opIt->hasAttr("dilatedWidthConcat") && opIt->get<bool>("dilatedWidthConcat"))
                     {
                         std::size_t slot = 0;
@@ -130,6 +135,27 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                         compensatorOutput->set<std::size_t>("inputConcatTensorIdx", slot);
                         compensatorOutput->set<std::size_t>("lineofConcatHeight",
                                                     opIt->get<std::size_t>("lineofConcatHeight"));
+                    }
+                    else if (sinkOp->hasAttr("dilatedWidthConcat") && sinkOp->get<bool>("dilatedWidthConcat"))
+                    {
+                        //NOTE: they are the streaming operations os all they will have same coordinates
+                        auto subConvOp = om.getSourceOp(opIt->getInputTensor()[0]);
+                        std::size_t slot = subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[1];
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        compensatorOutput->set<bool>("dilatedWidthConcat", true);
+                        compensatorOutput->set<unsigned>("dilationFactor",
+                                                         sinkOp->get<unsigned>("dilationFactor"));
+                        compensatorOutput->set<std::size_t>("inputConcatTensorIdx", slot);
+                        compensatorOutput->set<std::size_t>("lineofConcatHeight",
+                                                    subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[0]);
+
+                        auto previousOp = om.getSourceOp(inputTensor);
+                        if (previousOp->hasAttr("streamId"))
+                        {
+                            auto streamId = previousOp->get<unsigned>("streamId");
+                            compensatorOutput->set<unsigned>("streamId", streamId);
+                        }
+
                     }
 
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
