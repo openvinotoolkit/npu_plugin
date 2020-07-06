@@ -780,15 +780,15 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::vector <mv::Data::OpListIterator> ops;
+    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() );
+    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
+    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt : ops)
     {
-        if(  (opIt->getOpType() == "AveragePool") || (opIt->getOpType() == "MaxPool")  || (opIt->getOpType() == "DepthwiseConv"))
-        {
-            //supported big kernels for ops: AvgPool & MaxPool
-        }
-        else
-            continue;
         std::array<unsigned short, 2> kSize;
         if (opIt->hasAttr("kSize"))
             kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
@@ -928,7 +928,7 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
         mv::Data::TensorIterator op0;
-        if (opIt->getOpType() == "AveragePool" || opIt->getOpType() == "DepthwiseConv" )
+        if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
                                             name + "_DepthwiseConv0",
                                             kSize[largeDim], newKernel, padding, producers_quantized.first);
