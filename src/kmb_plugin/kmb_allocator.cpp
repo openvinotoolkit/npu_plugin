@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <iostream>
 #include <sys/mman.h>
 
 #include "kmb_native_allocator.h"
@@ -72,4 +73,15 @@ void* KmbAllocator::wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, co
     if (virtAddr == MAP_FAILED) return nullptr;
 
     return virtAddr;
+}
+
+KmbAllocator::~KmbAllocator() {
+    if (!_allocatedMemory.empty()) {
+        std::cerr << "Error: " << _allocatedMemory.size() << " memory chunks ";
+        std::size_t amount = 0;
+        for (const auto& p : _allocatedMemory) {
+            amount += p.second.size;
+        }
+        std::cerr << amount << " bytes amount were not freed!" << std::endl;
+    }
 }
