@@ -1487,3 +1487,17 @@ typedef struct
     // UInt32 kernelSize;
 }
 DilateGenericParam;
+
+
+/**
+ * Parameter structure of the cvtInterleavedtoPlanar filter.
+ *
+ * This filter performs a conversion from a interleaved input image to a planar output image.
+ *
+ * Identifier: svuCvtInterleavedtoPlanar
+ */
+typedef struct
+{
+    UInt32 planes;
+}
+CvtInterleavedtoPlanarParam;

@@ -16,7 +16,7 @@
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
+                "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
@@ -24,8 +24,8 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ReferenceMode": false,
                 "ScaleFuseInput": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -232,7 +232,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -305,7 +305,7 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true	
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },

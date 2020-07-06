@@ -98,7 +98,7 @@ public:
         : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor) {};
 
 public:
-    MOCK_METHOD6(execSIPPDataPreprocessing,
+    MOCK_METHOD6(execKmbDataPreprocessing,
         void(InferenceEngine::BlobMap&, std::map<std::string, InferenceEngine::PreProcessDataPtr>&,
             InferenceEngine::InputsDataMap&, InferenceEngine::ColorFormat, unsigned int, unsigned int));
     MOCK_METHOD2(execDataPreprocessing, void(InferenceEngine::BlobMap&, bool));
@@ -208,7 +208,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInfe
 }
 
 // tracking number: S#32515
-TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
+TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -224,7 +224,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_requestCopiesNonShareableNV12I
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
     EXPECT_CALL(
-        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execSIPPDataPreprocessing(_, _, _, _, _, _))
+        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execKmbDataPreprocessing(_, _, _, _, _, _))
         .Times(1);
 
     EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
@@ -248,7 +248,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
 }
 
 // tracking number: S#32515
-TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_CanGetTheSameBlobAfterSetNV12Blob) {
+TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
         .Times(1)
@@ -353,7 +353,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
 // tracking number: S#32515
-TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_BGRIsDefaultColorFormatForSIPPPreproc) {
+TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
     auto inputName = _inputs.begin()->first.c_str();
@@ -363,7 +363,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, DISABLED_BGRIsDefaultColorFormatForSIPP
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
-        execSIPPDataPreprocessing(_, _, _, ie::ColorFormat::BGR, _, _));
+        execKmbDataPreprocessing(_, _, _, ie::ColorFormat::BGR, _, _));
 
     _inferRequest->InferAsync();
 }
@@ -372,7 +372,7 @@ class kmbInferRequestOutColorFormatSIPPUnitTests :
     public kmbInferRequestUseCasesUnitTests,
     public testing::WithParamInterface<const char*> {};
 // tracking number: S#32515
-TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, DISABLED_preprocessingUseRGBIfConfigIsSet) {
+TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
     KmbConfig config;
     const auto configValue = GetParam();
     config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
@@ -398,7 +398,7 @@ TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, DISABLED_preprocessingUseRGBI
         return ie::ColorFormat::RAW;
     };
     EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()),
-        execSIPPDataPreprocessing(_, _, _, expectedColorFmt(configValue), _, _));
+        execKmbDataPreprocessing(_, _, _, expectedColorFmt(configValue), _, _));
 
     _inferRequest->InferAsync();
 }
@@ -431,7 +431,7 @@ TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
     EXPECT_CALL(
-        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execSIPPDataPreprocessing(_, _, _, _, _, _))
+        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execKmbDataPreprocessing(_, _, _, _, _, _))
         .Times(0);
 
     _inferRequest->InferAsync();

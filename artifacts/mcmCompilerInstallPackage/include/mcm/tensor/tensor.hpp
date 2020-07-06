@@ -297,6 +297,7 @@ namespace mv
                                      bool fatherTensorAligned = false, bool graphOptimizer = false) const;
         std::size_t getClusterSize(unsigned int alignment = 16, bool base = false) const;
         void splitAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
+        void splitPopulatedActivationAcrossClusters(std::vector<Workload>, bool splitOverH, bool multicast);
         void shareAcrossClusters(std::vector<Workload>, unsigned int numClusters, bool clustering = true);
         void cleanSubtensors();
         int computeAppropriatePadding() const;
