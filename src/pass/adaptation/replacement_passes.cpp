@@ -1273,22 +1273,26 @@ void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Com
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool", "DepthwiseConv"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::vector <mv::Data::OpListIterator> ops;
+    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() + operations["DepthwiseConv"].size() );
+    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
+    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
+    ops.insert(ops.end(), operations["DepthwiseConv"].begin(), operations["DepthwiseConv"].end());
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt : ops)
     {
-        if ( (opIt->getOpType() == "AveragePool") || (opIt->getOpType() == "DepthwiseConv") || (opIt->getOpType() == "MaxPool"))
-        {
-            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-            if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
-                continue;
-            pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
-            auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-            //stride supported not slicing, stride not supported slicing with slices dimensions of stride
-            opIt = splitOperationSlicingFixedWidthHeight (om,
-                                                        opIt,
-                                                        stride[mv::STRIDE_HORIZONTAL],
-                                                        stride[mv::STRIDE_VERTICAL],
-                                                        nextOp);
-        }
+        std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+        if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
+            continue;
+        pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
+        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+        //stride supported not slicing, stride not supported slicing with slices dimensions of stride
+        opIt = splitOperationSlicingFixedWidthHeight (om,
+                                                    opIt,
+                                                    stride[mv::STRIDE_HORIZONTAL],
+                                                    stride[mv::STRIDE_VERTICAL],
+                                                    nextOp);
     }
 }
