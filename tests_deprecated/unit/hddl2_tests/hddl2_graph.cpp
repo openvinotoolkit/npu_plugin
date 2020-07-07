@@ -94,8 +94,6 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_Allocator_Manipulations_UnitTests Test case Initiations
-//------------------------------------------------------------------------------
 const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph, fromCompiledGraph};
 
 INSTANTIATE_TEST_CASE_P(GraphFrom, Graph_Common_UnitTests, ::testing::ValuesIn(createdFrom),

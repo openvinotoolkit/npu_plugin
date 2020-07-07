@@ -16,10 +16,12 @@
 
 #include "hddl2_remote_allocator.h"
 
+#include <climits>
 #include <memory>
 #include <string>
 
 using namespace vpu::HDDL2Plugin;
+constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
 
 bool static isValidAllocateSize(size_t size) noexcept { return !(size <= 0 || size > MAX_ALLOC_SIZE); }
 

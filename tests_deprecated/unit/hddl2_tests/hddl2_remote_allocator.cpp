@@ -19,6 +19,8 @@
 #include <hddl2_plugin.h>
 #include <hddl2_remote_allocator.h>
 
+#include <climits>
+
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "helpers/helper_remote_allocator.h"
 
@@ -32,6 +34,7 @@ public:
 
     HddlUnite::WorkloadContext::Ptr workloadContextPtr = nullptr;
     const vpu::HDDL2Config config;
+    const size_t correctSize = 1024 * 1024 * 1;
 
 protected:
     WorkloadContext_Helper _workloadContextHelper;
@@ -52,8 +55,6 @@ using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 // TODO FAIL - HddlUnite problem
 TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectMemoryFD_ReturnNull) {
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-
-    const size_t correctSize = MAX_ALLOC_SIZE;
     const int incorrectMemoryFd = INT32_MAX;
 
     auto handle = allocatorPtr->wrapRemoteMemory(incorrectMemoryFd, correctSize);
@@ -62,8 +63,6 @@ TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectMemoryFD_ReturnNull) {
 
 TEST_F(RemoteAllocator_WrapMemory, NegativeMemoryFD_ReturnNull) {
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-
-    const size_t correctSize = MAX_ALLOC_SIZE;
     const int negativeMemoryFd = -1;
 
     auto handle = allocatorPtr->wrapRemoteMemory(negativeMemoryFd, correctSize);
@@ -79,19 +78,15 @@ TEST_F(RemoteAllocator_WrapMemory, Allow4KFramWrapping) {
     ASSERT_NE(handle, nullptr);
 }
 
-
 //------------------------------------------------------------------------------
 enum RemoteMemoryOwner { IERemoteMemoryOwner = 0, ExternalRemoteMemoryOwner = 1 };
 
 //------------------------------------------------------------------------------
-class HDDL2_Allocator_Manipulations_UnitTests :
+class Allocator_Manipulations_UnitTests :
     public RemoteAllocator_UnitTests,
     public ::testing::WithParamInterface<RemoteMemoryOwner> {
 public:
     void SetUp() override;
-
-    const size_t correctSize = MAX_ALLOC_SIZE;
-
     Allocator_Helper::Ptr allocatorHelper = nullptr;
 
     struct PrintToStringParamName {
@@ -100,7 +95,7 @@ public:
 };
 
 //------------------------------------------------------------------------------
-void HDDL2_Allocator_Manipulations_UnitTests::SetUp() {
+void Allocator_Manipulations_UnitTests::SetUp() {
     RemoteAllocator_UnitTests::SetUp();
 
     auto owner = GetParam();
@@ -111,7 +106,7 @@ void HDDL2_Allocator_Manipulations_UnitTests::SetUp() {
     }
 }
 
-std::string HDDL2_Allocator_Manipulations_UnitTests::PrintToStringParamName::operator()(
+std::string Allocator_Manipulations_UnitTests::PrintToStringParamName::operator()(
     const testing::TestParamInfo<RemoteMemoryOwner>& info) const {
     RemoteMemoryOwner memoryOwner = info.param;
     if (memoryOwner == IERemoteMemoryOwner) {
@@ -127,26 +122,27 @@ std::string HDDL2_Allocator_Manipulations_UnitTests::PrintToStringParamName::ope
  * createMemory function hide allocate() call for IE Remote memory owner
  * and wrapRemoteMemory() for External Remote memory owner
  */
+using RemoteAllocator_CreateMemory = Allocator_Manipulations_UnitTests;
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnCorrectSize_NoThrow) {
+TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NoThrow) {
     EXPECT_NO_THROW(allocatorHelper->createMemory(correctSize));
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnCorrectSize_NotNullHandle) {
-    void* handle = nullptr;
-    handle = allocatorHelper->createMemory(correctSize);
+TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NotNullHandle) {
+    void* handle = allocatorHelper->createMemory(correctSize);
 
     EXPECT_NE(handle, nullptr);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnIncorrectSize_NullHandle) {
-    size_t incorrectSize = MAX_ALLOC_SIZE * 2;
+TEST_P(RemoteAllocator_CreateMemory, createMemory_OnIncorrectSize_NullHandle) {
+    // ~ 2 GB
+    size_t incorrectSize = INT_MAX;
 
     auto handle = allocatorHelper->createMemory(incorrectSize);
     EXPECT_EQ(handle, nullptr);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnNegativeSize_NullHandle) {
+TEST_P(RemoteAllocator_CreateMemory, createMemory_OnNegativeSize_NullHandle) {
     size_t negativeSize = -1;
 
     auto handle = allocatorHelper->createMemory(negativeSize);
@@ -154,19 +150,19 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, createMemory_OnNegativeSize_Null
 }
 
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
     auto locked_data = allocator->lock(memoryHandle);
 
     ASSERT_NE(locked_data, nullptr);
-    std::memset(locked_data, 0xFF, MAX_ALLOC_SIZE);
+    std::memset(locked_data, 0xFF, correctSize);
 
     allocator->unlock(memoryHandle);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnNull) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnNull) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -179,7 +175,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondR
     allocator->unlock(memoryHandle);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMemoryWillChange) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMemoryWillChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -199,7 +195,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_Re
     ASSERT_EQ(remoteMemoryValue, testValue);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemoryNotChange) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemoryNotChange) {
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -220,21 +216,21 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_Remot
 }
 
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) {
+TEST_P(Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
     ASSERT_TRUE(allocator->free(memoryHandle));
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse) {
+TEST_P(Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse) {
     auto allocator = allocatorHelper->allocatorPtr;
     void* invalidHandle = nullptr;
 
     ASSERT_FALSE(allocator->free(invalidHandle));
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSecond) {
+TEST_P(Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSecond) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -242,7 +238,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSec
     ASSERT_FALSE(allocator->free(memoryHandle));
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse) {
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -252,7 +248,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_Retur
 }
 
 //------------------------------------------------------------------------------
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesNotChanged) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;
@@ -276,7 +272,7 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_Remot
     ASSERT_EQ(testValue, mem[0]);
 }
 
-TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_RemoteDoesNotChanged) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_RemoteDoesNotChanged) {
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;
@@ -304,5 +300,5 @@ TEST_P(HDDL2_Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemo
 //------------------------------------------------------------------------------
 const static std::vector<RemoteMemoryOwner> memoryOwners = {IERemoteMemoryOwner, ExternalRemoteMemoryOwner};
 
-INSTANTIATE_TEST_CASE_P(RemoteMemoryOwner, HDDL2_Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
-    HDDL2_Allocator_Manipulations_UnitTests::PrintToStringParamName());
+INSTANTIATE_TEST_CASE_P(RemoteMemoryOwner, Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
+    Allocator_Manipulations_UnitTests::PrintToStringParamName());
