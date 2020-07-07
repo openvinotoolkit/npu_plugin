@@ -135,7 +135,8 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                                 std::string memoryLocation = sliceInputMemoryLocation.toString();
                                 if(memoryLocation == "OUTPUT" || memoryLocation == "INPUT" || memoryLocation == "DEFAULT")
                                     memoryLocation = "DDR";
-                                else
+
+                                if (memoryLocation != "DDR")
                                     break;
                                 std::string stringDirection(memoryLocation+"2NNCMX");
                                 mv::DmaDirection direction(stringDirection);
