@@ -2,9 +2,12 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
+#include <functional>
+#include <string>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
@@ -239,8 +242,20 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
     {
         auto inputShape = opIt->getInputTensor(0)->getShape();
         auto outputShape = opIt->getOutputTensor(0)->getShape();
+        auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+
+        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
+
         if ((inputShape == outputShape) && !(isEqual(inQuantParams, outQuantParams) || outQuantParams.isNeutral()))
         {
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
             pass.log(mv::Logger::MessageType::Debug, "Replacing with DW requanitze");
 
               //FIND THE APPROPRIATE FLOW
