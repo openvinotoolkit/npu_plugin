@@ -590,7 +590,7 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
             }
             // TODO more efficient way than comparing strings?
             if((nodesSeen.find(it->getName()) != nodesSeen.end()) and
-                !(it.childrenSize() == countInputLayers(it)) )
+                countInputLayers(it) != 1)
                 {
                     if(nodesAdded.find(it->getName()) == nodesAdded.end())
                     {
