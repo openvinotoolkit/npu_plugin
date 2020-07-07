@@ -546,9 +546,12 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     lhs_padding.at(axis) = lhs;
                     rhs_padding.at(axis) = rhs;
 
+                    auto source_optype = om.getSourceOp(inputTensor)->getOpType();
+                    auto propagate_to_slaves = (!(source_optype == "Concat" || source_optype == "ImplicitConcat"));
+
                     auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                     inputBuffer, outputBuffer,
-                                                    lhs_padding, rhs_padding);
+                                                    lhs_padding, rhs_padding, propagate_to_slaves);
                 }
             }
             else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")

@@ -42,11 +42,11 @@ void dynamicallyAdjustScheduleToMeetRuntimeProblems(mv::ControlModel& cm,
 
     if (!success) { save_restore.restore(); }
     else {
-      if (remove_barriers_in_upa_tail) {
-        barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
-      }
       if (remove_redundant_wait_barriers) {
         barrier_scheduler.remove_redundant_wait_barriers();
+      }
+      if (remove_barriers_in_upa_tail) {
+        barrier_scheduler.remove_barriers_in_upa_chain_connected_to_output();
       }
     }
   } 

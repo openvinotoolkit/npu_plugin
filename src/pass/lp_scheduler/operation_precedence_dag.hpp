@@ -283,7 +283,7 @@ class Operation_Dag {
       //All implicit ops are short-circuited during scheduling. ImplicitConcat
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
-          "ImplicitPermute", "ImplicitOutput", "ImpliciUnion", "ImplicitInput",
+          "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
           "ImplicitInputSlice", "ImplicitUnion", "ImplicitJoin"} ) {
         init_from_model(model);
     }
@@ -697,10 +697,12 @@ class Operation_Dag {
     }
 
     bool is_implicit_op(operation_t op) const {
-      return (op->getOpType() == "ImplicitConcat") || 
-          (op->getOpType() == "Slice") || (op->getOpType() == "Crop") || (op->getOpType() == "Copy") ||
-          (op->getOpType() == "Align") || (op->getOpType() == "ImplicitOutput") ||
-          (op->getOpType() == "ImplicitUnion") || (op->getOpType() == "ImplicitInput") ||
+      return (op->getOpType() == "ImplicitConcat") ||
+          (op->getOpType() == "Slice") || (op->getOpType() == "Crop") ||
+          (op->getOpType() == "Copy") || (op->getOpType() == "Align") ||
+          (op->getOpType() == "ImplicitOutput") ||
+          (op->getOpType() == "ImplicitUnion") ||
+          (op->getOpType() == "ImplicitInput") ||
           (op->getOpType() == "ImplicitInputSlice");
     }
 
@@ -907,7 +909,7 @@ class Operation_Dag {
           mv::ControlModel&) const {
       const std::string& op_type = op->getOpType();
       return (op_type == "ConstantInt") || (op_type == "ConstantDataElement") ||
-        (op_type == "ImplicitConcat") || 
+        (op_type == "ImplicitConcat") ||
         (implicit_op_types_.find(op_type) != implicit_op_types_.end());
     }
 
@@ -1001,7 +1003,7 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        resource_t resource_utility; 
+        resource_t resource_utility;
 
         if ( !does_the_op_run_on_hardware(op) ||
             is_dma_op_moving_data_from_cmx_to_ddr(op) ) {
@@ -1019,13 +1021,22 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
-        resource_t resource_utility = 0UL; 
+        resource_t resource_utility = 0UL;
         if (does_the_op_run_on_hardware(op)) {
-          resource_utility = 
+          resource_utility =
             mv::RuntimeModel::countProducerConsumerTasks(model, itr);
         }
         // resource utility //
         resource_utility_map_.insert(std::make_pair(op, resource_utility ));
+      }
+    }
+
+      // short circuit implicit ops //
+    void shorting_implicit_ops() {
+      for (auto short_circuit_itr=implicit_op_types_.begin();
+          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
+        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
+            *short_circuit_itr);
       }
     }
 
@@ -1041,6 +1052,7 @@ class Operation_Dag {
       create_resource_utility_table_for_cmx_scheduling(model);
 
       // Transform OpModel for scheduling //
+      shorting_implicit_ops();
 
       // connect all non-unit outdegree DMAS to input //
       for (op_itr_t itr = mtraits::begin_operations(model);
@@ -1051,13 +1063,6 @@ class Operation_Dag {
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
         if (op_has_unit_out_degree(op)) { continue; }
         add_directed_edge_from_input(op);
-      }
-
-      // short circuit implicit ops //
-      for (auto short_circuit_itr=implicit_op_types_.begin();
-          short_circuit_itr!=implicit_op_types_.end(); ++short_circuit_itr) {
-        short_circuit_all_unit_indegree_outdegree_ops_of_this_type(
-            *short_circuit_itr);
       }
 
       update_resource_utility_for_aligned_dma_ops(model);

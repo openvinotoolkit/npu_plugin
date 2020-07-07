@@ -629,6 +629,13 @@ void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIt
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
         std::vector<mv::Data::OpListIterator> opsToLink;
         for(; input != model_.opEnd(); ++input ){
+            auto inputType = input->getOpType();
+            if ((inputType == "Constant") or
+            (inputType == "ConstantInt") or
+            (inputType == "ConstantDataElement") or
+            (inputType == "WeightsTable") or
+            (inputType == "SparsityMap"))
+                continue;
             input->set<bool>("forceClustering", true);
             opsToLink.push_back(input);
             // Find the edge between input and node

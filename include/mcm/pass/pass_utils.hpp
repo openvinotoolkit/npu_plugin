@@ -24,6 +24,7 @@ namespace mv
     bool checkA0SOHSparsityBug(mv::Data::FlowListIterator flow, std::string referenceDevice);
 
     bool isVectorsEqual(const std::vector<double> left, const std::vector<double> right);
+    bool isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
     bool isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right);
 
 }

@@ -26,6 +26,7 @@
                 "PPEAccuracy": false,
                 "PWLUsage": true,
                 "ReferenceMode": false,
+                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
@@ -122,6 +123,7 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
+
                         {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
@@ -137,7 +139,7 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -230,6 +232,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+	    "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -301,8 +304,8 @@
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false,
-              "remove_redundant_wait_barriers" : true
+              "remove_barriers_in_upa_tail" : true,
+              "remove_redundant_wait_barriers" : true	
             }
         ]
     },
