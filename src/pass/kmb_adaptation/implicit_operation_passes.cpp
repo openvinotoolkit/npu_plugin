@@ -5,7 +5,9 @@
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
 static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+//NOTE: this function was mostly a hack, but in general the idea is correct, any implicit operation between
+//ddr and output should not be translated with a dma but the output buffer should contain the ddr one
+//static void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -15,9 +17,9 @@ namespace mv
                 .setFunc(resolveImplicitOperationsFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
 
-        MV_REGISTER_PASS(EnsureNoOddDMAsBetweenDDROutput)
-                .setFunc(ensureNoOddDMAsBetweenDDROutputFcn)
-                .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
+//        MV_REGISTER_PASS(EnsureNoOddDMAsBetweenDDROutput)
+//                .setFunc(ensureNoOddDMAsBetweenDDROutputFcn)
+//                .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
 }
 
@@ -261,53 +263,53 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
     }
 }
 
-void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
+//void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+//{
 
-    mv::OpModel om(model);
-    bool changedLocation;
-    for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
-    {
-        mv::Data::TensorIterator outputTensor;
-        if (opIt->getOpType() != "Output")
-        {
-            outputTensor = opIt->getOutputTensor(0);
-            auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
-            if (outputLocation == mv::Tensor::MemoryLocation::OUTPUT)
-            {
-                for (auto input : opIt->getInputTensor())
-                {
-                    auto previousOp = om.getSourceOp(input);
-                    if (previousOp->isImplicit())
-                        for (auto inputTensor : previousOp->getInputTensor())
-                        {
-                            auto parentOp = om.getSourceOp(inputTensor);
-                            if (parentOp->getOpType() == "DMATask" &&
-                                    parentOp->hasAttr("direction") &&
-                                    parentOp->get<mv::DmaDirection>("direction") ==
-                                    mv::DmaDirectionEnum::NNCMX2DDR)
-                            {
-                                changedLocation = true;
-                                parentOp->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location",
-                                                    mv::Tensor::MemoryLocation::OUTPUT);
-                            }
-                        }
-                }
-            }
-        }
-    }
-    if (changedLocation)
-    {
-        for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
-        {
-            if (opIt->getOpType() == "Output")
-            {
-                auto previousOp = om.getSourceOp(opIt->getInputTensor()[0]);
-                for (auto inp : previousOp->getInputTensor())
-                    inp->set<mv::Tensor::MemoryLocation>("Location",
-                                                         mv::Tensor::MemoryLocation::OUTPUT);
-            }
-        }
-    }
+//    mv::OpModel om(model);
+//    bool changedLocation;
+//    for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+//    {
+//        mv::Data::TensorIterator outputTensor;
+//        if (opIt->getOpType() != "Output")
+//        {
+//            outputTensor = opIt->getOutputTensor(0);
+//            auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+//            if (outputLocation == mv::Tensor::MemoryLocation::OUTPUT)
+//            {
+//                for (auto input : opIt->getInputTensor())
+//                {
+//                    auto previousOp = om.getSourceOp(input);
+//                    if (previousOp->isImplicit())
+//                        for (auto inputTensor : previousOp->getInputTensor())
+//                        {
+//                            auto parentOp = om.getSourceOp(inputTensor);
+//                            if (parentOp->getOpType() == "DMATask" &&
+//                                    parentOp->hasAttr("direction") &&
+//                                    parentOp->get<mv::DmaDirection>("direction") ==
+//                                    mv::DmaDirectionEnum::NNCMX2DDR)
+//                            {
+//                                changedLocation = true;
+//                                parentOp->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location",
+//                                                    mv::Tensor::MemoryLocation::OUTPUT);
+//                            }
+//                        }
+//                }
+//            }
+//        }
+//    }
+//    if (changedLocation)
+//    {
+//        for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+//        {
+//            if (opIt->getOpType() == "Output")
+//            {
+//                auto previousOp = om.getSourceOp(opIt->getInputTensor()[0]);
+//                for (auto inp : previousOp->getInputTensor())
+//                    inp->set<mv::Tensor::MemoryLocation>("Location",
+//                                                         mv::Tensor::MemoryLocation::OUTPUT);
+//            }
+//        }
+//    }
 
-}
+//}
