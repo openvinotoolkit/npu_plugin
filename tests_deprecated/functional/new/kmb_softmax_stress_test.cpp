@@ -91,4 +91,5 @@ const std::vector<SoftmaxStressTestParams> softmaxParams {
             .outPrecision(Precision::FP32),
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbSoftmaxStressTest, testing::ValuesIn(softmaxParams));
+// [Track number: S#34670]
+INSTANTIATE_TEST_CASE_P(DISABLED_SomeCase, KmbSoftmaxStressTest, testing::ValuesIn(softmaxParams));
