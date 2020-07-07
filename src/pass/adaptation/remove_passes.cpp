@@ -8,6 +8,7 @@
 
 void removeSimpleOp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
 void removeShapeRelevant(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
+void removeInterp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType);
 void linkNewOperationsRemove(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
                                     mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -34,7 +35,7 @@ void removeOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model,
     std::unordered_map<std::string, std::function<void(mv::Data::OpListIterator &, mv::ComputationModel& , std::string &)>> remTaskMap =
                                     {{"Identity", removeSimpleOp},
                                     {"Dropout", removeSimpleOp},
-                                    {"Interp", removeShapeRelevant},
+                                    {"Interp", removeInterp},
                                     {"Reshape", removeShapeRelevant},
                                     {"Permute", removeShapeRelevant},
                                     {"Slice", removeShapeRelevant}};
@@ -77,3 +78,26 @@ void removeShapeRelevant(mv::Data::OpListIterator &opIt, mv::ComputationModel &m
     }
 }
 
+void removeInterp(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
+{
+    UNUSED(opType);
+    mv::OpModel om(model);
+    auto inputShape = opIt->getInputTensor(0)->getShape();
+    auto outputShape = opIt->getOutputTensor(0)->getShape();
+    if (inputShape == outputShape)
+    {
+        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
+
+        if (isEqual(inQuantParams, outQuantParams) || outQuantParams.isNeutral())
+        {
+           opIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, opIt);
+           if (outputMemoryLocation.isForced())
+            opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        }
+    }
+}
