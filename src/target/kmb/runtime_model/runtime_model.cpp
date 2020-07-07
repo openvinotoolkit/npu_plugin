@@ -828,8 +828,12 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     auto numInputs = om.getNumNetworkInputs();
     if (numInputs == 1)
     {
+        auto inputIt = om.getInput()->getOutputTensor(0);
+        // Rename input tensor - same as input operation name
+        inputIt->setName(om.getInput()->getName());
         toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
         toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+        cm.bufferMap().addInput(inputIt->getName(), inputIt->getOrder(), inputIt->getShape(), inputIt->getDType());
     }
     else
     {
@@ -846,7 +850,11 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     if (numOutputs == 1)
     {
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+        auto outputIt = om.getOutput()->getInputTensor(0);
+        // Rename output tensor - same as output operation name
+        outputIt->setName(om.getOutput()->getName());
+        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
+        cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
     }
     else
     {
@@ -855,7 +863,11 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
             auto destOp = implicitOutputOps[i];
-            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
+            auto outputIt = destOp->getInputTensor(0);
+            // Rename output tensor - same as output operation name
+            outputIt->setName(destOp->get("networkOutputName"));
+            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
+            cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
         }
     }
 
