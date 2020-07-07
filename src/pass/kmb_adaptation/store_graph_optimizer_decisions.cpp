@@ -8,7 +8,7 @@
 
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-static void storeConcatDDRFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+static void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void validateDilationSubConvolutions(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -52,8 +52,9 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     storeLayerSplitStrategyFcn(pass, model);
     storeLayerSparsityStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
-    //NOTE: Only for validation-debug reasons, makes all the concats to be executed on ddr
-    storeConcatDDRFcn(pass, model);
+    //NOTE: The idea of that pass is that for the dilation convolution all the dmas of the subconvolutions
+    //need to write on one master buffer located or in the ddr or in the output location
+    storeDilationConcatsDDRFcn(pass, model);
     validateDilationSubConvolutions(pass, model);
 }
 
@@ -282,24 +283,69 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
     //mv::Logger::setVerboseLevel(mv::VerboseLevel::Warning);
 }
 
-void storeConcatDDRFcn(const mv::pass::PassEntry&,
+mv::Data::OpListIterator findNextNotImplicitOp(mv::DataModel &dataModel, const mv::Data::OpListIterator &op)
+{
+    auto sinkOp = mv::findSinkLayers(dataModel, op->getOutputTensor()[0])[0];
+    while(sinkOp->isImplicit())
+    {
+        sinkOp = mv::findSinkLayers(dataModel, sinkOp->getOutputTensor()[0])[0];
+    }
+    return sinkOp;
+
+}
+
+void setConcatTensorsLocation(const mv::Data::OpListIterator &op, mv::Tensor::MemoryLocation memoryLocation)
+{
+    for (auto inputTensor : op->getInputTensor())
+        inputTensor->set<mv::Tensor::MemoryLocation>("Location", memoryLocation);
+    op->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location", memoryLocation);
+}
+
+void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&,
                                 mv::ComputationModel& model)
 {
     mv::OpModel om(model);
-    auto concats = om.getOps("ImplicitConcat");
-    for ( auto concat : concats)
+    mv::DataModel dm(model);
+    auto sortedOps = om.topologicalSort();
+    bool outputAfterDilatedConcat = false;
+    for ( auto concat : sortedOps)
     {
-        if (concat->hasAttr("dilatedWidthConcat") && concat->get<bool>("dilatedWidthConcat"))
+        if (concat->getOpType() == "Concat" ||
+                concat->getOpType() == "ImplicitConcat")
         {
-            concat->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
-            for (auto inputTensor : concat->getInputTensor())
-                inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+            if (concat->hasAttr("dilatedWidthConcat") &&
+                    concat->get<bool>("dilatedWidthConcat"))
+            {
+                auto nextNotImplicitOp = findNextNotImplicitOp(dm, concat);
+                auto previousSubConv = om.getSourceOp(concat->getInputTensor()[0]);
+                if (nextNotImplicitOp->getOpType() == "Output")
+                {
+                    if (previousSubConv->get<mv::DType>("dType") == mv::DType("UInt8") &&
+                            (nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("Default") ||
+                             nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("UInt8")))
+                    {
+                        outputAfterDilatedConcat = true;
+                        setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::OUTPUT);
+                    }
+                    else
+                        setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::DDR);
+                }
+                else
+                {
+                    setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::DDR);
+                }
+            }
+            else if (concat->hasAttr("joinSimulation") && concat->get<bool>("joinSimulation"))
+            {
+                if (outputAfterDilatedConcat)
+                    for (auto inputTensor : concat->getInputTensor())
+                        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                else
+                    for (auto inputTensor : concat->getInputTensor())
+                        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
+
+            }
         }
-//        if (concat->hasAttr("joinSimulation") && concat->get<bool>("joinSimulation"))
-//            concat->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-        else if (concat->hasAttr("joinSimulation") && concat->get<bool>("joinSimulation"))
-            for (auto inputTensor : concat->getInputTensor())
-                inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
     }
 }
 
