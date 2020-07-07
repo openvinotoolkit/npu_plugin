@@ -13,6 +13,3 @@
 [submodule "gflags"]
 	path = tools/validate_tensor/contrib/gflags
 	url = https://github.com/gflags/gflags.git
-[submodule "mcm-emulator"]
-	path = contrib/mcm-emulator
-	url = https://gitlab-icv.inn.intel.com/kmb-emulator/mcm-emulator.git

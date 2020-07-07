@@ -1,5 +1,6 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
