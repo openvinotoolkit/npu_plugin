@@ -109,21 +109,7 @@
             "FusePostOps",
             "PreprocessForPWL",
             "CheckPWLForRequantize",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/beforeDil.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ConvDilationUsingStorageElement",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/afterDil.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "AddPermutesToChangeSoftmaxAxis",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
@@ -132,13 +118,6 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_go.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -217,24 +196,10 @@
                 }
             },
             "StoreGraphOptimizerDecisions",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_streaming.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ComputeSparsitySolution",
             "StreamingOperations",
             "StreamBinaryDataWeights",
-            "StreamCopyOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/adapt.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            }
+            "StreamCopyOperations"
         ]
     },
     "kmb_adapt": {
@@ -244,21 +209,7 @@
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
             "LoadPWLQuantParams",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_tasks.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ConvertOpsToTasks",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/after_tasks.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
@@ -280,46 +231,17 @@
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
             "KMBQuantizeConversion",
-            "ConfigureOutputPrecision",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/beforeDMA.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            }
+            "ConfigureOutputPrecision"
         ]
     },
   "dma": {
         "Singular" : [
             "SetDpuTasksMemoryLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/1DMA.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "SetUPATasksMemoryLocation",
             "UpdateImplicitLayersLocation",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/2DMA.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ResolveImplicitOperations",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/3DMA.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "AddDPUTasksWeightsDMATasks",
             "AddUPATasksExtraInputsDMATasks",
-            "EnsureNoOddDMAsBetweenDDROutput",
             "EnsureSplitStrategiesForSpilling"
         ]
     },
@@ -338,13 +260,6 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_scheduler.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -365,13 +280,6 @@
             "ArrangeKmbExecution",
             "AllocateInputOutputTensorsKmb",
             "AllocateGraphfileTensorsKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/AllocateGraphfileTensorsKmb.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
             {
@@ -407,13 +315,6 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "BuildGraphFileKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/original_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
