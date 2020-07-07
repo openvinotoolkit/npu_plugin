@@ -82,7 +82,7 @@ std::vector<std::size_t> mv::tileSpatialOutputSize(std::size_t outputSize , std:
     // but if thats not possible, logic is added to have the first one largest and rest of the splits equal (is this right?)
     int newOutputSize = ceil( (double)(outputSize) / (double)numberOfSplits);
     int remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));
-    if (remainderOutputSize <= 0)
+    if (remainderOutputSize <= 1)
     {
         newOutputSize = trunc( (double)(outputSize) / (double)numberOfSplits);
         remainderOutputSize = outputSize - (newOutputSize *(numberOfSplits -1));

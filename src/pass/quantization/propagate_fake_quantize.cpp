@@ -222,11 +222,23 @@ bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
     for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
         input_params.push_back(getParentQuantParams(om, op, i));
     }
+    for (unsigned i = 0; (input_params.size()>1) && i < input_params.size()-1; i++)
+    {
+        if (!isEqualScale(*(input_params.begin()) , *(input_params.begin()+i+1)) ) //compare the first element with the succeeding elements
+        {
+            return false;//we found mismatch no need to go further
+        }
+        else
+        {
+            /* navigate till end of the list */
+        }
+    }
+    return true;
 
     return std::adjacent_find(input_params.begin(), input_params.end(),
             [](const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-        return !isEqual(left, right);
-    }) != input_params.end();
+        return isEqualScale(left, right);
+    }) == input_params.end();
 }
 
 //NOTE: here is FQ operation parameters propagation algorithm.
@@ -250,7 +262,11 @@ void propagateParameters(mv::ComputationModel& model) {
     auto sorted_ops = om.topologicalSort();
     for (auto& op : sorted_ops) {
         if (op->getOpType() == "Eltwise" || op->getOpType() == "Concat") {
-            assert(areAllInputQuantParamsEqual(om, op));
+            if ( false == areAllInputQuantParamsEqual(om, op) )
+            {
+                throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"));
+            }
+
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here

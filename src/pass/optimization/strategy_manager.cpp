@@ -557,8 +557,10 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
 std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::Data::OpListIterator opBegin, 
                                                                                 mv::Data::OpListIterator opEnd)
 {
-    set<std::string> nodesFound;
+    set<std::string> nodesSeen;
+    set<std::string> nodesAdded;
     std::vector<mv::Data::OpListIterator> nonExclusiveNodes;
+    set<std::string> dfsNodesFound;
     std::vector<mv::Data::OpListIterator> dfsStartNodes;
     // cout << "Getting non-exclusive nodes from " << opBegin->getName() << " to " << opEnd->getName() << endl;
 
@@ -577,16 +579,24 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
                 auto childIt = it.leftmostChild();
                 ++childIt; // skip the path we're already on
                 while(childIt != model_.opEnd()){
-                    dfsStartNodes.push_back(childIt);
+                    if(dfsNodesFound.find(childIt->getName()) == dfsNodesFound.end()){
+                        dfsStartNodes.push_back(childIt);
+                    }
+                    dfsNodesFound.insert(childIt->getName());
                     ++childIt;
                 }
             }
             // TODO more efficient way than comparing strings?
-            if((nodesFound.find(it->getName()) != nodesFound.end()) and
-                (countInputLayers(it) != 1) )
-                nonExclusiveNodes.push_back(it);
-            else
-                nodesFound.insert(it->getName());
+            if((nodesSeen.find(it->getName()) != nodesSeen.end()) and
+                !(it.childrenSize() == countInputLayers(it)) ){
+                    if(nodesAdded.find(it->getName()) == nodesAdded.end()){
+                        nonExclusiveNodes.push_back(it);
+                        nodesAdded.insert(it->getName());
+                    }
+                }
+            else{
+                nodesSeen.insert(it->getName());
+            }
         }
         index++;
     }
@@ -614,6 +624,13 @@ void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIt
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
         std::vector<mv::Data::OpListIterator> opsToLink;
         for(; input != model_.opEnd(); ++input ){
+            auto inputType = input->getOpType();
+            if ((inputType == "Constant") or
+            (inputType == "ConstantInt") or
+            (inputType == "ConstantDataElement") or
+            (inputType == "WeightsTable") or
+            (inputType == "SparsityMap"))
+                continue;
             input->set<bool>("forceClustering", true);
             opsToLink.push_back(input);
             // Find the edge between input and node
