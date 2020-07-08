@@ -615,13 +615,14 @@ namespace mv
                 if(op.getOpType() == "Conv")
                 {
                     auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                    auto linesPerOutputSlice = outDim/splits;
-                    if(linesPerOutputSlice >= 1)
-                        return splits;
-                    else
+                    double linesPerOutputSlice = outDim/(splits+1);
+                    if(linesPerOutputSlice < 1)
+                    {
+                        linesPerOutputSlice = outDim/splits;
+                        if(linesPerOutputSlice >= 1)
+                            return splits;
                         return 1;
-                    if(splits < 1)
-                        return 1;
+                    }
                 }
 
                 return splits + 1; // consider one extra H stream, just in case
@@ -937,7 +938,7 @@ namespace mv
                     auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
                     // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
-                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
+                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : "<<strategy["inputSparsity"].toString()<<" : "<<strategy["outputSparsity"].toString()<<" : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
                     if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
@@ -1035,6 +1036,9 @@ namespace mv
 
                 if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
                     return 13;
+
+                if(requiresFakeActivationSparsity(op) && strategy["inputSparsity"].get<bool>())
+                    return 12;
 
                 return 0; //good strategy
             }
