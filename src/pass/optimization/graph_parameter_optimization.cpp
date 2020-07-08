@@ -68,7 +68,7 @@ namespace mv
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp",
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled",
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK"};
+            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK", "DilatedSOH"};
 
 
             void readGlobalConfigs()
@@ -771,11 +771,12 @@ namespace mv
                 return contextsPerDpu * streamShape.totalSize() * baseKernelCost;
             }
 
-            bool requiresActivationSparsity(Op& op, string clustering){
-                // if(op.getOpType() == "Input" or op.getOpType() == "Output")
-                //     return false;
-
+            bool requiresActivationSparsity(Op& op, string clustering)
+            {
                 if(requiresRealActivationSparsity(op, clustering))
+                    return true;
+
+                if(requiresCompilerActivationSparsity(op))
                     return true;
 
                 if(requiresFakeActivationSparsity(op))
@@ -796,14 +797,21 @@ namespace mv
                 return false;
             }
 
+            // In these cases parent output sparsity does matter, but child input sparsity must be true
+            bool requiresCompilerActivationSparsity(Op& op)
+            {
+                if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
+                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
+                    return true;
+                
+                return false;
+            }
+
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
                         and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
                         referenceDevice == "A0")
-                    return true;
-                else if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
-                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
@@ -941,7 +949,7 @@ namespace mv
                     auto fit = memorySize(op,clustering,strategy["inputSparsity"], strategy["outputSparsity"],weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
                     // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
-                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
+                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << strategy["inputSparsity"].toString()<< " : "<< strategy["outputSparsity"].toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
                     if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
@@ -1034,11 +1042,17 @@ namespace mv
                         return 11;
                 }
 
-                if(requiresRealActivationSparsity(op, clustering) && !strategy["inputSparsity"].get<bool>())
+                if((requiresRealActivationSparsity(op, clustering) || requiresCompilerActivationSparsity(op)) && !strategy["inputSparsity"].get<bool>())
                     return 12;
 
                 if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
                     return 13;
+
+                //NOTE: Subdilation storage element population is not implemented for the SOH case
+                if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
+                        && op.get<bool>("DilatedSubConv")
+                        && clustering == "SplitOverH")
+                    return 14;
 
                 return 0; //good strategy
             }
@@ -1233,15 +1247,7 @@ namespace mv
                             return INF;
                     }
                 }
-                //NOTE: Subdilation storage element population is not implemented for the SOH case
-                if (childOp.getOpType() == "Conv"  && childOp.hasAttr("DilatedSubConv")
-                        && childOp.get<bool>("DilatedSubConv")
-                        && childClustering == "SplitOverH")
-                    return INF;
-                if (parentOp.getOpType() == "Conv" && parentOp.hasAttr("DilatedSubConv")
-                        && parentOp.get<bool>("DilatedSubConv")
-                        && parentClustering == "SplitOverH")
-                    return INF;
+
                 if( childOp.getOpType() == "Conv")
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
@@ -1327,9 +1333,11 @@ namespace mv
                 // Sparsity must match
                 if(parentOutputSparsity != childInputSparsity)
                 {
-                    log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                    if( !(requiresCompilerActivationSparsity(childOp) and !parentOutputSparsity) ){
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
                            return INF;
+                    }
                 }
 
                 // Note: No longer need to check pairwise sparsity, covered by above condition 
@@ -1658,7 +1666,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
-                                    // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
+                                    // cout << "   " << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
                                     if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
 
