@@ -10,3 +10,6 @@
 [submodule "gflags"]
 	path = tools/validate_tensor/contrib/gflags
 	url = https://github.com/gflags/gflags.git
+[submodule "schema/graphfile"]
+	path = schema/graphfile
+	url = https://github.com/movidius/graphFile-schema
