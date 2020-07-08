@@ -247,7 +247,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .inputHeight(228)
         .nClasses(5)};
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+INSTANTIATE_TEST_CASE_P(DISABLED_SomeCase, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
 TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
