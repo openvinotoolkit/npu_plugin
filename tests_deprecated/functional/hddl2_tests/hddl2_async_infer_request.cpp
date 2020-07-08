@@ -87,9 +87,7 @@ IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(
     }
     auto outputTensorDesc = outputInfo.begin()->second->getTensorDesc();
     outputTensorDesc.setPrecision(precision);
-    auto refBlob = make_blob_with_precision(outputTensorDesc);
-    refBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(pathToReference, refBlob);
+    auto refBlob = vpu::KmbPlugin::utils::fromBinaryFile(pathToReference, outputTensorDesc);
     return refBlob;
 }
 

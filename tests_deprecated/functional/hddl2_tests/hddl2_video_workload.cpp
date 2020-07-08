@@ -86,9 +86,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
-    auto inputRefBlob = make_blob_with_precision(inputTensor);
-    inputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+    InferenceEngine::Blob::Ptr inputRefBlob;
+    ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputTensor));
 
     // ----- Allocate memory with HddlUnite on device
     RemoteMemoryFD remoteMemoryFd =
@@ -138,9 +137,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+    InferenceEngine::Blob::Ptr outputRefBlob;
+    ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     // --- Compare with expected output
     ASSERT_NO_THROW(
@@ -159,9 +157,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupp
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
-    auto inputRefBlob = make_blob_with_precision(inputTensor);
-    inputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+    InferenceEngine::Blob::Ptr inputRefBlob;
+    ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputTensor));
 
     // ----- Allocate memory with HddlUnite on device
     RemoteMemoryFD remoteMemoryFd =
@@ -235,9 +232,8 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     const auto& nv12FrameTensor =
         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 77976}, InferenceEngine::Layout::NCHW);
 
-    auto inputRefBlob = make_blob_with_precision(nv12FrameTensor);
-    inputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+    InferenceEngine::Blob::Ptr inputRefBlob;
+    ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
     RemoteMemoryFD remoteMemoryFd =
@@ -294,11 +290,11 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
+    InferenceEngine::Blob::Ptr outputRefBlob;
     auto referenceBlobTensor = outputBlob->getTensorDesc();
     referenceBlobTensor.setPrecision(IE::Precision::U8);
-    auto outputRefBlob = make_blob_with_precision(referenceBlobTensor);
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+
+    ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, referenceBlobTensor));
 
     ASSERT_NO_THROW(
         Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
@@ -318,9 +314,8 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     const auto& nv12FrameTensor =
         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 77976}, InferenceEngine::Layout::NCHW);
 
-    auto inputRefBlob = make_blob_with_precision(nv12FrameTensor);
-    inputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+    InferenceEngine::Blob::Ptr inputRefBlob;
+    ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
     RemoteMemoryFD remoteMemoryFd =
@@ -379,11 +374,11 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
+    InferenceEngine::Blob::Ptr outputRefBlob;
     auto refTensorDesc = outputBlob->getTensorDesc();
     refTensorDesc.setPrecision(IE::Precision::U8);
-    auto outputRefBlob = make_blob_with_precision(refTensorDesc);
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+
+    ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refTensorDesc));
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
         toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));

@@ -262,8 +262,11 @@ TEST_F(InferenceWithPerfCount, SyncInferenceWithPerfCount) {
 
     // ---- Set input
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
+    auto inputDesc = inferInputBlob->getTensorDesc();
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputDesc));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // ---- Run the request synchronously
     ASSERT_NO_THROW(inferRequest.Infer());
@@ -292,8 +295,10 @@ void InferenceWithCheckLayout::SetUp() {
 
 TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     const auto layoutOrig = inputBlob->getTensorDesc().getLayout();
 
@@ -304,15 +309,18 @@ TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
 
 TEST_F(InferenceWithCheckLayout, CheckInputsLayoutAfterTwoInferences) {
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.Infer());
 
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     auto firstOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
 
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.Infer());
 

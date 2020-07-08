@@ -163,9 +163,7 @@ Blob::Ptr KmbPrivateConfigTests::runInferWithConfig(const std::string& model_pat
         inputBlob = vpu::KmbPlugin::utils::fromNV12File(input_path, input_width, input_height, allocator);
     } else {
         const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
-        inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-        inputBlob->allocate();
-        vpu::KmbPlugin::utils::fromBinaryFile(input_path, inputBlob);
+        inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(input_path, inputTensorDesc);
     }
 
     PreProcessInfo preProcInfo;
@@ -188,9 +186,7 @@ Blob::Ptr KmbPrivateConfigTests::runInferWithConfig(const std::string& model_pat
 }
 
 Blob::Ptr KmbPrivateConfigTests::readReference(const std::string& reference_path, const TensorDesc& tensor_desc) const {
-    Blob::Ptr referenceBlob = make_shared_blob<float>(tensor_desc);
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(reference_path, referenceBlob);
+    Blob::Ptr referenceBlob = vpu::KmbPlugin::utils::fromBinaryFile(reference_path, tensor_desc);
 
     return referenceBlob;
 }

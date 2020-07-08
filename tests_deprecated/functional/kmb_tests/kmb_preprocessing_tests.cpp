@@ -59,7 +59,7 @@ static void setPreprocForInputBlob(const std::string& inputName, const TensorDes
         InferenceEngine::TensorDesc preprocTensor(
             inputTensor.getPrecision(), {1, 3, 227, 227}, inputTensor.getLayout());
         inputBlob = make_shared_blob<uint8_t>(preprocTensor, imageData);
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
+        ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, preprocTensor));
     } break;
     case PT_NV12:
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
@@ -191,7 +191,8 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(
+            referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -241,9 +242,9 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = fileContentBlob;
 
@@ -302,9 +303,9 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = fileContentBlob;
 
@@ -377,9 +378,9 @@ TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = toFP32(fileContentBlob);
 
@@ -520,9 +521,9 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    Blob::Ptr referenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc);
-    referenceOutputBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+    Blob::Ptr referenceOutputBlob;
+    ASSERT_NO_THROW(
+        referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
     const size_t NUMBER_OF_CLASSES = 1;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -559,9 +560,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
     std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    Blob::Ptr catOutputContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-    catOutputContentBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catOutputContentBlob));
+    Blob::Ptr catOutputContentBlob;
+    ASSERT_NO_THROW(
+        catOutputContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, outputBlobTensorDesc));
 
     Blob::Ptr catReferenceOutputBlob = toFP32(catOutputContentBlob);
 
@@ -578,9 +579,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
-    float* dogOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
-    Blob::Ptr dogReferenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc, dogOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
+    Blob::Ptr dogReferenceOutputBlob;
+    ASSERT_NO_THROW(
+        dogReferenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, outputBlobTensorDesc));
 
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
@@ -615,9 +616,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
     std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    float* catOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(catOutputBlob->byteSize()));
-    Blob::Ptr catOutputContentBlob = make_shared_blob<float>(outputBlobTensorDesc, catOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catOutputContentBlob));
+    Blob::Ptr catOutputContentBlob;
+    ASSERT_NO_THROW(
+        catOutputContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, outputBlobTensorDesc));
 
     Blob::Ptr catReferenceOutputBlob = catOutputContentBlob;
 
@@ -644,9 +645,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
-    float* dogOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
-    Blob::Ptr dogReferenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc, dogOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
+    Blob::Ptr dogReferenceOutputBlob;
+    ASSERT_NO_THROW(
+        dogReferenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, outputBlobTensorDesc));
 
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
