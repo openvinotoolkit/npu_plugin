@@ -16,6 +16,7 @@
 
 #include <string>
 #include <ie_blob.h>
+#include <blob_factory.hpp>
 
 #include "allocators.hpp"
 
@@ -25,7 +26,7 @@ namespace KmbPlugin {
 
 namespace utils {
 
-void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob);
+InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc desc);
 void readNV12FileHelper(const std::string &filePath, size_t sizeToRead, uint8_t *imageData, size_t readOffset);
 InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath, size_t imageWidth, size_t imageHeight,
                                         std::shared_ptr<VPUAllocator> &allocator);

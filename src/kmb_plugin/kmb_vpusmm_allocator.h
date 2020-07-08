@@ -26,6 +26,7 @@ public:
     void* alloc(size_t size) noexcept override;
     bool free(void* handle) noexcept override;
     bool isValidPtr(void* ptr) noexcept override;
+    unsigned long getPhysicalAddress(void* handle) noexcept override;
 };
 
 }  // namespace KmbPlugin

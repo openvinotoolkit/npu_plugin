@@ -79,7 +79,7 @@ TEST_P(ResnetTest, DISABLED_resnetAccuracy) {
 
     Blob::Ptr inputBlob = inferRequest.GetBlob(exeNetwork.GetInputsInfo().begin()->first);
     std::string inputFilePath = ModelsPath() + "/KMB_models/resnet50/" + test_params.inputPath;
-    vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob);
+    inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob->getTensorDesc());
 
     inferRequest.Infer();
 
@@ -90,12 +90,10 @@ TEST_P(ResnetTest, DISABLED_resnetAccuracy) {
         Blob::Ptr outputBlob = inferRequest.GetBlob(item.first.c_str());
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
-        Blob::Ptr referenceOutputBlob = make_blob_with_precision(TensorDesc(
-            InferenceEngine::Precision::FP32, outputBlobTensorDesc.getDims(), outputBlobTensorDesc.getLayout()));
-        referenceOutputBlob->allocate();
+        Blob::Ptr referenceOutputBlob;
 
         std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/resnet50/" + test_params.exepectedResPath;
-        vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob);
+        referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc);
 
         float scale = test_params.scale;
         uint8_t shift = test_params.shift;

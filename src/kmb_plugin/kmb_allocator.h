@@ -38,7 +38,7 @@ public:
 
     void Release() noexcept override {}
 
-    unsigned long getPhysicalAddress(void* handle) noexcept;
+    virtual unsigned long getPhysicalAddress(void* handle) noexcept;
 
     virtual bool isValidPtr(void* ptr) noexcept;
 

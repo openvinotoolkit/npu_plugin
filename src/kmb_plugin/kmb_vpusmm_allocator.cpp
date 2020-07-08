@@ -83,6 +83,15 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 #endif
 }
 
+unsigned long KmbVpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
+#if defined(__arm__) || defined(__aarch64__)
+    return vpusmm_ptr_to_vpu(handle);
+#else
+    UNUSED(handle);
+    return 0;
+#endif
+}
+
 bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
