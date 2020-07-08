@@ -152,7 +152,7 @@ TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
+TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -207,7 +207,7 @@ class VpuInferAndCompareTestsWithParam :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<bool, modelBlobsInfo>> {};
 
-TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
+TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
     std::tuple<bool, modelBlobsInfo> paramTuple = GetParam();
     bool isSync = std::get<0>(paramTuple);
     modelBlobsInfo blobsInfo = std::get<1>(paramTuple);
@@ -294,7 +294,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
     }
 }
 
-TEST_P(VpuInferWithPath, asyncInferCallback) {
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallback) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -379,7 +379,7 @@ TEST_P(VpuInferWithPath, asyncInferCallback) {
     }
 }
 
-TEST_P(VpuInferWithPath, asyncInferCallbackRecursive) {
+TEST_P(VpuInferWithPath, DISABLED_asyncInferCallbackRecursive) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
@@ -757,7 +757,7 @@ public:
     }
 };
 
-TEST_F(vpuInferWithSetUp, copyCheckSetBlob) {
+TEST_F(vpuInferWithSetUp, DISABLED_copyCheckSetBlob) {
     std::string strToCheck = "isValidPtr(): Input blob will be copied";
     std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
     std::string inputNameFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
@@ -818,7 +818,7 @@ const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
 
 class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<TopNetTest> {};
 
-TEST_P(VpuInferWithPathForTop3Net, canDoInferenceOnTop3ImportedBlobs) {
+TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     modelBlobsInfo blobsInfo = GetParam().info;
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
     std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;
