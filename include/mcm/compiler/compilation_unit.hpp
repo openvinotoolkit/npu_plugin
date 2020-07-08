@@ -22,7 +22,6 @@ namespace mv
 
         static const std::string ma2480DefCompDescPath_;
         static const std::string ma2490DefCompDescPath_;
-        static const std::string ma2490EmulatorCompDescPath_;
         static const std::string compositionalModelRecordingsPath_;
 
         static Logger& logger_;
@@ -32,8 +31,6 @@ namespace mv
         TargetDescriptor targetDescriptor_;
         CompilationDescriptor compDescriptor_;
         const static unsigned jsonParserBufferLength_ = 256;
-        void deepCopy(mv::OpModel& copyTo);
-        void generateExpectedResults();
 
     public:
         std::shared_ptr<std::vector<char> > getBlob() const;

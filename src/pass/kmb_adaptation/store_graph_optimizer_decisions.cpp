@@ -341,9 +341,7 @@ void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&,
                     for (auto inputTensor : concat->getInputTensor())
                         inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
                 else
-                    for (auto inputTensor : concat->getInputTensor())
-                        inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
-
+                    setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::DDR);
             }
         }
     }
