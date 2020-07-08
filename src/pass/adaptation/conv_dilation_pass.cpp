@@ -98,6 +98,11 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
     {
         om.addAttr(subConvOp, "bias", opIt->get<std::string>("bias"));
     }
+    if (opIt->hasAttr("postOpTypes"))
+    {
+        subConvOp->set<std::vector<std::string>>("postOpTypes",
+                                    opIt->get<std::vector<std::string>>("postOpTypes"));
+    }
 
 
     return subConv;
