@@ -48,7 +48,7 @@ static SmallVector<int> calcSizesFromParams(const ie::TensorDesc& desc, const Sm
     return parsedSizes;
 }
 
-static uint32_t parseKernelArgument(const CustomKernel::KernelParam& binding, const CNNLayerPtr& layer,
+static uint32_t parseKernelArgument(const CustomKernel::BindingParameter& binding, const CNNLayerPtr& layer,
     const SmallVector<TensorDesc>& inputDescs, const SmallVector<TensorDesc>& outputDescs) {
 
     const auto floatAsInt = [](const float f) {

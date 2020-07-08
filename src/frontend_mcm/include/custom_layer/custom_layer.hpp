@@ -29,8 +29,8 @@ public:
 
     std::vector<CustomKernel> kernels() const { return _kernels; }
     std::string layerName() const { return _layerName; }
-    std::map<int, CustomDataFormat> inputs() { return _inputs; }
-    std::map<int, CustomDataFormat> outputs() { return _outputs; }
+    std::map<int, ie::Layout> inputs() { return _inputs; }
+    std::map<int, ie::Layout> outputs() { return _outputs; }
 
     static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
                 const std::string& configFile,
@@ -38,8 +38,7 @@ public:
 
     bool meetsWhereRestrictions(const std::map<std::string, std::string>& params) const;
     static bool isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams);
-    static CustomDataFormat formatFromLayout(const InferenceEngine::Layout& layout);
-
+    static InferenceEngine::Layout formatToLayout(const CustomDataFormat& format);
 private:
     std::string _configDir;
     std::string _layerName;
@@ -47,8 +46,8 @@ private:
 
     std::vector<CustomKernel> _kernels;
 
-    std::map<int, CustomDataFormat> _inputs;
-    std::map<int, CustomDataFormat> _outputs;
+    std::map<int, ie::Layout> _inputs;
+    std::map<int, ie::Layout> _outputs;
 };
 
 };  // namespace vpu

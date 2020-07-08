@@ -14,6 +14,8 @@
 // stated in the License.
 //
 
+#include <file_utils.h>
+
 #include "test_model/kmb_test_base.hpp"
 
 //
@@ -355,17 +357,51 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
 }
 
 //
+// TinyYolo V2 with custom region
+//
+
+TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Custom) {
+    const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
+        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32)
+            .setCompileConfig({customLayers}),
+        TestImageDesc("512x512/dog_croped512.bmp", false),
+        0.6, 0.4, 0.4, false);
+}
+
+//
 // Yolo V2
 //
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");  // TODO: create JIRA ticket
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPresision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPresision("output", Precision::FP32),
+        TestImageDesc("416x416/person.bmp", false),
+        0.6, 0.4, 0.4, false);
+}
+
+//
+// Yolo V2 with custom region & reorg
+//
+
+TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Custom) {
+    const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
+        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
+            .setUserInputPresision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPresision("output", Precision::FP32)
+            .setCompileConfig({customLayers}),
         TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
