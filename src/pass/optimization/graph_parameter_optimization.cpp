@@ -938,7 +938,7 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
+                    auto fit = memorySize(op,clustering,strategy["inputSparsity"], strategy["outputSparsity"],weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
                     // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
                     // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
@@ -1332,63 +1332,8 @@ namespace mv
                            return INF;
                 }
 
-                // In cases where real activation sparsity  will be required later
-                // ensure there is enough memory for them
-                if(requiresRealActivationSparsity(childOp, childClustering))
-                {
-                    // Note: equivalent child check happens in checkForBadStrategy
-                    if(!parent["outputSparsity"].get<bool>()){
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by dense output, sparse input");
-                           return INF;
-                    }
-                }
-
-                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
-                if(requiresFakeSparsity){
-                    parentOutputSparsity = false;
-                    childInputSparsity = true;
-                }
-
-
-                // Note: Should no longer need to recheck for sparse memory size - we check the actual sparse memory size
-                // when generating the strategies now!
-                //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
-                //does not exceed CMX
-                if(childInputSparsity)
-                {
-                    auto parentMem = memorySize(parentOp,
-                                            parentClustering,
-                                            false,
-                                            parentOutputSparsity,
-                                            parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(),
-                                            requiresFakeActivationSparsity(parentOp));
-
-                    auto childMem = memorySize(childOp,
-                                            childClustering,
-                                            childInputSparsity,
-                                            false,
-                                            child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>(),
-                                            requiresFakeSparsity);
-
-
-                    if( (childOp.getOpType() != "Output") and
-                      ( (childMem.first + childMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
-                            return INF;
-                    }
-                    if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
-                      ( (parentMem.first + parentMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
-                            return INF;
-                    }
-                }
+                // Note: No longer need to check pairwise sparsity, covered by above condition 
+                // and memory size is covered in checkForBadStrategy
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
@@ -1703,11 +1648,6 @@ namespace mv
                                     StrategySet s;
                                     s["name"] = op.getName();
                                     s["id"] = (unique_ctr++);
-                                    //Input sparsity is always enabled/disabled by global switch, except in this case were it is disallowed
-                                    // if(clustering.get<string>() == "SplitOverK")
-                                    //     s["inputSparsity"] = false;
-                                    // else
-                                    //     s["inputSparsity"] = inputActivationSparsity;
                                     s["inputSparsity"] = inputSparsity;
                                     s["outputSparsity"] = outputSparsity;
                                     s["weightsSparsity"] = weightsSparsity;
