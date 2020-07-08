@@ -1,4 +1,4 @@
-[submodule "googletest"]
+[submodule "googletest"] 
 	path = contrib/googletest 
 	url = https://github.com/google/googletest
 [submodule "flatbuffers"]
