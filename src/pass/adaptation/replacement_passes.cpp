@@ -16,9 +16,9 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -49,9 +49,9 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
-    replaceLargeAvgPoolFcn(pass, model);
+    replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
-    replaceAvgPoolAsymmetricStridesFcn(pass, model);
+    replaceAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
@@ -774,7 +774,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
 // Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
 // depthwise 2x2 kernel, stride 2, scale 1/14
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
@@ -1267,7 +1267,7 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     }
 }
 
-void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
