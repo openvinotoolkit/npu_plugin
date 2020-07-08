@@ -31,25 +31,27 @@ public:
 
     void unlock(void* handle) noexcept override;
 
-    virtual void* alloc(size_t size) noexcept = 0;
+    virtual void* alloc(size_t size) noexcept;
 
-    virtual bool free(void* handle) noexcept = 0;
+    virtual bool free(void* handle) noexcept;
 
     void Release() noexcept override {}
 
-    unsigned long getPhysicalAddress(void* handle) noexcept;
+    virtual unsigned long getPhysicalAddress(void* handle) noexcept;
 
     virtual bool isValidPtr(void* ptr) noexcept;
 
     virtual ~KmbAllocator();
 
-    virtual void* wrapRemoteMemory(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
+    virtual void* wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
+    virtual void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept;
 
 protected:
     struct MemoryDescriptor {
         size_t size;
         int fd;
         unsigned long physAddr;
+        bool isAllocated;
     };
     std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
 };

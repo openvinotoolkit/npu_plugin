@@ -41,14 +41,27 @@ KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const KmbC
     }
 
     auto remoteMemoryHandleIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE));
-    if (remoteMemoryHandleIter == params.end()) {
+    auto remoteMemoryOffsetIter = params.find(InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET));
+
+    // memory handle is preferable
+    if (remoteMemoryHandleIter != params.end()) {
+        try {
+            _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
+            _remoteMemoryOffset = 0;
+        } catch (...) {
+            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
+        }
+    } else if (remoteMemoryOffsetIter != params.end()) {
+        try {
+            _remoteMemoryHandle = nullptr;
+            _remoteMemoryOffset = remoteMemoryOffsetIter->second.as<KmbOffsetParam>();
+        } catch (...) {
+            THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory offset param has incorrect type";
+        }
+    } else {
         THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: "
-                           << "Param map does not contain remote memory handle information";
-    }
-    try {
-        _remoteMemoryHandle = remoteMemoryHandleIter->second.as<KmbHandleParam>();
-    } catch (...) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Remote memory handle param has incorrect type";
+                           << "Param map should contain either remote memory handle "
+                           << "or remote memory offset.";
     }
 }
 
@@ -70,7 +83,12 @@ KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, cons
     KmbAllocator::Ptr kmbAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: KmbRemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = kmbAllocatorPtr->wrapRemoteMemory(_remoteMemoryFd, this->size(), _params.getRemoteMemoryHandle());
+    if (_params.getRemoteMemoryHandle() != nullptr) {
+        _memoryHandle = kmbAllocatorPtr->wrapRemoteMemoryHandle(_remoteMemoryFd, this->size(), _params.getRemoteMemoryHandle());
+    } else {
+        // fallback to offsets when memory handle is not specified
+        _memoryHandle = kmbAllocatorPtr->wrapRemoteMemoryOffset(_remoteMemoryFd, this->size(), _params.getRemoteMemoryOffset());
+    }
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << "Allocation error";
     }

@@ -22,8 +22,6 @@
 #include "kmb_allocator.h"
 #include "kmb_infer_request.h"
 #include "kmb_private_config.hpp"
-#include "kmb_native_allocator.h"
-#include "kmb_vpusmm_allocator.h"
 
 using namespace ::testing;
 using namespace vpu::KmbPlugin;
@@ -53,11 +51,7 @@ protected:
 
 class MockExecutor : public KmbExecutor {
 public:
-#if defined(__arm__) || defined(__aarch64__)
-    MockExecutor(const KmbConfig& config): KmbExecutor(config, std::make_shared<KmbVpusmmAllocator>()) {}
-#else
-    MockExecutor(const KmbConfig& config): KmbExecutor(config, std::make_shared<KmbNativeAllocator>()) {}
-#endif
+    MockExecutor(const KmbConfig& config): KmbExecutor(config, std::make_shared<KmbAllocator>()) {}
 
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));

@@ -27,6 +27,7 @@
 
 using KmbRemoteMemoryFD = int;
 using KmbHandleParam = void*;
+using KmbOffsetParam = size_t;
 
 namespace InferenceEngine {
 namespace KmbContextParams {
@@ -57,6 +58,11 @@ namespace KmbContextParams {
      * @brief Remote memory handle
      */
     DECLARE_KMB_PARAM_KEY(MEM_HANDLE, KmbHandleParam);
+
+    /**
+     * @brief Remote memory offset to map physical address properly
+     */
+    DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
 }  // namespace KmbContextParams
 }  // namespace InferenceEngine
 
