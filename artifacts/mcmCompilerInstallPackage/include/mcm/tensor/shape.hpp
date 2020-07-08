@@ -10,6 +10,10 @@
 namespace mv
 {
 
+    static const size_t MAX_KERNEL = 11; // hardware limitation, kernel width, height maximum is 11 includingly
+    static const size_t MAX_STRIDE = 8; // hardware limitation, stride width, stride maximum is 8 includingly
+    static const size_t MAX_DIM_SIZE = 8192; // hardware limitation, stride width, stride maximum is 8 includingly
+
     static const size_t IO_WIDTH_DIMENSION = 0;
     static const size_t IO_HEIGHT_DIMENSION = 1;
     static const size_t IO_CHANNEL_DIMENSION = 2;
@@ -19,7 +23,11 @@ namespace mv
     static const size_t KERNEL_HEIGHT = 1;
     static const size_t KERNEL_INPUT_CHANNELS = 2;
     static const size_t KERNEL_OUTPUT_CHANNELS = 3;
-    static const size_t KERNEL_WEIGHT_SETS = 0;
+
+    static const size_t KERNEL_WEIGHT_SETS = 0;//tensor input 0 is weights
+
+    static const size_t STRIDE_WIDTH = 0;
+    static const size_t STRIDE_HEIGHT = 1;
 
     static const size_t PADDING_LEFT = 0;
     static const size_t PADDING_RIGHT = 1;
