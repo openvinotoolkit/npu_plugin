@@ -402,6 +402,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
         0.6, 0.4, 0.4, false);
 }
 
+// Track: https://jira.devtools.intel.com/browse/CVS-31767
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_from_fp32) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10_from_fp32.xml")
@@ -412,7 +413,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_from
         1, 0.7f);
 }
 
-TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
+TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
 
     runTest(
