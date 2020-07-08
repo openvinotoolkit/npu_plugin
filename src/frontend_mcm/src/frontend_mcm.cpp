@@ -169,12 +169,13 @@ void FrontEndMcm::buildInitialModel(ie::ICNNNetwork& network) {
         _logger->debug("Try to parse layer %s", layer->name);
 
         const auto parser = [&] {
-            const auto customLayer = _customLayers.find(layer->type);
-            const bool isCustomLayer =
-                customLayer != _customLayers.end() && getSuitableCustomLayer(customLayer->second, layer);
+            const auto customLayersForType = _customLayers.find(layer->type);
 
-            if (isCustomLayer) {
-                return g_mcm_parsers.at("Custom");
+            if (customLayersForType != _customLayers.end()) {
+                const auto suitableLayers = getSuitableCustomLayers(customLayersForType->second, layer);
+                if (!suitableLayers.empty()) {
+                    return g_mcm_parsers.at("Custom");
+                }
             }
 
             const auto it = g_mcm_parsers.find(layer->type);
@@ -1851,13 +1852,17 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     logParsingStartHelper(_logger, layer, inputs);
     IE_ASSERT(layer != nullptr);
 
-    const auto kernels = [&] {
+    const auto customLayer = [&] {
         const auto customLayersForType = _customLayers.find(layer->type);
         IE_ASSERT(customLayersForType != _customLayers.end());
-        const auto suitableLayer = getSuitableCustomLayer(customLayersForType->second, layer);
-        IE_ASSERT(suitableLayer);
-        return suitableLayer->kernels();
+        const auto suitableLayers = getSuitableCustomLayers(customLayersForType->second, layer);
+        IE_ASSERT(!suitableLayers.empty());
+        // inputs there are always in HWC layout
+        // this check should be moved to mcm side somehow
+        return findMatchingCustomLayer(suitableLayers, inputs);
     }();
+
+    const auto kernels = customLayer->kernels();
 
     IE_ASSERT(kernels.size() == 1);  // TODO support multi-kernel layer when mcm supports size(outputs) > 1
 
@@ -1886,14 +1891,14 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     const auto kernelArgs = [&] {
         auto kernelArgs = vpu::SmallVector<uint32_t>{};
 
-        auto bindings = std::unordered_map<std::string, CustomKernel::KernelParam>{};
-        for (const auto& binding : kernel.bindings()) {
-            bindings[binding.argName] = binding;
-        }
+        for (const auto& arg : kernel.arguments()) {
+            const auto& binding = kernel.bindings().find(arg.name);
+            if (binding == kernel.bindings().end()) {
+                VPU_THROW_FORMAT("Failed to bind '%s' custom layer. Can't find kernel argument '%s' in binding list.",
+                    customLayer->layerName(), arg.name);
+            }
 
-        for (const auto& argName : kernel.argumentNames()) {
-            const auto& binding = bindings.at(argName);
-            const uint32_t value = parseKernelArgument(binding, layer, inputDescs, outputDescs);
+            const uint32_t value = parseKernelArgument(binding->second, layer, inputDescs, outputDescs);
             kernelArgs.push_back(value);
         }
 
@@ -1929,26 +1934,46 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
     auto layerData = std::vector<uint8_t>(kernelParams.size() * sizeof(uint32_t));
     std::copy(kernelParams.begin(), kernelParams.end(), reinterpret_cast<uint32_t*>(layerData.data()));
 
-    const auto TensorInfoFromDesc = [&](const TensorDesc& desc) {
-        struct TensorInfo {
-            mv::Shape shape;
-            mv::DType dtype;
-            mv::Order order;
-        };
+    const auto desc = outputDescs[0];
+    VPU_THROW_UNLESS(desc.getDims().size() <= 4, "Custom layer does not support tensors greater 4D");
 
-        auto shape = sizeVectorToShape(desc.getDims());
-        auto dtype = precisionToDType(desc.getPrecision());
-        auto order = layoutToOrder(desc.getLayout());
+    auto shape = sizeVectorToShape(desc.getDims());
+    // Propagate shape to 4D, adding 1's on major dimensions
+    shape = mv::Shape::augment_major(shape, 4);
 
-        return TensorInfo{shape, dtype, order};
-    };
+    auto dtype = precisionToDType(desc.getPrecision());
 
-    const auto outputInfo = TensorInfoFromDesc(outputDescs[0]);
+    auto order = layoutToOrder(customLayer->outputs()[0]);
+    // 4D tensor can be only in two layouts: NHWC (default) or NCHW.
+    if (order != mv::Order::getColMajorID(4)) {
+        order = mv::Order::getZMajorID(4);
+    }
 
-    auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData, outputInfo.order,
-        outputInfo.shape, outputInfo.dtype, initialQuantParams(), layer->name);
+    const auto type = [&] {
+        for (const auto& binding : kernel.bindings()) {
+            if (binding.second.type != CustomParamType::Output) {
+                continue;
+            }
+            const auto withBindingName = [&](const CustomKernel::Argument& arg) {
+                return arg.name == binding.first;
+            };
 
-    IE_ASSERT(custom->getShape() == outputInfo.shape);
+            auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
+            IE_ASSERT(argument != kernel.arguments().end());
+
+            if (argument->underlyingTypeSize == 1) return mv::DType{"UInt8"};
+            if (argument->underlyingTypeSize == 2) return mv::DType{"Float16"};
+            VPU_THROW_EXCEPTION << "Custom layer output parameter '" << binding.first
+                                << "' has unsupported output data type with "
+                                << "underlying type size = " << argument->underlyingTypeSize;
+        }
+        return mv::DType{"Default"};
+    }();
+
+
+    // `type` variable is to be used
+    auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData,
+        order, shape, mv::DType{"Default"}, initialQuantParams(), layer->name);
 
     bindOutput(custom, layer->outData[0]);
     _logger->debug(FINISH_PARSING_STR, custom->getName());
@@ -2103,7 +2128,7 @@ void FrontEndMcm::parseSplit(const ie::CNNLayerPtr&, const McmNodeVector&) {
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
 }
 
-CustomLayer::Ptr FrontEndMcm::getSuitableCustomLayer(
+std::vector<CustomLayer::Ptr> FrontEndMcm::getSuitableCustomLayers(
     const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr& cnnLayer) {
     _logger->debug("Check for suitable custom implementation for layer %s:%s", cnnLayer->name, cnnLayer->type);
 
@@ -2141,11 +2166,16 @@ CustomLayer::Ptr FrontEndMcm::getSuitableCustomLayer(
 
     if (suitableCustomLayers.empty()) {
         _logger->debug("Suitable custom layer is not found");
-        return nullptr;
+        return {};
     }
 
-    const auto inputsLayoutMatch = [&](const SmallVector<CustomDataFormat>& cnnEdges,
-                                       const std::map<int, CustomDataFormat>& clEdges) {
+    _logger->debug("Found %d suitable custom layers", suitableCustomLayers.size());
+    return suitableCustomLayers;
+}
+
+CustomLayer::Ptr FrontEndMcm::findMatchingCustomLayer(
+    const std::vector<CustomLayer::Ptr>& customLayers, const McmNodeVector& inputs) {
+    const auto inputsLayoutMatch = [&](const SmallVector<mv::Order>& cnnEdges, const std::map<int, Layout>& clEdges) {
         for (const auto clEdge : clEdges) {
             size_t port = clEdge.first;
             VPU_THROW_UNLESS(
@@ -2153,34 +2183,33 @@ CustomLayer::Ptr FrontEndMcm::getSuitableCustomLayer(
 
             const auto clFormat = clEdge.second;
             const auto cnnFormat = cnnEdges[port];
-            if (cnnFormat != clFormat && cnnFormat != CustomDataFormat::Any && clFormat != CustomDataFormat::Any) {
+            if (cnnFormat != layoutToOrder(clFormat) && clFormat != Layout::ANY) {
                 return false;
             }
         }
         return true;
     };
 
-    const auto cnnInputs = [&] {
-        auto inputs = SmallVector<CustomDataFormat>{};
-        inputs.reserve(cnnLayer->insData.size());
-        for (const auto& input : cnnLayer->insData) {
-            const auto layout = input.lock()->getLayout();
-            const auto format = CustomLayer::formatFromLayout(layout);
-            inputs.push_back(format);
+    const auto mcmInputs = [&] {
+        auto mcmInputs = SmallVector<mv::Order>{};
+        mcmInputs.reserve(inputs.size());
+        for (const auto& input : inputs) {
+            const auto layout = input->getMcmNode()->getOrder();
+            mcmInputs.push_back(layout);
         }
-        return inputs;
+        return mcmInputs;
     }();
 
-    for (const auto& customLayer : suitableCustomLayers) {
+    for (const auto& customLayer : customLayers) {
         const auto clInputs = customLayer->inputs();
 
-        if (inputsLayoutMatch(cnnInputs, clInputs)) {
+        if (inputsLayoutMatch(mcmInputs, clInputs)) {
             _logger->debug("Found suitable '%s' custom layer", customLayer->layerName());
             return customLayer;
         }
     }
 
-    const auto firstGoodLayer = suitableCustomLayers.front();
+    const auto firstGoodLayer = customLayers.front();
     _logger->debug("Found suitable custom layer '%s'. Input layouts "
                    "do not match up with what CNNNetwork expected",
         firstGoodLayer->layerName());

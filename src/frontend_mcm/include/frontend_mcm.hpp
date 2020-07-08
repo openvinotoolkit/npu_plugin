@@ -191,7 +191,11 @@ private:
     ParsedNetwork _parsedNetwork;
     MCMConfig _config;
 
-    CustomLayer::Ptr getSuitableCustomLayer(const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr& cnnLayer);
+    std::vector<CustomLayer::Ptr> getSuitableCustomLayers(
+        const std::vector<CustomLayer::Ptr>& customLayers, const ie::CNNLayerPtr& cnnLayer);
+    CustomLayer::Ptr findMatchingCustomLayer(
+        const std::vector<CustomLayer::Ptr>& customLayers, const McmNodeVector& inputs);
+
     ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> _customLayers;
 };
 

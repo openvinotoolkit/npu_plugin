@@ -51,7 +51,7 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
     return nullptr;
 }
 
-SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int kernelId) {
+SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
 
@@ -67,17 +67,18 @@ SmallVector<std::string> deduceKernelParameters(const md_parser_t& parser, int k
     // first name in table is kernel name
     namePtr = nextName(namePtr);
 
-    auto kernelParameters = SmallVector<std::string>{};
-    kernelParameters.reserve(argCount);
+    auto arguments = SmallVector<CustomKernel::Argument>{};
+    arguments.reserve(argCount);
     for (size_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);
         VPU_THROW_UNLESS(arg, "Cant find argument number %l", i);
+        // FIXME use get_name after compiler fix
 //        const auto argName = parser.get_name(arg);
-        kernelParameters.push_back({namePtr});
+        arguments.emplace_back(std::string{namePtr}, static_cast<int>(arg->size_elm));
         namePtr = nextName(namePtr);
     }
 
-    return kernelParameters;
+    return arguments;
 }
 
 CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir): _configDir {std::move(configDir)} {
@@ -115,12 +116,13 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
 
     const auto parser = md_parser_t{neoMetadata, neoMetadataSize, neoMetadataStr, neoMetadataStrSize};
     _kernelId = parser.get_kernel_id(kernelEntryName);
-    _kernelArguments = deduceKernelParameters(parser, _kernelId);
+    _kernelArguments = deduceKernelArguments(parser, _kernelId);
 
     processParametersNode(kernel);
     processWorkSizesNode(kernel);
 
-    const auto isInputData = [&](const CustomKernel::KernelParam& param) {
+    const auto isInputData = [&](const std::pair<std::string, CustomKernel::BindingParameter>& binding) {
+        const auto& param = binding.second;
         return param.type == CustomParamType::Input || param.type == CustomParamType::InputBuffer ||
                param.type == CustomParamType::Data;
     };
@@ -188,9 +190,10 @@ SmallVector<std::string> parseSizeRule(const std::string& size) {
 void CustomKernel::processParametersNode(const pugi::xml_node& node) {
     const auto cmp = ie::details::CaselessEq<std::string> {};
     const auto parameters = node.child("Parameters");
+    auto bindings = SmallVector<BindingParameter>{};
 
     for (auto tensor = parameters.child("Tensor"); !tensor.empty(); tensor = tensor.next_sibling("Tensor")) {
-        KernelParam kp;
+        BindingParameter kp;
 
         auto typeStr = XMLParseUtils::GetStrAttr(tensor, "type");
         if (cmp(typeStr, "input")) {
@@ -219,11 +222,11 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         kp.argName = XMLParseUtils::GetStrAttr(tensor, "arg-name");
         kp.portIndex = XMLParseUtils::GetIntAttr(tensor, "port-index");
 
-        _bindings.push_back(std::move(kp));
+        bindings.push_back(std::move(kp));
     }
 
     for (auto data = parameters.child("Data"); !data.empty(); data = data.next_sibling("Data")) {
-        KernelParam kp;
+        BindingParameter kp;
 
         auto typeStr = XMLParseUtils::GetStrAttr(data, "type");
         if (cmp(typeStr, "data")) {
@@ -256,11 +259,11 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
             }
         }
 
-        _bindings.push_back(std::move(kp));
+        bindings.push_back(std::move(kp));
     }
 
     for (auto scalar = parameters.child("Scalar"); !scalar.empty(); scalar = scalar.next_sibling("Scalar")) {
-        KernelParam kp;
+        BindingParameter kp;
 
         const auto type = XMLParseUtils::GetStrAttr(scalar, "type");
         if (cmp(type, "int")) {
@@ -275,7 +278,11 @@ void CustomKernel::processParametersNode(const pugi::xml_node& node) {
         kp.portIndex = XMLParseUtils::GetIntAttr(scalar, "port-index", -1);
         kp.irSource = XMLParseUtils::GetStrAttr(scalar, "source", "");
 
-        _bindings.push_back(std::move(kp));
+        bindings.push_back(std::move(kp));
+    }
+
+    for (auto& binding : bindings) {
+        _bindings[binding.argName] = std::move(binding);
     }
 }
 

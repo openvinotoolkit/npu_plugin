@@ -186,24 +186,26 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         }
     }
 
-    const auto addPorts = [](std::map<int, CustomDataFormat>& ports, const CustomKernel::KernelParam& newEdge) {
+    const auto addPorts = [](std::map<int, ie::Layout>& ports, const CustomKernel::BindingParameter& newEdge) {
         const auto layerInput = ports.find(newEdge.portIndex);
+        const auto newEdgeLayout = formatToLayout(newEdge.format);
         if (layerInput == ports.end()) {
-            ports.emplace(newEdge.portIndex, newEdge.format);
-        } else if (newEdge.format == CustomDataFormat::Any) {
+            ports.emplace(newEdge.portIndex, newEdgeLayout);
+        } else if (newEdgeLayout == ie::Layout::ANY) {
             return;
-        } else if (layerInput->second == CustomDataFormat::Any) {
-            layerInput->second = newEdge.format;
+        } else if (layerInput->second == ie::Layout::ANY) {
+            layerInput->second = newEdgeLayout;
         }
     };
 
     for (const auto& kernel : _kernels) {
         for (const auto& binding : kernel.bindings()) {
-            if (binding.type == CustomParamType::Input) {
-                addPorts(_inputs, binding);
+            const auto& param = binding.second;
+            if (param.type == CustomParamType::Input) {
+                addPorts(_inputs, param);
             }
-            if (binding.type == CustomParamType::Output) {
-                addPorts(_outputs, binding);
+            if (param.type == CustomParamType::Output) {
+                addPorts(_outputs, param);
             }
         }
     }
@@ -233,18 +235,17 @@ bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string,
     return true;
 }
 
-CustomDataFormat CustomLayer::formatFromLayout(const InferenceEngine::Layout& layout) {
-    const auto layoutToFormat = std::map<ie::Layout, CustomDataFormat> {
-        { ie::NCHW , CustomDataFormat::BFYX },
-        { ie::NHWC , CustomDataFormat::BYXF },
-        { ie::CHW , CustomDataFormat::FYX },
-        { ie::NC , CustomDataFormat::BF },
-        { ie::ANY , CustomDataFormat::Any }
-    };
+InferenceEngine::Layout CustomLayer::formatToLayout(const CustomDataFormat& format) {
+    switch (format) {
+    case CustomDataFormat::BFYX: return ie::NCHW;
+    case CustomDataFormat::BYXF: return ie::NHWC;
+    case CustomDataFormat::FYX: return ie::CHW;
+    case CustomDataFormat::BF: return ie::NC;
+    case CustomDataFormat::Any: return ie::ANY;
 
-    const auto it = layoutToFormat.find(layout);
-    VPU_THROW_UNLESS(it != layoutToFormat.end(), "Tensor node has an invalid format %s", layout);
-    return it->second;
+    case CustomDataFormat::YXF: break;  // Unsupported by IE
+    }
+    return ie::Layout::BLOCKED;
 }
 
 bool CustomLayer::meetsWhereRestrictions(const std::map<std::string, std::string>& params) const {
