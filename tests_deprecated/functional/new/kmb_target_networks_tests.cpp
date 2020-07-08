@@ -506,15 +506,13 @@ TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_in
             0.1f, 0.3f);
 }
 
-// [Track number: S#34667]
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "compile error");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/googlenet-v4/googlenet_v4_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("299x299/n01537544_28.bmp", false),
+            TestImageDesc("300x300/dog.bmp", false),
             1, 0.06f);
 }
 
