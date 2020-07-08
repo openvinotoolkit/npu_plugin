@@ -16,7 +16,7 @@
 #include <thread>
 
 #include "gapi_test_computations.hpp"
-#include "kmb_vpusmm_allocator.h"
+#include "kmb_allocator.h"
 
 #ifndef UNUSED
 #define UNUSED(var) (void)var
@@ -136,7 +136,7 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
 }
 
 class AllocHelper {
-    vpu::KmbPlugin::KmbVpusmmAllocator m_alloc;
+    vpu::KmbPlugin::KmbAllocator m_alloc;
     std::vector<std::shared_ptr<void>> m_buffs;
 
 public:

@@ -178,7 +178,7 @@ struct Image {
     int remoteMemoryFd[2];
 };
 
-static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& contextPtr) {
+static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& contextPtr, bool useOffsets) {
     const size_t& imageWidth = image.width;
     const size_t& imageHeight = image.height;
     TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, Layout::NHWC);
@@ -186,19 +186,25 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& c
     ROI crop_roi_y({0, image.rect.x, image.rect.y, image.rect.width, image.rect.height});
     ROI crop_roi_uv({0, image.rect.x / 2, image.rect.y / 2, image.rect.width / 2, image.rect.height / 2});
 
-    ParamMap paramsY = {
-        { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[0] },
-        { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<void*>(image.planes[0]) },
-    };
+    ParamMap paramsY = { { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[0] }, };
+    if (useOffsets) {
+        KmbOffsetParam lumaOffset = 0;
+        paramsY[InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET)] = lumaOffset;
+    } else {
+        paramsY[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[0]);
+    }
     RemoteBlob::Ptr blobY = contextPtr->CreateBlob(planeY, paramsY);
     if (blobY == nullptr) {
         throw std::runtime_error("Failed to create remote blob for Y plane");
     }
 
-    ParamMap paramsUV = {
-        { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[1] },
-        { InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<void*>(image.planes[1]) },
-    };
+    ParamMap paramsUV = { { InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.remoteMemoryFd[1] }, };
+    if (useOffsets) {
+        KmbOffsetParam chromaOffset = imageWidth * imageHeight;
+        paramsUV[InferenceEngine::KMB_PARAM_KEY(MEM_OFFSET)] = chromaOffset;
+    } else {
+        paramsUV[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[1]);
+    }
     RemoteBlob::Ptr blobUV = contextPtr->CreateBlob(planeUV, paramsUV);
     if (blobY == nullptr) {
         throw std::runtime_error("Failed to create remote blob for UV plane");
@@ -211,7 +217,9 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& c
     return nv12Blob;
 }
 
-TEST_F(vpuLayersTests, remoteCtxNV12WithROI) {
+class VpuRemoteCtxTests : public vpuLayersTests, public testing::WithParamInterface<bool> {};
+
+TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input-dog-1080x1080-nv12.bin";
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
@@ -256,7 +264,9 @@ TEST_F(vpuLayersTests, remoteCtxNV12WithROI) {
     frame.planes[1] = imageBaseAddr + lumaSize,
     frame.remoteMemoryFd[0] = remoteMemoryFd;
     frame.remoteMemoryFd[1] = remoteMemoryFd;
-    InferenceEngine::Blob::Ptr remoteBlobPtr = wrapImageToBlob(frame, contextPtr);
+
+    bool useOffsets = GetParam();
+    InferenceEngine::Blob::Ptr remoteBlobPtr = wrapImageToBlob(frame, contextPtr, useOffsets);
 
     PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
     preprocInfo.setResizeAlgorithm(RESIZE_BILINEAR);
@@ -278,6 +288,8 @@ TEST_F(vpuLayersTests, remoteCtxNV12WithROI) {
     constexpr size_t numberOfTopClassesToCompare = 3;
     ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
+
+INSTANTIATE_TEST_CASE_P(RemoteCtxWithROI, VpuRemoteCtxTests, ::testing::ValuesIn({true, false}));
 
 TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";

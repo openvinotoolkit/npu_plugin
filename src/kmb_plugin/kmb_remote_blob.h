@@ -34,12 +34,14 @@ public:
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
     KmbHandleParam getRemoteMemoryHandle() const { return _remoteMemoryHandle; }
+    KmbOffsetParam getRemoteMemoryOffset() const { return _remoteMemoryOffset; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
     KmbRemoteMemoryFD _remoteMemoryFd;
     const Logger::Ptr _logger;
     KmbHandleParam _remoteMemoryHandle;
+    KmbOffsetParam _remoteMemoryOffset;
 };
 
 class KmbRemoteBlob : public InferenceEngine::RemoteBlob {
