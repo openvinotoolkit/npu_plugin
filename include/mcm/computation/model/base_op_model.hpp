@@ -163,11 +163,11 @@ namespace mv
     
 
     
-    void GenerateDotFromModel(mv::ComputationModel& model,
-          const std::string& outputScope /*OpModel, ControlModel etc.*/,
-          const std::string& outputFile,
-          const std::string& contentLevel="full", bool htmlLike=true,
-          bool verbose=false);
+//    void GenerateDotFromModel(mv::ComputationModel& model,
+//          const std::string& outputScope /*OpModel, ControlModel etc.*/,
+//          const std::string& outputFile,
+//          const std::string& contentLevel="full", bool htmlLike=true,
+//          bool verbose=false);
 
 }
 
