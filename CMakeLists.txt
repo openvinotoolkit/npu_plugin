@@ -47,7 +47,7 @@ endif()
 if (NOT mcmCompiler_DIR)
     set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
 endif()
-if(X86_64)
+if(X86_64 AND UNIX)
     find_package(mcmCompiler REQUIRED CONFIG PATHS ${mcmCompiler_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
     add_definitions(-DENABLE_MCM_COMPILER)
 endif()
@@ -70,7 +70,9 @@ add_subdirectory(thirdparty)
 #   dependencies, like mcm_config
 add_subdirectory(src/frontend_mcm)
 
-add_subdirectory(src)
+if(UNIX)
+    add_subdirectory(src)
+endif()
 
 add_subdirectory(src/kmb_plugin)
 

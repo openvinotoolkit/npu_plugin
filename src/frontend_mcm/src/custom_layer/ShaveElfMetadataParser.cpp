@@ -4,6 +4,8 @@
 #include <custom_layer/ShaveElfMetadataParser.hpp>
 #include "ie_macro.hpp"
 
+#include <algorithm>
+
 namespace {
 
 // two operand operator evaluation
