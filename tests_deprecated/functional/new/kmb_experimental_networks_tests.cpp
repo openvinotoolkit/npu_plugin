@@ -17,7 +17,7 @@
 #include "test_model/kmb_test_base.hpp"
 
 TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) {
-    SKIP_INFER_ON("KMB", "Wrong results"); // [Track number: S#30561]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // [Track number: S#30561]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -28,7 +28,7 @@ TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) 
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
-    SKIP_INFER_ON("KMB", "Wrong results"); // [Track number: S#30561]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // [Track number: S#30561]
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
             .setUserInputPresision("input", Precision::U8)
@@ -39,7 +39,7 @@ TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
 }
 
 TEST_F(KmbClassifyNetworkTest, customnet2_pytorch_int8_dense_cifar10) {
-    SKIP_INFER_ON("KMB", "hangs on infer");  // TODO: create JIRA ticket
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hangs on infer");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet2_pytorch_int8_dense_cifar10.xml")
             .setUserInputPresision("input", Precision::U8)

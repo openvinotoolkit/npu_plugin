@@ -82,7 +82,7 @@ class KmbPSROIPoolingLayerTests : public KmbLayerTestBase,
 /* FIXME: mcmCompiler doesn't support multiple inputs with float precision
  * [Track number: D#3036] */
 TEST_P(KmbPSROIPoolingLayerTests, DISABLED_AccuracyTest) {
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     const auto& p = GetParam();
 
     const auto precision = Precision::FP32;

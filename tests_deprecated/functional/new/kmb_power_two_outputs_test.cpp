@@ -40,7 +40,7 @@ class KmbPowerTwoOutputsTest : public KmbLayerTestBase, public testing::WithPara
 
 // [Track number: D#3226]
 TEST_P(KmbPowerTwoOutputsTest, powerWithSigmoid) {
-    SKIP_ON("KMB", "Error: output precision conversion from U8 to FP16 is not supported");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Error: output precision conversion from U8 to FP16 is not supported");
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);
@@ -88,7 +88,7 @@ TEST_P(KmbPowerTwoOutputsTest, powerWithSigmoid) {
 }
 
 TEST_P(KmbPowerTwoOutputsTest, twoPowerWithSigmoid) {
-    SKIP_INFER_ON("KMB", "Error: output precision conversion from U8 to FP16 is not supported");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Error: output precision conversion from U8 to FP16 is not supported");
     const auto &p = GetParam();
 
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, Layout::NHWC);

@@ -97,7 +97,7 @@ using namespace InferenceEngine;
 
 #   define SKIP_INFER_ON3(_device0_, _device1_, _device2_, _reason_)                    \
         do {                                                                            \
-            std::set<std::string> devices({_device0_, _device1_});                      \
+            std::set<std::string> devices({_device0_, _device1_, _device2_});           \
             if (KmbTestBase::RUN_INFER && devices.count(DEVICE_NAME) != 0) {            \
                 SKIP() << "Skip infer on " << DEVICE_NAME << " due to " << _reason_;    \
             }                                                                           \
