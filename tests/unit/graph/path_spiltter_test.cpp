@@ -499,7 +499,7 @@ TEST_F(ImplicitOp_Path_Splitter_Test_Fixture, basic_test) {
   path_splitter_t path_splitter(om);
 
   // Before splitting //
-//  mv::GenerateDotFromModel(om, "OpModel", "before_split_result.dot");
+  mv::GenerateDotFromModel(om, "OpModel", "before_split_result.dot");
   auto itrA = om.getOp("conv#10");
   auto itrB = om.getOp("conv#12");
   auto itrC = om.getOp("conv#13");
@@ -509,7 +509,7 @@ TEST_F(ImplicitOp_Path_Splitter_Test_Fixture, basic_test) {
   bool split = om.pathSplitImplicit(itrA, op_subset.begin(), op_subset.end());
 
   // After path splitting //
-//  mv::GenerateDotFromModel(om, "OpModel", "split_result.dot");
+  mv::GenerateDotFromModel(om, "OpModel", "split_result.dot");
   EXPECT_TRUE(split);
 
   // expected path between conv#10 and conv#12:
@@ -541,7 +541,7 @@ TEST_F(ImplicitOp_Path_Splitter_Test_Fixture,
   path_splitter_t path_splitter(om);
 
   // Before splitting //
-//  mv::GenerateDotFromModel(om, "OpModel", "before_split_result.dot");
+  mv::GenerateDotFromModel(om, "OpModel", "before_split_result.dot");
   auto itrA = om.getOp("conv#10");
   auto itrB = om.getOp("conv#12");
   auto itrC = om.getOp("conv#13");
@@ -553,7 +553,7 @@ TEST_F(ImplicitOp_Path_Splitter_Test_Fixture,
   bool split = om.pathSplit(itrA, op_subset.begin(), op_subset.end());
 
   // After path splitting //
-//  mv::GenerateDotFromModel(om, "OpModel", "split_result.dot");
+  mv::GenerateDotFromModel(om, "OpModel", "split_result.dot");
   EXPECT_TRUE(split);
 
   // expected path between conv#10 and conv#12:
