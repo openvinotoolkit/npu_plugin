@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <cpp/ie_cnn_network.h>
 #include <ie_api.h>
 
 #include <sstream>
@@ -24,7 +23,7 @@
 
 namespace ModelLoader_Helper {
 
-static bool LoadModel(const std::string& modelName, InferenceEngine::CNNNetwork& network) {
+static InferenceEngine::CNNNetwork LoadModel(const std::string& modelName) {
     std::ostringstream modelFile;
     modelFile << "/" << modelName << ".xml";
 
@@ -34,14 +33,8 @@ static bool LoadModel(const std::string& modelName, InferenceEngine::CNNNetwork&
     std::string modelFilePath = ModelsPath() + modelFile.str();
     std::string weightsFilePath = ModelsPath() + weightsFile.str();
 
-    try {
-        InferenceEngine::Core ie;
-        network = ie.ReadNetwork(modelFilePath, weightsFilePath);
-    } catch (const std::exception& ex) {
-        std::cout << "Failed to read network! Error: " << ex.what() << std::endl;
-        return false;
-    }
-    return true;
+    InferenceEngine::Core ie;
+    return ie.ReadNetwork(modelFilePath, weightsFilePath);
 }
 
 }

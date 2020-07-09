@@ -53,7 +53,7 @@ void Graph_Common_UnitTests::SetUp() {
         ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
     } else {
         ModelPooling_Helper modelPoolingHelper;
-        CNNNetwork network = modelPoolingHelper.network;
+        CNNNetwork network = modelPoolingHelper.getNetwork();
         ASSERT_NO_THROW(graphPtr = std::make_shared<CompiledGraph>(network, _defaultMCMConfig));
     }
 }

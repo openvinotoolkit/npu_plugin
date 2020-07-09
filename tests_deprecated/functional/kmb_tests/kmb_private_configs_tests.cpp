@@ -183,20 +183,21 @@ TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 
     InferenceEngine::ExecutableNetwork network;
     ModelPooling_Helper modelPoolingHelper;
+    InferenceEngine::CNNNetwork poolingNetwork = modelPoolingHelper.getNetwork();
     const std::string testFileName = "tmp_test.xml";
     std::remove(testFileName.c_str());
-    for (auto&& input : modelPoolingHelper.network.getInputsInfo()) {
+    for (auto&& input : poolingNetwork.getInputsInfo()) {
         input.second->setLayout(InferenceEngine::Layout::NHWC);
         input.second->setPrecision(InferenceEngine::Precision::U8);
     }
-    for (auto&& output : modelPoolingHelper.network.getOutputsInfo()) {
+    for (auto&& output : poolingNetwork.getOutputsInfo()) {
         output.second->setLayout(InferenceEngine::Layout::NHWC);
         output.second->setPrecision(InferenceEngine::Precision::FP16);
     }
-    network = core->LoadNetwork(modelPoolingHelper.network, deviceName);
+    network = core->LoadNetwork(poolingNetwork, deviceName);
     std::ifstream notExist(testFileName);
     ASSERT_FALSE(notExist.good());
-    network = core->LoadNetwork(modelPoolingHelper.network, deviceName,
+    network = core->LoadNetwork(poolingNetwork, deviceName,
         {{"VPU_COMPILER_SERIALIZE_CNN_BEFORE_COMPILE_FILE", testFileName.c_str()}});
     std::ifstream exists(testFileName);
     ASSERT_TRUE(exists.good());

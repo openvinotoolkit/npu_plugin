@@ -14,32 +14,18 @@
 // stated in the License.
 //
 
-#include "mcm_adapter.hpp"
+#pragma once
 
-#include <gtest/gtest.h>
+#include "ie_core.hpp"
+#include "model_helper.h"
 
-#include "models/model_pooling.h"
-
-using namespace vpu;
-
-class MCMAdapter_Tests : public ::testing::Test {
+class ModelSqueezenetV1_1_Helper : public ModelHelper {
 public:
-    InferenceEngine::CNNNetwork network;
-    MCMConfig mcmConfig;
-
-protected:
-    void SetUp() override;
+    explicit ModelSqueezenetV1_1_Helper();
 };
 
-void MCMAdapter_Tests::SetUp() {
-    ModelPooling_Helper modelPoolingHelper;
-    network = modelPoolingHelper.getNetwork();
-}
-
-using MCMAdapter_compileNetwork = MCMAdapter_Tests;
-TEST_F(MCMAdapter_compileNetwork, canCompile) {
-    std::vector<char> blobFile;
-
-    ASSERT_NO_THROW(MCMAdapter::compileNetwork(network, mcmConfig, blobFile));
-    ASSERT_GT(blobFile.size(), 0);
+//------------------------------------------------------------------------------
+inline ModelSqueezenetV1_1_Helper::ModelSqueezenetV1_1_Helper() {
+    _modelRelatedPath = "KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8";
+    loadModel();
 }
