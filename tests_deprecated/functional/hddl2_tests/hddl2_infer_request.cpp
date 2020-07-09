@@ -36,7 +36,8 @@ public:
 };
 
 void InferRequest_Tests::SetUp() {
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
+    ExecutableNetwork_Tests::SetUp();
+    inferRequest = executableNetworkPtr->CreateInferRequest();
 }
 
 //------------------------------------------------------------------------------
@@ -45,10 +46,10 @@ TEST_F(InferRequest_Tests, CanCallInference) { ASSERT_NO_THROW(inferRequest.Infe
 //------------------------------------------------------------------------------
 // TODO [Add tests] Set NV12Blob preprocessing information inside cnnNetwork
 using InferRequest_SetBlob = InferRequest_Tests;
-TEST_F(InferRequest_SetBlob, CanSetInputBlob) {
-    inferRequest = executableNetwork.CreateInferRequest();
-    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+TEST_F(InferRequest_SetBlob, LocalBlob) {
+    const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
     auto blob = InferenceEngine::make_shared_blob<uint8_t>(inputTensorDesc);
@@ -60,9 +61,9 @@ TEST_F(InferRequest_SetBlob, CanSetInputBlob) {
 // TODO Simplify this test
 TEST_F(InferRequest_SetBlob, RemoteBlob) {
     WorkloadContext_Helper workloadContextHelper;
-    inferRequest = executableNetwork.CreateInferRequest();
-    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+
+    const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     WorkloadID id = workloadContextHelper.getWorkloadId();
     InferenceEngine::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
@@ -79,10 +80,18 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, remoteBlobPtr));
 }
 
-// [Track number: S#30141]
-TEST_F(InferRequest_SetBlob, CanSetInput_NV12Blob_WithPreprocessData) {
-    inferRequest = executableNetwork.CreateInferRequest();
-    ASSERT_EQ(executableNetwork.GetInputsInfo().size(), 1);
+//------------------------------------------------------------------------------
+class InferRequest_NV12 : public CoreAPI_Tests {
+public:
+    void SetUp() override;
+};
+
+void InferRequest_NV12::SetUp() {
+    ModelMobileNet_V2_Helper mobileNetV2Helper;
+    network = mobileNetV2Helper.getNetwork();
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName));
+    inferRequest = executableNetworkPtr->CreateInferRequest();
+}
 
 using InferRequest_NV12_SetBlob = InferRequest_NV12;
 // TODO Long test
@@ -114,9 +123,8 @@ TEST_F(InferRequest_GetBlob, GetOutputAfterInference) {
 
 TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     WorkloadContext_Helper workloadContextHelper;
-    inferRequest = executableNetwork.CreateInferRequest();
-    const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
-    IE::InputInfo::CPtr inputInfoPtr = executableNetwork.GetInputsInfo().begin()->second;
+    const std::string inputName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     WorkloadID id = workloadContextHelper.getWorkloadId();
     InferenceEngine::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
@@ -157,7 +165,8 @@ TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWith
     ModelPooling_Helper modelPoolingHelper;
     auto cnnNetwork = modelPoolingHelper.getNetwork();
 
-    ASSERT_ANY_THROW(inferRequest = executableNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(cnnNetwork, pluginName)));
+    ASSERT_ANY_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
 //------------------------------------------------------------------------------
@@ -183,8 +192,8 @@ TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {
     ASSERT_TRUE(!availableDevices.empty());
 
     const std::string device_name = pluginName + "." + availableDevices[0];
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, device_name));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, device_name)));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 
     ASSERT_NO_THROW(inferRequest.Infer());
 }
@@ -204,8 +213,8 @@ TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromGetAllDevices) {
 
     ASSERT_TRUE(!VPUXDevices.empty());
 
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, HDDL2Devices[0]));
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, VPUXDevices[0])));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 
     ASSERT_NO_THROW(inferRequest.Infer());
 }
@@ -225,12 +234,8 @@ TEST_F(InferRequest_PerfCount, SyncInferenceWithPerfCount) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
-    // ---- Import or load network
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, pluginName, _config);
-
-    // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
-    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, pluginName, _config);
+    InferenceEngine::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     ASSERT_NO_THROW(inferRequest.Infer());
 

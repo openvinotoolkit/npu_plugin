@@ -50,18 +50,17 @@ TEST_F(ImportNetwork_Tests, CanFindPlugin) {
 
 TEST_F(ImportNetwork_Tests, CanCreateExecutableNetwork) {
     std::map<std::string, std::string> config = {};
-
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
+    ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
 TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
 
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
+    ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
+TEST_F(ImportNetwork_Tests, CanCreateInferRequest) {
+    IE::ExecutableNetwork executableNetwork;
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
@@ -79,6 +78,6 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
 
     InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
-    ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
+    ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
     blobFile.close();
 }

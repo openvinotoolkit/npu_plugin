@@ -55,7 +55,7 @@ protected:
 };
 
 void AsyncInferRequest_Tests::SetUp() {
-    executableNetwork = ie.ImportNetwork(_blobInfo.graphPath, pluginName);
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(_blobInfo.graphPath, pluginName));
     refInputPath = _blobInfo.inputPath;
     refOutputPath = _blobInfo.outputPath;
 }
@@ -64,7 +64,7 @@ std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createReques
     std::vector<InferenceEngine::InferRequest> requests;
     for (int requestCount = 0; requestCount < numberOfRequests; requestCount++) {
         InferenceEngine::InferRequest inferRequest;
-        inferRequest = executableNetwork.CreateInferRequest();
+        inferRequest = executableNetworkPtr->CreateInferRequest();
         requests.push_back(inferRequest);
     }
     return requests;
@@ -81,7 +81,7 @@ void AsyncInferRequest_Tests::loadCatImageToBlobForRequests(
 
 IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(
     const std::string& pathToReference, const IE::Precision& precision) {
-    IE::ConstOutputsDataMap outputInfo = executableNetwork.GetOutputsInfo();
+    IE::ConstOutputsDataMap outputInfo = executableNetworkPtr->GetOutputsInfo();
     if (outputInfo.size() != 1) {
         THROW_IE_EXCEPTION << "Only one output is supported";
     }
@@ -104,7 +104,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
     {
         // --- Create requests
         std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
-        auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+        auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Sync execution
@@ -120,7 +120,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
     {
         // --- Create requests
         std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
-        auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+        auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Specify callback
@@ -164,7 +164,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
 TEST_F(AsyncInferRequest_Tests, correctResultSameInput) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
-    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     loadCatImageToBlobForRequests(inputBlobName, requests);
 
     // --- Specify callback
@@ -197,7 +197,7 @@ TEST_F(AsyncInferRequest_Tests, correctResultSameInput) {
     IE::Blob::Ptr refBlob = loadReferenceToBlob(refOutputPath);
 
     // --- Compare output with reference
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     for (auto currentRequest : requests) {
         IE::Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = currentRequest.GetBlob(outputBlobName));
@@ -224,7 +224,7 @@ protected:
 };
 
 void AsyncInferRequest_DifferentInput::SetUp() {
-    executableNetwork = ie.ImportNetwork(_blobInfo.graphPath, pluginName);
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(_blobInfo.graphPath, pluginName));
     std::vector<Reference> availableReferences;
 
     availableReferences.emplace_back(Reference(_blobInfo.inputPath, _blobInfo.outputPath));
@@ -244,7 +244,7 @@ void AsyncInferRequest_DifferentInput::SetUp() {
 TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
-    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
 
     // --- Load random reference images
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
@@ -295,7 +295,7 @@ TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
     waitThread.join();
 
     // --- Compare output with reference
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
         // --- Reference Blob
         IE::Blob::Ptr refBlob;
