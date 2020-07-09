@@ -13,8 +13,8 @@ void build_pySwigCU(mv::OpModel& model)
 
     const std::array<unsigned short, 2UL> ksize = {15, 11};
     const std::array<unsigned short, 2UL> stride = {15, 11};
-    const auto input_1_0 = model.input({30, 23, 16, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input#1");
-    const auto icnet_features_conv5_3_pool2_1_AvgPool_AvgPool_2_0 = model.averagePool(input_1_0, ksize, stride, {0, 0, 0, 0}, false, mv::DType("UInt8"), {{128},{0.007843137718737},{-1.003921627998352},{0.9960784316062927},{0},{1}}, "icnet_features/conv5_3_pool2_1/AvgPool/AvgPool#2");
+    const auto input_1_0 = model.input({30, 23, 32, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{128},{0.007843137718737},{-1.000000000000000},{1.000000000000000},{0},{1}}, "input#1");
+    const auto icnet_features_conv5_3_pool2_1_AvgPool_AvgPool_2_0 = model.averagePool(input_1_0, ksize, stride, {0, 0, 0, 0}, false, mv::DType("UInt8"), {{128},{0.007843137718737},{-1.003921627998352},{0.996078431606293},{0},{1}}, "icnet_features/conv5_3_pool2_1/AvgPool/AvgPool#2");
     const auto output = model.output(icnet_features_conv5_3_pool2_1_AvgPool_AvgPool_2_0, mv::DType("Default"), {{128},{0.007843137718737},{-1.003921627998352},{0.9960784316062927}}, true, "");
 }
 
