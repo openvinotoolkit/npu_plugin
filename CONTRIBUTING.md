@@ -19,6 +19,5 @@
 
 ## CI Infrastructure 
 
-1. The CI infrastructure is available here: https://mig-ci-jenkins.ir.intel.com/job/KeemBay/
-2. Access is through AGS. Please go to https://ags.intel.com and apply for access to the group "MOVIDIUS MIG JENKINS DEVELOPER".
-
+1. The CI infrastructure is available here: http://mig-ci.jenkins.ti.intel.com/
+2. Access is NOT through AGS. Simply create an account directly on the server. This account is NOT synched with your window account.
