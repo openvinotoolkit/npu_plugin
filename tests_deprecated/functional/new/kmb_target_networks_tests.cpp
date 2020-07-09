@@ -342,6 +342,20 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
 }
 
 //
+// TinyYolo V1
+//
+
+TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/tiny_yolo_v1/tiny_yolo_v1_tf_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("512x512/dog_croped512.bmp", false),
+        0.6, 0.4, 0.4, true);
+}
+
+//
 // TinyYolo V2
 //
 

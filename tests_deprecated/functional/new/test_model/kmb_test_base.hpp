@@ -379,6 +379,8 @@ public:
             bool isTiny);
 };
 
+using KmbYoloV1NetworkTest = KmbYoloV2NetworkTest;
+
 //
 // KmbSegmentationNetworkTest
 //
