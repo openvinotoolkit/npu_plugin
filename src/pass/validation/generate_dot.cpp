@@ -18,9 +18,6 @@ namespace mv
         .defineArg(json::JSONType::String, "scope")
         .defineArg(json::JSONType::String, "content")
         .defineArg(json::JSONType::Bool, "html")
-        .defineArg(json::JSONType::Bool, "reduced")
-        .defineArg(json::JSONType::String, "startingOpName")
-        .defineArg(json::JSONType::String, "finishingOpName")
         .setLabel("Debug")
         .setDescription(
             "Generates the DOT representation of computation model"
@@ -425,13 +422,16 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 //        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
 
     bool htmlLike = passDesc.get("html");
-    bool reduced = passDesc.get("reduced");
+    bool reduced = false;
+    if (passDesc.hasAttr("reduced"))
+        reduced = passDesc.get("reduced");
+
     std::string startingOpName = "";
     std::string finishingOpName = "";
     if (reduced)
     {
-        std::string startingOpName = passDesc.get<std::string>("startingOpName");
-        std::string finishingOpName = passDesc.get<std::string>("finishingOpName");
+        startingOpName = passDesc.get<std::string>("startingOpName");
+        finishingOpName = passDesc.get<std::string>("finishingOpName");
     }
     std::string outputFile = passDesc.get<std::string>("output");
     GenerateDotFromModel(model, outputScope, outputFile,
