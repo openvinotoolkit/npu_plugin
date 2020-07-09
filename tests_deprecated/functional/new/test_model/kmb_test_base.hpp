@@ -36,6 +36,7 @@
 #include "kmb_test_topk_def.hpp"
 #include "kmb_test_interp_def.hpp"
 #include "kmb_test_reshape_def.hpp"
+#include "kmb_test_permute_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
