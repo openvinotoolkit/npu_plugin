@@ -27,40 +27,34 @@
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-class HDDL2_ImportNetwork_Tests : public CoreAPI_Tests {
+class ImportNetwork_Tests : public CoreAPI_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50;
     InferenceEngine::ParamMap params;
 
 protected:
     void SetUp() override;
-    void TearDown() override;
     WorkloadContext_Helper _workloadContextHelper;
-    WorkloadID _workloadId;
+    WorkloadID _workloadId = 0;
 };
 
-void HDDL2_ImportNetwork_Tests::SetUp() {
+void ImportNetwork_Tests::SetUp() {
     _workloadId = _workloadContextHelper.getWorkloadId();
     params = Remote_Context_Helper::wrapWorkloadIdToMap(_workloadId);
 }
 
-void HDDL2_ImportNetwork_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(_workloadId); }
-
 //------------------------------------------------------------------------------
-// [Track number: S#28523]
-TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanFindPlugin) {
+TEST_F(ImportNetwork_Tests, CanFindPlugin) {
     ASSERT_NO_THROW(ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetwork) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetwork) {
     std::map<std::string, std::string> config = {};
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithConfig) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
 
     ASSERT_NO_THROW(executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
@@ -73,8 +67,7 @@ TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateInferRequest) {
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_ImportNetwork_Tests, DISABLED_CanCreateExecutableNetworkWithStream) {
+TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
     const std::map<std::string, std::string> config = {};
 
     std::filebuf blobFile;

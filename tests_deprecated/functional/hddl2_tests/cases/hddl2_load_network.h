@@ -16,17 +16,27 @@
 
 #pragma once
 
+#include <models/model_squeezenet_v1_1.h>
 #include "core_api.h"
 #include "gtest/gtest.h"
-#include "models/model_pooling.h"
 
 class LoadNetwork_Tests : public CoreAPI_Tests {
 public:
-    void SetUp() override;
-    InferenceEngine::CNNNetwork network;
-
-protected:
-    ModelPooling_Helper _modelPoolingHelper;
+    LoadNetwork_Tests();
+    ModelSqueezenetV1_1_Helper modelHelper;
 };
 
-inline void LoadNetwork_Tests::SetUp() { network = _modelPoolingHelper.network; }
+inline LoadNetwork_Tests::LoadNetwork_Tests() {
+    network = modelHelper.getNetwork();
+}
+
+//------------------------------------------------------------------------------
+class ExecutableNetwork_Tests : public LoadNetwork_Tests {
+public:
+    void SetUp() override;
+
+protected:
+    static InferenceEngine::ExecutableNetwork::Ptr _cacheExecNetwork;
+};
+
+
