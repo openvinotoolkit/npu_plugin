@@ -211,7 +211,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     if (!blob_file) {
         _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
-        return;
+        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
     }
 
     // ########################################################################
@@ -262,8 +262,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     NNPlgState state = nnPl->GetLatestState();
     if (SUCCESS != state) {
-        _logger->error("Error, bad NN Plugin state: ");
-        return;
+        _logger->error("Error, bad NN Plugin state: %d", state);
+        THROW_IE_EXCEPTION << "allocateGraph: flic NN is in unexpected state: " << state;
     }
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
@@ -332,16 +332,14 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
         _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
-        return;
+        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for region allocator";
     }
     RgnAlloc->Create(getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
     _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
-    // TODO - These
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(sumSizeTensorDescOut.totalSize, shavel2CacheLineSize);
 
-    // TODO - These
     _logger->info("read memory pool finished...");
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
     _logger->info("Created plgPoolOutputs");

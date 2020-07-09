@@ -27,6 +27,7 @@
 
 #include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_mcm_frontend/frontend.hpp"
+#include "file_reader.h"
 
 // clang-format on
 
@@ -126,10 +127,9 @@ ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
     _executor = std::make_shared<KmbExecutor>(_config);
 
-    std::ostringstream blobContentStream;
-    blobContentStream << strm.rdbuf();
-    const std::string& blobContentString = blobContentStream.str();
-    std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(_graphBlob));
+    const size_t graphSize = utils::getFileSize(strm);
+    _graphBlob.resize(graphSize);
+    strm.read(_graphBlob.data(), _graphBlob.size());
     LoadBlob();
     ConfigureExecutor("ExecutableNetwork");
 }
