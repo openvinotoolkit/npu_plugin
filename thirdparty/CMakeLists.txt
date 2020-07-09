@@ -79,7 +79,7 @@ else()
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
 
-if(mcmCompiler_FOUND)
+if(mcmCompiler_FOUND AND UNIX)
     set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
 
     add_custom_target(mcm_compiler_copy_libs ALL

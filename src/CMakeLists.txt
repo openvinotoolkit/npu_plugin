@@ -1,5 +1,9 @@
 set(TARGET_NAME "VPUXPlugin")
 
+if(NOT ENABLE_HDDL2)
+    return()
+endif()
+
 if(ENABLE_LTO)
     ie_enable_lto()
 endif()

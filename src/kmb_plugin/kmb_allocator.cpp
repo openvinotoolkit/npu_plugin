@@ -17,12 +17,11 @@
 #include "kmb_allocator.h"
 
 #include <memory>
-#include <string>
 #include <iostream>
-#include <sys/mman.h>
-#include <unistd.h>
 
 #if defined(__arm__) || defined(__aarch64__)
+#include <sys/mman.h>
+#include <unistd.h>
 #include <vpusmm/vpusmm.h>
 #endif
 

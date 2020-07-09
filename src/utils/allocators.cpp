@@ -14,13 +14,19 @@
 // stated in the License.
 //
 
+#ifdef __unix__
 #include <unistd.h>
 
 #include <sys/mman.h>
+#else
+#define getpagesize() 4096
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
+#include <stdexcept>
 
 #include "allocators.hpp"
 #include "ie_macro.hpp"

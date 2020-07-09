@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#ifdef __unix__
 #include <elf.h>
+#endif
 #include <xml_parse_utils.h>
 
 #include <custom_layer/ShaveElfMetadataParser.hpp>
@@ -13,6 +15,7 @@
 
 namespace vpu {
 
+#ifdef __unix__
 static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
     IE_ASSERT(elf_data);
     IE_ASSERT(section_name);
@@ -50,6 +53,10 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
     // the name we were looking for
     return nullptr;
 }
+#else
+#define get_elf_section_with_name(...) 0
+struct Elf32_Shdr {size_t sh_offset = 0; size_t sh_size = 0;};
+#endif
 
 SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);

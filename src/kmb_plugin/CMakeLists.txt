@@ -26,7 +26,9 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 endif()
 
-set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
+if(UNIX)
+    set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
+endif()
 
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
@@ -37,9 +39,11 @@ target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
 include(compile_options)
 
-# TODO: Remove when warnings are fixed in vpualHost
-set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
-                            COMPILE_FLAGS "-Wno-error")
+if(UNIX)
+    # TODO: Remove when warnings are fixed in vpualHost
+    set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
+                                COMPILE_FLAGS "-Wno-error")
+endif()
 
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE

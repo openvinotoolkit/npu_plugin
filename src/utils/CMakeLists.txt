@@ -29,11 +29,13 @@ endif()
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 target_link_libraries(${TARGET_NAME} PRIVATE ${VPUSMM_LIBRARY} PUBLIC IE::inference_engine_lp_transformations)
 
-target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Werror
-	-Wextra)
+if(UNIX)
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            -Wall
+            -Werror
+            -Wextra)
+endif()
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
