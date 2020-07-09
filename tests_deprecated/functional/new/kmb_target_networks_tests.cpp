@@ -23,7 +23,7 @@
 //
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
     // [Track number: D#3222]
-    SKIP_ON("KMB", "HDDL2", "VPU", "MemoryAllocator:VPU_DDR_Heap - ArgumentError");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "MemoryAllocator:VPU_DDR_Heap - ArgumentError");
     runTest(
         TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
             .setUserInputPresision("input", Precision::FP16)
@@ -56,7 +56,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_ResNet_50) {
 
 // KMB : Hangs on infer stage [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v1-tf-0001.xml")
@@ -70,7 +70,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% spar
 // KMB : Hangs on infer stage
 // [Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml")
@@ -84,7 +84,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% spar
 // KMB : Bad inference results.
 // Track number: D#2245]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "Compiler Error: min > max");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Compiler Error: min > max");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml")
@@ -144,7 +144,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_SparseV1_TF_IRv7_MobileNet_V2) {  /
 // KMB : Bad inference results.
 // [Track number: D#2246 D#2691]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results, mixed up top2 classes");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results, mixed up top2 classes");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml")
@@ -158,7 +158,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% s
 // KMB : Bad inference results.
 // [Track number: D#2246]
 TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml")
@@ -175,7 +175,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
 
 // KMB : Op:pool5/7x7_s1 - OpError: Invalid input data (0) - Filter kernel width (7) exceeds the padded input width (6)
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");  // TODO: create JIRA ticket
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1-caffe-from-icv-bench-cache.xml")
@@ -191,7 +191,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
 // KMB : Filter kernel width (7) exceeds the padded input width (6)
 // [Track number: S#25483/D#2374]
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.xml")
@@ -215,7 +215,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
 // KMB : Hangs on infer stage
 // [Track number: D#2293]
 TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml")
@@ -232,7 +232,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
 
 // KMB : Power layer is not supported by kmbPlugin
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");  // TODO: create JIRA ticket
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/googlenet-v3-pytorch-from-icv-bench-cache.xml")
@@ -245,7 +245,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
 
 // KMB : Power layer is not supported by kmbPlugin
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");  // TODO: create JIRA ticket
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/googlenet-v3-tf-frozen-from-icv-bench-cache.xml")
@@ -272,7 +272,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_TF_IRv7_Inception_V3) {
 
 // FIXME: Missing IR in models-ir repository
 TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");  // TODO: create JIRA ticket
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1-caffe2-uint8-int8-weights-perchannel-IRv10.xml")
@@ -311,7 +311,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
 
 // [Track number: D#3052]
 TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml")
@@ -328,7 +328,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
 
 // KMB : Unsupported case, we expect only one child
 TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");  // TODO: create JIRA ticket
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml")
@@ -414,7 +414,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Custom) {
 // KMB : Bad inference results. Possible bug in test system.
 // [Track number: S#28790]
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
@@ -446,7 +446,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_from
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10.xml")
@@ -511,7 +511,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 // Invalid shape of the input 1 tensor (0:24576 - inconsistent with the dimension of the first input (65536)
 // [Track number: S#30693]
 TEST_F(KmbDetectionNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -527,7 +527,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp3
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:785
 // [Track number: D#2723]
 TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/faster_rcnn_resnet101_coco/faster_rcnn_resnet101_coco_tf_dense_int8_IRv10_from_fp32.xml")
@@ -553,7 +553,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_f
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1779
 // [Track number: S#30692]
 TEST_F(KmbDetectionNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32.xml")
@@ -571,7 +571,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IR
 // Assertion `(dims[1] == weightsSize)' failed.
 // [Track number: D#2918]
 TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/facenet-20180408-102900/facenet_20180408_102900_tf_dense_int8_IRv10_from_fp32.xml")
@@ -586,7 +586,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1604
 // [Track number: D#2725]
 TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/person-vehicle-bike-detection-crossroad-0078/person_vehicle_bike_detection_crossroad_0078_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -602,7 +602,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroa
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:877
 // [Track number: D#2726]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
@@ -618,7 +618,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrie
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1779
 // [Track number: D#2727]
 TEST_F(KmbDetectionNetworkTest, precommit_face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/face_detection_retail_0004_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -654,7 +654,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
 // Does not match the channel dimension of input 96
 // [Track number: D#2799]
 TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/alexnet/alexnet_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -668,7 +668,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp3
 // Compilation time is very long in comparison with other networks
 // [Track number: S#28620]
 TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "very long compile time");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_from_fp32.xml")
@@ -691,7 +691,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
 // kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1464
 // [Track number: D#2809]
 TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8.xml")
@@ -798,7 +798,7 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
 // The same situation as for vgg16_caffe_dense_int8_IRv10
 // [Track number: S#28620]
 TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "very long compile time");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")

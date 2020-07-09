@@ -40,7 +40,7 @@ class KmbConvolutionLayerTests : public KmbLayerTestBase, public testing::WithPa
 
 // [Track number: S#26002]
 TEST_P(KmbConvolutionLayerTests, FakeQuantize_ScaleShift) {
-    SKIP_INFER_ON("KMB", "bad results");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     const auto& p = GetParam();
 
