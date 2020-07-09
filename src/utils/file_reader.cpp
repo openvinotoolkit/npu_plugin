@@ -31,16 +31,25 @@ namespace KmbPlugin {
 
 namespace utils {
 
+size_t getFileSize(std::istream& strm) {
+    const size_t streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const size_t streamEnd = strm.tellg();
+    const size_t bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
+
+    return bytesAvailable;
+}
+
 InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc desc) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
+    std::ifstream in(input_binary, std::ios_base::binary);
+    size_t sizeFile = getFileSize(in);
 
 #if defined(__arm__) || defined(__aarch64__)
     size_t pageSize = getpagesize();
     size_t realSize = sizeFile + (sizeFile % pageSize ? (pageSize - sizeFile % pageSize) : 0);
     if (realSize < pageSize * 2) {
-	    realSize = pageSize * 2;
+        realSize = pageSize * 2;
     }
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
     vpusmm_import_dmabuf(fd, VPU_DEFAULT);
