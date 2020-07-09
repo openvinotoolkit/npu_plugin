@@ -8,7 +8,6 @@
 
 void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task);
 static void placementOfOps(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry &pass, mv::ComputationModel &model, mv::TargetDescriptor &, mv::Element &, mv::Element &);
 
 namespace mv
@@ -27,13 +26,6 @@ namespace mv
         .setFunc(placementOfOps)
         .setDescription(
             "This pass handles the DPU's output Tensor Data Type."
-        );
-
-        MV_REGISTER_PASS(AddPermutesToChangeSoftmaxAxis)
-        .setFunc(addPermutesToChangeSoftmaxAxisFcn)
-        .setDescription(
-            "UPA softmax layer does not support softmax oepration on the W axis. \
-            The solution to this is to transpose the tensor before and after the softmax operation."
         );
     }
 }
@@ -66,75 +58,6 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
                     om.defineFlow(neutralMaxPool, nextOp, slot);
                 }
             }
-        }
-    }
-}
-
-void addPermutesToChangeSoftmaxAxisFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    using namespace mv;
-    OpModel om(model);
-    auto softmaxOps = om.getOps("Softmax");
-
-    for (auto& softmax : softmaxOps)
-    {
-        std::string axis = softmax->get<std::string>("axis");
-
-        if (axis.compare(std::string("W")) == 0)
-        {
-            auto inputTensorSoftmax = softmax->getInputTensor(0);
-
-            mv::QuantizationParams inputTensorSoftmaxQPs = {{},{},{},{}};
-            if(inputTensorSoftmax->hasAttr("quantParams"))
-                inputTensorSoftmaxQPs = inputTensorSoftmax->get<mv::QuantizationParams>("quantParams");
-
-            // Permute acts on internal order WHCN
-            mv::Order transposedOrder_swapWandH("HWCN");    // NCHW --> NCWH
-            mv::Order transposedOrder_swapWHandC("CWHN");   // NCHW --> NHWC
-
-            auto transposeBeforeSoftmax1 = om.permute(inputTensorSoftmax, transposedOrder_swapWandH, mv::DType("Default"), inputTensorSoftmaxQPs, softmax->getName() + "_permuteWandH");
-            auto transposeBeforeSoftmax2 = om.permute(transposeBeforeSoftmax1, transposedOrder_swapWHandC, mv::DType("Default"), inputTensorSoftmaxQPs, softmax->getName() + "_permuteWHandC");
-            auto transposeOpBeforeSoftmax1 = om.getSourceOp(transposeBeforeSoftmax1);
-            auto transposeOpBeforeSoftmax2 = om.getSourceOp(transposeBeforeSoftmax2);
-            auto outputMemoryLocationSoftmax = softmax->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            
-            /*Remove old flow*/
-            auto sourceFlow = softmax.leftmostInput();
-            om.undefineFlow(sourceFlow);
-
-            transposeOpBeforeSoftmax1->set<unsigned>("opId", softmax->get<unsigned>("opId"));
-            transposeOpBeforeSoftmax2->set<unsigned>("opId", softmax->get<unsigned>("opId"));
-            softmax->setInputTensor(transposeBeforeSoftmax2, 0, true);
-            om.defineFlow(transposeBeforeSoftmax2, softmax, 0);
-           
-            transposeOpBeforeSoftmax1->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
-            transposeOpBeforeSoftmax2->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocationSoftmax);
-            softmax->set<std::string>("axis", "C");
-
-            /*Permute after*/
-            auto opAfterSoftmax = softmax.leftmostChild();
-            auto inputTensorOpAfterSoftmax =  opAfterSoftmax->getInputTensor(0);
-            mv::QuantizationParams inputTensorQuantizationParamsOpAfterSoftmax = {{},{},{},{}};
-            if(inputTensorOpAfterSoftmax->hasAttr("quantParams"))
-                inputTensorQuantizationParamsOpAfterSoftmax = inputTensorOpAfterSoftmax->get<mv::QuantizationParams>("quantParams");
-            auto transposeAfterSoftmax1 = om.permute(inputTensorOpAfterSoftmax, transposedOrder_swapWHandC,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWHandC1");
-            auto transposeAfterSoftmax2 = om.permute(transposeAfterSoftmax1, transposedOrder_swapWHandC,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWHandC2");
-            auto transposeAfterSoftmax3 = om.permute(transposeAfterSoftmax2, transposedOrder_swapWandH,  mv::DType("Default"), inputTensorQuantizationParamsOpAfterSoftmax, opAfterSoftmax->getName() + "_permuteWandH");
-            auto transposeOpAfterSoftmax1 = om.getSourceOp(transposeAfterSoftmax1);
-            auto transposeOpAfterSoftmax2 = om.getSourceOp(transposeAfterSoftmax2);
-            auto transposeOpAfterSoftmax3 = om.getSourceOp(transposeAfterSoftmax3);
-
-            /*Remove old flow*/
-            auto sourceFlow1 = opAfterSoftmax.leftmostInput();
-            om.undefineFlow(sourceFlow1);
-            transposeOpAfterSoftmax1->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
-            transposeOpAfterSoftmax2->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
-            transposeOpAfterSoftmax3->set<unsigned>("opId", opAfterSoftmax->get<unsigned>("opId"));
-            opAfterSoftmax->setInputTensor(transposeAfterSoftmax3, 0, true);
-            om.defineFlow(transposeAfterSoftmax3, opAfterSoftmax, 0);
-            transposeAfterSoftmax1->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
-            transposeAfterSoftmax2->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
-            transposeAfterSoftmax3->set<mv::Tensor::MemoryLocation>("Location", inputTensorOpAfterSoftmax->get<mv::Tensor::MemoryLocation>("Location"));
         }
     }
 }
