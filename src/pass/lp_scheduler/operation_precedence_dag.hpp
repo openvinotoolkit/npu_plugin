@@ -284,7 +284,7 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitUnion", "ImplicitJoin"} ) {
+          "ImplicitInputSlice", "ImplicitJoin"} ) {
         init_from_model(model);
     }
 
