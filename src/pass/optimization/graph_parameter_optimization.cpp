@@ -66,10 +66,52 @@ namespace mv
             bool enableChannelMajorConv=false;
             double safetyFactor=1.0;
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
-            std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp",
-            "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled",
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK", "DilatedSOH"};
+            enum class FailCause
+            {
+                Pass,
+                MemorySize,
+                StreamAndClusterComp,
+                SpillHKSwitch,
+                SOKNotAlign16,
+                InputNotSpilled,
+                OutputNotSpilled,
+                StreamingNotSpilled,
+                WorkloadLessKernelSOH,
+                ChannelMjr1,
+                ChannelMjr2,
+                DWChannels,
+                SOHheight,
+                RequiresSparsity,
+                SparsitySOK,
+                RealSparseForFakeSparseOp,
+                DilatedSOH,
+                DWLargeStrideReplacementSOK,
+                DilatedOutputSparsityConsumption,
+                Unknown
+            };
 
+            std::unordered_map<FailCause, std::string> failure_causes = {
+                {FailCause::Pass, "Pass"},
+                {FailCause::MemorySize, "MemorySize"},
+                {FailCause::StreamAndClusterComp, "Stream+ClusterComp"},
+                {FailCause::SpillHKSwitch, "SpillHKSwitch"},
+                {FailCause::SOKNotAlign16, "SOKNotAlign16"},
+                {FailCause::InputNotSpilled, "InputNotSpilled"},
+                {FailCause::OutputNotSpilled, "OutputNotSpilled"},
+                {FailCause::StreamingNotSpilled, "StreamingNotSpilled"},
+                {FailCause::WorkloadLessKernelSOH, "Workload<KernelSOH"},
+                {FailCause::ChannelMjr1, "ChannelMjr1"},
+                {FailCause::ChannelMjr2, "ChannelMjr2"},
+                {FailCause::DWChannels, "DWChannels"},
+                {FailCause::SOHheight, "SOHheight"},
+                {FailCause::RequiresSparsity, "RequiresSparsity"},
+                {FailCause::SparsitySOK, "SparsitySOK"},
+                {FailCause::RealSparseForFakeSparseOp, "RealSparseForFakeSparseOp"},
+                {FailCause::DilatedSOH, "DilatedSOH"},
+                {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
+                {FailCause::DilatedOutputSparsityConsumption, "DilatedOutputSparsityConsumption"},
+                {FailCause::Unknown, "Unknown"}
+            };
 
             void readGlobalConfigs()
             {
@@ -87,7 +129,6 @@ namespace mv
                 clusterMemory = (double)clusterMemoryKb * 1024.0 * safetyFactor;
 
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
-                // globalEnableActivationSparsity = globalStrategies_["enableActivationSparsity"].get<bool>();
                 globalForceActivationSparsity = globalStrategies_["forceActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
@@ -826,13 +867,17 @@ namespace mv
             // In these cases parent output sparsity does matter, but child input sparsity must be true
             bool requiresCompilerActivationSparsity(Op& op)
             {
-                if (((op.getOpType() == "Conv"))
-                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
+                bool isCMConv = enableChannelMajorConv and
+                    op.getOpType() == "Conv" and
+                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+
+                if (op.getOpType() == "Conv" and !isCMConv
+                        and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
 
-                if (((op.getOpType() == "Conv") or (op.getOpType() == "Eltwise"))
-                         and (op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                              and op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
+                if (op.isSparsityConsumer() and !isCMConv
+                        and (op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                        and op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
                     return true;
                 
                 return false;
@@ -850,15 +895,20 @@ namespace mv
                     referenceDevice == "A0")
                 {
                     return true;
+                }
+
+
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
                 if ( op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" and
                         (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
-                         op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1)
-                         and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16) and
-                            referenceDevice == "A0")
+                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) and
+                        !isCMConv and
+                        referenceDevice == "A0")
+                        {
                             return true;
+                        }
                 }
 
                 return false;
@@ -972,7 +1022,7 @@ namespace mv
             //Check to see if a given stategy is internally consistent for performance
             //Strategies that can only have infinite edges because they are illegal should never be added to the graph
             // Note: IF ADDING A NEW FAILURE CASE, must add new description to failure_causes
-            int checkForBadStrategy(mv::Op& op,StrategySet& strategy)
+            FailCause checkForBadStrategy(mv::Op& op,StrategySet& strategy)
             {
                 auto clustering = strategy["clustering"].get<string>();
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
@@ -983,17 +1033,15 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,strategy["inputSparsity"], strategy["outputSparsity"],weightsSparsity,streamShape,
+                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
-                    // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
-                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
                     if(fit.first + fit.second >= clusterMemory)
-                        return 1;
+                        return FailCause::MemorySize;
                 }
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) and (clustering == "HKSwitch"))
-                    return 3;
+                    return FailCause::SpillHKSwitch;
 
                 if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
                 {
@@ -1002,13 +1050,13 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
                     if (op.getOpType() == "Conv")
                     {
-                        if((numOutChannels/(streamShape["K"] * totalClusters) < 16) and (clustering == "SplitOverK"))
-                            return 4;
+                        if((clustering == "SplitOverK") and (numOutChannels/(streamShape["K"] * totalClusters) < 16))
+                            return FailCause::SOKNotAlign16;
                     }
                     else
                     {
-                        if((numInChannels/(streamShape["K"] * totalClusters) < 16) and (clustering == "SplitOverK"))
-                            return 4;
+                        if((clustering == "SplitOverK") and (numInChannels/(streamShape["K"] * totalClusters) < 16))
+                            return FailCause::SOKNotAlign16;
                     }
                     if(clustering == "SplitOverH")
                     {
@@ -1019,54 +1067,49 @@ namespace mv
                         if(totalClusters > 1) //last
                             workloadHeight = outputHeight - (workloadHeight * (totalClusters-1)); //get remaining height
                         if(workloadHeight < weightsShape[KERNEL_HEIGHT])
-                            return 8;
+                            return FailCause::WorkloadLessKernelSOH;
                     }
                 }
 
                  //Input and Output must have Spilled==True
-                if( (op.getOpType() == "Input") and (not spilling))
-                    return 5;
+                if((op.getOpType() == "Input") and (not spilling))
+                    return FailCause::InputNotSpilled;
 
-                if( (op.getOpType() == "Output") and (not spilling))
-                    return 6;
+                if((op.getOpType() == "Output") and (not spilling))
+                    return FailCause::OutputNotSpilled;
 
                 //iIf the layer is streaming over H or W, output of this layer has to be spilled
-                if( (not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
-                    return 7;
+                if((not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
+                    return FailCause::StreamingNotSpilled;
 
                 //Special rules for Channel Major Convolutions
                 //No need for SOHOverlapped input unless using channel major
-                if( !enableChannelMajorConv and clustering == "SplitOverHOverlapped")
-                    return 9;
+                if(!enableChannelMajorConv and clustering == "SplitOverHOverlapped")
+                    return FailCause::ChannelMjr1;
 
-                if( enableChannelMajorConv and op.getOpType() == "Conv")
+                if(enableChannelMajorConv and
+                    op.getOpType() == "Conv" and
+                    op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16)
                 {
-                    auto weightsShape = op.getInputTensor(1)->getShape();
-                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-                    if ( numInChannels % 16) //assume channel major conv
-                        if(clustering == "SplitOverH" and streamShape["H"] > 1)
-                            return 10;
+                    if(clustering == "SplitOverH" and streamShape["H"] > 1)
+                        return FailCause::ChannelMjr2;
                 }
-
 
                 if (op.getOpType() == "DepthwiseConv")
                 {
                     if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
                             && (streamShape["C"] == 1))
-                        return 11;
+                        return FailCause::DWChannels;
                 }
 
                 //For every dpuTask if we splitOverH, workloads are over H dimension, so they need to have at
                 //least one line to be assigned with
-                if ((op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" || op.getOpType() == "MaxPool"
-                        || op.getOpType() == "Eltwise") && clustering == "SplitOverH")
+                if (op.isHardwarizable() && clustering == "SplitOverH")
                 {
                     auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
                     auto estimatedClusterH = (int)floor((double)outputHeight/totalClusters);
                     if (estimatedClusterH < dpuPerCluster || (outputHeight - (totalClusters - 1) * estimatedClusterH) < dpuPerCluster)
-                    {
-                        return 12;
-                    }
+                        return FailCause::SOHheight;
                 }
 
                 // For CM Conv, as after DW, we spill to DDR, SOH gets chosen for DW. For larger input sizes, (416,416) DW when spilled
@@ -1076,31 +1119,31 @@ namespace mv
                 {
                     if ((op.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] > 302)
                             && (clustering == "SplitOverH"))
-                        return 11;
+                        return FailCause::SOHheight;
                 }
 
-                if((requiresRealActivationSparsity(op, clustering) || requiresCompilerActivationSparsity(op)) && !strategy["inputSparsity"].get<bool>())
-                    return 12;
-
                 if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
-                    return 13;
+                    return FailCause::SparsitySOK;
+
+                if(requiresFakeActivationSparsity(op) && strategy["inputSparsity"].get<bool>())
+                    return FailCause::RealSparseForFakeSparseOp;
 
                 if (op.getOpType() == "DepthwiseConv" && op.hasAttr("DWWithReplaceLargeStrides")
                         && op.get<bool>("DWWithReplaceLargeStrides") && (clustering == "SplitOverK"))
-                    return 13;
+                    return FailCause::DWLargeStrideReplacementSOK;
 
                 //NOTE: Subdilation storage element population is not implemented for the SOH case
                 if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
                         && op.get<bool>("DilatedSubConv")
                         && clustering == "SplitOverH")
-                    return 14;
+                    return FailCause::DilatedSOH;
 
                 if (op.getOpType() == "Conv"  && op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
                         && op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")
                         && clustering == "SplitOverH")
-                    return 14;
+                    return FailCause::DilatedOutputSparsityConsumption;
 
-                return 0; //good strategy
+                return FailCause::Pass; //good strategy
             }
             // CM Conv needs if follows a DW Conv (like OV models) or CM Conv follows another Conv, spilling is needed
             // As OV models have DW->Conv and DW is always 1x1, as long as DW height & width are multiples are 8, no need to spill
@@ -1179,15 +1222,15 @@ namespace mv
 
                 if(createStrategyDots)
                 {
-                    int strategyCheck = checkForBadStrategy(parentOp,parent);
-                    if(strategyCheck > 0)
+                    auto strategyCheck = checkForBadStrategy(parentOp,parent);
+                    if(strategyCheck != FailCause::Pass)
                     {
                         const mv::Attribute str = failure_causes[strategyCheck];
                         parent["infCause"] = str;
                         return INF;
                     }
                     strategyCheck = checkForBadStrategy(childOp, child);
-                    if(strategyCheck > 0)
+                    if(strategyCheck != FailCause::Pass)
                     {
                         const mv::Attribute str = failure_causes[strategyCheck];
                         child["infCause"] = str;
@@ -1315,14 +1358,6 @@ namespace mv
                                 return INF;
                         }
                     }
-                    //If we aren't CM conv, kernel > 1 requires sparsity for SOH, so parent can't spill
-                    else if((parent["spilling"].get<bool>()) and (childClustering == "SplitOverH")
-                            and  weightsShape[KERNEL_WIDTH] > 1 and referenceDevice == "A0")
-                    {
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spill to SOH conv>1");
-                            return INF;
-                    }
                     else if(childClustering == "SplitOverH")
                     {
                         auto outputTensorShape = childOp.getOutputTensor(0)->getShape();
@@ -1347,14 +1382,6 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by final op HKSwitch");
                         return INF;
                     }
-                }
-
-                //NOTE: IF you have to spill your parent and the child is fp16 you are going to assign clustering on child
-                if(parentOp.getOpType() == "Eltwise" and parent["spilling"].get<bool>() &&
-                    childOp.hasAttr("floatPrecision") && childOp.get<bool>("floatPrecision") && childClustering != "Clustering"
-                        and (referenceDevice == "A0"))
-                {
-                    return INF;
                 }
 
                 //Note: Input clustering strategy should match first layer, if it is Z-major
@@ -1383,11 +1410,65 @@ namespace mv
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
                            return INF;
+                }
+
+                if(parent["spilling"].get<bool>()){
+                    if(parent["outputSparsity"].get<bool>()){
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                            + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling to sparsity");
+                        return INF;
                     }
                 }
 
-                // Note: No longer need to check pairwise sparsity, covered by above condition 
-                // and memory size is covered in checkForBadStrategy
+                // In cases where real activation sparsity  will be required later
+                // ensure there is enough memory for them
+                if(requiresRealActivationSparsity(childOp, childClustering))
+                    childInputSparsity = true;
+
+                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
+                if(requiresFakeSparsity){
+                    parentOutputSparsity = false;
+                    childInputSparsity = true;
+                }
+
+                // Note: Should no longer need to recheck for sparse memory size - we check the actual sparse memory size
+                // when generating the strategies now!
+                //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
+                //does not exceed CMX
+                if(childInputSparsity)
+                {
+                    auto parentMem = memorySize(parentOp,
+                                            parentClustering,
+                                            false,
+                                            parentOutputSparsity,
+                                            parent["weightsSparsity"].get<bool>(),
+                                            parent["streaming"].get<Shape>(),
+                                            requiresFakeActivationSparsity(parentOp));
+
+                    auto childMem = memorySize(childOp,
+                                            childClustering,
+                                            childInputSparsity,
+                                            false,
+                                            child["weightsSparsity"].get<bool>(),
+                                            child["streaming"].get<Shape>(),
+                                            requiresFakeSparsity);
+
+
+                    if( (childOp.getOpType() != "Output") and
+                      ( (childMem.first + childMem.second) > clusterMemory) )
+                    {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
+                            return INF;
+                    }
+                    if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
+                      ( (parentMem.first + parentMem.second) > clusterMemory) )
+                    {
+                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
+                            return INF;
+                    }
+                }
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
@@ -1712,8 +1793,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
-                                    // cout << "   " << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
-                                    if(!createStrategyDots and (strategyCheck > 0))
+                                    if(!createStrategyDots and (strategyCheck != FailCause::Pass))
                                         continue;
 
                                     strategyVec.push_back(s);
