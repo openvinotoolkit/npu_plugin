@@ -374,14 +374,25 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                                         alignOpName);
                     alignedTensor->set<bool>("alignment", true);//TODO remove this, just for testing now
                     // This will work because of the implicit flows compensatory DMA passes
-                    //auto outputTensorMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-                    auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
-                    alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
 
+                    //If ParentOp memory location of Align is in DDR, then Align can get any strategy and should get strategy of the child Op instead of parent
+                    //Enables RetinaFace compilation, applicable to other networks too
+                    auto outputTensorMemoryLocation = mv::Tensor::MemoryLocation::NNCMX;
+                    auto parentMemoryLocation = parentOpIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                     auto alignOp = om.getOp(alignOpName);
                     alignOp->set<unsigned>("opId", parentOpIt->get<unsigned>("opId"));
-                    if (parentOpIt->hasAttr("splitStrategy"))
-                        alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                    if(parentOpIt->isImplicit() && parentMemoryLocation == mv::Tensor::MemoryLocation::DDR)
+                    {
+                        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+                        if (opIt->hasAttr("splitStrategy"))
+                            alignOp->set<std::string>("splitStrategy", opIt->get<std::string>("splitStrategy"));
+                    }
+                    else{
+                        alignedTensor->set<mv::Tensor::MemoryLocation>("Location", outputTensorMemoryLocation);
+                        if (parentOpIt->hasAttr("splitStrategy"))
+                            alignOp->set<std::string>("splitStrategy", parentOpIt->get<std::string>("splitStrategy"));
+                    }
+
 
                     for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
                     {

@@ -392,6 +392,32 @@ class Control_Model_Barrier_Scheduler {
       get_tailing_upa_chain(std::back_inserter(upa_chain));
 
       if (!upa_chain.empty() && is_barrier_op(upa_chain.back())) {
+        //Updating barriers of the parents of the barrier task of first UPA Layer //
+        mv::Data::OpListIterator upaBitr = om.getOp(upa_chain.back()->getName());
+        const mv::Barrier& currB =
+          upaBitr->get<mv::Barrier>("Barrier");
+        unsigned currB_index = currB.getIndex();
+        mv::Control::OpListIterator upaCBitr = cm.switchContext(upaBitr);
+
+        for (mv::Control::OpParentIterator pitr=upaCBitr.leftmostParent();
+            pitr!=cm.opEnd(); ++pitr){
+          mv::BarrierDependencies& barrierRefParent =
+            pitr->get<mv::BarrierDependencies>("BarrierDeps");
+          std::vector<unsigned> updateB = barrierRefParent.getUpdate();
+          barrierRefParent.clearUpdateBarriers();
+
+          for(auto t = 0; t < updateB.size(); t++){
+            if(updateB[t] == currB_index)
+              continue;
+            barrierRefParent.addUpdateBarrier(updateB[t]);
+          }
+          // Adding control edge between parents of barrier and first UPA Layer //
+          for(mv::Control::OpChildIterator childItr=upaCBitr.leftmostChild();
+                childItr!=cm.opEnd(); ++childItr) {
+            cm.defineFlow(om.getOp(pitr->getName()), om.getOp(childItr->getName()));
+          }
+        }
+        om.removeOp(om.getOp(upa_chain.back()->getName()));
         upa_chain.pop_back();
       }
       if (upa_chain.empty()) { return; }
@@ -403,20 +429,19 @@ class Control_Model_Barrier_Scheduler {
         assert( is_upa_op(curr_op) || is_barrier_op(curr_op) );
 
         if (is_upa_op(curr_op)) {
+          //removing barrier references for UPA Tailing Layers //
+          mv::BarrierDependencies& barrierRef =
+             om.getOp(curr_op->getName())->get<mv::BarrierDependencies>("BarrierDeps");
+          barrierRef.clear();
+          om.getOp(curr_op->getName())->set<bool>("trailing", true);
           // add control edge prev_upa->curr_upa //
           if (prev_upa_op) {
             auto prev_upa_itr = om.getOp(prev_upa_op->getName());
             auto curr_upa_itr = om.getOp(curr_op->getName());
             cm.defineFlow(prev_upa_itr, curr_upa_itr);
-            // clear barrier references if any to avoid runtime warnings //
-            mv::BarrierDependencies& barrierRef =
-              curr_upa_itr->get<mv::BarrierDependencies>("BarrierDeps");
-            barrierRef.clear();
-            curr_upa_itr->set<bool>("trailing", true);
-          }
+	  }
           prev_upa_op = curr_op;
-        } else {
-          // remove the barrier //
+          } else {
           om.removeOp(om.getOp(curr_op->getName()));
         }
       }

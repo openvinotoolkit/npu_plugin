@@ -399,11 +399,18 @@ bool mv::isVectorsEqual(const std::vector<double> left, const std::vector<double
     }
 
     for (int i = 0; i < left.size(); i++) {
-        if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
+        //if (fabs(left[i] - right[i]) > std::numeric_limits<float>::epsilon()) {
+        if (fabs(left[i] - right[i]) > (1.0e-4) ) {
             return  false;
         }
     }
     return true;
+}
+
+bool mv::isEqualScale(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
+    //in keembay the two eltwises can have different zero point
+    bool isScaleEqual = isVectorsEqual(left.getScale(), right.getScale());
+    return isScaleEqual;
 }
 
 bool mv::isEqual(const mv::QuantizationParams& left, const mv::QuantizationParams& right) {

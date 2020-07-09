@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
@@ -23,6 +23,7 @@
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
+                "ScaleFuseInput": true,
                 "PWLUsage": true,
                 "ReferenceMode": false,
                 "split_strategy" :
@@ -137,7 +138,7 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
@@ -230,6 +231,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -260,10 +262,24 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/input_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/output_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",
@@ -301,7 +317,7 @@
               "real_physical_barriers": 8,
               "barrier_bound" : 4,
               "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : false,
+              "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             }
         ]
@@ -314,6 +330,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

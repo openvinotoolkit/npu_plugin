@@ -30,48 +30,25 @@ namespace mv
 
 }
 
-void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    using namespace mv;
-
-    if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
-        throw ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
-
-    bool verbose = false;
-    if (passDesc.hasAttr("verbose"))
-        verbose = passDesc.get<bool>("verbose");
-
-    std::string outputScope = passDesc.get<std::string>("scope");
-
-    if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
-        outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
-        throw ArgumentError(model, "scope", outputScope, "Invalid model scope");
-
-    std::string contentLevel = passDesc.get<std::string>("content");
-//    if (contentLevel != "full" && outputScope != "name")
-//        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
-
-    bool htmlLike = passDesc.get("html");
-    bool reduced = passDesc.get("reduced");
+void GenerateDotFromModel(mv::ComputationModel& model, 
+    const std::string& outputScope, const std::string& outputFile,
+    const std::string& contentLevel, bool htmlLike, bool verbose, bool reduced,
+    const std::string& startingOpName, const std::string& finishingOpName) {
 
     std::ofstream ostream;
-    std::string outputFile = passDesc.get<std::string>("output");
-
     mv::utils::validatePath(outputFile);
 
     ostream.open(outputFile, std::ios::trunc | std::ios::out);
     if (!ostream.is_open())
-        throw ArgumentError(model, "output", outputFile, "Unable to open output file");
-    OpModel opModel(model);
+        throw mv::ArgumentError(model, "output", outputFile, "Unable to open output file");
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
+    
     std::vector<mv::Data::OpListIterator> reducedOps;
+    mv::OpModel opModel(model);
+
     if (reduced)
     {
-        std::string startingOpName = passDesc.get<std::string>("startingOpName");
-        std::string finishingOpName = passDesc.get<std::string>("finishingOpName");
 
         auto sortedOps = opModel.topologicalSort();
         bool startFound = false;
@@ -174,10 +151,9 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         if (outputScope == "OpModel" || outputScope == "ExecOpModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
+            mv::DataModel dataModel(model);
 
-            DataModel dataModel(model);
-
-            for (auto opIt : reducedOps)
+            for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
             {
                 if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
                     || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
@@ -250,7 +226,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
         if (outputScope == "ControlModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-            ControlModel controlModel(model);
+          mv::ControlModel controlModel(model);
 
             for (auto opIt = controlModel.getFirst(); opIt != controlModel.opEnd(); ++opIt)
             {
@@ -316,7 +292,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
     else
     {
 
-        DataModel dataModel(model);
+      mv::DataModel dataModel(model);
 
         for (auto tIt = dataModel.tensorBegin(); tIt != dataModel.tensorEnd(); ++tIt)
         {
@@ -421,4 +397,44 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 
     ostream << "}\n";
     ostream.close();
+}
+
+
+
+void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    if (!passDesc.hasAttr("output") || passDesc.get<std::string>("output").empty())
+        throw mv::ArgumentError(model, "output", "", "Unspecified output name for generate dot pass");
+
+    bool verbose = false;
+    if (passDesc.hasAttr("verbose"))
+        verbose = passDesc.get<bool>("verbose");
+
+    std::string outputScope = passDesc.get<std::string>("scope");
+
+    if (outputScope != "OpModel" && outputScope != "ExecOpModel" && outputScope != "ControlModel" &&
+        outputScope != "OpControlModel" && outputScope != "ExecOpControlModel" && outputScope != "DataModel")
+        throw mv::ArgumentError(model, "scope", outputScope, "Invalid model scope");
+
+    std::string contentLevel = passDesc.get<std::string>("content");
+//    if (contentLevel != "full" && outputScope != "name")
+//        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
+
+    bool htmlLike = passDesc.get("html");
+    bool reduced = passDesc.get("reduced");
+    std::string startingOpName = "";
+    std::string finishingOpName = "";
+    if (reduced)
+    {
+        std::string startingOpName = passDesc.get<std::string>("startingOpName");
+        std::string finishingOpName = passDesc.get<std::string>("finishingOpName");
+    }
+    std::string outputFile = passDesc.get<std::string>("output");
+    GenerateDotFromModel(model, outputScope, outputFile,
+          contentLevel, htmlLike, verbose, reduced, startingOpName, finishingOpName);
+
 }

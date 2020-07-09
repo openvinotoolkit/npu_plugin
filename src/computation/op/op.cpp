@@ -304,6 +304,20 @@ bool mv::Op::isImplicit() const
     return isImplicitOp;
 }
 
+bool mv::Op::isUPA() const
+{
+    bool isUPATask = false;
+    std::vector<std::string> upaTypes = {"Normalize", "Identity", "Softmax", "Proposal", "ROIPooling",
+                                        "PSROIPooling", "Resample", "Quantize", "Resample", "Reshape",
+                                        "RegionYolo", "ReorgYolo", "DetectionOutput", "Interp", "Norm",
+                                        "Priorbox","Argmax","Permute","Custom","Sigmoid","Deconv","Tile","RefConv"};
+    if (std::count(upaTypes.begin(), upaTypes.end(), getOpType()))
+    {
+        isUPATask = true;
+    }
+    return isUPATask;
+}
+
 bool mv::Op::isSparsityConsumer() const
 {
     bool isSparseConsumerOp = false;
@@ -319,6 +333,24 @@ bool mv::Op::isSparsityConsumer() const
         isSparseConsumerOp = true;
     }
     return isSparseConsumerOp;
+}
+
+bool mv::Op::isHardwarizable() const
+{
+    bool isHardwarizableOp = false;
+    std::vector<std::string> hardwarizableTypes =
+        {"Conv", "Eltwise", "DepthwiseConv", "MaxPool"};
+    if (std::count(hardwarizableTypes.cbegin(), hardwarizableTypes.cend(),
+        getOpType()))
+    {
+        isHardwarizableOp = true;
+    }
+    else if (getOpType() == "DPUTask" && std::count(hardwarizableTypes.cbegin(),
+        hardwarizableTypes.cend(), get<std::string>("taskOp")))
+    {
+        isHardwarizableOp = true;
+    }
+    return isHardwarizableOp;
 }
 
 bool mv::Op::hasWeights() const
