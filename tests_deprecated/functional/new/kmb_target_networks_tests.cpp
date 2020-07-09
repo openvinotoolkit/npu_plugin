@@ -439,12 +439,35 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
         0.6, 0.4, 0.4, false);
 }
 
+TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+        TestImageDesc("416x416/person.bmp", false),
+        0.6, 0.4, 0.4, false);
+}
+
 TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("416x416/person.bmp", false),
+        0.6, 0.4, 0.4, false);
+}
+
+TEST_F(KmbYoloV2NetworkTest, DISABLED_yolo_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32)
+            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }

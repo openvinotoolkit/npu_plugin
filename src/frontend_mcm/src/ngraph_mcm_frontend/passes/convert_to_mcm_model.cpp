@@ -45,6 +45,7 @@
 #include "ngraph/op/reorg_yolo.hpp"
 
 #include <ngraph_ops/power.hpp>
+#include <ngraph_ops/relu_ie.hpp>
 
 #include "ngraph_mcm_frontend/ops/mcm_scale.hpp"
 
@@ -524,6 +525,62 @@ void convert(std::shared_ptr<ngraph::op::v0::Clamp> clamp, mv::OpModel& mcmModel
     registerOutputs(clamp, {mcmClampMax}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::ReLUIE> relu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmData = getMcmInputs(relu, mcmOutputsMap).at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(relu);
+    const auto& opName = relu->get_friendly_name();
+    const float slope = relu->get_slope();
+
+    IE_ASSERT(mv::DType("Default") == mvDType);
+    if (std::fabs(slope) < std::numeric_limits<float>::epsilon()) {
+        const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, inputQuantParams, opName);
+        registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
+    } else {
+        const auto mcmReluOutput = mcmModel.leakyRelu(mcmData, slope, mvDType, inputQuantParams, opName);
+        registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
+    }
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::ReorgYolo> reorg, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmData = getMcmInputs(reorg, mcmOutputsMap).at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reorg);
+    const auto& opName = reorg->get_friendly_name();
+    const std::size_t stride = reorg->get_strides().at(0);
+
+    for (auto&& s : reorg->get_strides()) {
+        IE_ASSERT(stride == s);
+    }
+
+    const auto mcmReorgYoloOutput = mcmModel.reorgYolo(mcmData, static_cast<unsigned>(stride), mvDType, inputQuantParams, opName);
+    registerOutputs(reorg, {mcmReorgYoloOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::RegionYolo> region, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmData = getMcmInputs(region, mcmOutputsMap).at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(region);
+    const auto& opName = region->get_friendly_name();
+    const std::size_t coords = region->get_num_coords();
+    const std::size_t classes = region->get_num_classes();
+    const std::size_t num = region->get_num_regions();
+    const bool do_softmax = region->get_do_softmax();
+    const std::vector<int64_t> mask = region->get_mask();
+    const std::vector<unsigned> mcmMask(mask.begin(), mask.end());
+
+
+    const auto mcmRegionYoloOutput = mcmModel.regionYolo(
+        mcmData,
+        static_cast<unsigned>(coords),
+        static_cast<unsigned>(classes),
+        do_softmax,
+        static_cast<unsigned>(num),
+        mcmMask,
+        mvDType, inputQuantParams, opName);
+    registerOutputs(region, {mcmRegionYoloOutput}, mcmOutputsMap);
+}
+
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
@@ -550,6 +607,9 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v0::Squeeze),
     MAP_ENTRY(ngraph::op::v1::Softmax),
     MAP_ENTRY(ngraph::op::v0::Clamp),
+    MAP_ENTRY(ngraph::op::ReLUIE),
+    MAP_ENTRY(ngraph::op::v0::RegionYolo),
+    MAP_ENTRY(ngraph::op::v0::ReorgYolo)
 #if 0
 //     MAP_ENTRY(ngraph::op::v1::Add), Eltwise
     MAP_ENTRY(ngraph::op::v1::ReduceMean),
