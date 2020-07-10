@@ -625,14 +625,13 @@ namespace mv
                 if(op.getOpType() == "Conv")
                 {
                     auto outDim = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                    double linesPerOutputSlice = outDim/(splits+1);
-                    if(linesPerOutputSlice < 1)
-                    {
-                        linesPerOutputSlice = outDim/splits;
-                        if(linesPerOutputSlice >= 1)
-                            return splits;
+                    auto linesPerOutputSlice = outDim/splits;
+                    if(linesPerOutputSlice >= 1)
+                        return splits;
+                    else
                         return 1;
-                    }
+                    if(splits < 1)
+                        return 1;
                 }
 
                 return splits + 1; // consider one extra H stream, just in case
@@ -950,7 +949,7 @@ namespace mv
                     auto fit = memorySize(op,clustering,strategy["inputSparsity"], strategy["outputSparsity"],weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
                     // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
-                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : "<<strategy["inputSparsity"].toString()<<" : "<<strategy["outputSparsity"].toString()<<" : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
+                    // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
                     if(fit.first + fit.second >= clusterMemory)
                         return 1;
                 }
