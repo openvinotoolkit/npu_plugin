@@ -16,16 +16,27 @@
 
 #pragma once
 
-#include "load_network.h"
+#include <models/model_squeezenet_v1_1.h>
+#include "core_api.h"
+#include "gtest/gtest.h"
 
+class LoadNetwork_Tests : public CoreAPI_Tests {
+public:
+    LoadNetwork_Tests();
+    ModelSqueezenetV1_1_Helper modelHelper;
+};
+
+inline LoadNetwork_Tests::LoadNetwork_Tests() {
+    network = modelHelper.getNetwork();
+}
+
+//------------------------------------------------------------------------------
 class ExecutableNetwork_Tests : public LoadNetwork_Tests {
 public:
     void SetUp() override;
-    InferenceEngine::ExecutableNetwork executableNetwork;
 
+protected:
+    static InferenceEngine::ExecutableNetwork::Ptr _cacheExecNetwork;
 };
 
-inline void ExecutableNetwork_Tests::SetUp() {
-    LoadNetwork_Tests::SetUp();
-    executableNetwork = ie.LoadNetwork(network, pluginName);
-}
+

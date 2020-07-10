@@ -19,8 +19,6 @@
 #include "WorkloadContext.h"
 
 //------------------------------------------------------------------------------
-//      class WorkloadContext_Helper
-//------------------------------------------------------------------------------
 class WorkloadContext_Helper {
 public:
     WorkloadContext_Helper();
@@ -36,8 +34,6 @@ protected:
     WorkloadID _workloadId;
 };
 
-//------------------------------------------------------------------------------
-//      class WorkloadContext_Helper Implementation
 //------------------------------------------------------------------------------
 inline WorkloadContext_Helper::WorkloadContext_Helper() {
     _workloadId = createAndRegisterWorkloadContext();

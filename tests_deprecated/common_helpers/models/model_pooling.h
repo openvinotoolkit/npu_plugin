@@ -16,17 +16,16 @@
 
 #pragma once
 
-#include "ie_core.hpp"
+#include "model_helper.h"
 //------------------------------------------------------------------------------
-//      class ModelPooling_Helper Declaration
-//------------------------------------------------------------------------------
-class ModelPooling_Helper {
+class ModelPooling_Helper : public ModelHelper {
 public:
     ModelPooling_Helper();
-    InferenceEngine::Blob::CPtr weights;
-    InferenceEngine::CNNNetwork network;
 
-    const std::string model = R"V0G0N(
+protected:
+    InferenceEngine::Blob::CPtr _weights;
+
+    const std::string _model = R"V0G0N(
     <net batch="1" name="POOLING_TEST" version="2">
     <layers>
         <layer id="0" name="input" precision="U8" type="Input">
@@ -67,9 +66,7 @@ public:
 };
 
 //------------------------------------------------------------------------------
-//      class ModelPooling_Helper Implementation
-//------------------------------------------------------------------------------
 inline ModelPooling_Helper::ModelPooling_Helper() {
     InferenceEngine::Core ie;
-    network = ie.ReadNetwork(model, weights);
+    _network = ie.ReadNetwork(_model, _weights);
 }

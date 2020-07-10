@@ -26,12 +26,8 @@ using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;
 
 //------------------------------------------------------------------------------
-//     class Graph_Common_UnitTests Params
-//------------------------------------------------------------------------------
 enum typeOfGraph { fromImportedGraph, fromCompiledGraph };
 
-//------------------------------------------------------------------------------
-//     class Graph_Common_UnitTests Declaration
 //------------------------------------------------------------------------------
 class Graph_Common_UnitTests : public ::testing::Test, public ::testing::WithParamInterface<typeOfGraph> {
 public:
@@ -53,7 +49,7 @@ void Graph_Common_UnitTests::SetUp() {
         ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
     } else {
         ModelPooling_Helper modelPoolingHelper;
-        CNNNetwork network = modelPoolingHelper.network;
+        CNNNetwork network = modelPoolingHelper.getNetwork();
         ASSERT_NO_THROW(graphPtr = std::make_shared<CompiledGraph>(network, _defaultMCMConfig));
     }
 }
@@ -70,8 +66,7 @@ std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
     }
 }
 
-//------------------------------------------------------------------------------
-//     Graph_Common_UnitTests Initiation
+
 //------------------------------------------------------------------------------
 TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
     const std::string name = graphPtr->getGraphName();
@@ -93,8 +88,7 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
     ASSERT_GT(graphBlob.size(), 0);
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_Allocator_Manipulations_UnitTests Test case Initiations
+
 //------------------------------------------------------------------------------
 const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph, fromCompiledGraph};
 

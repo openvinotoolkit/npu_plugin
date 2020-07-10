@@ -16,17 +16,16 @@
 
 #pragma once
 
-#include "core_api.h"
-#include "gtest/gtest.h"
-#include "models/model_pooling.h"
+#include "ie_core.hpp"
+#include "model_helper.h"
 
-class LoadNetwork_Tests : public CoreAPI_Tests {
+class ModelSqueezenetV1_1_Helper : public ModelHelper {
 public:
-    void SetUp() override;
-    InferenceEngine::CNNNetwork network;
-
-protected:
-    ModelPooling_Helper _modelPoolingHelper;
+    explicit ModelSqueezenetV1_1_Helper();
 };
 
-inline void LoadNetwork_Tests::SetUp() { network = _modelPoolingHelper.network; }
+//------------------------------------------------------------------------------
+inline ModelSqueezenetV1_1_Helper::ModelSqueezenetV1_1_Helper() {
+    _modelRelatedPath = "KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp16_to_int8";
+    loadModel();
+}
