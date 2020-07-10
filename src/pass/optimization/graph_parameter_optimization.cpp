@@ -87,6 +87,7 @@ namespace mv
                 DilatedSOH,
                 DWLargeStrideReplacementSOK,
                 DilatedOutputSparsityConsumption,
+                SpiltOverHWithStreamOverK,
                 Unknown
             };
 
@@ -110,6 +111,7 @@ namespace mv
                 {FailCause::DilatedSOH, "DilatedSOH"},
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::DilatedOutputSparsityConsumption, "DilatedOutputSparsityConsumption"},
+                {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -1039,8 +1041,12 @@ namespace mv
                         return FailCause::MemorySize;
                 }
 
+                auto isChanMajor = enableChannelMajorConv &&
+                    op.getOpType() == "Conv" &&
+                    op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
+
                 //If spilling, HKSwitch makes no sense
-                if( (spilling) and (clustering == "HKSwitch"))
+                if( (spilling) && (clustering == "HKSwitch"))
                     return FailCause::SpillHKSwitch;
 
                 if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
@@ -1050,12 +1056,12 @@ namespace mv
                     auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
                     if (op.getOpType() == "Conv")
                     {
-                        if((clustering == "SplitOverK") and (numOutChannels/(streamShape["K"] * totalClusters) < 16))
+                        if((clustering == "SplitOverK") && (numOutChannels/(streamShape["K"] * totalClusters) < 16))
                             return FailCause::SOKNotAlign16;
                     }
                     else
                     {
-                        if((clustering == "SplitOverK") and (numInChannels/(streamShape["K"] * totalClusters) < 16))
+                        if((clustering == "SplitOverK") && (numInChannels/(streamShape["K"] * totalClusters) < 16))
                             return FailCause::SOKNotAlign16;
                     }
                     if(clustering == "SplitOverH")
@@ -1071,30 +1077,26 @@ namespace mv
                     }
                 }
 
-                 //Input and Output must have Spilled==True
-                if((op.getOpType() == "Input") and (not spilling))
+                //Input and Output must have Spilled==True
+                if((op.getOpType() == "Input") && (not spilling))
                     return FailCause::InputNotSpilled;
 
-                if((op.getOpType() == "Output") and (not spilling))
+                if((op.getOpType() == "Output") && (not spilling))
                     return FailCause::OutputNotSpilled;
 
                 //iIf the layer is streaming over H or W, output of this layer has to be spilled
-                if((not spilling) and ((streamShape["H"] * streamShape["W"]) > 1))
+                if((not spilling) && ((streamShape["H"] * streamShape["W"]) > 1))
                     return FailCause::StreamingNotSpilled;
 
                 //Special rules for Channel Major Convolutions
                 //No need for SOHOverlapped input unless using channel major
-                if(!enableChannelMajorConv and clustering == "SplitOverHOverlapped")
+                if(!isChanMajor && clustering == "SplitOverHOverlapped")
                     return FailCause::ChannelMjr1;
 
-                if(enableChannelMajorConv and
-                    op.getOpType() == "Conv" and
-                    op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16)
-                {
-                    if(clustering == "SplitOverH" and streamShape["H"] > 1)
-                        return FailCause::ChannelMjr2;
-                }
+                if(isChanMajor && clustering == "SplitOverH" && streamShape["H"] > 1)
+                    return FailCause::ChannelMjr2;
 
+                //Guide early on the proposal of a valid strategy
                 if (op.getOpType() == "DepthwiseConv")
                 {
                     if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
@@ -1137,6 +1139,9 @@ namespace mv
                         && op.get<bool>("DilatedSubConv")
                         && clustering == "SplitOverH")
                     return FailCause::DilatedSOH;
+
+                if (clustering == "SplitOverH" && !isChanMajor && streamShape["K"] > 1)
+                    return FailCause::SpiltOverHWithStreamOverK;
 
                 if (op.getOpType() == "Conv"  && op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
                         && op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")
