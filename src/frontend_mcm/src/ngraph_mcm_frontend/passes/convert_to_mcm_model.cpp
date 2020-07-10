@@ -58,9 +58,16 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/result.hpp>
 #include <ngraph/op/constant.hpp>
+
+#include <ngraph/op/transpose.hpp>
+#include <ngraph/op/fused/squeeze.hpp>
+#include <ngraph/op/softmax.hpp>
+
 #include <memory>
 #include <vector>
 #include <map>
+
+#include <include/mcm/tensor/tiling.hpp>
 
 namespace {
 
@@ -188,6 +195,18 @@ void convert(std::shared_ptr<McmBias> bias, mv::OpModel& mcmModel, NodeOutputToM
     registerOutputs(bias, {mcmBiasOutput}, mcmOutputsMap);
 }
 
+namespace {
+
+void cvtPaddingsFromCeilToFloorMode(
+    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
+    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
+
+    pad_end = pad_end + (input_size_floor - input_size_ceil);
+    pad_end = std::max(pad_end, 0);
+}
+
+}  // namespace
+
 void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(maxPool, mcmOutputsMap);
     IE_ASSERT(1 == mcmInputs.size());
@@ -202,13 +221,26 @@ void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmM
     const auto padsBegin = maxPool->get_pads_begin();
     const auto padsEnd = maxPool->get_pads_begin();
 
+    int padLeft = padsBegin.at(1);
+    int padRight = padsEnd.at(1);
+    int padTop = padsBegin.at(0);
+    int padBottom = padsEnd.at(0);
+
+    auto outputShape = maxPool->get_output_shape(0);
+
+    cvtPaddingsFromCeilToFloorMode(
+        mcmData->getShape()[0], outputShape.at(3), kernelShape.at(0), strides.at(0), padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(
+        mcmData->getShape()[1], outputShape.at(2), kernelShape.at(1), strides.at(1), padTop, padBottom);
+
     IE_ASSERT(mv::DType("Default") == mvDType);
     const auto mcmMaxPoolOutput = mcmModel.maxPool(mcmData,
-            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(0))},
+            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(1))},
             {static_cast<uint16_t>(strides.at(0)), static_cast<uint16_t>(strides.at(1))},
-            {static_cast<uint16_t>(padsBegin.at(1)), static_cast<uint16_t>(padsEnd.at(1)),
-            static_cast<uint16_t>(padsBegin.at(0)), static_cast<uint16_t>(padsEnd.at(0))},
-            true, mvDType, outputQuantParams, opName);
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
+             static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
+            true,
+            mvDType, outputQuantParams, opName);
 
     registerOutputs(maxPool, {mcmMaxPoolOutput}, mcmOutputsMap);
 }
@@ -226,13 +258,26 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
     const auto padsBegin = avgPool->get_pads_begin();
     const auto padsEnd = avgPool->get_pads_begin();
 
+    int padLeft = padsBegin.at(1);
+    int padRight = padsEnd.at(1);
+    int padTop = padsBegin.at(0);
+    int padBottom = padsEnd.at(0);
+
+    auto outputShape = avgPool->get_output_shape(0);
+
+    cvtPaddingsFromCeilToFloorMode(
+        mcmData->getShape()[0], outputShape.at(3), kernelShape.at(0), strides.at(0), padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(
+        mcmData->getShape()[1], outputShape.at(2), kernelShape.at(1), strides.at(1), padTop, padBottom);
+
     IE_ASSERT(mv::DType("Default") == mvDType);
     const auto mcmAvgPoolOutput = mcmModel.averagePool(mcmData,
-            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(0))},
+            {static_cast<uint16_t>(kernelShape.at(0)), static_cast<uint16_t>(kernelShape.at(1))},
             {static_cast<uint16_t>(strides.at(0)), static_cast<uint16_t>(strides.at(1))},
-            {static_cast<uint16_t>(padsBegin.at(1)), static_cast<uint16_t>(padsEnd.at(1)),
-            static_cast<uint16_t>(padsBegin.at(0)), static_cast<uint16_t>(padsEnd.at(0))},
-            true, mvDType, outputQuantParams, opName);
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
+             static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
+             avgPool->get_exclude_pad(), //false,
+             mvDType, outputQuantParams, opName);
 
     registerOutputs(avgPool, {mcmAvgPoolOutput}, mcmOutputsMap);
 }
@@ -282,7 +327,6 @@ void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmM
         IE_ASSERT(2 == shape_size);
     }
 
-    IE_ASSERT(mv::DType("Default") == mvDType);
     auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, inputQuantParams, opName);
     registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
 }
@@ -330,6 +374,92 @@ void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputT
     registerOutputs(scale, {mcmScaleOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::Concat> concat, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(concat, mcmOutputsMap);
+    IE_ASSERT(0 < mcmInputs.size());
+    const std::string order = McmOpAttrs::getOrder(concat, 0).toString();
+    std::string mcmAxis = std::string(1, order.at(concat->get_axis()));
+    const auto mvDType = mv::DType("Default");
+    const auto& mvQuantParams = McmOpAttrs::getQuantParams(concat);
+    const auto& opName = concat->get_friendly_name();
+
+    const auto mcmConcatOutput = mcmModel.concat(mcmInputs, mcmAxis, mvDType, mvQuantParams, opName);
+    registerOutputs(concat, {mcmConcatOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(permute, mcmOutputsMap);
+    IE_ASSERT(2 ==  mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& mvQuantParams = McmOpAttrs::getQuantParams(permute);
+    const auto& opName = permute->get_friendly_name();
+
+    std::shared_ptr<ngraph::Node> orderNode = permute->get_inputs().at(1).get_output().get_node();
+    std::vector<size_t> orderIndices = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(orderNode)->cast_vector<size_t>();
+
+    std::string oldOrder = "NHWC"; // McmOpAttrs::getOrder(permute, 0).toString();
+    std::string newOrder;
+    for (size_t i = 0; i < orderIndices.size(); i++) {
+        newOrder += oldOrder[orderIndices.size() - 1 - i];
+    }
+
+    for (size_t i = 1; i < mcmInputs.size(); i++) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    auto mcmPermuteOutput = mcmModel.permute(mcmData, mv::Order(newOrder), mvDType, mvQuantParams, opName);
+
+    // Workaround to avoid parsing stage crash:
+    // 'ArgumentError: attribute identifer quantParams - Undefined identifier'
+    // [Track number: D#2284, D#2237]
+    // TBD
+    mcmPermuteOutput->set<mv::QuantizationParams>("quantParams", mvQuantParams);
+
+    registerOutputs(permute, {mcmPermuteOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v0::Squeeze> reshape, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(reshape, mcmOutputsMap);
+    IE_ASSERT(2 ==  mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reshape);
+    const auto& opName = reshape->get_friendly_name();
+
+    for (size_t i = 1; i < mcmInputs.size(); i++) {
+        mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
+    }
+
+    // TBD:  mv::Shape newShape = cvtShapeToMCM(reshape->get_output_shape(0));
+    mv::Shape newShape {1, 1, 1, 1};
+    const auto shape_size = reshape->get_output_shape(0).size();
+    if (2 == shape_size) {
+        newShape[2] = reshape->get_output_shape(0).at(1);
+        newShape[3] = reshape->get_output_shape(0).at(0);
+    } else {
+        IE_ASSERT(2 == shape_size);
+    }
+
+    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, inputQuantParams, opName);
+    registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
+}
+
+void convert(std::shared_ptr<ngraph::op::v1::Softmax> softmax, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(softmax, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(softmax);
+    const auto& opName = softmax->get_friendly_name();
+
+    std::string order = McmOpAttrs::getOrder(softmax, 0).toString();
+    std::string mcmAxis = std::string(1, order.at(softmax->get_axis()));
+ 
+    auto mcmSoftmaxOutput = mcmModel.softmax(mcmData, mcmAxis, mvDType, inputQuantParams, opName);
+    registerOutputs(softmax, {mcmSoftmaxOutput}, mcmOutputsMap);
+}
+
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
@@ -351,22 +481,17 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::AvgPool),
     MAP_ENTRY(ngraph::op::v1::Reshape),
     MAP_ENTRY(McmFC),
+    MAP_ENTRY(ngraph::op::v0::Concat),
+    MAP_ENTRY(ngraph::op::v1::Transpose),
+    MAP_ENTRY(ngraph::op::v0::Squeeze),
+    MAP_ENTRY(ngraph::op::v1::Softmax),
 #if 0
-    MAP_ENTRY(McmDequantize),
-    MAP_ENTRY(McmQuantize),
-    // ResNet-50
-    MAP_ENTRY(ngraph::op::v1::MaxPool),
-    MAP_ENTRY(ngraph::op::v0::Relu),
 //     MAP_ENTRY(ngraph::op::v1::Add), Eltwise
     MAP_ENTRY(ngraph::op::v1::ReduceMean),
-    MAP_ENTRY(ngraph::op::v1::Reshape),
     MAP_ENTRY(ngraph::op::FullyConnected),
     // PT_MobileNet_V2
     MAP_ENTRY(ngraph::op::v0::Clamp),
     // CF_Inception_V1
-    MAP_ENTRY(ngraph::op::v0::Concat),
-    MAP_ENTRY(ngraph::op::v1::AvgPool),
-    MAP_ENTRY(ngraph::op::v1::Softmax),
     MAP_ENTRY(ngraph::op::v0::LRN),
     MAP_ENTRY(ngraph::op::v0::Convert),
     // PT_Inception_V3
