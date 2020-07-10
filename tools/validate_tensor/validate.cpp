@@ -40,7 +40,7 @@ const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
 const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
-const std::string DLDT_BLOB_LOCATION    = "release_kmb/release_kmb/";
+const std::string DLDT_BLOB_LOCATION    = "release_kmb_with_CM_Conv/release_kmb/";
 
 
 bool ParseAndCheckCommandLine(int argc, char *argv[])
