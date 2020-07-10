@@ -1105,6 +1105,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/batch_normalization.cpp"
 #include    "src/computation/op/def/bias.cpp"
 #include    "src/computation/op/def/concat.cpp"
+#include    "src/computation/op/def/implicit_join.cpp"
 #include    "src/computation/op/def/copy.cpp"
 #include    "src/computation/op/def/constant.cpp"
 #include    "src/computation/op/def/conv.cpp"

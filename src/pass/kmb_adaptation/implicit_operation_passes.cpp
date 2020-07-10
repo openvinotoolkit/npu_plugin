@@ -1,11 +1,14 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/op_model.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/flow/implicit_flow.hpp"
 
 static void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void solveHangingDMAsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+//NOTE: this function was mostly a hack, but in general the idea is correct, any implicit operation between
+//ddr and output should not be translated with a dma but the output buffer should contain the ddr one
+//static void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -14,6 +17,10 @@ namespace mv
         MV_REGISTER_PASS(ResolveImplicitOperations)
                 .setFunc(resolveImplicitOperationsFcn)
                 .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
+
+//        MV_REGISTER_PASS(EnsureNoOddDMAsBetweenDDROutput)
+//                .setFunc(ensureNoOddDMAsBetweenDDROutputFcn)
+//                .setDescription("loops over all the candidate implicit operations and will try to add DMA to them");
     }
 }
 
@@ -37,6 +44,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+    mv::DataModel dm(model);
 
     for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
     {
@@ -44,7 +52,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         //TODO::the following attributes need to come either from JSON config or from OP definition
         auto opType = opIt->getOpType();
         if (opType == "Concat" || opType == "ImplicitConcat" || opType == "ImplicitReshape" || opType == "ImplicitPermute" ||
-            opType == "ImplicitOutput" || opType == "ImplicitUnion")
+            opType == "ImplicitOutput" || opType == "ImplicitUnion" || opType == "ImplicitJoin")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::INPUT_IN_OUTPUT));
         if (opType == "Slice" || opType == "Crop" || opType == "ImplicitInputSlice" || opType == "ImplicitInput")
             opIt->set<mv::ImplicitFlow>("ImplicitFlow", mv::ImplicitFlow(mv::ImplicitFlow::OUTPUT_IN_INPUT));
@@ -97,6 +105,9 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                 pass.log(mv::Logger::MessageType::Debug, "Input tensor " + inputTensor->getName() + " location " + inputLocation.toString());
                 pass.log(mv::Logger::MessageType::Debug, "Output tensor " + outputTensor->getName() + " location " + outputLocation.toString());
 
+//                if (inputLocation != outputLocation &&
+//                        !(inputLocation == mv::Tensor::MemoryLocation::DDR &&
+//                          outputLocation == mv::Tensor::MemoryLocation::OUTPUT))
                 if (inputLocation != outputLocation)
                 {
                     //TODO:: QUant params inherited for concat
@@ -108,6 +119,48 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
+
+                    //NOTE: When the dilated convolution is streamed, the dmas could be placed between
+                    //the dputtask and the concat which is designed for streaming so in that cases we
+                    //need to check if the next concat of the streaming has the attributes
+                    auto sinkOp = mv::findSinkLayers(dm, opIt->getOutputTensor(0))[0];
+                    if (opIt->hasAttr("dilatedWidthConcat") && opIt->get<bool>("dilatedWidthConcat"))
+                    {
+                        std::size_t slot = 0;
+                        for (std::size_t inputConcatTensorIdx = 0; inputConcatTensorIdx < opIt->getInputTensor().size();
+                             inputConcatTensorIdx++)
+                            if (opIt->getInputTensor()[inputConcatTensorIdx]->getName() == inputTensor->getName())
+                                slot = inputConcatTensorIdx;
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        compensatorOutput->set<bool>("dilatedWidthConcat", true);
+                        compensatorOutput->set<unsigned>("dilationFactor",
+                                                         opIt->get<unsigned>("dilationFactor"));
+                        compensatorOutput->set<std::size_t>("inputConcatTensorIdx", slot);
+                        compensatorOutput->set<std::size_t>("lineofConcatHeight",
+                                                    opIt->get<std::size_t>("lineofConcatHeight"));
+                    }
+                    else if (sinkOp->hasAttr("dilatedWidthConcat") && sinkOp->get<bool>("dilatedWidthConcat"))
+                    {
+                        //NOTE: they are the streaming operations os all they will have same coordinates
+                        auto subConvOp = om.getSourceOp(opIt->getInputTensor()[0]);
+                        std::size_t slot = subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[1];
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        compensatorOutput->set<bool>("dilatedWidthConcat", true);
+                        compensatorOutput->set<unsigned>("dilationFactor",
+                                                         sinkOp->get<unsigned>("dilationFactor"));
+                        compensatorOutput->set<std::size_t>("inputConcatTensorIdx", slot);
+                        compensatorOutput->set<std::size_t>("lineofConcatHeight",
+                                                    subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[0]);
+
+                        auto previousOp = om.getSourceOp(inputTensor);
+                        if (previousOp->hasAttr("streamId"))
+                        {
+                            auto streamId = previousOp->get<unsigned>("streamId");
+                            compensatorOutput->set<unsigned>("streamId", streamId);
+                        }
+
+                    }
+
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 
                     compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
@@ -210,3 +263,54 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
         }
     }
 }
+
+//void ensureNoOddDMAsBetweenDDROutputFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+//{
+
+//    mv::OpModel om(model);
+//    bool changedLocation;
+//    for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+//    {
+//        mv::Data::TensorIterator outputTensor;
+//        if (opIt->getOpType() != "Output")
+//        {
+//            outputTensor = opIt->getOutputTensor(0);
+//            auto outputLocation  = outputTensor->get<mv::Tensor::MemoryLocation>("Location");
+//            if (outputLocation == mv::Tensor::MemoryLocation::OUTPUT)
+//            {
+//                for (auto input : opIt->getInputTensor())
+//                {
+//                    auto previousOp = om.getSourceOp(input);
+//                    if (previousOp->isImplicit())
+//                        for (auto inputTensor : previousOp->getInputTensor())
+//                        {
+//                            auto parentOp = om.getSourceOp(inputTensor);
+//                            if (parentOp->getOpType() == "DMATask" &&
+//                                    parentOp->hasAttr("direction") &&
+//                                    parentOp->get<mv::DmaDirection>("direction") ==
+//                                    mv::DmaDirectionEnum::NNCMX2DDR)
+//                            {
+//                                changedLocation = true;
+//                                parentOp->getOutputTensor()[0]->set<mv::Tensor::MemoryLocation>("Location",
+//                                                    mv::Tensor::MemoryLocation::OUTPUT);
+//                            }
+//                        }
+//                }
+//            }
+//        }
+//    }
+//    if (changedLocation)
+//    {
+//        for( auto opIt = om.opBegin(); opIt != om.opEnd(); ++ opIt)
+//        {
+//            if (opIt->getOpType() == "Output")
+//            {
+//                auto previousOp = om.getSourceOp(opIt->getInputTensor()[0]);
+//                for (auto inp : previousOp->getInputTensor())
+//                    inp->set<mv::Tensor::MemoryLocation>("Location",
+//                                                         mv::Tensor::MemoryLocation::OUTPUT);
+//            }
+//        }
+//    }
+
+//}

@@ -198,7 +198,7 @@ std::vector<unsigned> mv::RuntimeModel::reduceQuantVector_(std::vector<unsigned>
 std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT(mv::ComputationModel& model, mv::Element&, mv::Data::TensorIterator t, const std::string &allocatorName)
 {
     mv::DataModel dm(model);
-    mv::ControlModel cm(model);
+    mv::OpModel om(model);
 
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
@@ -215,9 +215,34 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
     auto underlyingTensor = tensorBufferIt->getData();
     std::vector<uint32_t> dimensions = underlyingTensor->getShape();
+    //NOTE: the buffer strides are used only for changing between the normal strides and the buffer strides
+    std::vector<unsigned> dilatedStrides(4, 0);
+    std::vector<unsigned> bufferStrides(4, 0);
 
     auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
-    std::vector<uint32_t> numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+    std::vector<uint32_t> numericStrides;
+    if ((t->hasAttr("leadingOffset") && *tensorAllocatorName == "VPU_CMX_NN" ) ||
+            (t->hasAttr("dilatedSlice") && *tensorAllocatorName == "VPU_CMX_NN" ))
+        numericStrides = tensorBufferIt->getData()->computeNumericStrides();
+    else
+        numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
+
+    if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+    {
+        //NOTE: Covered only strides for z-major convolution
+        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        {
+            auto dilationFactor = t->get<unsigned>("dilationFactor");
+            if (idx == 0 || idx == 1)
+                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
+            else
+                dilatedStrides[idx] = numericStrides[idx];
+        }
+        bufferStrides = numericStrides;
+        numericStrides = dilatedStrides;
+        dilatedStrides = bufferStrides;
+    }
+
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
@@ -239,10 +264,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         toBuild->data->data_index = 0;
-        auto strides = tensorBufferIt->getStrides();
-        //NOTΕ: Leading offset Computation ???
-//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize();
-        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
 
@@ -251,25 +272,66 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         else if ((*masterBuffer)->getData()->hasAttr("outputIndex"))
             toBuild->locale_index[0] = (*masterBuffer)->getData()->get<uint8_t>("outputIndex");
 
-        if (leading_offset)
-            toBuild->data->data_index += leading_offset;
-        // No need to set sparsity_index for input/output tensor of the network
+        if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+        {
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamId"))
+                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+
+        }
+        else
+        {
+            auto strides = tensorBufferIt->getStrides();
+            auto leading_offset = strides[0];
+            if (leading_offset)
+                toBuild->data->data_index += leading_offset;
+        }
     }
     else
     {
         auto strides = tensorBufferIt->getStrides();
-//        auto leading_offset = strides[0] / tensorBufferIt->getDataTypeSize(); //for some reason we get double the value, for now take the proper one.
-        auto leading_offset = strides[0]; //for some reason we get double the value, for now take the proper one.
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
+        
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
         else
-//            toBuild->data->data_index = tensorBufferIt->getOffset();
-            toBuild->data->data_index = (*masterBuffer)->getOffset();
+        {
+            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution() 
+            // are calculated from the smallest address of the input tenor to the ImplicitUnion operation
+            // Here we have to ensure that the data_index of this tensor is the same smallest address otherwise the SEPs
+            // offsets will point to the wrong location 
+            auto parentOp = om.getSourceOp(t);
+            if(parentOp->getOpType() == "ImplicitJoin")
+            {
+                auto numberInputs = parentOp.inputsSize();
+                auto minBaseAddress = parentOp->getInputTensor(0)->getAddress();
+                for (size_t i=1; i < numberInputs; i++)
+                {
+                    auto address = parentOp->getInputTensor(i)->getAddress();
+                    if (address < minBaseAddress)
+                    minBaseAddress = address;
+                }
+                toBuild->data->data_index = minBaseAddress;
+            }
+            else
+                //toBuild->data->data_index = tensorBufferIt->getOffset();
+                toBuild->data->data_index = (*masterBuffer)->getOffset();
+        }
 
-        toBuild->data->data_index += leading_offset;
+
+        if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+        {
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamId"))
+                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+        }
+        else
+            toBuild->data->data_index += leading_offset;
 
         if(t->isSparse())
         {
@@ -279,6 +341,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             else
                 toBuild->data->storage_element_index = 0;
         }
+
     }
     toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
     toBuild->data_dtype = convertDtype(t->getDType());
@@ -319,7 +382,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Element&, mv::Data::TensorIterator s, mv::Data::TensorIterator d, unsigned clusterId, std::unique_ptr<MVCNN::TensorReferenceT>& tensorT, const std::string& allocatorName)
 {
     mv::DataModel dm(cm);
-    mv::OpModel om(cm);
 
     auto tensorAllocators = s->get<std::set<std::string>>("allocators");
 
@@ -334,7 +396,6 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     // Shape is always of the subtensor
     // If the tensor is broadcasted, then the shape of the subtensor is equal to the shape of the master tensor
     // if not, the subtensor shape is adjusted accordingly
-    std::vector<uint32_t> dimensions = subtensor.getShape();
 
     // Strides are computed depending on the memory location
     // Since subtensors are split only in CMX
@@ -420,7 +481,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
-            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap"))
+            if(t->get<std::string>("splitStrategy") == "SplitOverK" && !t->hasAttr("weightTable") && !t->hasAttr("sparsityMap")
+               && !t->hasAttr("dilatedSubConvSM") && !t->hasAttr("dilatedSubConvSE"))
             {
                 unsigned graphfileIndex = subtensor.get<unsigned>("graphFileIndex");
                 toBuild->locale_index = std::vector<unsigned int>(1);
@@ -1032,7 +1094,6 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 {
     mv::DataModel dm(cm);
     mv::OpModel om(cm);
-    mv::ControlModel controlM(cm);
 
     auto direction = opIt->get<mv::DmaDirection>("direction");
     auto globalConfigParams = cm.getGlobalConfigParams();
@@ -1478,8 +1539,12 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
+    if ((opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") &&
+            opIt->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
@@ -1622,9 +1687,13 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             break;
     }
 
-    if (opIt->hasAttr("activationSparsityCompilerSolving")
-        && opIt->get<bool>("activationSparsityCompilerSolving"))
-        adaptFakeSparsityIndex(toBuild, opIt, clusterId);
+    if ((opIt->hasAttr("activationSparsityCompilerSolving")
+        && opIt->get<bool>("activationSparsityCompilerSolving")) ||
+            (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
+            (opIt->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") &&
+            opIt->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
+        adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
     if(opIt->hasAttr("needsODUoffset"))
@@ -2991,7 +3060,9 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // Fake Sparsity maps also have UInt8 dType
             else if(tIt->hasAttr("splitStrategy") && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
             {
-                if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                //if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
+                if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap")
+                    && !tIt->hasAttr("dilatedSubConvSM") && !tIt->hasAttr("dilatedSubConvSE"))
                     for(std::size_t i = 0; i < numClusters; ++i)
                         toSort.push_back(&(tIt->getSubTensor(i)));
                 else

@@ -116,8 +116,6 @@ namespace mv
                 outputs.push_back(mv::Tensor(":0", outputShape, dTypeToUse, data->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
 
         };
-
-
     }
 
     namespace op
@@ -147,7 +145,6 @@ namespace mv
             .setInputCheck(op_conv::inputCheckFcn)
             .setOutputDef(op_conv::outputDefFcn)
             .setTypeTrait({"executable"});
-
     }
 
 }

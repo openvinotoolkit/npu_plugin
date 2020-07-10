@@ -592,6 +592,17 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             // Strategies have to be adjusted...
                             outputTensor->set<std::string>("splitStrategy", opStrategy);
                             inputTensor->set<std::string>("splitStrategy", opStrategy);
+
+                            // Store SoH splits before cleaning subtensors
+                            auto splitShapes = std::vector<mv::Shape>();
+                            if (possibleCombination == SoHToClustering)
+                            {
+                                for (auto i=0; i<numClusters; ++i)
+                                {
+                                    splitShapes.push_back(inputTensor->getSubTensor(i).getShape());
+                                }
+                            }
+
                             inputTensor->cleanSubtensors();
                             outputTensor->cleanSubtensors();
                             if ((possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH))
@@ -600,6 +611,19 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                 inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
                             // ... and splitting has to be done again!!! <- Price for efficiency
                             subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
+
+                            if (inputTensor->hasAttr("overwriteStrategy") && inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
+                            {
+                                // Update Clustering H-axis offsets based on SoH splits
+                                auto leading_offset = 0;
+                                for (auto i=0; i<numClusters; ++i)
+                                {
+                                    auto offset = inputTensor->getSubTensor(i).get<std::vector<std::size_t>>("offset");
+                                    offset[mv::IO_HEIGHT_DIMENSION] = leading_offset;
+                                    inputTensor->getSubTensor(i).set<std::vector<std::size_t>>("offset", offset);
+                                    leading_offset += splitShapes[i][mv::IO_HEIGHT_DIMENSION];
+                                }
+                            }
                         }
                     }
                 }

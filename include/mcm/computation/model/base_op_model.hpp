@@ -160,14 +160,11 @@ namespace mv
         virtual std::string getLogID() const override;
 
     };
-    
 
-    
-    void GenerateDotFromModel(mv::ComputationModel& model,
-          const std::string& outputScope /*OpModel, ControlModel etc.*/,
-          const std::string& outputFile,
-          const std::string& contentLevel="full", bool htmlLike=true,
-          bool verbose=false);
+   void GenerateDotFromModel(mv::ComputationModel& model,
+       const std::string& outputScope, const std::string& outputFile,
+       const std::string& contentLevel="full", bool htmlLike=true, bool verbose=false, bool reduced=false,
+       const std::string& startingOpName="nodeA", const std::string& finishingOpName="nodeB");
 
 }
 

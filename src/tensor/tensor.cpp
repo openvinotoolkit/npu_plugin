@@ -720,7 +720,7 @@ std::vector<mv::DataElement> mv::Tensor::getData()
 
     std::vector<std::size_t> sub(shape_.ndims());
     auto temp_dataTotal = data_.size()*blockSize_;
-
+    temp_dataTotal = shape_.totalSize();
     for (std::size_t i = 0; i < temp_dataTotal; ++i)
     {
         auto t = i/blockSize_;
@@ -1231,12 +1231,13 @@ std::size_t mv::Tensor::getClusterSize(unsigned int alignment, bool isBase) cons
 }
 
 std::size_t mv::Tensor::computeTotalSize(unsigned int alignment, bool isBase, bool fatherTensorAligned
-                                         , bool graphOptimizer) const
+                                         , bool graphOptimizer, bool dilation) const
 {
     std::size_t res;
 
     auto shape = getShape();
-
+    if (dilation)
+        shape = get<mv::Shape>("originalShape");
     //use shape of master
     if (!isBase && hasAttr("master"))
     {
@@ -1345,6 +1346,10 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
                 subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
+            if (hasAttr("overwriteStrategy") && get<std::string>("overwriteStrategy") == "SoHToClustering") {
+                std::vector<std::size_t> offset(numClusters, 0);
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+            }
         }
         set<bool>("broadcasted", (clustering && (numClusters > 1)));
     }
