@@ -285,11 +285,12 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
                         dtype,
                         quantParams,
                         name + "dilatedjoin");
-                    for (unsigned j = 0; j < opsToLink.size(); ++j)
-                    {
-                        opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
-                        om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
-                    }
+                    if (!needSparse2SparseOp)
+                        for (unsigned j = 0; j < opsToLink.size(); ++j)
+                        {
+                            opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                            om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                        }
                 }
                 om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
 
