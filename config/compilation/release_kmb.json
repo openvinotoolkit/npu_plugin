@@ -110,7 +110,6 @@
             "PreprocessForPWL",
             "CheckPWLForRequantize",
             "ConvDilationUsingStorageElement",
-            "AddPermutesToChangeSoftmaxAxis",
             "HandleGroupConvolution",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
