@@ -100,7 +100,7 @@ TEST_F(vpuLayersTests, remoteCtxNV12) {
 
     const ParamMap ctxParams = {};
     InferenceEngine::Core ie;
-    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", ctxParams);
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext("KMB", ctxParams);
 
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
@@ -226,7 +226,7 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
 
     const ParamMap ctxParams = {};
     InferenceEngine::Core ie;
-    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", ctxParams);
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext("KMB", ctxParams);
 
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
