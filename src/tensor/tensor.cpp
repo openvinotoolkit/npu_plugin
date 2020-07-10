@@ -1346,6 +1346,10 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
                 subTensors_[idx]->set<mv::QuantizationParams>("quantizationParams", get<mv::QuantizationParams>("quantizationParams"));
             if (isSparse())
                 subTensors_[idx]->setSparse();
+            if (hasAttr("overwriteStrategy") && get<std::string>("overwriteStrategy") == "SoHToClustering") {
+                std::vector<std::size_t> offset(numClusters, 0);
+                subTensors_[idx]->set<std::vector<std::size_t>>("offset", offset);
+            }
         }
         set<bool>("broadcasted", (clustering && (numClusters > 1)));
     }
