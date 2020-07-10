@@ -26,7 +26,8 @@ namespace mv
     }
 
 }
-
+namespace mv
+{
 void GenerateDotFromModel(mv::ComputationModel& model, 
     const std::string& outputScope, const std::string& outputFile,
     const std::string& contentLevel, bool htmlLike, bool verbose, bool reduced,
@@ -395,8 +396,7 @@ void GenerateDotFromModel(mv::ComputationModel& model,
     ostream << "}\n";
     ostream.close();
 }
-
-
+}
 
 void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
@@ -434,7 +434,7 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
         finishingOpName = passDesc.get<std::string>("finishingOpName");
     }
     std::string outputFile = passDesc.get<std::string>("output");
-    GenerateDotFromModel(model, outputScope, outputFile,
+    mv::GenerateDotFromModel(model, outputScope, outputFile,
           contentLevel, htmlLike, verbose, reduced, startingOpName, finishingOpName);
 
 }
