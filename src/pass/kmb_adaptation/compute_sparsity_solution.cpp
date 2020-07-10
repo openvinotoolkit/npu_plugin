@@ -31,7 +31,6 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
-
     auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
 
     if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))
@@ -46,31 +45,50 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
-    for (auto opList : opsMap)
-    {
-        for (auto op : opList.second)
-        {
+    // A0 FP16 input sparsity requirements
+    for (auto opList : opsMap) {
+        for (auto op : opList.second) {
+
             bool solvedByMixedConversion = op->hasAttr("placeConversionToFloat") &&
                 op->get<bool>("placeConversionToFloat") &&
                 op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
                 mv::Tensor::MemoryLocation("NNCMX");
 
-            if (op->hasAttr("floatPrecision") &&
+            if (referenceDevice == "A0" &&
+                op->hasAttr("floatPrecision") &&
                 op->get<bool>("floatPrecision") &&
-                referenceDevice == "A0" &&
+                (!op->hasAttr("inputActivationSparsity") ||
+                !op->get<bool>("inputActivationSparsity")) &&
                 !solvedByMixedConversion)
             {
                 op->set<bool>("activationSparsityCompilerSolving", true);
-                op->set<bool>("inputActivationSparsity", true);
             }
-            if (opList.first == "Conv")
-            {
-                if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
-                {
-                    if ((!op->hasAttr("slicedInput3DDMA")) || (!op->get<bool>("slicedInput3DDMA")))
-                        op->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
-                }
-            }
+        }
+    }
+
+    // A0 ZM Conv SOH input sparsity requirements
+    for (auto convOp : opsMap["Conv"])
+    {
+        if (referenceDevice == "A0" &&
+            convOp->hasAttr("splitStrategy") &&
+            convOp->get<std::string>("splitStrategy") == "SplitOverH" &&
+            (convOp->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] > 1 ||
+            convOp->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] > 1) &&
+            (!convOp->hasAttr("inputActivationSparsity") ||
+            !convOp->get<bool>("inputActivationSparsity")))
+        {
+            convOp->set<bool>("activationSparsityCompilerSolving", true);
+        }
+    }
+
+    // Dilated convolution preocessing optimization requiring sparsity
+    for (auto convOp : opsMap["Conv"])
+    {
+        if (convOp->hasAttr("DilatedSubConv") && convOp->get<bool>("DilatedSubConv") &&
+            !(convOp->hasAttr("slicedInput3DDMA") && convOp->get<bool>("slicedInput3DDMA")))
+        {
+            convOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
+            convOp->set<bool>("inputActivationSparsityForDilatedConv", true);
         }
     }
 }

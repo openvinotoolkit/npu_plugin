@@ -345,39 +345,28 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string refere
 
 bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
 {
-    auto source = flow.source();
-    auto sink = flow.sink();
-    auto tensor = flow->getTensor();
-
-    if(!tensor->isPopulated())
-    {
-        if((sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
-                (source->hasAttr("mixedToFloat") && source->get<bool>("mixedToFloat")) &&
-                (sink->hasAttr("activationSparsityCompilerSolving")
-                 && sink->get<bool>("activationSparsityCompilerSolving")))
+    if(!flow->getTensor()->isPopulated() &&
+        flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolving"))
            return true;
-        if((source->hasAttr("floatPrecision") && source->get<bool>("floatPrecision")) &&
-                (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
-                (sink->hasAttr("activationSparsityCompilerSolving")
-                 && sink->get<bool>("activationSparsityCompilerSolving")))
-           return true;
-    }
     return false;
 }
 
-// Result of chat with Alessandro:
-// An activation tensor can be sparse if and only if
-// 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
-// 2) It is the input of a ZMajorConv or Eltwise(Only layers that supports IDU)
+// In VPU2 only sparse consumers are ZMajorConv and Eltwise
+// Activation tensor sparsity can be solved:
+// a) either by runtime with proper sparsity generation
+// for ther below cases:
+//      i) It is an output of a DPUTask.
+//          (ODU populates storage element and sparsity map).
+//      ii) Limitation in handling sparisty arise for the parent sparse out op cases:
+//          SplitOverK, StreamOverK, workload KTiling
+// b) or by compiler generated dummy sparse data (all 1's sparse map)
+// in which case we no longer have the restrictions for the runtime generated sparsity
+// (parent task is dpuTask and not K segmentable)
 
 // An activation tensor MUST be sparse if it's:
-// 1) SplitOverH
-// 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
-// 3) In KMB-A0 float DPU task means that needs to consume sparse tensors.
-
-// In the future, these two conditions could change. We have to sync with runtime.
-
-// Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
+// 1) SplitOverH ZMajorConvolution with kernel > 1 (A0 HW bug)
+// 2) Float ZMajorConvolution and Eltwise DPU task (A0 HW bug)
 
 static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -413,13 +402,9 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow, referenceDevice))
-            {
-                tensorNeedsSparsity = true;
-                break;
-            }
-            else if (flow.sink()->isSparsityConsumer() &&
-                checkA0FloatSparsityBug(flow, referenceDevice) &&
+            if (flow.sink()->isSparsityConsumer() &&
+                (checkA0SOHSparsityBug(flow, referenceDevice) ||
+                checkA0FloatSparsityBug(flow, referenceDevice)) &&
                 !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
@@ -436,7 +421,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv")
+               !sink->isSparsityConsumer())
             {
                 tensorSparsifiable = false;
                 break;
