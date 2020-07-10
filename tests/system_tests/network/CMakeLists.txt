@@ -8,5 +8,6 @@ if (MSVC)
 else()
 
     add_subdirectory(mobilenetv2_fp16)
+    add_subdirectory(resnet50_fp16)
 
 endif(MSVC)
