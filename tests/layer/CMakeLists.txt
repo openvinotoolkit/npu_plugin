@@ -108,8 +108,8 @@ else()
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
 
-    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
-    target_link_libraries(conv_dilated cm)
+    #add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    #target_link_libraries(conv_dilated cm)
 
     add_executable(conv_dilated_icv_full_ones conv_dilated_icv_full_ones/conv_dilated_icv_full_ones.cpp)
     target_link_libraries(conv_dilated_icv_full_ones cm)
