@@ -36,16 +36,17 @@
 #include <mvMacros.h>
 #include <xlink_uapi.h>
 #endif
+
 #include <kmb_config.h>
 
-#include <vpux_compiler.hpp>
+#include <vpux.hpp>
 
 #include "kmb_allocator.h"
 
 namespace vpu {
 namespace KmbPlugin {
 
-class KmbExecutor {
+class KmbExecutor : public vpux::Executor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
@@ -53,15 +54,16 @@ public:
     KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
         const KmbConfig& config);
 
-    virtual void queueInference(void* input_data, size_t input_bytes);
+    void push(const InferenceEngine::BlobMap& inputs) override;
+    void pull(InferenceEngine::BlobMap& outputs) override;
+    // TODO: not implemented
+    void setup(const InferenceEngine::ParamMap& params) override;
+    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) override;
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
+    InferenceEngine::Parameter getParameter(const std::string& paramName) override;
 
-    virtual void getResult(void* result_data, unsigned int result_bytes);
-
-    virtual const vpux::DataMap& getDeviceInputs() const { return _networkDescription->getDeviceInputsInfo(); }
-    virtual const vpux::DataMap& getDeviceOutputs() const { return _networkDescription->getDeviceOutputsInfo(); }
-
+    // TODO: not presented in Executor interface
     static std::vector<std::string> getAvailableDevices();
-    KmbAllocator::Ptr getKmbAllocator() const { return _allocator; }
 
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
@@ -81,7 +83,6 @@ private:
     std::shared_ptr<NNFlicPlg> nnPl;
 
     void* blob_file = nullptr;
-    void* rgnAllocatorBuffer = nullptr;
     std::shared_ptr<BlobHandle_t> BHandle;
 
     std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
@@ -92,10 +93,22 @@ private:
     void initVpualObjects();
     void allocateGraph(const std::vector<char>& compiledNetwork);
     void deallocateGraph();
-    const int xlinkChannel = 0;
 
-    uint32_t* _inferenceVirtAddr;
+    InferenceEngine::Blob::Ptr prepareInputForInference(
+        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc);
+    uint32_t extractPhysAddrForInference(const InferenceEngine::BlobMap& inputs);
+
+    InferenceEngine::BlobMap extractOutputsFromPhysAddr(uint32_t physAddr);
+    void repackDeviceOutputsToNetworkOutputs(
+        const InferenceEngine ::BlobMap& deviceOutputs, InferenceEngine::BlobMap& networkOutputs);
+
     std::vector<void*> _scratchBuffers;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
+
+    // _inferenceId is used to satisfy VPUAL API which requires to pass some id for each inference
+    // there are no contraints on a value passed, so we pass id=1 each inference
+    std::unique_ptr<uint32_t, std::function<void(uint32_t*)>> _inferenceId;
 };
 
 }  // namespace KmbPlugin

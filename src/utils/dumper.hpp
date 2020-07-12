@@ -21,19 +21,11 @@
 
 #include <vpu/utils/logger.hpp>
 
-namespace vpu {
-
-namespace KmbPlugin {
-
 namespace utils {
 
-void dumpBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst, const Logger::Ptr& _logger,
-    const std::string& blobType);
+void dumpBlobHelper(const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst,
+    const vpu::Logger::Ptr& _logger, const std::string& blobType);
 void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPath, const std::string& blobType,
-    const Logger::Ptr& logger);
+    const vpu::Logger::Ptr& logger);
 
 }  // namespace utils
-
-}  // namespace KmbPlugin
-
-}  // namespace vpu

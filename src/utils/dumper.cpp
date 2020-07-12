@@ -18,13 +18,9 @@
 
 #include <fstream>
 
-namespace vpu {
-
-namespace KmbPlugin {
-
 namespace utils {
 
-void dumpBlobHelper(const InferenceEngine::Blob::Ptr& blobPtr, const std::string& dst, const Logger::Ptr& logger,
+void dumpBlobHelper(const InferenceEngine::Blob::Ptr& blobPtr, const std::string& dst, const vpu::Logger::Ptr& logger,
     const std::string& blobType) {
     static unsigned dumpCounter = 0;
     std::ostringstream inputFullPath;
@@ -43,7 +39,7 @@ void dumpBlobHelper(const InferenceEngine::Blob::Ptr& blobPtr, const std::string
 }
 
 void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPath, const std::string& blobType,
-    const Logger::Ptr& logger) {
+    const vpu::Logger::Ptr& logger) {
     if (dstPath.empty()) {
         logger->warning("dumpBlobs: destination path is not set.");
         return;
@@ -54,7 +50,3 @@ void dumpBlobs(const InferenceEngine::BlobMap& blobMap, const std::string& dstPa
 }
 
 }  // namespace utils
-
-}  // namespace KmbPlugin
-
-}  // namespace vpu

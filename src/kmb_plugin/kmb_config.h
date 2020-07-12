@@ -26,8 +26,6 @@
 namespace vpu {
 namespace KmbPlugin {
 
-namespace ie = InferenceEngine;
-
 // FIXME: Stop using MCMConfig to avoid dependency from mcm compiler
 // Use vpux::VPUXConfig instead
 class KmbConfig final : public MCMConfig {
@@ -47,7 +45,7 @@ public:
     // FIXME: drop SIPP from the method name
     InferenceEngine::ColorFormat outColorFmtSIPP() { return _outColorFmtSIPP; }
 
-    bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
+    bool forceNCHWToNHWC() const { return _forceNCHWToNHWC; }
 
     bool useSIPP() const { return _useSIPP; }
 
@@ -88,17 +86,6 @@ private:
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
     std::string _deviceId = "VPU-0";
-
-private:
-    static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
-        if (src == "RGB") {
-            return ie::ColorFormat::RGB;
-        } else if (src == "BGR") {
-            return ie::ColorFormat::BGR;
-        } else {
-            THROW_IE_EXCEPTION << "Unsupported color format is passed.";
-        }
-    }
 };
 
 }  // namespace KmbPlugin

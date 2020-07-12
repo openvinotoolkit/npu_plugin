@@ -44,19 +44,21 @@ public:
 
 class Executor {
 public:
-    virtual void setup(const InferenceEngine::ParamMap params = {}) = 0;
+    virtual void setup(const InferenceEngine::ParamMap& params = {}) = 0;
 
     virtual void push(const InferenceEngine::BlobMap& inputs) = 0;
     virtual void pull(InferenceEngine::BlobMap& outputs) = 0;
 
     virtual bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) = 0;
     virtual std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() = 0;
-    virtual InferenceEngine::Parameter getParameter(const std::string paramName) = 0;
+    virtual InferenceEngine::Parameter getParameter(const std::string& paramName) = 0;
+
+    virtual ~Executor() = default;
 };
 
 class SubPluginManager {
 public:
-    std::shared_ptr<SubPlugin> findSubPlugin(const InferenceEngine::ParamMap params = {});
+    std::shared_ptr<SubPlugin> findSubPlugin(const InferenceEngine::ParamMap& params = {});
 
 private:
     SubPluginManager();

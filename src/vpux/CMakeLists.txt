@@ -39,6 +39,14 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME} PUBLIC  IE::inference_engine
                                      PRIVATE IE::vpu_common_lib)
 
+if(UNIX)
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            -Wall
+            -Werror
+            -Wextra)
+endif()
+
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
