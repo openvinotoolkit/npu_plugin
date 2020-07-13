@@ -272,7 +272,8 @@ void propagateParameters(mv::ComputationModel& model) {
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Interp" || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Deconv") { 
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
