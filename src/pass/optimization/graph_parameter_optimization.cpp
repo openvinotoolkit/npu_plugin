@@ -1090,7 +1090,7 @@ namespace mv
 
                 //Special rules for Channel Major Convolutions
                 //No need for SOHOverlapped input unless using channel major
-                if(!isChanMajor && clustering == "SplitOverHOverlapped")
+                if(!enableChannelMajorConv && clustering == "SplitOverHOverlapped")
                     return FailCause::ChannelMjr1;
 
                 if(isChanMajor && clustering == "SplitOverH" && streamShape["H"] > 1)
