@@ -43,6 +43,14 @@ const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string FILE_BLOB_NAME        = "mcm.blob";
 
 
+std::string getExtension(std::string& path)
+{
+    std::string::size_type const p(path.find_last_of('.'));
+    std::string file_extension = path.substr(p+1);
+
+    return file_extension;
+}
+
 bool ParseAndCheckCommandLine(int argc, char *argv[])
 {
     gflags::ParseCommandLineNonHelpFlags(&argc, &argv, true);
@@ -78,14 +86,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     }
 
     return true;
-}
-
-std::string getExtension(std::string& path)
-{
-    std::string::size_type const p(path.find_last_of('.'));
-    std::string file_extension = path.substr(p+1);
-
-    return file_extension;
 }
 
 std::string getFilename(std::string& path)
