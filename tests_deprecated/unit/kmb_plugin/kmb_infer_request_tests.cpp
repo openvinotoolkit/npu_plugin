@@ -104,6 +104,7 @@ public:
 // [Track number: S#28136]
 #if defined(__arm__) || defined(__aarch64__)
 
+constexpr int DEFAULT_DEVICE_ID = 0;
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
     InferenceEngine::InputsDataMap _inputs;
@@ -132,14 +133,14 @@ protected:
 
         ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
 
-        auto blob = ie::make_shared_blob<uint8_t>(desc, getKmbAllocator());
+        auto blob = ie::make_shared_blob<uint8_t>(desc, getKmbAllocator(DEFAULT_DEVICE_ID));
         blob->allocate();
 
         return blob;
     }
 
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
-        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width * 3 / 2));
+        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator(DEFAULT_DEVICE_ID)->alloc(height * width * 3 / 2));
         return NV12Blob_Creator::createFromMemory(width, height, nv12Data);
     }
 
@@ -147,8 +148,8 @@ protected:
         // nv12Data can be allocated in two different ways in the tests below
         // that why we need to branches to handle removing of memory
         if (nv12Data != nullptr) {
-            if (getKmbAllocator()->isValidPtr(nv12Data)) {
-                getKmbAllocator()->free(nv12Data);
+            if (getKmbAllocator(DEFAULT_DEVICE_ID)->isValidPtr(nv12Data)) {
+                getKmbAllocator(DEFAULT_DEVICE_ID)->free(nv12Data);
             }
         }
     }

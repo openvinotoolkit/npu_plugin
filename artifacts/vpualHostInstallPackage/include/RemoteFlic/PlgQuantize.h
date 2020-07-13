@@ -33,7 +33,7 @@ class PlgQuantize : public PluginStub
 
   public:
     /** Constructor. */
-    PlgQuantize() : PluginStub("PlgQuantize"){};
+    PlgQuantize(uint32_t device_id) : PluginStub("PlgQuantize", device_id), out{device_id}{};
 
     /** Create method. */
     void Create();

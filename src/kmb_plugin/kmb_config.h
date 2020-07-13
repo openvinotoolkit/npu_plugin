@@ -47,9 +47,9 @@ public:
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
 
-    bool useSIPP() const { return _useSIPP; }
+    int VPUSMMSliceIdx() const { return _VPUSMMSliceIdx; }
 
-    bool useM2I() const { return _useM2I; }
+    bool useSIPP() const { return _useSIPP; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -81,10 +81,6 @@ private:
     // tracking number: h#18011604382
     bool _useSIPP = true;
 
-    // FIXME: Likely has to be true by default as well.
-    // NB.: Currently applies to the detection use-case only
-    bool _useM2I = false;
-
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
         if (src == "RGB") {
@@ -95,6 +91,7 @@ private:
             THROW_IE_EXCEPTION << "Unsupported color format is passed.";
         }
     }
+    int _VPUSMMSliceIdx = 0;
 };
 
 }  // namespace KmbPlugin

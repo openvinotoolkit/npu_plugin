@@ -21,7 +21,7 @@ class PlgM2I : public PluginStub
     MSender<vpum2i::M2IObj> out;
 
     /** Constructor. */
-    PlgM2I() : PluginStub("PlgM2I"){};
+    PlgM2I(uint32_t device_id) : PluginStub("PlgM2I", device_id), out{device_id} {};
 
     /** Create method. */
     int Create();

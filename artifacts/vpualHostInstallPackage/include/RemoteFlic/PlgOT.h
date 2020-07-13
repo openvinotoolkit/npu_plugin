@@ -24,7 +24,7 @@
 
 class PlgOT : public PluginStub{
   public:
-    PlgOT() : PluginStub("PlgOT") {}
+    PlgOT(uint32_t device_id) : PluginStub("PlgOT", device_id), out{device_id} {}
 
     SReceiver<ImgFramePtr> in0;
     SReceiver<vpuot::DetectedObjects> in1;

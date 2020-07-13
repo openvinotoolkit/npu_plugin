@@ -24,20 +24,24 @@
 
 /** Ensure the correct resources are opened/closed when needed. */
 class VpualDispatcherResource {
+  private:
+    uint32_t device_id;
   public:
-    VpualDispatcherResource ();
+    VpualDispatcherResource (uint32_t device_id);
     ~VpualDispatcherResource ();
 };
 
 /** Initialise the dispatcher if uninitialised. */
-VpualDispatcherResource& initVpualDispatcherResource();
+VpualDispatcherResource& initVpualDispatcherResource(uint32_t device_id);
 
 /**
  * Get the XLink device handle for VPUAL dispatcher.
  *
+ * @param[uint32_t] device_id Slice for which to retrieve XLink device handle.
+ *
  * @return - XLink device handle.
  */
-xlink_handle getXlinkDeviceHandle();
+xlink_handle getXlinkDeviceHandle(uint32_t device_id);
 
 /**
  * Base class for all Stubs.
@@ -47,6 +51,9 @@ xlink_handle getXlinkDeviceHandle();
  */
 class VpualStub
 {
+  private:
+    uint32_t device_id;
+    uint32_t channel;
     // protected: // TODO, should really be protected, some child classes should then be listed as "friends" of each other
   public:
     uint32_t stubID; /*< ID of the stub and matching decoder. */
@@ -62,7 +69,7 @@ class VpualStub
 	 *
 	 * @param type the string name of the decoder type to create.
 	 */
-    VpualStub(std::string type);
+    VpualStub(std::string type, uint32_t device_id);
 
     /**
 	 * Destructor.
@@ -80,6 +87,12 @@ class VpualStub
      */
     // TODO[OB] - Is it alright to call this method const?
     void VpualDispatch(const VpualMessage *const cmd, VpualMessage *rep) const;
+        /**
+     * Get device ID.
+     *
+     * @return device_id
+     */
+    uint32_t getDeviceId() const;
 };
 
 // TODO dummy types for now. May never need real type, but might be nice to have.

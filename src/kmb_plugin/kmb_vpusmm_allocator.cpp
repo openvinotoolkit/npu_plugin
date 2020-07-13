@@ -35,9 +35,9 @@ void* KmbVpusmmAllocator::alloc(size_t size) noexcept {
         realSize = pageSize * 2;
     }
 
-    auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
+    auto fd = vpurm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT, _sliceIdx);
 
-    auto physAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
+    auto physAddr = vpurm_import_dmabuf(fd, VPU_DEFAULT, _sliceIdx);
 
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
@@ -66,7 +66,7 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 
     auto memoryDesc = memoryIt->second;
 
-    vpusmm_unimport_dmabuf(memoryDesc.fd);
+    vpurm_unimport_dmabuf(memoryDesc.fd, _sliceIdx);
 
     auto out = munmap(handle, memoryDesc.size);
     if (out == -1) {
@@ -85,7 +85,7 @@ bool KmbVpusmmAllocator::free(void* handle) noexcept {
 
 unsigned long KmbVpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    return vpusmm_ptr_to_vpu(handle);
+    return vpurm_ptr_to_vpu(handle, _sliceIdx);
 #else
     UNUSED(handle);
     return 0;
@@ -94,7 +94,7 @@ unsigned long KmbVpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
 
 bool KmbVpusmmAllocator::isValidPtr(void* ptr) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
+    return ptr != nullptr && vpurm_ptr_to_vpu(ptr, _sliceIdx) != 0;
 #else
     UNUSED(ptr);
     return false;

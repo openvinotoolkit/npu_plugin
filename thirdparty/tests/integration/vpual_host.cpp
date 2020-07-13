@@ -392,8 +392,8 @@ static void freeTensor(DevicePtr paddr) {
 }
 
 template<>
-XPool<TensorMsg>::XPool()
-  : PluginStub("XPoolTensorMsg") {
+XPool<TensorMsg>::XPool(uint32_t deviceId)
+  : PluginStub("XPoolTensorMsg", deviceId), out(deviceId) {
     std::cout << "XPool constructor is called" << std::endl;
 }
 
@@ -505,7 +505,8 @@ TEST_P(kmbVPUALAllocTests, xPoolTest) {
     NNFlicPlg nnPl;
 
     // Pool plugins (to allocate memory for the plugins which require some):
-    XPool<TensorMsg> xPool;
+    constexpr uint32_t device_id = 0;
+    XPool<TensorMsg> xPool(device_id);
 
     // FLIC Pipeline:
     Pipeline pipe;
