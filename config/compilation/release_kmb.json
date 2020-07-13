@@ -15,7 +15,7 @@
                 "WorkloadCost": 300,
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
-                "cmx": 917504,
+                "cmx": 919300,
                 "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
