@@ -378,3 +378,17 @@ public:
             float boxTolerance, float probTolerance,
             bool isTiny);
 };
+
+//
+// KmbSegmentationNetworkTest
+//
+
+class KmbSegmentationNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const long& firstLabel,
+            const long& lastLabel,
+            const float& meanIntersectionOverUnionTolerance);
+};
