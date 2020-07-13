@@ -1409,12 +1409,12 @@ namespace mv
                 bool childInputSparsity = child["inputSparsity"].get<bool>();
 
                 // Sparsity must match
-                if((parentOutputSparsity != childInputSparsity) && (parentOp.getOpType() != "Input"))
-                {
+                if(parentOutputSparsity != childInputSparsity) {
                     if( !(requiresCompilerActivationSparsity(childOp) and !parentOutputSparsity) ){
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
-                           return INF;
+                        return INF;
+                    }
                 }
 
                 if(parent["spilling"].get<bool>()){
@@ -1681,7 +1681,8 @@ namespace mv
                 }
 
                 //TODO:: replace nested loops with clean cartesian product function
-                for( const auto concat : concatPool){
+                for( const auto concat : concatPool)
+                {
                 for( const auto spilling : spillingPool)
                 {
                     for( const auto clustering : clusteringStrategyPool)
@@ -1756,8 +1757,6 @@ namespace mv
                             // for each possible stream over K, a single stream over H option that fits is chosen
                         }
 
-                    // for(unsigned n = 1; n <= maxSplitOverN; n++)
-                    // {
                         for(const auto k : streamsOverK)
                         {
                             if(enableNestedStreaming) // generate h on the fly
@@ -1803,12 +1802,14 @@ namespace mv
 
                                     strategyVec.push_back(s);
                                 }
-                            }}
                             }
+                        }
+
+                        }
                         }
                     }
                 }
-				}
+                }
                 if(strategyVec.empty())
                     throw LogicError(*this,"No strategies created for layer " + op.getName() + ". Layer possibly unsupported.");
             }
