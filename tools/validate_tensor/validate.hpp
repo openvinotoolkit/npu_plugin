@@ -45,6 +45,9 @@ static const char mode_message[] = "Optional. Runs all, but can just run validat
 /// @brief message for color order
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
 
+/// @brief message for help argument
+static const char emu_message[] = "Optional. Compare hardware results against this file, from emulator.";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -74,7 +77,7 @@ DEFINE_string(m, "", model_message);
 /// It is a required parameter
 DEFINE_string(i, "", image_message);
 
-/// @brief Define parameter for set input image <br>
+/// @brief Define parameter for evm to use <br>
 /// It is a required parameter
 DEFINE_string(k, "", evm_message);
 
@@ -84,6 +87,10 @@ DEFINE_string(mode, "all", mode_message);
 /// @brief Define parameter for color <br>
 /// It is an optional parameter
 DEFINE_bool(r, false, rgb_message);
+
+/// @brief Define parameter for emulator results file <br>
+/// Optional parameter - but must have an input image
+DEFINE_string(emu, "", emu_message);
 
 /**
 * @brief This function show a help message
@@ -98,9 +105,10 @@ static void showUsage() {
     std::cout << "    -k <ip address>     " << evm_message << std::endl;
     std::cout << "    -i <path>           " << image_message << std::endl;
     std::cout << "    -t <float>          " << tolerence_message << std::endl;
+    std::cout << "    --emu <path>        " << emu_message << std::endl;
     //std::cout << "    -b <path>           " << blob_message << std::endl;
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;
     //std::cout << "    -q true|false         " << quantize_message << std::endl;
-    std::cout << std::endl << "eg, ./validate -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
+    std::cout << std::endl << "eg, ./validate -i ~/cat.jpg -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
 }

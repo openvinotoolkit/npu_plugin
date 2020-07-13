@@ -64,9 +64,17 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     else    //normal operation
     {
         if (FLAGS_m.empty())
-            throw std::logic_error("Parameter -m is not set");
+            throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
-            throw std::logic_error("Parameter -k is not set");
+            throw std::logic_error("Parameter -k <evm ip address> is not set");
+        if (!FLAGS_emu.empty())
+        {   //comparing against emulator results
+            if (FLAGS_i.empty())
+                throw std::logic_error("If setting param --emu for comparison against emulator results file, you must provide -i <path to input binary>");
+            else
+                if ( (getExtension(FLAGS_i) != "bin") || (getExtension(FLAGS_i) != "dat") ) 
+                    throw std::logic_error("If setting param --emu for comparison against emulator results file, -i must be the associated binary input file, not an image");
+        }
     }
 
     return true;
@@ -93,6 +101,14 @@ std::string findBlob(std::string folderPath)
         closedir(dir);
     }
     return blobPath;
+}
+
+std::string getExtension(std::string& path)
+{
+    std::string::size_type const p(path.find_last_of('.'));
+    std::string file_extension = path.substr(p+1);
+
+    return file_extension;
 }
 
 std::string getFilename(std::string& path)
@@ -350,10 +366,14 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     //
     // execute the classification sample async (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
+    // commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
+    //     "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
+
+    // if (! FLAGS_i.empty() )
+    //     commandline += (" -i " + pathImage);
+
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
-        "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
-    if (! FLAGS_i.empty() )
-        commandline += (" -i " + pathImage);
+        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o ./mcm.blob -ip U8 -il NHWC";
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
