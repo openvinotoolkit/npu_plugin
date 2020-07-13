@@ -722,15 +722,15 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     std::map<std::string, std::string> config1;
-    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
-    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
+    config1["VPU_KMB_PREPROCESSING_SHAVES"] = "4";
+    config1["VPU_KMB_PREPROCESSING_LPI"] = "4";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, config1));
 
     InferenceEngine::ExecutableNetwork network2;
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     std::map<std::string, std::string> config2;
-    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
-    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "8";
+    config2["VPU_KMB_PREPROCESSING_SHAVES"] = "2";
+    config2["VPU_KMB_PREPROCESSING_LPI"] = "8";
     ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, config2));
 
     std::cout << "Created networks\n";
@@ -813,18 +813,15 @@ TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "8";
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
+    config["VPU_KMB_PREPROCESSING_SHAVES"] = "8";
+    config["VPU_KMB_PREPROCESSING_LPI"] = "4";
 
     ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
-    importedNetwork.SetConfig(
-        {{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}, {VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "2"}});
-    InferenceEngine::Parameter param1 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES));
-    InferenceEngine::Parameter param2 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI));
-    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES) << "; value: " << param1.as<std::string>()
-              << std::endl;
-    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI) << "; value: " << param2.as<std::string>()
-              << std::endl;
+    importedNetwork.SetConfig({{"VPU_KMB_PREPROCESSING_SHAVES", "6"}, {"VPU_KMB_PREPROCESSING_LPI", "2"}});
+    InferenceEngine::Parameter param1 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_SHAVES");
+    InferenceEngine::Parameter param2 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_LPI");
+    std::cout << "Config key: VPU_KMB_PREPROCESSING_SHAVES; value: " << param1.as<std::string>() << std::endl;
+    std::cout << "Config key: VPU_KMB_PREPROCESSING_LPI; value: " << param2.as<std::string>() << std::endl;
 }
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};

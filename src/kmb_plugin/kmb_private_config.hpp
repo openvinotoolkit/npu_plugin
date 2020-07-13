@@ -44,5 +44,19 @@ DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_SIPP);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 4.
+ * Number of shaves to be used by SIPP during preprocessing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 8.
+ * Lines per iteration value to be used by SIPP during preprocessing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
