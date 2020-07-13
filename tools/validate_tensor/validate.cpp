@@ -40,7 +40,7 @@ const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
 const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
-const std::string DLDT_BLOB_LOCATION    = "release_kmb_with_CM_Conv/release_kmb/";
+const std::string FILE_BLOB_NAME        = "mcm.blob";
 
 
 bool ParseAndCheckCommandLine(int argc, char *argv[])
@@ -78,29 +78,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     }
 
     return true;
-}
-
-std::string findBlob(std::string folderPath)
-{
-    // OpenVino blob is written to locations based on input xml.
-    // Its probably DLDT/bin/intel64/Debug/release_kmb/release_kmb
-    std::string blobPath("");
-    if (auto dir = opendir(folderPath.c_str()))
-    {
-        while (auto f = readdir(dir))
-        {
-            if (!f->d_name || f->d_name[0] == '.')
-                continue;
-
-            if ( strstr( f->d_name, ".blob" ))
-            {
-                blobPath =  f->d_name;
-                break;
-            }
-        }
-        closedir(dir);
-    }
-    return blobPath;
 }
 
 std::string getExtension(std::string& path)
@@ -306,8 +283,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     do
     {   //delete any previous blobs (different names each time)
-        blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
-        std::string fullBlobPath = binFolder + DLDT_BLOB_LOCATION + blobPath;
+        std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
         std::cout << "Removing: " << fullBlobPath << std::endl;
         remove(fullBlobPath.c_str());
     } while (blobPath != "");
@@ -329,7 +305,6 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     {   // single xml provided
         pathXMLvector.push_back( pathXML );
     }
-
 
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
@@ -363,17 +338,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
         return FAIL_CPU_PLUGIN;
 
-    //
-    // execute the classification sample async (KMB-plugin)
+    // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
-    // commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
-    //     "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
-
-    // if (! FLAGS_i.empty() )
-    //     commandline += (" -i " + pathImage);
-
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
-        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o ./mcm.blob -ip U8 -il NHWC";
+        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
@@ -383,13 +351,12 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         return FAIL_ERROR;
     }
 
-    blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
-    if (blobPath == "")
+    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    if (!checkFilesExist( {blobPath} ))
     {
-        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER << DLDT_BLOB_LOCATION << std::endl;
+        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER  << std::endl;
         return FAIL_COMPILER;
     }
-    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION + blobPath;
     return RESULT_SUCCESS;
 }
 
