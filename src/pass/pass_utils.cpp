@@ -145,6 +145,7 @@ mv::Data::OpListIterator mv::linkNewOperationsReplacement(mv::Data::OpListIterat
     return opIt;
 }
 
+
 mv::Data::OpListIterator mv::linkNewMultipleOperationsReplacement(mv::Data::OpListIterator parentOpIt,
                                                       std::vector<mv::Data::TensorIterator> sourceTensors, mv::OpModel om, mv::Data::OpListIterator opIt)
 {

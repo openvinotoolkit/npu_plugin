@@ -79,14 +79,14 @@ namespace mv
 // point result. Lastly we need to shift back to S16.16 which is done via post shift << 4.
 
 template <typename K, typename V, typename H = std::hash<K>>
-using map = std::unordered_map<K, V, H>;
+using pwlmap = std::unordered_map<K, V, H>;
 using pwlFixedQuantEntry = std::vector<mv::QuantizationParams>;
 
 void loadPWLQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&) {
 
     // The preprogrammed hw PWL functions have fixed quantization requirements
     // on input and output of the activation function
-    const map<std::string, map<std::string, pwlFixedQuantEntry>> pwlFixedQuantization =
+    const pwlmap<std::string, pwlmap<std::string, pwlFixedQuantEntry>> pwlFixedQuantization =
     {
     {
         "Sigmoid",

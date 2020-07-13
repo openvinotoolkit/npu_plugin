@@ -619,7 +619,10 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto attrsToCopy = opIt->getAttrs();
             auto inputs = opIt->getInputTensor();
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-
+            auto hasLeadingOffset = opIt->getOutputTensor(0)->hasAttr("leadingOffset");
+            uint64_t leadingOffset = 0;
+            if (hasLeadingOffset)
+                leadingOffset =  opIt->getOutputTensor(0)->get<uint64_t>("leadingOffset");
             auto inputControlFlows = mv::getInputControlFlow(cm, cm.switchContext(opIt));
             auto outputControlFlows = mv::getOutputControlFlow(cm, cm.switchContext(opIt));
             auto outputDataFlows = mv::getOutputDataFlow(om, opIt);
@@ -645,6 +648,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     newTensor->set<mv::DType>("dType", mv::DType("Float16"));
                 else
                     newTensor->set<mv::DType>("dType", mv::DType("UInt8"));
+                if (hasLeadingOffset)
+                    newTensor->set<uint64_t>("leadingOffset", leadingOffset);
             }
             else if (newTensorOp->get<std::string>("taskOp") == "Quantize")
             {

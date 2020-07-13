@@ -1,12 +1,14 @@
 #include "include/mcm/utils/parser/json_text.hpp"
+
+#include <cctype>
 #include <iostream>
 
-const std::map<mv::JSONTextParser::ParserState, std::map<mv::JSONTextParser::JSONSymbol, mv::JSONTextParser::ParserState>> 
-    mv::JSONTextParser::pushdownAutomata_ = 
+const std::map<mv::JSONTextParser::ParserState, std::map<mv::JSONTextParser::JSONSymbol, mv::JSONTextParser::ParserState>>
+    mv::JSONTextParser::pushdownAutomata_ =
 {
-    { 
-        ParserState::Start, 
-        { 
+    {
+        ParserState::Start,
+        {
             { JSONSymbol::LBrace, ParserState::ObjectInit },
             { JSONSymbol::LBracket, ParserState::ArrayInit }
         }
@@ -102,7 +104,12 @@ unsigned mv::JSONTextParser::readStream_()
     inputStream_.read(buffer_, bufferLength_);
     int charsCount = inputStream_.gcount();
     std::string newContent(buffer_, charsCount);
-    newContent.erase(std::remove_if(newContent.begin(), newContent.end(), isspace), newContent.end());
+    newContent.erase(
+        std::remove_if(
+            newContent.begin(),
+            newContent.end(),
+            [](const char c) { return std::isspace(static_cast<unsigned char>(c)); }),
+        newContent.end());
     bufferStr_ += newContent;
     return charsCount;
 }
@@ -112,7 +119,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
 
     while (inputStream_ && bufferStr_.empty())
         readStream_();
-    
+
     if (bufferStr_.empty())
         return {JSONSymbol::EOFSymbol, ""};
 
@@ -173,7 +180,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
             found = content.find_first_of("\\\b\f\n\r\t");
             if (found != std::string::npos)
                 return {JSONSymbol::Invalid, content};
-            
+
             return {JSONSymbol::String, content};
 
         }
@@ -194,11 +201,11 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
             std::regex numEx("-?(?:0|[1-9][[:digit:]]*)(?:\\.[[:digit:]]+)?(?:[eE][+-]?[[:digit:]]+)?");
             std::regex Ex("[,}\\]]");
             std::smatch match;
-            
+
             if (!std::regex_search(bufferStr_, match, numEx))
                 return {JSONSymbol::Invalid, bufferStr_};
 
-            while (bufferStr_.length() <= (unsigned)(match.position(0) + match.length(0)) || 
+            while (bufferStr_.length() <= (unsigned)(match.position(0) + match.length(0)) ||
                 !std::regex_match(bufferStr_.substr((unsigned)(match.position(0) + match.length(0)), 1), Ex))
             {
                 if (inputStream_)
@@ -223,7 +230,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
         case 't':
         case 'f':
         {
-        
+
             std::string keywordStr;
             JSONSymbol keywordSymbol;
 
@@ -248,7 +255,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
             if (!inputStream_ && bufferStr_.length() < keywordStr.length() + 1)
                 return {JSONSymbol::EOFSymbol, ""};
 
-            if (bufferStr_.compare(0, keywordStr.length() + 1, keywordStr) && 
+            if (bufferStr_.compare(0, keywordStr.length() + 1, keywordStr) &&
                 (bufferStr_[keywordStr.length()] == '}' || bufferStr_[keywordStr.length()] == ']' ||
                 bufferStr_[keywordStr.length()] == ','))
             {
@@ -256,7 +263,7 @@ std::pair<mv::JSONTextParser::JSONSymbol, std::string> mv::JSONTextParser::lexer
                 content = bufferStr_.substr(0, keywordStr.length());
                 bufferStr_.erase(0, content.length());
                 return {keywordSymbol, content};
-                
+
             }
 
             return {JSONSymbol::Invalid, ""};

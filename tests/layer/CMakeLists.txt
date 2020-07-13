@@ -108,8 +108,20 @@ else()
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
 
-    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
-    target_link_libraries(conv_dilated cm)
+    #add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    #target_link_libraries(conv_dilated cm)
+
+    add_executable(conv_dilated_icv_full_ones conv_dilated_icv_full_ones/conv_dilated_icv_full_ones.cpp)
+    target_link_libraries(conv_dilated_icv_full_ones cm)
+
+    add_executable(conv_dilated_icv_design conv_dilated_icv_design/conv_dilated_icv_design.cpp)
+    target_link_libraries(conv_dilated_icv_design cm)
+    
+    add_executable(conv_dilated_icv_design_unequal_subconvs conv_dilated_icv_design_unequal_subconvs/conv_dilated_icv_design_unequal_subconvs.cpp)
+    target_link_libraries(conv_dilated_icv_design_unequal_subconvs cm)
+
+    add_executable(conv_dilation_ssd conv_dilation_ssd/conv_dilation_ssd.cpp)
+    target_link_libraries(conv_dilation_ssd cm)
 
     add_executable(conv_eltwise_fp conv_eltwise_fp/conv_eltwise_fp.cpp)
     target_link_libraries(conv_eltwise_fp cm)
