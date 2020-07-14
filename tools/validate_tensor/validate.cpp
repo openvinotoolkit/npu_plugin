@@ -75,14 +75,6 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
             throw std::logic_error("Parameter -k <evm ip address> is not set");
-        if (!FLAGS_emu.empty())
-        {   //comparing against emulator results
-            if (FLAGS_i.empty())
-                throw std::logic_error("If setting param --emu for comparison against emulator results file, you must provide -i <path to input binary>");
-            else
-                if ( (getExtension(FLAGS_i) != "bin") || (getExtension(FLAGS_i) != "dat") ) 
-                    throw std::logic_error("If setting param --emu for comparison against emulator results file, -i must be the associated binary input file, not an image");
-        }
     }
 
     return true;
