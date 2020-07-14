@@ -455,7 +455,7 @@ BlobMap KmbTestBase::runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs, 
 
     if (printTime) {
         const auto dur = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(end - start);
-        std::cout << "Total Infererence time: " << dur.count() << " ms" << std::endl;
+        std::cout << "Total Inference time: " << dur.count() << " ms" << std::endl;
 
         if (PRINT_PERF_COUNTERS) {
             const auto perfMap = inferRequest.GetPerformanceCounts();
