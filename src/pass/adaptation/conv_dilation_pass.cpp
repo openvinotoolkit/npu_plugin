@@ -245,7 +245,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
             std::vector<mv::Data::TensorIterator> subConvsPerColumn;
             std::vector<mv::Data::TensorIterator> firstLevelConcats;
             bool needSparse2SparseOp = false;
-            if (outputTensorMemory > CMX)
+            if (outputTensorMemory > 0) //Hack always true for now until we fix the implicit join case
             {
                 pass.log(mv::Logger::MessageType::Debug, "Dilated Conv concat of concat case " +  name);
 
