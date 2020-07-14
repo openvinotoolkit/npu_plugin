@@ -71,43 +71,46 @@ void KmbExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(initVpualObjects);
     if (!RgnAlloc) {
-        RgnAlloc = make_shared<RgnAllocator>();
+        RgnAlloc = make_shared<RgnAllocator>(_config.VPUSMMSliceIdx());
     }
     if (!HeapAlloc) {
-        HeapAlloc = make_shared<HeapAllocator>();
+        constexpr size_t heapAllocAlignment = 64;
+        HeapAlloc = make_shared<HeapAllocator>(heapAllocAlignment, _config.VPUSMMSliceIdx());
     }
     if (!nnPl) {
-        nnPl = make_shared<NNFlicPlg>();
+        nnPl = make_shared<NNFlicPlg>(_config.VPUSMMSliceIdx());
     }
     if (!gg) {
-        gg = make_shared<GraphManagerPlg>();
+        gg = make_shared<GraphManagerPlg>(_config.VPUSMMSliceIdx());
     }
     if (!plgTensorInput_) {
-        plgTensorInput_ = make_shared<PlgTensorSource>();
+        plgTensorInput_ = make_shared<PlgTensorSource>(_config.VPUSMMSliceIdx());
     }
     if (!plgTensorOutput_) {
-        plgTensorOutput_ = make_shared<PlgStreamResult>();
+        plgTensorOutput_ = make_shared<PlgStreamResult>(_config.VPUSMMSliceIdx());
     }
     if (!plgInferenceInput_) {
-        plgInferenceInput_ = make_shared<PlgInferenceInput>();
+        plgInferenceInput_ = make_shared<PlgInferenceInput>(_config.VPUSMMSliceIdx());
     }
     if (!plgInferenceOutput_) {
-        plgInferenceOutput_ = make_shared<PlgInferenceOutput>();
+        plgInferenceOutput_ = make_shared<PlgInferenceOutput>(_config.VPUSMMSliceIdx());
     }
     if (!plgPoolOutputs) {
-        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
+        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>(_config.VPUSMMSliceIdx());
     }
     if (!plgPoolInferenceMsg) {
-        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>();
+        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>(_config.VPUSMMSliceIdx());
     }
     if (!BHandle) {
         BHandle = make_shared<BlobHandle_t>();
     }
     if (!pipe) {
-        pipe = make_shared<Pipeline>();
+        constexpr size_t maxPluginsPerPipeline = 32;
+        pipe = make_shared<Pipeline>(maxPluginsPerPipeline, _config.VPUSMMSliceIdx());
     }
     if (!_inferenceVirtAddr) {
-        _inferenceVirtAddr = reinterpret_cast<uint32_t*>(getKmbAllocator()->alloc(sizeof(uint32_t)));
+        _inferenceVirtAddr =
+            reinterpret_cast<uint32_t*>(getKmbAllocator(_config.VPUSMMSliceIdx())->alloc(sizeof(uint32_t)));
     }
 #endif
 }
@@ -248,7 +251,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     // ########################################################################
     // Try and get some CMA allocations.
     // ########################################################################
-    blob_file = getKmbAllocator()->alloc(BHandle->graphLen);
+    blob_file = getKmbAllocator(_config.VPUSMMSliceIdx())->alloc(BHandle->graphLen);
 
     if (!blob_file) {
         _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
@@ -266,7 +269,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     // Assigning physical address of Blob file
 
-    BHandle->graphBuff = getKmbAllocator()->getPhysicalAddress(blob_file);  // Only lower 32-bits
+    BHandle->graphBuff =
+        getKmbAllocator(_config.VPUSMMSliceIdx())->getPhysicalAddress(blob_file);  // Only lower 32-bits
 
     gg->Create();
 
@@ -299,7 +303,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     nnPl->Create(BHandle.get());
 
-    _scratchBuffers = setScratchHelper(nnPl, nThreads, getKmbAllocator(), _logger);
+    _scratchBuffers = setScratchHelper(nnPl, nThreads, getKmbAllocator(_config.VPUSMMSliceIdx()), _logger);
 
     _logger->info("NN Plugin Create finished...");
 
@@ -372,12 +376,12 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     sumSizeTensorDescOut.heightStride = sumSizeTensorDescOut.totalSize;
     sumSizeTensorDescOut.channelsStride = sumSizeTensorDescOut.totalSize;
 
-    rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
+    rgnAllocatorBuffer = getKmbAllocator(_config.VPUSMMSliceIdx())->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
         _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
         THROW_IE_EXCEPTION << "allocateGraph: allocation failed for region allocator";
     }
-    RgnAlloc->Create(getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
+    RgnAlloc->Create(getKmbAllocator(_config.VPUSMMSliceIdx())->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
     _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
     const unsigned int shavel2CacheLineSize = 64;
@@ -443,13 +447,13 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
 
 #if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(queueInference);
-    auto physAddr = getKmbAllocator()->getPhysicalAddress(input_data);
+    auto physAddr = getKmbAllocator(_config.VPUSMMSliceIdx())->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
 
     uint32_t inferenceInputID = 1;
     _inferenceVirtAddr[0] = inferenceInputID;
-    auto inferencePhysAddr = getKmbAllocator()->getPhysicalAddress(_inferenceVirtAddr);
+    auto inferencePhysAddr = getKmbAllocator(_config.VPUSMMSliceIdx())->getPhysicalAddress(_inferenceVirtAddr);
     plgInferenceInput_->PushInferenceID(inferencePhysAddr, sizeof(inferenceInputID));
 #else
     UNUSED(input_data);
@@ -475,7 +479,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     _logger->info("Output tensor returned of length: %d", len);
 
     // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
+    uint32_t offset = pAddr - getKmbAllocator(_config.VPUSMMSliceIdx())->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
 
     _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
@@ -520,10 +524,10 @@ void KmbExecutor::deallocateGraph() {
         RgnAlloc->Delete();
     }
     if (blob_file) {
-        getKmbAllocator()->free(blob_file);
+        getKmbAllocator(_config.VPUSMMSliceIdx())->free(blob_file);
     }
     if (rgnAllocatorBuffer) {
-        getKmbAllocator()->free(rgnAllocatorBuffer);
+        getKmbAllocator(_config.VPUSMMSliceIdx())->free(rgnAllocatorBuffer);
     }
     if (plgInferenceInput_) {
         plgInferenceInput_->Delete();
@@ -535,11 +539,11 @@ void KmbExecutor::deallocateGraph() {
         plgPoolInferenceMsg->Delete();
     }
     if (_inferenceVirtAddr) {
-        getKmbAllocator()->free(_inferenceVirtAddr);
+        getKmbAllocator(_config.VPUSMMSliceIdx())->free(_inferenceVirtAddr);
     }
 
     for (const auto& scratchPtr : _scratchBuffers) {
-        getKmbAllocator()->free(scratchPtr);
+        getKmbAllocator(_config.VPUSMMSliceIdx())->free(scratchPtr);
     }
 #endif
 }

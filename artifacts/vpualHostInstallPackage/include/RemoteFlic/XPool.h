@@ -119,7 +119,7 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
@@ -154,7 +154,7 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
                 auto sc { xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId,
                                                     msg, &size) };
                 if (sc != X_LINK_SUCCESS) {
@@ -225,7 +225,11 @@ class XPool : public PluginStub
   public:
 
     /** Constructor declaration (definition is type dependant). */
-    XPool();
+    XPool(uint32_t device_id);
+
+    // TODO - May be gcc bug, but we need this declaration to help with initialisation.
+    //        Copy-elision should occur, so we will never use it.
+    XPool(const XPool&); // Declare copy ctor, but don't define.
 
     /**
      * Destructor.
@@ -296,7 +300,7 @@ class XPool : public PluginStub
         }
 
         // Open blocking each way, with no timeout.
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
         xlink_error status = xlink_open_channel(&XlinkDeviceHandle, xId, RXB_TXB, (nBuf * bSize) * 4, 0);
         if (status) {
             std::cerr << "XPool Open Channel Status: " << status << std::endl;
@@ -362,7 +366,7 @@ class XPool : public PluginStub
 
     /** Delete method. Close the channel. */
     void Delete (void) {
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
         xlink_error rc = xlink_close_channel(&XlinkDeviceHandle, chanId);
         if (X_LINK_SUCCESS != rc) {
             std::cerr << "XPool close channel status: " << rc << std::endl;
@@ -391,7 +395,7 @@ class XPool : public PluginStub
             std::cout << "Warning, sending more buffers than XPool can hold on the VPU." << std::endl;
         }
 
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
 #ifdef __REMOTE_HOST__
         // TODO We actually just want to do a sort of:
         //    xlink_allocate_vpu_buffer(chan, bufferSize);

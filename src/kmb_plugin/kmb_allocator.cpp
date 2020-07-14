@@ -18,6 +18,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "kmb_native_allocator.h"
 #include "kmb_udma_allocator.h"
@@ -45,21 +46,35 @@ unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
 
 bool KmbAllocator::isValidPtr(void* ptr) noexcept { return ptr != nullptr; }
 
-std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
-    static std::shared_ptr<KmbAllocator> allocator;
-    if (allocator == nullptr) {
+void KmbAllocator::setSliceIdx(int sliceIdx) {
+    if (sliceIdx >= 0 && sliceIdx < VPUSMM_SLICE_COUNT) {
+        _sliceIdx = sliceIdx;
+    } else {
+        std::string sliceIdxStr = std::to_string(sliceIdx);
+        std::string sliceRangeStr = "[0:" + std::to_string(VPUSMM_SLICE_COUNT) + ")";
+        std::string errorMsg =
+            "VPUSMMAllocator::VPUSMMAllocator: slice index " + sliceIdxStr + " is out of range " + sliceRangeStr;
+        throw std::runtime_error(errorMsg);
+    }
+}
+
+std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator(int sliceIdx) {
+    static std::vector<std::shared_ptr<KmbAllocator>> allocatorList(VPUSMM_SLICE_COUNT, nullptr);
+    if (sliceIdx < VPUSMM_SLICE_COUNT && allocatorList.at(sliceIdx) == nullptr) {
         const char* allocatorEnvPtr = std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE");
         std::string allocatorType;
         if (allocatorEnvPtr) {
             allocatorType = allocatorEnvPtr;
         }
         if (allocatorType == "UDMA") {
-            allocator = std::make_shared<KmbUdmaAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbUdmaAllocator>();
         } else if (allocatorType == "NATIVE") {
-            allocator = std::make_shared<KmbNativeAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbNativeAllocator>();
         } else {
-            allocator = std::make_shared<KmbVpusmmAllocator>();
+            allocatorList[sliceIdx] = std::make_shared<KmbVpusmmAllocator>();
+            // TODO allocator constructor must take slice index as an argument
+            allocatorList.at(sliceIdx)->setSliceIdx(sliceIdx);
         }
     }
-    return allocator;
+    return allocatorList.at(sliceIdx);
 }

@@ -72,10 +72,9 @@ DECLARE_VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: "YES", "NO", default is "NO"
- * This option allows to use Media-to-Inference (M2I) module for image pre-processing
+ * Type: integer, default is 0.
+ * Use this VPUSMM slice index to allocate memory
  */
-DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
-
+DECLARE_VPU_CONFIG_KEY(DEVICE_ID);
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

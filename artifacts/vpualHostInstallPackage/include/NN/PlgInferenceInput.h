@@ -32,7 +32,7 @@ class PlgInferenceInput : public PluginStub
     MSender<InferenceMsgPtr> inferenceOut;
 
     /** Constructor. */
-    PlgInferenceInput() : PluginStub("PlgInfInput"){};
+    PlgInferenceInput(uint32_t device_id = 0) : PluginStub("PlgInfInput", device_id), inferenceOut{device_id} {}
 
     /** Destructor. */
     ~PlgInferenceInput();

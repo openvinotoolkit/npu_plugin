@@ -59,7 +59,12 @@ class MSender : private VpualStub, public Message
 {
   public:
     /** Constructor declaration (definition is type dependant). */
-    MSender();
+    MSender(uint32_t device_id);
+
+    // TODO - May be gcc bug, but we need this declaration to help with initialisation.
+    //        Copy-elision should occur, so we will never use it.
+    MSender(const MSender&); // Declare copy ctor, but don't define.
+
 
     /**
      * Link to a compatable slave receiver.
@@ -94,7 +99,7 @@ class SSender : private VpualStub, public Message
 {
   public:
     /** Constructor declaration (definition is type dependant). */
-    SSender();
+    SSender(uint32_t device_id);
 
     /**
      * Link to a compatable master receiver.
@@ -124,6 +129,8 @@ class SSender : private VpualStub, public Message
 template <typename P>
 class PoolSender : public SSender<P>
 {
+	public:
+    PoolSender(uint32_t device_id) : SSender<P>(device_id) {}
 };
 
 #endif //__MESSAGE_H__

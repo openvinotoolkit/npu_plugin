@@ -43,11 +43,12 @@ class VpuData {
 
     size_t         size_;       /*< Size of allocation. */
     unsigned char* buf_;        /*< Buffer for use in virtual address space. */
+  	uint32_t       device_id_;
 
   public:
 
     // Create a VPU data object of the given size.
-    VpuData(size_t size);
+    VpuData(size_t size, uint32_t device_id = 0);
     // TODO - Maybe we also need this sort of stuff? Can add later.
     // VpuData(size_t size, alignement = 64U, zero_initialise=false);
 
