@@ -501,6 +501,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 
     auto input = dpuTaskOp->getInputTensor()[0];
     auto parentImplicitOp = om.getSourceOp(input);
+    while (parentImplicitOp->getOpType() != "ImplicitJoin")
+    {
+        parentImplicitOp = om.getSourceOp(parentImplicitOp->getInputTensor()[0]);
+    }
     std::size_t numberSubConvs = 0;
     int64_t inputBaseAddress = 0;
     auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);

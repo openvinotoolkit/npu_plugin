@@ -803,6 +803,11 @@ namespace mv
                 if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
                          and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
+
+                if (((op.getOpType() == "Conv") or (op.getOpType() == "Eltwise"))
+                         and (op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                              and op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
+                    return true;
                 
                 return false;
             }
@@ -1051,6 +1056,11 @@ namespace mv
                 //NOTE: Subdilation storage element population is not implemented for the SOH case
                 if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
                         && op.get<bool>("DilatedSubConv")
+                        && clustering == "SplitOverH")
+                    return 14;
+
+                if (op.getOpType() == "Conv"  && op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                        && op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")
                         && clustering == "SplitOverH")
                     return 14;
 
