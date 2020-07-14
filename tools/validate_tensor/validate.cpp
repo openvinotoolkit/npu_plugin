@@ -88,6 +88,12 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     return true;
 }
 
+std::string getEnvVarDefault(const std::string& varName, const std::string& defaultValue)
+{
+    const char* value = getenv(varName.c_str());
+    return value ? value : defaultValue;
+}
+
 std::string getFilename(std::string& path)
 {
     std::string base_filename = path.substr(path.find_last_of("/\\") + 1);
@@ -340,8 +346,15 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
+    bool layoutNHWC = (getEnvVarDefault("NHWC_LAYOUT", "false") == "true") ? true: false;
+
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
+
+    if (layoutNHWC)
+        commandline += " -il NHWC";
+    else
+        commandline += " -il NCHW";
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
@@ -382,9 +395,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-    // std::string inputCPU = FILE_CONVERTED_IMAGE;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/input-0.bin");
-    // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
@@ -601,7 +612,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
         if(zMajor)
         {
-            std::cout << "ZMajor Starting?  " << std::endl;
+            std::cout << "Using Z-Major image... " << std::endl;
             if(FLAGS_r){ // Use zmajor, rgb
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
@@ -616,7 +627,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         }
         else
         {
-            std::cout << "CMajor Starting?  " << std::endl;
+            std::cout << "Using Ch-Major image ... " << std::endl;
             if(FLAGS_r){
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
