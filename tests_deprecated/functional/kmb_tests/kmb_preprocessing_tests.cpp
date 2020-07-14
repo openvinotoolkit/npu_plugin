@@ -1159,6 +1159,9 @@ INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "3", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "seventeen", false),
-        std::make_tuple("VPU_KMB_USE_M2I", "YES", true), std::make_tuple("VPU_KMB_USE_M2I", "USE", false)));
+#ifdef ENABLE_M2I
+        std::make_tuple("VPU_KMB_USE_M2I", "YES", true),
+#endif
+        std::make_tuple("VPU_KMB_USE_M2I", "USE", false)));
 
 #endif

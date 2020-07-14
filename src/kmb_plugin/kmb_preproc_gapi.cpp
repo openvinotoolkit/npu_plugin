@@ -30,7 +30,8 @@ public:
 
     virtual void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                     const ResizeAlgorithm& algorithm,
-                    ColorFormat in_fmt, ColorFormat out_fmt) = 0;
+                    ColorFormat in_fmt, ColorFormat out_fmt,
+                    const unsigned int& deviceId) = 0;
 };
 
 class PrivSIPP final: public PreprocEngine::Priv {
@@ -48,7 +49,8 @@ public:
 
     void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             const ResizeAlgorithm& algorithm,
-            ColorFormat in_fmt, ColorFormat out_fmt) override;
+            ColorFormat in_fmt, ColorFormat out_fmt,
+            const unsigned int& deviceId) override;
 };
 
 #ifdef ENABLE_M2I
@@ -58,7 +60,8 @@ class PrivM2I final: public PreprocEngine::Priv {
 public:
     void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             const ResizeAlgorithm& algorithm,
-            ColorFormat in_fmt, ColorFormat out_fmt) override;
+            ColorFormat in_fmt, ColorFormat out_fmt,
+            const unsigned int& deviceId) override;
 };
 #endif
 
@@ -205,7 +208,8 @@ cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
 
 void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                   const ResizeAlgorithm& algorithm,
-                  ColorFormat in_fmt, ColorFormat out_fmt) {
+                  ColorFormat in_fmt, ColorFormat out_fmt,
+                  const unsigned int& deviceId) {
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
     IE_ASSERT(out_fmt == ColorFormat::RGB || out_fmt == ColorFormat::BGR);
@@ -244,14 +248,15 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
 
     _comp->apply(gin(input_y, input_uv), gout(output),
                  compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                              GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
+                              GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi, deviceId},
                               GSIPPMaxFrameSizes {{getFullImageSize(y_blob), getFullImageSize(uv_blob)}}));
 }
 
 #ifdef ENABLE_M2I
 void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
-                 ColorFormat in_fmt, ColorFormat out_fmt) {
+                 ColorFormat in_fmt, ColorFormat out_fmt,
+                 const unsigned int&) {
     // NB.: Still follow the same constraints as with SIPP
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
@@ -319,8 +324,9 @@ PreprocEngine::~PreprocEngine() = default;
 
 void PreprocEngine::preproc(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                             const ResizeAlgorithm& algorithm,
-                            ColorFormat in_fmt, ColorFormat out_fmt) {
-    return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt);
+                            ColorFormat in_fmt, ColorFormat out_fmt,
+                            const int& deviceId) {
+    return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt, deviceId);
 }
 
 }  // namespace KmbPreproc

@@ -21,7 +21,7 @@ bool isApplicable(
     const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData, InputsDataMap& networkInputs);
 
 void execDataPreprocessing(BlobMap& inputs, std::map<std::string, PreProcessDataPtr>& preprocData,
-    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi,
+    InputsDataMap& networkInputs, ColorFormat out_format, unsigned int numShaves, unsigned int lpi, const int& deviceId,
     Path path = Path::SIPP);
 
 }  // namespace KmbPreproc

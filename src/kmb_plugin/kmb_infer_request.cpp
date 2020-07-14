@@ -244,7 +244,8 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
     IE_ASSERT(_config.useSIPP() || KmbPreproc::useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
-    KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
+    KmbPreproc::execDataPreprocessing(
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _config.VPUSMMSliceIdx(), ppPath);
 }
 
 static bool needRepackForNHWC(const TensorDesc& actualDesc) {
