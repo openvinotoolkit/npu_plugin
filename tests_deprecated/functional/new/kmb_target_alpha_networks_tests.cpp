@@ -23,9 +23,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/resnet50_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("/test_pictures/224x224/husky.bmp", false),
         1, 0.7f);
 }
@@ -36,9 +36,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/mobilenet_v2_uint8_int8_weights_perchannel.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("/test_pictures/224x224/watch.bmp", false),
         // TODO: threshold is 7
         1, 7.05f);
@@ -50,9 +50,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/inception-v1_tf_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("/test_pictures/224x224/cat3.bmp", false),
         1, 0.05f);
 }
@@ -63,9 +63,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/inception-v3_tf_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("/test_pictures/299x299/n01537544_28.bmp", false),
         1, 0.05f);
 }
@@ -76,9 +76,9 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP16),
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("/test_pictures/224x224/cat3.bmp", false),
         1, 2.f);
 }
@@ -93,9 +93,9 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("/test_pictures/416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
@@ -110,9 +110,9 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Alpha) {
 
     runTest(
         TestNetworkDesc("/alpha/yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPresision("input", Precision::U8)
+            .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPresision("output", Precision::FP32),
+            .setUserOutputPrecision("output", Precision::FP32),
             TestImageDesc("/test_pictures/416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }

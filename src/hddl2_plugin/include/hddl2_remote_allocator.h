@@ -28,16 +28,11 @@
 #include "hddl2_config.h"
 #include "ie_remote_context.hpp"
 
-// Emulator limit 4MB
-constexpr size_t MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
-
 namespace vpu {
 namespace HDDL2Plugin {
 
 using RemoteMemoryFD = uint64_t;
 
-//------------------------------------------------------------------------------
-//      struct HDDL2RemoteMemoryContainer
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory);
@@ -49,8 +44,6 @@ struct HDDL2RemoteMemoryContainer {
     HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
 };
 
-//------------------------------------------------------------------------------
-//      class HDDL2RemoteAllocator
 //------------------------------------------------------------------------------
 /**
  * @brief Hide all allocation and synchronization logic for HDDL2 device behind this class

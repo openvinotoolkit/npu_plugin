@@ -102,6 +102,7 @@ private:
     uint32_t _outTensorLen;
     uint32_t _outTensorAddr;
     uint32_t* _inferenceVirtAddr;
+    std::vector<void*> _scratchBuffers;
 };
 
 }  // namespace KmbPlugin

@@ -22,6 +22,8 @@
 #include <models/model_mobilenet_v2.h>
 #include <models/model_pooling.h>
 
+#include <vpu/utils/ie_helpers.hpp>
+
 #include <blob_factory.hpp>
 
 #include "hddl2_load_network.h"
@@ -220,14 +222,24 @@ TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromGetAllDevices) {
 }
 
 //------------------------------------------------------------------------------
-class InferRequest_PerfCount : public CoreAPI_Tests {
-protected:
-    void SetUp() override;
-};
 
-void InferRequest_PerfCount::SetUp() {
-    ModelSqueezenetV1_1_Helper squeezenetV11Helper;
-    network = squeezenetV11Helper.getNetwork();
+using InferRequest_PerfCount = Inference_onSpecificDevice;
+
+static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) {
+    std::vector<std::pair<std::string, IE::InferenceEngineProfileInfo>> perfVec(perfMap.begin(), perfMap.end());
+    std::sort(perfVec.begin(), perfVec.end(),
+        [=](const std::pair<std::string, IE::InferenceEngineProfileInfo>& pair1,
+            const std::pair<std::string, IE::InferenceEngineProfileInfo>& pair2) -> bool {
+            return pair1.second.execution_index < pair2.second.execution_index;
+        });
+
+    for (auto it = perfVec.begin(); it != perfVec.end(); ++it) {
+        std::string name = it->first;
+        IE::InferenceEngineProfileInfo info = it->second;
+        if (info.status == IE::InferenceEngineProfileInfo::EXECUTED) {
+            printf("HDDL2 time: '%s' is %f ms.\n", name.c_str(), info.realTime_uSec / 1000.f);
+        }
+    }
 }
 
 TEST_F(InferRequest_PerfCount, SyncInferenceWithPerfCount) {
@@ -244,7 +256,62 @@ TEST_F(InferRequest_PerfCount, SyncInferenceWithPerfCount) {
 
     auto perfCounts = inferRequest.GetPerformanceCounts();
 
+    dumpPerformance(perfCounts);
+
     ASSERT_GT(perfCounts.size(), 0);
     auto totalTime = perfCounts.find("Total")->second;
     ASSERT_GT(totalTime.realTime_uSec, 0);
 }
+
+//------------------------------------------------------------------------------
+
+#if 0
+
+class InferenceWithCheckLayout : public Inference_onSpecificDevice {
+protected:
+    void SetUp() override;
+};
+
+void InferenceWithCheckLayout::SetUp() {
+    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
+
+    executableNetwork = ie.ImportNetwork(graphPath, pluginName);
+    inferRequest = executableNetwork.CreateInferRequest();
+}
+
+TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    const auto layoutOrig = inputBlob->getTensorDesc().getLayout();
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    ASSERT_EQ(inferRequest.GetBlob(inputBlobName)->getTensorDesc().getLayout(), layoutOrig);
+}
+
+TEST_F(InferenceWithCheckLayout, CheckInputsLayoutAfterTwoInferences) {
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto firstOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
+
+    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto secondOutputBlob = inferRequest.GetBlob(outputBlobName);
+
+    ASSERT_NO_THROW(
+        Comparators::compareTopClasses(toFP32(firstOutputBlob), toFP32(secondOutputBlob), numberOfTopClassesToCompare));
+}
+
+#endif

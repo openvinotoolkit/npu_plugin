@@ -26,7 +26,7 @@ namespace VPUConfigParams {
  * @brief [Only for kmbPlugin]
  * Type: "RGB", "BGR", default is "BGR"
  * This option allows to specify output format of image after SIPP preprocessing.
- * Does not affect preprocessing running on CPU. If a wrong value specified an expeption will be thrown
+ * Does not affect preprocessing running on CPU. If a wrong value specified an exception will be thrown
  */
 DECLARE_VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT);
 
@@ -43,6 +43,20 @@ DECLARE_VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC);
  * This option allows to use Streaming Image Processing Pipeline (SIPP) for image pre-processing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_SIPP);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 4.
+ * Number of shaves to be used by SIPP during preprocessing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
+
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 8.
+ * Lines per iteration value to be used by SIPP during preprocessing
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
 
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

@@ -32,8 +32,6 @@ The KMB plugin accepts the following options:
 | `VPU_KMB_PLATFORM`    | `VPU_2490` | `VPU_2490` | Set the target device |
 | `VPU_KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the umber of threads to use for model execution |
 | `VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION`    | `YES`/`NO` | `NO` | Enable or disable blob transfer to device if LoadNetwork is called |
-| `VPU_KMB_PREPROCESSING_SHAVES`    | positive integer | 4 | Number of SHAVEs to be used during preprocessing |
-| `VPU_KMB_PREPROCESSING_LPI`    | positive integer | 8 | Lines per iteration value to be used during preprocessing |
 | `VPU_COMPILER_COMPILATION_PASS_BAN_LIST` | std::string | empty | List of mcm passes to be removed from mcm compilation descriptor (value example: kmb_adapt,KMBQuantizeConversion;adapt,TileOps) |
 | `VPU_COMPILER_CUSTOM_LAYERS` | std::string | empty | Path to custom layer binding xml file. Custom layer has higher priority over native implementation. |
 | `VPU_KMB_COMPILATION_DESCRIPTOR_PATH`    | string | 'mcm_config/compilation' | Path to folder with compilation config files |

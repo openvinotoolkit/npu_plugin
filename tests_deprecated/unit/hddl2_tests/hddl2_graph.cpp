@@ -88,7 +88,6 @@ TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
     ASSERT_GT(graphBlob.size(), 0);
 }
 
-
 //------------------------------------------------------------------------------
 const static std::vector<typeOfGraph> createdFrom = {fromImportedGraph, fromCompiledGraph};
 

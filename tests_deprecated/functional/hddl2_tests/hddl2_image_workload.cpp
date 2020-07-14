@@ -75,9 +75,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    refBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+    IE::Blob::Ptr refBlob;
+    ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
@@ -109,9 +108,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInferenceNCHWInput) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto refBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    refBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+    InferenceEngine::Blob::Ptr refBlob;
+    ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
@@ -166,9 +164,8 @@ TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
     // --- Reference Blob
     auto refTensorDesc = outputBlob->getTensorDesc();
     refTensorDesc.setPrecision(IE::Precision::U8);
-    auto refBlob = make_blob_with_precision(refTensorDesc);
-    refBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refBlob));
+    IE::Blob::Ptr refBlob;
+    ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refTensorDesc));
 
     ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }

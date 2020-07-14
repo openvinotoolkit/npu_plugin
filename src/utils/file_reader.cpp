@@ -19,6 +19,11 @@
 
 #include <precision_utils.h>
 #include <fstream>
+#include <unistd.h>
+#include <sys/mman.h>
+#if defined(__arm__) || defined(__aarch64__)
+#include <vpusmm/vpusmm.h>
+#endif
 
 namespace vpu {
 
@@ -26,14 +31,37 @@ namespace KmbPlugin {
 
 namespace utils {
 
-void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
-    std::ifstream in(input_binary, std::ios_base::binary | std::ios_base::ate);
+size_t getFileSize(std::istream& strm) {
+    const size_t streamStart = strm.tellg();
+    strm.seekg(0, std::ios_base::end);
+    const size_t streamEnd = strm.tellg();
+    const size_t bytesAvailable = streamEnd - streamStart;
+    strm.seekg(streamStart, std::ios_base::beg);
 
-    size_t sizeFile = in.tellg();
-    in.seekg(0, std::ios_base::beg);
+    return bytesAvailable;
+}
+
+InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc desc) {
+    std::ifstream in(input_binary, std::ios_base::binary);
+    size_t sizeFile = getFileSize(in);
+
+#if defined(__arm__) || defined(__aarch64__)
+    size_t pageSize = getpagesize();
+    size_t realSize = sizeFile + (sizeFile % pageSize ? (pageSize - sizeFile % pageSize) : 0);
+    if (realSize < pageSize * 2) {
+        realSize = pageSize * 2;
+    }
+    auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
+    vpusmm_import_dmabuf(fd, VPU_DEFAULT);
+    void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc, virtAddr);
+#else
+    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc);
+    blob->allocate();
+#endif
     size_t count = blob->size();
     if (in.good()) {
-        if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP16) {
+        if (desc.getPrecision() == InferenceEngine::Precision::FP16) {
             InferenceEngine::ie_fp16 *blobRawDataFP16 = blob->buffer().as<InferenceEngine::ie_fp16 *>();
             if (sizeFile == count * sizeof(float)) {
                 for (size_t i = 0; i < count; i++) {
@@ -50,14 +78,14 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
             } else {
                 THROW_IE_EXCEPTION << "File has invalid size!";
             }
-        } else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::FP32) {
+        } else if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
             float *blobRawData = blob->buffer();
             if (sizeFile == count * sizeof(float)) {
                 in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
             } else {
                 THROW_IE_EXCEPTION << "File has invalid size!";
             }
-        } else if (blob->getTensorDesc().getPrecision() == InferenceEngine::Precision::U8) {
+        } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
             char *blobRawData = blob->buffer().as<char *>();
             if (sizeFile == count * sizeof(char)) {
                 in.read(blobRawData, count * sizeof(char));
@@ -69,6 +97,7 @@ void fromBinaryFile(std::string input_binary, InferenceEngine::Blob::Ptr blob) {
     } else {
         THROW_IE_EXCEPTION << "File is not good.";
     }
+    return blob;
 }
 
 void readNV12FileHelper(const std::string &filePath,

@@ -14,27 +14,29 @@
 // stated in the License.
 //
 
-#include <string>
-#include <ie_blob.h>
-#include <blob_factory.hpp>
+#pragma once
 
-#include "allocators.hpp"
+#include "kmb_test_model.hpp"
+#include "kmb_test_utils.hpp"
 
-namespace vpu {
+struct PermuteLayerDef final {
+    TestNetwork& testNet;
+    std::string name;
+    PortInfo inputPort;
+    PortInfo constPort;
 
-namespace KmbPlugin {
+    PermuteLayerDef(TestNetwork& testNet, std::string name)
+        : testNet(testNet), name(std::move(name)) {}
 
-namespace utils {
+    PermuteLayerDef& input(const std::string& layerName, size_t index = 0) {
+        inputPort = PortInfo(layerName, index);
+        return *this;
+    }
 
-size_t getFileSize(std::istream& strm);
-InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc desc);
-void readNV12FileHelper(const std::string &filePath, size_t sizeToRead, uint8_t *imageData, size_t readOffset);
-InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath, size_t imageWidth, size_t imageHeight,
-                                        std::shared_ptr<VPUAllocator> &allocator);
+    PermuteLayerDef& order(const std::string& layerName, size_t index = 0) {
+        constPort = PortInfo(layerName, index);
+        return *this;
+    }
 
-}  // namespace utils
-
-}  // namespace KmbPlugin
-
-}  // namespace vpu
-
+    TestNetwork& build();
+};
