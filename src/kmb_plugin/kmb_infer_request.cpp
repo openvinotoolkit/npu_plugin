@@ -176,11 +176,11 @@ void KmbInferRequest::InferAsync() {
 }
 
 void KmbInferRequest::checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp) {
-    if (useSipp && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+    if ((useSipp || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
-        _logger->warning("SIPP is enabled but configuration is not supported.");
+        _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
 }
@@ -242,9 +242,10 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
 void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
-    IE_ASSERT(_config.useSIPP() || KmbPreproc::useSIPP());
-    const KmbPreproc::Path ppPath = KmbPreproc::Path::SIPP;
-    KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
+    IE_ASSERT(_config.useSIPP() || KmbPreproc::useSIPP() || _config.useM2I());
+    const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
+    KmbPreproc::execDataPreprocessing(
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _config.VPUSMMSliceIdx(), ppPath);
 }
 
 static bool needRepackForNHWC(const TensorDesc& actualDesc) {

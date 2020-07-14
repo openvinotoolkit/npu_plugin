@@ -47,9 +47,11 @@ public:
 
     bool forceNCHWToNHWC() { return _forceNCHWToNHWC; }
 
-    int VPUSMMSliceIdx() const { return _VPUSMMSliceIdx; }
-
     bool useSIPP() const { return _useSIPP; }
+
+    bool useM2I() const { return _useM2I; }
+
+    int VPUSMMSliceIdx() const { return _VPUSMMSliceIdx; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -80,6 +82,10 @@ private:
     // FIXME: have to be true, disabled due to not working vpu runtime
     // tracking number: h#18011604382
     bool _useSIPP = true;
+
+    // FIXME: Likely has to be true by default as well.
+    // NB.: Currently applies to the detection use-case only
+    bool _useM2I = false;
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {

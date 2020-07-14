@@ -36,7 +36,7 @@ public:
     Preprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi, Path ppPath);
     ~Preprocessor();
 
-    void execDataPreprocessing(const PreprocTask& task);
+    void execDataPreprocessing(const PreprocTask& task, const int& deviceId);
 };
 
 class PreprocessorPool {
@@ -51,7 +51,7 @@ public:
     // Pool should be neutral to the underlying engine it manages
     PreprocessorPool(
         unsigned int shaveFirst, unsigned int shaveLast, unsigned int nPipelines, unsigned int lpi, Path ppPath);
-    void execDataPreprocessing(const PreprocTask& task);
+    void execDataPreprocessing(const PreprocTask& task, const int& deviceId);
     unsigned int getNumberOfShaves() const;
 };
 
@@ -77,7 +77,8 @@ class PreprocPool {
     PreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
 
 public:
-    void execDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
+    void execDataPreprocessing(
+        const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, const int& deviceId, Path ppPath);
 };
 
 PreprocPool& preprocPool();

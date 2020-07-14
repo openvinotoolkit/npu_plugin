@@ -22,7 +22,8 @@ public:
 
     void preproc(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
-                 ColorFormat in_fmt, ColorFormat out_fmt);
+                 ColorFormat in_fmt, ColorFormat out_fmt,
+                 const int& deviceId);
     class Priv;
 
 private:
