@@ -156,7 +156,7 @@ std::array<unsigned short, 4> calcNewPadding(mv::Data::OpListIterator opIt, size
     }
 }
 
-void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -177,7 +177,6 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
 
         if (dilationFactor > 1)
         {
-            std::cout << " Dilated Conv " << opIt->getName() << std::endl;
             auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
             auto nonDilatedKernel = opIt->getInputTensor(1);
             auto nonDilatedKernelShape = nonDilatedKernel->getShape();
@@ -248,7 +247,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
             bool needSparse2SparseOp = false;
             if (outputTensorMemory > CMX)
             {
-                std::cout << " Dilated Conv concat of concat case " << name << std::endl;
+                pass.log(mv::Logger::MessageType::Debug, "Dilated Conv concat of concat case " +  name);
 
                 for (size_t i = 0; i < dilationFactor; i++)
                 {
@@ -277,7 +276,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
             }
             else
             {
-                std::cout << " Dilated Conv Implicit Join case" << name << std::endl;
+                pass.log(mv::Logger::MessageType::Debug, "Dilated Conv Implicit Join case " +  name);
 
                 // Specify that next layer requires sparse input
                 // At least for now until we have a way to convert a tensor with storage elements into a dense one
@@ -305,7 +304,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry&, mv::Computat
             //but under chat with runtime we can make it work without computations, with by-passing
             if (needSparse2SparseOp)
             {
-                std::cout << " Dilated Conv needSparse2SparseOp is on   " << name << std::endl;
+                pass.log(mv::Logger::MessageType::Debug, "Dilated Conv needSparse2SparseOp is on " +  name);
 
                 mv::Shape weightsShape({1, 1, outputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_CHANNEL_DIMENSION]});
                 std::vector<int64_t> weightsData(weightsShape.totalSize());
