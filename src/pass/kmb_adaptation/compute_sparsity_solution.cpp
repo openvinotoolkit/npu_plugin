@@ -59,12 +59,7 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             {
                 if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
                 {
-                    if (op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location")
-                            == mv::Tensor::MemoryLocation("NNCMX"))
-                    {
-                        op->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
-                        op->set<bool>("inputActivationSparsityForDilatedConv", true);
-                    }
+                    op->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
                 }
             }
         }
