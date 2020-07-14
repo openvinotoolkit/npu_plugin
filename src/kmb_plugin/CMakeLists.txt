@@ -44,10 +44,19 @@ set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
 
+if(ENABLE_M2I)
+    set(M2I_INCLUDES "${GAPI_M2I_INCLUDES}")
+    set(M2I_LIBRARY "${GAPI_M2I_LIBRARY}")
+else()
+    set(M2I_INCLUDES "")
+    set(M2I_LIBRARY "")
+endif()
+
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
+        ${M2I_INCLUDES}
     PUBLIC
         "${IE_FRONTEND_MCM_INCLUDE_DIR}"
     PRIVATE
@@ -64,6 +73,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         ${INTEL_ITT_LIBS}
         ${GAPI_SIPP_LIBRARY}
+        ${M2I_LIBRARY}
         kmb_utils)
 
 # install
@@ -104,6 +114,7 @@ if(ENABLE_TESTS)
         SYSTEM PRIVATE
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
+            ${M2I_INCLUDES}
             "${IE_FRONTEND_MCM_INCLUDE_DIR}"
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
@@ -118,6 +129,7 @@ if(ENABLE_TESTS)
         PRIVATE
             ${INTEL_ITT_LIBS}
             ${GAPI_SIPP_LIBRARY}
+            ${M2I_LIBRARY}
             kmb_utils)
 endif()
 

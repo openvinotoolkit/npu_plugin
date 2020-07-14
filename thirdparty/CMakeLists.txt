@@ -42,6 +42,9 @@ if(ARM OR AARCH64)
             COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
+    if(ENABLE_M2I)
+        add_subdirectory(gapi_sipp/m2i)
+    endif()
 
     if(ENABLE_TESTS)
         add_subdirectory(tests/integration)
@@ -58,6 +61,11 @@ if(ARM OR AARCH64)
 
     set(GAPI_SIPP_LIBRARY gapi_sipp CACHE INTERNAL "")
     set(GAPI_SIPP_INCLUDES $<TARGET_PROPERTY:gapi_sipp,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+
+    if(ENABLE_M2I)
+        set(GAPI_M2I_LIBRARY gapi_m2i CACHE INTERNAL "")
+        set(GAPI_M2I_INCLUDES $<TARGET_PROPERTY:gapi_m2i,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
+    endif()
 else()
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")

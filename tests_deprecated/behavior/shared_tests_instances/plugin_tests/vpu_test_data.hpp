@@ -62,6 +62,9 @@ const std::vector<BehTestParams> withCorrectConfValues = {
     BEH_KMB.withConfig({{KEY_VPU_HW_POOL_CONV_MERGE, "YES"}}),
     BEH_KMB.withConfig({{"VPU_KMB_PREPROCESSING_SHAVES", "6"}}),
     BEH_KMB.withConfig({{"VPU_KMB_PREPROCESSING_LPI", "8"}}),
+#ifdef ENABLE_M2I
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(USE_M2I), "YES"}}),
+#endif
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), LOG_DEBUG}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), YES}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT), YES}}),
@@ -80,6 +83,9 @@ const BehTestParams withIncorrectConfValues[] = {
     BEH_KMB.withConfig({{KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON"}}),
     BEH_KMB.withConfig({{"VPU_KMB_PREPROCESSING_SHAVES", "SIX"}}),
     BEH_KMB.withConfig({{"VPU_KMB_PREPROCESSING_LPI", "EIGHT"}}),
+#ifdef ENABLE_M2I
+    BEH_KMB.withConfig({{VPU_KMB_CONFIG_KEY(USE_M2I), "NET"}}),
+#endif
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), "debug"}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), "NOP"}}),
     BEH_KMB.withConfig({{VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT), "NOOOO"}}),
