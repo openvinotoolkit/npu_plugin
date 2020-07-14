@@ -26,9 +26,6 @@ import pytest
 # Keem Bay KPI models list
 # find <models path> -wholename "*/FP16-INT8/*.xml"
 KMB_KPI_MODELS = [
-    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml',
-    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml',
-    'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml',
     'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-0001/tf/FP16-INT8/yolo-v2-tiny-ava-0001.xml',
     'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-sparse-30-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-30-0001.xml',
     'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-tiny-ava-sparse-60-0001/tf/FP16-INT8/yolo-v2-tiny-ava-sparse-60-0001.xml',
@@ -42,6 +39,9 @@ KMB_KPI_MODELS = [
     {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_public_ww22.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
     {'marks': pytest.mark.xfail,
      'path': 'vd_kmb_models_intel_ww22.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
+    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
+    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
+    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
 ]
 
 
