@@ -800,7 +800,7 @@ namespace mv
             // In these cases parent output sparsity does matter, but child input sparsity must be true
             bool requiresCompilerActivationSparsity(Op& op)
             {
-                if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
+                if (((op.getOpType() == "Conv"))
                          and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
 
