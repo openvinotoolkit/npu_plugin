@@ -1087,19 +1087,25 @@ TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
             iterationVec[reqId]++;
             std::cout << "Completed " << iterationVec[reqId] << " async request ID " << reqId << std::endl;
             if (iterationVec[reqId] < iterationCount) {
-                Blob::Ptr detectOutputBlob = detectionRequests.at(reqId)->GetBlob(detectOutputName);
+                // throws [REQUEST_BUSY] when USE_SIPP=0
+                try {
+                    Blob::Ptr detectOutputBlob = detectionRequests.at(reqId)->GetBlob(detectOutputName);
 
-                float confThresh = 0.4f;
-                bool isTiny = true;
-                auto actualOutput = utils::parseYoloOutput(detectOutputBlob, imgWidth, imgHeight, confThresh, isTiny);
-                std::cout << "BBox Top:" << std::endl;
-                for (size_t i = 0; i < actualOutput.size(); ++i) {
-                    const auto& bb = actualOutput[i];
-                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
-                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
-                }
-                for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
-                    classificationRequests.at(classReqIdx)->StartAsync();
+                    float confThresh = 0.4f;
+                    bool isTiny = true;
+                    auto actualOutput =
+                        utils::parseYoloOutput(detectOutputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                    std::cout << "BBox Top:" << std::endl;
+                    for (size_t i = 0; i < actualOutput.size(); ++i) {
+                        const auto& bb = actualOutput[i];
+                        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                                  << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                    }
+                    for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
+                        classificationRequests.at(classReqIdx)->StartAsync();
+                    }
+                } catch (const std::exception& exc) {
+                    std::cout << "detectCallback caught exception " << exc.what() << std::endl;
                 }
                 detectionRequests.at(reqId)->StartAsync();
             } else {

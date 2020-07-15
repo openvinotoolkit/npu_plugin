@@ -190,7 +190,7 @@ InferenceEngine::Data flicTensorDescToIEData(const flicTensorDescriptor_t& flicT
  * 4. Give result to SetScratchBuffer
  * 5. Track allocated chunks by virtual addresses to free them properly
  */
-static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const unsigned int& threadCount,
+static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const unsigned int threadCount,
     const std::shared_ptr<KmbAllocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
     if (threadCount > 1) {
         logger->warning("scratchHelper: trying to set scratch buffer to %u threads.", threadCount);
@@ -203,7 +203,9 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
     }
 
     std::vector<void*> virtAddrVec;
+    virtAddrVec.reserve(threadCount);
     std::vector<void*> physAddrVec;
+    physAddrVec.reserve(threadCount);
     for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
         uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
         if (scratchVirtAddr == nullptr) {
