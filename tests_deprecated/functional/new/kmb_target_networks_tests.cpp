@@ -500,7 +500,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
+// C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: S#31766]
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -521,8 +525,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
+// C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: S#31766]
 TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -544,8 +551,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
         1, 2.0f);
 }
 
+// C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: S#31766]
 TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "bad results");
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -880,4 +890,3 @@ TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
         "vpu/emotions-recognition-retail-0003.png",
         3, 0.1f);
 }
-
