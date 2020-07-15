@@ -72,6 +72,10 @@ namespace mv
 
     };
 
+    inline bool isDebugFilesEnabled() {
+        const auto level = Logger::getVerboseLevel();
+        return (VerboseLevel::Error != level && VerboseLevel::Silent != level);
+    }
 }
 
 #endif // LOGGER_HPP_
