@@ -48,8 +48,6 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             if (op->hasAttr("floatPrecision") &&
                 op->get<bool>("floatPrecision") &&
                 referenceDevice == "A0" &&
-                (!op->hasAttr("inputActivationSparsity") ||
-                !op->get<bool>("inputActivationSparsity")) &&
                 !solvedByMixedConversion)
             {
                 op->set<bool>("activationSparsityCompilerSolving", true);
