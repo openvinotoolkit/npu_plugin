@@ -99,10 +99,10 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowExce
 //      class HDDL2_RemoteContext_UnitTests Initiations - destructor
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered) {
-    int workloadId = workloadContextHelper.getWorkloadId();
+    auto workloadId = workloadContextHelper.getWorkloadId();
     auto params = RemoteContext_Helper::wrapWorkloadIdToMap(workloadId);
 
-    { HDDL2RemoteContext context(params, config); }
+    ASSERT_NO_THROW({ HDDL2RemoteContext context(params, config); });
     ASSERT_TRUE(workloadContextHelper.isValidWorkloadContext(workloadId));
 }
 
