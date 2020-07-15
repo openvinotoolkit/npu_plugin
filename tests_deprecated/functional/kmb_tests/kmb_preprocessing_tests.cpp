@@ -1037,7 +1037,8 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
     });
 }
 
-TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
+// [Track number: S#35173]
+TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     if (!KmbTestBase::RUN_INFER) {
         SKIP();
     }

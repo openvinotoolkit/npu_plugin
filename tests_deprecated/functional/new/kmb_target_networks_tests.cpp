@@ -490,8 +490,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_
         1, 7.0f);
 }
 
+// C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: S#31766]
 TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -901,5 +904,5 @@ TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
             .setUserOutputLayout("output", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
         "vpu/emotions-recognition-retail-0003.png",
-        3, 0.1f);
+        2, 0.1f);
 }
