@@ -90,6 +90,15 @@ std::vector<mv::Data::TensorIterator> getMcmInputs(std::shared_ptr<ngraph::Node>
     return out;
 }
 
+void cvtPaddingsFromCeilToFloorMode(
+    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
+    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
+
+    pad_end = pad_end + (input_size_floor - input_size_ceil);
+    pad_end = std::max(pad_end, 0);
+}
+
+
 void registerOutputs(std::shared_ptr<ngraph::Node> node, std::vector<mv::Data::TensorIterator> mcmOutputs, NodeOutputToMcmMap& mcmOutputsMap) {
     size_t ind = 0;
     for (const auto& mcmOutput : mcmOutputs) {
@@ -153,7 +162,7 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
     const auto& padsBegin = conv->get_pads_begin();
     const auto& padsEnd = conv->get_pads_end();
     const auto& dilations = conv->get_dilations();
-    const auto group = conv->get_group();
+    const auto groupSize = conv->get_group();
 
     const auto mvDType = mv::DType("Default");
     const auto& mvQuantParams = McmOpAttrs::getQuantParams(conv);
@@ -161,20 +170,72 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
 
     IE_ASSERT(dilations.at(1) == dilations.at(0));
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmConvOutput = mcmModel.conv(
-        mcmData, mcmWeights,
-        {
-            static_cast<uint16_t>(strides.at(1)),
-            static_cast<uint16_t>(strides.at(0))},
-        {
-            static_cast<uint16_t>(padsBegin.at(1)), static_cast<uint16_t>(padsEnd.at(1)),
-            static_cast<uint16_t>(padsBegin.at(0)), static_cast<uint16_t>(padsEnd.at(0))
-        },
-        static_cast<uint32_t>(dilations.at(1)),
-        static_cast<uint32_t>(group),
-        mvDType, mvQuantParams, opName);
 
-    registerOutputs(conv, {mcmConvOutput}, mcmOutputsMap);
+    auto inputShape = conv->get_input_shape(0);
+    auto outputShape = conv->get_output_shape(0);
+    IE_ASSERT(4 == inputShape.size());
+    IE_ASSERT(4 == outputShape.size());
+    const auto inputGroupSize = inputShape.at(1);
+    const auto outputGroupSize = outputShape.at(1);
+
+    bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
+
+    int padLeft = padsBegin.at(1);
+    int padRight = padsEnd.at(1);
+    int padTop = padsBegin.at(0);
+    int padBottom = padsEnd.at(0);
+    const auto filterShape = mcmWeights->getShape();
+    IE_ASSERT(4 == filterShape.ndims());
+    const auto kernelSizeX = filterShape[0];
+    const auto kernelSizeY = filterShape[1];
+    const auto kernelStrideX = strides.at(0);
+    const auto kernelStrideY = strides.at(1);
+    const auto dilationX = dilations.at(0);
+    const auto dilationY = dilations.at(1);
+
+    cvtPaddingsFromCeilToFloorMode(mcmData->getShape()[0], outputShape.at(3),
+        kernelSizeX * dilationX - (dilationX - 1), kernelStrideX, padLeft, padRight);
+    cvtPaddingsFromCeilToFloorMode(mcmData->getShape()[1], outputShape.at(2),
+        kernelSizeY * dilationY - (dilationY - 1), kernelStrideY, padTop, padBottom);
+
+    if (isDepthWiseConv) {
+        // TODO: Need align API in mcmCompiler
+        // mcm expects (1,*,*,*) shape for depthwise weights, but Openvino has a (*,1,*,*)
+
+        auto sourceWeightsOp = mcmModel.getSourceOp(mcmWeights);
+        auto constWeightTensor = mcmWeights;
+        if (sourceWeightsOp->getOpType() == "FakeQuantize") {
+            constWeightTensor = sourceWeightsOp->getInputTensor(0);
+            sourceWeightsOp = mcmModel.getSourceOp(constWeightTensor);
+        }
+        constWeightTensor->set<bool>("is_depthwise_weights", true);
+        sourceWeightsOp->set<bool>("is_depthwise_weights", true);
+        const std::initializer_list<std::size_t> newWeightsShape = {
+            static_cast<std::size_t>(kernelSizeX), static_cast<std::size_t>(kernelSizeY), inputGroupSize, 1lu};
+
+        constWeightTensor->setShape(newWeightsShape);
+        mcmWeights->setShape(newWeightsShape);
+        sourceWeightsOp->set<mv::Shape>("shape", newWeightsShape);
+
+        const auto mcmConvOutput = mcmModel.depthwiseConv(
+            mcmData, mcmWeights,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
+             static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
+            static_cast<unsigned>(dilationX),
+            mvDType, mvQuantParams, opName);
+        registerOutputs(conv, {mcmConvOutput}, mcmOutputsMap);
+    } else {
+        const auto mcmConvOutput = mcmModel.conv(
+            mcmData, mcmWeights,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
+             static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
+            static_cast<uint32_t>(dilationX),
+            static_cast<uint32_t>(groupSize),
+            mvDType, mvQuantParams, opName);
+        registerOutputs(conv, {mcmConvOutput}, mcmOutputsMap);
+    }
 }
 
 void convert(std::shared_ptr<McmBias> bias, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -194,18 +255,6 @@ void convert(std::shared_ptr<McmBias> bias, mv::OpModel& mcmModel, NodeOutputToM
 
     registerOutputs(bias, {mcmBiasOutput}, mcmOutputsMap);
 }
-
-namespace {
-
-void cvtPaddingsFromCeilToFloorMode(
-    int input_size_ceil, int output_size, int kernel, int stride, int& pad_start, int& pad_end) {
-    const auto input_size_floor = mv::Tiling::inferInputSize(output_size, pad_start, pad_end, kernel, stride);
-
-    pad_end = pad_end + (input_size_floor - input_size_ceil);
-    pad_end = std::max(pad_end, 0);
-}
-
-}  // namespace
 
 void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(maxPool, mcmOutputsMap);
@@ -460,6 +509,21 @@ void convert(std::shared_ptr<ngraph::op::v1::Softmax> softmax, mv::OpModel& mcmM
     registerOutputs(softmax, {mcmSoftmaxOutput}, mcmOutputsMap);
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::Clamp> clamp, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    const auto mcmInputs = getMcmInputs(clamp, mcmOutputsMap);
+    IE_ASSERT(1 == mcmInputs.size());
+    const auto mcmData = mcmInputs.at(0);
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(clamp);
+    const auto& opName = clamp->get_friendly_name();
+    const double minValue = clamp->get_min();
+    const double maxValue = clamp->get_max();
+
+    auto mcmClampMin = mcmModel.minimum(mcmData, maxValue, mvDType, inputQuantParams, opName + "clamp-min");
+    auto mcmClampMax = mcmModel.maximum(mcmClampMin, minValue, mvDType, inputQuantParams, opName+ "clamp-max");
+    registerOutputs(clamp, {mcmClampMax}, mcmOutputsMap);
+}
+
 template <typename T>
 void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     convert(std::dynamic_pointer_cast<T>(node), mcmModel, mcmOutputsMap);
@@ -485,12 +549,13 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::v1::Transpose),
     MAP_ENTRY(ngraph::op::v0::Squeeze),
     MAP_ENTRY(ngraph::op::v1::Softmax),
+    MAP_ENTRY(ngraph::op::v0::Clamp),
 #if 0
 //     MAP_ENTRY(ngraph::op::v1::Add), Eltwise
     MAP_ENTRY(ngraph::op::v1::ReduceMean),
     MAP_ENTRY(ngraph::op::FullyConnected),
     // PT_MobileNet_V2
-    MAP_ENTRY(ngraph::op::v0::Clamp),
+
     // CF_Inception_V1
     MAP_ENTRY(ngraph::op::v0::LRN),
     MAP_ENTRY(ngraph::op::v0::Convert),
