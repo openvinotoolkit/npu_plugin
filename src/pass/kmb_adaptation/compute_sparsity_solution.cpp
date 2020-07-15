@@ -22,6 +22,21 @@ namespace mv
     }
 }
 
+void propagateRealSparsityLoss(mv::OpModel& om, mv::Data::OpListIterator op)
+{
+    // Give up on proper runtime generated output sparsity
+    op->set<bool>("outputActivationSparsity", false);
+    for(auto flow = op.leftmostOutput(); flow != om.flowEnd(); ++flow)
+    {
+        // Proper sparsity does not propagate through implicit ops
+        // Currently unimplemented
+        auto childOp = flow.sink();
+        if (childOp->hasAttr("inputActivationSparsity") &&
+            childOp->get<bool>("inputActivationSparsity"))
+            childOp->set<bool>("activationSparsityCompilerSolving", true);
+    }
+}
+
 void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     //IDU OF z-major Conv supports sparsity, so take all the input tensors of convs,
@@ -42,53 +57,47 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
     }
 
-    auto globalParams = model.getGlobalConfigParams();
-    auto referenceDevice = globalParams->get<std::string>("referenceDevice");
-
-    // A0 FP16 input sparsity requirements
-    for (auto opList : opsMap) {
-        for (auto op : opList.second) {
-
-            bool solvedByMixedConversion = op->hasAttr("placeConversionToFloat") &&
-                op->get<bool>("placeConversionToFloat") &&
-                op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
-                mv::Tensor::MemoryLocation("NNCMX");
-
-            if (referenceDevice == "A0" &&
-                op->hasAttr("floatPrecision") &&
-                op->get<bool>("floatPrecision") &&
-                (!op->hasAttr("inputActivationSparsity") ||
-                !op->get<bool>("inputActivationSparsity")) &&
-                !solvedByMixedConversion)
-            {
-                op->set<bool>("activationSparsityCompilerSolving", true);
-            }
-        }
-    }
-
-    // A0 ZM Conv SOH input sparsity requirements
+    // Decide wheter convolution sparsity is runtime or compiler solved
     for (auto convOp : opsMap["Conv"])
     {
-        if (referenceDevice == "A0" &&
-            convOp->hasAttr("splitStrategy") &&
-            convOp->get<std::string>("splitStrategy") == "SplitOverH" &&
-            (convOp->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] > 1 ||
-            convOp->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] > 1) &&
-            (!convOp->hasAttr("inputActivationSparsity") ||
-            !convOp->get<bool>("inputActivationSparsity")))
-        {
+        auto parentOp = om.getSourceOp(convOp->getInputTensor(0));
+        if((!parentOp->hasAttr("outputActivationSparsity") ||
+            !parentOp->get<bool>("outputActivationSparsity")) &&
+            (convOp->hasAttr("inputActivationSparsity") &&
+            convOp->get<bool>("inputActivationSparsity")))
             convOp->set<bool>("activationSparsityCompilerSolving", true);
+    }
+
+    // Decide wheter eltwise sparsity is runtime or compiler solved
+    for (auto eltwiseOp : opsMap["Eltwise"])
+    {
+        auto parentOutputSparsity = true;
+        for(auto parentOp = eltwiseOp.leftmostParent();
+            parentOp != om.opEnd(); ++parentOp)
+        {
+            parentOutputSparsity = parentOutputSparsity &&
+                parentOp->hasAttr("outputActivationSparsity") &&
+                parentOp->get<bool>("outputActivationSparsity");
+        }
+        if(!parentOutputSparsity &&
+            (eltwiseOp->hasAttr("inputActivationSparsity") &&
+            eltwiseOp->get<bool>("inputActivationSparsity"))) {
+            for(auto parentOp = eltwiseOp.leftmostParent();
+                parentOp != om.opEnd(); ++parentOp)
+                propagateRealSparsityLoss(om, parentOp);
+            eltwiseOp->set<bool>("activationSparsityCompilerSolving", true);
         }
     }
 
-    // Dilated convolution preocessing optimization requiring sparsity
+    // Dilated convolution HW processing optimization, requires custom
+    // sparsity generation which can't be serviced by runtime.
     for (auto convOp : opsMap["Conv"])
     {
         if (convOp->hasAttr("DilatedSubConv") && convOp->get<bool>("DilatedSubConv") &&
             !(convOp->hasAttr("slicedInput3DDMA") && convOp->get<bool>("slicedInput3DDMA")))
         {
+            propagateRealSparsityLoss(om, om.getSourceOp(convOp->getInputTensor(0)));
             convOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
-            convOp->set<bool>("inputActivationSparsityForDilatedConv", true);
         }
     }
 }

@@ -32,10 +32,11 @@ namespace mv
         );
 
         MV_REGISTER_PASS(GenerateSparsityMapsEltwise)
-       .setFunc(generateSparsityMapsEltwiseFcn)
-       .setDescription(
-           "Generates sparsity maps for unpopulated tensors involved in eltwise operations."
-       );
+        .setFunc(generateSparsityMapsEltwiseFcn)
+        .setDescription(
+            "Generates sparsity maps for unpopulated tensors involved in eltwise operations."
+        );
+
         MV_REGISTER_PASS(SetSparsityAttrForUnpopulatedTensors)
         .setFunc(setSparsityAttrForUnpopulatedFnc)
         .setDescription(
@@ -314,11 +315,23 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
+bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
+{
+    if(!flow->getTensor()->isPopulated() &&
+        flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolving"))
+           return true;
+    return false;
+}
+
 bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
 {
     auto source = flow.source();
-    if(source->getOpType() == "DPUTask" && source->get<std::string>("splitStrategy") != "SplitOverK")
-            return true;
+    if(!compilerSolvesSparsity(flow) &&
+        source->getOpType() == "DPUTask" &&
+        source->hasAttr("outputActivationSparsity") &&
+        source->get<bool>("outputActivationSparsity"))
+        return true;
 
     return false;
 }
@@ -340,15 +353,6 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string refere
                 (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")))
            return true;
     }
-    return false;
-}
-
-bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
-{
-    if(!flow->getTensor()->isPopulated() &&
-        flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
-        flow.sink()->get<bool>("activationSparsityCompilerSolving"))
-           return true;
     return false;
 }
 
@@ -491,29 +495,23 @@ static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::Compu
                 auto input0 = opIt->getInputTensor(0);
                 auto input1 = opIt->getInputTensor(1);
 
-                auto flowsInput0 = input0->get<std::set<std::string>>("flows");
-                auto flowsInput1 = input1->get<std::set<std::string>>("flows");
+                // Sparsity evaluation is dependant only on flow source and not on sink
+                // In cases of ops branching and producing sparisty, either input of eltwise
+                // will have the same source for all it's flows
+                auto flow0 = om.getDataFlow(*input0->get<std::set<std::string>>("flows").begin());
+                auto flow1 = om.getDataFlow(*input1->get<std::set<std::string>>("flows").begin());
 
-                if(flowsInput0.size() == 1 && flowsInput1.size() == 1)
+                if(checkActivationSparsitySourceOpConditions(flow0) && checkActivationSparsitySourceOpConditions(flow1))
                 {
-                    auto flowStrInput0 = *flowsInput0.begin();
-                    auto flowStrInput1 = *flowsInput1.begin();
+                    input0->setSparse();
+                    input1->setSparse();
+                    // Note: odu_offset to be set on the input of the eltwise that results in positive number
+                    // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
+                    auto input0_op = om.getSourceOp(input0);
+                    input0_op->set<std::string>("needsODUoffset", input1->getName());
 
-                    auto flow0 = om.getDataFlow(flowStrInput0);
-                    auto flow1 = om.getDataFlow(flowStrInput1);
-
-                    if(checkActivationSparsitySourceOpConditions(flow0) && checkActivationSparsitySourceOpConditions(flow1))
-                    {
-                        input0->setSparse();
-                        input1->setSparse();
-                        // Note: odu_offset to be set on the input of the eltwise that results in positive number
-                        // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
-                        auto input0_op = om.getSourceOp(input0);
-                        input0_op->set<std::string>("needsODUoffset", input1->getName());
-
-                        auto input1_op = om.getSourceOp(input1);
-                        input1_op->set<std::string>("needsODUoffset", input0->getName());
-                    }
+                    auto input1_op = om.getSourceOp(input1);
+                    input1_op->set<std::string>("needsODUoffset", input0->getName());
                 }
             }
         }

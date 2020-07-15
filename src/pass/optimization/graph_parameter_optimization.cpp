@@ -82,12 +82,13 @@ namespace mv
                 DWChannels,
                 SOHheight,
                 RequiresSparsity,
-                SparsitySOK,
                 RealSparseForFakeSparseOp,
                 DilatedSOH,
                 DWLargeStrideReplacementSOK,
                 DilatedOutputSparsityConsumption,
                 SpiltOverHWithStreamOverK,
+                SparsityKSegmented,
+                SparsitySpilling,
                 Unknown
             };
 
@@ -106,12 +107,13 @@ namespace mv
                 {FailCause::DWChannels, "DWChannels"},
                 {FailCause::SOHheight, "SOHheight"},
                 {FailCause::RequiresSparsity, "RequiresSparsity"},
-                {FailCause::SparsitySOK, "SparsitySOK"},
                 {FailCause::RealSparseForFakeSparseOp, "RealSparseForFakeSparseOp"},
                 {FailCause::DilatedSOH, "DilatedSOH"},
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::DilatedOutputSparsityConsumption, "DilatedOutputSparsityConsumption"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
+                {FailCause::SparsityKSegmented, "SparsityKSegmented"},
+                {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -748,10 +750,8 @@ namespace mv
                     return 0;
 
                 auto outputShape = op.getOutputTensor(0)->getShape();
-                auto inputShape = op.getInputTensor(0)->getShape();
                 auto clustering = strategySet["clustering"].get<string>();
                 auto streaming = strategySet["streaming"].get<Shape>();
-                auto sparsity = strategySet["weightsSparsity"].get<bool>();
 
                 Shape contexts,isiSplit;
 
@@ -843,9 +843,6 @@ namespace mv
                     return true;
 
                 if(requiresCompilerActivationSparsity(op))
-                    return true;
-
-                if(requiresFakeActivationSparsity(op))
                     return true;
 
                 return false;
@@ -998,9 +995,7 @@ namespace mv
             int8_t checkHWUnsupportedOp(mv::Op& op)
             {
                 int8_t executableInHW = 0;
-                if (op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv" ||
-                        op.getOpType() == "MaxPool" ||
-                        op.getOpType() == "Eltwise")
+                if (op.isHardwarizable())
                 {
                     for (std::size_t input_gates = 0; input_gates < op.getInputTensor().size(); input_gates++)
                     {
@@ -1035,8 +1030,13 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
-                                    requiresFakeActivationSparsity(op));
+                    auto fit = memorySize(op,
+                        clustering,
+                        strategy["inputSparsity"],
+                        strategy["outputSparsity"],
+                        weightsSparsity,
+                        streamShape,
+                        requiresFakeActivationSparsity(op));
                     if(fit.first + fit.second >= clusterMemory)
                         return FailCause::MemorySize;
                 }
@@ -1084,7 +1084,8 @@ namespace mv
                 if((op.getOpType() == "Output") && (not spilling))
                     return FailCause::OutputNotSpilled;
 
-                //iIf the layer is streaming over H or W, output of this layer has to be spilled
+                // TODO: key condition to remove to enable NNCMX concat
+                // If the layer is streaming over H or W, output of this layer has to be spilled
                 if((not spilling) && ((streamShape["H"] * streamShape["W"]) > 1))
                     return FailCause::StreamingNotSpilled;
 
@@ -1124,8 +1125,21 @@ namespace mv
                         return FailCause::SOHheight;
                 }
 
-                if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
-                    return FailCause::SparsitySOK;
+                // TODO: future task tackle SE table allocation to
+                // to enable sparse channel segmented ops
+                // Additionally each K tile will HAVE to be a power of 2 (IDU restriction)
+                // which will create a feedback loop on the K stream rountine
+                if(strategy["outputSparsity"].get<bool>() &&
+                    (clustering == "SplitOverK" ||
+                    clustering == "HKSwitch" ||
+                    streamShape["K"] > 1))
+                    return FailCause::SparsityKSegmented;
+
+                // TODO: much more harder restriction to overcome
+                // joint compiler and runtime coordination needed
+                if(strategy["outputSparsity"].get<bool>() &&
+                    spilling)
+                    return FailCause::SparsitySpilling;
 
                 if(requiresFakeActivationSparsity(op) && strategy["inputSparsity"].get<bool>())
                     return FailCause::RealSparseForFakeSparseOp;
@@ -1174,10 +1188,16 @@ namespace mv
                 auto parentClustering = parent["clustering"].get<string>();
                 auto childClustering = child["clustering"].get<string>();
                 bool spillForCM = false;
-                if (enableChannelMajorConv and ((parentOp.getOpType() == "Conv" and
-                   parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) or (childOp.getOpType() == "Conv" and
-                   childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)))
+
+                auto isChildChanMajor = childOp.getOpType() == "Conv" && enableChannelMajorConv
+                    && childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
+                auto isParentChanMajor = parentOp.getOpType() == "Conv" && enableChannelMajorConv
+                    && parentOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
+                if (isParentChanMajor || isChildChanMajor)
                    spillForCM = needForceSpillingForCM(parentOp, childOp, parentClustering, childClustering);
+
+                bool parentOutputSparsity = parent["outputSparsity"].get<bool>();
+                bool childInputSparsity = child["inputSparsity"].get<bool>();
 
                 if(!enableChannelMajorConv && parentOp.getOpType() == "Input" && childOp.getOpType() == "Conv" && childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                 {
@@ -1363,8 +1383,18 @@ namespace mv
                                 return INF;
                         }
                     }
-                    else if(childClustering == "SplitOverH")
+                    else if(childClustering == "SplitOverH" &&
+                            childInputSparsity)
                     {
+                        // This should also be solveable with fake compiler provided sparsity
+                        // there may very well be cases where sparsity if enforced, but due to this
+                        // limitation proper sparsity is not a choice since cluster boundary sparse map
+                        // reads will fail due to misalignment
+                        // Fake sparsity will provide all 1's sparse map so that probem is solved
+                        // from the starts
+                        // TODO: enable this case in G.O. decide later if fake or real sparsity
+                        // Sparse map has to be contiguously alligned at 16 bytes
+                        // for first (N - 1) clusters
                         auto outputTensorShape = childOp.getOutputTensor(0)->getShape();
                         unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
                         unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
@@ -1390,9 +1420,7 @@ namespace mv
                 }
 
                 //Note: Input clustering strategy should match first layer, if it is Z-major
-                if(parentOp.getOpType() == "Input" and not
-                    (childOp.getOpType() == "Conv" and enableChannelMajorConv
-                    and childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16))
+                if(parentOp.getOpType() == "Input" && !isChildChanMajor)
                 {
                     if(parentClustering != childClustering)
                     {
@@ -1402,81 +1430,18 @@ namespace mv
                     }
                 }
 
-
-                // These sparsity rules apply pairwise, and effect memory size and execution time.
-                // Note: Activation sparsity now decided by GO
-                bool parentOutputSparsity = parent["outputSparsity"].get<bool>();
-                bool childInputSparsity = child["inputSparsity"].get<bool>();
-
-                // Sparsity must match
-                if(parentOutputSparsity != childInputSparsity) {
-                    if( !(requiresCompilerActivationSparsity(childOp) and !parentOutputSparsity) ){
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
-                        return INF;
-                    }
-                }
-
-                if(parent["spilling"].get<bool>()){
-                    if(parent["outputSparsity"].get<bool>()){
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                            + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by spilling to sparsity");
-                        return INF;
-                    }
-                }
-
-                // In cases where real activation sparsity  will be required later
-                // ensure there is enough memory for them
-                if(requiresRealActivationSparsity(childOp, childClustering))
-                    childInputSparsity = true;
-
-                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
-                if(requiresFakeSparsity){
-                    parentOutputSparsity = false;
-                    childInputSparsity = true;
-                }
-
-                // Note: Should no longer need to recheck for sparse memory size - we check the actual sparse memory size
-                // when generating the strategies now!
-                //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
-                //does not exceed CMX
-                if(childInputSparsity)
-                {
-                    auto parentMem = memorySize(parentOp,
-                                            parentClustering,
-                                            false,
-                                            parentOutputSparsity,
-                                            parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(),
-                                            requiresFakeActivationSparsity(parentOp));
-
-                    auto childMem = memorySize(childOp,
-                                            childClustering,
-                                            childInputSparsity,
-                                            false,
-                                            child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>(),
-                                            requiresFakeSparsity);
-
-
-                    if( (childOp.getOpType() != "Output") and
-                      ( (childMem.first + childMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
-                            return INF;
-                    }
-                    if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
-                      ( (parentMem.first + parentMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
-                            return INF;
-                    }
-                }
+                // Wasted output sparsity
+                if (parentOutputSparsity && !childInputSparsity)
+                    return INF;
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
+
+                // Case in which child input sparsity will be provided by compiler
+                // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
+                // so no real sparse acceleration will pe provided, only sparse decoding overhead
+                if (!parentOutputSparsity && childInputSparsity)
+                    execTime2 += execTime2 / 10;
 
                 if(parent["spilling"].get<bool>())
                 {
@@ -1580,6 +1545,7 @@ namespace mv
                 if(parentClustering == "SplitOverHOverlapped")
                     execTime1 = execTime1 - 1;
 
+                // TODO: purge this temporary fix
                 if(parentOutputSparsity)
                     execTime1 = execTime1 + 1;
 
@@ -1700,6 +1666,10 @@ namespace mv
                             inputActivationSparsity = {createStrategyFromBool(op,"inputActivationSparsity")};
                             outputActivationSparsity = {createStrategyFromBool(op,"outputActivationSparsity")};
                         }
+
+                        if (requiresActivationSparsity(op, clustering.get<string>()))
+                            inputActivationSparsity = {true};
+
                         for(const auto inputSparsity : inputActivationSparsity)
                         {
                         for(const auto outputSparsity : outputActivationSparsity)
