@@ -204,7 +204,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 
     std::vector<void*> virtAddrVec;
     virtAddrVec.reserve(threadCount);
-    std::vector<void*> physAddrVec;
+    std::vector<uint32_t> physAddrVec;
     physAddrVec.reserve(threadCount);
     for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
         uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
@@ -215,9 +215,8 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
         if (scratchPhysAddr == 0) {
             THROW_IE_EXCEPTION << "scratchHelper: failed to get physical address";
         }
-        // NB: casting unsigned long to void may cause problems on some systems
-        // vpualHost API has to be updated to accept integers
-        physAddrVec.push_back(reinterpret_cast<void*>(scratchPhysAddr));
+        // NB: narrowing unsigned long (uint64_t on 64-bit Yocto) to uint32_t here
+        physAddrVec.push_back(scratchPhysAddr);
         virtAddrVec.push_back(scratchVirtAddr);
     }
 
