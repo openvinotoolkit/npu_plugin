@@ -221,7 +221,7 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             if(inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
             {
                 //todo::don't check for implicit concat, but for ImplicitFlow attribute with direction of INPUT_IN_OUTPUT
-                if(inputOp->getOpType() != "ImplicitConcat")
+                if(inputOp->getOpType() != "ImplicitConcat" || inputOp->getOpType() != "ImplicitJoin")
                 {
                     if(cm.isFlowAllowed(inputOp, deallocateInputOp))
                     {

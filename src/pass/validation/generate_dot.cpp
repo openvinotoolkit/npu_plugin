@@ -26,12 +26,12 @@ namespace mv
     }
 
 }
-
-namespace mv {
-
+namespace mv
+{
 void GenerateDotFromModel(mv::ComputationModel& model, 
     const std::string& outputScope, const std::string& outputFile,
-    const std::string& contentLevel, bool htmlLike, bool verbose) {
+    const std::string& contentLevel, bool htmlLike, bool verbose, bool reduced,
+    const std::string& startingOpName, const std::string& finishingOpName) {
 
     std::ofstream ostream;
     mv::utils::validatePath(outputFile);
@@ -41,12 +41,34 @@ void GenerateDotFromModel(mv::ComputationModel& model,
         throw mv::ArgumentError(model, "output", outputFile, "Unable to open output file");
 
     ostream << "digraph G {\n\tgraph [splines=spline]\n";
+    
+    std::vector<mv::Data::OpListIterator> reducedOps;
+    mv::OpModel opModel(model);
 
+    if (reduced)
+    {
+
+        auto sortedOps = opModel.topologicalSort();
+        bool startFound = false;
+        bool finishFound = false;
+        for (auto op : sortedOps)
+        {
+            if (startingOpName == op->getName())
+                startFound = true;
+            if (startFound && !finishFound)
+                reducedOps.push_back(op);
+            if (finishingOpName == op->getName())
+                finishFound = true;
+        }
+    }
+    else
+    {
+        for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+            reducedOps.push_back(opIt);
+    }
     if (outputScope != "DataModel")
     {
-      mv::OpModel opModel(model);
-
-        for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+        for (auto opIt : reducedOps)
         {
             if (!(outputScope == "ControlModel" || outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
                 || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))
@@ -127,8 +149,7 @@ void GenerateDotFromModel(mv::ComputationModel& model,
 
         if (outputScope == "OpModel" || outputScope == "ExecOpModel" || outputScope == "OpControlModel" || outputScope == "ExecOpControlModel")
         {
-
-          mv::DataModel dataModel(model);
+            mv::DataModel dataModel(model);
 
             for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
             {
@@ -375,9 +396,7 @@ void GenerateDotFromModel(mv::ComputationModel& model,
     ostream << "}\n";
     ostream.close();
 }
-
 }
-
 
 void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element& passDesc, mv::Element&)
 {
@@ -403,9 +422,19 @@ void generateDotFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv:
 //        throw ArgumentError(model, "content", contentLevel, "Invalid content scope");
 
     bool htmlLike = passDesc.get("html");
+    bool reduced = false;
+    if (passDesc.hasAttr("reduced"))
+        reduced = passDesc.get("reduced");
 
+    std::string startingOpName = "";
+    std::string finishingOpName = "";
+    if (reduced)
+    {
+        startingOpName = passDesc.get<std::string>("startingOpName");
+        finishingOpName = passDesc.get<std::string>("finishingOpName");
+    }
     std::string outputFile = passDesc.get<std::string>("output");
     mv::GenerateDotFromModel(model, outputScope, outputFile,
-          contentLevel, htmlLike, verbose);
+          contentLevel, htmlLike, verbose, reduced, startingOpName, finishingOpName);
 
 }

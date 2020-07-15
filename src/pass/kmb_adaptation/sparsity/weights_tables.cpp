@@ -7,12 +7,12 @@
 #include "include/mcm/utils/custom_strings.hpp"
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/tensor/shape.hpp"
+#include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/target/kmb/ppe_task.hpp"
+#include <cmath>
 #include <math.h>
 
 static const std::size_t WT_ELEMENTS_PER_CHANNEL = 4;
-//cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
-static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
 static const std::size_t ALU_HALT_OPCODE = 6;
 static const std::size_t ALU_LOAD = 2;
 static void generateWeightsTablesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -445,6 +445,153 @@ void populateActivationStorageElementMap(
     }
 }
 
+// Sub function to generate storage element pointer for dilated convolution
+
+void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+{
+    auto input = dpuTaskOp->getInputTensor(0);
+    auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
+    auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
+    auto originalWidth = dpuTaskOp->get<mv::Shape>("originalShape")[mv::IO_WIDTH_DIMENSION];
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
+
+    std::vector<int64_t> unpopulated_offsets(width*height, 0);
+    unsigned subConvRowIdx = subConvIndex/dilationFactor;
+    unsigned subConvColIdx = subConvIndex%dilationFactor;
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
+
+    long int subConvElementIncrement = increment * dilationFactor;
+    long int subConvRowIncrement = increment * originalWidth * dilationFactor;
+    long int subConvOffset = increment * subConvColIdx + subConvRowIdx*originalWidth*increment;
+
+    unsigned i = 0;
+    unsigned rowOffset = subConvOffset;
+    for(unsigned h = 0; h < height; ++h)
+    {
+        for(unsigned w = 0; w < width; ++w)
+        {
+            unpopulated_offsets[i++] = ((rowOffset + w * subConvElementIncrement ) << SHIFT_FOR_STORAGE_ELEMENT);
+        }
+        rowOffset += subConvRowIncrement;
+    }
+    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+}
+
+int64_t getSmallestInputAddress(mv::Data::OpListIterator implicitJoin)
+{
+    auto numberInputs = implicitJoin.inputsSize();
+    auto minBaseAddress = implicitJoin->getInputTensor(0)->getAddress();
+    for (size_t i=1; i < numberInputs; i++)
+    {
+        auto address = implicitJoin->getInputTensor(i)->getAddress();
+        if (address < minBaseAddress)
+            minBaseAddress = address;
+    }
+
+    //std::cout << " minBaseAddress " << std::hex << minBaseAddress << std::endl;
+    return minBaseAddress;
+}
+
+void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+
+    auto input = dpuTaskOp->getInputTensor()[0];
+    auto parentImplicitOp = om.getSourceOp(input);
+    std::size_t numberSubConvs = 0;
+    int64_t inputBaseAddress = 0;
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
+    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
+    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
+    std::vector<int64_t> unpopulated_offsets(width*height, 0);
+    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
+    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
+
+    //NOTE: The code referring to the previous operation if concat
+    //is redundant as the final implementation was not to use an adittional operation
+    //but resolve the unshuffling of the tensor through the 3D-DMAs, so I am leaving to comments
+
+
+//    if (parentImplicitOp->getOpType() == "ImplicitJoin")
+//    {
+    numberSubConvs = parentImplicitOp.inputsSize();
+    inputBaseAddress = getSmallestInputAddress(parentImplicitOp);
+    //Original DF factor is sqrt() of inputs to ImplicitJoin
+    unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
+
+    //for simplicity we pick base address as the smallest of all subconvs output addresses (to avoid negatives)
+    unsigned i = 0;
+    for(unsigned h = 0; h < height; ++h)
+    {
+        unsigned subConvRowIdx = (h%originalDilationFactor)*originalDilationFactor;
+        for(unsigned w = 0; w < width; ++w)
+        {
+            //get base address based on subConvIdx
+            unsigned subConvIdx = subConvRowIdx + w%originalDilationFactor;
+            auto subConvBaseAddressOffset = parentImplicitOp->getInputTensor(subConvIdx)->getAddress() - inputBaseAddress;
+            auto subConvWidth = parentImplicitOp->getInputTensor(subConvIdx)->getShape()[mv::IO_WIDTH_DIMENSION];
+            //calc offset from start of subconv
+            unsigned subConvElementIdx = (h/originalDilationFactor)*subConvWidth + (w/originalDilationFactor);
+            unsigned subConvElementOffset = subConvElementIdx * increment;
+
+            unpopulated_offsets[i++] = ((subConvBaseAddressOffset + subConvElementOffset) << SHIFT_FOR_STORAGE_ELEMENT);
+            //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
+        }
+    }
+//    }
+//    else if (parentImplicitOp->getOpType() == "DMATask" &&
+//             om.getSourceOp(parentImplicitOp->getInputTensor()[0])->getOpType() == "ImplicitConcat" &&
+//             om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<bool>("joinSimulation"))
+//    {
+//        numberSubConvs = om.getSourceOp(parentImplicitOp->getInputTensor()[0])->get<size_t>("dilationSubConvs");
+//        unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
+//        unsigned i = 0;
+//        unsigned subConvHeight = ceil((double)height / originalDilationFactor); //height of bigger subconvs
+//        unsigned subConvWidth = ceil((double)width / originalDilationFactor); //width of bigger subconvs
+//        for(unsigned h = 0; h < height; ++h)
+//        {
+//            for(unsigned w = 0; w < width; ++w)
+//            {
+//                unsigned totalNumberOfRows=0;
+//                unsigned totalNumberOfCols=0;
+
+//                //calc number of rows
+//                if((height % originalDilationFactor) == 0 || (h % originalDilationFactor)  < (height % originalDilationFactor))  // all the sub conv to the left are of full width
+//                {
+//                    totalNumberOfRows = h%originalDilationFactor * subConvHeight;
+//                }
+//                else
+//                {
+//                    //add height of subconvRows of full height first and then add remaining of smaller height
+//                    totalNumberOfRows = (height % originalDilationFactor) * subConvHeight + (h%originalDilationFactor - height%originalDilationFactor)*(subConvHeight - 1);
+//                }
+//                totalNumberOfRows += h / originalDilationFactor;
+//                //calc number of cols
+//                if((width % originalDilationFactor) == 0 || (w % originalDilationFactor)  < (width % originalDilationFactor))  // all the sub conv to the left are of full width
+//                {
+//                    totalNumberOfCols = w%originalDilationFactor * subConvWidth;
+//                }
+//                else
+//                {
+//                    //add width*subConvWidth for of full subConvWidth  + (subConvWidth-1) for the rows of smaller subconvs
+//                    totalNumberOfCols = (width % originalDilationFactor) * subConvWidth + (w%originalDilationFactor - width%originalDilationFactor)*(subConvWidth - 1);
+//                }
+//                totalNumberOfCols += w / originalDilationFactor;
+//                unsigned subConvElementIdx = (totalNumberOfCols + totalNumberOfRows*width);
+
+//                unsigned subConvElementOffset = subConvElementIdx * increment;
+
+//                unpopulated_offsets[i++] = (subConvElementOffset << SHIFT_FOR_STORAGE_ELEMENT);
+//            }
+//        }
+//    }
+
+    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
+}
+
 
 //NOTE: The whole idea of the pwl is that we are going to use a linear function that represents leaky Relu.
 //This comes through the equation and idea of Alessandro https://colab.research.google.com/drive/1xTQyJtZiPtMw-r1jUGks-aspbrpuEdKR#scrollTo=biQruEJ7olzD.
@@ -526,9 +673,27 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
     mv::OpModel om(model);
     for(auto op : om.getOps("DPUTask"))
     {
-        if(op->hasAttr("activationSparsityCompilerSolving") &&
-            op->get<bool>("activationSparsityCompilerSolving"))
-            populateActivationStorageElementMap(op, model);
+        auto taskOp = op->getOpType();
+        if (taskOp == "DPUTask")
+        {
+            if(op->hasAttr("activationSparsityCompilerSolving") &&
+                op->get<bool>("activationSparsityCompilerSolving"))
+                populateActivationStorageElementMap(op, model);
+
+            // New logic for generating SEP for dilated convolution
+            if(op->hasAttr("activationSparsityCompilerSolvingForDilatedConv")
+                    && op->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
+            {
+                populateActivationStorageElementMapForDilatedConvolution(op, model);
+            }
+
+            if(op->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
+                    && op->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
+            {
+                // NB this function still needs the correct logic to generate the SEPs
+                populateActivationStorageElementMapForLayerAfterDilatedConvolution(op, model);
+            }
+        }
     }
 }
 

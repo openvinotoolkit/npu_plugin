@@ -18,16 +18,6 @@ else()
     target_link_libraries(avgpool_asymmetric_2d_large_kernel cm)
 
 
-    add_executable(avgpool_asymmetric_icnet_large_stride avgpool_asymmetric_icnet_large_stride/avgpool_asymmetric_icnet_large_stride.cpp)
-    target_link_libraries(avgpool_asymmetric_icnet_large_stride cm)
-
-    add_executable(avgpool_asymmetric_icnet_1d_large_kernel avgpool_asymmetric_icnet_1d_large_kernel/avgpool_asymmetric_icnet_1d_large_kernel.cpp)
-    target_link_libraries(avgpool_asymmetric_icnet_1d_large_kernel cm)
-
-    add_executable(avgpool_asymmetric_icnet_2d_large_kernel avgpool_asymmetric_icnet_2d_large_kernel/avgpool_asymmetric_icnet_2d_large_kernel.cpp)
-    target_link_libraries(avgpool_asymmetric_icnet_2d_large_kernel cm)
-
-
     add_executable(single_conv_hde single_conv_hde/single_conv_hde.cpp)
     target_link_libraries(single_conv_hde cm)
 
@@ -118,8 +108,20 @@ else()
     add_executable(conv_batch_fasterRCNN conv_batch_fasterRCNN/conv_batch_fasterRCNN.cpp)
     target_link_libraries(conv_batch_fasterRCNN cm)
 
-    add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
-    target_link_libraries(conv_dilated cm)
+    #add_executable(conv_dilated conv_dilated/conv_dilated.cpp)
+    #target_link_libraries(conv_dilated cm)
+
+    add_executable(conv_dilated_icv_full_ones conv_dilated_icv_full_ones/conv_dilated_icv_full_ones.cpp)
+    target_link_libraries(conv_dilated_icv_full_ones cm)
+
+    add_executable(conv_dilated_icv_design conv_dilated_icv_design/conv_dilated_icv_design.cpp)
+    target_link_libraries(conv_dilated_icv_design cm)
+    
+    add_executable(conv_dilated_icv_design_unequal_subconvs conv_dilated_icv_design_unequal_subconvs/conv_dilated_icv_design_unequal_subconvs.cpp)
+    target_link_libraries(conv_dilated_icv_design_unequal_subconvs cm)
+
+    add_executable(conv_dilation_ssd conv_dilation_ssd/conv_dilation_ssd.cpp)
+    target_link_libraries(conv_dilation_ssd cm)
 
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
@@ -141,9 +143,6 @@ else()
 
     add_executable(depthwise_channel_scaling depthwise_channel_scaling/depthwise_channel_scaling.cpp)
     target_link_libraries(depthwise_channel_scaling cm)
-
-    add_executable(depthwiseconv_exceed_stride depthwiseconv_exceed_stride/depthwiseconv_exceed_stride.cpp)
-    target_link_libraries(depthwiseconv_exceed_stride cm)
 
     add_executable(flatten flatten/flatten.cpp)
     target_link_libraries(flatten cm)
@@ -216,13 +215,6 @@ else()
 
     add_executable(interp interp/interp.cpp)
     target_link_libraries(interp cm)
-
-    add_executable(interp_different_width_height_upsample interp_different_width_height_upsample/interp_different_width_height_upsample.cpp)
-    target_link_libraries(interp_different_width_height_upsample cm)
-
-
-    add_executable(interp_different_width_height_subsample interp_different_width_height_subsample/interp_different_width_height_subsample.cpp)
-    target_link_libraries(interp_different_width_height_subsample cm)
 
     add_executable(interp_noalign interp_noalign/interp_noalign.cpp)
     target_link_libraries(interp_noalign cm)

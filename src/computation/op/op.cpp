@@ -294,7 +294,7 @@ bool mv::Op::isImplicit() const
     bool isImplicitOp = false;
     std::vector<std::string> implicitTypes = {"ImplicitConcat", "Crop", "Copy", "Slice", "Align", "ImplicitReshape",
                                                 "ImplicitPermute", "ImplicitOutput", "ImplicitUnion",
-                                                "ImplicitInput", "ImplicitInputSlice"};
+                                                "ImplicitInput", "ImplicitInputSlice", "ImplicitJoin"};
     if (std::count(implicitTypes.begin(), implicitTypes.end(), getOpType()))
     {
         isImplicitOp = true;

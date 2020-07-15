@@ -1,11 +1,13 @@
-#include <fstream>
-#include <set>
-#include <string>
-#include <vector>
+#ifndef HUFFMAN_CODEC_HPP
+#define HUFFMAN_CODEC_HPP
 
 #include <cmath>
 #include <cstdio>
+#include <fstream>
 #include <iostream>
+#include <set>
+#include <string>
+#include <vector>
 
 #include "Huffman.hpp"
 
@@ -107,3 +109,5 @@ extern "C" unsigned int huffmanCodecDecompressArrayC(char *outputData,
                                                      huffmanCodec *huffmanCodecPtr);
 
 #endif
+
+#endif // HUFFMAN_CODEC_HPP

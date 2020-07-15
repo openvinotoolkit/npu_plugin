@@ -16,9 +16,9 @@ void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
 void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
-void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
@@ -51,9 +51,9 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceExpReduceSumMultipyFcn(pass, model);
-    replaceLargeAvgPoolFcn(pass, model);
+    replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
-    replaceAvgPoolAsymmetricStridesFcn(pass, model);
+    replaceAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     averageAsDepthWiseFcn(pass, model);
@@ -776,19 +776,29 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& , mv::ComputationMo
 // Example: 13x13 kernel is replaced with 2 depthwise convolutions, each 4x4 kernel, stride 4, scale 1/13
 // Example: 14x14 kernel is replaced with 1 depthwise 7x7 kernel, stride 7, scale 1/14 followed by
 // depthwise 2x2 kernel, stride 2, scale 1/14
-void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
      MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::vector <mv::Data::OpListIterator> ops;
+    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() );
+    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
+    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
 
-    auto averagePoolOps = om.getOps("AveragePool");
-
-    for (auto& opIt : averagePoolOps)
+    for (auto opIt : ops)
     {
-        std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-
+        std::array<unsigned short, 2> kSize;
+        if (opIt->hasAttr("kSize"))
+            kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+        else
+        {
+            kSize[mv::KERNEL_HEIGHT] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT];
+            kSize[mv::KERNEL_WIDTH] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH];
+        }
         if(kSize[mv::KERNEL_WIDTH] <= mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= mv::MAX_KERNEL) // can do as single depthwise, skip
             continue;//skip for this avgPool
 
@@ -870,7 +880,6 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             }
         }
 
-
         newKernel[largeDim] = factors.first;//first was the large dimension
         newKernel_1[largeDim] = factors.second;
         if (asymmetricCase)
@@ -920,23 +929,44 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
-        mv::Data::TensorIterator depthwise_conv0 = createPartialDepthwise(om, opIt, sourceTensor,
-                                                                            name + "_DepthwiseConv0",
-                                                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
+        mv::Data::TensorIterator op0;
+        if (opIt->getOpType() == "AveragePool")
+            op0 = createPartialDepthwise(om, opIt, sourceTensor,
+                                            name + "_DepthwiseConv0",
+                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
+        else if (opIt->getOpType()== "MaxPool")
+        {
+            op0 = om.maxPool(sourceTensor,
+                    newKernel,
+                    newKernel,
+                    padding,
+                    true,//exclude pad
+                    opIt->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    opIt->get<mv::QuantizationParams>("quantParams"),
+                    opIt->getName() + "_MaxPool0");
+            if(opIt->hasAttr("opId"))
+            {
+                unsigned currentOpId = opIt->get<unsigned>("opId");
+                op0->set<unsigned>("opId", currentOpId);
+                om.getSourceOp(op0)->set<unsigned>("opId", currentOpId);
+            }
+        }
+        else
+            throw std::runtime_error( "Error: Op= " + opIt->getName() + " compiler doesn't support large kernel for a " + opIt->getOpType() );
 
-        linkNewOperationsReplacement(parentOpIt, depthwise_conv0, om, opIt);
+        linkNewOperationsReplacement(parentOpIt, op0, om, opIt);
 
         // Remove old flow, remember to it to put next depthwise into model in correct place
         std::vector<mv::Data::OpListIterator> opsToLink;
         std::vector<std::size_t> inputSlots;
         std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-        auto depthwiseOp0 = om.getSourceOp(depthwise_conv0);
-        auto sourceFlowStart = depthwiseOp0.leftmostOutput();
+        auto input_op0 = om.getSourceOp(op0);
+        auto sourceFlowStart = input_op0.leftmostOutput();
 
         if (asymmetricCase)
         {
-            depthwiseOp0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimension we need workload to stride over.
+            input_op0->set<unsigned>("asymmetricKernel", 1-largeDim);//record dimension we need workload to stride over.
         }
 
         for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
@@ -953,15 +983,37 @@ void replaceLargeAvgPoolFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         pass.log(mv::Logger::MessageType::Debug, "newKernel " +  std::to_string(newKernel[0]) + " , " + std::to_string(newKernel[1]));
 
+        mv::Data::TensorIterator op1;
+        if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
+            op1 = createPartialDepthwise(om, input_op0, op0,
+                                            name + "_DepthwiseConv1",
+                                            kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
+        else if (input_op0->getOpType() == "MaxPool")
+        {
+            op1 = om.maxPool(op0,
+                    newKernel_1,
+                    newKernel_1,
+                    padding,
+                    true,//exclude pad
+                    input_op0->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
+                    op0->get<mv::QuantizationParams>("quantParams"),
+                    op0->getName() + "_MaxPool1");
+            if(input_op0->hasAttr("opId"))
+            {
+                unsigned currentOpId = input_op0->get<unsigned>("opId");
+                op1->set<unsigned>("opId", currentOpId);
+                om.getSourceOp(op1)->set<unsigned>("opId", currentOpId);
+            }
+        }
+        else
+            throw std::runtime_error( "Error: Op= " + input_op0->getName() + " compiler doesn't support large kernel for a " + input_op0->getOpType() );
+
         // Now generate the second depthwise conv
-        mv::Data::TensorIterator depthwise_conv1 = createPartialDepthwise(om, depthwiseOp0, depthwise_conv0,
-                                                                        name + "_DepthwiseConv1",
-                                                                        kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
-            opsToLink[op]->setInputTensor(depthwise_conv1, inputSlots[op], false);
-            om.defineFlow(depthwise_conv1, opsToLink[op], inputSlots[op]);
+            opsToLink[op]->setInputTensor(op1, inputSlots[op], false);
+            om.defineFlow(op1, opsToLink[op], inputSlots[op]);
 	    }
 
     } // end for
@@ -1217,30 +1269,33 @@ void replaceLargeStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
     }
 }
 
-
-void replaceAvgPoolAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    std::vector<std::string> opList = {"AveragePool", "MaxPool", "DepthwiseConv"};
+    std::unordered_map<std::string, std::vector<mv::Data::OpListIterator>> operations = om.getOpsOfTypes(opList);
+    std::vector <mv::Data::OpListIterator> ops;
+    ops.reserve(operations["AveragePool"].size() + operations["MaxPool"].size() + operations["DepthwiseConv"].size() );
+    ops.insert(ops.end(), operations["AveragePool"].begin(), operations["AveragePool"].end());
+    ops.insert(ops.end(), operations["MaxPool"].begin(), operations["MaxPool"].end());
+    ops.insert(ops.end(), operations["DepthwiseConv"].begin(), operations["DepthwiseConv"].end());
 
-    for (auto opIt = om.getInput(); opIt != om.opEnd(); ++opIt)
+    for (auto opIt : ops)
     {
-        if ( (opIt->getOpType() == "AveragePool")  || (opIt->getOpType() == "DepthwiseConv") )
-        {
-            std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-            if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
-                continue;
-            pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
-            auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
-            //stride supported not slicing, stride not supported slicing with slices dimensions of stride
-            opIt = splitOperationSlicingFixedWidthHeight (om,
-                                                        opIt,
-                                                        stride[mv::STRIDE_HORIZONTAL],
-                                                        stride[mv::STRIDE_VERTICAL],
-                                                        nextOp);
-        }
+        std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
+        if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
+            continue;
+        pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
+        auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+        //stride supported not slicing, stride not supported slicing with slices dimensions of stride
+        opIt = splitOperationSlicingFixedWidthHeight (om,
+                                                    opIt,
+                                                    stride[mv::STRIDE_HORIZONTAL],
+                                                    stride[mv::STRIDE_VERTICAL],
+                                                    nextOp);
     }
 }
 

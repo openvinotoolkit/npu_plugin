@@ -68,7 +68,7 @@ namespace mv
             double clusterMemory=(double)clusterMemoryKb * 1024.0 * safetyFactor;
             std::vector<string> failure_causes = {"Unknown", "MemorySize", "Stream+ClusterComp",
             "SpillHKSwitch", "SOKNotAlign16", "InputNotSpilled", "OutputNotSpilled", "StreamingNotSpilled",
-            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK"};
+            "Workload<KernelSOH", "ChannelMjr1", "ChannelMjr2", "DWChannels", "SOHheight", "RequiresSparsity", "SparsitySOK", "DilatedSOH"};
 
 
             void readGlobalConfigs()
@@ -244,7 +244,7 @@ namespace mv
                 return tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor;
             }
 
-            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, string clustering, const Shape& streamingPool, bool isCMConv, mv::Op& op)
+            size_t maxTensorSize(const mv::Data::TensorIterator tensorToSize, string clustering, const Shape& streamingPool, bool isCMConv, mv::Op& op, bool dilation = false)
 
             {
                 size_t kHeight = 1;
@@ -274,6 +274,8 @@ namespace mv
                 }
 
                 Shape tensorShape = tensorToSize->getShape();
+                if (dilation)
+                    tensorShape = tensorToSize->get<mv::Shape>("originalShape");
 
                 //update the streamingPool to the worst combination, based on slice sizes
                 size_t outputSize;
@@ -299,7 +301,7 @@ namespace mv
                     else
                         if(padding[3] > extraLines)
                             extraLines = padding[3];
-                    
+
 
                     // extraLines += (padding[2]? kHeight/2 : 0);
                     // extraLines += (padding[3]? kHeight/2 : 0);
@@ -378,8 +380,8 @@ namespace mv
 
                 if(isCMConv)
                     return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, false)/streamDivisor);
-
-                return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, true)/streamDivisor);
+                //NOTE: dilation case will need the original shape that is located on cmx
+                return std::ceil((double)tensorToSize->computeTotalSize(16, false, false, true, dilation)/streamDivisor);
             }
 
             size_t alignedWeightsSize(const mv::Data::TensorIterator tensorToSize, const Shape& streamConfig, string clustering){
@@ -417,6 +419,10 @@ namespace mv
                 size_t outputSize = 0;
                 size_t weightSize = 0;
                 size_t weightTableSize = 0;
+                //NOTE: here is done a trick for the sub-dilated convolutions, if you are
+                //dilated on your cmx as input is the original shape tensor which is before
+                //the input of the slice...
+                bool dilatedLayerInputMemory = false;
 
                 size_t totalWeightsSize = 0;
                 size_t totalActivationSize = 0;
@@ -428,8 +434,12 @@ namespace mv
                    op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
                     isCMConv = true;
 
+                if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
+                    dilatedLayerInputMemory = true;
+
                 if(opType != "Input"){
-                    inputSize = maxTensorSize(op.getInputTensor(0),clusterStrategy,{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op);
+                    inputSize = maxTensorSize(op.getInputTensor(0),clusterStrategy,{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op, dilatedLayerInputMemory);
+
                 }
                 if(opType != "Output"){
                     outputSize = maxTensorSize(op.getOutputTensor(0),clusterStrategy,{streamConfig["W"],streamConfig["H"],1,streamConfig["K"],streamConfig["B"]}, isCMConv, op);
@@ -633,9 +643,6 @@ namespace mv
 
             vector<size_t> getMaxStreamOverK(const string& clustering,mv::Op& op)
             {
-                auto opType = op.getOpType();
-
-
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
                 size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
@@ -645,7 +652,7 @@ namespace mv
                 //Add max split
                 splits.push_back(alignedOutputChannelSize/16);
 
-                // For each aligned-to-16 number of output channels possibility, add only the 
+                // For each aligned-to-16 number of output channels possibility, add only the
                 // minimum number of streams over k that will be aligned to that number
                 for(int channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
                     auto possibleK = findBestK(alignedOutputChannelSize, channels);
@@ -764,11 +771,12 @@ namespace mv
                 return contextsPerDpu * streamShape.totalSize() * baseKernelCost;
             }
 
-            bool requiresActivationSparsity(Op& op, string clustering){
-                // if(op.getOpType() == "Input" or op.getOpType() == "Output")
-                //     return false;
-
+            bool requiresActivationSparsity(Op& op, string clustering)
+            {
                 if(requiresRealActivationSparsity(op, clustering))
+                    return true;
+
+                if(requiresCompilerActivationSparsity(op))
                     return true;
 
                 if(requiresFakeActivationSparsity(op))
@@ -789,16 +797,22 @@ namespace mv
                 return false;
             }
 
+            // In these cases parent output sparsity does matter, but child input sparsity must be true
+            bool requiresCompilerActivationSparsity(Op& op)
+            {
+                if (((op.getOpType() == "Conv") or (op.getOpType() == "DepthwiseConv"))
+                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
+                    return true;
+                
+                return false;
+            }
+
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
                 if ((op.getOpType() == "Conv") and  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16)
                         and op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
                         referenceDevice == "A0")
-                {
                     return true;
-                }
-
-
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
                 if ( op.getOpType() == "Conv" ) {
@@ -807,9 +821,7 @@ namespace mv
                          op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1)
                          and (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] >= 16) and
                             referenceDevice == "A0")
-                         {
                             return true;
-                         }
                 }
 
                 return false;
@@ -865,7 +877,7 @@ namespace mv
                         kernel[mv::KERNEL_OUTPUT_CHANNELS] = op.getInputTensor(1)->getShape()[mv::KERNEL_OUTPUT_CHANNELS];
                     }
 
-                if (kernel[mv::KERNEL_WIDTH] > mv::MAX_KERNEL || 
+                if (kernel[mv::KERNEL_WIDTH] > mv::MAX_KERNEL ||
                      kernel[mv::KERNEL_HEIGHT] > mv::MAX_KERNEL ||
                      kernel[mv::KERNEL_INPUT_CHANNELS] > mv::MAX_DIM_SIZE ||
                      kernel[mv::KERNEL_OUTPUT_CHANNELS] > mv::MAX_DIM_SIZE  )
@@ -934,7 +946,7 @@ namespace mv
                 if(op.getOpType() != "Output" && op.getOpType() != "Input" &&
                     (op.hasTypeTrait("optimizable") && !software)) //SW layers we dont care about size
                 {
-                    auto fit = memorySize(op,clustering,requiresActivationSparsity(op, clustering), false,weightsSparsity,streamShape,
+                    auto fit = memorySize(op,clustering,strategy["inputSparsity"], strategy["outputSparsity"],weightsSparsity,streamShape,
                                     requiresFakeActivationSparsity(op));
                     // cout << "Check for Bad Strategy Memsize: " << fit.first + fit.second << " = " << fit.first << " + " << fit.second << endl;
                     // cout << op.getName() << " : " << clustering << " : " << streamShape.toString() << " : " << fit.first << " + " << fit.second << " = " << (fit.first + fit.second) << std::endl;
@@ -1030,11 +1042,17 @@ namespace mv
                         return 11;
                 }
 
-                if(requiresRealActivationSparsity(op, clustering) && !strategy["inputSparsity"].get<bool>())
+                if((requiresRealActivationSparsity(op, clustering) || requiresCompilerActivationSparsity(op)) && !strategy["inputSparsity"].get<bool>())
                     return 12;
 
                 if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
                     return 13;
+
+                //NOTE: Subdilation storage element population is not implemented for the SOH case
+                if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
+                        && op.get<bool>("DilatedSubConv")
+                        && clustering == "SplitOverH")
+                    return 14;
 
                 return 0; //good strategy
             }
@@ -1047,7 +1065,7 @@ namespace mv
                 if (parentOp.getOpType() == "DepthwiseConv" && childOp.getOpType() == "Conv" && childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
                     if (childClustering == "SplitOverH")
                             forceSpill = true;
-                // sorry for a back hack. Spilling needed for TFLite inceptionv3 after CM Conv. But that seems to fail Facenet. 
+                // sorry for a back hack. Spilling needed for TFLite inceptionv3 after CM Conv. But that seems to fail Facenet.
                 // so conditon added so that facenet CM Conv doesn't spill its output
                 if (parentOp.getOpType() == "Conv" && childOp.getOpType() == "Conv")
                     if (parentClustering == "SplitOverH" && parentOp.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] != 160)
@@ -1130,9 +1148,9 @@ namespace mv
                         return INF;
                     }
                 }
-                
-                //NOTE: The logic dynamically enables "Concate" with SplitOverH and SplitOverK 
-                //to indicate splitoverH/splitoverK are allowed, so that the upper conv can 
+
+                //NOTE: The logic dynamically enables "Concate" with SplitOverH and SplitOverK
+                //to indicate splitoverH/splitoverK are allowed, so that the upper conv can
                 //choose both SOH/SOK. For now we add conditions to align split strategy
                 //before and after Concate and avoid Concate's parents choose different split strategy.
                 //NOTE: Normally in ddr concatenation input and output tensor strategies are not mandatory to share same
@@ -1234,7 +1252,6 @@ namespace mv
                 {
                     auto weightsShape = childOp.getInputTensor(1)->getShape();
                     auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
 
                     //This rule only relevant for channel major convs
                     if( enableChannelMajorConv and numInChannels % 16)
@@ -1316,68 +1333,15 @@ namespace mv
                 // Sparsity must match
                 if(parentOutputSparsity != childInputSparsity)
                 {
-                    log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                    if( !(requiresCompilerActivationSparsity(childOp) and !parentOutputSparsity) ){
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by sparsity pair mismatch");
                            return INF;
-                }
-
-                // In cases where real activation sparsity  will be required later
-                // ensure there is enough memory for them
-                if(requiresRealActivationSparsity(childOp, childClustering))
-                {
-                    // Note: equivalent child check happens in checkForBadStrategy
-                    if(!parent["outputSparsity"].get<bool>()){
-                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by dense output, sparse input");
-                           return INF;
                     }
                 }
 
-                bool requiresFakeSparsity = requiresFakeActivationSparsity(childOp);
-                if(requiresFakeSparsity){
-                    parentOutputSparsity = false;
-                    childInputSparsity = true;
-                }
-
-                
-                // Note: Should no longer need to recheck for sparse memory size - we check the actual sparse memory size
-                // when generating the strategies now!
-                //If activation sparsity is occuring between this pair, recheck that the increased memory footprint
-                //does not exceed CMX
-                if(childInputSparsity)
-                {
-                    auto parentMem = memorySize(parentOp,
-                                            parentClustering,
-                                            false,
-                                            parentOutputSparsity,
-                                            parent["weightsSparsity"].get<bool>(),
-                                            parent["streaming"].get<Shape>(),
-                                            requiresFakeActivationSparsity(parentOp));
-
-                    auto childMem = memorySize(childOp,
-                                            childClustering,
-                                            childInputSparsity,
-                                            false,
-                                            child["weightsSparsity"].get<bool>(),
-                                            child["streaming"].get<Shape>(),
-                                            requiresFakeSparsity);
-
-
-                    if( (childOp.getOpType() != "Output") and
-                      ( (childMem.first + childMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by child sparsityMemorySize");
-                            return INF;
-                    }
-                    if( (parentOp.getOpType() != "Input") and parentOp.hasTypeTrait("optimizable") and
-                      ( (parentMem.first + parentMem.second) > clusterMemory) )
-                    {
-                            log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by parent sparsityMemorySize");
-                            return INF;
-                    }
-                }
+                // Note: No longer need to check pairwise sparsity, covered by above condition 
+                // and memory size is covered in checkForBadStrategy
 
                 auto execTime1 = executionTime(parentOp,parent);
                 auto execTime2 = executionTime(childOp,child);
@@ -1692,11 +1656,6 @@ namespace mv
                                     StrategySet s;
                                     s["name"] = op.getName();
                                     s["id"] = (unique_ctr++);
-                                    //Input sparsity is always enabled/disabled by global switch, except in this case were it is disallowed
-                                    // if(clustering.get<string>() == "SplitOverK")
-                                    //     s["inputSparsity"] = false;
-                                    // else
-                                    //     s["inputSparsity"] = inputActivationSparsity;
                                     s["inputSparsity"] = inputSparsity;
                                     s["outputSparsity"] = outputSparsity;
                                     s["weightsSparsity"] = weightsSparsity;
@@ -1707,7 +1666,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = checkForBadStrategy(op,s);
-                                    // cout << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
+                                    // cout << "   " << op.getName() << " {" << clustering.toString() << ", " << streamShape.toString() << "} : " << strategyCheck << endl;
                                     if(!createStrategyDots and (strategyCheck > 0))
                                         continue;
 

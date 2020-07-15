@@ -134,7 +134,8 @@ void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::Computa
             }
             
             // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE 
-            else if(tIt->hasAttr("splitStrategy") && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap"))   
+            else if(tIt->hasAttr("splitStrategy") && !tIt->hasAttr("weightTable")
+                    && !tIt->hasAttr("sparsityMap") && !tIt->hasAttr("dilatedSubConvSM") && !tIt->hasAttr("dilatedSubConvSE"))
             {
                 if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
                     for(std::size_t j = 0; j < numClusters; ++j)
@@ -454,7 +455,7 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             //  basically need to get from tha leyer attributes some shcema of how and what coordinates to
             //  put buffer into eg  axis: 'W" ->[0-10][10-20][30-40] etc,....
 
-            if(opType == "Concat" || opType == "ImplicitConcat")
+            if(opType == "Concat" || opType == "ImplicitConcat"  || opType == "ImplicitJoin")
             //this means that the Input tensors should be in the Output Tensor
             {
                 auto outputTensor = opIterator->getOutputTensor(0);
@@ -475,21 +476,44 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 
                 auto inputSlots = opIterator->inputSlots();
 
-                auto axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
                 std::vector<unsigned> running_concat_offset_LHS;
                 std::vector<unsigned> running_concat_offset_RHS;
 
                 auto prev_offset = 0;
                 auto offset = 0;
-
-                for(unsigned i = 0; i < inputSlots; i++)
+                unsigned int axis = 0;
+                if (opType != "ImplicitJoin")
                 {
-                    running_concat_offset_LHS.push_back(prev_offset + offset);
-                    prev_offset = prev_offset + offset;
-                    // Calculate for next tensor
-                    offset = opIterator->getInputTensor(i)->getShape()[axis];
-                    running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                    axis = mv::Shape::getAxis(opIterator->get<std::string>("axis"));
+
+                    for(unsigned i = 0; i < inputSlots; i++)
+                    {
+                        running_concat_offset_LHS.push_back(prev_offset + offset);
+                        prev_offset = prev_offset + offset;
+                        // Calculate for next tensor
+                        offset = opIterator->getInputTensor(i)->getShape()[axis];
+                        running_concat_offset_RHS.push_back(outputTensor->getShape()[axis] - prev_offset - offset);
+                    }
                 }
+                else
+                {
+
+                    auto axisToConcat = opIterator->get<std::string>("axis");
+                    size_t axis_shape=0;
+                    for (size_t i = 0; i < axisToConcat.size(); i++)
+                        axis_shape += outputTensor->getShape()[mv::Shape::getAxis(axisToConcat.substr(i,1))];
+
+                    for(unsigned i = 0; i < inputSlots; i++)
+                    {
+                        running_concat_offset_LHS.push_back(0);
+                        offset = 0;
+                        for (size_t j = 0; j < axisToConcat.size(); j++)
+                            offset += opIterator->getInputTensor(i)->getShape()[mv::Shape::getAxis(axisToConcat.substr(j,1))];
+
+                        running_concat_offset_RHS.push_back(axis_shape  - offset);
+                    }
+                }
+
 
                 for(unsigned i = 0; i != inputSlots; i++)
                 {

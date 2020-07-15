@@ -31,13 +31,15 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
+
     auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
-    for (auto opList : opsMap) {
-        for (auto op : opList.second) {
-
+    for (auto opList : opsMap)
+    {
+        for (auto op : opList.second)
+        {
             bool solvedByMixedConversion = op->hasAttr("placeConversionToFloat") &&
                 op->get<bool>("placeConversionToFloat") &&
                 op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location") ==
@@ -52,6 +54,18 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             {
                 op->set<bool>("activationSparsityCompilerSolving", true);
                 op->set<bool>("inputActivationSparsity", true);
+            }
+            if (opList.first == "Conv")
+            {
+                if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
+                {
+                    if (op->getInputTensor(0)->get<mv::Tensor::MemoryLocation>("Location")
+                            == mv::Tensor::MemoryLocation("NNCMX"))
+                    {
+                        op->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
+                        op->set<bool>("inputActivationSparsityForDilatedConv", true);
+                    }
+                }
             }
         }
     }
