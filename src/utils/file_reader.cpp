@@ -41,7 +41,27 @@ size_t getFileSize(std::istream& strm) {
     return bytesAvailable;
 }
 
-InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc desc) {
+#if defined(__arm__) || defined(__aarch64__)
+class MemChunk {
+public:
+    MemChunk(void* virtAddr, size_t size, int fd) : _virtAddr(virtAddr), _size(size), _fd(fd) {}
+    ~MemChunk() {
+	if (_virtAddr != nullptr) {
+	   vpusmm_unimport_dmabuf(_fd);
+	   munmap(_virtAddr, _size);
+	   close(_fd);
+	}
+    }
+private:
+    void* _virtAddr = nullptr;
+    size_t _size = 0;
+    int _fd = -1;
+};
+
+static std::vector<std::shared_ptr<MemChunk>> _memTracker;
+#endif
+
+InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const InferenceEngine::TensorDesc& desc) {
     std::ifstream in(input_binary, std::ios_base::binary);
     size_t sizeFile = getFileSize(in);
 
@@ -54,6 +74,7 @@ InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const
     auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
     vpusmm_import_dmabuf(fd, VPU_DEFAULT);
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    _memTracker.push_back(std::make_shared<MemChunk>(virtAddr, realSize, fd));
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc, virtAddr);
 #else
     InferenceEngine::Blob::Ptr blob = make_blob_with_precision(desc);
