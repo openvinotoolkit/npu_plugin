@@ -45,14 +45,14 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             unsigned startingIndex = 1;
             auto taskOp = layer->get<std::string>("taskOp");
 
-            if(taskOp == "Eltwise")
+            if (taskOp == "Eltwise")
                 startingIndex = 2;
 
-            for(unsigned i = startingIndex; i < n; ++i)
+            for (unsigned i = startingIndex; i < n; ++i)
             {
                 auto inputTensor = layer->getInputTensor(i);
                 inputTensor->set<std::string>("splitStrategy", opStrategy);
-                if(inputTensor->isSparse())
+                if (inputTensor->isSparse())
                     inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }
@@ -61,6 +61,16 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             auto opStrategy = layer->get<std::string>("splitStrategy");
             auto outputTensor = layer->getOutputTensor(0);
             outputTensor->set<std::string>("splitStrategy", opStrategy);
+
+            // If UPA task is input to HKSwitch Eltwise then set SplitOverH strategy
+            if (opType == "UPATask") {
+                std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, outputTensor);
+                if (sinkOperators[0]->get<std::string>("splitStrategy") == "HKSwitch" &&
+                    sinkOperators[0]->get<std::string>("taskOp") == "Eltwise") {
+                    outputTensor->set<std::string>("splitStrategy", "SplitOverH");
+                    layer->set<std::string>("splitStrategy", "SplitOverH");
+                }
+            }
         }
     }
     // ASSUMPTION: All the input tensors of a concat share the same
