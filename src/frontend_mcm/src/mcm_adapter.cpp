@@ -134,9 +134,22 @@ void MCMAdapter::compileNetwork(
     const auto targetPath =
         getIELibraryPath() + "/" + config.mcmTargetDesciptorPath() + "/" + config.mcmTargetDesciptor() + ".json";
 
-    const auto& compDescName = config.mcmCompilationDesciptor();
-    const auto compDescPath = getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" +
-                              config.mcmCompilationDesciptor() + ".json";
+    // TODO: This hack needs to be fixed
+    auto compDescName = config.mcmCompilationDesciptor();
+    ie::InputsDataMap networkInputs;
+    bool layoutNCHW = true;
+    network.getInputsInfo(networkInputs);
+    for (const auto& netInput : networkInputs) {
+        if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
+            layoutNCHW = false;
+        }
+    }
+    if (layoutNCHW) {
+        compDescName = "release_kmb_with_CM_Conv";
+    }
+
+    const auto compDescPath =
+        getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
 
     const auto& resultsPath = config.mcmCompilationResultsPath();
     auto resultNames = config.mcmCompilationResults();

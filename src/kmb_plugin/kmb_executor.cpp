@@ -180,6 +180,49 @@ InferenceEngine::Data flicTensorDescToIEData(const flicTensorDescriptor_t& flicT
     InferenceEngine::Data ieData(ieDataName, ieDesc);
     return ieData;
 }
+
+/*
+ * Wrapper to SetScratchBuffer
+ * 1. Get required memory amount
+ * 2. Make sure it's not less than 1 MB (mentioned in [Track number: h#18011677038])
+ * 3. Allocate buffer for each NN thread and append physical addresses to collection
+ * 4. Give result to SetScratchBuffer
+ * 5. Track allocated chunks by virtual addresses to free them properly
+ */
+static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const unsigned int threadCount,
+    const std::shared_ptr<KmbAllocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    if (threadCount > 1) {
+        logger->warning("scratchHelper: trying to set scratch buffer to %u threads.", threadCount);
+    }
+    uint32_t memoryReqs = nnFlicPtr->GetMemoryRequirements();
+    logger->info("scratchHelper: GetMemoryRequirements returned %u", memoryReqs);
+    constexpr uint32_t minimalScratchSize = 1024 * 1024;
+    if (memoryReqs < minimalScratchSize) {
+        memoryReqs = minimalScratchSize;
+    }
+
+    std::vector<void*> virtAddrVec;
+    virtAddrVec.reserve(threadCount);
+    std::vector<void*> physAddrVec;
+    physAddrVec.reserve(threadCount);
+    for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
+        uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
+        if (scratchVirtAddr == nullptr) {
+            THROW_IE_EXCEPTION << "scratchHelper: failed to allocate " << memoryReqs << " bytes of memory";
+        }
+        unsigned long scratchPhysAddr = allocatorPtr->getPhysicalAddress(scratchVirtAddr);
+        if (scratchPhysAddr == 0) {
+            THROW_IE_EXCEPTION << "scratchHelper: failed to get physical address";
+        }
+        // NB: casting unsigned long to void may cause problems on some systems
+        // vpualHost API has to be updated to accept integers
+        physAddrVec.push_back(reinterpret_cast<void*>(scratchPhysAddr));
+        virtAddrVec.push_back(scratchVirtAddr);
+    }
+
+    nnFlicPtr->SetScratchBuffer(physAddrVec);
+    return virtAddrVec;
+}
 }  // namespace
 #endif
 
@@ -210,7 +253,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     if (!blob_file) {
         _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
-        return;
+        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
     }
 
     // ########################################################################
@@ -257,12 +300,14 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     nnPl->Create(BHandle.get());
 
+    _scratchBuffers = setScratchHelper(nnPl, nThreads, getKmbAllocator(), _logger);
+
     _logger->info("NN Plugin Create finished...");
 
     NNPlgState state = nnPl->GetLatestState();
     if (SUCCESS != state) {
-        _logger->error("Error, bad NN Plugin state: ");
-        return;
+        _logger->error("Error, bad NN Plugin state: %d", state);
+        THROW_IE_EXCEPTION << "allocateGraph: flic NN is in unexpected state: " << state;
     }
 
     auto tensor_deserializer = [&](const flicTensorDescriptor_t& descriptor) -> void {
@@ -331,16 +376,14 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     rgnAllocatorBuffer = _allocator->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
         _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
-        return;
+        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for region allocator";
     }
     RgnAlloc->Create(_allocator->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
     _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
-    // TODO - These
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(sumSizeTensorDescOut.totalSize, shavel2CacheLineSize);
 
-    // TODO - These
     _logger->info("read memory pool finished...");
     plgPoolOutputs->Create(RgnAlloc.get(), 1, 3 * outputTensorSize);
     _logger->info("Created plgPoolOutputs");
@@ -494,6 +537,10 @@ void KmbExecutor::deallocateGraph() {
     }
     if (_inferenceVirtAddr) {
         _allocator->free(_inferenceVirtAddr);
+    }
+
+    for (const auto& scratchPtr : _scratchBuffers) {
+        getKmbAllocator()->free(scratchPtr);
     }
 #endif
 }

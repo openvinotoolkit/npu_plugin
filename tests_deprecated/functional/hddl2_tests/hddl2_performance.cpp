@@ -96,9 +96,8 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     const auto& nv12FrameTensor =
         InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1749600}, InferenceEngine::Layout::NCHW);
 
-    auto inputRefBlob = make_blob_with_precision(nv12FrameTensor);
-    inputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputRefBlob));
+    InferenceEngine::Blob::Ptr inputRefBlob;
+    ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
     RemoteMemoryFD remoteMemoryFd =
@@ -162,9 +161,8 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+    IE::Blob::Ptr outputRefBlob;
+    ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     // --- Compare with expected output
     ASSERT_TRUE(outputBlob->byteSize() == outputRefBlob->byteSize());

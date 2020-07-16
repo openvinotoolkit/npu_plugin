@@ -59,7 +59,7 @@ public:
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
         const InferenceEngine::ParamMap& params, const HDDL2Config& config);
-    ~HDDL2RemoteBlob() override = default;
+    ~HDDL2RemoteBlob() override { deallocate(); }
 
     /**
      * @details Since Remote blob just wrap remote memory, allocation is not required

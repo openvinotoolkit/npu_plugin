@@ -16,6 +16,8 @@
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu_layers_tests.hpp>
 
+#include "test_model/kmb_test_base.hpp"
+
 using namespace ::testing;
 using namespace InferenceEngine;
 using namespace Regression::Matchers;
@@ -59,7 +61,7 @@ static void setPreprocForInputBlob(const std::string& inputName, const TensorDes
         InferenceEngine::TensorDesc preprocTensor(
             inputTensor.getPrecision(), {1, 3, 227, 227}, inputTensor.getLayout());
         inputBlob = make_shared_blob<uint8_t>(preprocTensor, imageData);
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, inputBlob));
+        ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(inputFilePath, preprocTensor));
     } break;
     case PT_NV12:
         const InferenceEngine::SizeVector dims = inputTensor.getDims();
@@ -191,7 +193,8 @@ TEST_P(VpuPreprocessingTestsWithParam,
 
         uint8_t* outputRefData = reinterpret_cast<uint8_t*>(kmbAllocator->allocate(outputBlob->byteSize()));
         Blob::Ptr referenceOutputBlob = make_shared_blob<uint8_t>(outputBlobTensorDesc, outputRefData);
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+        ASSERT_NO_THROW(
+            referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         const size_t NUMBER_OF_CLASSES = 5;
         ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -241,9 +244,9 @@ TEST_F(VpuPreprocessingTests, preprocResizeAndCSC) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = fileContentBlob;
 
@@ -302,9 +305,9 @@ TEST_F(VpuPreprocessingTests, multiThreadPreprocResizeAndCSC) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = fileContentBlob;
 
@@ -377,9 +380,9 @@ TEST_F(VpuPreprocessingTests, twoRequestsWithPreprocessing) {
 
         TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
-        Blob::Ptr fileContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-        fileContentBlob->allocate();
-        ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, fileContentBlob));
+        Blob::Ptr fileContentBlob;
+        ASSERT_NO_THROW(
+            fileContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
         Blob::Ptr referenceOutputBlob = toFP32(fileContentBlob);
 
@@ -520,9 +523,9 @@ TEST_F(vpuLayersTests, allocateNV12WithNative) {
     TensorDesc outputBlobTensorDesc = outputBlob->getTensorDesc();
 
     std::string referenceOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    Blob::Ptr referenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc);
-    referenceOutputBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, referenceOutputBlob));
+    Blob::Ptr referenceOutputBlob;
+    ASSERT_NO_THROW(
+        referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
 
     const size_t NUMBER_OF_CLASSES = 1;
     ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceOutputBlob, NUMBER_OF_CLASSES));
@@ -559,9 +562,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
     std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    Blob::Ptr catOutputContentBlob = make_shared_blob<float>(outputBlobTensorDesc);
-    catOutputContentBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catOutputContentBlob));
+    Blob::Ptr catOutputContentBlob;
+    ASSERT_NO_THROW(
+        catOutputContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, outputBlobTensorDesc));
 
     Blob::Ptr catReferenceOutputBlob = toFP32(catOutputContentBlob);
 
@@ -578,9 +581,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImages) {
     Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
-    float* dogOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
-    Blob::Ptr dogReferenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc, dogOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
+    Blob::Ptr dogReferenceOutputBlob;
+    ASSERT_NO_THROW(
+        dogReferenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, outputBlobTensorDesc));
 
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
@@ -615,9 +618,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     TensorDesc outputBlobTensorDesc = catOutputBlob->getTensorDesc();
 
     std::string catOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-cat-1080x1080-nv12.bin";
-    float* catOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(catOutputBlob->byteSize()));
-    Blob::Ptr catOutputContentBlob = make_shared_blob<float>(outputBlobTensorDesc, catOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, catOutputContentBlob));
+    Blob::Ptr catOutputContentBlob;
+    ASSERT_NO_THROW(
+        catOutputContentBlob = vpu::KmbPlugin::utils::fromBinaryFile(catOutputFilePath, outputBlobTensorDesc));
 
     Blob::Ptr catReferenceOutputBlob = catOutputContentBlob;
 
@@ -644,9 +647,9 @@ TEST_F(vpuLayersTests, allocateNV12TwoImagesGetBlob) {
     Blob::Ptr dogOutputBlob = toFP32(commonInferReqPtr->GetBlob(firstOutputName));
 
     std::string dogOutputFilePath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
-    float* dogOutputRefData = reinterpret_cast<float*>(nativeAllocator->allocate(dogOutputBlob->byteSize()));
-    Blob::Ptr dogReferenceOutputBlob = make_shared_blob<float>(outputBlobTensorDesc, dogOutputRefData);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, dogReferenceOutputBlob));
+    Blob::Ptr dogReferenceOutputBlob;
+    ASSERT_NO_THROW(
+        dogReferenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(dogOutputFilePath, outputBlobTensorDesc));
 
     ASSERT_NO_THROW(compareTopClasses(dogOutputBlob, dogReferenceOutputBlob, NUMBER_OF_CLASSES));
 }
@@ -721,15 +724,15 @@ TEST_F(VpuPreprocessingTests, setConfigForTwoNetworks) {
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     std::map<std::string, std::string> config1;
-    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "4";
-    config1[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
+    config1["VPU_KMB_PREPROCESSING_SHAVES"] = "4";
+    config1["VPU_KMB_PREPROCESSING_LPI"] = "4";
     ASSERT_NO_THROW(network1 = core->ImportNetwork(network1Path, deviceName, config1));
 
     InferenceEngine::ExecutableNetwork network2;
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     std::map<std::string, std::string> config2;
-    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "2";
-    config2[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "8";
+    config2["VPU_KMB_PREPROCESSING_SHAVES"] = "2";
+    config2["VPU_KMB_PREPROCESSING_LPI"] = "8";
     ASSERT_NO_THROW(network2 = core->ImportNetwork(network2Path, deviceName, config2));
 
     std::cout << "Created networks\n";
@@ -812,18 +815,338 @@ TEST_F(VpuPreprocessingTests, setConfigAndCheckNumShaves) {
     InferenceEngine::ExecutableNetwork importedNetwork;
 
     std::map<std::string, std::string> config;
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES)] = "8";
-    config[VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI)] = "4";
+    config["VPU_KMB_PREPROCESSING_SHAVES"] = "8";
+    config["VPU_KMB_PREPROCESSING_LPI"] = "4";
 
     ASSERT_NO_THROW(importedNetwork = core->ImportNetwork(modelFilePath, deviceName, config));
-    importedNetwork.SetConfig(
-        {{VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES), "6"}, {VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI), "2"}});
-    InferenceEngine::Parameter param1 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES));
-    InferenceEngine::Parameter param2 = importedNetwork.GetConfig(VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI));
-    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES) << "; value: " << param1.as<std::string>()
-              << std::endl;
-    std::cout << "Config key: " << VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI) << "; value: " << param2.as<std::string>()
-              << std::endl;
+    importedNetwork.SetConfig({{"VPU_KMB_PREPROCESSING_SHAVES", "6"}, {"VPU_KMB_PREPROCESSING_LPI", "2"}});
+    InferenceEngine::Parameter param1 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_SHAVES");
+    InferenceEngine::Parameter param2 = importedNetwork.GetConfig("VPU_KMB_PREPROCESSING_LPI");
+    std::cout << "Config key: VPU_KMB_PREPROCESSING_SHAVES; value: " << param1.as<std::string>() << std::endl;
+    std::cout << "Config key: VPU_KMB_PREPROCESSING_LPI; value: " << param2.as<std::string>() << std::endl;
+}
+
+// TODO consider re-using twoNetworksWithPreprocessing instead of duplicating it
+using VpuPreprocessingStressTests = KmbYoloV2NetworkTest;
+
+// [Track number: S#35173, S#35231]
+TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
+    if (!KmbTestBase::RUN_INFER) {
+        SKIP();
+    }
+    Core ie;
+    InferenceEngine::ExecutableNetwork network1;
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    InferenceEngine::ExecutableNetwork network2;
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
+
+    std::cout << "Created networks\n";
+
+    ASSERT_EQ(1, network1.GetInputsInfo().size());
+    ASSERT_EQ(1, network2.GetInputsInfo().size());
+    std::cout << "Input info is OK\n";
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    InferenceEngine::InferRequest::Ptr network1InferReqPtr;
+    network1InferReqPtr = network1.CreateInferRequestPtr();
+
+    ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
+    ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
+
+    const size_t imgWidth = 1920;
+    const size_t imgHeight = 1080;
+
+    std::string input1_name = inputInfo1.begin()->first;
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-1-1920x1080-nv12.bin";
+    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, imgWidth, imgHeight);
+
+    InferenceEngine::InferRequest::Ptr network2InferReqPtr;
+    network2InferReqPtr = network2.CreateInferRequestPtr();
+
+    std::string input2_name = inputInfo2.begin()->first;
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-2-1920x1080-nv12.bin";
+    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, imgWidth, imgHeight);
+
+    std::cout << "Created inference requests\n";
+
+    ASSERT_EQ(1, network1.GetOutputsInfo().size());
+    ASSERT_EQ(1, network2.GetOutputsInfo().size());
+    std::cout << "Output info is OK\n";
+
+    const auto iterationCount = 1000;
+    size_t curIterationNetwork1 = 0;
+    size_t curIterationNetwork2 = 0;
+    std::condition_variable condVar;
+
+    network1InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork1++;
+        std::cout << "Completed " << curIterationNetwork1 << " async request execution for network 1" << std::endl;
+        if (curIterationNetwork1 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output1Name = network1.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+            network1InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+    const size_t BBOX_PRINT_INTERVAL = 100;
+    network2InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork2++;
+        std::cout << "Completed " << curIterationNetwork2 << " async request execution for network 2" << std::endl;
+        if (curIterationNetwork2 < static_cast<size_t>(iterationCount)) {
+            Blob::Ptr outputBlob;
+            std::string output2Name = network2.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+
+            if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
+                float confThresh = 0.4f;
+                bool isTiny = true;
+                auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                std::cout << "BBox Top:" << std::endl;
+                for (size_t i = 0; i < actualOutput.size(); ++i) {
+                    const auto& bb = actualOutput[i];
+                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                }
+            }
+            network2InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network1" << std::endl;
+    network1InferReqPtr->StartAsync();
+    std::cout << "Start inference (" << iterationCount << " asynchronous executions) for network2" << std::endl;
+    network2InferReqPtr->StartAsync();
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&] {
+        return curIterationNetwork1 == static_cast<size_t>(iterationCount) &&
+               curIterationNetwork2 == static_cast<size_t>(iterationCount);
+    });
+}
+
+// [Track number: S#35173, S#35231]
+TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
+    if (!KmbTestBase::RUN_INFER) {
+        SKIP();
+    }
+    Core ie;
+    InferenceEngine::ExecutableNetwork network1;
+    std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+
+    std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    InferenceEngine::ExecutableNetwork network2;
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
+
+    std::cout << "Created networks\n";
+
+    ASSERT_EQ(1, network1.GetInputsInfo().size());
+    ASSERT_EQ(1, network2.GetInputsInfo().size());
+    std::cout << "Input info is OK\n";
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    InferenceEngine::InferRequest::Ptr network1InferReqPtr;
+    network1InferReqPtr = network1.CreateInferRequestPtr();
+
+    ConstInputsDataMap inputInfo1 = network1.GetInputsInfo();
+    ConstInputsDataMap inputInfo2 = network2.GetInputsInfo();
+
+    const size_t imgWidth = 1920;
+    const size_t imgHeight = 1080;
+
+    std::string input1_name = inputInfo1.begin()->first;
+    std::string input1Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-1-1920x1080-nv12.bin";
+    setNV12Preproc(input1_name, input1Path, *network1InferReqPtr, kmbAllocator, imgWidth, imgHeight);
+
+    InferenceEngine::InferRequest::Ptr network2InferReqPtr;
+    network2InferReqPtr = network2.CreateInferRequestPtr();
+
+    std::string input2_name = inputInfo2.begin()->first;
+    std::string input2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-2-1920x1080-nv12.bin";
+    setNV12Preproc(input2_name, input2Path, *network2InferReqPtr, kmbAllocator, imgWidth, imgHeight);
+
+    std::cout << "Created inference requests\n";
+
+    ASSERT_EQ(1, network1.GetOutputsInfo().size());
+    ASSERT_EQ(1, network2.GetOutputsInfo().size());
+    std::cout << "Output info is OK\n";
+
+    const std::chrono::system_clock::time_point timeLimit =
+        std::chrono::system_clock::now() + std::chrono::seconds(10 * 60);  // 10 minutes
+    size_t curIterationNetwork1 = 0;
+    size_t curIterationNetwork2 = 0;
+    std::condition_variable condVar;
+
+    network1InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork1++;
+        std::cout << "Completed " << curIterationNetwork1 << " async request execution for network 1" << std::endl;
+        if (std::chrono::system_clock::now() < timeLimit) {
+            Blob::Ptr outputBlob;
+            std::string output1Name = network1.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+            network1InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+
+    const size_t BBOX_PRINT_INTERVAL = 100;
+    network2InferReqPtr->SetCompletionCallback([&] {
+        curIterationNetwork2++;
+        std::cout << "Completed " << curIterationNetwork2 << " async request execution for network 2" << std::endl;
+        if (std::chrono::system_clock::now() < timeLimit) {
+            Blob::Ptr outputBlob;
+            std::string output2Name = network2.GetOutputsInfo().begin()->first;
+            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+
+            if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
+                float confThresh = 0.4f;
+                bool isTiny = true;
+                auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                std::cout << "BBox Top:" << std::endl;
+                for (size_t i = 0; i < actualOutput.size(); ++i) {
+                    const auto& bb = actualOutput[i];
+                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                }
+            }
+            network2InferReqPtr->StartAsync();
+        } else {
+            condVar.notify_one();
+        }
+    });
+
+    std::cout << "Start inference for network1" << std::endl;
+    network1InferReqPtr->StartAsync();
+    std::cout << "Start inference for network2" << std::endl;
+    network2InferReqPtr->StartAsync();
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&] {
+        return std::chrono::system_clock::now() >= timeLimit;
+    });
+}
+
+// [Track number: S#35173, S#35231]
+TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
+    if (!KmbTestBase::RUN_INFER) {
+        SKIP();
+    }
+    Core ie;
+
+    std::string detectNetworkPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
+    InferenceEngine::ExecutableNetwork detectionNetwork = ie.ImportNetwork(detectNetworkPath, "KMB", {});
+
+    std::string classifyNetworkPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+    InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, "KMB", {});
+
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
+        buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));
+
+    std::vector<InferenceEngine::InferRequest::Ptr> detectionRequests;
+    std::vector<InferenceEngine::InferRequest::Ptr> classificationRequests;
+    ConstInputsDataMap detectInputInfo = detectionNetwork.GetInputsInfo();
+    ConstInputsDataMap classifyInputInfo = classificationNetwork.GetInputsInfo();
+
+    const size_t imgWidth = 1920;
+    const size_t imgHeight = 1080;
+    const size_t maxParallelRequests = 4;
+
+    std::condition_variable condVar;
+    const char* iterCountStr = std::getenv("IE_VPU_KMB_STRESS_TEST_ITER_COUNT");
+    const size_t iterationCount = (iterCountStr != nullptr) ? std::atoi(iterCountStr) : 10;
+    std::vector<size_t> iterationVec(maxParallelRequests, 0);
+
+    std::string detectInputName = detectInputInfo.begin()->first;
+    std::string detectInputPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-1-1920x1080-nv12.bin";
+    std::string classifyInputName = classifyInputInfo.begin()->first;
+    std::string classifyInputPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/cars-frame-2-1920x1080-nv12.bin";
+
+    std::string detectOutputName = detectionNetwork.GetOutputsInfo().begin()->first;
+    std::string classifyOutputName = classificationNetwork.GetOutputsInfo().begin()->first;
+
+    for (size_t requestNum = 0; requestNum < maxParallelRequests; requestNum++) {
+        InferenceEngine::InferRequest::Ptr detectInferReq = detectionNetwork.CreateInferRequestPtr();
+        setNV12Preproc(detectInputName, detectInputPath, *detectInferReq, kmbAllocator, imgWidth, imgHeight);
+
+        InferenceEngine::InferRequest::Ptr classifyInferReq = classificationNetwork.CreateInferRequestPtr();
+        setNV12Preproc(classifyInputName, classifyInputPath, *classifyInferReq, kmbAllocator, imgWidth, imgHeight);
+
+        auto detectCallback = [requestNum, &iterationVec, iterationCount, &detectionRequests, &classificationRequests,
+                                  detectOutputName, &condVar, maxParallelRequests](void) -> void {
+            size_t reqId = requestNum;
+            iterationVec[reqId]++;
+            std::cout << "Completed " << iterationVec[reqId] << " async request ID " << reqId << std::endl;
+            if (iterationVec[reqId] < iterationCount) {
+                // throws [REQUEST_BUSY] when USE_SIPP=0
+                try {
+                    Blob::Ptr detectOutputBlob = detectionRequests.at(reqId)->GetBlob(detectOutputName);
+
+                    float confThresh = 0.4f;
+                    bool isTiny = true;
+                    auto actualOutput =
+                        utils::parseYoloOutput(detectOutputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                    std::cout << "BBox Top:" << std::endl;
+                    for (size_t i = 0; i < actualOutput.size(); ++i) {
+                        const auto& bb = actualOutput[i];
+                        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                                  << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                    }
+                    for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
+                        classificationRequests.at(classReqIdx)->StartAsync();
+                    }
+                } catch (const std::exception& exc) {
+                    std::cout << "detectCallback caught exception " << exc.what() << std::endl;
+                }
+                detectionRequests.at(reqId)->StartAsync();
+            } else {
+                condVar.notify_one();
+            }
+        };
+
+        auto classifyCallback = [requestNum, &classificationRequests, classifyOutputName](void) -> void {
+            size_t reqId = requestNum;
+            Blob::Ptr classifyOutputBlob = classificationRequests.at(reqId)->GetBlob(classifyOutputName);
+            const float* bufferRawPtr = classifyOutputBlob->cbuffer().as<const float*>();
+            std::vector<float> outputData(classifyOutputBlob->size());
+            std::memcpy(outputData.data(), bufferRawPtr, outputData.size());
+            std::vector<float>::iterator maxElt = std::max_element(outputData.begin(), outputData.end());
+            std::cout << "Top class: " << std::distance(outputData.begin(), maxElt) << std::endl;
+        };
+        detectInferReq->SetCompletionCallback(detectCallback);
+        detectionRequests.push_back(detectInferReq);
+        classifyInferReq->SetCompletionCallback(classifyCallback);
+        classificationRequests.push_back(classifyInferReq);
+    }
+
+    for (const auto& detectReq : detectionRequests) {
+        detectReq->StartAsync();
+    }
+
+    std::mutex mutex;
+    std::unique_lock<std::mutex> lock(mutex);
+    condVar.wait(lock, [&] {
+        bool allRequestsFinished = true;
+        for (size_t iterNum : iterationVec) {
+            if (iterNum < iterationCount) {
+                allRequestsFinished = false;
+            }
+        }
+        return allRequestsFinished;
+    });
 }
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};

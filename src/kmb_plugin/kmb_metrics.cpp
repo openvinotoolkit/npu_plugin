@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <vpu/utils/error.hpp>
 
+#include "kmb_private_config.hpp"
 #include "vpu/kmb_plugin_config.hpp"
 
 using namespace vpu::KmbPlugin;

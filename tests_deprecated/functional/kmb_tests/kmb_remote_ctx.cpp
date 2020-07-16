@@ -71,9 +71,7 @@ TEST_F(vpuLayersTests, remoteCtx) {
     InferenceEngine::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensorDesc, blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
-    InferenceEngine::MemoryBlob::Ptr userBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-    userBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, userBlob));
+    const auto userBlob = as<MemoryBlob>(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputTensorDesc));
     std::memcpy(virtAddr, userBlob->rmap(), userBlob->byteSize());
 
     inferRequest.SetBlob(inputName, remoteBlobPtr);
@@ -84,9 +82,7 @@ TEST_F(vpuLayersTests, remoteCtx) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+    const auto outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc());
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;
@@ -154,9 +150,7 @@ TEST_F(vpuLayersTests, remoteCtxNV12) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+    const auto outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc());
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;
@@ -280,9 +274,7 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    auto outputRefBlob = make_blob_with_precision(outputBlob->getTensorDesc());
-    outputRefBlob->allocate();
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputRefBlob));
+    const auto outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc());
 
     // --- Compare with expected output
     constexpr size_t numberOfTopClassesToCompare = 3;

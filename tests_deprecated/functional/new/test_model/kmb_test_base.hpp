@@ -37,6 +37,7 @@
 #include "kmb_test_interp_def.hpp"
 #include "kmb_test_convert_def.hpp"
 #include "kmb_test_reshape_def.hpp"
+#include "kmb_test_permute_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
@@ -239,7 +240,7 @@ class TestNetworkDesc final {
 public:
     explicit TestNetworkDesc(std::string irFileName) : _irFileName(std::move(irFileName)) {}
 
-    TestNetworkDesc& setUserInputPresision(
+    TestNetworkDesc& setUserInputPrecision(
             const std::string& name,
             const Precision& precision) {
         _inputPrecisions[name] = precision;
@@ -252,7 +253,7 @@ public:
         return *this;
     }
 
-    TestNetworkDesc& setUserOutputPresision(
+    TestNetworkDesc& setUserOutputPrecision(
             const std::string& name,
             const Precision& precision) {
         _outputPrecisions[name] = precision;
@@ -403,4 +404,18 @@ public:
             float confThresh,
             float boxTolerance, float probTolerance,
             bool isTiny);
+};
+
+using KmbYoloV1NetworkTest = KmbYoloV2NetworkTest;
+
+//
+// KmbSegmentationNetworkTest
+//
+
+class KmbSegmentationNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float meanIntersectionOverUnionTolerance);
 };

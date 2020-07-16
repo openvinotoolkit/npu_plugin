@@ -27,100 +27,107 @@
 using namespace InferenceEngine;
 using namespace vpu;
 
-using KmbPrivateConfigTests = vpuLayersTests;
+using KmbPrivateConfig = std::map<std::string, std::string>;
+using VPUAllocatorPtr = std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>;
 
-TEST_F(KmbPrivateConfigTests, IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    bool isSIPPDisabled = USE_SIPP.find("0") != std::string::npos;
+struct PrivateConfigTestParams final {
+    std::string _testDescription;
+    std::string _modelPath;
+    std::string _inputPath;
+    std::string _referencePath;
+    bool _preProc;  // false -> create fake NHWC input
+    bool _checkSIPP;
+    KmbPrivateConfig _privateConfig;
+    size_t _inputWidth;
+    size_t _inputHeight;
+    size_t _nClasses;
 
-    if (isSIPPDisabled) {
-        SKIP() << "The test is intended to be run with SIPP enabled";
+    PrivateConfigTestParams& testDescription(const std::string& test_description) {
+        this->_testDescription = test_description;
+        return *this;
     }
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
 
-    InferenceEngine::ExecutableNetwork network;
-    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}});
+    PrivateConfigTestParams& modelPath(const std::string& model_path) {
+        this->_modelPath = model_path;
+        return *this;
+    }
 
-    InferenceEngine::InferRequest request;
-    request = network.CreateInferRequest();
+    PrivateConfigTestParams& inputPath(const std::string& input_path) {
+        this->_inputPath = input_path;
+        return *this;
+    }
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-bgr-nv12.bin";
-    const auto inputDims = network.GetInputsInfo().begin()->second->getTensorDesc().getDims();
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> allocator =
-        std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
-    Blob::Ptr inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputPath, 228, 228, allocator);
+    PrivateConfigTestParams& referencePath(const std::string& reference_path) {
+        this->_referencePath = reference_path;
+        return *this;
+    }
 
-    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
-    PreProcessInfo preProcInfo;
-    preProcInfo.setColorFormat(ColorFormat::NV12);
-    preProcInfo.setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
-    request.SetBlob(inputName, inputBlob, preProcInfo);
-    request.Infer();
-    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
+    PrivateConfigTestParams& preProc(const bool& pre_proc) {
+        this->_preProc = pre_proc;
+        return *this;
+    }
 
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
-    Blob::Ptr outputBlob;
-    outputBlob = toFP32(request.GetBlob(outputName));
+    PrivateConfigTestParams& checkSIPP(const bool& check_SIPP) {
+        this->_checkSIPP = check_SIPP;
+        return *this;
+    }
 
-    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
+    PrivateConfigTestParams& privateConfig(const KmbPrivateConfig& private_config) {
+        this->_privateConfig = private_config;
+        return *this;
+    }
 
-    const size_t NUMBER_OF_CLASSES = 4;
-    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+    PrivateConfigTestParams& inputWidth(const size_t& input_width) {
+        this->_inputWidth = input_width;
+        return *this;
+    }
+
+    PrivateConfigTestParams& inputHeight(const size_t& input_height) {
+        this->_inputHeight = input_height;
+        return *this;
+    }
+
+    PrivateConfigTestParams& nClasses(const size_t& n_classes) {
+        this->_nClasses = n_classes;
+        return *this;
+    }
+};
+std::ostream& operator<<(std::ostream& os, const PrivateConfigTestParams& p) {
+    vpu::formatPrint(os,
+        "[testDescription:%v, modelPath:%v, inputPath:%v, referencePath:%v, preProc:%v, checkSIPP:%v, "
+        "privateConfig:%v, inputWidth:%v, inputHeight:%v, nClasses:%v]",
+        p._testDescription, p._modelPath, p._inputPath, p._referencePath, p._preProc, p._checkSIPP, p._privateConfig,
+        p._inputWidth, p._inputHeight, p._nClasses);
+    return os;
 }
 
-TEST_F(KmbPrivateConfigTests, USE_SIPP) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+class KmbPrivateConfigTests : public vpuLayersTests, public testing::WithParamInterface<PrivateConfigTestParams> {
+protected:
+    Blob::Ptr runInferWithConfig(const std::string& model_path, const std::string& input_path, bool pre_proc,
+        const KmbPrivateConfig& config, size_t input_width, size_t input_height) const;
 
-    InferenceEngine::ExecutableNetwork network;
-    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}});
+    Blob::Ptr readReference(const std::string& reference_path, const TensorDesc& tensor_desc) const;
 
-    InferenceEngine::InferRequest request;
-    request = network.CreateInferRequest();
+    Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) const;
 
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin";
-    const auto inputDims = network.GetInputsInfo().begin()->second->getTensorDesc().getDims();
-    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> allocator =
-        std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
-    Blob::Ptr inputBlob = vpu::KmbPlugin::utils::fromNV12File(inputPath, 228, 228, allocator);
+    bool isSIPP() const;
+};
 
-    const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
-    PreProcessInfo preProcInfo;
-    preProcInfo.setColorFormat(ColorFormat::NV12);
-    preProcInfo.setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
-    request.SetBlob(inputName, inputBlob, preProcInfo);
-    request.Infer();
-    const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin";
-    Blob::Ptr outputBlob;
-    outputBlob = toFP32(request.GetBlob(outputName));
-
-    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
-
-    const size_t NUMBER_OF_CLASSES = 2;
-    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+bool KmbPrivateConfigTests::isSIPP() const {
+    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
+    return !(USE_SIPP.find("0") != std::string::npos);
 }
 
-static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
-    if (blob->getTensorDesc().getLayout() != Layout::NHWC) {
+Blob::Ptr KmbPrivateConfigTests::createFakeNHWCBlob(const Blob::Ptr& blob) const {
+    auto tensorDesc = blob->getTensorDesc();
+    if (tensorDesc.getLayout() != Layout::NHWC) {
         THROW_IE_EXCEPTION << "fakeNHWCBlob works only with NHWC format";
     }
 
-    if (blob->getTensorDesc().getDims()[1] != 3) {
+    if (tensorDesc.getDims()[1] != 3) {
         THROW_IE_EXCEPTION << "fakeNHWCBlob works only with channels == 3";
     }
 
-    auto tensorDesc = blob->getTensorDesc();
     tensorDesc.setLayout(Layout::NHWC);
     Blob::Ptr fakeNHWC = make_shared_blob<uint8_t>(tensorDesc);
     fakeNHWC->allocate();
@@ -128,11 +135,13 @@ static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
     const auto C = tensorDesc.getDims()[1];
     const auto H = tensorDesc.getDims()[2];
     const auto W = tensorDesc.getDims()[3];
-    for (size_t c = 0; c < C; c++) {
-        for (size_t h = 0; h < H; h++) {
-            for (size_t w = 0; w < W; w++) {
-                static_cast<uint8_t*>(fakeNHWC->buffer())[c * H * W + W * h + w] =
-                    static_cast<uint8_t*>(blob->buffer())[h * W * C + w * C + c];
+    const auto multHW = H * W;
+    const auto multWC = W * C;
+    for (size_t c = 0; c < C; ++c) {
+        for (size_t h = 0; h < H; ++h) {
+            for (size_t w = 0; w < W; ++w) {
+                static_cast<uint8_t*>(fakeNHWC->buffer())[c * multHW + W * h + w] =
+                    static_cast<uint8_t*>(blob->buffer())[h * multWC + w * C + c];
             }
         }
     }
@@ -140,41 +149,102 @@ static Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) {
     return fakeNHWC;
 }
 
-TEST_F(KmbPrivateConfigTests, FORCE_NCHW_TO_NHWC) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
-    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+// pre_proc = false -> create fake NHWC input
+Blob::Ptr KmbPrivateConfigTests::runInferWithConfig(const std::string& model_path, const std::string& input_path,
+    bool pre_proc, const KmbPrivateConfig& config, size_t input_width, size_t input_height) const {
+    auto network = core->ImportNetwork(model_path, deviceName, config);
 
-    InferenceEngine::ExecutableNetwork network;
-    network = core->ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}});
-
-    InferenceEngine::InferRequest request;
-    request = network.CreateInferRequest();
-
-    std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
-    const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
-    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-    inputBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
-
-    auto fakeNHWCInput = createFakeNHWCBlob(inputBlob);
+    auto request = network.CreateInferRequest();
 
     const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
-    request.SetBlob(inputName, fakeNHWCInput);
+    Blob::Ptr inputBlob;
+    VPUAllocatorPtr allocator;
+    if (pre_proc) {
+        allocator = std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();
+        inputBlob = vpu::KmbPlugin::utils::fromNV12File(input_path, input_width, input_height, allocator);
+    } else {
+        const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
+        inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(input_path, inputTensorDesc);
+    }
+
+    PreProcessInfo preProcInfo;
+    Blob::Ptr fakeNHWCInput;
+    if (pre_proc) {
+        preProcInfo.setColorFormat(ColorFormat::NV12);
+        preProcInfo.setResizeAlgorithm(ResizeAlgorithm::RESIZE_BILINEAR);
+        request.SetBlob(inputName, inputBlob, preProcInfo);
+    } else {
+        fakeNHWCInput = createFakeNHWCBlob(inputBlob);
+        request.SetBlob(inputName, fakeNHWCInput);
+    }
+
     request.Infer();
 
     const auto outputName = network.GetOutputsInfo().begin()->second->getName();
-    std::string referenceFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin";
     Blob::Ptr outputBlob = toFP32(request.GetBlob(outputName));
 
-    Blob::Ptr referenceBlob = make_shared_blob<float>(outputBlob->getTensorDesc());
-    referenceBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(referenceFilePath, referenceBlob);
-
-    const size_t NUMBER_OF_CLASSES = 5;
-    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, NUMBER_OF_CLASSES));
+    return outputBlob;
 }
+
+Blob::Ptr KmbPrivateConfigTests::readReference(const std::string& reference_path, const TensorDesc& tensor_desc) const {
+    Blob::Ptr referenceBlob = vpu::KmbPlugin::utils::fromBinaryFile(reference_path, tensor_desc);
+
+    return referenceBlob;
+}
+
+TEST_P(KmbPrivateConfigTests, IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
+
+    const auto& p = GetParam();
+
+    if (p._checkSIPP && !isSIPP()) SKIP() << "The test is intended to be run with SIPP enabled";
+
+    Blob::Ptr outputBlob =
+        runInferWithConfig(p._modelPath, p._inputPath, p._preProc, p._privateConfig, p._inputWidth, p._inputHeight);
+
+    Blob::Ptr referenceBlob = readReference(p._referencePath, outputBlob->getTensorDesc());
+
+    ASSERT_NO_THROW(compareTopClasses(outputBlob, referenceBlob, p._nClasses));
+}
+
+const std::vector<PrivateConfigTestParams> privateConfigParams {
+    PrivateConfigTestParams()
+        .testDescription("IE_VPU_KMB_SIPP_OUT_COLOR_FORMAT")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-bgr-nv12.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
+        .preProc(true)
+        .checkSIPP(true)
+        .privateConfig({{"VPU_KMB_SIPP_OUT_COLOR_FORMAT", "RGB"}})
+        .inputWidth(228)
+        .inputHeight(228)
+        .nClasses(4),
+    PrivateConfigTestParams()
+        .testDescription("USE_SIPP")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input-228x228-nv12.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output-228x228-nv12.bin")
+        .preProc(true)
+        .checkSIPP(false)
+        .privateConfig({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}})
+        .inputWidth(228)
+        .inputHeight(228)
+        .nClasses(2),
+    PrivateConfigTestParams()
+        .testDescription("FORCE_NCHW_TO_NHWC")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin")
+        .preProc(false)
+        .checkSIPP(false)
+        .privateConfig({{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}})
+        .inputWidth(228)
+        .inputHeight(228)
+        .nClasses(5)};
+
+INSTANTIATE_TEST_CASE_P(DISABLED_SomeCase, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
 TEST_F(KmbPrivateConfigTests, SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
@@ -223,13 +293,13 @@ TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
 
     std::string inputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
     const auto inputTensorDesc = network.GetInputsInfo().begin()->second->getTensorDesc();
-    Blob::Ptr inputBlob = make_shared_blob<uint8_t>(inputTensorDesc);
-    inputBlob->allocate();
-    vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputBlob);
+    const auto inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(inputPath, inputTensorDesc);
 
     const auto inputName = network.GetInputsInfo().begin()->second->getInputData()->getName();
     request.SetBlob(inputName, inputBlob);
+
     ASSERT_NO_THROW(request.Infer());
+
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> perfMap = {};
     // GetPerformanceCounts is still not implemented
     ASSERT_ANY_THROW(perfMap = request.GetPerformanceCounts());

@@ -67,7 +67,7 @@ TEST_P(KmbRegressionMultipleNetworks, DISABLED_canRunInferTwoNetworksSeveralIter
 
         Blob::Ptr inputBlob;
         inputBlob = inferRequestPtr->GetBlob(inputName);
-        vpu::KmbPlugin::utils::fromBinaryFile(filename, inputBlob);
+        inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(filename, inputBlob->getTensorDesc());
 
         return inferRequestPtr;
     };

@@ -72,20 +72,6 @@ DECLARE_VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: integer, default is 4.
- * Number of shaves to be used by SIPP during preprocessing
- */
-DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: integer, default is 8.
- * Lines per iteration value to be used by SIPP during preprocessing
- */
-DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
-
-/**
- * @brief [Only for kmbPlugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
  */
