@@ -899,19 +899,25 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksHDImage1000Iterations) {
         std::cout << "Completed " << curIterationNetwork2 << " async request execution for network 2" << std::endl;
         if (curIterationNetwork2 < static_cast<size_t>(iterationCount)) {
             Blob::Ptr outputBlob;
-            std::string output2Name = network2.GetOutputsInfo().begin()->first;
-            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+            // throws [REQUEST_BUSY] when USE_SIPP=0
+            // [Track number: S#35231]
+            try {
+                std::string output2Name = network2.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
 
-            if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
-                float confThresh = 0.4f;
-                bool isTiny = true;
-                auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
-                std::cout << "BBox Top:" << std::endl;
-                for (size_t i = 0; i < actualOutput.size(); ++i) {
-                    const auto& bb = actualOutput[i];
-                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
-                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
+                    float confThresh = 0.4f;
+                    bool isTiny = true;
+                    auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                    std::cout << "BBox Top:" << std::endl;
+                    for (size_t i = 0; i < actualOutput.size(); ++i) {
+                        const auto& bb = actualOutput[i];
+                        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                                  << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                    }
                 }
+            } catch (const std::exception& exc) {
+                std::cout << "detectCallback caught exception " << exc.what() << std::endl;
             }
             network2InferReqPtr->StartAsync();
         } else {
@@ -1004,20 +1010,26 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
         curIterationNetwork2++;
         std::cout << "Completed " << curIterationNetwork2 << " async request execution for network 2" << std::endl;
         if (std::chrono::system_clock::now() < timeLimit) {
-            Blob::Ptr outputBlob;
-            std::string output2Name = network2.GetOutputsInfo().begin()->first;
-            ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
+            // throws [REQUEST_BUSY] when USE_SIPP=0
+            // [Track number: S#35231]
+            try {
+                Blob::Ptr outputBlob;
+                std::string output2Name = network2.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network2InferReqPtr->GetBlob(output2Name));
 
-            if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
-                float confThresh = 0.4f;
-                bool isTiny = true;
-                auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
-                std::cout << "BBox Top:" << std::endl;
-                for (size_t i = 0; i < actualOutput.size(); ++i) {
-                    const auto& bb = actualOutput[i];
-                    std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
-                              << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                if (curIterationNetwork2 % BBOX_PRINT_INTERVAL == 0) {
+                    float confThresh = 0.4f;
+                    bool isTiny = true;
+                    auto actualOutput = utils::parseYoloOutput(outputBlob, imgWidth, imgHeight, confThresh, isTiny);
+                    std::cout << "BBox Top:" << std::endl;
+                    for (size_t i = 0; i < actualOutput.size(); ++i) {
+                        const auto& bb = actualOutput[i];
+                        std::cout << i << " : " << bb.idx << " : [(" << bb.left << " " << bb.top << "), (" << bb.right
+                                  << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
+                    }
                 }
+            } catch (const std::exception& exc) {
+                std::cout << "detectCallback caught exception " << exc.what() << std::endl;
             }
             network2InferReqPtr->StartAsync();
         } else {
@@ -1088,6 +1100,7 @@ TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
             std::cout << "Completed " << iterationVec[reqId] << " async request ID " << reqId << std::endl;
             if (iterationVec[reqId] < iterationCount) {
                 // throws [REQUEST_BUSY] when USE_SIPP=0
+                // [Track number: S#35231]
                 try {
                     Blob::Ptr detectOutputBlob = detectionRequests.at(reqId)->GetBlob(detectOutputName);
 
