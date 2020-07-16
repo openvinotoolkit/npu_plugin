@@ -28,6 +28,7 @@
 using namespace ::testing;
 using namespace InferenceEngine;
 
+#if defined(__arm__) || defined(__aarch64__)
 static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore, const std::string& devName) {
     std::vector<std::string> deviceIdList = ieCore.GetMetric(devName, METRIC_KEY(AVAILABLE_DEVICES));
     std::string firstDeviceId = "";
@@ -39,7 +40,6 @@ static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore
     return firstDeviceId;
 }
 
-#if defined(__arm__) || defined(__aarch64__)
 TEST_F(vpuLayersTests, remoteCtx) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
     const std::string refInputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/input.bin";
@@ -47,7 +47,7 @@ TEST_F(vpuLayersTests, remoteCtx) {
 
     InferenceEngine::Core ie;
     const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = devName + "." + getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
 
@@ -109,7 +109,7 @@ TEST_F(vpuLayersTests, remoteCtxNV12) {
 
     InferenceEngine::Core ie;
     const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = devName + "." + getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
 
@@ -235,7 +235,7 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
 
     InferenceEngine::Core ie;
     const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = devName + "." + getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
     InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
 
@@ -316,5 +316,9 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
     const std::map<std::string, std::string> netParams = {};
     InferenceEngine::ExecutableNetwork executableNetwork;
     ASSERT_ANY_THROW(executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, netParams));
+
+    const ParamMap invalidCtxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "vpu-slice-42" }, };
+    InferenceEngine::RemoteContext::Ptr invalidContextPtr;
+    ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext("KMB", invalidCtxParams));
 }
 #endif

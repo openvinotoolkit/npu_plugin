@@ -41,7 +41,7 @@ KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)
     _deviceIdStr = deviceIdIter->second.as<std::string>();
 
     auto devMappingIter = deviceIdMapping.find(_deviceIdStr);
-    if (deviceIdIter == _paramMap.end()) {
+    if (devMappingIter == deviceIdMapping.end()) {
         THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Device ID " << _deviceIdStr << " is invalid.";
     }
     _deviceId = devMappingIter->second;
@@ -82,7 +82,7 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
 }
 
 std::string KmbRemoteContext::getDeviceName() const noexcept {
-    return _contextParams.getDeviceIdStr();
+    return "KMB." + _contextParams.getDeviceIdStr();
 }
 
 KmbAllocator::Ptr KmbRemoteContext::getAllocator() { return _allocatorPtr; }
