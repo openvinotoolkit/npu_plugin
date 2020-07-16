@@ -156,6 +156,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         copyInput = inputTensor;
     }
 
+    //NOTE: the idea here is that the n-1 first splits will be symmetrical on h/w
+    //so in order to concatenate later for the dilation case we will need to know
+    //the dim of the n-1 first streams and this should be stored in the last stream
+    std::size_t symmetrical_first_dimension = 0;
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         mv::Data::TensorIterator slice;
@@ -253,9 +257,15 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     streamingOpName);
+
+            if (split != number_of_splits - 1)
+                symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
             if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
             {
-                om.getSourceOp(newTensor)->set<unsigned>("streamId", split);
+                om.getSourceOp(newTensor)->set<unsigned>("streamKId", split);
+                om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionK",
+                                                                symmetrical_first_dimension);
             }
         }
         else if (op->getOpType() == "DepthwiseConv")
@@ -465,7 +475,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         middlePad[2] = 0;
         middlePad[3] = 0;
     }
-
+    std::size_t symmetrical_first_dimension = 0;
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         if (split == 0)
@@ -522,6 +532,14 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+            if (split != number_of_splits - 1)
+                symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+            if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
+            {
+                om.getSourceOp(newTensor)->set<unsigned>("streamHId", split);
+                om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH"
+                                                         , symmetrical_first_dimension);
+            }
             if((op->hasAttr("asymmetricKernel")))
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
             slices.push_back(slice);

@@ -276,8 +276,12 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
-            if (t->hasAttr("streamId"))
-                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+            if (t->hasAttr("streamKId"))
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
+            else if (t->hasAttr("streamHId"))
+                toBuild->data->data_index += t->get<unsigned>("streamHId")
+                    * dilatedStrides[1] * t->get<std::size_t>("symmetrical_first_dimensionH");
 
         }
         else
@@ -327,8 +331,13 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
-            if (t->hasAttr("streamId"))
-                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+            if (t->hasAttr("streamKId"))
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
+            else if (t->hasAttr("streamHId"))
+                toBuild->data->data_index += t->get<unsigned>("streamHId")
+                    * dilatedStrides[1] * t->get<std::size_t>("symmetrical_first_dimensionH");
+
         }
         else
             toBuild->data->data_index += leading_offset;
