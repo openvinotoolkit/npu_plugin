@@ -43,45 +43,43 @@ static std::vector<long> int32toLong(const Blob::Ptr& ieBlob) {
 }
 
 /*
- * Calculates intersections and unions by definition for each label in range.
- * Naive implementation. Extremely slow. Performs Lx2xHxW comparisons, where
- * L - number of labels in the range
- * H - height of the segmented image
- * W - width of the segmented image
+ * Calculates intersections and unions using associative containers.
+ * 1. Create intersection mapping with label as key and number of elements as value
+ * 2. Create union mapping with label as key and and number of elements as value
+ * 3. For each offset increase intersection and union maps
+ * 4. For each union label divide intersection cardinality by union cardinality
  */
 static float calculateMeanIntersectionOverUnion(
         const std::vector<long>& vpuOut,
-        const std::vector<long>& cpuOut,
-        const long& firstLabel,
-        const long& lastLabel) {
+        const std::vector<long>& cpuOut) {
+    std::unordered_map<long, size_t> intersectionMap;
+    std::unordered_map<long, size_t> unionMap;
+    for (size_t pos = 0; pos < vpuOut.size() && pos < cpuOut.size(); pos++) {
+        long vpuLabel = vpuOut.at(pos);
+        long cpuLabel = cpuOut.at(pos);
+        if (vpuLabel == cpuLabel) {
+            // labels are the same -- increment intersection at label key
+            // increment union at that label key only once
+            // if label has not been created yet, std::map sets it to 0
+            intersectionMap[vpuLabel]++;
+            unionMap[vpuLabel]++;
+        } else {
+            // labels are different -- increment element count at both labels
+            unionMap[vpuLabel]++;
+            unionMap[cpuLabel]++;
+        }
+    }
+
     float totalIoU = 0.f;
     size_t nonZeroUnions = 0;
-    for (long labelId = firstLabel; labelId < lastLabel; labelId++) {
-        size_t intersectionSize = 0;
-        size_t unionSize = 0;
-        for (size_t pos = 0; pos < vpuOut.size() && pos < cpuOut.size(); pos++) {
-            bool vpuLabelMatches = (vpuOut.at(pos) == labelId);
-            bool cpuLabelMatches = (cpuOut.at(pos) == labelId);
-            // intersection is when both values match the label
-            if (vpuLabelMatches && cpuLabelMatches) {
-                intersectionSize++;
-            }
-
-            // union is when at least one of the values matches the label
-            if (vpuLabelMatches || cpuLabelMatches) {
-                unionSize++;
-            }
-        }
-
-        if (unionSize > 0) {
-            // cast to floating point to avoid integer division
-            float intersectionCardinality = intersectionSize;
-            float unionCardinality = unionSize;
-            float classIoU = intersectionCardinality / unionCardinality;
-            std::cout << "Label: " << labelId << " IoU: " << classIoU << std::endl;
-            nonZeroUnions++;
-            totalIoU += classIoU;
-        }
+    for (const auto& unionPair : unionMap) {
+        const auto& labelId = unionPair.first;
+        float intersectionCardinality = intersectionMap[labelId];
+        float unionCardinality = unionPair.second;
+        float classIoU = intersectionCardinality / unionCardinality;
+        std::cout << "Label: " << labelId << " IoU: " << classIoU << std::endl;
+        nonZeroUnions++;
+        totalIoU += classIoU;
     }
 
     float meanIoU = totalIoU / nonZeroUnions;
@@ -91,9 +89,7 @@ static float calculateMeanIntersectionOverUnion(
 void KmbSegmentationNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
-        const long& firstLabel,
-        const long& lastLabel,
-        const float& meanIntersectionOverUnionTolerance) {
+        const float meanIntersectionOverUnionTolerance) {
     const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc&) {
         // FIXME VPU compiler overrides any output precision to FP32 when asked
         // CPU doesn't override I32 output precision during compilation
@@ -103,7 +99,7 @@ void KmbSegmentationNetworkTest::runTest(
             << "vpuOut.size: " << vpuOut.size() << " "
             << "cpuOut.size: " << cpuOut.size();
 
-        float meanIoU = calculateMeanIntersectionOverUnion(vpuOut, cpuOut, firstLabel, lastLabel);
+        float meanIoU = calculateMeanIntersectionOverUnion(vpuOut, cpuOut);
         EXPECT_LE(meanIntersectionOverUnionTolerance, meanIoU)
             << "meanIoU: " << meanIoU << " "
             << "meanIoUTolerance: " << meanIntersectionOverUnionTolerance;

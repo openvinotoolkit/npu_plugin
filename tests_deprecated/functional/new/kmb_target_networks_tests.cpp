@@ -906,3 +906,14 @@ TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
         "vpu/emotions-recognition-retail-0003.png",
         2, 0.1f);
 }
+
+TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/icnet-camvid-ava-tf-0001/icnet_camvid_ava_tf_0001_tf_dense_int8_IRv10.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::CHW)
+            .setUserOutputPrecision("output", Precision::FP32),
+        TestImageDesc("1024x1024/frankfurt_001016.png", false), // isBGR is false
+        0.3f);  // mean intersection over union tolerance
+}

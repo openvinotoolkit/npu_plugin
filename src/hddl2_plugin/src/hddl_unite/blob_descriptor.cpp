@@ -244,7 +244,7 @@ LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, c
 
 //------------------------------------------------------------------------------
 RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob, true, !blob->is<HDDL2RemoteBlob>()) {
+    : BlobDescriptor(desc, blob, true, blob && !blob->is<HDDL2RemoteBlob>()) {
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
         _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
     }

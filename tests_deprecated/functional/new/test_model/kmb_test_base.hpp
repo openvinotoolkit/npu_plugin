@@ -417,7 +417,5 @@ public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
-            const long& firstLabel,
-            const long& lastLabel,
-            const float& meanIntersectionOverUnionTolerance);
+            const float meanIntersectionOverUnionTolerance);
 };
