@@ -186,7 +186,22 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 RemoteContext::Ptr Engine::GetDefaultContext() {
     std::lock_guard<std::mutex> contextCreateGuard(_contextCreateMutex);
     if (nullptr == _defaultContext) {
-        _defaultContext = std::make_shared<KmbPlugin::KmbRemoteContext>(ParamMap(), _parsedConfig);
+        std::vector<std::string> deviceIdList = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {});
+        std::string firstAvaliableDevice = "";
+        if (deviceIdList.empty()) {
+            // TODO throw exception when no available devices found
+            // vpualHost must call VpualDispatcherResource destructor in free the slice properly
+            // however, VpualDispatcherResource is implemented as a static object
+            // thus, it is destroyed when libVpualDispatcher.so is unloaded from memory
+            // which never happens unless vpualHost is compiled with --no-gnu-unique
+            // hard code first device name as a fallback now
+            firstAvaliableDevice = "vpu-slice-0";
+        } else {
+            firstAvaliableDevice = deviceIdList.at(0);
+        }
+        // assign the first available device
+        const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvaliableDevice }, };
+        _defaultContext = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig);
     }
     return std::dynamic_pointer_cast<RemoteContext>(_defaultContext);
 }

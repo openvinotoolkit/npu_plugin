@@ -52,7 +52,7 @@ void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); } //cpplint m
 
 unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    return vpusmm_ptr_to_vpu(handle);
+    return vpurm_ptr_to_vpu(handle, _deviceId);
 #else
     UNUSED(handle);
     return 0;
@@ -61,26 +61,18 @@ unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
 
 bool KmbAllocator::isValidPtr(void* ptr) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    return ptr != nullptr && vpusmm_ptr_to_vpu(ptr) != 0;
+    return ptr != nullptr && vpurm_ptr_to_vpu(ptr, _deviceId) != 0;
 #else
     UNUSED(ptr);
     return false;
 #endif
 }
 
-std::shared_ptr<KmbAllocator>& vpu::KmbPlugin::getKmbAllocator() {
-    static std::shared_ptr<KmbAllocator> allocator;
-    if (allocator == nullptr) {
-        allocator = std::make_shared<KmbAllocator>();
-    }
-    return allocator;
-}
-
 void* KmbAllocator::wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    auto physAddr = vpusmm_ptr_to_vpu(memHandle);
+    auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
     if (physAddr == 0) {
-        physAddr = vpusmm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT);
+        physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     }
 
     MemoryDescriptor memDesc = {
@@ -102,7 +94,7 @@ void* KmbAllocator::wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemory
 
 void* KmbAllocator::wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
-    auto physAddr = vpusmm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT);
+    auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     size_t realSize = alignMemorySize(size + memOffset);
     // mmap always maps to the base physical address no matter which offset was provided
     // TODO find out whether that's expected
@@ -111,7 +103,7 @@ void* KmbAllocator::wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemory
 
     // add offset and translate virtual address to physical
     virtAddr = reinterpret_cast<uint8_t*>(virtAddr) + memOffset;
-    physAddr = vpusmm_ptr_to_vpu(virtAddr);
+    physAddr = vpurm_ptr_to_vpu(virtAddr, _deviceId);
 
     MemoryDescriptor memDesc = {
         size,            // size
@@ -134,9 +126,9 @@ void* KmbAllocator::alloc(size_t size) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     size_t realSize = alignMemorySize(size);
 
-    auto fd = vpusmm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT);
+    auto fd = vpurm_alloc_dmabuf(realSize, VPUSMMType::VPUSMMTYPE_COHERENT, _deviceId);
 
-    auto physAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
+    auto physAddr = vpurm_import_dmabuf(fd, VPU_DEFAULT, _deviceId);
 
     void* virtAddr = mmap(nullptr, realSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
 
@@ -166,7 +158,7 @@ bool KmbAllocator::free(void* handle) noexcept {
 
     auto memoryDesc = memoryIt->second;
 
-    vpusmm_unimport_dmabuf(memoryDesc.fd);
+    vpurm_unimport_dmabuf(memoryDesc.fd, _deviceId);
 
     auto out = munmap(handle, memoryDesc.size);
     if (out == -1) {
@@ -199,4 +191,8 @@ KmbAllocator::~KmbAllocator() {
             std::cerr << amount << " bytes amount were not freed!" << std::endl;
         }
     }
+}
+
+void KmbAllocator::setDeviceId(const int& deviceId) noexcept {
+    _deviceId = deviceId;
 }
