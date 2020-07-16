@@ -16,8 +16,15 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 const std::vector<ActivationTypes> activationTypes = {Sigmoid, Tanh, Relu, Exp, Log, Sign, Abs};
 
-const auto basicCases = ::testing::Combine(::testing::ValuesIn(activationTypes),
-    ::testing::ValuesIn(netPrecisions), ::testing::Values(std::vector<size_t>({1, 50}), std::vector<size_t>({1, 128})),
+std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
+    {{1, 50}, {}},
+    {{1, 128}, {}},
+};
+
+const auto basicCases = ::testing::Combine(
+    ::testing::ValuesIn(activationTypes),
+    ::testing::ValuesIn(netPrecisions),
+    ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
 INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
