@@ -1169,8 +1169,8 @@ INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTests
 INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_preprocessingM2I, VpuPreprocessingConfigAndInferTests,
-    Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
+INSTANTIATE_TEST_CASE_P(
+    preprocessingM2I, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
 
 INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
