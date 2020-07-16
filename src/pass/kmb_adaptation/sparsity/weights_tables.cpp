@@ -451,7 +451,8 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
-    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
+                                            get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
     auto originalWidth = dpuTaskOp->get<mv::Shape>("originalShape")[mv::IO_WIDTH_DIMENSION];
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];

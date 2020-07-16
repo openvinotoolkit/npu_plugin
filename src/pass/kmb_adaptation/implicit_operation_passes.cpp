@@ -156,7 +156,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                         if (previousOp->hasAttr("streamKId"))
                         {
                             auto streamKId = previousOp->get<unsigned>("streamKId");
-                            auto symmetrical_first_dimensionK = opIt->get<unsigned>("symmetrical_first_dimensionK");
+                            auto symmetrical_first_dimensionK = previousOp->get<std::size_t>("symmetrical_first_dimensionK");
                             compensatorOutput->set<std::size_t>("symmetrical_first_dimensionK",
                                                                 symmetrical_first_dimensionK);
                             compensatorOutput->set<unsigned>("streamKId", streamKId);
@@ -164,7 +164,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                         else if (previousOp->hasAttr("streamHId"))
                         {
                             auto streamHId = previousOp->get<unsigned>("streamHId");
-                            auto symmetrical_first_dimensionH = opIt->get<unsigned>("symmetrical_first_dimensionH");
+                            auto symmetrical_first_dimensionH = previousOp->get<std::size_t>("symmetrical_first_dimensionH");
                             compensatorOutput->set<std::size_t>("symmetrical_first_dimensionH",
                                                                 symmetrical_first_dimensionH);
                             compensatorOutput->set<unsigned>("streamHId", streamHId);

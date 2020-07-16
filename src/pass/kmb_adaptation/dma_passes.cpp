@@ -64,6 +64,13 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
             {
                 auto flows = inputTensor->get<std::set<std::string>>("flows");
                 mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                if (opIt->hasAttr("slicedInput3DDMA") &&
+                     opIt->get<bool>("slicedInput3DDMA") && !inputTensor->isPopulated())
+                {
+                    inputTensorDma->set<bool>("dilatedSlices3DDMA", true);
+                    inputTensorDma->set<unsigned>("dilationFactor",
+                                              opIt->get<unsigned>("originalDilationFactor"));
+                }
                 inputTensorDma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                 inputTensorDmaOp->set<unsigned>("opId", opId);

@@ -242,6 +242,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         numericStrides = dilatedStrides;
         dilatedStrides = bufferStrides;
     }
+    else if (t->hasAttr("dilatedSlices3DDMA") && t->get<bool>("dilatedSlices3DDMA"))
+    {
+        //NOTE: Covered only strides for z-major convolution
+        for (unsigned idx = 0; idx < numericStrides.size(); idx++)
+        {
+            auto dilationFactor = t->get<unsigned>("dilationFactor");
+            if (idx == 0 || idx == 1)
+                dilatedStrides[idx] = dilationFactor * numericStrides[idx];
+            else
+                dilatedStrides[idx] = numericStrides[idx];
+        }
+        bufferStrides = numericStrides;
+        numericStrides = dilatedStrides;
+        dilatedStrides = bufferStrides;
+    }
 
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
