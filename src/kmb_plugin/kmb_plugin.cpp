@@ -75,6 +75,9 @@ void Engine::SetConfig(const std::map<std::string, std::string>& config) {
 
 void Engine::QueryNetwork(
     const ICNNNetwork& network, const std::map<std::string, std::string>& config, QueryNetworkResult& res) const {
+    if (network.getFunction()) {
+        THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
+    }
 #ifdef ENABLE_MCM_COMPILER
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
