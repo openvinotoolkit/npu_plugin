@@ -1064,6 +1064,11 @@ namespace mv
                         && clustering == "SplitOverH")
                     return 14;
 
+                if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
+                        && op.get<bool>("DilatedSubConv")
+                        &&  (streamShape["H"] != 1))
+                    return 14;
+
                 return 0; //good strategy
             }
             // CM Conv needs if follows a DW Conv (like OV models) or CM Conv follows another Conv, spilling is needed
