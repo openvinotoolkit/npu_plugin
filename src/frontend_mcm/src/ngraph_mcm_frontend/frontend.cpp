@@ -63,6 +63,7 @@ std::vector<char> compileNGraph(
 #include <transformations/mul_add_squence_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
 #include <include/mcm/compiler/compilation_unit.hpp>
 #include <memory>
 #include <string>
@@ -130,6 +131,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
         passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
+
+        passManager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
 
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
