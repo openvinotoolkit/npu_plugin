@@ -67,7 +67,9 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                 if (opIt->hasAttr("slicedInput3DDMA") &&
                      opIt->get<bool>("slicedInput3DDMA") && !inputTensor->isPopulated())
                 {
-                    inputTensorDma->set<bool>("dilatedSlices3DDMA", true);
+                    inputTensor->set<bool>("dilatedSlices3DDMA", true);
+                    inputTensor->set<unsigned>("dilationFactor",
+                                              opIt->get<unsigned>("originalDilationFactor"));
                     inputTensorDma->set<unsigned>("dilationFactor",
                                               opIt->get<unsigned>("originalDilationFactor"));
                 }
