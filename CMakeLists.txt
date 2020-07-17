@@ -46,6 +46,10 @@ if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
 endif()
 
+if(MSVC)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /sdl-")
+endif()
+
 # flatbuffers are necessary even when the compiler itself is disabled
 if (NOT mcmCompiler_DIR)
     set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
