@@ -20,6 +20,10 @@
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 #include <details/ie_exception.hpp>
 #include <ngraph/runtime/reference/autobroadcast_binop.hpp>
+#include <ngraph/node.hpp>
+#include <ngraph/op/constant.hpp>
+#include <ngraph/op/fused/fake_quantize.hpp>
+#include <stack>
 #include <numeric>
 #include <algorithm>
 #include <vector>
@@ -140,6 +144,43 @@ std::vector<int64_t> quantizeData(
         });
 
     return out;
+}
+
+std::vector<std::shared_ptr<ngraph::Node>> getParents(std::shared_ptr<ngraph::Node> node) {
+    auto input_values = node->input_values();
+    std::vector<std::shared_ptr<ngraph::Node>> result;
+    for ( auto&& iv : input_values ) {
+        result.emplace_back(iv.get_node_shared_ptr());
+    }
+    return result;
+}
+
+std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node) {
+    std::vector<std::shared_ptr<ngraph::Node> > result;
+    std::set<std::shared_ptr<ngraph::Node> > visited;
+    std::stack<std::shared_ptr<ngraph::Node> > layers;
+
+    auto inputs = getParents(node);
+    for (auto& input : inputs) {
+        layers.push(input);
+    }
+    while (!layers.empty()) {
+        auto input = layers.top();
+        layers.pop();
+        visited.insert(input);
+        if ((dynamic_cast<ngraph::op::v0::FakeQuantize*>(input.get())) && 
+            (nullptr == dynamic_cast<ngraph::op::v0::Constant*>(input->input_value(0).get_node()))) {
+            result.push_back(input);
+        } else {
+            auto inputs = getParents(input);
+            for (auto&& newInput : inputs) {
+                if (!visited.count(newInput)) {
+                    layers.push(newInput);
+                }
+            }
+        }
+    }
+    return result;
 }
 
 #endif

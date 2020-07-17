@@ -49,6 +49,8 @@ std::vector<char> compileNGraph(
 #include "ngraph_mcm_frontend/passes/replace_scale_shift_with_fq.hpp"
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 #include "ngraph_mcm_frontend/passes/split_fq.hpp"
+#include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
+#include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 #include <ie_util_internal.hpp>
 #include <vpu/utils/logger.hpp>
 #include <ngraph/pass/manager.hpp>
@@ -137,6 +139,8 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ConvertToMcmFC>();
         passManager.register_pass<ReplaceScaleShiftWithMcmScale>();
         passManager.register_pass<ReplaceAddWithMcmEltwise>();
+        passManager.register_pass<AlignEltwiseScales>();
+        passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap);
 
         passManager.run_passes(func);
