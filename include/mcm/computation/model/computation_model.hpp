@@ -22,6 +22,7 @@
 #include "include/mcm/target/kmb/barrier_definition.hpp"
 #include "include/mcm/target/kmb/barrier_deps.hpp"
 
+
 namespace mv
 {
 
@@ -42,6 +43,8 @@ namespace mv
         mv::Order order_;
         mv::Shape shape_;
         mv::DType dtype_;
+
+        friend bool operator==(const BufferEntry&, const BufferEntry&);
 
     public:
 
@@ -67,10 +70,10 @@ namespace mv
 
     public:
 
-        void addScratch(const BufferEntry& buf);
-        void addInput(const BufferEntry& buf);
-        void addOutput(const BufferEntry& buf);
-        void addProfiling(const BufferEntry& buf);
+        void addScratch(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
+        void addInput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
+        void addOutput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
+        void addProfiling(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
 
         void clear(); 
 
@@ -196,6 +199,7 @@ namespace mv
         std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::string newName, std::size_t newSize);
         std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::size_t newSize);
         std::shared_ptr<mv::RuntimeBinary> getBinaryBuffer();
+        void setName(const std::string& name);
 
         std::reference_wrapper<ComputationModel> getRef();
 
@@ -224,6 +228,10 @@ namespace mv
         json::Object sourceOpsToJSON() const;
     };
 
+    bool operator==(const mv::BufferEntry& lhs, const mv::BufferEntry& rhs);
+
 }
+
+
 
 #endif // COMPUTATION_MODEL_HPP_
