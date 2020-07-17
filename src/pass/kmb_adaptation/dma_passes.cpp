@@ -77,9 +77,6 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                     if (opIt->hasAttr("streamHId"))
                     {
                         auto streamHId = opIt->get<unsigned>("streamHId");
-                        auto symmetrical_first_dimensionH_input = opIt->get<std::size_t>("symmetrical_first_dimensionH_input");
-                        inputTensor->set<std::size_t>("symmetrical_first_dimensionH_input",
-                                                            symmetrical_first_dimensionH_input);
                         inputTensor->set<unsigned>("streamHId", streamHId);
                     }
 

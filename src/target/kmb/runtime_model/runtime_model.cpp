@@ -289,10 +289,18 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+
             if (t->hasAttr("streamHId"))
+            {
+                auto strides = tensorBufferIt->getStrides();
+                auto tShape = t->getShape();
+                //leading offset = (number of lines before) * C * W (C and W are the same for all streams over H)
+                auto leading_offset = strides[0]/(tShape[mv::IO_WIDTH_DIMENSION] * tShape[mv::IO_CHANNEL_DIMENSION]);
+
                 //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
                 toBuild->data->data_index += numericStrides[3]
-                        * t->get<std::size_t>("symmetrical_first_dimensionH_input");
+                        *leading_offset;
+            }
 
         }
         else
@@ -356,10 +364,16 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
             if (t->hasAttr("streamHId"))
+            {
+                auto tShape = t->getShape();
+                //leading offset = (number of lines before) * C * W (C and W are the same for all streams over H)
+                auto local_leading_offset = leading_offset /
+                        (tShape[mv::IO_WIDTH_DIMENSION] * tShape[mv::IO_CHANNEL_DIMENSION]);
+
                 //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
                 toBuild->data->data_index += numericStrides[3]
-                        * t->get<std::size_t>("symmetrical_first_dimensionH_input");
-
+                        * local_leading_offset;
+            }
         }
         else
             toBuild->data->data_index += leading_offset;

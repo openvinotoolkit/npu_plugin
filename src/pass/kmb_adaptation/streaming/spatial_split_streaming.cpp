@@ -541,8 +541,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                 om.getSourceOp(newTensor)->set<unsigned>("streamHId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH"
                                                          , symmetrical_first_dimension);
-                om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH_input"
-                                                         , symmetrical_first_dimension_input);
             }
             symmetrical_first_dimension_input += slice->getShape()[mv::IO_HEIGHT_DIMENSION];
             if((op->hasAttr("asymmetricKernel")))
