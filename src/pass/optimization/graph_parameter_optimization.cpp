@@ -801,7 +801,7 @@ namespace mv
             bool requiresCompilerActivationSparsity(Op& op)
             {
                 if (((op.getOpType() == "Conv")) and
-                        ((!op.hasAttr("slicedInput3DDMA")) && (!op.get<bool>("slicedInput3DDMA")))
+                        ((!op.hasAttr("slicedInput3DDMA")) || (!op.get<bool>("slicedInput3DDMA")))
                          and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
 

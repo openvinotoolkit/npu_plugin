@@ -59,7 +59,7 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             {
                 if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
                 {
-                    if ((!op->hasAttr("slicedInput3DDMA")) && (!op->get<bool>("slicedInput3DDMA")))
+                    if ((!op->hasAttr("slicedInput3DDMA")) || (!op->get<bool>("slicedInput3DDMA")))
                         op->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
                 }
             }
