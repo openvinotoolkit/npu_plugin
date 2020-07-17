@@ -281,14 +281,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
             else if (t->hasAttr("streamHId"))
                 toBuild->data->data_index += t->get<unsigned>("streamHId")
-                    * dilatedStrides[1] * t->get<std::size_t>("symmetrical_first_dimensionH");
+                    * numericStrides[3] * t->get<std::size_t>("symmetrical_first_dimensionH");
 
         }
         else if (t->hasAttr("dilatedSlices3DDMA") &&
                              t->get<bool>("dilatedSlices3DDMA"))
         {
-            toBuild->data->data_index += numericStrides[4] * t->get<std::size_t>("inputConcatTensorIdx");
-            toBuild->data->data_index += numericStrides[3] * t->get<std::size_t>("lineofConcatHeight");
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
             if (t->hasAttr("streamHId"))
                 //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
                 toBuild->data->data_index += numericStrides[3]
@@ -347,14 +347,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                 toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
             else if (t->hasAttr("streamHId"))
                 toBuild->data->data_index += t->get<unsigned>("streamHId")
-                    * dilatedStrides[1] * t->get<std::size_t>("symmetrical_first_dimensionH");
+                    * numericStrides[3] * t->get<std::size_t>("symmetrical_first_dimensionH");
 
         }
         else if (t->hasAttr("dilatedSlices3DDMA") &&
                              t->get<bool>("dilatedSlices3DDMA"))
         {
-            toBuild->data->data_index += numericStrides[4] * t->get<std::size_t>("inputConcatTensorIdx");
-            toBuild->data->data_index += numericStrides[3] * t->get<std::size_t>("lineofConcatHeight");
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
             if (t->hasAttr("streamHId"))
                 //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
                 toBuild->data->data_index += numericStrides[3]

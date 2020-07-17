@@ -9,6 +9,7 @@
 static void storeLayerSplitStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeTensorPlacementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
+static void solveDilatedSlicingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void validateDilationSubConvolutions(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -55,6 +56,7 @@ void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::Computati
     //NOTE: The idea of that pass is that for the dilation convolution all the dmas of the subconvolutions
     //need to write on one master buffer located or in the ddr or in the output location
     storeDilationConcatsDDRFcn(pass, model);
+    solveDilatedSlicingFcn(pass, model);
     validateDilationSubConvolutions(pass, model);
 }
 
@@ -342,6 +344,29 @@ void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&,
                         inputTensor->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
                 else
                     setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::DDR);
+            }
+        }
+    }
+}
+
+void solveDilatedSlicingFcn(const mv::pass::PassEntry&,
+                                mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto convs = om.getOps("Conv");
+    auto globalParams = model.getGlobalConfigParams();
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    for (auto layerNameStrategy : strategyList)
+    {
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        for (auto conv : convs)
+        {
+            bool isDilatedConv = conv->hasAttr("DilatedSubConv") && conv->get<bool>("DilatedSubConv");
+            if (isDilatedConv && nodeName == conv->getName())
+            {
+                auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                if (streaming_strategy[1].get<int>("H") > 1)
+                    conv->set<bool>("slicedInput3DDMA", true);
             }
         }
     }

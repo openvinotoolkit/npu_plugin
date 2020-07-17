@@ -41,7 +41,7 @@ namespace mv
 }
 
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j, bool sliceWith3DDMA)
+                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
 {
     mv::Data::TensorIterator subConv;
     bool hasBias = opIt->hasAttr("bias");
@@ -71,11 +71,6 @@ mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpLi
 
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DilatedSubConv", true);
-    if (sliceWith3DDMA)
-    {
-        sliceInputOp->set<bool>("slicedInput3DDMA", true);
-        subConvOp->set<bool>("slicedInput3DDMA", true);
-    }
     subConvOp->set<unsigned>("originalDilationFactor", opIt->get<unsigned>("dilationFactor"));
     sliceInput->set<mv::Shape>("originalShape", sourceTensor->getShape());
     subConv->set<mv::Shape>("originalShape", sourceTensor->getShape());
@@ -165,19 +160,22 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         auto dilationFactor = opIt->get<unsigned>("dilationFactor");
         if (dilationFactor > 1)
         {
-            auto params = model.getGlobalConfigParams();
+//            auto params = model.getGlobalConfigParams();
 
-            std::size_t cmxSize = params->get<unsigned>("cmx");
+//            std::size_t cmxSize = params->get<unsigned>("cmx");
 //            auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
             auto nonDilatedKernel = opIt->getInputTensor(1);
             auto nonDilatedKernelShape = nonDilatedKernel->getShape();
             auto inputTensor = opIt->getInputTensor(0);
 //            auto outputTensor = opIt->getOutputTensor(0);
-            auto inputShape = inputTensor->getShape();
-            auto inputTensorMemory = inputShape.totalSize() * std::ceil(inputTensor->getDType().getSizeInBits()/8.0);
-            bool sliceWith3DDMA = false;
-            if (inputTensorMemory > cmxSize)
-                sliceWith3DDMA = true;
+//            auto inputShape = inputTensor->getShape();
+//            auto inputTensorMemory = inputShape.totalSize() * std::ceil(inputTensor->getDType().getSizeInBits()/8.0);
+//            bool sliceWith3DDMA = false;
+//            //NOTE: temporary hack, normally the placement of the ops should be the same and the
+//            //attribute sliceWith3DDma/sparsity(disabled) should be set after the g.o, but on that
+//            //case g.o. will compute memory with sparsity in and produce the analogous strategies
+//            if (inputTensorMemory > cmxSize)
+//                sliceWith3DDMA = true;
             auto name = opIt->getName();
 
             auto originalShape = inputTensor->getShape();
@@ -210,7 +208,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                     }
                     subConvs.push_back(createDilatedConvSubConv(om, opIt, inputTensor, padding,
                         name + "_DilatedSubConv" + std::to_string(i)+"_"+std::to_string(j),
-                        subConvShape, subConvIdx++, i, j, sliceWith3DDMA));
+                        subConvShape, subConvIdx++, i, j));
                     subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
                     leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
                 }
