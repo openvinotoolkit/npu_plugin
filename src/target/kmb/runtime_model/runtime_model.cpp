@@ -350,6 +350,17 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
                     * dilatedStrides[1] * t->get<std::size_t>("symmetrical_first_dimensionH");
 
         }
+        else if (t->hasAttr("dilatedSlices3DDMA") &&
+                             t->get<bool>("dilatedSlices3DDMA"))
+        {
+            toBuild->data->data_index += numericStrides[4] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += numericStrides[3] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamHId"))
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += numericStrides[3]
+                        * t->get<std::size_t>("symmetrical_first_dimensionH_input");
+
+        }
         else
             toBuild->data->data_index += leading_offset;
 
