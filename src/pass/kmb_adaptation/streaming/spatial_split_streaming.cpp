@@ -439,7 +439,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
 
-    std::vector<mv::Shape> spatial_indexes(number_of_splits);
     std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
     std::vector<mv::Data::TensorIterator> final_outputs(number_of_splits);
@@ -476,6 +475,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         middlePad[3] = 0;
     }
     std::size_t symmetrical_first_dimension = 0;
+    std::size_t symmetrical_first_dimension_input = 0;
     for (unsigned split = 0; split < number_of_splits; split++)
     {
         if (split == 0)
@@ -533,12 +533,17 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
             if (split != number_of_splits - 1)
+            {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                symmetrical_first_dimension_input = slice->getShape()[mv::IO_HEIGHT_DIMENSION];
+            }
             if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
             {
                 om.getSourceOp(newTensor)->set<unsigned>("streamHId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH"
                                                          , symmetrical_first_dimension);
+                om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH_input"
+                                                         , symmetrical_first_dimension_input);
             }
             if((op->hasAttr("asymmetricKernel")))
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));

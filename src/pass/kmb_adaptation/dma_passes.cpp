@@ -70,8 +70,19 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                     inputTensor->set<bool>("dilatedSlices3DDMA", true);
                     inputTensor->set<unsigned>("dilationFactor",
                                               opIt->get<unsigned>("originalDilationFactor"));
-                    inputTensorDma->set<unsigned>("dilationFactor",
-                                              opIt->get<unsigned>("originalDilationFactor"));
+                    inputTensor->set<std::size_t>("lineofConcatHeight",
+                                                opIt->get<std::vector<std::size_t>>("subConvsCoordinates")[0]);
+                    inputTensor->set<std::size_t>("inputConcatTensorIdx",
+                                                opIt->get<std::vector<std::size_t>>("subConvsCoordinates")[1]);
+                    if (opIt->hasAttr("streamHId"))
+                    {
+                        auto streamHId = opIt->get<unsigned>("streamHId");
+                        auto symmetrical_first_dimensionH_input = opIt->get<std::size_t>("symmetrical_first_dimensionH_input");
+                        inputTensor->set<std::size_t>("symmetrical_first_dimensionH_input",
+                                                            symmetrical_first_dimensionH_input);
+                        inputTensor->set<unsigned>("streamHId", streamHId);
+                    }
+
                 }
                 inputTensorDma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
