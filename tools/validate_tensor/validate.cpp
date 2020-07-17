@@ -40,8 +40,16 @@ const std::string FILE_CPU_INPUT_NHWC_RGB   = "input_cpu_nhwc_rgb.bin";
 const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
-const std::string DLDT_BLOB_LOCATION    = "release_kmb_with_CM_Conv/release_kmb/";
+const std::string FILE_BLOB_NAME        = "mcm.blob";
 
+
+std::string getExtension(std::string& path)
+{
+    std::string::size_type const p(path.find_last_of('.'));
+    std::string file_extension = path.substr(p+1);
+
+    return file_extension;
+}
 
 bool ParseAndCheckCommandLine(int argc, char *argv[])
 {
@@ -64,35 +72,18 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
     else    //normal operation
     {
         if (FLAGS_m.empty())
-            throw std::logic_error("Parameter -m is not set");
+            throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
-            throw std::logic_error("Parameter -k is not set");
+            throw std::logic_error("Parameter -k <evm ip address> is not set");
     }
 
     return true;
 }
 
-std::string findBlob(std::string folderPath)
+std::string getEnvVarDefault(const std::string& varName, const std::string& defaultValue)
 {
-    // OpenVino blob is written to locations based on input xml.
-    // Its probably DLDT/bin/intel64/Debug/release_kmb/release_kmb
-    std::string blobPath("");
-    if (auto dir = opendir(folderPath.c_str()))
-    {
-        while (auto f = readdir(dir))
-        {
-            if (!f->d_name || f->d_name[0] == '.')
-                continue;
-
-            if ( strstr( f->d_name, ".blob" ))
-            {
-                blobPath =  f->d_name;
-                break;
-            }
-        }
-        closedir(dir);
-    }
-    return blobPath;
+    const char* value = getenv(varName.c_str());
+    return value ? value : defaultValue;
 }
 
 std::string getFilename(std::string& path)
@@ -290,8 +281,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     do
     {   //delete any previous blobs (different names each time)
-        blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
-        std::string fullBlobPath = binFolder + DLDT_BLOB_LOCATION + blobPath;
+        std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
         std::cout << "Removing: " << fullBlobPath << std::endl;
         remove(fullBlobPath.c_str());
     } while (blobPath != "");
@@ -313,7 +303,6 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     {   // single xml provided
         pathXMLvector.push_back( pathXML );
     }
-
 
     // execute the classification sample async (CPU-plugin)
     std::cout << "Generating reference results... " << std::endl;
@@ -347,13 +336,17 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
         return FAIL_CPU_PLUGIN;
 
-    //
-    // execute the classification sample async (KMB-plugin)
+    // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
+    bool layoutNHWC = (getEnvVarDefault("NHWC_LAYOUT", "false") == "true") ? true: false;
+
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
-        "./test_classification -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB";
-    if (! FLAGS_i.empty() )
-        commandline += (" -i " + pathImage);
+        "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
+
+    if (layoutNHWC)
+        commandline += " -il NHWC";
+    else
+        commandline += " -il NCHW";
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
@@ -363,13 +356,12 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         return FAIL_ERROR;
     }
 
-    blobPath = findBlob(std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION);
-    if (blobPath == "")
+    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    if (!checkFilesExist( {blobPath} ))
     {
-        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER << DLDT_BLOB_LOCATION << std::endl;
+        std::cout << "Error! Couldn't find the generated blob in " << std::getenv("DLDT_HOME") << DLDT_BIN_FOLDER  << std::endl;
         return FAIL_COMPILER;
     }
-    blobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + DLDT_BLOB_LOCATION + blobPath;
     return RESULT_SUCCESS;
 }
 
@@ -395,9 +387,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-    // std::string inputCPU = FILE_CONVERTED_IMAGE;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/input-0.bin");
-    // if (!copyFile(FILE_CONVERTED_IMAGE, inputDest)) return FAIL_GENERAL;
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
@@ -614,7 +604,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         std::string binFolder = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER;
         if(zMajor)
         {
-            std::cout << "ZMajor Starting?  " << std::endl;
+            std::cout << "Using Z-Major image... " << std::endl;
             if(FLAGS_r){ // Use zmajor, rgb
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NCHW_RGB ).c_str());
@@ -629,7 +619,7 @@ int copyImage(std::string imagePath, std::string blobPath)
         }
         else
         {
-            std::cout << "CMajor Starting?  " << std::endl;
+            std::cout << "Using Ch-Major image ... " << std::endl;
             if(FLAGS_r){
                 remove((binFolder + FILE_CPU_INPUT_NCHW_BGR ).c_str());
                 remove((binFolder + FILE_CPU_INPUT_NHWC_RGB ).c_str());
