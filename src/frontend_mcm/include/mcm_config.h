@@ -68,7 +68,7 @@ private:
     LogLevel _mcmLogLevel = LogLevel::None;
 
     std::string _mcmTargetDesciptorPath = "mcm_config/target";
-    std::string _mcmTargetDesciptor = "release_kmb";
+    std::string _mcmTargetDesciptor = "release_tbh";
 
     std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
     std::string _mcmCompilationDesciptor = "release_kmb";
