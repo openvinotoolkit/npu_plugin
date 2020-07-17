@@ -32,6 +32,28 @@ const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMappi
     {"Log", MVCNN::DType::DType_LOG}
 };
 
+const std::unordered_map<MVCNN::DType, std::string> mv::RuntimeModel::reverseDTypeMapping_ =
+{
+    {MVCNN::DType::DType_FP64, "Float64"},
+    {MVCNN::DType::DType_FP32, "Float32"},
+    {MVCNN::DType::DType_FP16, "Float16"},
+    {MVCNN::DType::DType_FP8, "Float8"},
+    {MVCNN::DType::DType_U64, "UInt64"},
+    {MVCNN::DType::DType_U32, "UInt32"},
+    {MVCNN::DType::DType_U16, "UInt16"},
+    {MVCNN::DType::DType_U8, "UInt8"},
+    {MVCNN::DType::DType_I64, "Int64"},
+    {MVCNN::DType::DType_I32, "Int32"},
+    {MVCNN::DType::DType_I16, "Int16"},
+    {MVCNN::DType::DType_I8, "Int8"},
+    {MVCNN::DType::DType_I4, "Int4"},
+    {MVCNN::DType::DType_I2, "Int2"},
+    {MVCNN::DType::DType_I2X, "Int2X"},
+    {MVCNN::DType::DType_I4X, "Int4X"},
+    {MVCNN::DType::DType_BIN, "Bin"},
+    {MVCNN::DType::DType_LOG, "Log"}
+};
+
 const std::unordered_map<std::string, MVCNN::MemoryLocation> mv::RuntimeModel::memoryLocationMapping_ =
 {
     {"ProgrammableInput", MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput},
@@ -130,6 +152,11 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
+}
+
+mv::DType mv::RuntimeModel::convertDtype(const MVCNN::DType& dtype)
+{
+    return reverseDTypeMapping_.at(dtype);
 }
 
 MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
@@ -795,6 +822,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
+    toBuild->identifier = cm.getName();
 
     // Support multiple inputs
     auto numInputs = om.getNumNetworkInputs();
@@ -879,8 +907,8 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
     toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
-    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
-
+    // Set DDR scratch value to high watermark, which is saved in BufferMap
+    toBuild->ddr_scratch = (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
     return toBuild;
 }
 
@@ -3430,7 +3458,7 @@ void mv::RuntimeModel::deserialize(const std::string& path)
     deserialize(binaryData_->data(), binaryData_->size());
 }
 
-void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
+void mv::RuntimeModel::deserialize(const char *dataBuffer, int length)
 {
     flatbuffers::Verifier verifier(reinterpret_cast<const unsigned char*>(dataBuffer), length);
     if (!MVCNN::VerifyGraphFileBuffer(verifier))
@@ -3445,4 +3473,33 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     if(nullptr == binaryData_)
         serialize();
     return binaryData_;
+}
+
+const MVCNN::GraphFileT& mv::RuntimeModel::getGraphFile()
+{
+    return graphFile_;
+}
+
+void mv::RuntimeModel::clear()
+{
+    graphFile_ = MVCNN::GraphFileT();
+    binaryData_->clear();
+}
+
+mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
+{
+
+    std::vector<std::size_t> contVector;
+    std::map<unsigned, unsigned> indices;
+    
+    // Hardcoded for 3d tensors 
+    // TODO update when 3d RT ops enabled
+    for (unsigned i = 0; i < 4; ++i)
+        indices[strides[i]] = i;
+
+    for (auto it = indices.begin(); it != indices.end(); ++it)
+        contVector.push_back(it->second);    
+    
+    return OrderRegistry::instance().getLabel(contVector);
+
 }
