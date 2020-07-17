@@ -535,7 +535,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             if (split != number_of_splits - 1)
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
-                symmetrical_first_dimension_input = slice->getShape()[mv::IO_HEIGHT_DIMENSION];
             }
             if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
             {
@@ -545,6 +544,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH_input"
                                                          , symmetrical_first_dimension_input);
             }
+            symmetrical_first_dimension_input += slice->getShape()[mv::IO_HEIGHT_DIMENSION];
             if((op->hasAttr("asymmetricKernel")))
                 om.getSourceOp(newTensor)->set<unsigned>("asymmetricKernel", op->get<unsigned>("asymmetricKernel"));
             slices.push_back(slice);

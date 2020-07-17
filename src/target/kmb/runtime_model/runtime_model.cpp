@@ -291,7 +291,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index += numericStrides[3] * t->get<std::size_t>("lineofConcatHeight");
             if (t->hasAttr("streamHId"))
                 //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
-                toBuild->data->data_index += t->get<unsigned>("streamHId") * numericStrides[3]
+                toBuild->data->data_index += numericStrides[3]
                         * t->get<std::size_t>("symmetrical_first_dimensionH_input");
 
         }
