@@ -18,6 +18,8 @@ Test inference of compiled models:
 python3 -m pytest  --models=./compiled --benchmark_app=./bin/benchmark_app test_infer_compiled.py
 """
 
+import os
+import shutil
 import tempfile
 from types import SimpleNamespace
 
@@ -62,10 +64,14 @@ def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
     out = metafunc.config.getoption("output")
-    if not out:
+    if out:
+        if os.path.isdir(out):
+            shutil.rmtree(out)  # cleanup output folder
+    else:
         out = tempfile.mkdtemp(prefix='_blobs-', dir='.')
     params = []
     ids = []
+
     for model in KMB_KPI_MODELS:
         extra_args = {}
         if isinstance(model, dict):
