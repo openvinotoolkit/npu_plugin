@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <vpusmm/vpusmm.h>
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <regression_tests.hpp>
@@ -990,17 +991,30 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
         std::chrono::system_clock::now() + std::chrono::seconds(10 * 60);  // 10 minutes
     size_t curIterationNetwork1 = 0;
     size_t curIterationNetwork2 = 0;
+    std::atomic<bool> network1Finished(false);
+    std::atomic<bool> network2Finished(false);
+    std::atomic<bool> network1Failed(false);
+    std::atomic<bool> network2Failed(false);
     std::condition_variable condVar;
 
     network1InferReqPtr->SetCompletionCallback([&] {
         curIterationNetwork1++;
         std::cout << "Completed " << curIterationNetwork1 << " async request execution for network 1" << std::endl;
         if (std::chrono::system_clock::now() < timeLimit) {
-            Blob::Ptr outputBlob;
-            std::string output1Name = network1.GetOutputsInfo().begin()->first;
-            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
-            network1InferReqPtr->StartAsync();
+            try {
+                Blob::Ptr outputBlob;
+                std::string output1Name = network1.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+                network1InferReqPtr->StartAsync();
+            } catch (const std::exception& exc) {
+                std::cout << "classifyCallback caught exception " << exc.what() << std::endl;
+                network1Finished = true;
+                network1Failed = true;
+                condVar.notify_one();
+            }
         } else {
+            network1Finished = true;
+            network1Failed = false;
             condVar.notify_one();
         }
     });
@@ -1028,11 +1042,16 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
                                   << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
                     }
                 }
+                network2InferReqPtr->StartAsync();
             } catch (const std::exception& exc) {
                 std::cout << "detectCallback caught exception " << exc.what() << std::endl;
+                network2Finished = true;
+                network2Failed = true;
+                condVar.notify_one();
             }
-            network2InferReqPtr->StartAsync();
         } else {
+            network2Finished = true;
+            network2Failed = false;
             condVar.notify_one();
         }
     });
@@ -1045,8 +1064,11 @@ TEST_F(VpuPreprocessingStressTests, twoNetworksStressTest) {
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
     condVar.wait(lock, [&] {
-        return std::chrono::system_clock::now() >= timeLimit;
+        return network1Finished && network2Finished;
     });
+
+    ASSERT_FALSE(network1Failed);
+    ASSERT_FALSE(network2Failed);
 }
 
 TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
@@ -1115,6 +1137,7 @@ TEST_F(VpuPreprocessingStressTests, detectClassify4Threads) {
                                   << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
                     }
                     for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
+                        classificationRequests.at(classReqIdx)->Wait(IInferRequest::WaitMode::RESULT_READY);
                         classificationRequests.at(classReqIdx)->StartAsync();
                     }
                 } catch (const std::exception& exc) {
