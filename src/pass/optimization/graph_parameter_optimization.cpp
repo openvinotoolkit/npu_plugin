@@ -1396,7 +1396,7 @@ namespace mv
                         // TODO: enable this case in G.O. decide later if fake or real sparsity
                         // Sparse map has to be contiguously alligned at 16 bytes
                         // for first (N - 1) clusters
-                        auto outputTensorShape = childOp.getOutputTensor(0)->getShape();
+                        auto outputTensorShape = parentOp.getOutputTensor(0)->getShape();
                         unsigned int W = outputTensorShape[IO_WIDTH_DIMENSION];
                         unsigned int H = outputTensorShape[IO_HEIGHT_DIMENSION];
                         unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
