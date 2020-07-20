@@ -63,11 +63,12 @@ public:
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
     RemoteContext::Ptr GetDefaultContext() override;
+    RemoteContext::Ptr GetDefaultContext(const std::string& deviceId);
 
 private:
     KmbConfig _parsedConfig;
     KmbMetrics _metrics;
-    KmbRemoteContext::Ptr _defaultContext;
+    std::map<std::string, KmbRemoteContext::Ptr> _defaultContext;
     std::mutex _contextCreateMutex;
 };
 

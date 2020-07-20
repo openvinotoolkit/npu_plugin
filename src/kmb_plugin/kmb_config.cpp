@@ -48,6 +48,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(USE_SIPP),
                                                   CONFIG_KEY(PERF_COUNT),
                                                   VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                  CONFIG_KEY(DEVICE_ID),
                                               });
 
     return options;
@@ -79,4 +80,5 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
+    setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
 }

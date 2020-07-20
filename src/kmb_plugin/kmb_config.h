@@ -50,6 +50,7 @@ public:
     bool useSIPP() const { return _useSIPP; }
 
     bool useM2I() const { return _useM2I; }
+    std::string deviceId() const { return _deviceId; }
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
@@ -84,6 +85,7 @@ private:
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
+    std::string _deviceId = "vpu-slice-0";
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
