@@ -264,7 +264,6 @@ static bool needRepackForNHWC(const TensorDesc& actualDesc) {
     default:
         THROW_IE_EXCEPTION << "Unsupported layout for actual blob: " << actualLayout;
     }
-    IE_ASSERT(false);
 }
 
 static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
@@ -329,8 +328,11 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy
         const auto outputMemoryBlob = as<MemoryBlob>(actualInput);
+        IE_ASSERT(outputMemoryBlob != nullptr);
         const auto outputMemory = outputMemoryBlob->rmap();
+        IE_ASSERT(outputMemory != nullptr);
         const auto outputPtr = outputMemory.as<void*>();
+        IE_ASSERT(outputPtr != nullptr);
         Blob::Ptr actualView4D = make_blob_with_precision(getNCHW(actualInput->getTensorDesc()), outputPtr);
         inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout);
     }
@@ -413,8 +415,11 @@ void KmbInferRequest::GetResult() {
             // copy blob with correct precision to the output blob
             // copyBlob does layout conversion on its own
             const auto outputMemoryBlob = as<MemoryBlob>(outputBlob);
+            IE_ASSERT(outputMemoryBlob != nullptr);
             const auto outputMemory = outputMemoryBlob->rmap();
+            IE_ASSERT(outputMemory != nullptr);
             const auto outputPtr = outputMemory.as<void*>();
+            IE_ASSERT(outputPtr != nullptr);
             if (needRepackForNHWC(inferOutputDesc)) {
                 _logger->warning("Output blob is inconsistent with network output. Need to do re-layout.");
                 // NB: It's possible to make repack data only with the same number of dimensions
