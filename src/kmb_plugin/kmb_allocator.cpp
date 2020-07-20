@@ -42,6 +42,8 @@ static size_t alignMemorySize(const size_t& size) {
 }
 #endif
 
+KmbAllocator::KmbAllocator(const int& deviceId) : _deviceId(deviceId) {}
+
 void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     if (_allocatedMemory.find(handle) == _allocatedMemory.end()) return nullptr;
 

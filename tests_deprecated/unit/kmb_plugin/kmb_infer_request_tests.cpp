@@ -49,6 +49,7 @@ protected:
     }
 };
 
+constexpr int defaultDeviceId = 0;
 class MockNetworkDescription : public vpux::NetworkDescription {
     const vpux::DataMap& getInputsInfo() const override {
         return inputs;
@@ -79,8 +80,7 @@ private:
 class MockExecutor : public KmbExecutor {
 public:
     MockExecutor(const KmbConfig& config): KmbExecutor(std::make_shared<MockNetworkDescription>(),
-                                           std::make_shared<KmbAllocator>(), config) {}
-
+                                           std::make_shared<KmbAllocator>(defaultDeviceId), config) {}
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));
     MOCK_METHOD2(getResult, void(void*, unsigned int));
@@ -159,7 +159,7 @@ protected:
         _inferRequest = std::make_shared<TestableKmbInferRequest>(
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
 
-        _allocatorPtr = std::make_shared<KmbAllocator>();
+        _allocatorPtr = std::make_shared<KmbAllocator>(defaultDeviceId);
     }
 
     ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {

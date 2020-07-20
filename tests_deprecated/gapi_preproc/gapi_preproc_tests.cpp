@@ -135,8 +135,9 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
     }
 }
 
+constexpr int defaultDeviceId = 0;
 class AllocHelper {
-    vpu::KmbPlugin::KmbAllocator m_alloc;
+    vpu::KmbPlugin::KmbAllocator m_alloc{defaultDeviceId};
     std::vector<std::shared_ptr<void>> m_buffs;
 
 public:

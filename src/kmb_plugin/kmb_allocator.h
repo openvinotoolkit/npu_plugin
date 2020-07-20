@@ -27,6 +27,7 @@ namespace KmbPlugin {
 class KmbAllocator : public InferenceEngine::IAllocator {
 public:
     using Ptr = std::shared_ptr<KmbAllocator>;
+    KmbAllocator(const int& deviceId);
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;

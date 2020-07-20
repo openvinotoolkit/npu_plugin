@@ -58,9 +58,7 @@ KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& ctxParams, c
       _contextParams(ctxParams),
       _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
       _deviceId(_contextParams.getDeviceId()) {
-    _allocatorPtr = std::make_shared<KmbAllocator>();
-    // TODO pass _deviceId in constructor
-    _allocatorPtr->setDeviceId(_deviceId);
+    _allocatorPtr = std::make_shared<KmbAllocator>(_deviceId);
 }
 
 InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
