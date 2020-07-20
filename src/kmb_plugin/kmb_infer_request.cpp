@@ -338,8 +338,11 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
         // NB: It's possible to make repack data only with the same number of dimensions
         // So just make a view without any copy
         const auto outputMemoryBlob = as<MemoryBlob>(actualInput);
+        IE_ASSERT(outputMemoryBlob != nullptr);
         const auto outputMemory = outputMemoryBlob->rmap();
+        IE_ASSERT(outputMemory != nullptr);
         const auto outputPtr = outputMemory.as<void*>();
+        IE_ASSERT(outputPtr != nullptr);
         Blob::Ptr actualView4D = make_blob_with_precision(getNCHW(actualInput->getTensorDesc()), outputPtr);
         inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout, _config.VPUSMMSliceIdx());
     }
