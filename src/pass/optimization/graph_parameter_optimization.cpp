@@ -1154,7 +1154,8 @@ namespace mv
                         && clustering == "SplitOverH")
                     return FailCause::DilatedSOH;
 
-                if (clustering == "SplitOverH" && !isChanMajor && streamShape["K"] > 1)
+                if (clustering == "SplitOverH" && !isChanMajor &&
+                    (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 
                 if (op.getOpType() == "Conv"  && op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
@@ -1417,6 +1418,12 @@ namespace mv
                                 + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by final op HKSwitch");
                         return INF;
                     }
+                    if (!parent["spilling"].get<bool>())
+                    {
+                        log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by final op HKSwitch");
+                        return INF;
+                    }
                 }
 
                 //Note: Input clustering strategy should match first layer, if it is Z-major
@@ -1441,7 +1448,7 @@ namespace mv
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
                 // so no real sparse acceleration will pe provided, only sparse decoding overhead
                 if (!parentOutputSparsity && childInputSparsity)
-                    execTime2 += execTime2 / 10;
+                    execTime2 += execTime2 * 0.1;
 
                 if(parent["spilling"].get<bool>())
                 {
@@ -1520,7 +1527,7 @@ namespace mv
 
                 //When streaming C we have to stream both activations and weights, so include both in cost
                 //Note, only ops with weights should be trying to stream C (depthwise only enabled)
-               auto parentStreamOverC = parent["streaming"].get<Shape>()["C"];
+                auto parentStreamOverC = parent["streaming"].get<Shape>()["C"];
                 if(parentStreamOverC > 1)
                 {
                     auto iSize = parentOp.getInputTensor(0)->getShape().totalSize();
@@ -1544,13 +1551,6 @@ namespace mv
                 //TODO remove this hack. currently ensures when cluster and soh are equal, soh occurs. only matters for CMconv
                 if(parentClustering == "SplitOverHOverlapped")
                     execTime1 = execTime1 - 1;
-
-                // TODO: purge this temporary fix
-                if(parentOutputSparsity)
-                    execTime1 = execTime1 + 1;
-
-                if(childInputSparsity)
-                    execTime2 = execTime2 + 1;
 
                 return execTime1 + execTime2;
         }
