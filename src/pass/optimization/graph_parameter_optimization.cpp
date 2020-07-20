@@ -1552,6 +1552,13 @@ namespace mv
                 if(parentClustering == "SplitOverHOverlapped")
                     execTime1 = execTime1 - 1;
 
+                // TODO: purge this temporary fix
+                if(parentOutputSparsity)
+                    execTime1 = execTime1 + 1;
+
+                if(childInputSparsity)
+                    execTime2 = execTime2 + 1;
+
                 return execTime1 + execTime2;
         }
 
