@@ -270,10 +270,7 @@ void propagateParameters(mv::ComputationModel& model) {
 
         }
 
-        if (op->getOpType() == "FakeQuantize") {
-            auto quant_params = extractQuantParamsO(op, true);
-            setQuantizationParams(op, quant_params);
-        } else if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
+        if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
             || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
@@ -282,7 +279,10 @@ void propagateParameters(mv::ComputationModel& model) {
             }
 
             setQuantizationParams(op, quant_params);
-        } else if (op->getOpType() != "Input" && op->getOpType() != "ConstantInt") {
+        } else if (op->getOpType() != "Input" &&
+                   op->getOpType() != "ImplicitInput" &&
+                   op->getOpType() != "ImplicitInputSlice" &&
+                   op->getOpType() != "ConstantInt") {
             auto parent = om.getSourceOp(op->getInputTensor(0));
             if (parent->getOpType() == "Input" && op->getOpType() == "Scale")
                 continue;
@@ -479,6 +479,8 @@ void quantizeBias(mv::ComputationModel& model) {
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
+    auto implicit_inputs = om.getOps("ImplicitInput");
+    inputs.insert(inputs.end(), implicit_inputs.begin(), implicit_inputs.end());
     mv::DataModel dm(om);
     for (size_t idx = 0; idx < inputs.size(); idx++) {
         auto input = inputs.at(idx);
