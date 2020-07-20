@@ -18,6 +18,9 @@ python3 -m pytest  --html=compile.html --models=<path to model packages> --compi
 import tempfile
 from types import SimpleNamespace
 
+import pytest
+from py.xml import html  # pylint: disable=no-name-in-module,import-error
+
 # Keem Bay KPI models list
 # find <models path> -wholename "*/FP16-INT8/*.xml"
 KMB_KPI_MODELS = [
@@ -34,16 +37,19 @@ KMB_KPI_MODELS = [
     {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_public_ww22.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
     {'marks': pytest.mark.xfail,
      'path': 'vd_kmb_models_intel_ww22.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
-    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
-    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
-    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
+    {'marks': pytest.mark.xfail,
+     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
+    {'marks': pytest.mark.xfail,
+     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
+    {'marks': pytest.mark.xfail,
+     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
 ]
 
 
 def pytest_addoption(parser):
     """ Define extra options for pytest options
     """
-    parser.addoption('--models', help='Models packages')
+    parser.addoption('--models', default='', help='Models packages')
     parser.addoption('--compiler', help='Model compiler tool')
     parser.addoption('--output', help='Output durectory for compiled models')
 
@@ -61,3 +67,26 @@ def pytest_generate_tests(metafunc):
                                                           "models"),
                                                       output_dir=out) for net in KMB_KPI_MODELS],
                          ids=KMB_KPI_MODELS)
+
+
+@pytest.mark.optionalhook
+def pytest_html_results_table_header(cells):
+    """ Add extra columns to HTML report
+    """
+    cells.insert(2, html.th('Peak memory'))
+
+
+@pytest.mark.optionalhook
+def pytest_html_results_table_row(report, cells):
+    """ Add extra columns to HTML report
+    """
+    cells.insert(2, html.td(f'{report.peak_memory}Kb'))
+
+
+@pytest.mark.hookwrapper
+def pytest_runtest_makereport(item):
+    """ Add extra columns to HTML report
+    """
+    outcome = yield
+    report = outcome.get_result()
+    report.peak_memory = getattr(item, 'peak_memory', 0)
