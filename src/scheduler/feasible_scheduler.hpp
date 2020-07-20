@@ -307,6 +307,10 @@ class Contiguous_Resource_State {
           demands.emplace_back(*ditr_in);
         }
       }
+
+      if (demands.empty())
+        return true;
+
       std::sort(demands.begin(), demands.end(), demand_ordering_t());
 
 
