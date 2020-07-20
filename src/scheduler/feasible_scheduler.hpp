@@ -311,6 +311,9 @@ class Contiguous_Resource_State {
       if (demands.empty())
         return true;
 
+      if (free_bins.empty())
+        return false;
+
       std::sort(demands.begin(), demands.end(), demand_ordering_t());
 
 
