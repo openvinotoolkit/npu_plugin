@@ -16,16 +16,16 @@
                 "DDRScratch": 31457280,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": false,
-                "HuffmanCompression": false,
+                "enable_channel_major_conv": true,
+                "HuffmanCompression": true,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ReferenceMode": false,
                 "ScaleFuseInput": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -57,6 +57,7 @@
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
                     }
+
                 ],
                 "streaming_strategy" :
                 [
@@ -121,7 +122,6 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-
                         {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
@@ -230,7 +230,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -303,7 +303,7 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true	
+              "remove_redundant_wait_barriers" : true
             }
         ]
     },
