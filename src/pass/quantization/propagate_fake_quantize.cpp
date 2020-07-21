@@ -174,11 +174,13 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     //FQ with different quant params -> assert
 
     mv::DataModel dm(model);
+    auto idx = 0;
     auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
 
     while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output") {
         assert(!isQuantizableOp(current_ops[0]));
-        current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
+        idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
+        current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(idx));
         assert(current_ops[0]->getOutputTensor().size() < 2);
     }
 
