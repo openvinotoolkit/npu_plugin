@@ -55,8 +55,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
-    replaceLargeStridesFcn(pass, model);
-    replaceAsymmetricStridesFcn(pass, model);
+    //replaceLargeStridesFcn(pass, model);
+    //replaceAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
@@ -1415,7 +1415,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
     for (auto opIt : ops)
     {
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
-        if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
+        if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] || stride[mv::STRIDE_VERTICAL] == 1) // symmetric and corner case H==1
             continue;
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
