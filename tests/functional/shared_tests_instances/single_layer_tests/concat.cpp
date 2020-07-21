@@ -28,7 +28,7 @@ std::vector<std::vector<std::vector<size_t>>> reshapeTargetShapes = {
 std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
-INSTANTIATE_TEST_CASE_P(NoReshape, ConcatLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_NoReshape, ConcatLayerTest,
     ::testing::Combine(::testing::ValuesIn(axes), ::testing::ValuesIn(inShapes),
         ::testing::ValuesIn(netPrecisions), ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
     ConcatLayerTest::getTestCaseName);
