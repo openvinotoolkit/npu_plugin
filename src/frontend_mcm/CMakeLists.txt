@@ -56,6 +56,7 @@ target_link_libraries(${TARGET_NAME}
         IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
         IE::vpu_common_lib
+        vpux
     PRIVATE
         IE::pugixml
         kmb_utils

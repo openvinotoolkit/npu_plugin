@@ -137,7 +137,7 @@ void KmbInferRequest::InferAsync() {
             THROW_IE_EXCEPTION << PARAMETER_MISMATCH_str << "Unsupported output blob precision";
     }
 
-    const auto& deviceInputs = _executor->getRuntimeInputs();
+    const auto& deviceInputs = _executor->getDeviceInputs();
     if (deviceInputs.begin() == deviceInputs.end()) THROW_IE_EXCEPTION << "DeviceInputs are empty.";
     if (deviceInputs.size() != _inputs.size()) THROW_IE_EXCEPTION << "DeviceInputs and _inputs sizes are different.";
 
@@ -371,7 +371,7 @@ void KmbInferRequest::GetResult() {
     if (foundInputBlob == _outputs.end()) THROW_IE_EXCEPTION << "Error: output [" << dataName << "] is not provided.";
 
     // check that output layout is the same as device layout
-    const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getRuntimeOutputs();
+    const InferenceEngine::OutputsDataMap& deviceOutputs = _executor->getDeviceOutputs();
     IE_ASSERT(!deviceOutputs.empty());
 
     size_t output_size_total = std::accumulate(
@@ -411,7 +411,7 @@ void KmbInferRequest::GetResult() {
             const auto outputMemoryBlob = as<MemoryBlob>(outputBlob);
             const auto outputMemory = outputMemoryBlob->rmap();
             const auto outputPtr = outputMemory.as<void*>();
-            if (needRepackForNHWC(inferOutputDesc)) {
+            if (needRepackForNHWC(inferOutputDesc) && deviceLayout == Layout::NHWC) {
                 _logger->warning("Output blob is inconsistent with network output. Need to do re-layout.");
                 // NB: It's possible to make repack data only with the same number of dimensions
                 // So just make a view without any copy
@@ -429,6 +429,7 @@ void KmbInferRequest::GetResult() {
     if (dumpOutputPathEnv != nullptr) {
         dumpBlobs(_outputs, dumpOutputPathEnv, dumpOutputBlobHelper);
     }
+    _logger->debug("InferRequest::GetResult finished");
 }
 
 void KmbInferRequest::GetPerformanceCounts(std::map<std::string, InferenceEngineProfileInfo>&) const {

@@ -49,21 +49,51 @@ protected:
     }
 };
 
+class MockNetworkDescription : public vpux::NetworkDescription {
+    const vpux::DataMap& getInputsInfo() const override {
+        return inputs;
+    }
+
+    const vpux::DataMap& getOutputsInfo() const override {
+        return outputs;
+    }
+
+    const vpux::DataMap& getDeviceInputsInfo() const override {
+        return inputs;
+    }
+
+    const vpux::DataMap& getDeviceOutputsInfo() const override {
+        return outputs;
+    }
+
+    const std::vector<char>& getCompiledNetwork() const override {
+        return network;
+    }
+
+private:
+    vpux::DataMap inputs;
+    vpux::DataMap outputs;
+    std::vector<char> network;
+};
+
 class MockExecutor : public KmbExecutor {
 public:
-    MockExecutor(const KmbConfig& config): KmbExecutor(config, std::make_shared<KmbAllocator>()) {}
+    MockExecutor(const KmbConfig& config): KmbExecutor(std::make_shared<MockNetworkDescription>(),
+                                           std::make_shared<KmbAllocator>(), config) {}
 
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));
     MOCK_METHOD2(getResult, void(void*, unsigned int));
     MOCK_METHOD2(queueInference, void(void*, size_t));
 
-    MOCK_CONST_METHOD0(getRuntimeInputs, ie::InputsDataMap&());
-    MOCK_CONST_METHOD0(getRuntimeOutputs, ie::OutputsDataMap&());
+    MOCK_CONST_METHOD0(getDeviceInputs, vpux::DataMap&());
+    MOCK_CONST_METHOD0(getDeviceOutputs, vpux::DataMap&());
 };
 
 TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyInputAndOutput) {
     KmbConfig config;
+    config.update({ {"VPU_KMB_KMB_EXECUTOR", "NO"} });
+
     auto executor = std::make_shared<MockExecutor>(config);
     KmbInferRequest::Ptr inferRequest;
 
@@ -74,6 +104,7 @@ TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyIn
 
 TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParameters) {
     KmbConfig config;
+    config.update({ {"VPU_KMB_KMB_EXECUTOR", "NO"} });
 
     auto executor = std::make_shared<MockExecutor>(config);
     auto inputs = setupInputsWithSingleElement();
@@ -107,6 +138,7 @@ public:
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
     InferenceEngine::InputsDataMap _inputs;
+    vpux::DataMap _deviceInputs;
     InferenceEngine::OutputsDataMap _outputs;
     std::shared_ptr<MockExecutor> _executor;
     std::shared_ptr<TestableKmbInferRequest> _inferRequest;
@@ -114,12 +146,15 @@ protected:
 protected:
     void SetUp() override {
         KmbConfig config;
+        config.update({{VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), "NO"}});
+
         _executor = std::make_shared<MockExecutor>(config);
 
         _inputs = setupInputsWithSingleElement();
         _outputs = setupOutputsWithSingleElement();
 
-        ON_CALL(*_executor, getRuntimeInputs()).WillByDefault(ReturnRef(_inputs));
+        _deviceInputs.insert({{_inputs.begin()->first, _inputs.begin()->second->getInputData()}});
+        ON_CALL(*_executor, getDeviceInputs()).WillByDefault(ReturnRef(_deviceInputs));
 
         _inferRequest = std::make_shared<TestableKmbInferRequest>(
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);

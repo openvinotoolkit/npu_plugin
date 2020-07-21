@@ -22,16 +22,18 @@
 
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
-#include <kmb_executable_network.h>
 #include <net_pass.h>
 #include <generic_ie.hpp>
 #include <convert_function_to_cnn_network.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
-#include "ngraph_mcm_frontend/frontend.hpp"
+#include <mcm_network_description.hpp>
+#include <ngraph_mcm_frontend/frontend.hpp>
+
 #include "kmb_remote_context.h"
 #include "file_reader.h"
+#include "kmb_executable_network.h"
 
 // clang-format on
 
@@ -52,34 +54,47 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     }
 }
 
+namespace {
+    InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
+        InputsDataMap inputsDataMap = {};
+
+        for (const auto& input : dataMap) {
+            InputInfo info;
+            info.setInputData(input.second);
+            inputsDataMap.insert({input.first, std::make_shared<InputInfo>(info)});
+        }
+
+        return inputsDataMap;
+    }
+    OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap) {
+        OutputsDataMap outputsDataMap = {};
+
+        for (const auto& output : dataMap) {
+            outputsDataMap.insert({output.first, output.second});
+        }
+
+        return outputsDataMap;
+    }
+} // namespace
+
 void ExecutableNetwork::LoadBlob() {
     IE_PROFILING_AUTO_SCOPE(LoadBlob);
-    std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> portsInfo =
-        MCMAdapter::deserializeMetaData(_graphBlob, _config);
-    const InferenceEngine::InputsDataMap& deserializedInputs = portsInfo.first;
-    const InferenceEngine::OutputsDataMap& deserializedOutputs = portsInfo.second;
-    const bool newFormat = (deserializedInputs.size() > 0) && (deserializedOutputs.size() > 0);
-    _executor->allocateGraph(_graphBlob, deserializedInputs, deserializedOutputs, newFormat);
-    _runtimeInputs = _executor->getRuntimeInputs();
-    _runtimeOutputs = _executor->getRuntimeOutputs();
-    if (newFormat) {
-        _networkInputs = deserializedInputs;
-        _networkOutputs = deserializedOutputs;
-    } else {
-        _networkInputs = _runtimeInputs;
-        _networkOutputs = _runtimeOutputs;
-    }
+    auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config);
+    _executor = std::make_shared<KmbExecutor>(networkDescription,
+        _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
+
+    _networkInputs = dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
+    _networkOutputs = dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());
 }
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx):
-    _config(config), _remoteContext(ctx) {
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
+    : _config(config), _remoteContext(ctx) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
 
     _netName = network.getName();
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config, _remoteContext->as<KmbRemoteContext>()->getAllocator());
 
     const bool kmb_use_ngraph = (NULL != getenv("KMB_USE_NGRAPH_PARSER"));
     if (kmb_use_ngraph || _config.useNGraphParser()) {
@@ -131,11 +146,10 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx):
-    _config(config), _remoteContext(ctx) {
+ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx)
+    : _config(config), _remoteContext(ctx) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config, _remoteContext->as<KmbRemoteContext>()->getAllocator());
 
     const size_t graphSize = utils::getFileSize(strm);
     _graphBlob.resize(graphSize);

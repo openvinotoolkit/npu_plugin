@@ -15,18 +15,24 @@
 //
 
 #pragma once
-#include <ie_data.h>
+#include <set>
+
+#include <ie_input_info.hpp>
+#include <ie_icnn_network.hpp>
+#include <ie_remote_context.hpp>
+
 namespace vpux {
 
 using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 class NetworkDescription {
 public:
-    virtual DataMap getInputsInfo() = 0;
-    virtual DataMap getOutputsInfo() = 0;
-    virtual DataMap getRuntimeInputsInfo() = 0;
-    virtual DataMap getRuntimeOutputsInfo() = 0;
+    using Ptr = std::shared_ptr<NetworkDescription>;
+    virtual const DataMap& getInputsInfo() const = 0;
+    virtual const DataMap& getOutputsInfo() const = 0;
+    virtual const DataMap& getDeviceInputsInfo() const = 0;
+    virtual const DataMap& getDeviceOutputsInfo() const = 0;
 
-    virtual std::vector<char> getCompiledNetwork() const = 0;
+    virtual const std::vector<char>& getCompiledNetwork() const = 0;
 };
 
 class Compiler {

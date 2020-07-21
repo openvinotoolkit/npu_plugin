@@ -25,11 +25,14 @@
 #include <map>
 #include <utility>
 #include <vector>
+
+#include <ie_memcpy.h>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "kmb_config.h"
 #include "ie_macro.hpp"
+#include "kmb_config.h"
+#include "kmb_allocator.h"
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -48,13 +51,12 @@ using namespace std;
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
-KmbExecutor::KmbExecutor(const KmbConfig& config, const KmbAllocator::Ptr& allocator)
-    : _config(config),
-      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-      _allocator(allocator),
-      _outTensorLen(0),
-      _outTensorAddr(0),
-      _inferenceVirtAddr(nullptr) {
+KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+            const KmbAllocator::Ptr& allocator,
+            const KmbConfig& config) : _networkDescription(networkDescription),
+                                       _allocator(allocator),
+                                       _config(config),
+                                       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -63,8 +65,12 @@ KmbExecutor::KmbExecutor(const KmbConfig& config, const KmbAllocator::Ptr& alloc
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
     _inferenceVirtAddr = nullptr;
+    initVpualObjects();
+    allocateGraph(_networkDescription->getCompiledNetwork());
 #endif
 }
+
+KmbExecutor::~KmbExecutor() { deallocateGraph(); }
 
 void KmbExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
@@ -114,73 +120,6 @@ void KmbExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
 namespace {
 
-InferenceEngine::Layout getIOLayout(const flicTensorDescriptor_t& descTemp) {
-    InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
-    std::vector<uint32_t> strides {descTemp.heightStride, descTemp.widthStride, descTemp.channelsStride};
-    std::vector<uint32_t>::iterator maxStrideIter = std::max_element(strides.begin(), strides.end());
-    uint32_t maxStrideVal = *maxStrideIter;
-    if (maxStrideVal == descTemp.heightStride) {
-        if (std::max(descTemp.widthStride, descTemp.channelsStride) == descTemp.widthStride) {
-            tensorLayout = InferenceEngine::Layout::NHWC;
-        } else {
-            // NHCW
-            THROW_IE_EXCEPTION << "getIOLayout: NHCW layout is not supported";
-        }
-    } else if (maxStrideVal == descTemp.channelsStride) {
-        if (std::max(descTemp.widthStride, descTemp.heightStride) == descTemp.heightStride) {
-            tensorLayout = InferenceEngine::Layout::NCHW;
-        } else {
-            // NCWH
-            THROW_IE_EXCEPTION << "getIOLayout: NCWH layout is not supported";
-        }
-    } else {
-        // width-major
-        THROW_IE_EXCEPTION << "getIOLayout: W-major layout is not supported";
-    }
-
-    return tensorLayout;
-}
-
-const std::map<precision_t, InferenceEngine::Precision> precisionMap = {
-    std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP32, InferenceEngine::Precision::FP32),
-    std::pair<precision_t, InferenceEngine::Precision>(precision_t::FP16, InferenceEngine::Precision::FP16),
-    std::pair<precision_t, InferenceEngine::Precision>(precision_t::U8, InferenceEngine::Precision::U8),
-};
-
-InferenceEngine::Precision getIOPrecision(const flicTensorDescriptor_t& descTemp) {
-    precision_t flicPrecision = static_cast<precision_t>(descTemp.dtype);
-    std::map<precision_t, InferenceEngine::Precision>::const_iterator found = precisionMap.find(flicPrecision);
-    if (found == precisionMap.end()) {
-        THROW_IE_EXCEPTION << "getIOPrecision: failed to convert FLIC precision " << flicPrecision;
-    }
-    return found->second;
-}
-
-// DataMapType expected to be either InputsDataMap or OutputsDataMap
-// useNewFormat basically means that graph header doesn't have meta-data
-// defaultNamePrefix is used only with old format
-// dataIdx is the position of input/output in FLIC pipeline internal data structure
-template <typename DataMapType>
-InferenceEngine::Data flicTensorDescToIEData(const flicTensorDescriptor_t& flicTensorDesc, bool useNewFormat,
-    const DataMapType& dataMap, const size_t& dataIdx, const std::string& defaultNamePrefix) {
-    InferenceEngine::SizeVector ieDims({flicTensorDesc.n, flicTensorDesc.c, flicTensorDesc.h, flicTensorDesc.w});
-    InferenceEngine::Layout ieLayout = getIOLayout(flicTensorDesc);
-    InferenceEngine::Precision iePrecision = getIOPrecision(flicTensorDesc);
-    InferenceEngine::TensorDesc ieDesc(iePrecision, ieDims, ieLayout);
-    std::string ieDataName = "";
-    if (useNewFormat) {
-        // FIXME data maps have lexicographical order. however, runtime inputs and outputs are not ordered by name
-        // find a better way to map names
-        typename DataMapType::const_iterator dataMapIter = dataMap.begin();
-        std::advance(dataMapIter, dataIdx);
-        ieDataName = dataMapIter->first;
-    } else {
-        ieDataName = defaultNamePrefix + std::to_string(dataIdx);
-    }
-    InferenceEngine::Data ieData(ieDataName, ieDesc);
-    return ieData;
-}
-
 /*
  * Wrapper to SetScratchBuffer
  * 1. Get required memory amount
@@ -226,8 +165,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 }  // namespace
 #endif
 
-void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const InputsDataMap& networkInputs,
-    const OutputsDataMap& networkOutputs, bool newFormat) {
+void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -319,9 +257,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     _logger->info("Deserializing descriptors:");
     size_t inputsSize = nnPl->GetNumberOfInputs();
-    if (newFormat) {
-        IE_ASSERT(networkInputs.size() == inputsSize);
-    }
     flicTensorDescriptor_t sumSizeTensorDescIn;
     // tensor batch is not a proper 4D tensor anymore, but a 1D tensor with concatenated reshaped inputs
     // use width and total size to determine the size of the blob. other dimensions are just 1
@@ -336,11 +271,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
         _logger->info("Input: %d", inputIdx);
         tensor_deserializer(descIn);
 
-        InferenceEngine::Data inputData = flicTensorDescToIEData(descIn, newFormat, networkInputs, inputIdx, "input");
-        InferenceEngine::InputInfo inputInfo;
-        inputInfo.setInputData(std::make_shared<InferenceEngine::Data>(inputData));
-        _runtimeInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
-
         sumSizeTensorDescIn.totalSize += descIn.totalSize;
     }
     sumSizeTensorDescIn.w = sumSizeTensorDescIn.totalSize;
@@ -348,9 +278,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     sumSizeTensorDescIn.channelsStride = sumSizeTensorDescIn.totalSize;
 
     size_t outputsSize = nnPl->GetNumberOfOutputs();
-    if (newFormat) {
-        IE_ASSERT(networkOutputs.size() == outputsSize);
-    }
     flicTensorDescriptor_t sumSizeTensorDescOut;
     sumSizeTensorDescOut.n = 1;
     sumSizeTensorDescOut.c = 1;
@@ -362,10 +289,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
         flicTensorDescriptor_t descOut = nnPl->GetOutputTensorDescriptor(outputIdx);
         _logger->info("Output: %d", outputIdx);
         tensor_deserializer(descOut);
-
-        InferenceEngine::Data outputData =
-            flicTensorDescToIEData(descOut, newFormat, networkOutputs, outputIdx, "output");
-        _runtimeOutputs[outputData.getName()] = std::make_shared<InferenceEngine::Data>(outputData);
 
         sumSizeTensorDescOut.totalSize += descOut.totalSize;
     }
@@ -431,9 +354,6 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     _logger->info("Started FLIC pipeline...");
 #else
     UNUSED(graphFileContent);
-    UNUSED(networkInputs);
-    UNUSED(networkOutputs);
-    UNUSED(newFormat);
 #endif
 }
 
