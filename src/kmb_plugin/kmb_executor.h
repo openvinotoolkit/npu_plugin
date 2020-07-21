@@ -36,7 +36,7 @@
 #include <mvMacros.h>
 #include <xlink_uapi.h>
 #endif
-
+#include <vpux_compiler.hpp>
 #include <kmb_config.h>
 
 #include "kmb_allocator.h"
@@ -48,29 +48,31 @@ class KmbExecutor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
-    explicit KmbExecutor(const KmbConfig& config, const KmbAllocator::Ptr& allocator);
-    virtual ~KmbExecutor() = default;
-
-    virtual void allocateGraph(const std::vector<char>& graphFileContent, const ie::InputsDataMap& networkInputs,
-        const ie::OutputsDataMap& networkOutputs, bool newFormat);
-
-    virtual void deallocateGraph();
+    ~KmbExecutor();
+    KmbExecutor(const vpux::NetworkDescription::Ptr &networkDescription,
+        const KmbAllocator::Ptr& allocator,
+        const KmbConfig& config);
 
     virtual void queueInference(void* input_data, size_t input_bytes);
 
     virtual void getResult(void* result_data, unsigned int result_bytes);
 
-    virtual const InferenceEngine::InputsDataMap& getRuntimeInputs() const { return _runtimeInputs; }
-    virtual const InferenceEngine::OutputsDataMap& getRuntimeOutputs() const { return _runtimeOutputs; }
+    virtual const vpux::DataMap& getDeviceInputs() const {
+        return _networkDescription->getDeviceInputsInfo();
+    }
+    virtual const vpux::DataMap& getDeviceOutputs() const {
+        return _networkDescription->getDeviceOutputsInfo();
+    }
 
     static std::vector<std::string> getAvailableDevices();
     KmbAllocator::Ptr getKmbAllocator() const { return _allocator; }
 
-    const KmbConfig& _config;
-
 private:
-    unsigned int _numStages = 0;
+    vpux::NetworkDescription::Ptr  _networkDescription;
+    KmbAllocator::Ptr _allocator;
+    const KmbConfig& _config;
     Logger::Ptr _logger;
+
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<GraphManagerPlg> gg;
     std::shared_ptr<PlgTensorSource> plgTensorInput_;
@@ -91,12 +93,9 @@ private:
 
     std::shared_ptr<Pipeline> pipe;
 #endif
-    InferenceEngine::InputsDataMap _runtimeInputs;
-    InferenceEngine::OutputsDataMap _runtimeOutputs;
-
-    KmbAllocator::Ptr _allocator;
     void initVpualObjects();
-
+    void allocateGraph(const std::vector<char>& compiledNetwork);
+    void deallocateGraph();
     const int xlinkChannel = 0;
 
     uint32_t _outTensorLen;

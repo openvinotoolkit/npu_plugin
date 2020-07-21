@@ -27,34 +27,25 @@
 #include <threading/ie_executor_manager.hpp>
 #include <vector>
 
+#include "ie_remote_context.hpp"
 #include "kmb_async_infer_request.h"
 #include "kmb_config.h"
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "mcm_adapter.hpp"
-#include "ie_remote_context.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
 namespace ie = InferenceEngine;
 
-class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
+class ExecutableNetwork final : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
     explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
 
-    ~ExecutableNetwork() {
-        try {
-            if (_executor) {
-                _executor->deallocateGraph();
-            }
-        } catch (...) {
-            std::cerr << "ERROR ~ExecutableNetwork():\n"
-                      << "Some errors occurred during the calling of the deallocateGraph() method";
-        }
-    }
+    ~ExecutableNetwork() = default;
 
     void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
     void SetConfig(const std::map<std::string, ie::Parameter>& config, ie::ResponseDesc* resp) override;
@@ -112,8 +103,6 @@ private:
     const size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
-    ie::InputsDataMap _runtimeInputs;
-    ie::OutputsDataMap _runtimeOutputs;
     std::string _netName;
     ie::RemoteContext::Ptr _remoteContext = nullptr;
 };

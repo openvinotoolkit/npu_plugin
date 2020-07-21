@@ -17,5 +17,5 @@
 #include <vpux.hpp>
 
 std::shared_ptr<vpux::SubPlugin> vpux::SubPluginManager::findSubPlugin(const InferenceEngine::ParamMap params) {
-
+    return nullptr;
 }

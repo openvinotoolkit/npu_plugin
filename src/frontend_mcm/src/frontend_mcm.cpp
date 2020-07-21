@@ -888,7 +888,10 @@ void FrontEndMcm::parseOutputData() {
             VPU_THROW_EXCEPTION << "Output layout is not supported: " << outputLayout;
         }
 
-        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}});
+        // FIXME: REMOVE_ME postfix was added to make output name unique.
+        // compiler will fail if output name is equal to some layer name
+        // S#34832
+        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}}, true, outputInfo.first + "REMOVE_ME");
         _output = std::make_shared<McmNodeObject>(mvOutput, lastLayerOut->desc());
         _nodes.push_back(_output);
     }
