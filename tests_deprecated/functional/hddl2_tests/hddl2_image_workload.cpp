@@ -18,6 +18,7 @@
 #include <helper_ie_core.h>
 
 #include <blob_factory.hpp>
+#include <hddl2_plugin_config.hpp>
 #include <ie_core.hpp>
 
 #include "comparators.h"
@@ -37,7 +38,7 @@ public:
     std::string refInputPath;
     std::string refOutputPath;
 
-    const size_t numberOfTopClassesToCompare = 1;
+    const size_t numberOfTopClassesToCompare = 5;
 
 protected:
     void SetUp() override;
@@ -79,7 +80,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
     ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
 
 TEST_F(ImageWorkload_WithoutPreprocessing, SyncInferenceNCHWInput) {
@@ -112,7 +114,8 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInferenceNCHWInput) {
     ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
 
 //------------------------------------------------------------------------------
@@ -124,15 +127,18 @@ protected:
 void ImageWorkload_WithPreprocessing::SetUp() {
     graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
     refInputPath = PrecompiledResNet_Helper::resnet50.nv12Input;
-    refOutputPath = PrecompiledResNet_Helper::resnet50.nv12Output;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
 TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
+    std::map<std::string, std::string> config;
+    config[VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT)] = VPU_HDDL2_CONFIG_VALUE(RGB);
+
     // ---- Import or load network
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2", config);
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;
@@ -163,9 +169,9 @@ TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
 
     // --- Reference Blob
     auto refTensorDesc = outputBlob->getTensorDesc();
-    refTensorDesc.setPrecision(IE::Precision::U8);
     IE::Blob::Ptr refBlob;
     ASSERT_NO_THROW(refBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refTensorDesc));
 
-    ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(
+        Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }

@@ -42,7 +42,7 @@ namespace IE = InferenceEngine;
 
 // TODO [Track number: S#21391]
 // FIXME: does not work for batch != 1
-static bool is2DTensor(const InferenceEngine::SizeVector& dims) {
+static bool is2DTensor(const IE::SizeVector& dims) {
     size_t ones = std::count(dims.begin(), dims.end(), 1);
     return (dims.size() - ones) == 1;
 }
@@ -55,10 +55,10 @@ static void checkNetworkPrecision(const IE::Precision& precision) {
     }
 }
 
-static InferenceEngine::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
+static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
     checkNetworkPrecision(tensorDesc.getPrecision());
 
-    InferenceEngine::Blob::Ptr blob = make_blob_with_precision(tensorDesc);
+    IE::Blob::Ptr blob = make_blob_with_precision(tensorDesc);
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "InputBlob is nullptr.";
     }
@@ -124,7 +124,7 @@ void HDDL2InferRequest::InferAsync() {
     IE_PROFILING_AUTO_SCOPE(InferAsync)
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needUnitePreProcessing = false;
-    InferenceEngine::BlobMap updatedInputs;
+    IE::BlobMap updatedInputs;
 
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
@@ -152,7 +152,8 @@ void HDDL2InferRequest::InferAsync() {
     }
 
     std::call_once(_onceFlagInferData, [&] {
-        _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context);
+        _inferDataPtr =
+            std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context, _config.getGraphColorFormat());
     });
 
     for (const auto& networkInput : _networkInputs) {
@@ -247,8 +248,8 @@ void HDDL2InferRequest::GetResult() {
 
         const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
 
-        InferenceEngine::TensorDesc networkTensorDesc = inferOutput.second->getTensorDesc();
-        InferenceEngine::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
+        IE::TensorDesc networkTensorDesc = inferOutput.second->getTensorDesc();
+        IE::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
 
         const auto networkOutputPrecision = networkTensorDesc.getPrecision();
         const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
@@ -299,15 +300,15 @@ void HDDL2InferRequest::GetResult() {
 }
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const {
+    std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
     if (_config.performance_counting()) {
         _inferDataPtr->getHddlUnitePerfCounters(perfMap);
     }
 }
 
-void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) {
+void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
     if (!data->is<HDDL2RemoteBlob>()) {
-        InferenceEngine::InferRequestInternal::SetBlob(name, data);
+        IE::InferRequestInternal::SetBlob(name, data);
         return;
     }
 
@@ -340,7 +341,7 @@ void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::P
             _preProcData[name]->isApplicable(data, _inputs[name]);
             _preProcData[name]->setRoiBlob(data);
         } else {
-            size_t inputSize = InferenceEngine::details::product(foundInput->getTensorDesc().getDims());
+            size_t inputSize = IE::details::product(foundInput->getTensorDesc().getDims());
             if (dataSize != inputSize) {
                 THROW_IE_EXCEPTION << "Input blob size is not equal network input size (" << dataSize
                                    << "!=" << inputSize << ").";
@@ -352,7 +353,7 @@ void HDDL2InferRequest::SetBlob(const char* name, const InferenceEngine::Blob::P
             THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str
                                << "cannot set compound blob: supported only for input pre-processing";
         }
-        size_t outputSize = InferenceEngine::details::product(foundOutput->getDims());
+        size_t outputSize = IE::details::product(foundOutput->getDims());
         if (dataSize != outputSize) {
             THROW_IE_EXCEPTION << "Output blob size is not equal network output size (" << dataSize
                                << "!=" << outputSize << ").";
