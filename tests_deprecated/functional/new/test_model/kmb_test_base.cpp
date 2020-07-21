@@ -1247,6 +1247,36 @@ void KmbRFCNNetworkTest::runTest(
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// RetinaFaceNetworkAdapter ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void KmbRetinaFaceNetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const std::string& data_name,
+        const TestImageDesc& image) {
+        const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+            auto data_desc    = inputs.at(data_name)->getTensorDesc();
+
+            registerSingleImage(image, data_name, data_desc);
+        };
+
+        const auto check = [=](const BlobMap& actualBlobs,
+                               const BlobMap& refBlobs,
+                               const ConstInputsDataMap& inputDescs) {
+        (void)inputDescs;
+        ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+
+        for (const auto& actualBlob : actualBlobs) {
+            auto ref_it = refBlobs.find(actualBlob.first);
+            ASSERT_TRUE(ref_it != refBlobs.end());
+            std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+            compareOutputs(actualBlob.second, ref_it->second, 0.7f, CompareMethod::Absolute);
+        }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Smoke test ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

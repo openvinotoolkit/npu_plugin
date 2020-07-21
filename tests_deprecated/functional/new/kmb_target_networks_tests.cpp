@@ -693,6 +693,16 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
             1, 0.05f);
 }
 
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
+    // SKIP_ON("KMB", "HDDL2", "VPU");  // "compile error"
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC),
+            "data",
+            TestImageDesc("224x224/cat3.bmp", false));
+}
+
 //////////////////////////////////////////
 // End of test-set for KMB-beta IRv10
 //////////////////////////////////////////
