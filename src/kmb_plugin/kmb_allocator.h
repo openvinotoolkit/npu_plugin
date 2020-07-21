@@ -46,7 +46,6 @@ public:
 
     virtual void* wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
     virtual void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept;
-    virtual void setDeviceId(const int& deviceId) noexcept;
 
 protected:
     struct MemoryDescriptor {

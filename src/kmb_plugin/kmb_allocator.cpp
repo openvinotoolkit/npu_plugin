@@ -194,7 +194,3 @@ KmbAllocator::~KmbAllocator() {
         }
     }
 }
-
-void KmbAllocator::setDeviceId(const int& deviceId) noexcept {
-    _deviceId = deviceId;
-}
