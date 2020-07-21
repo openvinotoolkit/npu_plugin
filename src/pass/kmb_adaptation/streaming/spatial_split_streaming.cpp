@@ -168,14 +168,17 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         kernelSliceShape[mv::KERNEL_HEIGHT] = kernelShape[mv::KERNEL_HEIGHT]; //the tiling does not contain KERNEL W/H Info
         kernelSliceShape[mv::KERNEL_WIDTH] = kernelShape[mv::KERNEL_WIDTH];
 
-        if (isDilatedConv && kernelOp->hasAttr("dilationConvKernelSliced") && kernelOp->get<bool>("dilationConvKernelSliced")) //already handled this dilated Conv, nothing to do
+        if (isDilatedConv &&
+                kernelOp->hasAttr("dilationConvKernelSliced")
+                && kernelOp->get<bool>("dilationConvKernelSliced")) //already handled this dilated Conv, nothing to do
         {
             //find the proper slice
             bool sliceFound = false;
-            for (mv::Data::FlowSiblingIterator sinkFlow(kernelOp.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+            for (auto sinkFlow = kernelOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
             {
                 auto sinkOp = sinkFlow.sink();
-                if (sinkOp->getOpType() == "Slice" && sinkOp->hasAttr("dilatedConvKernelSliceIdx") && sinkOp->get<unsigned>("dilatedConvKernelSliceIdx") == split)
+                if (sinkOp->getOpType() == "Slice" && sinkOp->hasAttr("dilatedConvKernelSliceIdx")
+                        && sinkOp->get<unsigned>("dilatedConvKernelSliceIdx") == split)
                 {
                     slice = sinkOp->getOutputTensor(0);
                     sliceFound = true;
