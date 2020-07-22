@@ -37,7 +37,7 @@ McmConv::McmConv(
 
 void McmConv::validate_and_infer_types() {
     ConvolutionIE::validate_and_infer_types();
-    get_output_tensor().set_element_type(_type);
+    get_output_tensor(0).set_element_type(_type);
 }
 
 std::shared_ptr<ngraph::Node> McmConv::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {

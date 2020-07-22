@@ -445,7 +445,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
     const auto& mvQuantParams = McmOpAttrs::getQuantParams(permute);
     const auto& opName = permute->get_friendly_name();
 
-    std::shared_ptr<ngraph::Node> orderNode = permute->get_inputs().at(1).get_output().get_node();
+    std::shared_ptr<ngraph::Node> orderNode = permute->input(1).get_source_output().get_node_shared_ptr();
     std::vector<size_t> orderIndices = std::dynamic_pointer_cast<ngraph::op::v0::Constant>(orderNode)->cast_vector<size_t>();
 
     std::string oldOrder = "NHWC"; // McmOpAttrs::getOrder(permute, 0).toString();
