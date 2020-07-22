@@ -55,26 +55,7 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 }
 
 namespace {
-    InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
-        InputsDataMap inputsDataMap = {};
 
-        for (const auto& input : dataMap) {
-            InputInfo info;
-            info.setInputData(input.second);
-            inputsDataMap.insert({input.first, std::make_shared<InputInfo>(info)});
-        }
-
-        return inputsDataMap;
-    }
-    OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap) {
-        OutputsDataMap outputsDataMap = {};
-
-        for (const auto& output : dataMap) {
-            outputsDataMap.insert({output.first, output.second});
-        }
-
-        return outputsDataMap;
-    }
 } // namespace
 
 void ExecutableNetwork::LoadBlob() {
@@ -83,8 +64,8 @@ void ExecutableNetwork::LoadBlob() {
     _executor = std::make_shared<KmbExecutor>(networkDescription,
         _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
 
-    _networkInputs = dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
-    _networkOutputs = dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());
+    _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
+    _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());
 }
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
