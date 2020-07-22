@@ -23,7 +23,7 @@
 using namespace vpu::KmbPlugin;
 
 static std::map<std::string, int> deviceIdMapping = {
-    { "vpu-slice-0", 0 },
+    { "VPU-0", 0 },
 };
 
 KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)

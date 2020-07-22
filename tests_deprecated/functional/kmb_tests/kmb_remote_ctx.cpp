@@ -34,7 +34,7 @@ static std::string getFirstAvailableDeviceId(const InferenceEngine::Core& ieCore
     std::string firstDeviceId = "";
     // TODO remove fallback when vpualHost is fixed
     if (deviceIdList.empty()) {
-        firstDeviceId = "vpu-slice-0";
+        firstDeviceId = "VPU-0";
     } else {
         firstDeviceId = deviceIdList.at(0);
     }
@@ -318,7 +318,7 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
     InferenceEngine::ExecutableNetwork executableNetwork;
     ASSERT_ANY_THROW(executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, netParams));
 
-    const ParamMap invalidCtxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "vpu-slice-42" }, };
+    const ParamMap invalidCtxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "VPU-42" }, };
     InferenceEngine::RemoteContext::Ptr invalidContextPtr;
     ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext("KMB", invalidCtxParams));
 }

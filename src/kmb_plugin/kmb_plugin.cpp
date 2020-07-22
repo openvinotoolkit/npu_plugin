@@ -98,7 +98,7 @@ void Engine::QueryNetwork(
 #endif
 }
 
-Engine::Engine(): _metrics(), _defaultContext({}) {
+Engine::Engine(): _metrics(), _defaultContextMap({}) {
     _pluginName = "KMB";
 
 #ifdef ENABLE_MCM_COMPILER
@@ -186,41 +186,16 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
         })};
 }
 
-RemoteContext::Ptr Engine::GetDefaultContext() {
-    std::lock_guard<std::mutex> contextCreateGuard(_contextCreateMutex);
-    std::string firstAvaliableDevice = "";
-    if (_defaultContext.empty()) {
-        std::vector<std::string> deviceIdList = GetMetric(METRIC_KEY(AVAILABLE_DEVICES), {});
-        if (deviceIdList.empty()) {
-            // TODO throw exception when no available devices found
-            // vpualHost must call VpualDispatcherResource destructor in free the slice properly
-            // however, VpualDispatcherResource is implemented as a static object
-            // thus, it is destroyed when libVpualDispatcher.so is unloaded from memory
-            // which never happens unless vpualHost is compiled with --no-gnu-unique
-            // hard code first device name as a fallback now
-            firstAvaliableDevice = "vpu-slice-0";
-        } else {
-            firstAvaliableDevice = deviceIdList.at(0);
-        }
-        // assign the first available device
-        const ParamMap ctxParams = {
-            {InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvaliableDevice},
-        };
-        _defaultContext[firstAvaliableDevice] = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig);
-    }
-    return std::dynamic_pointer_cast<RemoteContext>(_defaultContext.at(firstAvaliableDevice));
-}
-
 RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
     std::lock_guard<std::mutex> contextCreateGuard(_contextCreateMutex);
-    auto defaultCtxIter = _defaultContext.find(deviceId);
-    if (defaultCtxIter == _defaultContext.end()) {
+    auto defaultCtxIter = _defaultContextMap.find(deviceId);
+    if (defaultCtxIter == _defaultContextMap.end()) {
         const ParamMap ctxParams = {
             {InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), deviceId},
         };
-        _defaultContext[deviceId] = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig);
+        _defaultContextMap[deviceId] = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig);
     }
-    return std::dynamic_pointer_cast<RemoteContext>(_defaultContext.at(deviceId));
+    return std::dynamic_pointer_cast<RemoteContext>(_defaultContextMap.at(deviceId));
 }
 
 IE_SUPPRESS_DEPRECATED_START

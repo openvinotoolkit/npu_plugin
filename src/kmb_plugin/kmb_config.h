@@ -85,7 +85,7 @@ private:
     // FIXME: Likely has to be true by default as well.
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
-    std::string _deviceId = "vpu-slice-0";
+    std::string _deviceId = "VPU-0";
 
 private:
     static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
