@@ -24,22 +24,22 @@
 
 #include <vpu/utils/ie_helpers.hpp>
 
-#include <blob_factory.hpp>
-
+#include "comparators.h"
 #include "hddl2_load_network.h"
 #include "ie_metric_helpers.hpp"
+#include "ie_utils.hpp"
 #include "tests_common.hpp"
 
 namespace IE = InferenceEngine;
 
 class InferRequest_Tests : public ExecutableNetwork_Tests {
-public:
+protected:
     void SetUp() override;
 };
 
 void InferRequest_Tests::SetUp() {
     ExecutableNetwork_Tests::SetUp();
-    inferRequest = executableNetworkPtr->CreateInferRequest();
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
 //------------------------------------------------------------------------------
@@ -84,15 +84,15 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
 
 //------------------------------------------------------------------------------
 class InferRequest_NV12 : public CoreAPI_Tests {
-public:
+protected:
     void SetUp() override;
 };
 
 void InferRequest_NV12::SetUp() {
     ModelMobileNet_V2_Helper mobileNetV2Helper;
     network = mobileNetV2Helper.getNetwork();
-    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName));
-    inferRequest = executableNetworkPtr->CreateInferRequest();
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName)));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
 using InferRequest_NV12_SetBlob = InferRequest_NV12;
@@ -116,7 +116,7 @@ TEST_F(InferRequest_NV12_SetBlob, NV12Blob_WithPreprocessData) {
 using InferRequest_GetBlob = InferRequest_Tests;
 
 TEST_F(InferRequest_GetBlob, GetOutputAfterInference) {
-    inferRequest.Infer();
+    ASSERT_NO_THROW(inferRequest.Infer());
 
     std::string outputName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     InferenceEngine::Blob::Ptr outputBlob;
@@ -175,6 +175,8 @@ TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWith
 class Inference_onSpecificDevice : public CoreAPI_Tests {
 public:
     int amountOfDevices = 0;
+
+    const size_t numberOfTopClassesToCompare = 5;
 
 protected:
     void SetUp() override;
@@ -246,12 +248,12 @@ TEST_F(InferRequest_PerfCount, SyncInferenceWithPerfCount) {
     InferenceEngine::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, pluginName, _config);
-    InferenceEngine::InferRequest inferRequest = executableNetwork.CreateInferRequest();
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName, _config)));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 
     ASSERT_NO_THROW(inferRequest.Infer());
 
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     auto perfCounts = inferRequest.GetPerformanceCounts();
@@ -265,26 +267,28 @@ TEST_F(InferRequest_PerfCount, SyncInferenceWithPerfCount) {
 
 //------------------------------------------------------------------------------
 
-#if 0
-
 class InferenceWithCheckLayout : public Inference_onSpecificDevice {
 protected:
     void SetUp() override;
+
+public:
+    std::string refInputPath;
 };
 
 void InferenceWithCheckLayout::SetUp() {
-    graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
-    refInputPath = PrecompiledResNet_Helper::resnet50.inputPath;
-    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
-
-    executableNetwork = ie.ImportNetwork(graphPath, pluginName);
-    inferRequest = executableNetwork.CreateInferRequest();
+    ModelMobileNet_V2_Helper mobileNetV2Helper;
+    network = mobileNetV2Helper.getNetwork();
+    refInputPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin";
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName)));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
 
 TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
-    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     const auto layoutOrig = inputBlob->getTensorDesc().getLayout();
 
@@ -294,24 +298,26 @@ TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
 }
 
 TEST_F(InferenceWithCheckLayout, CheckInputsLayoutAfterTwoInferences) {
-    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    auto inputBlob = inferRequest.GetBlob(inputBlobName);
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.Infer());
 
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     auto firstOutputBlob = vpu::copyBlob(inferRequest.GetBlob(outputBlobName));
 
-    ASSERT_NO_THROW(vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputBlob));
+    ASSERT_NO_THROW(inputBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inferInputBlob->getTensorDesc()));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     ASSERT_NO_THROW(inferRequest.Infer());
 
-    outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     auto secondOutputBlob = inferRequest.GetBlob(outputBlobName);
 
     ASSERT_NO_THROW(
         Comparators::compareTopClasses(toFP32(firstOutputBlob), toFP32(secondOutputBlob), numberOfTopClassesToCompare));
 }
 
-#endif
