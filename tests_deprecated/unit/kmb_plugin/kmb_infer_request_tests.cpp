@@ -71,7 +71,12 @@ class MockNetworkDescription : public vpux::NetworkDescription {
         return network;
     }
 
+    const std::string& getName() const override {
+        return name;
+    }
+
 private:
+    std::string name;
     vpux::DataMap inputs;
     vpux::DataMap outputs;
     std::vector<char> network;
@@ -80,7 +85,9 @@ private:
 class MockExecutor : public KmbExecutor {
 public:
     MockExecutor(const KmbConfig& config): KmbExecutor(std::make_shared<MockNetworkDescription>(),
-                                           std::make_shared<KmbAllocator>(defaultDeviceId), config) {}
+                                           std::make_shared<KmbAllocator>(), config) {}
+
+    MOCK_METHOD1(allocateGraph, void(const std::string&));
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));
     MOCK_METHOD2(getResult, void(void*, unsigned int));
