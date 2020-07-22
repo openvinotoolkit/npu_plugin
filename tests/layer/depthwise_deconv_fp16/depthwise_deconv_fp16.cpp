@@ -11,7 +11,7 @@ int main()
     auto input0 = om.input({4,4,16,1}, mv::DType("Float16"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#01");
 
     //Load weights from file
-    std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/depthwise_deconv_fp16/depthwise_deconv_fp16.in2");
+    std::string  weights_filename(mv::utils::projectRootPath() + "/tests/layer/depthwise_deconv_fp16/depthwise_weights.dat");
     std::ifstream w_file;
     std::vector<uint16_t> weightsData(2*2*16*1);
     w_file.open(weights_filename, std::fstream::in | std::fstream::binary);
