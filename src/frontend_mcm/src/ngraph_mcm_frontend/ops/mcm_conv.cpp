@@ -40,7 +40,7 @@ void McmConv::validate_and_infer_types() {
     get_output_tensor().set_element_type(_type);
 }
 
-std::shared_ptr<ngraph::Node> McmConv::copy_with_new_args(const ngraph::NodeVector& new_args) const {
+std::shared_ptr<ngraph::Node> McmConv::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<McmConv>(
         new_args.at(0), new_args.at(1),
