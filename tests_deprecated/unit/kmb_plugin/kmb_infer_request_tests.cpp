@@ -85,7 +85,7 @@ private:
 class MockExecutor : public KmbExecutor {
 public:
     MockExecutor(const KmbConfig& config): KmbExecutor(std::make_shared<MockNetworkDescription>(),
-                                           std::make_shared<KmbAllocator>(), config) {}
+                                           std::make_shared<KmbAllocator>(defaultDeviceId), config) {}
 
     MOCK_METHOD1(allocateGraph, void(const std::string&));
     MOCK_METHOD0(deallocateGraph, void());

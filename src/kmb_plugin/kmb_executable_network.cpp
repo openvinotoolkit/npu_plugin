@@ -54,10 +54,6 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     }
 }
 
-namespace {
-
-} // namespace
-
 void ExecutableNetwork::LoadBlob() {
     IE_PROFILING_AUTO_SCOPE(LoadBlob);
     auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config);
