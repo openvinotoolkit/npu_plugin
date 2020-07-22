@@ -20,9 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "ie_core.hpp"
-#include "ie_icnn_network.hpp"
-#include "mcm_config.h"
+#include "mcm_network_description.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -38,14 +36,8 @@ public:
     InferenceEngine::OutputsDataMap& getOutputsInfo() noexcept { return _networkOutputs; }
 
 protected:
-    std::string _graphName;
-    std::string _blobContentString;
+    vpux::NetworkDescription::Ptr _networkDescription;
 
-    InferenceEngine::InputsDataMap _networkInputs;
-    InferenceEngine::OutputsDataMap _networkOutputs;
-
-    void loadStreamToString(std::istream& model, std::string& outputString);
-    void loadFileToString(const std::string& filename, std::string& outputString);
     std::string extractFileName(const std::string& fullPath);
 };
 
