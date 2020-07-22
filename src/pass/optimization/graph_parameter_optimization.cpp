@@ -495,6 +495,9 @@ namespace mv
                 size_t outChannels = op.outputSlots() ? op.getOutputTensor(0)->getShape()[IO_CHANNEL_DIMENSION] : 0;
                 size_t alignedFullChannels = mv::round_up(outChannels, 16);
                 size_t alignedSplittedChannels = mv::round_up(alignedFullChannels/streamConfig["K"], 16);
+                if(clusterStrategy == "SplitOverK") {
+                    alignedSplittedChannels =  mv::round_up(alignedSplittedChannels/totalClusters, 16);
+                }
                 if(opType == "Conv" || opType == "DepthwiseConv")
                 {
                     weightTableSize = 16 * alignedSplittedChannels;
@@ -619,15 +622,15 @@ namespace mv
                     auto tensorSize = op.getInputTensor(1)->getShape()[KERNEL_WIDTH] *
                         op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] *
                         mv::round_up(op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS], 16) *
-                        mv::round_up(op.getInputTensor(1)->getShape()[KERNEL_OUTPUT_CHANNELS], 16);
+                        alignedSplittedChannels;
                     //Sparsity map calculation, mostly dtype invariant (except for sub 8 bit)
                     auto sparseWeightSize = std::ceil((double)tensorSize / 8);
                     //Sparse pointers taken into account in weight table ...
                     sparseWeightSize = mv::round_up(sparseWeightSize, 16);
-                    weightSize += sparseWeightSize; //TODO probably overcounting now if SOK
+                    weightSize += sparseWeightSize;
                 }
 
-                weightSize += weightTableSize; // todo probably overcounts for sok now
+                weightSize += weightTableSize;
 
                 if(clusterStrategy == "Clustering" || clusterStrategy == "SplitOverH" || clusterStrategy == "SplitOverK")
                 {
@@ -878,7 +881,6 @@ namespace mv
                         and (op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
                         and op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
                     return true;
-                
                 return false;
             }
 
