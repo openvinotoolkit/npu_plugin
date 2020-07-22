@@ -46,11 +46,7 @@ std::string Graph::extractFileName(const std::string& fullPath) {
 
 //------------------------------------------------------------------------------
 CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) {
-    _graphName = network.getName();
-
-    network.getInputsInfo(_networkInputs);
-    network.getOutputsInfo(_networkOutputs);
-
+    // TODO We will throw exception of compilation, if not able to do that
     if (!MCMAdapter::isMCMCompilerAvailable()) {
         THROW_IE_EXCEPTION << "MCM compiler is not available!";
     }
@@ -61,7 +57,7 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
     } catch (const std::exception& ex) {
         THROW_IE_EXCEPTION << "Failed to compile network! Error: " << ex.what();
     }
-    _blobContentString = std::string(graphBlob.begin(), graphBlob.end());
+    _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(graphBlob, config, network.getName());
 }
 
 //------------------------------------------------------------------------------

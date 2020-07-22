@@ -29,11 +29,15 @@ class Graph {
 public:
     using Ptr = std::shared_ptr<Graph>;
 
-    std::string getGraphName() const { return _graphName; }
-    std::string getGraphBlob() const { return _blobContentString; }
+    const std::string getGraphName() const { return _networkDescription->getName(); }
+    const std::vector<char>& getGraphBlob() const { return _networkDescription->getCompiledNetwork(); }
 
-    InferenceEngine::InputsDataMap& getInputsInfo() noexcept { return _networkInputs; }
-    InferenceEngine::OutputsDataMap& getOutputsInfo() noexcept { return _networkOutputs; }
+    InferenceEngine::InputsDataMap getInputsInfo() noexcept {
+        return MCMAdapter::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+    }
+    InferenceEngine::OutputsDataMap getOutputsInfo() noexcept {
+        return MCMAdapter::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+    }
 
 protected:
     vpux::NetworkDescription::Ptr _networkDescription;
