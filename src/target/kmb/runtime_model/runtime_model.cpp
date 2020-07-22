@@ -2953,6 +2953,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
     std::string taskType = opIt->getOpType();
     unsigned toReturn = 0;
     unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     if(taskType == "DPUTask")
     {
         if(opIt->hasAttr("splitStrategy"))
@@ -2985,7 +2986,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         // the number of dma is doubled since the strategy is shared between weights
         // and sparsity map. Techinically the isPopulated() check is not needed
         // because we never transfer sparse activation tensors.
-
         unsigned multiplicator = 1;
         if(inputTensor->isPopulated() && inputTensor->isSparse())
             multiplicator = 2;
@@ -2996,8 +2996,19 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            //NOTE: When strategy is overwritten
+            if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
+            {
+               // inputTensor->setShape(outputTensor->getShape());
+                if (inputTensor->hasAttr("overwriteStrategy"))
+                {
+                    if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                        sourceIsBroadCasted = false;
+                }
+            }
             //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK") || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+                    || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
                 toReturn = 1;
             // NOTE: a sok tensor might come from a different strategy op
             else if(!sourceIsBroadCasted)
