@@ -57,7 +57,6 @@
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
                     }
-
                 ],
                 "streaming_strategy" :
                 [
@@ -110,10 +109,8 @@
             "FusePostOps",
             "PreprocessForPWL",
             "CheckPWLForRequantize",
-            "AddPermutesToChangeSoftmaxAxis",
-            "ConvolutionDilation",
+            "ConvDilationUsingStorageElement",
             "HandleGroupConvolution",
-            "TileOps",
             "StreamBinaryDataWeights",
             "DecideOutputDataType",
             "PlaceNeutralMaxPoolBefore",

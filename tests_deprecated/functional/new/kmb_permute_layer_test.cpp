@@ -90,9 +90,6 @@ TEST_P(KmbPermuteLayerTests, Accuracy) {
 
 const std::vector<PermuteTestParams> FaceDetectionRetailCases {
     PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
-        .order({0, 2, 3, 1}),
-    PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 36, 19, 19}, Layout::NCHW})
         .order({0, 2, 3, 1}),
 };
@@ -109,9 +106,6 @@ const std::vector<PermuteTestParams> supportedCases {
         .order({0, 3, 1, 2}),
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
-        .order({0, 1, 2, 3}),
-    PermuteTestParams()
-        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
         .order({0, 1, 3, 2}),
 };
 
@@ -124,6 +118,14 @@ const std::vector<PermuteTestParams> unsupportedCases {
     // FIXME: It works fine for NCHW layout
     PermuteTestParams()
         .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NHWC})
+        .order({0, 2, 3, 1}),
+    // FIXME: Disabled suppportedCase [Track number: D#3455]
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 3, 10, 5}, Layout::NCHW})
+        .order({0, 1, 2, 3}),
+    // FIXME: Disabled FaceDetectionRetailCase [Track number: D#3455]
+    PermuteTestParams()
+        .in_desc(TensorDesc{Precision::FP16, {1, 18, 19, 19}, Layout::NCHW})
         .order({0, 2, 3, 1}),
 };
 
