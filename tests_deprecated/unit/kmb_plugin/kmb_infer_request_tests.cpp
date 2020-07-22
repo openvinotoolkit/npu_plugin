@@ -49,6 +49,7 @@ protected:
     }
 };
 
+constexpr int defaultDeviceId = 0;
 class MockNetworkDescription : public vpux::NetworkDescription {
     const vpux::DataMap& getInputsInfo() const override {
         return inputs;
@@ -79,8 +80,7 @@ private:
 class MockExecutor : public KmbExecutor {
 public:
     MockExecutor(const KmbConfig& config): KmbExecutor(std::make_shared<MockNetworkDescription>(),
-                                           std::make_shared<KmbAllocator>(), config) {}
-
+                                           std::make_shared<KmbAllocator>(defaultDeviceId), config) {}
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));
     MOCK_METHOD2(getResult, void(void*, unsigned int));
@@ -158,6 +158,8 @@ protected:
 
         _inferRequest = std::make_shared<TestableKmbInferRequest>(
             _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
+
+        _allocatorPtr = std::make_shared<KmbAllocator>(defaultDeviceId);
     }
 
     ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
@@ -167,14 +169,14 @@ protected:
 
         ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
 
-        auto blob = ie::make_shared_blob<uint8_t>(desc, getKmbAllocator());
+        auto blob = ie::make_shared_blob<uint8_t>(desc, _allocatorPtr);
         blob->allocate();
 
         return blob;
     }
 
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
-        nv12Data = reinterpret_cast<uint8_t*>(getKmbAllocator()->alloc(height * width * 3 / 2));
+        nv12Data = reinterpret_cast<uint8_t*>(_allocatorPtr->alloc(height * width * 3 / 2));
         return NV12Blob_Creator::createFromMemory(width, height, nv12Data);
     }
 
@@ -182,14 +184,15 @@ protected:
         // nv12Data can be allocated in two different ways in the tests below
         // that why we need to branches to handle removing of memory
         if (nv12Data != nullptr) {
-            if (getKmbAllocator()->isValidPtr(nv12Data)) {
-                getKmbAllocator()->free(nv12Data);
+            if (_allocatorPtr->isValidPtr(nv12Data)) {
+                _allocatorPtr->free(nv12Data);
             }
         }
     }
 
 private:
     uint8_t* nv12Data = nullptr;
+    std::shared_ptr<KmbAllocator> _allocatorPtr;
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {

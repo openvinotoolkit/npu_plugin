@@ -487,7 +487,13 @@ std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
         THROW_IE_EXCEPTION << "getNameByDeviceId: xlink_get_device_name failed with error: " << getNameResult;
     }
     std::string devName = devNameData.data();
-    return devName;
+    static const std::map<std::string, std::string> xlinkNameMapping = {
+        {"vpu-slice-0", "VPU-0"},
+        {"vpu-slice-1", "VPU-1"},
+        {"vpu-slice-2", "VPU-2"},
+        {"vpu-slice-3", "VPU-3"},
+    };
+    return xlinkNameMapping.at(devName);
 }
 #endif
 

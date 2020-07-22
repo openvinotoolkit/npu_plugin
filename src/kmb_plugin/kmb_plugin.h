@@ -62,12 +62,13 @@ public:
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
-    RemoteContext::Ptr GetDefaultContext() override;
+    RemoteContext::Ptr GetDefaultContext(const std::string& deviceId = "VPU-0");
 
 private:
     KmbConfig _parsedConfig;
     KmbMetrics _metrics;
-    KmbRemoteContext::Ptr _defaultContext;
+    // map to cover the case when networks use different device IDs
+    std::map<std::string, KmbRemoteContext::Ptr> _defaultContextMap;
     std::mutex _contextCreateMutex;
 };
 
