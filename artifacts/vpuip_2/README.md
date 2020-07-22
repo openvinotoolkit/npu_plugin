@@ -1,4 +1,4 @@
-Built from https://github.com/movidius/vpuip_2 6b2876d2a7273c0bfdbb690a30a79c67c3bedfd3 tag: kmb_release_ww27_fixes
+Built from https://github.com/movidius/vpuip_2 1e4031f3c536f13875699d33d52997679b52ab16 tag: NN_Runtime_v2.45.2
 
 ```
 cd vpuip_2/application/vpuFirmware
