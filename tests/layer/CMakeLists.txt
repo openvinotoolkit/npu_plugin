@@ -78,8 +78,8 @@ else()
     add_executable(conv_big_kernel_simple conv_big_kernel_simple/conv_big_kernel_simple.cpp)
     target_link_libraries(conv_big_kernel_simple cm)
 
-    add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
-    target_link_libraries(conv_leaky_relu cm)
+    #add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
+    #target_link_libraries(conv_leaky_relu cm)
 
     add_executable(conv_leaky_icv conv_leaky_icv/conv_leaky_icv.cpp)
     target_link_libraries(conv_leaky_icv cm)

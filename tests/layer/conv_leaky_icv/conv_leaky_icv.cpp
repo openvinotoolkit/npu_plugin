@@ -12,15 +12,16 @@ void build_conv_leakyrelu(mv::OpModel& model)
 
     static const auto inf = std::numeric_limits<double>::infinity();
 
-    const auto data_0 = model.input({1, 1, 256, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, true, "data");
 
-    auto weights0 = model.constantInt(weights_0_data,{1,1,256,256}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{},{}});
-    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{128},{1.000000000000000},{-inf},{inf},{0},{1}} , "conv");
+    const auto data_0 = model.input({1, 1, 256, 1}, mv::DType("UInt8"), mv::Order("NHWC"), {{0},{1.000000000000000},{0.0},{255.0},{0},{1}}, true, "data");
+
+    auto weights0 = model.constantInt(weights_0_data,{1,1,256,256}, mv::DType("UInt8"), mv::Order("NCHW"), {{0},{0.00392156862745098},{0.0},{1.0}});
+    auto conv0 = model.conv(data_0, weights0, {1, 1}, {0, 0, 0, 0}, 1, 1,  mv::DType("UInt8"),{{128},{1.000000000000000},{-128.0},{127.0},{0},{1}} , "conv");
 
     std::vector<int64_t> bias_0_data = mv::utils::generateSequence<int64_t> (256, -32640, 0);
-    const auto bias_0 = model.constantInt(bias_0_data, {256}, mv::DType("Int32"), mv::Order("W"), {{0},{0.00392156862745098},{-inf},{inf},{0},{1}}, "bias");
-    const auto conv_bias_0 = model.bias(conv0, bias_0, mv::DType("Default"), {{0},{0.00392156862745098},{-inf},{inf},{0},{1}}, "conv:bias");
-    const auto LeakyReLU_5353_0 = model.leakyRelu(conv_bias_0, 0.100000, mv::DType("Default"), {{25},{0.5521568627450981},{-inf},{inf},{0},{1}}, "LeakyReLU_5353");
+    const auto bias_0 = model.constantInt(bias_0_data, {256}, mv::DType("Int32"), mv::Order("W"), {{0},{0.00392156862745098},{-128.0},{-128.0},{0},{1}}, "bias");
+    const auto conv_bias_0 = model.bias(conv0, bias_0, mv::DType("Default"), {{0},{0.00392156862745098},{-128.0},{127.0},{0},{1}}, "conv:bias");
+    const auto LeakyReLU_5353_0 = model.leakyRelu(conv_bias_0, 0.100000, mv::DType("Default"), {{25},{0.5521568627450981},{-12.8},{127.0},{0},{1}}, "LeakyReLU_5353");
     const auto output = model.output(LeakyReLU_5353_0, mv::DType("Float16"), {{},{},{},{}}, true, "");
 
 }
@@ -33,7 +34,6 @@ int main()
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
-
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();
     unit.run();
