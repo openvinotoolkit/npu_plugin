@@ -2,9 +2,12 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/utils/custom_math.hpp"
+#include "include/mcm/utils/warning_manager.hpp"
 #include "include/mcm/pass/pass_utils.hpp"
 #include "include/mcm/base/exception/logic_error.hpp"
 #include <cmath>
+#include <functional>
+#include <string>
 
 const size_t FULLY_CONNECTED_KERNEL = 1;
 
@@ -12,6 +15,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
 static void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void flattenAsReshapeFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void topKAsArgMaxFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
@@ -54,6 +58,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
+    interpAsDepthConvFcn(pass, model);
     averageAsDepthWiseFcn(pass, model);
     scaleAsDepthwiseFcn(pass, model);
     flattenAsReshapeFcn(pass, model);
@@ -219,6 +224,63 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             }
             avgOp->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
             linkNewOperationsReplacement(parentOpIt, avgPool, om, opIt);
+        }
+    }
+}
+
+void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto interpOps = om.getOps("Interp");
+
+    for (auto& opIt : interpOps)
+    {
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+        auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+
+        auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+        auto sourceTensor = parentOpIt->getOutputTensor(0);
+        auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
+
+        if ((inputShape == outputShape) && !(isEqual(inQuantParams, outQuantParams) || outQuantParams.isNeutral()))
+        {
+
+            auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
+            auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+
+            pass.log(mv::Logger::MessageType::Debug, "Replacing with DW requanitze");
+
+              //FIND THE APPROPRIATE FLOW
+            mv::Data::TensorIterator weights;
+            std::vector<int64_t> zp = { 0 };
+            std::vector<double> min = { 1 };
+            std::vector<double> max = { 1 };
+            std::vector<double> scale = { 1 };
+            mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
+            int64_t weightsValue = 1;
+            std::vector<int64_t> weightsData(sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], weightsValue);
+            weights = om.constantInt(weightsData,
+                    {1, 1, sourceTensor->getShape()[mv::IO_CHANNEL_DIMENSION], 1},
+                    mv::DType("UInt8"),
+                    mv::Order(mv::Order::getRowMajorID(4)),
+                    weightsQuantParams);
+            auto reQuantizeDepthwise = om.depthwiseConv(sourceTensor, weights, {1,1}, {0, 0, 0, 0},
+                    1, mv::DType("UInt8"), {outQuantParams.getZeroPoint(),outQuantParams.getScale(),{},{}}, opIt->getName() + "_DepthwiseRequantize");
+            auto reQuantizeDepthwiseOp = om.getSourceOp(reQuantizeDepthwise);
+            auto weightsOp = om.getSourceOp(weights);
+            reQuantizeDepthwiseOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            weightsOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
+            linkNewOperationsReplacement(parentOpIt, reQuantizeDepthwise, om, opIt);
+            reQuantizeDepthwise->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+
         }
     }
 }

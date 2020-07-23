@@ -74,7 +74,7 @@ DEFINE_string(m, "", model_message);
 /// It is a required parameter
 DEFINE_string(i, "", image_message);
 
-/// @brief Define parameter for set input image <br>
+/// @brief Define parameter for evm to use <br>
 /// It is a required parameter
 DEFINE_string(k, "", evm_message);
 
@@ -102,5 +102,5 @@ static void showUsage() {
     //std::cout << "    -a <path>           " << a_tensor_message << std::endl;
     //std::cout << "    -e <path>           " << e_tensor_message << std::endl;
     //std::cout << "    -q true|false         " << quantize_message << std::endl;
-    std::cout << std::endl << "eg, ./validate -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
+    std::cout << std::endl << "eg, ./validate -i ~/cat.jpg -m ~/models/resnet50.xml -k 10.1.1.1" << std::endl;
 }
