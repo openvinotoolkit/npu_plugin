@@ -293,9 +293,6 @@ All input blobs will be written to `$IE_VPU_KMB_DUMP_INPUT_PATH/input-dump%d.bin
 The variable must contain path to any writable directory.
 All output blobs will be written to `$IE_VPU_KMB_DUMP_OUTPUT_PATH/output-dump%d.bin`.
 
-`SIPP_FIRST_SHAVE` environment variable can be used to specify the first shave to be used for SIPP preprocessing.
-The variable must contain a positive integer from `0` to `12`.
-The number of shaves is `16`, maximal number of pipelines is `2`, maximal number of shaves per pipeline is `2`, which makes `16 - 2 * 2 = 12`.
 
 [DLDT Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
