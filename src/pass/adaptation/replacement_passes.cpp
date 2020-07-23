@@ -55,8 +55,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
-    //replaceLargeStridesFcn(pass, model);
-    //replaceAsymmetricStridesFcn(pass, model);
+    replaceLargeStridesFcn(pass, model);
+    replaceAsymmetricStridesFcn(pass, model);
     topKAsArgMaxFcn(pass, model);
     //interpAsAvgPoolingFcn(pass, model); for now we are using SW layer
     interpAsDepthConvFcn(pass, model);
