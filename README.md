@@ -22,7 +22,7 @@ The following projects are used and must be cloned including git submodules upda
 
 ### Environment variables
 
-The testing command assumes that the KMB board was setup and is avaialble via ssh.
+The testing command assumes that the KMB board was setup and is available via ssh.
 
 The following environment variables should be set:
 
@@ -48,7 +48,7 @@ The X86_64 build is needed to get reference results for the tests.
         -D ENABLE_BEH_TESTS=ON \
         -D ENABLE_FUNCTIONAL_TESTS=ON \
         ..
-    make -j8
+    make -j${nproc}
     ```
 
 2. Move to [KMB Plugin Project] base directory and build it with commands:
@@ -59,7 +59,7 @@ The X86_64 build is needed to get reference results for the tests.
     cmake \
         -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-x86_64 \
         ..
-    make -j8
+    make -j${nproc}
     ```
 
 ### Build for ARM64
@@ -77,7 +77,7 @@ The X86_64 build is needed to get reference results for the tests.
             -D ENABLE_BEH_TESTS=ON \
             -D ENABLE_FUNCTIONAL_TESTS=ON \
             .. ; \
-        make -j8 ; \
+        make -j${nproc} ; \
     )
     ```
 
@@ -92,7 +92,7 @@ The X86_64 build is needed to get reference results for the tests.
             -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-aarch64 \
             -D MCM_COMPILER_EXPORT_FILE=$KMB_PLUGIN_HOME/build-x86_64/mcmCompilerExecutables.cmake \
             .. ; \
-        make -j8 ; \
+        make -j${nproc} ; \
     )
     ```
 
@@ -223,9 +223,10 @@ $DLDT_HOME/bin/intel64/Release/KmbFunctionalTests --gtest_filter=*LayerTests* --
 
 #### Select testing plugin
 
-The `IE_KMB_TESTS_DEVICE_NAME` environement should be set both on HOST and KMB Board to the desired target plugin for tests:
+The `IE_KMB_TESTS_DEVICE_NAME` environment should be set both on HOST and KMB Board to the desired target plugin for tests:
 
 * `KMB` to use KMB plugin and run inference on VPU.
+* `HDDL2` to use HDDL2 plugin and run inference on x86_64.
 * `CPU` to use CPU plugin and run inference on ARM.
 
 #### Get reference results on HOST
@@ -294,6 +295,159 @@ The variable must contain path to any writable directory.
 All output blobs will be written to `$IE_VPU_KMB_DUMP_OUTPUT_PATH/output-dump%d.bin`.
 
 
+# OpenVINO HDDL2 plugin
+
+## Prerequsites
+
+### Common x86_64
+
+* Ubuntu 18.04 long-term support (LTS), 64-bit
+* Kernel 5.0.x, 5.3.x (you can use [ukuu kernel manager] to easily update system kernel)
+* Kernel headers
+
+    ```bash
+    ls /lib/modules/`uname -r`/build || sudo apt install linux-headers-$(uname -r)
+    ```
+
+### Common ARM
+
+* [BKC Configuration]  (use instructions from [VPU Wiki Install FIP] and [VPU Wiki Install Yocto])
+
+### Git projects
+
+The following projects are used and must be cloned including git submodules update:
+
+* [DLDT Project]
+* [KMB Plugin Project]
+
+### Environment variables
+
+The following environment variables should be set:
+
+* The `DLDT_HOME` environment variable to the [DLDT Project] cloned directory.
+* The `KMB_PLUGIN_HOME` environment variable to the [KMB Plugin Project] cloned directory.
+
+## Manual build
+
+1. Move to [DLDT Project] base directory and build it with the following commands:
+
+    ```bash
+    mkdir -p $DLDT_HOME/build-x86_64
+    cd $DLDT_HOME/build-x86_64
+    cmake \
+        -D ENABLE_MKL_DNN=ON \
+        -D ENABLE_TESTS=ON \
+        -D ENABLE_BEH_TESTS=ON \
+        -D ENABLE_FUNCTIONAL_TESTS=ON \
+        ..
+    make -j${nproc}
+    ```
+
+2. Move to [KMB Plugin Project] base directory and build it with commands:
+
+    ```bash
+    mkdir -p $KMB_PLUGIN_HOME/build-x86_64
+    cd $KMB_PLUGIN_HOME/build-x86_64
+    cmake \
+        -D InferenceEngineDeveloperPackage_DIR=$DLDT_HOME/build-x86_64 \
+        -D ENABLE_HDDL2=ON \
+        -D ENABLE_HDDL2_TESTS=ON \
+        ..
+    make -j${nproc}
+    ```
+
+## Set up PCIe for HDDLUnite
+
+1. Configure board (use instructions from [VPU Wiki Board Configure])
+
+2. Install PCIe XLink driver (use instructions from [VPU Wiki PCIe XLink driver])
+
+## Set up HDDL2 plugin on x86_64
+
+1. Create user group with the following commands:
+
+    ```bash
+    sudo addgroup users
+    sudo usermod -a -G users `whoami`
+    ```
+
+2. Set environment variables with commands:
+
+    ```bash
+    cd $KMB_PLUGIN_HOME/temp/hddl_unite
+    source ./env_host.sh
+    ```
+
+3. Run scheduler service with command:
+
+    ```bash
+    ${KMB_INSTALL_DIR}/bin/hddl_scheduler_service
+    ```
+
+## Set up HDDL2 plugin on ARM
+
+1. Download last version of HDDLUnite package from [VPUX configuration] (hddlunite-kmb_*.tar.gz) with the following commands:
+
+    ```bash
+    mkdir -p ~/Downloads
+    cd ~/Downloads
+    wget <HDDLUnite package link>
+    ```
+
+If wget doesn't work properly, use browser instead.
+
+2. Unpack HDDLUnite package with command:
+
+    ```bash
+    cd ~/Downloads
+    tar -xzf hddlunite-kmb_*.tar.gz -C /opt/intel
+    ```
+
+3. Edit env_host.sh script with the following commands:
+
+    ```bash
+    cd /opt/intel
+    nano env_host.sh
+    ```
+
+Modify string:
+
+    ARM_INSTALL_DIR=/opt/intel
+
+4. Set environment variables with commands:
+
+    ```bash
+    cd /opt/intel
+    source ./env_host.sh
+    ```
+
+5. Run device service on EVM with command:
+
+    ```bash
+    ${KMB_INSTALL_DIR}/bin/hddl_device_service
+    ```
+
+## Final check
+
+* Expected output on x86_64:
+
+    ```bash
+    [16:52:48.7836][1480]I[main.cpp:55] HDDL Scheduler Service is Ready!
+    ```
+
+* Expected output on ARM:
+
+    ```bash
+    [20:56:15.3854][602]I[main.cpp:42] Device Service is Ready!
+    ```
+
 [DLDT Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [VPU Wiki Accuracy Checker]: https://wiki.ith.intel.com/display/VPUWIKI/Set+up+and+Run+Accuracy+checker+on+ARM
+[ukuu kernel manager]: https://github.com/teejee2008/ukuu
+[VPUX configuration]: https://wiki.ith.intel.com/display/VPUWIKI/HDDL2#HDDL2-Configuration
+[VPU Wiki Board Configure]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-Configureboard
+[VPU Wiki Install FIP]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+FIP+via+fastboot
+[VPU Wiki Install Yocto]: https://wiki.ith.intel.com/display/VPUWIKI/How+to+flash+Yocto+Image+to+EMMC+via+fastboot
+[VPU Wiki PCIe XLink driver]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-InstallPCIeXLinkdriver
+[BKC Configuration]: https://wiki.ith.intel.com/display/VPUWIKI/HDDL2#HDDL2-Configuration
