@@ -753,7 +753,7 @@ static const mv::QuantizationParams& initialQuantParams() {
 };
 
 bool isInputPrecisionSupported(const ie::Precision& inputPrecision) {
-    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16};
+    const std::set<ie::Precision> supportedInPrecisions = {ie::Precision::U8, ie::Precision::FP16, ie::Precision::FP32};
     return supportedInPrecisions.find(inputPrecision) != supportedInPrecisions.end();
 }
 
