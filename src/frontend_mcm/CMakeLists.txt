@@ -36,6 +36,11 @@ if(UNIX)
             -Wall
             -Werror
             -Wextra)
+else()
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            /wd4146     # unary minus operator applied to unsigned type, result still unsigned
+            /wd4996)    # code uses a function, class member, variable, or typedef that's marked deprecated
 endif()
 
 target_include_directories(${TARGET_NAME}
