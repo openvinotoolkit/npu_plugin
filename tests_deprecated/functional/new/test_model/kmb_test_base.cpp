@@ -27,6 +27,7 @@
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
 #include <vpu/utils/error.hpp>
+#include <blob_factory.hpp>
 
 //
 // KmbTestBase
@@ -529,6 +530,17 @@ BlobMap KmbTestBase::runInfer(ExecutableNetwork& exeNet, const BlobMap& inputs, 
     return out;
 }
 
+BlobMap KmbTestBase::getInputs(const ExecutableNetwork& testNet) {
+    BlobMap inputs;
+
+    for (const auto& info : testNet.GetInputsInfo()) {
+        const auto blob = getBlobByName(info.first);
+        inputs.emplace(info.first, blob);
+    }
+
+    return inputs;
+}
+
 //
 // KmbLayerTestBase
 //
@@ -545,9 +557,9 @@ void KmbLayerTestBase::runTest(
     TestNetwork testNet;
     builder(testNet);
 
-    const auto inputs = getInputs(testNet);
-
     auto exeNet = getExecNetwork(testNet);
+
+    const auto inputs = getInputs(exeNet);
 
     const auto refOutputs = getRefOutputs(testNet, inputs);
 
@@ -561,17 +573,6 @@ void KmbLayerTestBase::runTest(
         checkWithOutputsInfo(actualOutputs, testNet.getOutputsInfo());
         compareWithReference(actualOutputs, refOutputs, tolerance, method);
     }
-}
-
-BlobMap KmbLayerTestBase::getInputs(TestNetwork& testNet) {
-    BlobMap inputs;
-
-    for (const auto& info : testNet.getInputsInfo()) {
-        const auto blob = getBlobByName(info->getName());
-        inputs.insert({info->getName(), blob});
-    }
-
-    return inputs;
 }
 
 ExecutableNetwork KmbLayerTestBase::getExecNetwork(
@@ -735,23 +736,24 @@ ExecutableNetwork KmbNetworkTestBase::getExecNetwork(
 }
 
 Blob::Ptr KmbNetworkTestBase::calcRefOutput(
-        const TestNetworkDesc& netDesc,
-        const Blob::Ptr& inputBlob) {
+            const TestNetworkDesc& netDesc,
+            const BlobMap& inputBlobs){
     const auto refNet = readNetwork(netDesc, false);
     auto refExeNet = core->LoadNetwork(refNet, REF_DEVICE_NAME);
 
     const auto refInputsInfo = refNet.getInputsInfo();
     const auto refOutputsInfo = refNet.getOutputsInfo();
 
-    IE_ASSERT(refInputsInfo.size() == 1);
     IE_ASSERT(refOutputsInfo.size() == 1);
 
-    const auto& refInputName = refInputsInfo.begin()->first;
-    const auto& refInputInfo = refInputsInfo.begin()->second;
+    BlobMap refInputBlobs;
+    for (const auto& blob : inputBlobs) {
+        const auto refInputName = blob.first;
+        const auto& refInputInfo = refInputsInfo.at(refInputName)->getTensorDesc();
+        refInputBlobs[refInputName] = toLayout(toPrecision(blob.second, refInputInfo.getPrecision()), refInputInfo.getLayout());
+    }
 
-    const auto refInputBlob = toLayout(toPrecision(inputBlob, refInputInfo->getTensorDesc().getPrecision()), refInputInfo->getTensorDesc().getLayout());
-
-    const auto refOutputs = runInfer(refExeNet, {{refInputName, refInputBlob}}, false);
+    const auto refOutputs = runInfer(refExeNet, refInputBlobs, false);
     IE_ASSERT(refOutputs.size() == 1);
 
     return refOutputs.begin()->second;
@@ -787,7 +789,7 @@ void KmbNetworkTestBase::checkPrecisions(const BlobMap& actualOutputs,
 
 void KmbNetworkTestBase::runTest(
         const TestNetworkDesc& netDesc,
-        const TestImageDesc& image,
+        const InitIntputCallback& inputCallback,
         const CheckCallback& checkCallback) {
     if (!RUN_COMPILER || !RUN_REF_CODE) {
         if (DUMP_PATH.empty()) {
@@ -800,31 +802,26 @@ void KmbNetworkTestBase::runTest(
     const auto inputsInfo = exeNet.GetInputsInfo();
     const auto outputsInfo = exeNet.GetOutputsInfo();
 
-    IE_ASSERT(inputsInfo.size() == 1);
     IE_ASSERT(outputsInfo.size() == 1);
 
-    // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
-    const auto& inputInfo = inputsInfo.begin()->second;
-    const auto inputTensorDesc = TensorDesc(inputInfo->getTensorDesc().getPrecision(), inputInfo->getTensorDesc().getDims(), inputInfo->getTensorDesc().getLayout());
+    inputCallback(inputsInfo);
 
-    registerBlobGenerator(
-        "input",
-        inputTensorDesc,
-        [&image](const TensorDesc& desc) {
-            const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
-            IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
-
-            return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
-        });
-
-    const auto inputBlob = getBlobByName("input");
+    BlobMap inputs;
+    for (const auto& inputInfo : inputsInfo) {
+        const auto& inputName = inputInfo.first;
+        // HACK: to overcome IE bug with incorrect TensorDesc::setLayout
+        const auto& desc = inputInfo.second->getTensorDesc();
+        const auto& inputBlob = toPrecision(toLayout(getBlobByName(inputName),
+                                                     desc.getLayout()), desc.getPrecision());
+        inputs.emplace(inputName, inputBlob);
+    }
 
     Blob::Ptr refOutputBlob;
 
     if (RUN_REF_CODE) {
         std::cout << "=== CALC REFERENCE WITH " << REF_DEVICE_NAME << std::endl;
 
-        refOutputBlob = toDefLayout(toDefPrecision(calcRefOutput(netDesc, inputBlob)));
+        refOutputBlob = toDefLayout(toDefPrecision(calcRefOutput(netDesc, inputs)));
 
         if (EXPORT_BLOBS) {
             std::cout << "    === EXPORT REFERENCE" << std::endl;
@@ -845,9 +842,7 @@ void KmbNetworkTestBase::runTest(
     if (RUN_INFER) {
         std::cout << "=== INFER" << std::endl;
 
-        const auto& inputName = inputsInfo.begin()->first;
-
-        const auto actualOutputs = runInfer(exeNet, {{inputName, inputBlob}}, true);
+        const auto actualOutputs = runInfer(exeNet, inputs, true);
         IE_ASSERT(actualOutputs.size() == 1);
 
         const auto actualOutputBlob = actualOutputs.begin()->second;
@@ -857,9 +852,20 @@ void KmbNetworkTestBase::runTest(
         checkLayouts(actualOutputs,    netDesc.outputLayouts());
         checkPrecisions(actualOutputs, netDesc.outputPrecisions());
 
-        checkCallback(actualOutputBlob, refOutputBlob, inputTensorDesc);
+        checkCallback(actualOutputBlob, refOutputBlob, inputsInfo);
     }
 }
+void KmbNetworkTestBase::registerSingleImage(const TestImageDesc& image, const std::string& inputName, const TensorDesc inputDesc)  {
+    registerBlobGenerator(
+        inputName,
+        inputDesc,
+        [image](const TensorDesc& desc) {
+          const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
+          IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+          return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+        });
+};
 
 //
 // KmbClassifyNetworkTest
@@ -869,7 +875,7 @@ void KmbClassifyNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
         size_t topK, float probTolerance) {
-    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc&) {
+    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap&) {
         ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
 
         auto actualOutput = parseOutput(toFP32(actualBlob));
@@ -907,7 +913,12 @@ void KmbClassifyNetworkTest::runTest(
         }
     };
 
-    KmbNetworkTestBase::runTest(netDesc, image, check);
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
 std::vector<std::pair<int, float>> KmbClassifyNetworkTest::parseOutput(const Blob::Ptr& blob) {
@@ -937,7 +948,10 @@ void KmbDetectionNetworkTest::runTest(
         const TestImageDesc& image,
         float confThresh,
         float boxTolerance, float probTolerance) {
-    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc) {
+    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+
         const auto imgWidth = inputDesc.getDims().at(3);
         const auto imgHeight = inputDesc.getDims().at(2);
 
@@ -947,7 +961,12 @@ void KmbDetectionNetworkTest::runTest(
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
 
-    KmbNetworkTestBase::runTest(netDesc, image, check);
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
 std::vector<utils::YoloBBox> KmbDetectionNetworkTest::parseOutput(
@@ -1074,7 +1093,10 @@ void KmbYoloV2NetworkTest::runTest(
         float confThresh,
         float boxTolerance, float probTolerance,
         bool isTiny) {
-    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc) {
+    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+
         const auto imgWidth = inputDesc.getDims().at(3);
         const auto imgHeight = inputDesc.getDims().at(2);
 
@@ -1084,5 +1106,65 @@ void KmbYoloV2NetworkTest::runTest(
         checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
     };
 
-    KmbNetworkTestBase::runTest(netDesc, image, check);
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// CustomNet ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
+                                        const std::string& left_eye_input_name,
+                                        const TestImageDesc& left_eye_image,
+                                        const std::string right_eye_input_name,
+                                        const TestImageDesc& right_eye_image,
+                                        const std::string head_pos_input_name,
+                                        std::vector<float> head_pos) {
+
+    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap&) {
+        auto actualOutput = toFP32(actualBlob);
+        auto refOutput = toFP32(refBlob);
+
+        IE_ASSERT(actualOutput->size() == refOutput->size());
+
+        auto actualData = actualOutput->buffer().as<float*>();
+        auto refData = actualOutput->buffer().as<float*>();
+
+        for (size_t i = 0; i < actualOutput->size(); ++i) {
+            auto diff = std::abs(actualData[i] - refData[i]);
+            EXPECT_LE(diff, 0.1f);
+        }
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+          auto leftTensorDesc = inputs.at(left_eye_input_name)->getTensorDesc();
+          auto rightTensorDesc = inputs.at(right_eye_input_name)->getTensorDesc();
+          auto angleTensorDesc = inputs.at(head_pos_input_name)->getTensorDesc();
+
+          registerSingleImage(left_eye_image, left_eye_input_name, leftTensorDesc);
+          registerSingleImage(right_eye_image, right_eye_input_name, rightTensorDesc);
+
+          registerBlobGenerator(head_pos_input_name,
+              angleTensorDesc,
+              [&head_pos](const TensorDesc& desc) {
+
+                auto blob = make_blob_with_precision(TensorDesc(Precision::FP32,
+                                                                        desc.getDims(),
+                                                                        desc.getLayout()));
+
+                blob->allocate();
+                CopyVectorToBlob(blob, head_pos);
+
+                IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+                return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+              });
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }

@@ -142,6 +142,8 @@ public:
 
     Blob::Ptr getBlobByName(const std::string& blobName);
 
+    BlobMap getInputs(const ExecutableNetwork& testNet);
+
 protected:
     void SetUp() override;
 
@@ -195,8 +197,6 @@ public:
             float tolerance, CompareMethod method = CompareMethod::Absolute);
 
 protected:
-    BlobMap getInputs(TestNetwork& testNet);
-
     ExecutableNetwork getExecNetwork(
             TestNetwork& testNet);
 
@@ -303,10 +303,18 @@ private:
 
 class KmbNetworkTestBase : public KmbTestBase {
 protected:
-    using CheckCallback = std::function<void(const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc& inputDesc)>;
+    using CheckCallback = std::function<void(const Blob::Ptr& actualBlob,
+                                             const Blob::Ptr& refBlob,
+                                             const ConstInputsDataMap& inputsDesc)>;
+
+    using InitIntputCallback = std::function<void(const ConstInputsDataMap& inputs)>;
 
 protected:
     static Blob::Ptr loadImage(const TestImageDesc& image, int channels, int height, int width);
+
+    void registerSingleImage (const TestImageDesc& image,
+                              const std::string& inputName,
+                              const TensorDesc inputDesc);
 
     CNNNetwork readNetwork(
             const TestNetworkDesc& netDesc,
@@ -317,11 +325,11 @@ protected:
 
     Blob::Ptr calcRefOutput(
             const TestNetworkDesc& netDesc,
-            const Blob::Ptr& inputBlob);
+            const BlobMap& inputBlobs);
 
     void runTest(
             const TestNetworkDesc& netDesc,
-            const TestImageDesc& image,
+            const InitIntputCallback& image,
             const CheckCallback& checkCallback);
 
     void checkLayouts(const BlobMap& actualOutputs,
@@ -391,4 +399,16 @@ public:
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
             const float meanIntersectionOverUnionTolerance);
+};
+
+class GazeEstimationNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const std::string& left_eye_input_name,
+        const TestImageDesc& left_eye_image,
+        const std::string right_eye_input_name,
+        const TestImageDesc& right_eye_image,
+        const std::string head_pos_input_name,
+        std::vector<float> head_pos);
 };
