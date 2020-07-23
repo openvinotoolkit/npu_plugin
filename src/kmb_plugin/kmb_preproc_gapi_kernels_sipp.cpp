@@ -63,6 +63,55 @@ GAPI_SIPP_KERNEL(GSippMerge3p, GMerge3p) {
     static void Configure(cv::GMatDesc, const cv::GSippConfigUserContext&) {}
 };
 
+// FIXME: Kernels below don't have vpu version yet
+GAPI_SIPP_KERNEL(GSippScalePlanes, GScalePlanes) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&, const cv::gapi::own::Size&, int) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::gapi::own::Size&, int, const cv::GSippConfigUserContext&) {}
+};
+
+GAPI_SIPP_KERNEL(GSippMerge2, GMerge2) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::GSippConfigUserContext&) {}
+};
+
+GAPI_SIPP_KERNEL(GSippMerge4, GMerge4) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::GSippConfigUserContext&) {}
+};
+
+GAPI_SIPP_KERNEL(GSippDrop4, GDrop4) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::GSippConfigUserContext&) {}
+};
+
+GAPI_SIPP_KERNEL(GSippSwapChan, GSwapChan) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::GSippConfigUserContext&) {}
+};
+
+GAPI_SIPP_KERNEL(GSippInterleaved2planar, GInterleaved2planar) {
+    static cv::gimpl::GSIPPKernel::InitInfo Init(const cv::GMatDesc&) {
+        return {};
+    }
+
+    static void Configure(const cv::GMatDesc&, const cv::GSippConfigUserContext&) {}
+};
+
 namespace sipp {
     cv::gapi::GKernelPackage kernels() {
         static auto pkg = cv::gapi::kernels
@@ -70,6 +119,13 @@ namespace sipp {
             , GSippNV12toRGBp
             , GSippMerge3p
             , GSippResizeP
+            // FIXME: Kernels below don't have vpu version yet
+            , GSippScalePlanes
+            , GSippMerge2
+            , GSippMerge4
+            , GSippDrop4
+            , GSippSwapChan
+            , GSippInterleaved2planar
             >();
         return pkg;
     }
