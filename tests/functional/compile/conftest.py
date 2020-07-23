@@ -15,6 +15,8 @@ Usage:
 python3 -m pytest  --html=compile.html --models=<path to model packages> --compiler=vpu2_compile test_compile.py
 """
 
+import os
+import shutil
 import tempfile
 from types import SimpleNamespace
 
@@ -58,7 +60,10 @@ def pytest_generate_tests(metafunc):
     """ Generate tests depending on command line options
     """
     out = metafunc.config.getoption("output")
-    if not out:
+    if out:
+        if os.path.isdir(out):
+            shutil.rmtree(out)  # cleanup output folder
+    else:
         out = tempfile.mkdtemp(prefix='_blobs-', dir='.')
     metafunc.parametrize("param_ir", [SimpleNamespace(model=net,
                                                       compiler_tool=metafunc.config.getoption(

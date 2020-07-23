@@ -9,6 +9,7 @@
 #include <sys/types.h>
 #include <vpusmm/vpusmm.h>
 
+#include <atomic>
 #include <condition_variable>
 #include <mutex>
 #include <regression_tests.hpp>
@@ -486,7 +487,7 @@ TEST_P(VpuPreprocessingWithTwoNetworksTests, inference) {
     });
 }
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingWithTwoNetworksTests,
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingWithTwoNetworksTests,
     Values(std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1080x1080-nv12.bin", 1080, 1080,
                "/KMB_models/BLOBS/tiny-yolo-v2/input-1920x1080-nv12.bin", 1920, 1080),
         std::make_tuple("/KMB_models/BLOBS/mobilenet-v2/input-1920x1080-nv12.bin", 1920, 1080,
@@ -993,17 +994,30 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
         std::chrono::system_clock::now() + std::chrono::seconds(10 * 60);  // 10 minutes
     size_t curIterationNetwork1 = 0;
     size_t curIterationNetwork2 = 0;
+    std::atomic<bool> network1Finished(false);
+    std::atomic<bool> network2Finished(false);
+    std::atomic<bool> network1Failed(false);
+    std::atomic<bool> network2Failed(false);
     std::condition_variable condVar;
 
     network1InferReqPtr->SetCompletionCallback([&] {
         curIterationNetwork1++;
         std::cout << "Completed " << curIterationNetwork1 << " async request execution for network 1" << std::endl;
         if (std::chrono::system_clock::now() < timeLimit) {
-            Blob::Ptr outputBlob;
-            std::string output1Name = network1.GetOutputsInfo().begin()->first;
-            ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
-            network1InferReqPtr->StartAsync();
+            try {
+                Blob::Ptr outputBlob;
+                std::string output1Name = network1.GetOutputsInfo().begin()->first;
+                ASSERT_NO_THROW(outputBlob = network1InferReqPtr->GetBlob(output1Name));
+                network1InferReqPtr->StartAsync();
+            } catch (const std::exception& exc) {
+                std::cout << "classifyCallback caught exception " << exc.what() << std::endl;
+                network1Finished = true;
+                network1Failed = true;
+                condVar.notify_one();
+            }
         } else {
+            network1Finished = true;
+            network1Failed = false;
             condVar.notify_one();
         }
     });
@@ -1031,11 +1045,16 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
                                   << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
                     }
                 }
+                network2InferReqPtr->StartAsync();
             } catch (const std::exception& exc) {
                 std::cout << "detectCallback caught exception " << exc.what() << std::endl;
+                network2Finished = true;
+                network2Failed = true;
+                condVar.notify_one();
             }
-            network2InferReqPtr->StartAsync();
         } else {
+            network2Finished = true;
+            network2Failed = false;
             condVar.notify_one();
         }
     });
@@ -1048,8 +1067,11 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
     std::mutex mutex;
     std::unique_lock<std::mutex> lock(mutex);
     condVar.wait(lock, [&] {
-        return std::chrono::system_clock::now() >= timeLimit;
+        return network1Finished && network2Finished;
     });
+
+    ASSERT_FALSE(network1Failed);
+    ASSERT_FALSE(network2Failed);
 }
 
 // [Track number: S#35173, S#35231]
@@ -1119,6 +1141,7 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
                                   << " " << bb.bottom << ")] : " << bb.prob * 100 << "%" << std::endl;
                     }
                     for (size_t classReqIdx = 0; classReqIdx < maxParallelRequests; classReqIdx++) {
+                        classificationRequests.at(classReqIdx)->Wait(IInferRequest::WaitMode::RESULT_READY);
                         classificationRequests.at(classReqIdx)->StartAsync();
                     }
                 } catch (const std::exception& exc) {
@@ -1164,19 +1187,19 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
 
 const static std::vector<preprocessingType> preprocTypes = {PT_RESIZE, PT_NV12};
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingTestsWithParam, ::testing::ValuesIn(preprocTypes));
 
 using namespace testing;
-INSTANTIATE_TEST_CASE_P(preprocessingShaves, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_shaves, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_SHAVES"), Values("4", "6")));
 
-INSTANTIATE_TEST_CASE_P(preprocessingLpi, VpuPreprocessingConfigAndInferTestsSipp,
+INSTANTIATE_TEST_CASE_P(precommit_preprocessing_lpi, VpuPreprocessingConfigAndInferTestsSipp,
     Combine(Values("VPU_KMB_PREPROCESSING_LPI"), Values("4", "8")));
 
 INSTANTIATE_TEST_CASE_P(
-    preprocessingM2I, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
+    precommit, VpuPreprocessingConfigAndInferTests, Combine(Values("VPU_KMB_USE_M2I"), Values("YES", "NO")));
 
-INSTANTIATE_TEST_CASE_P(preprocessing, VpuPreprocessingConfigTests,
+INSTANTIATE_TEST_CASE_P(precommit, VpuPreprocessingConfigTests,
     Values(std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "8", true),
         std::make_tuple("VPU_KMB_PREPROCESSING_SHAVES", "seventy one", false),
         std::make_tuple("VPU_KMB_PREPROCESSING_LPI", "16", true),

@@ -71,4 +71,4 @@ const std::vector<SigmoidTestParams> sigmoidParams {
             .inDims({1, 1000, 1, 1})
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbSigmoidLayerTests, testing::ValuesIn(sigmoidParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbSigmoidLayerTests, testing::ValuesIn(sigmoidParams));

@@ -18,6 +18,7 @@
 
 #include <blob_factory.hpp>
 #include <fstream>
+#include <hddl2_plugin_config.hpp>
 
 #include "RemoteMemory.h"
 #include "comparators.h"
@@ -40,7 +41,7 @@ public:
     std::string refInputPath;
     std::string refOutputPath;
 
-    const size_t numberOfTopClassesToCompare = 1;
+    const size_t numberOfTopClassesToCompare = 5;
     RemoteMemoryFD allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
@@ -141,8 +142,8 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     // --- Compare with expected output
-    ASSERT_NO_THROW(
-        Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+        toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
 TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupported) {
@@ -215,7 +216,7 @@ protected:
 void VideoWorkload_WithPreprocessing::SetUp() {
     graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
     refInputPath = PrecompiledResNet_Helper::resnet50.nv12Input;
-    refOutputPath = PrecompiledResNet_Helper::resnet50.nv12Output;
+    refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
 TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
@@ -256,7 +257,10 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     }
     std::istream graphBlob(&blobFile);
 
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
+    std::map<std::string, std::string> config;
+    config[VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT)] = VPU_HDDL2_CONFIG_VALUE(RGB);
+
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, config);
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;
@@ -292,12 +296,11 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
     // --- Reference Blob
     InferenceEngine::Blob::Ptr outputRefBlob;
     auto referenceBlobTensor = outputBlob->getTensorDesc();
-    referenceBlobTensor.setPrecision(IE::Precision::U8);
 
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, referenceBlobTensor));
 
-    ASSERT_NO_THROW(
-        Comparators::compareTopClasses(toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
+    ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+        toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
 TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
@@ -338,7 +341,10 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     }
     std::istream graphBlob(&blobFile);
 
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
+    std::map<std::string, std::string> config;
+    config[VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT)] = VPU_HDDL2_CONFIG_VALUE(RGB);
+
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, config);
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;
@@ -376,7 +382,6 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
     // --- Reference Blob
     InferenceEngine::Blob::Ptr outputRefBlob;
     auto refTensorDesc = outputBlob->getTensorDesc();
-    refTensorDesc.setPrecision(IE::Precision::U8);
 
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refTensorDesc));
 

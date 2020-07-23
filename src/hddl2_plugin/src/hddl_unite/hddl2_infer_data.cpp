@@ -36,8 +36,11 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing, const HDDL2RemoteContext::Ptr& remoteContext)
-    : _haveRemoteContext(remoteContext != nullptr), _needUnitePreProcessing(needUnitePreProcessing) {
+HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing, const HDDL2RemoteContext::Ptr& remoteContext,
+    const IE::ColorFormat& colorFormat)
+    : _haveRemoteContext(remoteContext != nullptr),
+      _needUnitePreProcessing(needUnitePreProcessing),
+      _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
 
     if (_haveRemoteContext) {
@@ -70,9 +73,9 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
         blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
     }
 
-    auto blobDesc = blobDescriptorPtr->createUniteBlobDesc();
+    const bool isInput = true;
+    auto blobDesc = blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat);
     std::call_once(_onceFlagInputAllocations, [&] {
-        const bool isInput = true;
         if (!_inferDataPtr->createBlob(name, blobDesc, isInput)) {
             THROW_IE_EXCEPTION << "Error creating Unite Blob";
         }
@@ -107,7 +110,7 @@ void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE:
         }
 
         const bool isInput = false;
-        _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(), isInput);
+        _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat), isInput);
 
         _outputs[name] = blobDescriptorPtr;
     });
@@ -130,9 +133,9 @@ void HddlUniteInferData::waitInferDone() const {
 }
 
 void HddlUniteInferData::getHddlUnitePerfCounters(
-    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters) {
-    InferenceEngine::InferenceEngineProfileInfo info;
-    info.status = InferenceEngine::InferenceEngineProfileInfo::EXECUTED;
+    std::map<std::string, IE::InferenceEngineProfileInfo>& retPerfCounters) {
+    IE::InferenceEngineProfileInfo info;
+    info.status = IE::InferenceEngineProfileInfo::EXECUTED;
     info.cpu_uSec = 0;
     info.execution_index = 0;
     info.realTime_uSec = 0;
