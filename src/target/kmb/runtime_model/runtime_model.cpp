@@ -2624,7 +2624,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, 
     auto softLayerParamsValue = new MVCNN::TileParamsT();
 
     // Fill in required params
-    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+    // reverse axis position  since buildTensorReferenceT reverses shape order
+    softLayerParamsValue->axis = (input->getShape().ndims() - 1) - opIt->get<unsigned>("axis");
     softLayerParamsValue->tiles = opIt->get<unsigned>("tiles");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
