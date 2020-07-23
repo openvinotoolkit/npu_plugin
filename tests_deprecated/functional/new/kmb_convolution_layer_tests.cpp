@@ -122,4 +122,4 @@ const std::vector<ConvTestParams> convParams {
         .convParams(ConvolutionParams().outChannels(64).kernel({3, 3}).strides({2, 2}).pad({0, 0, 0, 0}))
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbConvolutionLayerTests, testing::ValuesIn(convParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbConvolutionLayerTests, testing::ValuesIn(convParams));

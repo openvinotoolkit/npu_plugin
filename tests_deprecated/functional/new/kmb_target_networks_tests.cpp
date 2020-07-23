@@ -432,7 +432,7 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
         1, 0.7f);
 }
 
-INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
+INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
 
 TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");

@@ -78,4 +78,4 @@ const std::vector<SoftmaxTestParams> softmaxParams {
             .axisSet({1})
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
