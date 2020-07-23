@@ -23,7 +23,6 @@
 #pragma once
 
 #include <string>
-#include <ie_blob.h>
 
 using KmbRemoteMemoryFD = int;
 using KmbHandleParam = void*;
@@ -63,6 +62,11 @@ namespace KmbContextParams {
      * @brief Remote memory offset to map physical address properly
      */
     DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
+
+    /**
+     * @brief VPU device ID
+     */
+    DECLARE_KMB_PARAM_KEY(DEVICE_ID, std::string);
 }  // namespace KmbContextParams
 }  // namespace InferenceEngine
 

@@ -21,7 +21,7 @@
 #include <ie_precision.hpp>
 #include <map>
 
-const size_t DIM_N = 0, DIM_C = 1, DIM_H = 2, DIM_W = 3, DIM_D = 4;
+const uint32_t DIM_N = 0, DIM_C = 1, DIM_H = 2, DIM_W = 3, DIM_D = 4;
 
 static const std::map<InferenceEngine::Layout, std::vector<uint32_t>> orderMapping = {
     {InferenceEngine::Layout::NCHW, {DIM_N, DIM_C, DIM_H, DIM_W}},

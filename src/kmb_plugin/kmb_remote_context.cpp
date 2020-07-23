@@ -22,10 +22,43 @@
 
 using namespace vpu::KmbPlugin;
 
-KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap&, const KmbConfig& config)
-    : _config(config),
-      _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())) {
-    _allocatorPtr = vpu::KmbPlugin::getKmbAllocator();
+static std::map<std::string, int> deviceIdMapping = {
+    { "VPU-0", 0 },
+};
+
+KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)
+    : _paramMap(params),
+      _deviceId(-1),
+      _deviceIdStr("") {
+    if (_paramMap.empty()) {
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Param map for context is empty.";
+    }
+
+    auto deviceIdIter = _paramMap.find(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID));
+    if (deviceIdIter == _paramMap.end()) {
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Param map does not contain device ID.";
+    }
+    _deviceIdStr = deviceIdIter->second.as<std::string>();
+
+    auto devMappingIter = deviceIdMapping.find(_deviceIdStr);
+    if (devMappingIter == deviceIdMapping.end()) {
+        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Device ID " << _deviceIdStr << " is invalid.";
+    }
+    _deviceId = devMappingIter->second;
+}
+
+InferenceEngine::ParamMap KmbContextParams::getParamMap() const { return _paramMap; }
+
+int KmbContextParams::getDeviceId() const { return _deviceId; }
+
+std::string KmbContextParams::getDeviceIdStr() const { return _deviceIdStr; }
+
+KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& ctxParams, const KmbConfig& config)
+     : _config(config),
+      _contextParams(ctxParams),
+      _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
+      _deviceId(_contextParams.getDeviceId()) {
+    _allocatorPtr = std::make_shared<KmbAllocator>(_deviceId);
 }
 
 InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
@@ -47,9 +80,13 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
 }
 
 std::string KmbRemoteContext::getDeviceName() const noexcept {
-    return "KMB";
+    return "KMB." + _contextParams.getDeviceIdStr();
 }
 
 KmbAllocator::Ptr KmbRemoteContext::getAllocator() { return _allocatorPtr; }
 
-InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return {}; }
+InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return _contextParams.getParamMap(); }
+
+int KmbRemoteContext::getDeviceId() const noexcept { return _deviceId; }
+
+KmbContextParams KmbRemoteContext::getContextParams() const { return _contextParams; }

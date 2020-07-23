@@ -27,6 +27,7 @@ namespace KmbPlugin {
 class KmbAllocator : public InferenceEngine::IAllocator {
 public:
     using Ptr = std::shared_ptr<KmbAllocator>;
+    KmbAllocator(const int& deviceId);
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;
@@ -54,9 +55,8 @@ protected:
         bool isAllocated;
     };
     std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
+    int _deviceId = 0; // signed integer to be consistent with vpurm API
 };
-
-std::shared_ptr<KmbAllocator>& getKmbAllocator();
 
 }  // namespace KmbPlugin
 }  // namespace vpu

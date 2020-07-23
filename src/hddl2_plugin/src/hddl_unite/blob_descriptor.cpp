@@ -189,8 +189,8 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
     }
 
     // Dims stored in NCHW format
-    const uint H_index = 2;
-    const uint W_index = 3;
+    const int H_index = 2;
+    const int W_index = 3;
 
     blobDesc.m_resHeight = dims[H_index];
     blobDesc.m_resWidth = blobDesc.m_widthStride = dims[W_index];

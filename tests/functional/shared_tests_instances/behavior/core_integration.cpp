@@ -31,7 +31,7 @@ INSTANTIATE_TEST_CASE_P(
         ::testing::ValuesIn(plugins));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassNetworkTestP_smoke, IEClassNetworkTestP,
+        DISABLED_IEClassNetworkTestP_smoke, IEClassNetworkTestP,
         ::testing::ValuesIn(devices));
 
 //
@@ -105,11 +105,11 @@ TEST_P(IEClassNetworkTestP_VPU_GetMetric, smoke_OptimizationCapabilitiesReturnsF
 }
 
 INSTANTIATE_TEST_CASE_P(
-        smoke_IEClassGetMetricP, IEClassNetworkTestP_VPU_GetMetric,
+        DISABLED_smoke_IEClassGetMetricP, IEClassNetworkTestP_VPU_GetMetric,
         ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_CASE_P(
-        smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
+        DISABLED_smoke_IEClassImportExportTestP, IEClassNetworkTestP_VPU,
         ::testing::Values(std::string(CommonTestUtils::DEVICE_KEEMBAY), "HETERO:" + std::string(CommonTestUtils::DEVICE_KEEMBAY)));
 
 #if defined(ENABLE_MKL_DNN) && ENABLE_MKL_DNN
@@ -124,27 +124,27 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest_nightly,
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_ThrowsUnsupported,
         ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest_nightly,
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_SUPPORTED_CONFIG_KEYS,
         ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest_nightly,
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_SUPPORTED_METRICS,
         ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest_nightly,
+        DISABLED_DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_NETWORK_NAME,
         ::testing::ValuesIn(devices));
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetMetricTest_nightly,
+        DISABLED_IEClassExecutableNetworkGetMetricTest_nightly,
         IEClassExecutableNetworkGetMetricTest_OPTIMAL_NUMBER_OF_INFER_REQUESTS,
         ::testing::ValuesIn(devices));
 
@@ -153,7 +153,7 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassExecutableNetworkGetConfigTest_nightly,
+        DISABLED_IEClassExecutableNetworkGetConfigTest_nightly,
         IEClassExecutableNetworkGetConfigTest,
         ::testing::ValuesIn(devices));
 
@@ -196,7 +196,7 @@ INSTANTIATE_TEST_CASE_P(
 //
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassGetConfigTest_nightly,
+        DISABLED_IEClassGetConfigTest_nightly,
         IEClassGetConfigTest,
         ::testing::ValuesIn(devices));
 
@@ -215,7 +215,7 @@ INSTANTIATE_TEST_CASE_P(
 // IE Class Load network
 
 INSTANTIATE_TEST_CASE_P(
-        IEClassLoadNetworkTest_smoke,
+        DISABLED_IEClassLoadNetworkTest_smoke,
         IEClassLoadNetworkTest,
         ::testing::ValuesIn(devices));
 } // namespace

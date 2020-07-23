@@ -27,6 +27,22 @@
 
 namespace vpu {
 namespace KmbPlugin {
+//------------------------------------------------------------------------------
+//      class KmbContextParams
+//------------------------------------------------------------------------------
+class KmbContextParams {
+public:
+    explicit KmbContextParams(const InferenceEngine::ParamMap& paramMap);
+
+    InferenceEngine::ParamMap getParamMap() const;
+    int getDeviceId() const;
+    std::string getDeviceIdStr() const;
+
+protected:
+    InferenceEngine::ParamMap _paramMap;
+    int _deviceId;
+    std::string _deviceIdStr;
+};
 
 //------------------------------------------------------------------------------
 //      class KmbRemoteContext
@@ -44,15 +60,19 @@ public:
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
 
     std::string getDeviceName() const noexcept override;
+    int getDeviceId() const noexcept;
 
     InferenceEngine::ParamMap getParams() const override;
     KmbAllocator::Ptr getAllocator();
+    KmbContextParams getContextParams() const;
 
 protected:
     const KmbConfig _config;
+    KmbContextParams _contextParams;
     KmbAllocator::Ptr _allocatorPtr = nullptr;
 
     const Logger::Ptr _logger;
+    int _deviceId;
 };
 
 }  // namespace KmbPlugin

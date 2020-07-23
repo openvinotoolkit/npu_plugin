@@ -19,9 +19,9 @@
 
 #include <precision_utils.h>
 #include <fstream>
+#if defined(__arm__) || defined(__aarch64__)
 #include <unistd.h>
 #include <sys/mman.h>
-#if defined(__arm__) || defined(__aarch64__)
 #include <vpusmm/vpusmm.h>
 #endif
 

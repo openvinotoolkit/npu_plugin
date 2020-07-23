@@ -34,7 +34,7 @@ void McmBias::validate_and_infer_types() {
     set_output_type(0, _type, get_input_shape(0));
 }
 
-std::shared_ptr<ngraph::Node> McmBias::copy_with_new_args(const ngraph::NodeVector& new_args) const {
+std::shared_ptr<ngraph::Node> McmBias::clone_with_new_inputs(const ngraph::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<McmBias>(new_args.at(0), new_args.at(1), _type);
 }
