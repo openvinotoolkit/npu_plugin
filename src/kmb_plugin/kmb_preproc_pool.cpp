@@ -83,7 +83,14 @@ PreprocessorPool& PreprocPool::getPool(
     int w, unsigned int numberOfShaves, unsigned int lpi, Path ppPath) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_preprocPools.count(w) == 0) {
-        auto firstFreeShave = firstShave;
+        //First SHAVE number is actually obsolete parameter.
+        //Resource manager can ignore it and choose first SHAVE number by its own.
+        //Anyway some valid value should be provided to sippCreatePipeline by plugin.
+        //Following check must succeed: lastShave < 16. lastShave = firstShave + numberOfShaves - 1;
+        //firstShave must be a positive integer from `0` to `12`.
+        //The number of shaves is `16`, maximal number of pipelines is `2`,
+        //maximal number of shaves per pipeline is `2`, which makes `16 - 2 * 2 = 12`.
+        auto firstFreeShave = 0;
         for (const auto& pool : _preprocPools) {
             firstFreeShave += pool.second->getNumberOfShaves();
         }
@@ -116,16 +123,6 @@ PreprocPool& preprocPool() {
     static PreprocPool pool;
     return pool;
 }
-
-unsigned PreprocPool::firstShave = [] {
-    const char* firstShaveEnv = std::getenv("SIPP_FIRST_SHAVE");
-    unsigned int shaveNum = PreprocPool::defaultFirstShave;
-    if (firstShaveEnv != nullptr) {
-        std::istringstream str2Integer(firstShaveEnv);
-        str2Integer >> shaveNum;
-    }
-    return shaveNum;
-}();
 
 }  // namespace KmbPreproc
 }  // namespace InferenceEngine
