@@ -216,7 +216,7 @@ class Control_Model_Barrier_Scheduler {
         }
 
         op_iterator_t create_new_barrier_task(
-            const schedule_info_t& sinfo) const {
+            const schedule_info_t&) const {
 
           static size_t barrier_task_id=0UL;
           char barrier_name[64UL]; 
@@ -406,7 +406,7 @@ class Control_Model_Barrier_Scheduler {
           std::vector<unsigned> updateB = barrierRefParent.getUpdate();
           barrierRefParent.clearUpdateBarriers();
 
-          for(auto t = 0; t < updateB.size(); t++){
+          for(std::size_t t = 0; t < updateB.size(); t++){
             if(updateB[t] == currB_index)
               continue;
             barrierRefParent.addUpdateBarrier(updateB[t]);
@@ -422,7 +422,7 @@ class Control_Model_Barrier_Scheduler {
       }
       if (upa_chain.empty()) { return; }
      
-      operation_t prev_upa_op = NULL, curr_upa_op = NULL, curr_op;
+      operation_t prev_upa_op = NULL, curr_op;
 
       for (auto ritr=upa_chain.rbegin(); ritr!=upa_chain.rend(); ++ritr) {
         curr_op = *ritr;
@@ -568,21 +568,29 @@ class Control_Model_Barrier_Scheduler {
     size_t locate_and_remove_redundant_wait_barriers() {
       mv::OpModel om(control_model_);
 
-      FILE *fptr = fopen("redundant_barriers.txt", "w");
+      FILE *fptr = nullptr;
+      if(mv::isDebugFilesEnabled()) {
+        fptr = fopen("redundant_barriers.txt", "w");
+        if(nullptr == fptr) {
+          throw std::string("Cannot open file for writing");
+        }
+      }
       size_t total = 0;
       for (op_iterator_t oitr=omtraits::begin_operations(om);
             oitr!=omtraits::end_operations(om); ++oitr) {
         if (!is_real_task_in_blob(oitr)) { continue; }
         size_t rcount = remove_redundant_wait_barriers(oitr);
 
-        if (rcount) {
+        if (fptr && rcount) {
           fprintf(fptr, "op=%s rcount=%lu\n", oitr->getName().c_str(),
               rcount);
         }
         total += rcount;
       }
-      fprintf(fptr, "total=%lu\n", total);
-      fclose(fptr);
+      if(fptr) {
+        fprintf(fptr, "total=%lu\n", total);
+        fclose(fptr);
+      }
 
       return total;
     }

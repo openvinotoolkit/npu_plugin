@@ -60,16 +60,8 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-
-                auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
-
-                // NOTE: workaround for SSD-512 to avoid fp16 overflow in Normalize kernel
-                //       to be removed when VPUNND-3235 is resolved
-                if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Normalize")
-                    quant_params = task->get<mv::QuantizationParams>("quantParams");
-
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            quant_params, "Quantize" + task->getName() + std::to_string(id));
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                 
