@@ -40,8 +40,30 @@ namespace {
     }
 }
 
-MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config)
-            : _compiledNetwork(compiledNetwork),
+ie::InputsDataMap helpers::dataMapIntoInputsDataMap(const vpux::DataMap &dataMap) {
+    ie::InputsDataMap inputsDataMap = {};
+
+    for (const auto& input : dataMap) {
+        ie::InputInfo info;
+        info.setInputData(input.second);
+        inputsDataMap.insert({input.first, std::make_shared<ie::InputInfo>(info)});
+    }
+
+    return inputsDataMap;
+}
+
+ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap &dataMap) {
+    ie::OutputsDataMap outputsDataMap = {};
+
+    for (const auto& output : dataMap) {
+        outputsDataMap.insert({output.first, output.second});
+    }
+
+    return outputsDataMap;
+}
+
+MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name)
+            : _name(name), _compiledNetwork(compiledNetwork),
               _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
     std::pair<ie::InputsDataMap, ie::OutputsDataMap> portsInfo =
         MCMAdapter::deserializeMetaData(compiledNetwork, config);
@@ -96,6 +118,9 @@ const std::vector<char>& MCMNetworkDescription::getCompiledNetwork() const {
     return _compiledNetwork;
 }
 
+const std::string &MCMNetworkDescription::getName() const {
+    return _name;
+}
 
 vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& actualDeviceData,
                                                          const std::vector<std::string>& names) {
@@ -150,4 +175,3 @@ vpux::DataMap MCMNetworkDescription::createDeviceMapWithCorrectNames(const vpux:
 
     return updatedMap;
 }
-

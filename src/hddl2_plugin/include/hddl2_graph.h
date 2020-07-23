@@ -20,9 +20,7 @@
 #include <memory>
 #include <string>
 
-#include "ie_core.hpp"
-#include "ie_icnn_network.hpp"
-#include "mcm_config.h"
+#include "mcm_network_description.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -31,21 +29,19 @@ class Graph {
 public:
     using Ptr = std::shared_ptr<Graph>;
 
-    std::string getGraphName() const { return _graphName; }
-    std::string getGraphBlob() const { return _blobContentString; }
+    const std::string getGraphName() const { return _networkDescription->getName(); }
+    const std::vector<char>& getGraphBlob() const { return _networkDescription->getCompiledNetwork(); }
 
-    InferenceEngine::InputsDataMap& getInputsInfo() noexcept { return _networkInputs; }
-    InferenceEngine::OutputsDataMap& getOutputsInfo() noexcept { return _networkOutputs; }
+    InferenceEngine::InputsDataMap getInputsInfo() noexcept {
+        return MCMAdapter::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+    }
+    InferenceEngine::OutputsDataMap getOutputsInfo() noexcept {
+        return MCMAdapter::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+    }
 
 protected:
-    std::string _graphName;
-    std::string _blobContentString;
+    vpux::NetworkDescription::Ptr _networkDescription;
 
-    InferenceEngine::InputsDataMap _networkInputs;
-    InferenceEngine::OutputsDataMap _networkOutputs;
-
-    void loadStreamToString(std::istream& model, std::string& outputString);
-    void loadFileToString(const std::string& filename, std::string& outputString);
     std::string extractFileName(const std::string& fullPath);
 };
 

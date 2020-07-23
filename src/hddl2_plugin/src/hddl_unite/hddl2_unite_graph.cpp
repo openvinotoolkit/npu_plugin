@@ -45,7 +45,7 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     HddlStatusCode statusCode;
 
     const std::string graphName = graphPtr->getGraphName();
-    const std::string graphData = graphPtr->getGraphBlob();
+    const std::vector<char> graphData = graphPtr->getGraphBlob();
 
     std::vector<HddlUnite::Device> devices_to_use = {};
 
@@ -83,7 +83,7 @@ HddlUniteGraph::HddlUniteGraph(
     }
 
     const std::string graphName = graphPtr->getGraphName();
-    const std::string graphData = graphPtr->getGraphBlob();
+    const std::vector<char> graphData = graphPtr->getGraphBlob();
 
     HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
 
