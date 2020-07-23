@@ -142,4 +142,4 @@ const std::vector<NormTestParams> normParams {
         .netPrecision(Precision::FP16)
 };
 
-INSTANTIATE_TEST_CASE_P(Normalize, KmbNormalizeLayerTests, testing::ValuesIn(normParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbNormalizeLayerTests, testing::ValuesIn(normParams));

@@ -31,7 +31,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static void checkBlobIsValid(const InferenceEngine::Blob::Ptr& blob) {
+static void checkBlobIsValid(const IE::Blob::Ptr& blob) {
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "Blob is null";
     }
@@ -40,7 +40,7 @@ static void checkBlobIsValid(const InferenceEngine::Blob::Ptr& blob) {
     }
 }
 
-static void checkBlobCompatibility(const InferenceEngine::Blob::Ptr& blob) {
+static void checkBlobCompatibility(const IE::Blob::Ptr& blob) {
     if (blob->is<HDDL2RemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
         return;
     }
@@ -50,7 +50,7 @@ static void checkBlobCompatibility(const InferenceEngine::Blob::Ptr& blob) {
     THROW_IE_EXCEPTION << "Blob type is unexpected";
 }
 
-static void checkDataIsValid(const InferenceEngine::DataPtr& data) {
+static void checkDataIsValid(const IE::DataPtr& data) {
     if (data == nullptr) {
         THROW_IE_EXCEPTION << "Blob descriptor is null";
     }
@@ -66,7 +66,7 @@ static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::Ptr& blob) {
     }
     return memoryFd;
 }
-static bool isBlobContainsNV12Data(const InferenceEngine::Blob::Ptr& blobPtr) {
+static bool isBlobContainsNV12Data(const IE::Blob::Ptr& blobPtr) {
     if (blobPtr->is<IE::NV12Blob>()) {
         return true;
     } else if (blobPtr->is<HDDL2RemoteBlob>()) {
@@ -95,9 +95,23 @@ static size_t calculateBlobSizeFromTensor(const IE::TensorDesc& tensorDesc) {
     return IE::details::product(tensorDesc.getDims().begin(), tensorDesc.getDims().end());
 }
 
+using matchColorFormats_t = std::unordered_map<IE::ColorFormat, HddlUnite::Inference::FourCC>;
+
+static HddlUnite::Inference::FourCC getColorFormat(IE::ColorFormat colorFormat) {
+    static const matchColorFormats_t matchColorFormats = {{IE::ColorFormat::BGR, HddlUnite::Inference::FourCC::BGR},
+        {IE::ColorFormat::RGB, HddlUnite::Inference::FourCC::RGB}};
+
+    auto format = matchColorFormats.find(colorFormat);
+    if (format == matchColorFormats.end()) {
+        throw std::logic_error("Color format is not valid.");
+    }
+
+    return format->second;
+}
+
 //------------------------------------------------------------------------------
-BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob,
-    bool createRemoteMemoryDescriptor, bool isNeedAllocation)
+BlobDescriptor::BlobDescriptor(
+    const IE::DataPtr& desc, const IE::Blob::Ptr& blob, bool createRemoteMemoryDescriptor, bool isNeedAllocation)
     : _createRemoteMemoryDescriptor(createRemoteMemoryDescriptor), _isNeedAllocation(isNeedAllocation) {
     checkBlobIsValid(blob);
     checkBlobCompatibility(blob);
@@ -109,26 +123,28 @@ BlobDescriptor::BlobDescriptor(const InferenceEngine::DataPtr& desc, const Infer
     _desc = desc;
 }
 
-HddlUnite::Inference::BlobDesc BlobDescriptor::createUniteBlobDesc() {
+HddlUnite::Inference::BlobDesc BlobDescriptor::createUniteBlobDesc(
+    const bool& isInput, const IE::ColorFormat& colorFormat) {
     HddlUnite::Inference::BlobDesc blobDesc;
     HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
 
     size_t blobSize = _blobPtr->byteSize();
 
     // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
-    if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
+    if (_blobPtr->is<IE::NV12Blob>()) {
         createRepackedNV12Blob(_blobPtr);
         checkBlobIsValid(_repackedBlob);
         blobSize = _repackedBlob->byteSize();
     }
 
     blobDesc = HddlUnite::Inference::BlobDesc(precision, _createRemoteMemoryDescriptor, _isNeedAllocation, blobSize);
+    if (isInput) blobDesc.m_nnInputFormat = getColorFormat(colorFormat);
 
     return blobDesc;
 }
 
-void BlobDescriptor::createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& blobPtr) {
-    if (!blobPtr->is<InferenceEngine::NV12Blob>()) THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
+void BlobDescriptor::createRepackedNV12Blob(const IE::Blob::Ptr& blobPtr) {
+    if (!blobPtr->is<IE::NV12Blob>()) THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
 
     auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
     if (nv12Ptr == nullptr) THROW_IE_EXCEPTION << "Failed to cast nv12 blob.";
@@ -224,7 +240,7 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
     } else {
         blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
 
-        if (_blobPtr->is<InferenceEngine::NV12Blob>()) {
+        if (_blobPtr->is<IE::NV12Blob>()) {
             if (_repackedBlob == nullptr) {
                 THROW_IE_EXCEPTION << "Repacked nv12 blob is not created!";
             }
@@ -235,7 +251,7 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
 }
 
 //------------------------------------------------------------------------------
-LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::Ptr& blob)
     : BlobDescriptor(desc, blob, false, true) {
     if (blob->is<HDDL2RemoteBlob>()) {
         THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
@@ -243,7 +259,7 @@ LocalBlobDescriptor::LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, c
 }
 
 //------------------------------------------------------------------------------
-RemoteBlobDescriptor::RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob)
+RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::Ptr& blob)
     : BlobDescriptor(desc, blob, true, blob && !blob->is<HDDL2RemoteBlob>()) {
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
         _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();

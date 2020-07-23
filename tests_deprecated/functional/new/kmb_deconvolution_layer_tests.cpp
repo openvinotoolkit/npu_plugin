@@ -88,4 +88,4 @@ const std::vector<DeconvTestParams> deconvParams {
         .deconvParams(DeconvolutionParams().outChannels(16).kernel({2, 2}).strides({2, 2}).pad({0, 0, 0, 0}).group(16)),
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbDeconvLayerTests, testing::ValuesIn(deconvParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbDeconvLayerTests, testing::ValuesIn(deconvParams));

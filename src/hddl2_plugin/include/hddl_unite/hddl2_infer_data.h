@@ -40,8 +40,9 @@ class HddlUniteInferData {
 public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
-    explicit HddlUniteInferData(
-        const bool& needPreProcessing = false, const HDDL2RemoteContext::Ptr& remoteContext = nullptr);
+    explicit HddlUniteInferData(const bool& needPreProcessing = false,
+        const HDDL2RemoteContext::Ptr& remoteContext = nullptr,
+        const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR);
 
     void prepareUniteInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);
     void prepareUniteOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
@@ -73,6 +74,7 @@ private:
     std::once_flag _onceFlagOutputAllocations;
 
     HddlUnite::Inference::InferData::ProfileData _profileData = {};
+    InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
 };
 
 }  // namespace HDDL2Plugin

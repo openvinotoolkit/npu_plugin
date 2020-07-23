@@ -488,7 +488,7 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
         1, 0.7f);
 }
 
-INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
+INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
 
 TEST_F(KmbClassifyNetworkTest, DISABLED_precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
@@ -930,7 +930,7 @@ TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
         2, 0.1f);
 }
 
-TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
+TEST_F(KmbSegmentationNetworkTest, DISABLED_icnet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/icnet-camvid-ava-tf-0001/icnet_camvid_ava_tf_0001_tf_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)

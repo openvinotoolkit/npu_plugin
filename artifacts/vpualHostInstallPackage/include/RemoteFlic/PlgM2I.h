@@ -22,6 +22,8 @@ class PlgM2I : public PluginStub
 
     /** Constructor. */
     PlgM2I() : PluginStub("PlgM2I"){};
+    /** Destructor. */
+    ~PlgM2I();
 
     /** Create method. */
     int Create();

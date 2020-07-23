@@ -115,4 +115,4 @@ const std::vector<ScaleShiftTestParams> scaleShiftParams {
                  .shift(0.3f)}
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbScaleShiftLayerTests, testing::ValuesIn(scaleShiftParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbScaleShiftLayerTests, testing::ValuesIn(scaleShiftParams));

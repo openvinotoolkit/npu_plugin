@@ -41,7 +41,8 @@ public:
         bool createRemoteMemoryDescriptor, bool isNeedAllocation);
     virtual ~BlobDescriptor() = default;
 
-    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc();
+    virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc(
+        const bool& isInput, const InferenceEngine::ColorFormat& colorFormat);
     virtual void initUniteBlobDesc(HddlUnite::Inference::BlobDesc&);
     virtual HddlUnite::Inference::NNInputDesc createNNDesc();
 

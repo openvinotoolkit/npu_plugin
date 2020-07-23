@@ -24,6 +24,7 @@
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
+#include "memory_usage.h"
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
@@ -69,6 +70,31 @@ void HDDL2_RemoteBlob_UnitTests::SetUp() {
 }
 
 void HDDL2_RemoteBlob_UnitTests::setRemoteMemory(const std::string& data) { _remoteMemoryHelper.setRemoteMemory(data); }
+
+//------------------------------------------------------------------------------
+//      class HDDL2_RemoteBlob_UnitTests - check remote memory usage
+//------------------------------------------------------------------------------
+TEST_F(HDDL2_RemoteBlob_UnitTests, CheckRemoteMemoryUsage) {
+#if defined(_WIN32) || defined(__arm__) || defined(__aarch64__)
+    SKIP();
+#endif
+
+    double vm_before = 0., res_before = 0.;
+    MemoryUsage::procMemUsage(vm_before, res_before);
+    ASSERT_NE(res_before, 0.);
+
+    const size_t BLOBS_COUNT = 1000000;
+    for (size_t cur_blob = 0; cur_blob < BLOBS_COUNT; ++cur_blob) {
+        IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
+    }
+
+    double vm_after = 0., res_after = 0.;
+    MemoryUsage::procMemUsage(vm_after, res_after);
+    ASSERT_NE(res_after, 0.);
+
+    const double MAX_RES_GROW_KB = 10.;
+    ASSERT_LE(res_after - res_before, MAX_RES_GROW_KB);
+}
 
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_UnitTests Constructor - tensor + context + params
