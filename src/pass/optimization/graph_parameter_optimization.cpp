@@ -1331,7 +1331,7 @@ namespace mv
                 bool childInputSparsity = child["inputSparsity"].get<bool>();
 
                 // Sparsity must match
-                if(parentOutputSparsity != childInputSparsity)
+                if((parentOutputSparsity != childInputSparsity) && (parentOp.getOpType() != "Input"))
                 {
                     if( !(requiresCompilerActivationSparsity(childOp) and !parentOutputSparsity) ){
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()

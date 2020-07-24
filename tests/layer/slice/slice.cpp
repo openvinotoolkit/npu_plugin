@@ -42,7 +42,7 @@ int main()
     // Output
     auto output0 = om.output(concat0);
 
-    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
+    std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb-sc.json";
     unit.loadCompilationDescriptor(compDescPath);
     unit.loadTargetDescriptor(mv::Target::ma2490);
     unit.initialize();

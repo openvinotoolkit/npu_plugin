@@ -458,7 +458,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
-    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
+    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
@@ -516,9 +516,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else if(*tensorAllocatorName == "ProgrammableInput" || *tensorAllocatorName == "ProgrammableOutput")
     {
         auto offset = subtensor.get<std::vector<std::size_t>>("offset");
-        auto index = t->getOrder().subToInd(t->getShape(), offset);
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+        auto index = (*masterBuffer)->getData()->getOrder().subToInd((*masterBuffer)->getData()->getShape(), offset);
         auto byte_index = index * t->getDType().getSizeInBits() / 8;
         toBuild->data->data_index = byte_index;
         auto strides = tensorBufferIt->getStrides();
