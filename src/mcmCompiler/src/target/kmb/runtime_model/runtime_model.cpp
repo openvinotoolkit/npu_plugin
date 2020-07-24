@@ -3506,8 +3506,13 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
     
     // Hardcoded for 3d tensors 
     // TODO update when 3d RT ops enabled
+    auto current_idx = 0;
     for (unsigned i = 0; i < 4; ++i)
-        indices[strides[i]] = i;
+    {
+        // if stride not already in map, add it
+        if (indices.find(strides[i]) == indices.end())
+            indices[strides[i]] = current_idx++;
+    }
 
     for (auto it = indices.begin(); it != indices.end(); ++it)
         contVector.push_back(it->second);    
