@@ -308,7 +308,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         {
             outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
-        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+        auto outputTensorType = mv::DType("Default");
 
         std::vector<mv::Data::TensorIterator> convOutputs;
 
@@ -327,7 +327,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                         weightData[kernelOffset + cIdx * kernelStep] = 1.;
                     }
                     weight = om.constant(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
-                                         mv::Order(mv::Order::getRowMajorID(4)),
+                                         mv::Order(mv::Order::getColMajorID(4)),
                                          weightsTensorQuantizationParams);
                 }
                 else
@@ -338,7 +338,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                         weightData[kernelOffset + cIdx * kernelStep] = 1;
                     }
                     weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
-                                            mv::Order(mv::Order::getRowMajorID(4)),
+                                            mv::Order(mv::Order::getColMajorID(4)),
                                             weightsTensorQuantizationParams);
                 }
                 auto gridConv = om.depthwiseConv(sourceTensor, weight, {stride, stride}, {0, 0, 0, 0}, 1, outputTensorType,
