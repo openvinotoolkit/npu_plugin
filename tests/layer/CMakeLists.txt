@@ -165,11 +165,11 @@ else()
     add_executable(priorbox priorbox/priorbox.cpp)
     target_link_libraries(priorbox cm)
 
-    add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
-    target_link_libraries(proposal_TF cm)
+    #add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
+    #target_link_libraries(proposal_TF cm)
 
-    add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
-    target_link_libraries(proposal_caffe cm)
+    #add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
+    #target_link_libraries(proposal_caffe cm)
 
     add_executable(remove_pass remove_pass/remove_pass.cpp)
     target_link_libraries(remove_pass cm)
