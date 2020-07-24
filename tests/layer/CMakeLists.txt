@@ -123,8 +123,8 @@ else()
     add_executable(conv_dilation_ssd conv_dilation_ssd/conv_dilation_ssd.cpp)
     target_link_libraries(conv_dilation_ssd cm)
 
-    add_executable(conv_eltwise_fp conv_eltwise_fp/conv_eltwise_fp.cpp)
-    target_link_libraries(conv_eltwise_fp cm)
+    #add_executable(conv_eltwise_fp conv_eltwise_fp/conv_eltwise_fp.cpp)
+    #target_link_libraries(conv_eltwise_fp cm)
 
     add_executable(unfusable_scale unfusable_scale/unfusable_scale.cpp)
     target_link_libraries(unfusable_scale cm)
