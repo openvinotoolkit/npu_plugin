@@ -411,6 +411,8 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     else
         commandline += " -il NCHW";
 
+    commandline += " -ip U8";
+
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
     if (returnVal != 0)
