@@ -90,7 +90,7 @@ void KmbSegmentationNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
         const float meanIntersectionOverUnionTolerance) {
-    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const TensorDesc&) {
+    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap&) {
         // FIXME VPU compiler overrides any output precision to FP32 when asked
         // CPU doesn't override I32 output precision during compilation
         std::vector<long> vpuOut = fp32toNearestLong(toFP32(actualBlob));
@@ -105,5 +105,20 @@ void KmbSegmentationNetworkTest::runTest(
             << "meanIoUTolerance: " << meanIntersectionOverUnionTolerance;
     };
 
-    KmbNetworkTestBase::runTest(netDesc, image, check);
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      auto inputTensorDesc = inputs.begin()->second->getTensorDesc();
+
+      registerBlobGenerator(
+          inputs.begin()->first,
+          inputTensorDesc,
+          [&image](const TensorDesc& desc) {
+            const auto blob = loadImage(image, desc.getDims()[1], desc.getDims()[2], desc.getDims()[3]);
+            IE_ASSERT(blob->getTensorDesc().getDims() == desc.getDims());
+
+            return toPrecision(toLayout(blob, desc.getLayout()), desc.getPrecision());
+          });
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }

@@ -940,3 +940,26 @@ TEST_F(KmbSegmentationNetworkTest, DISABLED_icnet_camvid_ava_0001) {
         TestImageDesc("1024x1024/frankfurt_001016.png", false), // isBGR is false
         0.3f);  // mean intersection over union tolerance
 }
+
+TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
+    const auto left_eye_input_name = "left_eye_image";
+    const auto right_eye_input_name = "right_eye_image";
+    const auto head_pos_input_name = "head_pose_angles";
+
+    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/gaze-estimation-adas-0002/gaze_estimation_adas_0002_int8_from_fp16_ww22.xml")
+            .setUserInputPrecision(left_eye_input_name, Precision::U8)
+            .setUserInputLayout(left_eye_input_name, Layout::NHWC)
+            .setUserInputPrecision(right_eye_input_name, Precision::U8)
+            .setUserInputLayout(right_eye_input_name, Layout::NHWC)
+            .setUserInputPrecision(head_pos_input_name, Precision::FP32)
+            .setUserInputLayout(head_pos_input_name, Layout::NC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        left_eye_input_name,
+        "vpu/gm_0000_left.png",
+        right_eye_input_name,
+        "vpu/gm_0000_right.png",
+        head_pos_input_name,
+        std::vector<float>{-2.076815605163574, -2.1021695137023926, 0.13159990310668945});
+}
