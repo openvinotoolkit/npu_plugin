@@ -496,6 +496,31 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 // Start of test-set for KMB-beta IRv10
 //////////////////////////////////////////
 
+// C++ exception with description "Caught exception during unit run: Wrong strategy generated:
+// tensor fire6/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified" thrown in the test body.
+// [Track number: D#3467]
+TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw) {
+    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            0.3f,
+            1.f, 0.3f);
+}
+
+TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            0.3f,
+            1.f, 0.3f);
+}
+
 // C++ exception with description "Op:mbox_priorbox - OpError: Invalid input inputs (0) -
 // Invalid shape of the input 1 tensor (0:24576 - inconsistent with the dimension of the first input (65536)
 // [Track number: S#30693]
