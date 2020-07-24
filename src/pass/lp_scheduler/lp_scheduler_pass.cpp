@@ -32,11 +32,6 @@ typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
 
 
-static bool is_scheduler_output_enabled() {
-  const auto level = mv::Logger::getVerboseLevel();
-  return (mv::VerboseLevel::Error != level && mv::VerboseLevel::Silent != level);
-}
-
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
   typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
@@ -58,7 +53,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     assert(!stringfile.empty());
 
     const char *lp_sched_ddr_address_dump_filename = nullptr;
-    if (is_scheduler_output_enabled())
+    if (mv::isDebugFilesEnabled())
     {
       lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
@@ -68,7 +63,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::DDR_Address_Generator<dag_t> ddr_address_generator(
         model, input_dag, std::numeric_limits<int>::max());
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
-        "lp_sched_ddr_address_dump.txt", add_ddr_control_edges);
+        lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
     if (!status) {
       throw std::string("[DDR_Address_Generation]: insufficient DDR space");
     }
@@ -111,7 +106,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
 
   FILE *fptr = nullptr;
-  if (is_scheduler_output_enabled()) {
+  if (mv::isDebugFilesEnabled()) {
     const std::string output_file = passDesc.get<std::string>("output");
     fptr = fopen(output_file.c_str(), "w");
     assert(fptr);

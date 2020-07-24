@@ -1,15 +1,15 @@
-[submodule "googletest"]
-	path = contrib/googletest
+[submodule "googletest"] 
+	path = contrib/googletest 
 	url = https://github.com/google/googletest
 [submodule "flatbuffers"]
 	path = contrib/flatbuffers
 	url = https://github.com/google/flatbuffers.git
-[submodule "graphfile"]
-	path = schema/graphfile
-	url = ../graphFile-schema
 [submodule "easy_profiler"]
 	path = contrib/easy_profiler
 	url = https://github.com/yse/easy_profiler.git
 [submodule "gflags"]
 	path = tools/validate_tensor/contrib/gflags
 	url = https://github.com/gflags/gflags.git
+[submodule "graphfile"]
+        path = schema/graphfile
+        url = ../graphFile-schema
