@@ -46,7 +46,7 @@ InferenceEngine::ExecutableNetwork::Ptr ExecutableNetwork_Tests::_cacheExecNetwo
 
 void ExecutableNetwork_Tests::SetUp() {
     if (_cacheExecNetwork == nullptr) {
-        _cacheExecNetwork = std::make_shared<InferenceEngine::ExecutableNetwork>(ie.LoadNetwork(network, pluginName));
+        ASSERT_NO_THROW(_cacheExecNetwork = std::make_shared<InferenceEngine::ExecutableNetwork>(ie.LoadNetwork(network, pluginName)));
     }
     executableNetworkPtr = _cacheExecNetwork;
 }
