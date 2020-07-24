@@ -159,6 +159,9 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     ASSERT_EQ(inputData, resultData);
 }
 
+// TODO: unsetenv is not supported on windows platform
+#ifdef __unix__
+
 //------------------------------------------------------------------------------
 using InferRequestCreation_Tests = CoreAPI_Tests;
 // TODO Need to set env variable back after unset
@@ -170,6 +173,8 @@ TEST_F(InferRequestCreation_Tests, DISABLED_CanCompileButCanNotCreateRequestWith
     ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(cnnNetwork, pluginName)));
     ASSERT_ANY_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
 }
+
+#endif
 
 //------------------------------------------------------------------------------
 class Inference_onSpecificDevice : public CoreAPI_Tests {

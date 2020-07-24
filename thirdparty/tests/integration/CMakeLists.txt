@@ -56,10 +56,12 @@ addIeTargetTest(
         kmbPlugin
 )
 
-target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Werror
-        -Wno-error=strict-aliasing
-        -Wno-strict-aliasing
-        -Wno-unused-variable)
+if (UNIX)
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            -Wall
+            -Werror
+            -Wno-error=strict-aliasing
+            -Wno-strict-aliasing
+            -Wno-unused-variable)
+endif()

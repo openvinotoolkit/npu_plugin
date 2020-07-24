@@ -34,8 +34,10 @@ addIeTargetTest(
             VPU
 )
 
-target_compile_options(${TARGET_NAME}
-        PRIVATE
-        -Wall
-        -Wextra
-        -Werror)
+if (UNIX)
+    target_compile_options(${TARGET_NAME}
+            PRIVATE
+            -Wall
+            -Wextra
+            -Werror)
+endif()

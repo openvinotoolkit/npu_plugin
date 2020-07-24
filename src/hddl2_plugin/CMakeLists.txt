@@ -21,15 +21,11 @@ endif()
 set(TARGET_NAME "HDDL2Plugin")
 
 if(UNIX)
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww26)
+    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww30)
     set(ARCH_FORMAT ".tgz")
-    SET(CMAKE_FIND_LIBRARY_PREFIXES "lib")
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".so" ".a")
 else()
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww28_Windows)
+    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww30_Windows)
     set(ARCH_FORMAT ".zip")
-    SET(CMAKE_FIND_LIBRARY_PREFIXES "")
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES ".lib" ".dll")
 endif()
 
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
@@ -79,9 +75,7 @@ ie_add_plugin(NAME ${TARGET_NAME}
               DEVICE_NAME HDDL2)
 
 if (UNIX)
-  set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
-else()
-  set(EXTRA_COMPILE_OPTIONS  /W0)
+    set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
 endif(UNIX)
 
 target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})

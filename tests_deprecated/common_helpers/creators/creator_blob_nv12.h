@@ -70,10 +70,10 @@ namespace NV12Blob_Creator {
             THROW_IE_EXCEPTION << "Only U8 Precision supported in nv12 blob creator!";
         }
         const InferenceEngine::SizeVector& dims = tensorDesc.getDims();
-        const uint N_index = 0;
-        const uint C_index = 1;
-        const uint H_index = 2;
-        const uint W_index = 3;
+        const int N_index = 0;
+        const int C_index = 1;
+        const int H_index = 2;
+        const int W_index = 3;
 
         if (dims[N_index] != 1 || dims[C_index] != 3) {
             THROW_IE_EXCEPTION << "Only batch 1 and channel == 3 supported for nv12 creator!";
