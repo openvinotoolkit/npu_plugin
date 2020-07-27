@@ -20,6 +20,7 @@
 #include <string>
 
 // Inference Engine include
+#include <graph_transformer.h>
 #include <cnn_network_impl.hpp>
 #include <convert_function_to_cnn_network.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
