@@ -187,6 +187,12 @@ namespace mv
             return getDType().isDoubleType();
         }
 
+        // All floating point datatypes
+        // FP16 is underlyingly stored on int64
+        inline bool isFloatingPointType() const {
+            return getDType().isDoubleType() || getDType() == mv::DType("Float16");
+        }
+
         std::vector<DataElement> getData();
         const std::vector<int64_t> getDataPacked();
         int getNumZeroPoints();

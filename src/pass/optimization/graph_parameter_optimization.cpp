@@ -1449,8 +1449,10 @@ namespace mv
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
                 // so no real sparse acceleration will pe provided, only sparse decoding overhead
+                auto sparsityOverhead = childOp.getInputTensor(0)->isFloatingPointType() ?
+                    0.0625 : 0.125;
                 if (!parentOutputSparsity && childInputSparsity)
-                    execTime2 += execTime2 * 0.1;
+                    execTime2 += execTime2 * sparsityOverhead;
 
                 if(parent["spilling"].get<bool>())
                 {
