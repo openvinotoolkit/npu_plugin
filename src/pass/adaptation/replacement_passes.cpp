@@ -318,7 +318,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
             {
                 int kernelOffset = colIdx + stride * rowIdx;
                 mv::Data::TensorIterator weight;
-                if (sourceTensor->isDoubleType())
+                if (sourceTensor->isFloatingPointType())
                 {
                     std::vector<double> weightData(C * stride * stride, 0.);
                     for (unsigned cIdx = 0; cIdx < C; cIdx++)
@@ -326,20 +326,16 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                         weightData[kernelOffset + cIdx * kernelStep] = 1.;
                     }
                     weight = om.constant(weightData, {stride, stride, C, 1},
-                                        sourceTensor->getDType(),
+                                        mv::DType("Float64"),
                                         mv::Order(mv::Order::getColMajorID(4)),
                                         weightsTensorQuantizationParams);
                 }
                 else
                 {
                     std::vector<int64_t> weightData(C * stride * stride, 0);
-                    // In absence of a proper fp16 dtype class to handle tensor
-                    // population more nicely, prefer to keep the same dtype propagation
-                    auto unaryValue =  sourceTensor->getDType() == mv::DType("Float16") ?
-                        mv::fp32_to_fp16(1.0f) : 1ll;
                     for (unsigned cIdx = 0; cIdx < C; cIdx++)
                     {
-                        weightData[kernelOffset + cIdx * kernelStep] = unaryValue;
+                        weightData[kernelOffset + cIdx * kernelStep] = 1ll;
                     }
                     weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
                                             mv::Order(mv::Order::getColMajorID(4)),
@@ -466,23 +462,19 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         double inf = std::numeric_limits<double>::infinity();
         mv::QuantizationParams neutralWeightsQuantParams = {{0},{1.0},{-inf},{inf}};
 
-        if (sourceTensor->isDoubleType())
+        if (sourceTensor->isFloatingPointType())
         {
             double weightsValue = scaleValue;
             std::vector<double> weightsData(total_shape, weightsValue);
             //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
+                                mv::DType("Float64"),
                                 mv::Order(mv::Order::getRowMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
-            // In absence of a proper fp16 dtype class to handle tensor
-            // population more nicely, prefer to keep the same dtype propagation
-            auto weightsValue = sourceTensor->getDType() == mv::DType("Float16") ?
-                mv::fp32_to_fp16(scaleValue) : 1ll;
-            std::vector<int64_t> weightsData(total_shape, weightsValue);
+            std::vector<int64_t> weightsData(total_shape, 1ll);
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt(weightsData,
@@ -689,22 +681,18 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     double inf = std::numeric_limits<double>::infinity();
 
     // Create weights tensor
-    if (sourceTensor->isDoubleType())
+    if (sourceTensor->isFloatingPointType())
     {
         double weightsValue = scaleValue;
         std::vector<double> weightsData(total_shape, weightsValue);
         //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
         weights = om.constant(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float64"), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
     }
     else
     {
-        // In absence of a proper fp16 dtype class to handle tensor
-        // population more nicely, prefer to keep the same dtype propagation
-        auto weightsValue = sourceTensor->getDType() == mv::DType("Float16") ?
-            mv::fp32_to_fp16(scaleValue) : 1ll;
-        std::vector<int64_t> weightsData(total_shape, weightsValue);
+        std::vector<int64_t> weightsData(total_shape, 1ll);
         // If the input model is quantized, then the replacement pass needs to create
         // quantization params for the weights parameter of the depthwise convolution.
         weights = om.constantInt(weightsData,
