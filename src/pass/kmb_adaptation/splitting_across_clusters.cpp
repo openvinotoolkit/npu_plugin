@@ -502,6 +502,8 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
     };
     std::pair<std::string, std::string> clusteringToSoH("Clustering", "SplitOverH");
     std::pair<std::string, std::string> SoKToSoH("SplitOverK", "SplitOverH");
+    std::pair<std::string, std::string> HKSwitchToSoH("HKSwitch", "SplitOverH");
+    std::pair<std::string, std::string> HKSwitchToHKSwitch("HKSwitch", "HKSwitch");
     std::pair<std::string, std::string> SoKToHKSwitch("SplitOverK", "HKSwitch");
     std::pair<std::string, std::string> ClusteringToHKSwitch("Clustering", "HKSwitch");
     std::pair<std::string, std::string> SoHToSoK("SplitOverH", "SplitOverK");
@@ -606,8 +608,9 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                             inputTensor->cleanSubtensors();
                             outputTensor->cleanSubtensors();
-                            if (possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH || possibleCombination == SoKToHKSwitch ||
-                                 possibleCombination == ClusteringToHKSwitch)
+                            if (possibleCombination == clusteringToSoH || possibleCombination == HKSwitchToHKSwitch ||
+                                 possibleCombination == SoKToSoH || possibleCombination == SoKToHKSwitch ||
+                                 possibleCombination == ClusteringToHKSwitch || possibleCombination == HKSwitchToSoH)
                             {
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
                             }
