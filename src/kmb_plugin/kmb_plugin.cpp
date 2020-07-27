@@ -22,6 +22,7 @@
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <ie_util_internal.hpp>
+#include <graph_transformer.h>
 #include <inference_engine.hpp>
 #include <memory>
 #include <vector>
