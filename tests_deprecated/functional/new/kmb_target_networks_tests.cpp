@@ -822,6 +822,32 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
             TestImageDesc("224x224/cat3.bmp", false),
             1, 0.05f);
 }
+
+// Compilation fails with exception:
+// "Caught exception during unit run: propagateParameters ERROR:
+// inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: D#3453]
+TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
+    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+    // [Track number: S#3331]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+
+    const std::string data_name    = "data";
+    const std::string im_info_name = "im_info";
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/private/rfcn-resnet50/caffe/FP16-INT8/rfcn-resnet50_ww22.xml")
+            .setUserInputPrecision(data_name, Precision::U8)
+            .setUserInputLayout(data_name, Layout::NCHW)
+            .setUserInputPrecision(im_info_name, Precision::FP32)
+            .setUserInputLayout(im_info_name, Layout::NC)
+            .setUserOutputPrecision("cls_prob_reshape",  Precision::FP32)
+            .setUserOutputPrecision("bbox_pred_reshape", Precision::FP32),
+        "data",
+        TestImageDesc("224x224/cat3.bmp", false),
+        "im_info",
+        {224.f, 224.f, 1.f});
+}
 ////////////////////////////////////////////////////////////
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
