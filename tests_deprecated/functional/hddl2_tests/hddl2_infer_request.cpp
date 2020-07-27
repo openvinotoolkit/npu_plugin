@@ -196,7 +196,7 @@ void Inference_onSpecificDevice::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
-TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {
+TEST_F(Inference_onSpecificDevice, precommit_CanInferOnSpecificDeviceFromPluginMetrics) {
     std::vector<std::string> availableDevices = ie.GetMetric(pluginName, METRIC_KEY(AVAILABLE_DEVICES));
     ASSERT_TRUE(!availableDevices.empty());
 
@@ -207,7 +207,7 @@ TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromPluginMetrics) {
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_F(Inference_onSpecificDevice, CanInferOnSpecificDeviceFromGetAllDevices) {
+TEST_F(Inference_onSpecificDevice, precommit_CanInferOnSpecificDeviceFromGetAllDevices) {
     if (amountOfDevices <= 1) {
         GTEST_SKIP() << "Not enough devices for test";
     }
@@ -247,7 +247,7 @@ static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfi
 
 using InferenceWithPerfCount = Inference_onSpecificDevice;
 
-TEST_F(InferenceWithPerfCount, SyncInferenceWithPerfCount) {
+TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -293,7 +293,7 @@ void InferenceWithCheckLayout::SetUp() {
     inferRequest = executableNetwork.CreateInferRequest();
 }
 
-TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
+TEST_F(InferenceWithCheckLayout, precommit_SyncInferenceAndCheckLayout) {
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
     IE::Blob::Ptr inputBlob;
@@ -307,7 +307,7 @@ TEST_F(InferenceWithCheckLayout, SyncInferenceAndCheckLayout) {
     ASSERT_EQ(inferRequest.GetBlob(inputBlobName)->getTensorDesc().getLayout(), layoutOrig);
 }
 
-TEST_F(InferenceWithCheckLayout, CheckInputsLayoutAfterTwoInferences) {
+TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) {
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
     auto inferInputBlob = inferRequest.GetBlob(inputBlobName);
     IE::Blob::Ptr inputBlob;

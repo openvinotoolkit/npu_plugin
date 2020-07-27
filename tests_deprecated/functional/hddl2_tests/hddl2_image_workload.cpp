@@ -52,7 +52,7 @@ void ImageWorkload_Tests::SetUp() {
 
 //------------------------------------------------------------------------------
 using ImageWorkload_WithoutPreprocessing = ImageWorkload_Tests;
-TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
+TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -84,7 +84,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, SyncInference) {
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
 }
 
-TEST_F(ImageWorkload_WithoutPreprocessing, SyncInferenceNCHWInput) {
+TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
@@ -130,7 +130,7 @@ void ImageWorkload_WithPreprocessing::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
-TEST_F(ImageWorkload_WithPreprocessing, SyncInference) {
+TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     // ---- Load inference engine instance
     InferenceEngine::Core ie;
 
