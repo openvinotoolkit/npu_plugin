@@ -385,11 +385,15 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
+    //TODO update for audio support 
+#if 0
     if (layoutNHWC)
         commandline += " -il NHWC";
     else
         commandline += " -il NCHW";
-
+#else 
+    commandline += " -il NC";
+#endif 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
     if (returnVal != 0)
