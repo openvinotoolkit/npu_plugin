@@ -219,6 +219,7 @@ public:
         _inputPrecisions[name] = precision;
         return *this;
     }
+
     TestNetworkDesc& setUserInputLayout(
             const std::string& name,
             const Layout& layout) {
@@ -232,6 +233,7 @@ public:
         _outputPrecisions[name] = precision;
         return *this;
     }
+
     TestNetworkDesc& setUserOutputLayout(
             const std::string& name,
             const Layout& layout) {
@@ -303,8 +305,8 @@ private:
 
 class KmbNetworkTestBase : public KmbTestBase {
 protected:
-    using CheckCallback = std::function<void(const Blob::Ptr& actualBlob,
-                                             const Blob::Ptr& refBlob,
+    using CheckCallback = std::function<void(const BlobMap& actualBlob,
+                                             const BlobMap& refBlob,
                                              const ConstInputsDataMap& inputsDesc)>;
 
     using InitIntputCallback = std::function<void(const ConstInputsDataMap& inputs)>;
@@ -323,9 +325,9 @@ protected:
     ExecutableNetwork getExecNetwork(
             const TestNetworkDesc& netDesc);
 
-    Blob::Ptr calcRefOutput(
+    BlobMap calcRefOutput(
             const TestNetworkDesc& netDesc,
-            const BlobMap& inputBlobs);
+            const BlobMap& inputs);
 
     void runTest(
             const TestNetworkDesc& netDesc,
@@ -366,6 +368,11 @@ public:
             float confThresh,
             float boxTolerance, float probTolerance);
 
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            float confThresh,
+            float boxTolerance, float probTolerance);
+
 protected:
     static std::vector<utils::YoloBBox> parseOutput(
             const Blob::Ptr& blob,
@@ -376,6 +383,15 @@ protected:
             int imgWidth, int imgHeight, float boxTolerance, float probTolerance);
 };
 
+class KmbRFCNNetworkTest : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& data_name,
+            const TestImageDesc& image,
+            const std::string& im_info_name,
+            const std::vector<float>& im_info_values);
+};
 
 class KmbYoloV2NetworkTest : public KmbDetectionNetworkTest {
 public:

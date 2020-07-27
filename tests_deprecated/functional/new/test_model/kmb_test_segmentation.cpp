@@ -90,9 +90,16 @@ void KmbSegmentationNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
         const float meanIntersectionOverUnionTolerance) {
-    const auto check = [=](const Blob::Ptr& actualBlob, const Blob::Ptr& refBlob, const ConstInputsDataMap&) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+        IE_ASSERT(actualBlobs.size() == 1 &&
+                  actualBlobs.size() == refBlobs.size());
+        const auto& actualBlob = actualBlobs.begin()->second;
+        const auto& refBlob    = refBlobs.begin()->second;
         // FIXME VPU compiler overrides any output precision to FP32 when asked
         // CPU doesn't override I32 output precision during compilation
+
         std::vector<long> vpuOut = fp32toNearestLong(toFP32(actualBlob));
         std::vector<long> cpuOut = int32toLong(refBlob);
         ASSERT_EQ(vpuOut.size(), cpuOut.size())
