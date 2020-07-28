@@ -502,6 +502,10 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
     };
     std::pair<std::string, std::string> clusteringToSoH("Clustering", "SplitOverH");
     std::pair<std::string, std::string> SoKToSoH("SplitOverK", "SplitOverH");
+    std::pair<std::string, std::string> HKSwitchToSoH("HKSwitch", "SplitOverH");
+    std::pair<std::string, std::string> HKSwitchToHKSwitch("HKSwitch", "HKSwitch");
+    std::pair<std::string, std::string> SoKToHKSwitch("SplitOverK", "HKSwitch");
+    std::pair<std::string, std::string> ClusteringToHKSwitch("Clustering", "HKSwitch");
     std::pair<std::string, std::string> SoHToSoK("SplitOverH", "SplitOverK");
     std::pair<std::string, std::string> SoHToClustering("SplitOverH", "Clustering");
     auto globalParams = model.getGlobalConfigParams();
@@ -583,7 +587,6 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                     auto opStrategy = sinkOperators[0]->get<std::string>("splitStrategy");
                     auto tensorStrategy = outputTensor->get<std::string>("splitStrategy");
-
                     std::pair<std::string, std::string> possibleCombination(tensorStrategy, opStrategy);
                     for (auto restrictedCombination: incompatibleStrategies)
                     {
@@ -597,7 +600,7 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                             auto splitShapes = std::vector<mv::Shape>();
                             if (possibleCombination == SoHToClustering)
                             {
-                                for (auto i=0; i<numClusters; ++i)
+                                for (unsigned i=0; i<numClusters; ++i)
                                 {
                                     splitShapes.push_back(inputTensor->getSubTensor(i).getShape());
                                 }
@@ -605,18 +608,24 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
 
                             inputTensor->cleanSubtensors();
                             outputTensor->cleanSubtensors();
-                            if ((possibleCombination == clusteringToSoH || possibleCombination == SoKToSoH))
+                            if (possibleCombination == clusteringToSoH || possibleCombination == HKSwitchToHKSwitch ||
+                                 possibleCombination == SoKToSoH || possibleCombination == SoKToHKSwitch ||
+                                 possibleCombination == ClusteringToHKSwitch || possibleCombination == HKSwitchToSoH)
+                            {
                                 inputTensor->set<std::string>("overwriteStrategy", "ClusteringToSoH");
+                            }
                             else if ((possibleCombination == SoHToClustering || possibleCombination == SoHToSoK))
+                            {
                                 inputTensor->set<std::string>("overwriteStrategy", "SoHToClustering");
+                            }
                             // ... and splitting has to be done again!!! <- Price for efficiency
                             subTensorsGen(model, {inputTensor, outputTensor}, numClusters, pass);
-
+                            //NOTE: The soh->clustering will be solved with 4 dmas, adding offset instead of 1 direct
                             if (inputTensor->hasAttr("overwriteStrategy") && inputTensor->get<std::string>("overwriteStrategy") == "SoHToClustering")
                             {
                                 // Update Clustering H-axis offsets based on SoH splits
                                 auto leading_offset = 0;
-                                for (auto i=0; i<numClusters; ++i)
+                                for (unsigned i=0; i<numClusters; ++i)
                                 {
                                     auto offset = inputTensor->getSubTensor(i).get<std::vector<std::size_t>>("offset");
                                     offset[mv::IO_HEIGHT_DIMENSION] = leading_offset;

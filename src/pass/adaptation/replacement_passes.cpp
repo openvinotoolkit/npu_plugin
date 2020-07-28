@@ -245,7 +245,6 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
 
         auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
         auto sourceTensor = parentOpIt->getOutputTensor(0);
         auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
@@ -1237,6 +1236,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
                     operation->getName() + sliceName);
+                    om.getSourceOp(op)->set<bool>("DWWithReplaceLargeStrides", true);
             }
             else if (operation->getOpType()== "Conv")
             {

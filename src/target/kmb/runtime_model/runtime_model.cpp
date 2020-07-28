@@ -227,7 +227,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
         numericStrides = (*masterBuffer)->getData()->computeNumericStrides();
 
-    if (t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat"))
+    if ((t->hasAttr("dilatedWidthConcat") && t->get<bool>("dilatedWidthConcat")) ||
+            (t->hasAttr("dilatedSlices3DDMA") && t->get<bool>("dilatedSlices3DDMA")))
     {
         //NOTE: Covered only strides for z-major convolution
         for (unsigned idx = 0; idx < numericStrides.size(); idx++)
@@ -242,7 +243,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         numericStrides = dilatedStrides;
         dilatedStrides = bufferStrides;
     }
-
 
     numericStrides.push_back(underlyingTensor->getDType().getSizeInBits() / 8);
 
@@ -276,8 +276,31 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
-            if (t->hasAttr("streamId"))
-                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+            if (t->hasAttr("streamKId"))
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
+            else if (t->hasAttr("streamHId"))
+                toBuild->data->data_index += t->get<unsigned>("streamHId")
+                    * numericStrides[3] * t->get<std::size_t>("symmetrical_first_dimensionH");
+
+        }
+        else if (t->hasAttr("dilatedSlices3DDMA") &&
+                             t->get<bool>("dilatedSlices3DDMA"))
+        {
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+
+            if (t->hasAttr("streamHId"))
+            {
+                auto strides = tensorBufferIt->getStrides();
+                auto tShape = t->getShape();
+                //leading offset = (number of lines before) * C * W (C and W are the same for all streams over H)
+                auto leading_offset = strides[0]/(tShape[mv::IO_WIDTH_DIMENSION] * tShape[mv::IO_CHANNEL_DIMENSION]);
+
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += numericStrides[3]
+                        *leading_offset;
+            }
 
         }
         else
@@ -327,8 +350,30 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         {
             toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
             toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
-            if (t->hasAttr("streamId"))
-                toBuild->data->data_index += t->get<unsigned>("streamId") * dimensions[1];
+            if (t->hasAttr("streamKId"))
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += t->get<unsigned>("streamKId") * t->get<std::size_t>("symmetrical_first_dimensionK");
+            else if (t->hasAttr("streamHId"))
+                toBuild->data->data_index += t->get<unsigned>("streamHId")
+                    * numericStrides[3] * t->get<std::size_t>("symmetrical_first_dimensionH");
+
+        }
+        else if (t->hasAttr("dilatedSlices3DDMA") &&
+                             t->get<bool>("dilatedSlices3DDMA"))
+        {
+            toBuild->data->data_index += dilatedStrides[0] * t->get<std::size_t>("inputConcatTensorIdx");
+            toBuild->data->data_index += dilatedStrides[1] * t->get<std::size_t>("lineofConcatHeight");
+            if (t->hasAttr("streamHId"))
+            {
+                auto tShape = t->getShape();
+                //leading offset = (number of lines before) * C * W (C and W are the same for all streams over H)
+                auto local_leading_offset = leading_offset /
+                        (tShape[mv::IO_WIDTH_DIMENSION] * tShape[mv::IO_CHANNEL_DIMENSION]);
+
+                //NOTE could use dimensions[1], dim[2] but the last stream can have dim < than the previous
+                toBuild->data->data_index += numericStrides[3]
+                        * local_leading_offset;
+            }
         }
         else
             toBuild->data->data_index += leading_offset;
@@ -2908,6 +2953,7 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
     std::string taskType = opIt->getOpType();
     unsigned toReturn = 0;
     unsigned numClusters = cm.getGlobalConfigParams()->get<int>("Number_of_Clusters");
+
     if(taskType == "DPUTask")
     {
         if(opIt->hasAttr("splitStrategy"))
@@ -2940,7 +2986,6 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         // the number of dma is doubled since the strategy is shared between weights
         // and sparsity map. Techinically the isPopulated() check is not needed
         // because we never transfer sparse activation tensors.
-
         unsigned multiplicator = 1;
         if(inputTensor->isPopulated() && inputTensor->isSparse())
             multiplicator = 2;
@@ -2951,8 +2996,19 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
         if(numClusters > 1)
         {
             bool sourceIsBroadCasted = opIt->getInputTensor(0)->isBroadcasted();
+            //NOTE: When strategy is overwritten
+            if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
+            {
+               // inputTensor->setShape(outputTensor->getShape());
+                if (inputTensor->hasAttr("overwriteStrategy"))
+                {
+                    if (inputTensor->get<std::string>("overwriteStrategy") == "ClusteringToSoH")
+                        sourceIsBroadCasted = false;
+                }
+            }
             //NOTE: In case I spill from soh and I bring a sok tensor is not broadcasted
-            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK") || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
+            if ((opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverH" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK")
+                    || (opIt->getInputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped" && opIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverK"))
                 toReturn = 1;
             // NOTE: a sok tensor might come from a different strategy op
             else if(!sourceIsBroadCasted)
