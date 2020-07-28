@@ -30,7 +30,7 @@ The KMB plugin accepts the following options:
 | `VPU_COMPILER_CONCAT_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable concat scales alignment |
 | `VPU_COMPILER_WEIGHTS_ZERO_POINTS_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable weights zero points alignment |
 | `VPU_KMB_PLATFORM`    | `VPU_2490` | `VPU_2490` | Set the target device |
-| `VPU_KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the umber of threads to use for model execution |
+| `KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the number of threads to use for model execution |
 | `VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION`    | `YES`/`NO` | `NO` | Enable or disable blob transfer to device if LoadNetwork is called |
 | `VPU_KMB_COMPILATION_DESCRIPTOR_PATH`    | string | 'mcm_config/compilation' | Path to folder with compilation config files |
 | `VPU_KMB_COMPILATION_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for network compilation |
