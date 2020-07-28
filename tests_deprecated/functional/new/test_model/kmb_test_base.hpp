@@ -428,3 +428,11 @@ public:
         const std::string head_pos_input_name,
         std::vector<float> head_pos);
 };
+
+class SmokeNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(const TestNetworkDesc& netDesc);
+
+private:
+    std::default_random_engine rd;
+};

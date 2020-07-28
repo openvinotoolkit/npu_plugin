@@ -1246,3 +1246,23 @@ void KmbRFCNNetworkTest::runTest(
 
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Smoke test ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SmokeNetworkTest::runTest(const TestNetworkDesc& netDesc) {
+    const auto check = [=](const BlobMap&, const BlobMap&, const ConstInputsDataMap&) {};
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        for (const auto& input : inputs) {
+            registerBlobGenerator(input.first,
+                                  input.second->getTensorDesc(),
+                                  [&](const TensorDesc& desc) {
+                                      return genBlobUniform(desc, rd, 0, 2);
+                });
+        }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}

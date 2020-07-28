@@ -896,3 +896,19 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
         head_pos_input_name,
         std::vector<float>{-2.076815605163574, -2.1021695137023926, 0.13159990310668945});
 }
+
+TEST_F(SmokeNetworkTest, openpose_pose_cf_NHWC) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
+            .setUserInputPrecision("image", Precision::U8)
+            .setUserInputLayout("image", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32));
+}
+
+TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
+            .setUserInputPrecision("image", Precision::U8)
+            .setUserInputLayout("image", Layout::NCHW)
+            .setUserOutputPrecision("output", Precision::FP32));
+}
