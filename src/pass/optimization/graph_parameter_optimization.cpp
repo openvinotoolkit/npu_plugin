@@ -1053,6 +1053,10 @@ namespace mv
                 if(strategy["outputSparsity"].get<bool>() && (clustering == "SplitOverK" || clustering == "HKSwitch"))
                     return 13;
 
+                if (op.getOpType() == "DepthwiseConv" && op.hasAttr("DWWithReplaceLargeStrides")
+                        && op.get<bool>("DWWithReplaceLargeStrides") && (clustering == "SplitOverK"))
+                    return 13;
+
                 //NOTE: Subdilation storage element population is not implemented for the SOH case
                 if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
                         && op.get<bool>("DilatedSubConv")
