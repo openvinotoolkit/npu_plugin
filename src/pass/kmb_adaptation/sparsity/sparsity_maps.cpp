@@ -308,6 +308,166 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 seTensorIdx.push_back(newSize - 1);
                 dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
             }
+
+            if(dpuTask->getName() == "conv")
+            {
+                // auto returnedParams = model.getGlobalConfigParams();
+                mv::QuantizationParams emptyQuantParams = {{},{},{},{}};
+                // double CMX = returnedParams->get<unsigned>("cmx");
+
+                auto convOp = dpuTask;
+                // auto quantParams = convOp->get<mv::QuantizationParams>("quantParams");
+                // auto parent = om.getSourceOp(convOp->getInputTensor(0));
+                // auto originalShape = convOp->getInputTensor(0)->getShape();
+                // mv::Shape outputShape({32,32,16,1});
+                // auto outputTensor = convOp->getOutputTensor(0);
+                // auto outputTensorMemory = outputShape.totalSize() * std::ceil(outputTensor->getDType().getSizeInBits()/8.0);
+
+                // std::vector<int64_t> zeros(originalShape.totalSize(), 0);
+                // printf("constantZeros shape = %d\n", originalShape.totalSize());
+                // auto constantZeros = om.constantInt(zeros, originalShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, "constantZeros");
+
+                // // reconnect children to subgraph
+                // std::vector<mv::Data::OpListIterator> opsToLink;
+                // std::vector<std::size_t> inputSlots;
+                // std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+                // for (mv::Data::FlowSiblingIterator sinkFlow(parent.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+                // {
+                //     opsToLink.push_back(sinkFlow.sink());
+                //     inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                //     flowsToRemove.push_back(sinkFlow);
+                // }
+
+                // for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+                // {
+                //     om.undefineFlow(flowsToRemove[flowIdx]);
+                // }
+
+                // std::vector<mv::Data::TensorIterator> subConvs;
+                // mv::Data::TensorIterator concatIt;
+                // std::vector<mv::Data::TensorIterator> subConvsPerColumn;
+                // std::vector<mv::Data::TensorIterator> firstLevelConcats;
+
+                // for(int i = 0; i < 4; i++)
+                // {
+                //     if (i == 0)
+                //     {
+                //         subConvs.push_back(convOp->getInputTensor(0));
+                //     }
+                //     else
+                //     {
+                //         auto constantZeros = om.constantInt(zeros, originalShape, mv::DType("UInt8"), mv::Order("NHWC"), quantParams, "constantZeros" + std::to_string(i));
+                //         subConvs.push_back(constantZeros);
+                //     }
+                    
+                // }
+
+                // int dilationFactor = 2;
+                // auto name = convOp->getName();
+                // auto opId = convOp->get<unsigned>("opId");
+                // auto dtype = convOp->get<mv::DType>("dType");
+                // if (outputTensorMemory > CMX)
+                // {
+                //     for (size_t i = 0; i < 2; i++)
+                //     {
+                //         for (size_t j = 0; j < 2; j++)
+                //         {
+                //             subConvsPerColumn.push_back(subConvs[i*dilationFactor + j]);
+                //         }
+                //         concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
+                //                         name + std::to_string(i) + "DDR_WIDTH_join");
+                //         om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+                //         om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
+                //         om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
+                //         om.getSourceOp(concatIt)->set<unsigned>("dilationFactor", dilationFactor);
+                //         firstLevelConcats.push_back(concatIt);
+                //         subConvsPerColumn.clear();
+                //     }
+                //     concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
+                //     om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+                //     om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
+                //     om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
+                //     for (unsigned j = 0; j < opsToLink.size(); ++j)
+                //     {
+                //         opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                //         om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                //     }
+                // }
+                // else
+                // {
+                //     // Specify that next layer requires sparse input
+                //     // At least for now until we have a way to convert a tensor with storage elements into a dense one
+                //     // Assuming that this will be done after SSD-512
+                //     concatIt = om.implicitJoin(subConvs,
+                //         "HW",
+                //         dtype,
+                //         quantParams,
+                //         name + "dilatedjoin");
+                //     for (unsigned j = 0; j < opsToLink.size(); ++j)
+                //     {
+                //         opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                //         om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                //     }
+                // }
+                // om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+
+                auto inputTensorShape = mv::Shape({32,32,16,1});
+                auto mapShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                                    {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
+                                                    {inputTensorShape[mv::IO_CHANNEL_DIMENSION]/8},
+                                                    {1}});
+
+                std::vector<int64_t> unpopulatedSparsityMapData(mapShape.totalSize(), 255);
+                // for(int h = 0; h < 32; h++)
+                // {
+                //     for(int w = 0; w < 32; w++)
+                //     {
+                //         for(int c = 0; c < 16; c = c + 8)
+                //         {
+                //             if(((h % 2) == 0) && ((w % 2) == 0))
+                //             {
+                //                 int ind = (h * 32 * 16 + w * 16 + c) / 8;
+                //                 unpopulatedSparsityMapData[ind] = 255;
+                //             }
+                //             else
+                //             {
+                //                 int ind = (h * 32 * 16 + w * 16 + c) / 8;
+                //                 unpopulatedSparsityMapData[ind] = 0;
+                //             } 
+                //         }
+                //     }
+                // }
+                
+                std::string unpopulatedSparsityMapName = "activation_map";
+                auto unpopulatedSparsityMap = om.constantInt(unpopulatedSparsityMapData, mapShape, mv::DType("UInt8"), mv::Order("NHWC"), emptyQuantParams, unpopulatedSparsityMapName);
+                // om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", 100);
+                unsigned newInputsSize = convOp->addInputTensor(unpopulatedSparsityMap);
+                // unpopulatedSparsityMap->set<bool>("dilatedSubConvSM", true);
+                om.defineFlow(unpopulatedSparsityMap, convOp, newInputsSize - 1);
+                // auto smTensorIdx = dpuTask->hasAttr("unpopulatedSparsityMapIndex") ?
+                //         dpuTask->get<std::vector<size_t>>("unpopulatedSparsityMapIndex") :
+                //         std::vector<size_t>();
+                // smTensorIdx.push_back(newInputsSize - 1);
+
+                mv::Shape storageElementShape = mv::Shape({{inputTensorShape[mv::IO_WIDTH_DIMENSION]},
+                                                                    {inputTensorShape[mv::IO_HEIGHT_DIMENSION]},
+                                                                    {1},
+                                                                    {1}});
+                std::vector<int64_t> storageElementData(storageElementShape.totalSize(), 0);
+                std::string storageElementName = "storage_element_map";
+                auto storageElement = om.constantInt(storageElementData, storageElementShape, mv::DType("Int32"), mv::Order("NHWC"), emptyQuantParams, storageElementName);
+                // storageElement->set<bool>("dilatedSubConvSE", true);
+                // om.getSourceOp(storageElement)->set<unsigned>("opId", 200);
+                unsigned newSize = convOp->addInputTensor(storageElement);
+                om.defineFlow(storageElement, convOp, newSize - 1);
+                auto seTensorIdx = dpuTask->hasAttr("storageElementIndex") ?
+                    dpuTask->get<std::vector<size_t>>("storageElementIndex") :
+                    std::vector<size_t>();
+                seTensorIdx.push_back(newSize - 1);
+                dpuTask->set<std::vector<size_t>>("storageElementIndex", seTensorIdx);
+
+                
+            }
         }
     }
 }
