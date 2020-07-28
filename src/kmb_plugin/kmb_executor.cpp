@@ -236,7 +236,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     IE_PROFILING_AUTO_SCOPE(allocateGraph);
     initVpualObjects();
     static int graphId_main = 1;
-    int nThreads = _config.throghputStreams();
+    int nThreads = _config.throughputStreams();
     int nShaves = 16;
 
     _logger->info("KmbExecutor::allocateGraph begins");

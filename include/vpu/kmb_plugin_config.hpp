@@ -33,8 +33,14 @@
 #define VPU_KMB_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(VPU_KMB_##name)
 #define VPU_KMB_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::VPU_KMB_##name
 
+#define KMB_CONFIG_KEY(name) InferenceEngine::VPUConfigParams::_CONFIG_KEY(KMB_##name)
+#define KMB_CONFIG_VALUE(name) InferenceEngine::VPUConfigParams::KMB_##name
+
 #define DECLARE_VPU_KMB_CONFIG_KEY(name) DECLARE_CONFIG_KEY(VPU_KMB_##name)
 #define DECLARE_VPU_KMB_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(VPU_KMB_##name)
+
+#define DECLARE_KMB_CONFIG_KEY(name) DECLARE_CONFIG_KEY(KMB_##name)
+#define DECLARE_KMB_CONFIG_VALUE(name) DECLARE_CONFIG_VALUE(KMB_##name)
 
 namespace InferenceEngine {
 namespace VPUConfigParams {
@@ -61,7 +67,7 @@ DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
  * @brief [Only for kmbPlugin]
  * Type: integer, default is 1.
  */
-DECLARE_VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
+DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
 
 /**
  * @brief [Only for kmbPlugin]
