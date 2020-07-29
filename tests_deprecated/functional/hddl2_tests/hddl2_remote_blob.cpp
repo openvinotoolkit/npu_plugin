@@ -30,11 +30,10 @@ public:
     void SetUp() override;
     void TearDown() override;
 
-    using RemoteMemoryFd = uint64_t;
     IE::RemoteContext::Ptr remoteContextPtr = nullptr;
 
     IE::TensorDesc tensorDesc;
-    RemoteMemoryFd memoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory;
 
     RemoteMemory_Helper remoteMemoryHelper;
     const size_t memoryToAllocate = 1024 * 1024 * 4;
@@ -47,7 +46,8 @@ void HDDL2_Remote_Blob_Tests::SetUp() {
     remoteContextPtr = _remoteContextHelper.remoteContextPtr;
     tensorDesc = _tensorDescriptionHelper.tensorDesc;
 
-    memoryFd = remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), memoryToAllocate);
+    remoteMemory =
+        remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), memoryToAllocate);
 }
 
 void HDDL2_Remote_Blob_Tests::TearDown() {
@@ -57,14 +57,14 @@ void HDDL2_Remote_Blob_Tests::TearDown() {
 
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_Remote_Blob_Tests, CanCreateRemoteBlobUsingContext) {
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     ASSERT_NO_THROW(remoteContextPtr->CreateBlob(tensorDesc, blobParams));
 }
 
 // [Track number: S#28523]
-TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromFd_WillNotDestroyRemoteMemory_OnDestruction) {
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromRemoteMem_WillNotDestroyRemoteMemory_OnDestruction) {
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     const std::string memoryData = "Hello there!\n";
     remoteMemoryHelper.setRemoteMemory(memoryData);
@@ -75,7 +75,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_RemoteBlobFromFd_WillNotDestroyRemoteMe
 }
 
 TEST_F(HDDL2_Remote_Blob_Tests, CanGetParams) {
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
@@ -85,7 +85,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetParams) {
 }
 
 TEST_F(HDDL2_Remote_Blob_Tests, CanGetDeviceName) {
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
@@ -96,7 +96,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetDeviceName) {
 }
 
 TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
 
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
@@ -109,7 +109,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, CanGetTensorDesc) {
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
     {
@@ -125,7 +125,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_CanChangeRemoteMemory) {
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
     {
@@ -140,7 +140,7 @@ TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_NonLockedMemoryObject_CanNotChangeRemot
 TEST_F(HDDL2_Remote_Blob_Tests, DISABLED_MemoryLockedNotInLocalScope_CanNotChangeRemoteMemory) {
     const std::string memoryData = "Hello from HDDL2 Plugin!\n";
 
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     auto remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParams);
 
     auto lockedMemory = remoteBlobPtr->buffer();

@@ -24,14 +24,12 @@
 //------------------------------------------------------------------------------
 #include <ie_algorithm.hpp>
 
-using RemoteMemoryFd = uint64_t ;
-
 class RemoteMemory_Helper {
 public:
     using Ptr = std::shared_ptr<RemoteMemory_Helper>;
 
-    RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id, const size_t& size);
-    RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id,
+    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id, const size_t& size);
+    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id,
             const InferenceEngine::TensorDesc& tensorDesc);
     void destroyRemoteMemory();
 
@@ -42,8 +40,7 @@ public:
     virtual ~RemoteMemory_Helper();
 
 private:
-    HddlUnite::SMM::RemoteMemory::Ptr _memory = nullptr;
-    RemoteMemoryFd _memoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
 
 };
 
@@ -52,16 +49,16 @@ inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
 }
 
-inline RemoteMemoryFd RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
+inline HddlUnite::SMM::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
                                                                 const InferenceEngine::TensorDesc& tensorDesc) {
     const size_t size = InferenceEngine::details::product(
             tensorDesc.getDims().begin(), tensorDesc.getDims().end());
     return allocateRemoteMemory(id, size);
 }
 
-inline RemoteMemoryFd
+inline HddlUnite::SMM::RemoteMemory::Ptr
 RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &size) {
-    if (_memory != nullptr) {
+    if (_remoteMemory != nullptr) {
         printf("Memory already allocated!\n");
         return 0;
     }
@@ -72,24 +69,22 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
         return 0;
     }
 
-    _memory = HddlUnite::SMM::allocate(*context, size);
-    if (_memory == nullptr) {
+    _remoteMemory = HddlUnite::SMM::allocate(*context, size);
+    if (_remoteMemory == nullptr) {
         return 0;
     }
 
-    _memoryFd = _memory->getDmaBufFd();
-    return _memoryFd;
+    return _remoteMemory;
 }
 
 inline void RemoteMemory_Helper::destroyRemoteMemory() {
-    _memoryFd = 0;
-    _memory = nullptr;
+    _remoteMemory = nullptr;
 }
 
 inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
     std::vector<char> tempBuffer;
     tempBuffer.resize(size);
-    auto retCode = _memory->syncFromDevice(tempBuffer.data(), size);
+    auto retCode = _remoteMemory->syncFromDevice(tempBuffer.data(), size);
     if (retCode != HDDL_OK) {
         printf("[ERROR] Failed to sync memory from device!\n");
         return "";
@@ -101,7 +96,7 @@ inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string &dataToCompar
     const size_t size = dataToCompare.size();
     const std::string remoteMemory = getRemoteMemory(size);
     if (dataToCompare != remoteMemory) {
-        std::cout << "Handle: " << _memoryFd << " Remote memory " << remoteMemory
+        std::cout << "Handle: " << _remoteMemory->getDmaBufFd() << " Remote memory " << remoteMemory
                      << " != local memory " << dataToCompare << std::endl;
         return false;
     }
@@ -109,5 +104,5 @@ inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string &dataToCompar
 }
 
 inline void RemoteMemory_Helper::setRemoteMemory(const std::string& dataToSet) {
-    _memory->syncToDevice(dataToSet.data(), dataToSet.size());
+    _remoteMemory->syncToDevice(dataToSet.data(), dataToSet.size());
 }

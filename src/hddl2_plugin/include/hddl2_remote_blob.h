@@ -36,12 +36,12 @@ public:
     explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);
 
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
-    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    HddlUnite::SMM::RemoteMemory::Ptr getRemoteMemory() const { return _remoteMemory; }
     InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
-    RemoteMemoryFD _remoteMemoryFd;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory;
     InferenceEngine::ColorFormat _colorFormat;
     const Logger::Ptr _logger;
 };
@@ -83,7 +83,7 @@ public:
 
     std::string getDeviceName() const noexcept override;
 
-    RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
+    HddlUnite::SMM::RemoteMemory::Ptr getRemoteMemory() const { return _remoteMemory; }
 
     InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
 
@@ -103,7 +103,7 @@ protected:
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
     const HDDL2Config& _config;
-    const RemoteMemoryFD _remoteMemoryFd;
+    const HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory;
     const InferenceEngine::ColorFormat _colorFormat;
     std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;

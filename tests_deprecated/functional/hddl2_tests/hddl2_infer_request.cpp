@@ -77,8 +77,8 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
 
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    RemoteMemoryFd memoryFd = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -138,8 +138,8 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
 
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    RemoteMemoryFd memoryFd = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 

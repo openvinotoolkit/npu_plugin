@@ -61,22 +61,27 @@ TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 // TODO FAIL - HddlUnite problem
-TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectMemoryFD_ReturnNull) {
+TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectWorkloadID_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-    const int incorrectMemoryFd = INT32_MAX;
+    const int incorrectWorkloadID = INT32_MAX;
 
-    auto handle = allocatorPtr->wrapRemoteMemory(incorrectMemoryFd, correctSize);
-    ASSERT_EQ(handle, nullptr);
+    auto remoteMem = allocatorPtr->wrapRemoteMemory(incorrectWorkloadID, correctSize);
+    ASSERT_EQ(remoteMem, nullptr);
+
+    allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
+
+    remoteMem = allocatorPtr->wrapRemoteMemory(nullptr, correctSize);
+    ASSERT_EQ(remoteMem, nullptr);
 }
 
-TEST_F(RemoteAllocator_WrapMemory, NegativeMemoryFD_ReturnNull) {
+TEST_F(RemoteAllocator_WrapMemory, NegativeWorkloadID_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-    const int negativeMemoryFd = -1;
+    const int negativeWorkloadID = -1;
 
-    auto handle = allocatorPtr->wrapRemoteMemory(negativeMemoryFd, correctSize);
-    ASSERT_EQ(handle, nullptr);
+    auto remoteMem = allocatorPtr->wrapRemoteMemory(negativeWorkloadID, correctSize);
+    ASSERT_EQ(remoteMem, nullptr);
 }
 
 TEST_F(RemoteAllocator_WrapMemory, Allow4KFramWrapping) {
@@ -198,7 +203,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMe
     SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
-        SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
+        SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
     }
 
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
@@ -219,7 +224,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemor
     SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
-        SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
+        SKIP() << "If Inference Engine own remote memory, we can't get remote memory";
     }
 
     auto memoryHandle = allocatorHelper->createMemory(correctSize);

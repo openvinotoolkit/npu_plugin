@@ -64,19 +64,19 @@ public:
 
 private:
     RemoteMemory_Helper _remoteMemoryHelper;
-    RemoteMemoryFD _memoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
 };
 
 
 inline memoryHandle Allocator_WrappedRemoteMemory_Helper::createMemory(const size_t &size) {
-    return allocatorPtr->wrapRemoteMemory(_memoryFd, size);
+    return allocatorPtr->wrapRemoteMemory(_remoteMemory, size);
 }
 
 inline Allocator_WrappedRemoteMemory_Helper::
 Allocator_WrappedRemoteMemory_Helper(WorkloadContextPtr& workloadContextPtr)
                                         : Allocator_Helper(workloadContextPtr) {
     WorkloadID workloadId = workloadContextPtr->getWorkloadContextID();
-    _memoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, defaultSizeToAllocate);
+    _remoteMemory = _remoteMemoryHelper.allocateRemoteMemory(workloadId, defaultSizeToAllocate);
 }
 
 inline std::string Allocator_WrappedRemoteMemory_Helper::getRemoteMemory(const size_t &size) {

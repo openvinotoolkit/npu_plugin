@@ -173,9 +173,9 @@ void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
     HDDL2_RemoteContext_UnitTests::SetUp();
     if (HDDL2Metrics::isServiceAvailable()) {
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
-        RemoteMemoryFd remoteMemoryFd =
-                _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
-        blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(remoteMemoryFd);
+        auto remoteMemory =
+            _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
+        blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     }
 }
 

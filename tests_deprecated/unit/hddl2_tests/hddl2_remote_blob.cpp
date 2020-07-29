@@ -35,7 +35,7 @@ class HDDL2_RemoteBlob_UnitTests : public testing::Test {
 public:
     void SetUp() override;
 
-    const int notExistsBufFd = INT32_MAX;
+    const int incorrectWorkloadID = INT32_MAX;
 
     InferenceEngine::TensorDesc tensorDesc;
     size_t tensorSize;
@@ -49,7 +49,7 @@ public:
     void setRemoteMemory(const std::string& data);
 
 protected:
-    RemoteMemoryFd _remoteMemoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory;
     TensorDescription_Helper _tensorDescriptionHelper;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr = nullptr;
@@ -65,9 +65,9 @@ void HDDL2_RemoteBlob_UnitTests::SetUp() {
 
         remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
         WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
-        _remoteMemoryFd = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
+        _remoteMemory = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
 
-        blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+        blobParamMap = RemoteBlob_Helper::wrapRemoteMemToMap(_remoteMemory);
     }
 }
 
@@ -220,11 +220,11 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
 }
 
 // TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromNotExistsBufFd_ThrowException) {
+TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromIncorrectWorkloadID_ThrowException) {
     SKIP_IF_NO_DEVICE();
-    InferenceEngine::ParamMap notExistsFd = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), notExistsBufFd}};
+    InferenceEngine::ParamMap incorrectWorkloadID = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), incorrectWorkloadID}};
 
-    ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, notExistsFd, config));
+    ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, incorrectWorkloadID, config));
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectPararams_ThrowException) {
@@ -237,7 +237,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectPararams_ThrowExcept
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectType_ThrowException) {
     SKIP_IF_NO_DEVICE();
     int incorrectTypeValue = 10;
-    InferenceEngine::ParamMap incorrectTypeParams = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), incorrectTypeValue}};
+    InferenceEngine::ParamMap incorrectTypeParams = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), incorrectTypeValue}};
 
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, incorrectTypeParams, config));
 }

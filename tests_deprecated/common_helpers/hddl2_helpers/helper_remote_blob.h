@@ -16,11 +16,12 @@
 
 #pragma once
 
+#include <RemoteMemory.h>
 #include "hddl2_params.hpp"
 #include "ie_remote_context.hpp"
 
 namespace RemoteBlob_Helper {
-    static InferenceEngine::ParamMap wrapRemoteFdToMap(const uint64_t &remoteMemoryFd) {
-        return {{InferenceEngine::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    static InferenceEngine::ParamMap wrapRemoteMemToMap(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory) {
+        return {{InferenceEngine::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
     }
 }
