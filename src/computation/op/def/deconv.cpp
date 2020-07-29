@@ -95,8 +95,8 @@ namespace mv
 
             auto W = stride[0] * (dataShape[IO_WIDTH_DIMENSION] - 1) + ((kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1) - padding[0] - padding[1];
             auto H = stride[1] * (dataShape[IO_HEIGHT_DIMENSION] - 1) + ((kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1) - padding[2] - padding[3];
-            // auto C = kernelShape[KERNEL_OUTPUT_CHANNELS] * group;
-            auto C = kernelShape[KERNEL_INPUT_CHANNELS];
+            auto C = kernelShape[KERNEL_OUTPUT_CHANNELS] * group;
+            // auto C = kernelShape[KERNEL_INPUT_CHANNELS];
             auto N = dataShape[IO_BATCH_DIMENSION];
 
             mv::Shape outputShape({W, H, C, N});

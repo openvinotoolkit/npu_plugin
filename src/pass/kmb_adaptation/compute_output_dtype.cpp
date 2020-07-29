@@ -379,15 +379,20 @@ void decideOutputDataType(const mv::pass::PassEntry& pass, mv::ComputationModel&
 
             for (auto op : opList)
             {
+                std::cout << op->getName() << std::endl;
                 bool outputQuantized = !(!op->getOutputTensor()[0]->hasAttr("quantParams") ||
                     op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isEmpty() ||
                     op->getOutputTensor()[0]->get<mv::QuantizationParams>("quantParams").isNeutral());
+
+                std::cout << outputQuantized << std::endl;
 
                 bool inputQuantized = true;
                 for (auto tidx : opType.second)
                     inputQuantized &= op->getInputTensor(tidx)->hasAttr("quantParams") &&
                         !(op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isNeutral() ||
                         op->getInputTensor(tidx)->get<mv::QuantizationParams>("quantParams").isEmpty());
+
+                std::cout << inputQuantized << std::endl;
 
                 if (op->getOutputTensor()[0]->get<mv::DType>("dType") ==  mv::DType("Float16"))
                 {

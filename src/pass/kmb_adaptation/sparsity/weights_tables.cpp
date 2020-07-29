@@ -517,6 +517,7 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 
 //    if (parentImplicitOp->getOpType() == "ImplicitJoin")
 //    {
+
     numberSubConvs = parentImplicitOp.inputsSize();
     inputBaseAddress = getSmallestInputAddress(parentImplicitOp);
     //Original DF factor is sqrt() of inputs to ImplicitJoin
@@ -667,58 +668,6 @@ void populateInstructionListMap(mv::Data::TensorIterator instructionListTable)
     instructionListTable->populate(template_table_appropriate_type, mv::Order("NHWC"));
 }
 
-void populateActivationStorageElementMapForDeconv(mv::Data::OpListIterator dpuTaskOp, mv::ComputationModel& model)
-{
-    mv::OpModel om(model);
-
-    auto input = dpuTaskOp->getInputTensor()[0];
-    auto parentImplicitOp = om.getSourceOp(input);
-    std::size_t numberSubConvs = 0;
-    int64_t inputBaseAddress = 0;
-    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
-    auto width = activationStorageElement->getShape()[mv::IO_WIDTH_DIMENSION];
-    auto height = activationStorageElement->getShape()[mv::IO_HEIGHT_DIMENSION];
-    std::vector<int64_t> unpopulated_offsets(width*height, 0);
-    auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
-    long int increment = inputChannels * (input->getDType().getSizeInBits() / 8) ;
-
-    //NOTE: The code referring to the previous operation if concat
-    //is redundant as the final implementation was not to use an adittional operation
-    //but resolve the unshuffling of the tensor through the 3D-DMAs, so I am leaving to comments
-
-
-//    if (parentImplicitOp->getOpType() == "ImplicitJoin")
-//    {
-    // numberSubConvs = parentImplicitOp.inputsSize();
-    inputBaseAddress = input->getAddress();
-    // //Original DF factor is sqrt() of inputs to ImplicitJoin
-    // unsigned int originalDilationFactor = std::sqrt(numberSubConvs);
-
-    //for simplicity we pick base address as the smallest of all subconvs output addresses (to avoid negatives)
-    unsigned i = 0;
-    for(unsigned h = 0; h < height; ++h)
-    {
-        // unsigned subConvRowIdx = (h%originalDilationFactor)*originalDilationFactor;
-        for(unsigned w = 0; w < width; ++w)
-        {
-            // //get base address based on subConvIdx
-            // unsigned subConvIdx = subConvRowIdx + w%originalDilationFactor;
-            // auto subConvBaseAddressOffset = parentImplicitOp->getInputTensor(subConvIdx)->getAddress() - inputBaseAddress;
-            // auto subConvWidth = parentImplicitOp->getInputTensor(subConvIdx)->getShape()[mv::IO_WIDTH_DIMENSION];
-            // //calc offset from start of subconv
-            // unsigned subConvElementIdx = (h/originalDilationFactor)*subConvWidth + (w/originalDilationFactor);
-            // unsigned subConvElementOffset = subConvElementIdx * increment;
-
-
-
-            unpopulated_offsets[i++] = ((0) << SHIFT_FOR_STORAGE_ELEMENT);
-            //std::cout << " row " << h << " col " << w << " address "  <<  std::hex << unpopulated_offsets[i-1] << " not shifted " << (subConvBaseAddressOffset + subConvElementOffset) << std::endl;
-        }
-    }
-
-    activationStorageElement->populate(unpopulated_offsets, mv::Order("NHWC"));
-}
-
 static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -744,11 +693,6 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
             {
                 // NB this function still needs the correct logic to generate the SEPs
                 populateActivationStorageElementMapForLayerAfterDilatedConvolution(op, model);
-            }
-
-            if(op->getName() == "conv")
-            {
-                populateActivationStorageElementMapForDeconv(op, model);
             }
         }
     }

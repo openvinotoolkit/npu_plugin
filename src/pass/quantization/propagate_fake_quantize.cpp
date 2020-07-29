@@ -176,7 +176,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     mv::DataModel dm(model);
     auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
 
-    while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output") {
+    while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output" && current_ops[0]->getOpType() != "Deconv") {
         assert(!isQuantizableOp(current_ops[0]));
         current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
         assert(current_ops[0]->getOutputTensor().size() < 2);
@@ -191,6 +191,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
 
     // NO FQ on branches
     if (outQuantParams.empty()) {
+        std::cout << op->getName() << " " << op->getOpType() << " " << std::endl;
         return initial_quant_params();
     }
 
@@ -270,7 +271,7 @@ void propagateParameters(mv::ComputationModel& model) {
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Interp" || op->getOpType() == "Normalize" || op->getOpType() == "Deconv") { //Interp might be used for re-quantize, need the quant params
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -480,7 +481,10 @@ void quantizeIO(mv::ComputationModel& model) {
         auto input = inputs.at(idx);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
-        mv::QuantizationParams inputQuantParams = initial_quant_params();
+        auto params = input->get<mv::QuantizationParams>("quantParams");
+
+        // mv::QuantizationParams inputQuantParams = initial_quant_params();
+        mv::QuantizationParams inputQuantParams = params;
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
