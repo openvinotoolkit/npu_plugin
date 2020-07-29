@@ -96,6 +96,16 @@ endif()
 include(cmake-modules/code-coverage.cmake)
 add_code_coverage()
 
+# sanitizer options
+option(ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
+# TODO: it makes sense to print all important options on generation stage
+message(STATUS "ENABLE_SANITIZER: " ${ENABLE_SANITIZER})
+
+option(ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
+message(STATUS "ENABLE_THREAD_SANITIZER: " ${ENABLE_THREAD_SANITIZER})
+
+include(sanitizer)
+
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
