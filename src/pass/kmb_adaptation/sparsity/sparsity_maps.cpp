@@ -265,8 +265,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // Here we generate the sparsity maps required for dilated convolution
             // Should the sparsity map be size of the full input tensor or just the "sub conv" input tensor ?
             // I think it should be the full input tensor size ?
-            if ((dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
-                (dpuTask->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") && dpuTask->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")) )
+            if (dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
             {
                 auto inputTensorShape = dpuTask->getInputTensor(0)->getShape();
                 //every element of sparsity map describes 8 elements of normal tensor

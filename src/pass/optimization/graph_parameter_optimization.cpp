@@ -85,7 +85,6 @@ namespace mv
                 RealSparseForFakeSparseOp,
                 DilatedSOH,
                 DWLargeStrideReplacementSOK,
-                DilatedOutputSparsityConsumption,
                 SpiltOverHWithStreamOverK,
                 SparsityKSegmented,
                 SparsitySpilling,
@@ -110,7 +109,6 @@ namespace mv
                 {FailCause::RealSparseForFakeSparseOp, "RealSparseForFakeSparseOp"},
                 {FailCause::DilatedSOH, "DilatedSOH"},
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
-                {FailCause::DilatedOutputSparsityConsumption, "DilatedOutputSparsityConsumption"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
@@ -877,10 +875,6 @@ namespace mv
                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
 
-                if (op.isSparsityConsumer() and !isCMConv
-                        and (op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                        and op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
-                    return true;
                 return false;
             }
 
@@ -1159,11 +1153,6 @@ namespace mv
                 if (clustering == "SplitOverH" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
-
-                if (op.getOpType() == "Conv"  && op.hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                        && op.get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")
-                        && clustering == "SplitOverH")
-                    return FailCause::DilatedOutputSparsityConsumption;
 
                 return FailCause::Pass; //good strategy
             }

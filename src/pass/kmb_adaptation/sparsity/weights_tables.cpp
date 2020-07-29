@@ -697,13 +697,6 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
             {
                 populateActivationStorageElementMapForDilatedConvolution(op, model);
             }
-
-            if(op->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                    && op->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
-            {
-                // NB this function still needs the correct logic to generate the SEPs
-                populateActivationStorageElementMapForLayerAfterDilatedConvolution(op, model);
-            }
         }
     }
 }
