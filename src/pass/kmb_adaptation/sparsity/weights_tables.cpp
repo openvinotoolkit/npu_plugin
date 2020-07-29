@@ -517,7 +517,6 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 
 //    if (parentImplicitOp->getOpType() == "ImplicitJoin")
 //    {
-
     numberSubConvs = parentImplicitOp.inputsSize();
     inputBaseAddress = getSmallestInputAddress(parentImplicitOp);
     //Original DF factor is sqrt() of inputs to ImplicitJoin
