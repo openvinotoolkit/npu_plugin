@@ -3501,7 +3501,7 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
 {
 
     std::vector<std::size_t> contVector;
-    std::map<unsigned, unsigned> indices;
+    std::map<float, unsigned> indices;
     
     // Hardcoded for 3d tensors 
     // TODO update when 3d RT ops enabled
@@ -3509,8 +3509,9 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
     for (unsigned i = 0; i < 4; ++i)
     {
         // if stride not already in map, add it
-        if (indices.find(strides[i]) == indices.end())
-            indices[strides[i]] = current_idx++;
+        float unique_stride = strides[i] + float(i) / 100;
+        if (indices.find(unique_stride) == indices.end())
+            indices[unique_stride] = current_idx++;
     }
 
     for (auto it = indices.begin(); it != indices.end(); ++it)
