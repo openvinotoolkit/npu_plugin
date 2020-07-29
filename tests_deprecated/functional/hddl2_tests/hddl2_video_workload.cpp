@@ -75,7 +75,7 @@ void VideoWorkload_Tests::TearDown() { HddlUnite::unregisterWorkloadContext(work
 
 //------------------------------------------------------------------------------
 using VideoWorkload_WithoutPreprocessing = VideoWorkload_Tests;
-TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
+TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
@@ -146,7 +146,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrame) {
         toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
-TEST_F(VideoWorkload_WithoutPreprocessing, SyncInferenceOneRemoteFrameROI_Unsupported) {
+TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrameROI_Unsupported) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
@@ -219,7 +219,7 @@ void VideoWorkload_WithPreprocessing::SetUp() {
     refOutputPath = PrecompiledResNet_Helper::resnet50.outputPath;
 }
 
-TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
+TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
@@ -303,7 +303,7 @@ TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrame) {
         toFP32(outputBlob), toFP32(outputRefBlob), numberOfTopClassesToCompare));
 }
 
-TEST_F(VideoWorkload_WithPreprocessing, onOneRemoteFrameROI) {
+TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     // ---- Create workload context
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::createWorkloadContext();
     ASSERT_NE(nullptr, context.get());
