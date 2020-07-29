@@ -1423,7 +1423,7 @@ namespace mv
                     if (!parent["spilling"].get<bool>())
                     {
                         log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by final op HKSwitch");
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by output parent op not spilling");
                         return INF;
                     }
                 }
