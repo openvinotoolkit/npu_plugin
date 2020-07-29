@@ -317,9 +317,14 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
 bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
 {
-    if(!flow->getTensor()->isPopulated() &&
+    auto isDilatedConvRelated =
+        flow.sink()->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolvingForDilatedConv");
+
+    if((!flow->getTensor()->isPopulated() &&
         flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
-        flow.sink()->get<bool>("activationSparsityCompilerSolving"))
+        flow.sink()->get<bool>("activationSparsityCompilerSolving")) ||
+        isDilatedConvRelated)
            return true;
     return false;
 }

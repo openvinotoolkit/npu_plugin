@@ -31,8 +31,13 @@ void propagateRealSparsityLoss(mv::OpModel& om, mv::Data::OpListIterator op)
         // Proper sparsity does not propagate through implicit ops
         // Currently unimplemented
         auto childOp = flow.sink();
+        auto isDilatedConv =
+            childOp->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+            childOp->get<bool>("activationSparsityCompilerSolvingForDilatedConv");
+
         if (childOp->hasAttr("inputActivationSparsity") &&
-            childOp->get<bool>("inputActivationSparsity"))
+            childOp->get<bool>("inputActivationSparsity") &&
+            !isDilatedConv)
             childOp->set<bool>("activationSparsityCompilerSolving", true);
     }
 }
@@ -57,6 +62,17 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
         opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
     }
 
+    for (auto convOp : opsMap["Conv"])
+    {
+        // Dilated convolution HW processing optimization, requires custom
+        // sparsity generation which can't be serviced by runtime.
+        if (convOp->hasAttr("DilatedSubConv") && convOp->get<bool>("DilatedSubConv") &&
+            !(convOp->hasAttr("slicedInput3DDMA") && convOp->get<bool>("slicedInput3DDMA"))) {
+            convOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
+            propagateRealSparsityLoss(om, om.getSourceOp(convOp->getInputTensor(0)));
+        }
+    }
+
     // Decide wheter convolution sparsity is runtime or compiler solved
     for (auto convOp : opsMap["Conv"])
     {
@@ -65,7 +81,7 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
             !parentOp->get<bool>("outputActivationSparsity")) &&
             (convOp->hasAttr("inputActivationSparsity") &&
             convOp->get<bool>("inputActivationSparsity")))
-            convOp->set<bool>("activationSparsityCompilerSolving", true);
+            propagateRealSparsityLoss(om, parentOp);
     }
 
     // Decide wheter eltwise sparsity is runtime or compiler solved
@@ -86,18 +102,6 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
                 parentOp != om.opEnd(); ++parentOp)
                 propagateRealSparsityLoss(om, parentOp);
             eltwiseOp->set<bool>("activationSparsityCompilerSolving", true);
-        }
-    }
-
-    // Dilated convolution HW processing optimization, requires custom
-    // sparsity generation which can't be serviced by runtime.
-    for (auto convOp : opsMap["Conv"])
-    {
-        if (convOp->hasAttr("DilatedSubConv") && convOp->get<bool>("DilatedSubConv") &&
-            !(convOp->hasAttr("slicedInput3DDMA") && convOp->get<bool>("slicedInput3DDMA")))
-        {
-            propagateRealSparsityLoss(om, om.getSourceOp(convOp->getInputTensor(0)));
-            convOp->set<bool>("activationSparsityCompilerSolvingForDilatedConv", true);
         }
     }
 }
