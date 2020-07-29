@@ -307,6 +307,13 @@ class Contiguous_Resource_State {
           demands.emplace_back(*ditr_in);
         }
       }
+
+      if (demands.empty())
+        return true;
+
+      if (free_bins.empty())
+        return false;
+
       std::sort(demands.begin(), demands.end(), demand_ordering_t());
 
 
@@ -315,7 +322,7 @@ class Contiguous_Resource_State {
       typename demands_t::const_iterator ditr_end = demands.end();
       typename bins_t::const_iterator bitr = free_bins.begin();
       typename bins_t::const_iterator bitr_end = free_bins.end();
-      size_t remaining_space_in_curr_bin = (*bitr).length();
+      size_t remaining_space_in_curr_bin = (free_bins.size() == 0) ? 0 : (*bitr).length();
       bool is_fresh_bin = true;
 
       // In each iterator either we move to next demand or 

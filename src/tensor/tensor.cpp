@@ -168,10 +168,10 @@ void mv::Tensor::populate(const std::vector<double>& data)
             "does not match total size the tensor (" + std::to_string(shape_.totalSize()) + ")");
 
     auto dataSize = shape_.totalSize()/blockSize_;
-
-    for(std::size_t t=0; t<dataSize; t++){
+    for(std::size_t t=data_.size(); t<dataSize; t++){
         data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, DataElement(true)));
     }
+
     if (getOrder() != internalOrder_){
         std::vector<std::size_t> sub(shape_.ndims());
         for(std::size_t j = 0; j < data.size();++j){
@@ -205,8 +205,7 @@ void mv::Tensor::populate(const std::vector<mv::DataElement>& data)
             "does not match total size the tensor (" + std::to_string(shape_.totalSize()) + ")");
 
     auto dataSize = shape_.totalSize()/blockSize_;
-
-    for(std::size_t t=0; t<dataSize; t++){
+    for(std::size_t t=data_.size(); t<dataSize; t++){
         data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, data[0].isDouble()));
     }
 
@@ -249,8 +248,7 @@ void mv::Tensor::populate(const std::vector<int64_t>& data)
     }
 
     auto dataSize = shape_.totalSize()/blockSize_;
-
-    for(std::size_t t=0; t<dataSize; t++)
+    for(std::size_t t=data_.size(); t<dataSize; t++)
         data_.push_back(std::make_shared<std::vector<DataElement>>(blockSize_, false));
 
     if (getOrder() != internalOrder_){

@@ -60,7 +60,7 @@ int main()
     om.output(fc_3);
 
     std::string compDescPath = mv::utils::projectRootPath() +
-        "/tests/layer/multiple_conv_eltwise_sc_fp/release_kmb_multiple_conv_eltwise_sc_fp.json";
+        "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
 
     unit.loadTargetDescriptor(mv::Target::ma2490);
