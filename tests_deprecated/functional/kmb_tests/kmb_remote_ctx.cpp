@@ -216,7 +216,7 @@ static Blob::Ptr wrapImageToBlob(const Image& image, const RemoteContext::Ptr& c
         paramsUV[InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE)] = reinterpret_cast<void*>(image.planes[1]);
     }
     RemoteBlob::Ptr blobUV = contextPtr->CreateBlob(planeUV, paramsUV);
-    if (blobY == nullptr) {
+    if (blobUV == nullptr) {
         throw std::runtime_error("Failed to create remote blob for UV plane");
     }
 
