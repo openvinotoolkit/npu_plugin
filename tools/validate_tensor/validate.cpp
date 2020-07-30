@@ -356,6 +356,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (FLAGS_r)
         commandline += (" -r ");
 
+    if (! FLAGS_il.empty() )
+        commandline += (" -il " + FLAGS_il);
+
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -363,20 +366,23 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         std::cout << std::endl << "Error occurred running the test_classification (CPU mode)!" << std::endl;
         return FAIL_ERROR;
     }
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
-        return FAIL_CPU_PLUGIN;
+    if ((FLAGS_il.empty()) || (FLAGS_il == "NHWC") || (FLAGS_il == "NCHW"))
+    {
+        if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_OUTPUT} ))
+            return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
-        return FAIL_CPU_PLUGIN;
+        if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR} ))
+            return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR} ))
-        return FAIL_CPU_PLUGIN;
+        if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_BGR} ))
+            return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_RGB} ))
-        return FAIL_CPU_PLUGIN;
+        if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_RGB} ))
+            return FAIL_CPU_PLUGIN;
 
-    if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
-        return FAIL_CPU_PLUGIN;
+        if (!checkFilesExist( {std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NHWC_RGB} ))
+            return FAIL_CPU_PLUGIN;
+    }
 
     // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
@@ -385,15 +391,13 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
-    //TODO update for audio support 
-#if 0
-    if (layoutNHWC)
+    if (!FLAGS_il.empty())
+        commandline += " -il " + FLAGS_il;
+    else if (layoutNHWC)
         commandline += " -il NHWC";
     else
         commandline += " -il NCHW";
-#else 
-    commandline += " -il NC";
-#endif 
+
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
     if (returnVal != 0)
