@@ -4,28 +4,20 @@
             {
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
-                "recorded_model": false,
+                "recorded_model": true,
                 "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 31457280,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
                 "enable_channel_major_conv": true,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
-                "PredictionOfQuantizationOutput": false,
-                "FloatOutput": true,
-                "Int32Output": false,
-                "PPEAccuracy": false,
-                "PWLUsage": true,
-                "ReferenceMode": false,
-                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
@@ -92,13 +84,7 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            },
-            "UseReferenceOps"
-        ]
-    },
-    "quantization" : {
-        "Singular" : [
-            "FakeQuantize"
+            }
         ]
     },
     "adapt": {
@@ -108,27 +94,18 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "PreprocessForPWL",
-            "CheckPWLForRequantize",
-            "ConvDilationUsingStorageElement",
-            "HandleGroupConvolution",
-            "StreamBinaryDataWeights",
-            "DecideOutputDataType",
-            "PlaceNeutralMaxPoolBefore",
-            "PlacementOfOps",
-            "PostTrainingQuantize",
+            "ConvolutionDilation",
             "EltwiseToSWEltwise",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
                         {"name" : "ddrBandwidth",   "value" : 128 },
                         {"name" : "systemClockMhz", "value" : 500 },
-                        {"name" : "FathomSafetyFactor", " value" : 1.0},
+                        {"name" : "FathomSafetyFactor", " value" : 0.75},
                         {"name" : "createStrategyDots", "value" : false},
                         {"name" : "dotFileLocation", "value" : "./output/dots/strategy/"},
                         {"name" : "jsonOutFileName", "value" : "./output/mcmCompiler_strategy_output.json"}
@@ -137,15 +114,15 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "forceActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true },
+                        {"name" : "enableActivationSparsity",    "value" : true      },
+                        {"name" : "enableWeightsSparsity",    "value" : true      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK","StreamOverN"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -155,9 +132,8 @@
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering","SplitOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -166,7 +142,7 @@
                         {
                             "name" : "MaxPool",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -185,7 +161,7 @@
                         {
                             "name" : "Add",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -195,22 +171,19 @@
                     ]
                 }
             },
-            "StoreGraphOptimizerDecisions",
-            "ComputeSparsitySolution",
+            "StoreLayerSplitStrategy",
+            "StoreLayerSparsityStrategy",
+            "StoreTensorPlacement",
             "StreamingOperations",
-            "StreamBinaryDataWeights",
-            "StreamCopyOperations"
+            "StreamBinaryDataWeights"
         ]
     },
     "kmb_adapt": {
         "Singular": [
             "ConcatAsImplicit",
-            "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
-            "AdaptFixedPointCompute",
             "SetUpPPETasks",
             "ForceSerialize",
             "KMBOrderConversion",
@@ -222,7 +195,6 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -250,6 +222,10 @@
             "TaskControlFlows",
             "TransitiveReduction",
             "LayerNumbering",
+            {
+                "name": "HangingDmaControlFlows",
+                "weights_prefetch": 1
+            },
             "TransitiveReduction",
             "LayerNumbering",
             "NNCMX2DDRControlFlows",
@@ -259,18 +235,14 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsEltwise",
-            { "name": "LpScheduler",
-              "output" : "lp_scheduler_output.txt",
-              "ddr_address_generation" : true,
-              "no_temporal_edges" : true
-            },
+            "AddDeallocationTasks",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
+            "MarkLastNodeForMaxTopologicalCut",
+            "MaxTopologicalCutAndPartialSerialisation",
             "TransitiveReduction",
-            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -282,28 +254,23 @@
             "AllocateGraphfileTensorsKmb",
             "ReAllocateImplicitOperationsKmb",
             "AllocateCMXTensorsKmb",
+            "TensorGraphColoring",
+            "RemoveDeallocationTasks",
+            "TransitiveReduction",
             {
-              "name": "LpScheduler",
-              "output" : "lp_scheduler_output.txt",
-              "allocator_mode": true,
-              "ddr_control_edges" : true
+                "name" : "InsertBarrierTasks",
+                "barrier_reuse_window" : 0
             },
             "TransitiveReduction",
-            "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers",
-            "PopulateInstructionListTables"
+            "PopulateWeightsTablesPointers"
         ]
     },
     "scheduling": {
         "Singular": [
-            {
-              "name" : "BarrierSchedulerPass",
-              "real_physical_barriers": 32,
-              "barrier_bound" : 16,
-              "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true
-            }
+            "StoreBarriersNamesInTasks",
+            "GenerateExecutionSchedule",
+            "BarrierIndexAssignment",
+            "UpdateBarrierRefs"
         ]
     },
     "validate": {
@@ -314,17 +281,20 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
             }
+
         ]
     },
     "root": {
         "Singular": [
             "initialize",
-            "quantization",
             "adapt",
             "kmb_adapt",
             "dma",
