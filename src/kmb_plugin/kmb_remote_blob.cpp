@@ -96,6 +96,17 @@ KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, cons
     _allocatorPtr = kmbAllocatorPtr;
 }
 
+KmbRemoteBlob::KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest)
+    : RemoteBlob(make_roi_desc(origBlob.getTensorDesc(), regionOfInterest, true)),
+      _memoryHandle(origBlob._memoryHandle),
+      _params(origBlob._params),
+      _remoteContextPtr(origBlob._remoteContextPtr),
+      _allocatorPtr(origBlob._allocatorPtr),
+      _config(origBlob._config),
+      _remoteMemoryFd(origBlob._remoteMemoryFd),
+      _logger(std::make_shared<Logger>("KmbRemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
+}
+
 bool KmbRemoteBlob::deallocate() noexcept {
     if (_allocatorPtr == nullptr) {
         return false;
@@ -146,3 +157,7 @@ size_t KmbRemoteBlob::size() const noexcept {
 }
 
 size_t KmbRemoteBlob::byteSize() const noexcept { return size() * element_size(); }
+
+InferenceEngine::Blob::Ptr KmbRemoteBlob::createROI(const InferenceEngine::ROI& regionOfInterest) const {
+    return Blob::Ptr(new KmbRemoteBlob(*this, regionOfInterest));
+}

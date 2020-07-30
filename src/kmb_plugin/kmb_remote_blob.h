@@ -50,10 +50,11 @@ public:
 
     explicit KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
         const InferenceEngine::ParamMap& params, const KmbConfig& config);
+    explicit KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~KmbRemoteBlob() override = default;
 
     /**
-     * @details Since Remote blob just wrap remote memory, allocation is not required
+     * @details Since Remote blob just wraps remote memory, allocation is not required
      */
     void allocate() noexcept override {}
 
@@ -84,6 +85,8 @@ public:
     size_t size() const noexcept override;
 
     size_t byteSize() const noexcept override;
+
+    InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
 protected:
     void* _memoryHandle = nullptr;
