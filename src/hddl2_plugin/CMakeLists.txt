@@ -20,7 +20,13 @@ endif()
 
 set(TARGET_NAME "HDDL2Plugin")
 
-set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww28)
+if(UNIX)
+    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww30)
+    set(ARCH_FORMAT ".tgz")
+else()
+    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww30_Windows)
+    set(ARCH_FORMAT ".zip")
+endif()
 
 set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
 
@@ -38,7 +44,7 @@ if(DEFINED IE_PATH_TO_DEPS)
     reset_deps_cache(HDDL_UNITE)
 
     RESOLVE_DEPENDENCY(HDDL_UNITE
-            ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}.tgz"
+            ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}${ARCH_FORMAT}"
             ENVIRONMENT "HDDL_UNITE"
             TARGET_PATH "${TEMP}/hddl_unite")
 
@@ -50,7 +56,11 @@ find_library(HDDL_UNITE_LIBRARY
         HINTS "${HDDL_UNITE}/lib"
         NO_DEFAULT_PATH)
 
-add_library(HddlUnite SHARED IMPORTED GLOBAL)
+if (WIN32)
+    add_library(HddlUnite STATIC IMPORTED GLOBAL)
+else()
+    add_library(HddlUnite SHARED IMPORTED GLOBAL)
+endif()
 
 set_target_properties(HddlUnite PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${TEMP}/hddl_unite/include"
@@ -64,11 +74,11 @@ ie_add_plugin(NAME ${TARGET_NAME}
               VERSION_DEFINES_FOR src/hddl2_plugin.cpp
               DEVICE_NAME HDDL2)
 
-target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Wextra
-        -Werror)
+if (UNIX)
+    set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
+endif(UNIX)
+
+target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})

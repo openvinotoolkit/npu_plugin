@@ -20,6 +20,22 @@ add_subdirectory(unit/kmb_plugin)
 add_subdirectory(models_helpers)
 
 if(ENABLE_HDDL2_TESTS)
+    if (UNIX)
+        find_library(XLINK_LIBRARY
+                NAMES  XLink
+                HINTS "${TEMP}/hddl_unite/thirdparty/XLink/lib"
+                NO_DEFAULT_PATH)
+
+        add_library(XLink SHARED IMPORTED GLOBAL)
+
+        set_target_properties(XLink PROPERTIES
+                IMPORTED_LOCATION ${XLINK_LIBRARY}
+                IMPORTED_NO_SONAME TRUE)
+
+        set(XLINK_LIB XLink CACHE INTERNAL "")
+    else()
+        set(XLINK_LIB "" CACHE INTERNAL "")
+    endif()
     add_subdirectory(unit/hddl2_tests)
 endif()
 

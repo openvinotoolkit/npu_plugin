@@ -26,7 +26,7 @@ addIeTargetTest(
         IE::IESharedTests
         HDDL2Plugin_test_static
         HddlUnite
-        XLink
+        ${XLINK_LIB}
         IE::gtest
         IE::gtest_main
         frontend_mcm
@@ -34,8 +34,10 @@ addIeTargetTest(
         kmbTestData
 )
 
-target_compile_options(${TARGET_NAME}
-    PRIVATE
-        -Wall
-        -Werror
-        -Wextra)
+if (UNIX)
+    target_compile_options(${TARGET_NAME}
+        PRIVATE
+            -Wall
+            -Werror
+            -Wextra)
+endif()

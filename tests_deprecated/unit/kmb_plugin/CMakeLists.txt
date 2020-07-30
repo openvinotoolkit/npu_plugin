@@ -36,11 +36,13 @@ addIeTargetTest(
         kmbTestData
 )
 
-target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-	    -Wextra)
+if (UNIX)
+    target_compile_options(${TARGET_NAME}
+            PRIVATE
+                -Wall
+                -Werror
+            -Wextra)
+endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

@@ -35,26 +35,20 @@ namespace PrecompiledResNet_Helper {
     // Actual version, fp16 output
     static const modelBlobInfo resnet50 =
             {
-                    .graphName = "resnet-50",
-                    .graphPath = resnet_50_folder + "resnet-50.blob",
-                    .inputPath = resnet_50_folder + "input.bin",
-                    .outputPath = resnet_50_folder + "output.bin",
-                    .nv12Input = resnet_50_folder + "input-228x228-nv12.bin",
-                    .nv12Output = resnet_50_folder + "output-228x228-nv12.bin",
-                    .nv12_1080Input= "input-cat-1080x1080-nv12.bin",
-                    .nv12_1080Output = "output-cat-1080x1080-nv12.bin"
+                    "resnet-50", resnet_50_folder + "resnet-50.blob", resnet_50_folder + "input.bin", resnet_50_folder + "output.bin",
+                    resnet_50_folder + "input-228x228-nv12.bin", resnet_50_folder + "output-228x228-nv12.bin",
+                    "input-cat-1080x1080-nv12.bin", "output-cat-1080x1080-nv12.bin"
             };
 
     static const modelTensors resnet50_tensors =
             {
-                    .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                                               {1, 3, 224, 224},
-                                                               InferenceEngine::Layout::NCHW
-                    ),
-                    .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
-                                                                {1, 1000, 1, 1},
-                                                                InferenceEngine::Layout::NCHW
-                    )
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
+                                                 {1, 3, 224, 224},
+                                                 InferenceEngine::Layout::NCHW),
+
+                    InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
+                                                 {1, 1000, 1, 1},
+                                                 InferenceEngine::Layout::NCHW)
             };
 };
 

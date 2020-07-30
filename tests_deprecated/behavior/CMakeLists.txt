@@ -21,8 +21,10 @@ addIeTargetTest(
             KMB
 )
 
-target_compile_options(${TARGET_NAME}
-        PRIVATE
-        -Wall
-        -Werror
-        -Wextra)
+if (UNIX)
+    target_compile_options(${TARGET_NAME}
+            PRIVATE
+            -Wall
+            -Werror
+            -Wextra)
+endif()
