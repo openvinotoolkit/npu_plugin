@@ -41,7 +41,7 @@ int main()
     const auto output_max = om.constant({4096.000000}, {1}, mv::DType("Float32"), mv::Order("W"), {{0},{1.000000000000000},{-inf},{inf},{0},{1}}, "output_max");
     auto fakeQuant = om.fakeQuantize(deconv, input_min, input_max, output_min, output_max, 256, "fakeQuantize");
     
-    om.output(fakeQuant);
+    om.output(fakeQuant, mv::DType("Float16"));
 
     std::string compDescPath = mv::utils::projectRootPath() + "/config/compilation/release_kmb.json";
     unit.loadCompilationDescriptor(compDescPath);
