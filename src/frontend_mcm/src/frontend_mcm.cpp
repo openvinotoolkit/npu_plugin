@@ -90,7 +90,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"Tile",               &FrontEndMcm::parseTile},
                 {"Normalize",          &FrontEndMcm::parseNormalize},
                 {"PriorBox",           &FrontEndMcm::parsePriorBox},
-		{"PriorBoxClustered",  &FrontEndMcm::parsePriorBoxClustered},
+                {"PriorBoxClustered",  &FrontEndMcm::parsePriorBoxClustered},
                 {"Permute",            &FrontEndMcm::parsePermute},
                 {"DetectionOutput",    &FrontEndMcm::parseDetectionOutput},
                 {"RegionYolo",         &FrontEndMcm::parseRegionYolo},
@@ -108,7 +108,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"ArgMax",             &FrontEndMcm::parseArgMax},
                 {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
-		{"Const",              &FrontEndMcm::parseConst},
+                {"Const",              &FrontEndMcm::parseConst},
         };
 
 mv::DType convert_data_type(const ie::Precision& iePrecision) {
@@ -476,19 +476,18 @@ static void setFakeQuantizeParams(const InferenceEngine::CNNLayerPtr& fakeQuanti
     CNNNetworkHelper::updateBlobs(*fakeQuantizeLayer, 4, scaledOutputHighValues);
 }
 
-std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
-    std::vector<CNNLayerPtr> result;
+namespace {
+int appendFQfromInput(const CNNLayerPtr inputLayer, std::vector<CNNLayerPtr>& result) {
+    int appended = 0;
     std::set<CNNLayerPtr> visited;
     std::stack<CNNLayerPtr> layers;
-    auto inputs = CNNNetworkHelper::getParents(layer);
-    for (auto& input : inputs) {
-        layers.push(input);
-    }
+    layers.push(inputLayer);
     while (!layers.empty()) {
         auto input = layers.top();
         layers.pop();
         visited.insert(input);
         if ((input->type == "FakeQuantize") && (CNNNetworkHelper::getParent(*input)->type != "Const")) {
+            appended++;
             result.push_back(input);
         } else {
             auto inputs = CNNNetworkHelper::getParents(*input);
@@ -499,13 +498,23 @@ std::vector<CNNLayerPtr> getInputsFQ(const CNNLayer& layer) {
             }
         }
     }
-    return result;
+    return appended;
 }
+}  // namespace
 
 void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
     for (auto& layer : network) {
         if (layer->type == "Eltwise") {
-            auto inputs = getInputsFQ(*layer);
+            std::vector<CNNLayerPtr> inputs;
+            auto layerInputs = CNNNetworkHelper::getParents(*layer);
+            for (auto& input : layerInputs) {
+                int appended = appendFQfromInput(input, inputs);
+                if (appended == 0) {  // Input is not quantized
+                    _logger->debug("Input %s of layer %s is not quantized. Eltwise scales will not be aligned",
+                        input->name, layer->name);
+                    continue;
+                }
+            }
             size_t maxValues = 1;
             size_t maxValuesIdx = 0;
             for (size_t i = 0; i < inputs.size(); i++) {
@@ -557,7 +566,16 @@ void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
             if (!needsConcatScaleAlignment(layer)) {
                 continue;
             }
-            auto inputs = getInputsFQ(*layer);
+            std::vector<CNNLayerPtr> inputs;
+            auto layerInputs = CNNNetworkHelper::getParents(*layer);
+            for (auto& input : layerInputs) {
+                int appended = appendFQfromInput(input, inputs);
+                if (appended == 0) {  // Input is not quantized
+                    _logger->debug("Input %s of layer %s is not quantized. Concat scales will not be aligned",
+                        input->name, layer->name);
+                    continue;
+                }
+            }
             for (auto& input : inputs) {
                 IE_ASSERT(input->type == "FakeQuantize");
             }
@@ -1207,13 +1225,17 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
 
     if (inputs.size() > 2) {
         VPU_THROW_EXCEPTION << eltwiseLayer->name
-                            << "Eltwise Sub operations with with more than 2 operands is not supported by kmbPlugin";
+                            << "Eltwise operations with more than 2 operands is not supported by kmbPlugin";
     }
 
-    for (size_t i = 0; i < eltwiseLayer->coeff.size(); ++i) {
-        if (std::abs(eltwiseLayer->coeff[i]) != 1.0f) {
-            VPU_THROW_EXCEPTION << eltwiseLayer->name
-                                << " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
+    if (eltwiseLayer->_operation == ie::EltwiseLayer::eOperation::Sub ||
+        eltwiseLayer->_operation == ie::EltwiseLayer::eOperation::Sum) {
+        for (size_t i = 0; i < eltwiseLayer->coeff.size(); ++i) {
+            if (std::abs(eltwiseLayer->coeff[i]) != 1.0f) {
+                VPU_THROW_EXCEPTION
+                    << eltwiseLayer->name
+                    << " Eltwise Sum/Sub operations with such coefficients is not supported by kmbPlugin";
+            }
         }
     }
 
@@ -1224,6 +1246,10 @@ void FrontEndMcm::parseEltwise(const ie::CNNLayerPtr& layer, const McmNodeVector
         break;
     case ie::EltwiseLayer::eOperation::Sum:
         mvEltwise = _modelMcm.eltwise(mvInputs, "Add", mv::DType("Default"), initialQuantParams(), eltwiseLayer->name);
+        break;
+    case ie::EltwiseLayer::eOperation::Prod:
+        mvEltwise =
+            _modelMcm.eltwise(mvInputs, "Multiply", mv::DType("Default"), initialQuantParams(), eltwiseLayer->name);
         break;
     default:
         VPU_THROW_EXCEPTION << "Eltwise operation" << eltwiseLayer->_operation << " is not supported";
