@@ -7,25 +7,21 @@
                 "recorded_model": false,
                 "verbose": "Error",
                 "weights_form": "None",
-                "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
                 "Number_of_DPUs" : 20,
                 "Number_of_Clusters" : 4,
                 "UpaShaves": 1,
                 "WorkloadCost": 300,
-                "DDRScratch": 31457280,
+                "DDRScratch": 16777216,
                 "MemoryHack": false,
                 "cmx": 917504,
-                "enable_channel_major_conv": true,
+                "enable_channel_major_conv": false,
                 "HuffmanCompression": false,
                 "DPUTasksinFloat": false,
                 "PredictionOfQuantizationOutput": false,
                 "FloatOutput": true,
                 "Int32Output": false,
                 "PPEAccuracy": false,
-                "PWLUsage": true,
-                "ReferenceMode": false,
-                "ScaleFuseInput": true,
                 "split_strategy" :
                 [
                     {
@@ -92,8 +88,7 @@
                 "VersionMinor": 11,
                 "VersionPatch": 0,
                 "VersionHash": "9aa43159420c77d8cf765393954ac2fbb372ab02"
-            },
-            "UseReferenceOps"
+            }
         ]
     },
     "quantization" : {
@@ -108,21 +103,16 @@
             "TensorsToU8",
             "TensorsToFP16",
             "FusePostOps",
-            "PreprocessForPWL",
-            "CheckPWLForRequantize",
-            "ConvDilationUsingStorageElement",
-            "HandleGroupConvolution",
-            "StreamBinaryDataWeights",
+            "ConvolutionDilation",
             "DecideOutputDataType",
-            "PlaceNeutralMaxPoolBefore",
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "HandleGroupConvolution",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-                        {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
                         {"name" : "dpuPerCluster",  "value" : 5   },
@@ -137,15 +127,15 @@
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
-                        {"name" : "forceActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true },
+                        {"name" : "enableActivationSparsity",    "value" : false      },
+                        {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
                         {
                             "name" : "Conv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverK","StreamOverN"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverK","StreamOverN"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -156,8 +146,8 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
 
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering","SplitOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW","StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -166,7 +156,7 @@
                         {
                             "name" : "MaxPool",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -185,7 +175,7 @@
                         {
                             "name" : "Add",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverW"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
@@ -208,7 +198,6 @@
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
             "StoreWorkloadStrategy",
-            "LoadPWLQuantParams",
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
@@ -222,7 +211,6 @@
             "AlignTaskWeights",
             "GenerateSparsityMapsPopulatedTensors",
             "GenerateWeightsTables",
-            "GenerateInstructionListTables",
             "StrategyLayersToTensors",
             "ComputeTensorsQuantParams",
             "UpdateImplicitLayersQuantizationParams",
@@ -259,11 +247,24 @@
     "finalize": {
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
-            "GenerateSparsityMapsEltwise",
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
-              "ddr_address_generation" : true,
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "ddr_address_generation" : true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/lp_scheduler_opmodel_output.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
             },
             {
                 "name": "TransitiveReduction",
@@ -290,8 +291,7 @@
             },
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
-            "PopulateStorageElementPointers",
-            "PopulateInstructionListTables"
+            "PopulateStorageElementPointers"
         ]
     },
     "scheduling": {
@@ -300,9 +300,14 @@
               "name" : "BarrierSchedulerPass",
               "real_physical_barriers": 32,
               "barrier_bound" : 16,
-              "producer_bound" : 256,
-              "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true
+              "producer_bound" : 256
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/barrier_scheduler_output.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
             }
         ]
     },
@@ -314,11 +319,22 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            "BuildGraphFileKmb",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization_control_no_temporal_edges.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
             }
+
         ]
     },
     "root": {
