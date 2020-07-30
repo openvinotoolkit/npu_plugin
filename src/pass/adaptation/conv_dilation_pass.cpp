@@ -122,14 +122,14 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
 
     printf("create subConv done\n");
 
-    auto dataUint8 = om.uPATaskQuantize({subConv}, mv::DType("UInt8"), outputQuantParams);
-    if (subConv->hasAttr("splitStrategy"))
-        dataUint8->set<std::string>("splitStrategy", subConv->get<std::string>("splitStrategy"));
+    // auto dataUint8 = om.uPATaskQuantize({subConv}, mv::DType("UInt8"), outputQuantParams);
+    // if (subConv->hasAttr("splitStrategy"))
+    //     dataUint8->set<std::string>("splitStrategy", subConv->get<std::string>("splitStrategy"));
                 
-    auto quantizeOp = om.getSourceOp(dataUint8);
+    // auto quantizeOp = om.getSourceOp(dataUint8);
     auto subConvOp = om.getSourceOp(subConv);
-    // subConvOp->set<bool>("DilatedSubConv", true);
-    // subConvOp->set<unsigned>("originalDilationFactor", stride);
+    subConvOp->set<bool>("DeconvSubConv", true);
+    subConvOp->set<unsigned>("originalDilationFactor", stride);
     // sliceInput->set<mv::Shape>("originalShape", sourceTensor->getShape());
     // subConv->set<mv::Shape>("originalShape", opIt->getInputTensor(0)->getShape());
     // subConvOp->set<mv::Shape>("originalShape", opIt->getInputTensor(0)->getShape());
@@ -141,7 +141,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
         unsigned currentOpId = opIt->get<unsigned>("opId");
         subConvOp->set<unsigned>("opId", currentOpId);
         sliceWeightOp->set<unsigned>("opId", currentOpId);
-        quantizeOp->set<unsigned>("opId", currentOpId);
+        // quantizeOp->set<unsigned>("opId", currentOpId);
     }
     if (hasBias)
     {
@@ -153,7 +153,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
                                     opIt->get<std::vector<std::string>>("postOpTypes"));
     }               
 
-    return dataUint8;
+    return subConv;
 }
 
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
@@ -267,6 +267,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
     using namespace mv;
 
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto convOps = om.getOps("Conv");
 
     for (auto& opIt : convOps)
@@ -366,7 +367,6 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         }
     }
 
-<<<<<<< HEAD
     auto deconvOps = om.getOps("Deconv");
     for (auto& opIt : deconvOps)
     {
@@ -387,13 +387,13 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         auto originalShape = inputTensor->getShape();
         std::vector<mv::Data::TensorIterator> subConvs;
 
-        int dilationFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
+        int strideFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
 
         size_t width = deconvKernelShape[mv::IO_WIDTH_DIMENSION];
         size_t height = deconvKernelShape[mv::IO_HEIGHT_DIMENSION];
-        size_t sliceWidth = std::ceil(((double)width)/dilationFactor);
-        size_t sliceHeight = std::ceil(((double)height)/dilationFactor);
+        size_t sliceWidth = std::ceil(((double)width)/strideFactor);
+        size_t sliceHeight = std::ceil(((double)height)/strideFactor);
         std::cout << "layer name" << name << std::endl;
         printf("width = %d, height = %d\n", width, height);
         printf("deconvKernelShape = %d %d %d %d\n", deconvKernelShape[0], deconvKernelShape[1], deconvKernelShape[2], deconvKernelShape[3]);
@@ -403,16 +403,16 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         size_t subConvIdx = 0;
         uint64_t leadingOffset = 0;
         mv::Shape newShape({sliceWidth, sliceHeight, deconvKernelShape[mv::KERNEL_INPUT_CHANNELS], deconvKernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
-        for (size_t i = 0; i < dilationFactor; i++)
+        for (size_t i = 0; i < strideFactor; i++)
         {
             mv::Shape subConvShape = newShape;
-            if (height%dilationFactor != 0 && i >= (height%dilationFactor))
+            if (height%strideFactor != 0 && i >= (height%strideFactor))
             {
                 subConvShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] - 1;
             }
-            for (size_t j = 0; j < dilationFactor; j++)
+            for (size_t j = 0; j < strideFactor; j++)
             {
-                if (width%dilationFactor != 0 && j >= (width%dilationFactor))
+                if (width%strideFactor != 0 && j >= (width%strideFactor))
                 {
                     subConvShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] - 1;
                 }
@@ -460,130 +460,45 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         mv::Data::TensorIterator concatIt;
         std::vector<mv::Data::TensorIterator> subConvsPerColumn;
         std::vector<mv::Data::TensorIterator> firstLevelConcats;
-        bool needSparse2SparseOp = false;
-        if (outputTensorMemory > CMX)
+       
         {
-            printf("outputTensorMemory > CMX");
-            for (size_t i = 0; i < dilationFactor; i++)
+            for (size_t i = 0; i < strideFactor; i++)
             {
-                for (size_t j = 0; j < dilationFactor; j++)
+                for (size_t j = 0; j < strideFactor; j++)
                 {
-                    subConvsPerColumn.push_back(subConvs[i*dilationFactor + j]);
+                    subConvsPerColumn.push_back(subConvs[i*strideFactor + j]);
                 }
                 concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
                                 name + std::to_string(i) + "DDR_WIDTH_join");
                 om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                 om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
                 om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
-                om.getSourceOp(concatIt)->set<unsigned>("dilationFactor", dilationFactor);
+                om.getSourceOp(concatIt)->set<unsigned>("dilationFactor", strideFactor);
                 firstLevelConcats.push_back(concatIt);
                 subConvsPerColumn.clear();
             }
             concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
             om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
             om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
-            om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
-            for (unsigned j = 0; j < opsToLink.size(); ++j)
-            {
-                opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
-                om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
-            }
-        }
-        else
-        {
-            // Specify that next layer requires sparse input
-            // At least for now until we have a way to convert a tensor with storage elements into a dense one
-            // Assuming that this will be done after SSD-512
-            if (nextOp->isSparsityConsumer())
-                nextOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
-            else
-                needSparse2SparseOp = true;
-            concatIt = om.implicitJoin(subConvs,
-                "HW",
-                mv::DType("UInt8"),
-                quantParams,
-                name + "dilatedjoin");
-            if (!needSparse2SparseOp)
-                for (unsigned j = 0; j < opsToLink.size(); ++j)
-                {
-                    opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
-                    om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
-                }
-        }
-        om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+            om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-
-        //NOTE: for now i will place a neutral z-major convolution just for re-order
-        //but under chat with runtime we can make it work without computations, with by-passing
-        if (needSparse2SparseOp)
-        {
-            printf("needSparse2SparseOp\n");
-            mv::Shape weightsShape({1, 1, outputShape[mv::IO_CHANNEL_DIMENSION], outputShape[mv::IO_CHANNEL_DIMENSION]});
-            std::vector<int64_t> weightsData(weightsShape.totalSize());
-            for (unsigned k = 0; k < weightsShape[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
-            {
-                for (unsigned c = 0; c < weightsShape[mv::KERNEL_INPUT_CHANNELS]; ++c)
-                {
-                    for (unsigned h = 0; h < weightsShape[mv::KERNEL_HEIGHT]; ++h)
-                    {
-                        for (unsigned w = 0; w < weightsShape[mv::KERNEL_WIDTH]; ++w)
-                        {
-                            const size_t idx = (k * weightsShape[mv::KERNEL_INPUT_CHANNELS] * weightsShape[mv::KERNEL_WIDTH] * weightsShape[mv::KERNEL_HEIGHT]) +
-                                                (c * weightsShape[mv::KERNEL_WIDTH] * weightsShape[mv::KERNEL_HEIGHT]) +
-                                                (h * weightsShape[mv::KERNEL_WIDTH]) +
-                                                w;
-                            if (c == k)
-                                weightsData[idx] = 255;
-                            else
-                                weightsData[idx] = 0;
-                        }
-                    }
-                }
-            }
-            printf("sparse2SparseWeights\n");
-
-            static const auto inf = std::numeric_limits<double>::infinity();
-            auto sparse2SparseWeights = om.constantInt(
-                weightsData,
-                weightsShape,
-                // deconvKernel->get<mv::DType>("dType"),
-                mv::DType("UInt8"),
-                mv::Order("NHWC"),
-                {{0},{0.00392156862745098},{0},{1}},
-                inputTensor->getName() + "_DilatedSparse2SparseWeights");
-
-            printf("sparse2SparseConv\n");
-
-            auto sparse2SparseConv = om.conv(concatIt,
-                    sparse2SparseWeights,
-                    {1, 1},
-                    {0, 0, 0, 0},
-                    1,
-                    1,
-                    // deconvKernel->get<mv::DType>("dType"),
-                    mv::DType("UInt8"),
-                    quantParams,
-                    // concatIt->get<mv::QuantizationParams>("quantParams"),
-                    inputTensor->getName() + "_DilatedSparse2SparseConv");
-
-            auto sparse2SparseConvOp = om.getSourceOp(sparse2SparseConv);
-            auto sparse2SparseWeightsOp = om.getSourceOp(sparse2SparseWeights);
-            sparse2SparseConvOp->set<unsigned>("opId", om.getSourceOp(concatIt)->get<unsigned>("opId"));
-            sparse2SparseWeightsOp->set<unsigned>("opId", om.getSourceOp(concatIt)->get<unsigned>("opId"));
+            auto dataUint8 = om.uPATaskQuantize({concatIt}, mv::DType("UInt8"), quantParams);
+            if (concatIt->hasAttr("splitStrategy"))
+                dataUint8->set<std::string>("splitStrategy", concatIt->get<std::string>("splitStrategy"));
+                        
+            auto quantizeOp = om.getSourceOp(dataUint8);
+            quantizeOp->set<unsigned>("opId", opId);
 
             for (unsigned j = 0; j < opsToLink.size(); ++j)
             {
-                opsToLink[j]->setInputTensor(sparse2SparseConv, inputSlots[j], false);
-                om.defineFlow(sparse2SparseConv, opsToLink[j], inputSlots[j]);
+                opsToLink[j]->setInputTensor(dataUint8, inputSlots[j], false);
+                om.defineFlow(dataUint8, opsToLink[j], inputSlots[j]);
             }
-            sparse2SparseConvOp->set<bool>("forcedToHaveActivationSparsityDueToDilatedConv", true);
         }
 
         om.removeOp(deconvKernelOp);
         printf("remove deconvKernelOp\n");
     }
-=======
->>>>>>> origin/feature/fp16_e2e_network
 }
 
 void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)

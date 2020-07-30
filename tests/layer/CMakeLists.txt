@@ -72,20 +72,8 @@ else()
     add_executable(conv_with_precision conv_with_precision/conv_with_precision.cpp)
     target_link_libraries(conv_with_precision cm)
 
-    add_executable(conv_big_kernel conv_big_kernel/conv_big_kernel.cpp)
-    target_link_libraries(conv_big_kernel cm)
-
-    add_executable(conv_big_kernel_simple conv_big_kernel_simple/conv_big_kernel_simple.cpp)
-    target_link_libraries(conv_big_kernel_simple cm)
-
-    add_executable(conv_leaky_relu conv_leaky_relu/conv_leaky_relu.cpp)
-    target_link_libraries(conv_leaky_relu cm)
-
     add_executable(conv_leaky_icv conv_leaky_icv/conv_leaky_icv.cpp)
     target_link_libraries(conv_leaky_icv cm)
-
-    #add_executable(group_convolution group_convolution/group_convolution.cpp)
-    #target_link_libraries(group_convolution cm)
 
     add_executable(mixed_mode_eltwise mixed_mode_eltwise/mixed_mode_eltwise.cpp)
     target_link_libraries(mixed_mode_eltwise cm)
@@ -161,12 +149,6 @@ else()
 
     add_executable(priorbox priorbox/priorbox.cpp)
     target_link_libraries(priorbox cm)
-
-    add_executable(proposal_TF proposal_TF/proposal_TF.cpp)
-    target_link_libraries(proposal_TF cm)
-
-    add_executable(proposal_caffe proposal_caffe/proposal_caffe.cpp)
-    target_link_libraries(proposal_caffe cm)
 
     add_executable(remove_pass remove_pass/remove_pass.cpp)
     target_link_libraries(remove_pass cm)
