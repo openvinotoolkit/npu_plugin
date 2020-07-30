@@ -18,13 +18,13 @@ const std::vector<std::map<std::string, std::string>> configs = {};
 
 const std::vector<std::map<std::string, std::string>> Configs = {
     {},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_HW_STAGES_OPTIMIZATION, InferenceEngine::PluginConfigParams::YES}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_NONE_LAYERS, "Tile"}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_NUMBER_OF_SHAVES, "5"}, {InferenceEngine::VPUConfigParams::KEY_VPU_NUMBER_OF_CMX_SLICES, "5"}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_HW_INJECT_STAGES, "YES"}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_HW_POOL_CONV_MERGE, "YES"}},
+    {{InferenceEngine::MYRIAD_COPY_OPTIMIZATION, InferenceEngine::PluginConfigParams::NO}},
+    {{InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, InferenceEngine::PluginConfigParams::YES}},
+    {{InferenceEngine::MYRIAD_ENABLE_HW_ACCELERATION, InferenceEngine::PluginConfigParams::YES}},
+    {{InferenceEngine::MYRIAD_NONE_LAYERS, "Tile"}},
+    {{InferenceEngine::MYRIAD_NUMBER_OF_SHAVES, "5"}, {InferenceEngine::MYRIAD_NUMBER_OF_CMX_SLICES, "5"}},
+    {{InferenceEngine::MYRIAD_HW_INJECT_STAGES, "YES"}},
+    {{InferenceEngine::MYRIAD_HW_POOL_CONV_MERGE, "YES"}},
     {{"VPU_KMB_PREPROCESSING_SHAVES", "6"}},
     {{"VPU_KMB_PREPROCESSING_LPI", "8"}},
     {{VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT), InferenceEngine::PluginConfigParams::YES}},
@@ -35,8 +35,8 @@ const std::vector<std::map<std::string, std::string>> Configs = {
 };
 
 const std::vector<std::map<std::string, std::string>> InConfigs = {
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_COPY_OPTIMIZATION, "ON"}},
-    {{InferenceEngine::VPUConfigParams::KEY_VPU_IGNORE_UNKNOWN_LAYERS, "ON"}},
+    {{InferenceEngine::MYRIAD_COPY_OPTIMIZATION, "ON"}},
+    {{InferenceEngine::MYRIAD_IGNORE_UNKNOWN_LAYERS, "ON"}},
     {{"VPU_KMB_PREPROCESSING_SHAVES", "SIX"}},
     {{"VPU_KMB_PREPROCESSING_LPI", "EIGHT"}},
     {{VPU_COMPILER_CONFIG_KEY(LOG_LEVEL), "debug"}},
