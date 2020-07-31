@@ -150,6 +150,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     if (!(exceeding_ops.empty())) {
       throw "Exceeding ops";
     }
+
+    if (!exceeding_ops.empty()) {
+      fprintf(stderr, "exceeding ops %lu\n", exceeding_ops.size());
+      fflush(stderr);
+      throw "Exceeding ops ";
+    }
   }
 
   if (fptr) {
