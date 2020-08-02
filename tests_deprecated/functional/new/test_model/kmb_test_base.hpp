@@ -425,6 +425,10 @@ public:
             const float meanIntersectionOverUnionTolerance);
 };
 
+//
+// CustomNetworkTest
+//
+
 class GazeEstimationNetworkTest : public KmbNetworkTestBase {
 public:
     void runTest(
@@ -436,6 +440,18 @@ public:
         const std::string head_pos_input_name,
         std::vector<float> head_pos);
 };
+
+class AgeGenderNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& face_image,
+        float tolerance);
+};
+
+//
+// SmokeNetworkTest
+//
 
 class SmokeNetworkTest : public KmbNetworkTestBase {
 public:

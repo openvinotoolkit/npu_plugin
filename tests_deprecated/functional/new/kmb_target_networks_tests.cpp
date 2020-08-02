@@ -922,3 +922,13 @@ TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
             .setUserInputLayout("image", Layout::NCHW)
             .setUserOutputPrecision("output", Precision::FP32));
 }
+
+TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
+    const std::string input_name = "input";
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
+            .setUserInputPrecision(input_name, Precision::U8),
+        TestImageDesc("62x62/face62.bmp", false),
+        0.1f);
+}
