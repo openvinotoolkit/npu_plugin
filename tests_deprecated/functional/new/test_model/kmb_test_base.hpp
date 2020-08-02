@@ -393,6 +393,14 @@ public:
             const std::vector<float>& im_info_values);
 };
 
+class KmbRetinaFaceNetworkTest : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const std::string& data_name,
+            const TestImageDesc& image);
+};
+
 class KmbYoloV2NetworkTest : public KmbDetectionNetworkTest {
 public:
     void runTest(
