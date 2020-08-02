@@ -58,3 +58,7 @@ install(TARGETS ${TARGET_NAME}
         ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT vpu
         LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT vpu)
 
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()

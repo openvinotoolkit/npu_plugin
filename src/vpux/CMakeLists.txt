@@ -18,7 +18,7 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "vpux")
+set(TARGET_NAME vpux)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -29,3 +29,8 @@ target_include_directories(${TARGET_NAME}
         include)
 
 target_link_libraries(${TARGET_NAME} PUBLIC IE::inference_engine)
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()

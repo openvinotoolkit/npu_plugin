@@ -132,6 +132,12 @@ if (ENABLE_TESTS)
             frontend_mcm)
 
     if(ENABLE_CLANG_FORMAT)
-        add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+        add_clang_format_target(clang_format_${TARGET_NAME}_test_static FOR_TARGETS ${TARGET_NAME}_test_static ALL)
+        add_dependencies(${TARGET_NAME}_test_static clang_format_${TARGET_NAME}_test_static)
     endif()
+endif()
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()

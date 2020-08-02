@@ -50,3 +50,8 @@ ie_register_plugins(
         kmb_utils
     POSSIBLE_PLUGINS
         vpuPlugin kmbPlugin HDDL2Plugin)
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+endif()

@@ -17,7 +17,9 @@
 #pragma once
 
 #include <vector>
+// clang-format off
 #include <cstdint>
+// clang-format on
 #include <memory>
 #include <map>
 #include <set>
