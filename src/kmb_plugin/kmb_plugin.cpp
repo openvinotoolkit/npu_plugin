@@ -16,13 +16,13 @@
 
 #include "kmb_plugin.h"
 
+#include <graph_transformer.h>
 #include <kmb_remote_context.h>
 
 #include <cnn_network_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <ie_util_internal.hpp>
-#include <graph_transformer.h>
 #include <inference_engine.hpp>
 #include <memory>
 #include <vector>
@@ -100,7 +100,7 @@ void Engine::QueryNetwork(
 }
 
 Engine::Engine(): _metrics(), _defaultContextMap({}) {
-    _pluginName = DEVICE_NAME; //"KMB";
+    _pluginName = DEVICE_NAME;  //"KMB";
 
 #ifdef ENABLE_MCM_COMPILER
     if (!MCMAdapter::isMCMCompilerAvailable()) {

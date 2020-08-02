@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <vpux_compiler.hpp>
 #include <vpu/utils/logger.hpp>
+#include <vpux_compiler.hpp>
 
 #include "mcm_config.h"
 
@@ -27,7 +27,8 @@ namespace MCMAdapter {
 class MCMNetworkDescription final : public vpux::NetworkDescription {
 public:
     // TODO extract network name from blob
-    MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name = "");
+    MCMNetworkDescription(
+        const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name = "");
     const vpux::DataMap& getInputsInfo() const override;
 
     const vpux::DataMap& getOutputsInfo() const override;
@@ -39,6 +40,7 @@ public:
     const std::vector<char>& getCompiledNetwork() const override;
 
     const std::string& getName() const override;
+
 private:
     const std::string _name;
     const std::vector<char> _compiledNetwork;
@@ -51,19 +53,18 @@ private:
 
     std::shared_ptr<vpu::Logger> _logger;
 
-    vpux::DataMap matchElementsByName(const vpux::DataMap& actualDeviceData,
-                                      const std::vector<std::string>& names);
-    vpux::DataMap matchElementsByLexicographicalOrder(const vpux::DataMap& actualDeviceData,
-                                                      const std::vector<std::string>& names);
-    vpux::DataMap createDeviceMapWithCorrectNames(const vpux::DataMap& actualDeviceData,
-                                                  const std::vector<std::string>& names);
+    vpux::DataMap matchElementsByName(const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
+    vpux::DataMap matchElementsByLexicographicalOrder(
+        const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
+    vpux::DataMap createDeviceMapWithCorrectNames(
+        const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
 };
 
 // TODO find a better place for this helpers
 namespace helpers {
-    InferenceEngine::InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap);
-    InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap);
-}   // namespace helpers
+InferenceEngine::InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap);
+InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap);
+}  // namespace helpers
 
 }  // namespace MCMAdapter
 }  // namespace vpu

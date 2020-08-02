@@ -36,8 +36,9 @@
 #include <mvMacros.h>
 #include <xlink_uapi.h>
 #endif
-#include <vpux_compiler.hpp>
 #include <kmb_config.h>
+
+#include <vpux_compiler.hpp>
 
 #include "kmb_allocator.h"
 
@@ -49,26 +50,21 @@ public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
     ~KmbExecutor();
-    KmbExecutor(const vpux::NetworkDescription::Ptr &networkDescription,
-        const KmbAllocator::Ptr& allocator,
+    KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
         const KmbConfig& config);
 
     virtual void queueInference(void* input_data, size_t input_bytes);
 
     virtual void getResult(void* result_data, unsigned int result_bytes);
 
-    virtual const vpux::DataMap& getDeviceInputs() const {
-        return _networkDescription->getDeviceInputsInfo();
-    }
-    virtual const vpux::DataMap& getDeviceOutputs() const {
-        return _networkDescription->getDeviceOutputsInfo();
-    }
+    virtual const vpux::DataMap& getDeviceInputs() const { return _networkDescription->getDeviceInputsInfo(); }
+    virtual const vpux::DataMap& getDeviceOutputs() const { return _networkDescription->getDeviceOutputsInfo(); }
 
     static std::vector<std::string> getAvailableDevices();
     KmbAllocator::Ptr getKmbAllocator() const { return _allocator; }
 
 private:
-    vpux::NetworkDescription::Ptr  _networkDescription;
+    vpux::NetworkDescription::Ptr _networkDescription;
     KmbAllocator::Ptr _allocator;
     const KmbConfig& _config;
     Logger::Ptr _logger;

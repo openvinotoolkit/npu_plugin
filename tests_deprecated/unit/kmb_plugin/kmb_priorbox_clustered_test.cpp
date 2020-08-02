@@ -208,7 +208,7 @@ class KmbComputePriorboxClusteredTest :
         IE_ASSERT(dims.size() == 3);
         int size = dims[0] * dims[1] * dims[2];
 
-        vpu::ParseLayersHelpers::priorBoxClusteredParam param {offset, clip, step_w, step_h, layer_width, layer_height,
+        vpu::ParseLayersHelpers::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height,
             img_width, img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
         std::vector<double> kmb_priorbox_clustered_result = vpu::ParseLayersHelpers::computePriorboxClustered(param);
         return kmb_priorbox_clustered_result;

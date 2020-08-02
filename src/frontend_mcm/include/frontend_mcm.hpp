@@ -34,8 +34,8 @@
 
 #ifdef ENABLE_MCM_COMPILER
 
-#include <graph_tools.hpp>
 #include <custom_layer/custom_layer.hpp>
+#include <graph_tools.hpp>
 #include <include/mcm/op_model.hpp>
 
 #include "mcm_config.h"
@@ -74,7 +74,7 @@ public:
     explicit FrontEndMcm(mv::OpModel& modelMcm, const MCMConfig& config)
         : _modelMcm(modelMcm),
           _logger(std::make_shared<Logger>("FrontEndMcm", config.mcmLogLevel(), consoleOutput())),
-          _config(config) {};
+          _config(config){};
 
     void buildInitialModel(ie::ICNNNetwork& network);
 

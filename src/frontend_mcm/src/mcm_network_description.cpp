@@ -1,46 +1,44 @@
-#include "mcm_adapter.hpp"
-#include "blob_parser.hpp"
-
 #include "mcm_network_description.hpp"
+
+#include "blob_parser.hpp"
+#include "mcm_adapter.hpp"
 
 using namespace vpu::MCMAdapter;
 namespace ie = InferenceEngine;
 
 namespace {
-    // TODO: remove once parser works with DataMap instead of inputs and outputs info
-    vpux::DataMap inputsDataMapToDataMap(const InferenceEngine::InputsDataMap& inputs) {
-        vpux::DataMap dataMap = {};
-        for (auto&& in : inputs) {
-            dataMap.insert({in.first, in.second->getInputData()});
-        }
-
-        return dataMap;
-    }
-    vpux::DataMap outputsDataMapToDataMap(const InferenceEngine::OutputsDataMap& outputs) {
-        vpux::DataMap dataMap = {};
-        for (auto&& out : outputs) {
-            dataMap.insert({out.first, out.second});
-        }
-
-        return dataMap;
+// TODO: remove once parser works with DataMap instead of inputs and outputs info
+vpux::DataMap inputsDataMapToDataMap(const InferenceEngine::InputsDataMap& inputs) {
+    vpux::DataMap dataMap = {};
+    for (auto&& in : inputs) {
+        dataMap.insert({in.first, in.second->getInputData()});
     }
 
-
-    template<typename T>
-    std::vector<std::string> extractKeys(const std::map<std::string, T>& map) {
-        std::vector<std::string> keys;
-
-        std::transform(
-            map.begin(),
-            map.end(),
-            std::back_inserter(keys),
-            [](const typename std::map<std::string, T>::value_type &pair){return pair.first;});
-
-        return keys;
+    return dataMap;
+}
+vpux::DataMap outputsDataMapToDataMap(const InferenceEngine::OutputsDataMap& outputs) {
+    vpux::DataMap dataMap = {};
+    for (auto&& out : outputs) {
+        dataMap.insert({out.first, out.second});
     }
+
+    return dataMap;
 }
 
-ie::InputsDataMap helpers::dataMapIntoInputsDataMap(const vpux::DataMap &dataMap) {
+template <typename T>
+std::vector<std::string> extractKeys(const std::map<std::string, T>& map) {
+    std::vector<std::string> keys;
+
+    std::transform(map.begin(), map.end(), std::back_inserter(keys),
+        [](const typename std::map<std::string, T>::value_type& pair) {
+            return pair.first;
+        });
+
+    return keys;
+}
+}  // namespace
+
+ie::InputsDataMap helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
     ie::InputsDataMap inputsDataMap = {};
 
     for (const auto& input : dataMap) {
@@ -52,7 +50,7 @@ ie::InputsDataMap helpers::dataMapIntoInputsDataMap(const vpux::DataMap &dataMap
     return inputsDataMap;
 }
 
-ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap &dataMap) {
+ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap) {
     ie::OutputsDataMap outputsDataMap = {};
 
     for (const auto& output : dataMap) {
@@ -62,9 +60,11 @@ ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap &dataM
     return outputsDataMap;
 }
 
-MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name)
-            : _name(name), _compiledNetwork(compiledNetwork),
-              _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
+MCMNetworkDescription::MCMNetworkDescription(
+    const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name)
+    : _name(name),
+      _compiledNetwork(compiledNetwork),
+      _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {
     std::pair<ie::InputsDataMap, ie::OutputsDataMap> portsInfo =
         MCMAdapter::deserializeMetaData(compiledNetwork, config);
     const ie::InputsDataMap& deserializedInputs = portsInfo.first;
@@ -98,32 +98,20 @@ MCMNetworkDescription::MCMNetworkDescription(const std::vector<char>& compiledNe
     // TODO: it makes sense to print maps here under log level
 }
 
-const vpux::DataMap& MCMNetworkDescription::getInputsInfo() const {
-    return _networkInputs;
-}
+const vpux::DataMap& MCMNetworkDescription::getInputsInfo() const { return _networkInputs; }
 
-const vpux::DataMap& MCMNetworkDescription::getOutputsInfo() const {
-    return _networkOutputs;
-}
+const vpux::DataMap& MCMNetworkDescription::getOutputsInfo() const { return _networkOutputs; }
 
-const vpux::DataMap& MCMNetworkDescription::getDeviceInputsInfo() const {
-    return _deviceInputs;
-}
+const vpux::DataMap& MCMNetworkDescription::getDeviceInputsInfo() const { return _deviceInputs; }
 
-const vpux::DataMap& MCMNetworkDescription::getDeviceOutputsInfo() const {
-    return _deviceOutputs;
-}
+const vpux::DataMap& MCMNetworkDescription::getDeviceOutputsInfo() const { return _deviceOutputs; }
 
-const std::vector<char>& MCMNetworkDescription::getCompiledNetwork() const {
-    return _compiledNetwork;
-}
+const std::vector<char>& MCMNetworkDescription::getCompiledNetwork() const { return _compiledNetwork; }
 
-const std::string &MCMNetworkDescription::getName() const {
-    return _name;
-}
+const std::string& MCMNetworkDescription::getName() const { return _name; }
 
-vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& actualDeviceData,
-                                                         const std::vector<std::string>& names) {
+vpux::DataMap MCMNetworkDescription::matchElementsByName(
+    const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names) {
     _logger->debug("MCMNetworkDescription::matchElementsByName started.");
     vpux::DataMap updatedMap;
 
@@ -147,8 +135,8 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(const vpux::DataMap& ac
     return updatedMap;
 }
 
-vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const vpux::DataMap& actualDeviceData,
-                                                                         const std::vector<std::string>& names) {
+vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(
+    const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names) {
     _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder started.");
     vpux::DataMap updatedMap;
 
@@ -164,8 +152,8 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(const v
     return updatedMap;
 }
 
-vpux::DataMap MCMNetworkDescription::createDeviceMapWithCorrectNames(const vpux::DataMap& actualDeviceData,
-                                                                     const std::vector<std::string>& names) {
+vpux::DataMap MCMNetworkDescription::createDeviceMapWithCorrectNames(
+    const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names) {
     vpux::DataMap updatedMap;
 
     updatedMap = matchElementsByName(actualDeviceData, names);

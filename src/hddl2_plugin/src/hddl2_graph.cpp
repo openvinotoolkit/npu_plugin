@@ -14,10 +14,12 @@
 // stated in the License.
 //
 
-#include <hddl2_exceptions.h>
-#include <mcm_adapter.hpp>
-#include <fstream>
 #include "hddl2_graph.h"
+
+#include <hddl2_exceptions.h>
+
+#include <fstream>
+#include <mcm_adapter.hpp>
 
 #include "mcm_network_description.hpp"
 

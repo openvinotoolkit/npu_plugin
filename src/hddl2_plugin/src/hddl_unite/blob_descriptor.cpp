@@ -214,12 +214,12 @@ void BlobDescriptor::setImageFormatToDesc(HddlUnite::Inference::BlobDesc& blobDe
 
     if (_blobPtr->is<IE::NV12Blob>() || _roiPtr != nullptr) {
         if (_roiPtr != nullptr) {
-            HddlUnite::Inference::Rectangle roi0 {static_cast<int32_t>(_roiPtr->posX),
+            HddlUnite::Inference::Rectangle roi0{static_cast<int32_t>(_roiPtr->posX),
                 static_cast<int32_t>(_roiPtr->posY), static_cast<int32_t>(_roiPtr->sizeX),
                 static_cast<int32_t>(_roiPtr->sizeY)};
             blobDesc.m_rect.push_back(roi0);
         } else {
-            HddlUnite::Inference::Rectangle rect0 {0, 0, blobDesc.m_resWidth, blobDesc.m_resHeight};
+            HddlUnite::Inference::Rectangle rect0{0, 0, blobDesc.m_resWidth, blobDesc.m_resHeight};
             blobDesc.m_rect.push_back(rect0);
         }
     }

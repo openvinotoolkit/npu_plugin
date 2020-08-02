@@ -16,8 +16,8 @@
 
 #include "kmb_allocator.h"
 
-#include <memory>
 #include <iostream>
+#include <memory>
 
 #if defined(__arm__) || defined(__aarch64__)
 #include <sys/mman.h>
@@ -42,7 +42,7 @@ static size_t alignMemorySize(const size_t& size) {
 }
 #endif
 
-KmbAllocator::KmbAllocator(const int& deviceId) : _deviceId(deviceId) {}
+KmbAllocator::KmbAllocator(const int& deviceId): _deviceId(deviceId) {}
 
 void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     if (_allocatedMemory.find(handle) == _allocatedMemory.end()) return nullptr;
@@ -50,7 +50,7 @@ void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     return handle;
 }
 
-void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); } //cpplint mark this line as false positive
+void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); }  // cpplint mark this line as false positive
 
 unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
@@ -70,7 +70,8 @@ bool KmbAllocator::isValidPtr(void* ptr) noexcept {
 #endif
 }
 
-void* KmbAllocator::wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
+void* KmbAllocator::wrapRemoteMemoryHandle(
+    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
     if (physAddr == 0) {
@@ -94,7 +95,8 @@ void* KmbAllocator::wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemory
 #endif
 }
 
-void* KmbAllocator::wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept {
+void* KmbAllocator::wrapRemoteMemoryOffset(
+    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     size_t realSize = alignMemorySize(size + memOffset);

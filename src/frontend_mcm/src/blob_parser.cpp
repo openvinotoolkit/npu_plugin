@@ -38,8 +38,8 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<uint32
     const std::size_t MAX_DIM_COUNT = 5;
     const std::size_t /*DIM_X = 0, DIM_N = 1,*/ DIM_C = 2, DIM_H = 3, DIM_W = 4;
 
-    IE_ASSERT(strides.size() == MAX_DIM_COUNT) << "extractLayoutFromStrides works only with "
-        << MAX_DIM_COUNT << " elements in strides parameter";
+    IE_ASSERT(strides.size() == MAX_DIM_COUNT)
+        << "extractLayoutFromStrides works only with " << MAX_DIM_COUNT << " elements in strides parameter";
 
     InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
     auto maxStrideVal = *std::max_element(strides.begin() + DIM_C, strides.end());

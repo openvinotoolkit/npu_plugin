@@ -43,7 +43,9 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())),
-      _deallocateHelper([this](uint8_t* ptr) { this->_executor->getKmbAllocator()->free(ptr); }),
+      _deallocateHelper([this](uint8_t* ptr) {
+          this->_executor->getKmbAllocator()->free(ptr);
+      }),
       _inputBuffer(nullptr, _deallocateHelper),
       _outputBuffer(nullptr, _deallocateHelper) {
     IE_PROFILING_AUTO_SCOPE(KmbInferRequest);
@@ -61,7 +63,8 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
                                << "! Supported precisions: FP32, FP16, U8, I8";
         }
 
-        Blob::Ptr inputBlob = make_blob_with_precision(networkInput.second->getTensorDesc(), _executor->getKmbAllocator());
+        Blob::Ptr inputBlob =
+            make_blob_with_precision(networkInput.second->getTensorDesc(), _executor->getKmbAllocator());
         inputBlob->allocate();
         _inputs[networkInput.first] = inputBlob;
         inputsTotalSize += inputBlob->byteSize();
@@ -264,8 +267,8 @@ static bool needRepackForNHWC(const TensorDesc& actualDesc) {
     }
 }
 
-static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const Blob::Ptr& blob, const Layout& srcLayout, const Layout& dstLayout,
-        const KmbAllocator::Ptr& allocator) {
+static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
+    const Blob::Ptr& blob, const Layout& srcLayout, const Layout& dstLayout, const KmbAllocator::Ptr& allocator) {
     if (blob->getTensorDesc().getDims()[1] != 3) {
         THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
@@ -283,7 +286,8 @@ static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const Blob::Ptr& b
     return dstBlob;
 }
 
-static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout& layout, const KmbAllocator::Ptr& allocator) {
+static Blob::Ptr reallocateBlobToLayout(
+    const Blob::Ptr& blob, const Layout& layout, const KmbAllocator::Ptr& allocator) {
     TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
     kmbBlob->allocate();
@@ -305,7 +309,8 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.forceNCHWToNHWC()) {
         _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
-        return reallocateBlobToLayoutIgnoringOriginalLayout(actualInput, Layout::NCHW, Layout::NHWC, _executor->getKmbAllocator());
+        return reallocateBlobToLayoutIgnoringOriginalLayout(
+            actualInput, Layout::NCHW, Layout::NHWC, _executor->getKmbAllocator());
     }
 
     Blob::Ptr inputForInference;

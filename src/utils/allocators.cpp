@@ -15,16 +15,16 @@
 //
 
 #ifdef __unix__
-#include <unistd.h>
-
 #include <sys/mman.h>
+#include <unistd.h>
 #else
 #define getpagesize() 4096
 #endif
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
 #include <algorithm>
 #include <stdexcept>
 
@@ -70,7 +70,7 @@ void* VPUSMMAllocator::allocate(size_t requestedSize) {
         throw std::runtime_error("VPUSMMAllocator::allocate: vpusmm_import_dmabuf failed");
     }
 
-    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
+    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc, 0);
     if (virtAddr == MAP_FAILED) {
         throw std::runtime_error("VPUSMMAllocator::allocate: mmap failed");
     }
@@ -97,7 +97,7 @@ void* VPUSMMAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 }
 
 int VPUSMMAllocator::getFileDescByVirtAddr(void* virtAddr) {
-    auto virtAddrPredicate = [virtAddr](const std::tuple<int, void*, size_t> & chunk) -> bool {
+    auto virtAddrPredicate = [virtAddr](const std::tuple<int, void*, size_t>& chunk) -> bool {
         return virtAddr == std::get<1>(chunk);
     };
 
@@ -126,7 +126,7 @@ int VPUSMMAllocator::allocateDMA(size_t requestedSize) {
 
 void* VPUSMMAllocator::importDMA(const int& fileDesc) {
 #if defined(__arm__) || defined(__aarch64__)
-    auto fileDescPredicate = [fileDesc](const std::tuple<int, void*, size_t> & chunk) -> bool {
+    auto fileDescPredicate = [fileDesc](const std::tuple<int, void*, size_t>& chunk) -> bool {
         return fileDesc == std::get<0>(chunk);
     };
 
@@ -139,7 +139,7 @@ void* VPUSMMAllocator::importDMA(const int& fileDesc) {
         throw std::runtime_error("VPUSMMAllocator::importDMA: vpusmm_import_dmabuf failed");
     }
     const auto& requiredBlobSize = std::get<2>(*memChunksIter);
-    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ|PROT_WRITE, MAP_SHARED, fileDesc, 0);
+    void* virtAddr = mmap(0, requiredBlobSize, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc, 0);
     if (virtAddr == MAP_FAILED) {
         throw std::runtime_error("VPUSMMAllocator::importDMA: mmap failed");
     }
@@ -154,7 +154,7 @@ void* VPUSMMAllocator::importDMA(const int& fileDesc) {
 
 VPUSMMAllocator::~VPUSMMAllocator() {
 #if defined(__arm__) || defined(__aarch64__)
-    for (const std::tuple<int, void*, size_t> & chunk : _memChunks) {
+    for (const std::tuple<int, void*, size_t>& chunk : _memChunks) {
         int fileDesc = std::get<0>(chunk);
         void* virtAddr = std::get<1>(chunk);
         size_t allocatedSize = std::get<2>(chunk);
@@ -169,7 +169,7 @@ VPUSMMAllocator::~VPUSMMAllocator() {
 
 void* NativeAllocator::allocate(size_t requestedSize) {
 #if defined(__arm__) || defined(__aarch64__)
-    uint8_t* allocatedChunk = new uint8_t [requestedSize];
+    uint8_t* allocatedChunk = new uint8_t[requestedSize];
     _memChunks.push_back(allocatedChunk);
     return allocatedChunk;
 #else
@@ -187,14 +187,12 @@ void* NativeAllocator::getAllocatedChunkByIndex(size_t chunkIndex) {
 #endif
 }
 
-int NativeAllocator::getFileDescByVirtAddr(void*) {
-    return -1;
-}
+int NativeAllocator::getFileDescByVirtAddr(void*) { return -1; }
 
 NativeAllocator::~NativeAllocator() {
 #if defined(__arm__) || defined(__aarch64__)
     for (uint8_t* chunk : _memChunks) {
-        delete [] chunk;
+        delete[] chunk;
     }
 #endif
 }

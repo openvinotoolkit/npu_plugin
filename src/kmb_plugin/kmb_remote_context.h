@@ -47,9 +47,7 @@ protected:
 //------------------------------------------------------------------------------
 //      class KmbRemoteContext
 //------------------------------------------------------------------------------
-class KmbRemoteContext :
-    public InferenceEngine::RemoteContext,
-    public std::enable_shared_from_this<KmbRemoteContext> {
+class KmbRemoteContext : public InferenceEngine::RemoteContext, public std::enable_shared_from_this<KmbRemoteContext> {
 public:
     using Ptr = std::shared_ptr<KmbRemoteContext>;
     using CPtr = std::shared_ptr<const KmbRemoteContext>;
