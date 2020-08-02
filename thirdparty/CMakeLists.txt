@@ -31,6 +31,9 @@ function(add_3rdparty_subdir SUBDIR_NAME)
     add_subdirectory(${SUBDIR_NAME})
 endfunction()
 
+set(VPU_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+add_custom_target(vpu_dir ALL
+    COMMAND "${CMAKE_COMMAND}" -E make_directory ${VPU_OUT_DIR}/vpu)
 if(ARM OR AARCH64)
     add_custom_target(vpual_copy_library ALL
             COMMAND "${CMAKE_COMMAND}" -E copy  $<TARGET_PROPERTY:NN,LOCATION>
@@ -38,8 +41,8 @@ if(ARM OR AARCH64)
                                                 $<TARGET_PROPERTY:sipp_custom,LOCATION>
                                                 $<TARGET_PROPERTY:XLink,LOCATION>
                                                 $<TARGET_PROPERTY:RemoteFlic,LOCATION>
-            $<TARGET_FILE_DIR:kmbPlugin>
-            COMMENT "[VPUAL] Copy vpual libraries to build results")
+	    "${VPU_OUT_DIR}/vpu"
+	    COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
@@ -113,5 +116,5 @@ endif()
 # copy firmware to lib folder to have vpu.bin in a package
 add_custom_target(vpu_bin_copy ALL
         COMMAND "${CMAKE_COMMAND}" -E copy "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
-                                            $<TARGET_FILE_DIR:kmbPlugin>
+                                            "${VPU_OUT_DIR}/vpu"
         COMMENT "[Firmware] Copy vpu.bin")
