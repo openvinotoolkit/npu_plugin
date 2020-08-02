@@ -623,13 +623,13 @@ void TestNetworkDesc::fillUserInputInfo(InputsDataMap& info) const {
     if (info.size() == 1) {
         if (_inputPrecisions.size() == 1) {
             info.begin()->second->setPrecision(_inputPrecisions.begin()->second);
-        } else {
+        } else if (_inputPrecisions.size() > 1){
             THROW_IE_EXCEPTION << "Input precision was set more than one time";
         }
 
         if (_inputLayouts.size() == 1) {
             info.begin()->second->setLayout(_inputLayouts.begin()->second);
-        } else {
+        } else if (_inputLayouts.size() > 1) {
             THROW_IE_EXCEPTION << "Input layout was set more than one time";
         }
     } else {
@@ -1201,6 +1201,30 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
     };
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+void AgeGenderNetworkTest::runTest(const TestNetworkDesc& netDesc,
+                                   const TestImageDesc& face_image,
+                                   float tolerance) {
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      registerSingleImage(face_image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+      ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+
+      for (const auto& actualBlob : actualBlobs) {
+          auto ref_it = refBlobs.find(actualBlob.first);
+          ASSERT_TRUE(ref_it != refBlobs.end());
+          std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+      }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
