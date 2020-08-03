@@ -41,7 +41,9 @@
 
 using namespace vpu::HDDL2Plugin;
 
-Engine::Engine() { _pluginName = "HDDL2"; }
+Engine::Engine() {
+    _pluginName = DEVICE_NAME; // "HDDL2"
+}
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICNNNetwork& network, const std::map<std::string, std::string>& config) {

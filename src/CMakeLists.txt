@@ -1,4 +1,5 @@
 set(TARGET_NAME "VPUXPlugin")
+set(VPUX_DEVICE_NAME VPUX)
 
 if(NOT ENABLE_HDDL2)
     return()
@@ -29,9 +30,11 @@ else()
 endif()
 
 ie_add_plugin(NAME ${TARGET_NAME}
-    DEVICE_NAME VPUX
+    DEVICE_NAME ${VPUX_DEVICE_NAME}
     SOURCES ${SOURCES} ${HEADERS}
     VERSION_DEFINES_FOR ${ENGINE_SOURCE_FILE})
+
+target_compile_definitions(${TARGET_NAME} PRIVATE -DDEVICE_NAME="${VPUX_DEVICE_NAME}")
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
