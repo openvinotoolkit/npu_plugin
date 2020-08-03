@@ -27,6 +27,12 @@ class PlgM2I : public PluginStub
 
     /** Create method. */
     int Create();
+
+    vpum2i::M2IDesc* GetSharedDesc();
+    int ReleaseDesc(vpum2i::M2IDesc* desc);
+
+  private:
+    std::vector<vpum2i::M2IDesc*> descList;
 };
 
 #endif // __PLG_M2I_H__
