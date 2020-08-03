@@ -87,7 +87,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
                         sliceWeightVector,
                         newShape,
                         sourceWeights->get<mv::DType>("dType"),
-                        mv::Order("NHWC"),
+                        mv::Order("NCHW"),
                         quantParams,
                         opIt->getName() + "_deconvSlice_" + std::to_string(subConvIdx));
     auto sliceWeightOp = om.getSourceOp(sliceWeight);
