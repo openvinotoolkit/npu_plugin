@@ -100,7 +100,7 @@ void Engine::QueryNetwork(
 }
 
 Engine::Engine(): _metrics(), _defaultContextMap({}) {
-    _pluginName = "KMB";
+    _pluginName = DEVICE_NAME; //"KMB";
 
 #ifdef ENABLE_MCM_COMPILER
     if (!MCMAdapter::isMCMCompilerAvailable()) {

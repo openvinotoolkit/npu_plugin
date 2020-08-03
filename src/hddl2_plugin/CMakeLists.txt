@@ -19,6 +19,7 @@ if(ENABLE_LTO)
 endif()
 
 set(TARGET_NAME "HDDL2Plugin")
+set(HDDL2_DEVICE_NAME HDDL2)
 
 if(UNIX)
     set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww30)
@@ -72,13 +73,15 @@ file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR src/hddl2_plugin.cpp
-              DEVICE_NAME HDDL2)
+              DEVICE_NAME ${HDDL2_DEVICE_NAME})
 
 if (UNIX)
     set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
 endif(UNIX)
 
 target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
+
+target_compile_definitions(${TARGET_NAME} PRIVATE -DDEVICE_NAME="${HDDL2_DEVICE_NAME}")
 
 ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
                     POSSIBLE_PLUGINS ${TARGET_NAME})
@@ -107,6 +110,8 @@ if (ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
     target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
+
+    target_compile_definitions(${TARGET_NAME}_test_static PRIVATE -DDEVICE_NAME="${HDDL2_DEVICE_NAME}")
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC

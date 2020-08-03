@@ -19,6 +19,7 @@ if(ENABLE_LTO)
 endif()
 
 set(TARGET_NAME "kmbPlugin")
+set(KMB_DEVICE_NAME KMB)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
@@ -33,9 +34,11 @@ endif()
 ie_add_plugin(NAME ${TARGET_NAME}
               SOURCES ${SOURCES}
               VERSION_DEFINES_FOR kmb_plugin.cpp
-              DEVICE_NAME KMB)
+              DEVICE_NAME ${KMB_DEVICE_NAME})
 
 target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
+
+target_compile_definitions(${TARGET_NAME} PRIVATE -DDEVICE_NAME="${KMB_DEVICE_NAME}")
 
 include(compile_options)
 
@@ -103,6 +106,8 @@ if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
     target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
+
+    target_compile_definitions(${TARGET_NAME}_test_static PRIVATE -DDEVICE_NAME="${KMB_DEVICE_NAME}")
 
     target_include_directories(${TARGET_NAME}_test_static
         SYSTEM PRIVATE
