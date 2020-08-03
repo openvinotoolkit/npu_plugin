@@ -43,6 +43,7 @@ if(ARM OR AARCH64)
                                                 $<TARGET_PROPERTY:RemoteFlic,LOCATION>
 	    "${VPU_OUT_DIR}/vpu"
 	    COMMENT "[VPUAL] Copy vpual libraries to build results")
+    add_dependencies(vpual_copy_library vpu_dir)
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
@@ -118,3 +119,4 @@ add_custom_target(vpu_bin_copy ALL
         COMMAND "${CMAKE_COMMAND}" -E copy "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
                                             "${VPU_OUT_DIR}/vpu"
         COMMENT "[Firmware] Copy vpu.bin")
+add_dependencies(vpu_bin_copy vpu_dir)
