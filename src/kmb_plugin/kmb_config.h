@@ -34,7 +34,7 @@ public:
 
     bool loadNetworkAfterCompilation() const { return _loadNetworkAfterCompilation; }
 
-    int throghputStreams() const { return _throghputStreams; }
+    int throughputStreams() const { return _throughputStreams; }
 
     const std::string& platform() const { return _platform; }
 
@@ -70,7 +70,7 @@ private:
     bool _loadNetworkAfterCompilation = false;
 #endif
 
-    int _throghputStreams = 1;
+    int _throughputStreams = 1;
 
     std::string _platform = "VPU_2490";
 

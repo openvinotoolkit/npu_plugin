@@ -93,7 +93,7 @@ IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(
 
 //------------------------------------------------------------------------------
 // TODO Refactor create infer request for async inference correctly - use benchmark app approach
-TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
+TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
     using Time = std::chrono::high_resolution_clock::time_point;
     Time (&Now)() = std::chrono::high_resolution_clock::now;
 
@@ -159,7 +159,7 @@ TEST_F(AsyncInferRequest_Tests, asyncIsFasterThenSync) {
     ASSERT_LT(elapsed_async.count(), elapsed_sync.count());
 }
 
-TEST_F(AsyncInferRequest_Tests, correctResultSameInput) {
+TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
@@ -239,7 +239,7 @@ void AsyncInferRequest_DifferentInput::SetUp() {
 }
 
 //------------------------------------------------------------------------------
-TEST_F(AsyncInferRequest_DifferentInput, correctResultShuffledNV12And) {
+TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffledNV12And) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
