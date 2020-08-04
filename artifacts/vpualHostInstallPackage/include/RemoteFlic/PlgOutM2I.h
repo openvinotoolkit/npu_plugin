@@ -18,6 +18,10 @@
 #define XLINK_INVALID_CHANNEL_ID (0)
 #endif
 
+#ifndef DEFAULT_M2I_DESC_QSZ
+ #define DEFAULT_M2I_DESC_OUT_QSZ 16
+#endif
+
 /**
  * M2I Output FLIC Plugin Stub Class.
  * This object creates the real plugin on the device and links to it with an
@@ -43,10 +47,10 @@ class PlgOutM2I : public PluginStub
     /**
      * Plugin Create method.
      *
-     * @param maxSz maximum size of the XLink Stream.
+     * @param maxDesc maximum number of descriptors to be queued
      * @param chanId_unused not used anymore.
      */
-    int Create(uint32_t maxSz);
+    int Create(uint32_t maxDesc = DEFAULT_M2I_DESC_OUT_QSZ);
 
     /**
      * Plugin Delete method.
@@ -63,7 +67,7 @@ class PlgOutM2I : public PluginStub
      * @param pAddr - Physical address of received frame.
      * @param length - size of received frame.
      */
-    int Pull(uint32_t *pAddr) const;
+    int Pull(vpum2i::M2IDesc* &Desc) const;
 };
 
 #endif // __PLG_OUT_M2I_H__

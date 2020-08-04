@@ -604,6 +604,31 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngr
 // Start of test-set for KMB-beta IRv10
 //////////////////////////////////////////
 
+// C++ exception with description "Caught exception during unit run: Wrong strategy generated:
+// tensor fire6/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified" thrown in the test body.
+// [Track number: D#3467]
+TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw) {
+    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            0.3f,
+            1.f, 0.3f);
+}
+
+TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            0.3f,
+            1.f, 0.3f);
+}
+
 // C++ exception with description "Op:mbox_priorbox - OpError: Invalid input inputs (0) -
 // Invalid shape of the input 1 tensor (0:24576 - inconsistent with the dimension of the first input (65536)
 // [Track number: S#30693]
@@ -776,6 +801,16 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
             1, 0.05f);
 }
 
+TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified) {
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/private/retinaface-mobilenetv2-0.25-modified/retinaface-mobilenetv2-0.25-modified.xml")
+                    .setUserInputPrecision("input", Precision::U8)
+                    .setUserInputLayout("input", Layout::NHWC)
+                    .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_kmb_retinaface"}}),
+            "data",
+            TestImageDesc("224x224/cat3.bmp", false));
+}
+
 //////////////////////////////////////////
 // End of test-set for KMB-beta IRv10
 //////////////////////////////////////////
@@ -905,6 +940,32 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
             TestImageDesc("224x224/cat3.bmp", false),
             1, 0.05f);
 }
+
+// Compilation fails with exception:
+// "Caught exception during unit run: propagateParameters ERROR:
+// inputs of the Eltwise/Concat do not have the same QuantParams"
+// [Track number: D#3453]
+TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
+    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+    // [Track number: S#3331]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+
+    const std::string data_name    = "data";
+    const std::string im_info_name = "im_info";
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/private/rfcn-resnet50/caffe/FP16-INT8/rfcn-resnet50_ww22.xml")
+            .setUserInputPrecision(data_name, Precision::U8)
+            .setUserInputLayout(data_name, Layout::NCHW)
+            .setUserInputPrecision(im_info_name, Precision::FP32)
+            .setUserInputLayout(im_info_name, Layout::NC)
+            .setUserOutputPrecision("cls_prob_reshape",  Precision::FP32)
+            .setUserOutputPrecision("bbox_pred_reshape", Precision::FP32),
+        "data",
+        TestImageDesc("224x224/cat3.bmp", false),
+        "im_info",
+        {224.f, 224.f, 1.f});
+}
 ////////////////////////////////////////////////////////////
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
@@ -920,7 +981,7 @@ TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
         2, 0.1f);
 }
 
-TEST_F(KmbSegmentationNetworkTest, DISABLED_icnet_camvid_ava_0001) {
+TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/icnet-camvid-ava-tf-0001/icnet_camvid_ava_tf_0001_tf_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -952,4 +1013,30 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
         "vpu/gm_0000_right.png",
         head_pos_input_name,
         std::vector<float>{-2.076815605163574, -2.1021695137023926, 0.13159990310668945});
+}
+
+TEST_F(SmokeNetworkTest, openpose_pose_cf_NHWC) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
+            .setUserInputPrecision("image", Precision::U8)
+            .setUserInputLayout("image", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32));
+}
+
+TEST_F(SmokeNetworkTest, DISABLED_openpose_pose_cf_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/OpenPose/FP16-INT8/openpose-pose_cf_ww22.xml")
+            .setUserInputPrecision("image", Precision::U8)
+            .setUserInputLayout("image", Layout::NCHW)
+            .setUserOutputPrecision("output", Precision::FP32));
+}
+
+TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
+    const std::string input_name = "input";
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
+            .setUserInputPrecision(input_name, Precision::U8),
+        TestImageDesc("62x62/face62.bmp", false),
+        0.1f);
 }

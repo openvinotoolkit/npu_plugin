@@ -96,7 +96,7 @@ class XPool : public PluginStub
             auto rc { SendBufferBlocking(Alloc(bufferSize), bufferSize) };
             // TODO more graceful handling of this?
             if (0 != rc) {
-                throw std::runtime_error("XPool error in AllocThread-SendBufferBlocking");
+                throw std::runtime_error("XPool error when allocating new buffer.");
             }
         }
     }
@@ -123,7 +123,7 @@ class XPool : public PluginStub
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "Xpool error xlink_read_data_to_buffer: "
+                        "XPool: XLink read error: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -138,7 +138,7 @@ class XPool : public PluginStub
                 sc = xlink_read_data(&XlinkDeviceHandle, chanId, &out_data, (uint32_t*)&data_size);
                 if (sc) {
                     std::string error_message {
-                        "Xpool error xlink_read_data: "
+                        "XPool: XLink read error: "
                         + std::to_string(sc)
                         };
                 }
@@ -159,7 +159,7 @@ class XPool : public PluginStub
                                                     msg, &size) };
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "Xpool error xlink_read_data_to_buffer: "
+                        "XPool: XLink read error: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -177,7 +177,7 @@ class XPool : public PluginStub
 
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "Xpool error xlink_read_data: "
+                        "XPool: XLink read error: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -400,7 +400,7 @@ class XPool : public PluginStub
         auto rc { xlink_write_data(&XlinkDeviceHandle, chanId, reinterpret_cast<uint8_t *>(&buffer), bufferSize) };
 #endif // __REMOTE_HOST__
         if (X_LINK_SUCCESS != rc) {
-            std::cerr << "Error in XPool XLinkWrite: " << rc << std::endl;
+            std::cerr << "XPool: XLink write error: " << rc << std::endl;
         } else {
             output_buffers.push(buffer);
         }

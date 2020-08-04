@@ -30,7 +30,7 @@ The KMB plugin accepts the following options:
 | `VPU_COMPILER_CONCAT_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable concat scales alignment |
 | `VPU_COMPILER_WEIGHTS_ZERO_POINTS_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable weights zero points alignment |
 | `VPU_KMB_PLATFORM`    | `VPU_2490` | `VPU_2490` | Set the target device |
-| `VPU_KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the umber of threads to use for model execution |
+| `KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the number of threads to use for model execution |
 | `VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION`    | `YES`/`NO` | `NO` | Enable or disable blob transfer to device if LoadNetwork is called |
 | `VPU_COMPILER_COMPILATION_PASS_BAN_LIST` | std::string | empty | List of mcm passes to be removed from mcm compilation descriptor (value example: kmb_adapt,KMBQuantizeConversion;adapt,TileOps) |
 | `VPU_COMPILER_CUSTOM_LAYERS` | std::string | empty | Path to custom layer binding xml file. Custom layer has higher priority over native implementation. |
@@ -39,6 +39,7 @@ The KMB plugin accepts the following options:
 | `VPU_KMB_TARGET_DESCRIPTOR_PATH`    | string | 'mcm_config/target' | Path to folder with target config files |
 | `VPU_KMB_TARGET_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for target device |
 
-## See Also
+
+# See Also
 
 * [Inference Engine introduction](https://gitlab-icv.inn.intel.com/inference-engine/dldt/blob/master/docs/IE_DG/inference_engine_intro.md)

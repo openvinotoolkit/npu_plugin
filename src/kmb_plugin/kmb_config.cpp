@@ -40,7 +40,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
     static const std::unordered_set<std::string> options =
         merge(MCMConfig::getCompileOptions(), {
                                                   VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
-                                                  VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                  KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
                                                   VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
@@ -61,7 +61,7 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_loadNetworkAfterCompilation, switches, config, VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION));
 
-    setOption(_throghputStreams, config, VPU_KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
+    setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
 
     setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
 

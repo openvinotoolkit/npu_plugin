@@ -94,9 +94,12 @@ if(mcmCompiler_FOUND AND UNIX)
             COMMENT "[MCM Compiler] Copy lib files")
 
     set(mcmCompilerDescriptor_DIR "${mcmCompiler_DIR}/../../../config")
+    set(mcmCustomCompilerDescriptor_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config") 
 
     add_custom_target(mcm_compiler_copy_configs ALL
             COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCompilerDescriptor_DIR}"
+                                                         "${COMPILATION_OUT_DIR}/mcm_config"
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCustomCompilerDescriptor_DIR}"
                                                          "${COMPILATION_OUT_DIR}/mcm_config"
             COMMENT "[MCM Compiler] Copy config files for compilation")
 
