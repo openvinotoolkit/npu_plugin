@@ -29,6 +29,7 @@
 
 #include "dims_parser.hpp"
 #include "ie_utils.hpp"
+#include <ie_itt.hpp>
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
 
@@ -46,7 +47,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _deallocateHelper([this](uint8_t* ptr) { this->_executor->getKmbAllocator()->free(ptr); }),
       _inputBuffer(nullptr, _deallocateHelper),
       _outputBuffer(nullptr, _deallocateHelper) {
-    IE_PROFILING_AUTO_SCOPE(KmbInferRequest);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "KmbInferRequest");
     if (_networkOutputs.empty() || _networkInputs.empty()) {
         THROW_IE_EXCEPTION << "Internal error: no information about network's output/input";
     }
@@ -114,7 +115,7 @@ void KmbInferRequest::dumpOutputBlobHelper(
 }
 
 void KmbInferRequest::InferAsync() {
-    IE_PROFILING_AUTO_SCOPE(InferAsync);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
     execPreprocessing(_inputs);
 
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
@@ -177,7 +178,7 @@ void KmbInferRequest::checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap&
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
-    IE_PROFILING_AUTO_SCOPE(execPreprocessing);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
     // TODO: [Track number: S#31121]
     // Get rid of environment variable USE_SIPP
     if (getenv("USE_SIPP") != nullptr) {
@@ -294,13 +295,13 @@ static Blob::Ptr reallocateBlobToLayout(const Blob::Ptr& blob, const Layout& lay
 }
 
 Blob::Ptr KmbInferRequest::reallocateBlob(const Blob::Ptr& blob) {
-    IE_PROFILING_AUTO_SCOPE(reallocateBlob);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "reallocateBlob");
     return reallocateBlobToLayout(blob, blob->getTensorDesc().getLayout(), _executor->getKmbAllocator());
 }
 
 Blob::Ptr KmbInferRequest::prepareInputForInference(
     const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc) {
-    IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "prepareInputForInference");
 
     // HACK: to overcome inability python API to pass a blob of NHWC layout
     if (_config.forceNCHWToNHWC()) {
@@ -366,7 +367,7 @@ void KmbInferRequest::dumpInputBlobHelper(
 }
 
 void KmbInferRequest::GetResult() {
-    IE_PROFILING_AUTO_SCOPE(GetResult);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "GetResult");
     auto dataName = _networkOutputs.begin()->first;
 
     auto foundInputBlob = _outputs.find(dataName);
@@ -447,7 +448,7 @@ void KmbInferRequest::Infer() {
 }
 
 void KmbInferRequest::checkBlobs() {
-    IE_PROFILING_AUTO_SCOPE(checkBlobs);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "checkBlobs");
     for (auto const& output : _outputs) {
         checkBlob(output.second, output.first, false);
     }
