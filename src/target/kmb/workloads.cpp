@@ -1194,7 +1194,8 @@ int mv::Workloads::partitionTensorWithZsplit(const mv::DPUModeList& mode_list, s
 
     //max Z calculation
     size_t max_channels_per_WL = divRoundUp(C,nWorkloads);
-    if (max_channels_per_WL < 16)
+    if (max_channels_per_WL < 16 ||
+        max_channels_per_WL * nWorkloads > C)
         return 0;
 
     WorkloadShape original_shape;

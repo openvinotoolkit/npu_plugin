@@ -498,7 +498,7 @@ void quantizeIO(mv::ComputationModel& model) {
                 if(next_child_ops.size() == 1 && next_child_ops[0]->getOpType() == "FakeQuantize") {
                     auto inputC = input->getOutputTensor(0)->getShape()[2];
 
-                    if (current_ops[0]->getInputTensor(1)->isDoubleType()) {
+                    if (current_ops[0]->getInputTensor(1)->isFloatingPointType()) {
                         std::runtime_error("Unsupported fuse scaleshift DType");
                     }
                     std::vector<int64_t> scaleData = current_ops[0]->getInputTensor(1)->getIntData();
@@ -661,7 +661,7 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
 
             // Quantize input bias
             current_op = findSinkLayers(dm, current_op->getOutputTensor(0)).at(0);
-            if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isDoubleType()) {
+            if (current_op->getOpType() == "Bias" && current_op->getInputTensor(1)->isFloatingPointType()) {
                 auto bias_op = quantizeBias(model, current_op, initial_quant_params(), scalesQuantParams);
                 setQuantizationParams(bias_op, getParentQuantParams(om, bias_op));
             }

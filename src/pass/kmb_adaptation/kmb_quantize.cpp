@@ -221,15 +221,26 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     std::vector<mv::Data::OpListIterator> slicesFP16 = {};
     for (auto& slice: slices)
     {
-        std::vector<mv::Data::OpListIterator> afterSlice =
-                mv::findSinkLayers(dm, slice->getOutputTensor(0));
-        // Handle back-to-back slices
-        if(afterSlice[0]->getOpType() == "Slice")
-            afterSlice[0] = afterSlice[0].leftmostOutput().sink();
-        auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
-                           afterSlice[0]->getName());
-        if (it != dpuTasksFP16Names.end())
-            slicesFP16.push_back(slice);
+        std::vector<mv::Data::OpListIterator> executable_ops;
+        std::queue<mv::Data::OpListIterator> op_itr_bfs;
+        op_itr_bfs.push(slice);
+        // BFS the non-executable subtree to find other slice and executable leafs
+        while (!op_itr_bfs.empty()) {
+            auto current_op_itr = op_itr_bfs.front();
+            for(auto outputFlow = current_op_itr.leftmostOutput();
+                outputFlow != om.flowEnd(); ++outputFlow) {
+                if (outputFlow.sink()->hasTypeTrait("executable")) {
+                    executable_ops.push_back(outputFlow.sink());
+                } else if (outputFlow.sink()->getOpType() != "Slice") {
+                    op_itr_bfs.push(outputFlow.sink());
+                }
+            }
+            op_itr_bfs.pop();
+        }
+        for (auto op : executable_ops)
+            if (std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
+                    op->getName()) != dpuTasksFP16Names.end())
+                slicesFP16.push_back(slice);
     }
 
     for (auto& sliceFP16 : slicesFP16)

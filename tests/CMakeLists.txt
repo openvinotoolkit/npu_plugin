@@ -134,6 +134,7 @@ add_subdirectory(system_tests/lp_scheduler/three_layer_conv_model)
 #add_subdirectory(system_tests/lp_scheduler/resnet)
 add_subdirectory(system_tests/lp_scheduler/tiny_yolo)
 #add_subdirectory(system_tests/lp_scheduler/mobilenet)
+add_subdirectory(system_tests/network)
 
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES stdc++)
 set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "")
