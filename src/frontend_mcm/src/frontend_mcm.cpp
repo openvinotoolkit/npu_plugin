@@ -507,13 +507,18 @@ void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
         if (layer->type == "Eltwise") {
             std::vector<CNNLayerPtr> inputs;
             auto layerInputs = CNNNetworkHelper::getParents(*layer);
+            bool canBeAlligned = true;
             for (auto& input : layerInputs) {
                 int appended = appendFQfromInput(input, inputs);
                 if (appended == 0) {  // Input is not quantized
                     _logger->debug("Input %s of layer %s is not quantized. Eltwise scales will not be aligned",
                         input->name, layer->name);
-                    continue;
+                    canBeAlligned = false;
+                    break;
                 }
+            }
+            if (!canBeAlligned) {
+                continue;
             }
             size_t maxValues = 1;
             size_t maxValuesIdx = 0;
@@ -568,13 +573,18 @@ void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
             }
             std::vector<CNNLayerPtr> inputs;
             auto layerInputs = CNNNetworkHelper::getParents(*layer);
+            bool canBeAlligned = true;
             for (auto& input : layerInputs) {
                 int appended = appendFQfromInput(input, inputs);
                 if (appended == 0) {  // Input is not quantized
                     _logger->debug("Input %s of layer %s is not quantized. Concat scales will not be aligned",
                         input->name, layer->name);
-                    continue;
+                    canBeAlligned = false;
+                    break;
                 }
+            }
+            if (!canBeAlligned) {
+                continue;
             }
             for (auto& input : inputs) {
                 IE_ASSERT(input->type == "FakeQuantize");
