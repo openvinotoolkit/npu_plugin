@@ -246,7 +246,7 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
 
 INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
-TEST_F(KmbPrivateConfigTests, precommit_SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
+TEST_F(KmbPrivateConfigTests, DISABLED_precommit_SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
     SKIP();
 #endif
