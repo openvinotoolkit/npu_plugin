@@ -2,7 +2,7 @@
 
 ## Introducing KMB Plugin for Inference Engine
 
-KMB Plugin is developed for inference of neural networks on new Gen3 Intel&reg; Movidius&trade; VPU Code-Named Keem Bay.
+KMB Plugin is developed for inference of neural networks on new Gen3 Intel&reg; Movidius&trade; VPU Code-Named Keem Bay and Intel&reg; Movidius&trade; VPU Code-Named Thunder Bay Harbor.
 
 ## Supported networks
 
