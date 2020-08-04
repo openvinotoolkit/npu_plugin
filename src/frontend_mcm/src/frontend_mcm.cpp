@@ -1427,6 +1427,14 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
     const auto constBlob = foundBlob->second;
     auto blobPrecision = constBlob->getTensorDesc().getPrecision();
     auto mcmShape = sizeVectorToShape(layer->outData.front()->getDims());
+
+    // IE add constant folding for PriorBox\PriorBox clustered
+    // As a result we get 3d const instead of concat for DetectionOut layer
+    // Current case unsupported on mcm side. WA expand dims (3d->4d)
+    if (mcmShape.ndims() == 3) {
+        mcmShape = mv::Shape::augment_major(mcmShape, 4);
+    }
+
     if (isInteger(blobPrecision)) {
         std::vector<int64_t> constData = packBlobToVector<int64_t>(constBlob, constBlob->size());
         auto constMCM =
