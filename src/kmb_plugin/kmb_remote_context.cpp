@@ -14,8 +14,8 @@
 // stated in the License.
 //
 
-#include <kmb_remote_context.h>
 #include <kmb_remote_blob.h>
+#include <kmb_remote_context.h>
 
 #include <memory>
 #include <string>
@@ -23,13 +23,11 @@
 using namespace vpu::KmbPlugin;
 
 static std::map<std::string, int> deviceIdMapping = {
-    { "VPU-0", 0 },
+    {"VPU-0", 0},
 };
 
 KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)
-    : _paramMap(params),
-      _deviceId(-1),
-      _deviceIdStr("") {
+    : _paramMap(params), _deviceId(-1), _deviceIdStr("") {
     if (_paramMap.empty()) {
         THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Param map for context is empty.";
     }
@@ -54,7 +52,7 @@ int KmbContextParams::getDeviceId() const { return _deviceId; }
 std::string KmbContextParams::getDeviceIdStr() const { return _deviceIdStr; }
 
 KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& ctxParams, const KmbConfig& config)
-     : _config(config),
+    : _config(config),
       _contextParams(ctxParams),
       _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
       _deviceId(_contextParams.getDeviceId()) {
@@ -79,9 +77,7 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
     }
 }
 
-std::string KmbRemoteContext::getDeviceName() const noexcept {
-    return "KMB." + _contextParams.getDeviceIdStr();
-}
+std::string KmbRemoteContext::getDeviceName() const noexcept { return "KMB." + _contextParams.getDeviceIdStr(); }
 
 KmbAllocator::Ptr KmbRemoteContext::getAllocator() { return _allocatorPtr; }
 

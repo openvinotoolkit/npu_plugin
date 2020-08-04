@@ -14,11 +14,11 @@
 // stated in the License.
 //
 
-#include <ie_utils.hpp>
-
 #include <precision_utils.h>
+
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
+#include <ie_utils.hpp>
 
 //
 // makeSingleValueBlob
@@ -83,13 +83,9 @@ ie::Blob::Ptr makeSingleValueBlob_(const ie::TensorDesc& desc, T val) {
 
 }  // namespace
 
-ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val) {
-    return makeSingleValueBlob_(desc, val);
-}
+ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val) { return makeSingleValueBlob_(desc, val); }
 
-ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, int64_t val) {
-    return makeSingleValueBlob_(desc, val);
-}
+ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, int64_t val) { return makeSingleValueBlob_(desc, val); }
 
 //
 // makeScalarBlob
@@ -416,7 +412,7 @@ ie::Blob::Ptr toDefLayout(const ie::Blob::Ptr& in) {
 }
 
 InferenceEngine::Blob::Ptr utils::convertPrecision(
-        const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision) {
+    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision) {
     InferenceEngine::TensorDesc sourceTensorDesc = sourceData->getTensorDesc();
     InferenceEngine::Precision sourcePrecision = sourceTensorDesc.getPrecision();
     if (sourcePrecision == targetPrecision) {
@@ -424,15 +420,15 @@ InferenceEngine::Blob::Ptr utils::convertPrecision(
     }
 
     InferenceEngine::Blob::Ptr target = make_blob_with_precision(
-            InferenceEngine::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
+        InferenceEngine::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
     target->allocate();
     if (sourcePrecision == InferenceEngine::Precision::FP16 && targetPrecision == InferenceEngine::Precision::FP32) {
         InferenceEngine::PrecisionUtils::f16tof32Arrays(
-                target->buffer(), sourceData->cbuffer().as<InferenceEngine::ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
+            target->buffer(), sourceData->cbuffer().as<InferenceEngine::ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
     } else if (sourcePrecision == InferenceEngine::Precision::FP32 &&
                targetPrecision == InferenceEngine::Precision::FP16) {
         InferenceEngine::PrecisionUtils::f32tof16Arrays(
-                target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
+            target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
     } else {
         THROW_IE_EXCEPTION << "Error: output precision conversion from " << sourcePrecision << " to " << targetPrecision
                            << " is not supported.";

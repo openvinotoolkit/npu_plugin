@@ -36,7 +36,7 @@ static inline float clip_less(float x, float threshold) { return x > threshold ?
 }  // namespace
 
 std::vector<double> computePriorbox(const priorBoxParam& param) {
-    std::vector<float> dst_aspect_ratios {1.0f};
+    std::vector<float> dst_aspect_ratios{1.0f};
 
     bool exist = false;
     for (float src_aspect_ratio : param._src_aspect_ratios) {

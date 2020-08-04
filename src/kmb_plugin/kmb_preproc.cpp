@@ -8,8 +8,8 @@
 #include <memory>
 #include <string>
 
-#include "kmb_allocator.h"
 #include "ie_macro.hpp"
+#include "kmb_allocator.h"
 
 #if defined(__arm__) || defined(__aarch64__)
 #include "kmb_preproc_pool.hpp"

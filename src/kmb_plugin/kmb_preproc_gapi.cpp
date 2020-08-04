@@ -9,14 +9,13 @@
 #include <ie_compound_blob.h>
 
 #include <memory>
-#include "debug.h"
-
 #include <opencv2/gapi.hpp>
 #include <opencv2/gapi_m2i/preproc.hpp>
 #include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <utility>
 #include <vector>
 
+#include "debug.h"
 #include "kmb_preproc_gapi_kernels.hpp"
 #include "kmb_preproc_gapi_kernels_sipp.hpp"
 

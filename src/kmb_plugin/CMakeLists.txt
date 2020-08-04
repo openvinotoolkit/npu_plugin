@@ -98,10 +98,6 @@ if(ARM OR AARCH64)
             COMPONENT kmb)
 endif()
 
-if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-endif()
-
 if(ENABLE_TESTS)
     add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
 
@@ -130,8 +126,18 @@ if(ENABLE_TESTS)
             ${GAPI_SIPP_LIBRARY}
             ${GAPI_M2I_LIBRARY}
             kmb_utils)
+
+    if(ENABLE_CLANG_FORMAT)
+        add_clang_format_target(clang_format_${TARGET_NAME}_test_static FOR_TARGETS ${TARGET_NAME}_test_static ALL)
+        add_dependencies(${TARGET_NAME}_test_static clang_format_${TARGET_NAME}_test_static)
+    endif()
 endif()
 
 if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
+endif()
+
+if(ENABLE_CLANG_FORMAT)
+    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
+    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()

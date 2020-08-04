@@ -56,10 +56,10 @@ private:
     const std::vector<std::string> _optimizationCapabilities = {METRIC_VALUE(INT8)};
 
     // Metric to provide a hint for a range for number of async infer requests. (bottom bound, upper bound, step)
-    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests {4u, 10u, 1u};
+    const std::tuple<uint32_t, uint32_t, uint32_t> _rangeForAsyncInferRequests{4u, 10u, 1u};
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
-    const std::tuple<uint32_t, uint32_t> _rangeForStreams {1u, 4u};
+    const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
 };
 
 }  // namespace KmbPlugin

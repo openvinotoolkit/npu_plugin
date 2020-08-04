@@ -21,8 +21,8 @@
 #include <cstddef>
 
 namespace utils {
-    InferenceEngine::Blob::Ptr convertPrecision(
-            const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision);
+InferenceEngine::Blob::Ptr convertPrecision(
+    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision);
 }
 
 namespace ie = InferenceEngine;
@@ -36,12 +36,8 @@ ie::Blob::Ptr makeScalarBlob(int64_t val, const ie::Precision& precision = ie::P
 ie::Blob::Ptr toPrecision(const ie::Blob::Ptr& in, const ie::Precision& precision);
 ie::Blob::Ptr toDefPrecision(const ie::Blob::Ptr& in);
 
-inline ie::Blob::Ptr toFP32(const ie::Blob::Ptr& in) {
-    return toPrecision(in, ie::Precision::FP32);
-}
-inline ie::Blob::Ptr toFP16(const ie::Blob::Ptr& in) {
-    return toPrecision(in, ie::Precision::FP16);
-}
+inline ie::Blob::Ptr toFP32(const ie::Blob::Ptr& in) { return toPrecision(in, ie::Precision::FP32); }
+inline ie::Blob::Ptr toFP16(const ie::Blob::Ptr& in) { return toPrecision(in, ie::Precision::FP16); }
 
 ie::Blob::Ptr toLayout(const ie::Blob::Ptr& in, ie::Layout layout);
 ie::Blob::Ptr toDefLayout(const ie::Blob::Ptr& in);

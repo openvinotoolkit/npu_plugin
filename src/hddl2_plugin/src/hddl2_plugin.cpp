@@ -21,6 +21,7 @@
 
 // Inference Engine include
 #include <graph_transformer.h>
+
 #include <cnn_network_impl.hpp>
 #include <convert_function_to_cnn_network.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
@@ -35,14 +36,14 @@
 
 // Plugin include
 #include "hddl2_executable_network.h"
-#include "ie_macro.hpp"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
+#include "ie_macro.hpp"
 
 using namespace vpu::HDDL2Plugin;
 
 Engine::Engine() {
-    _pluginName = DEVICE_NAME; // "HDDL2"
+    _pluginName = DEVICE_NAME;  // "HDDL2"
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
@@ -72,8 +73,8 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, parsedConfigCopy);
 }
 
-ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICNNNetwork& network,
-    RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
+ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
+    const ICNNNetwork& network, RemoteContext::Ptr context, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
@@ -120,7 +121,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
 
-    return InferenceEngine::ExecutableNetwork {
+    return InferenceEngine::ExecutableNetwork{
         IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
             [](InferenceEngine::details::IRelease* p) {
                 p->Release();
@@ -134,7 +135,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, context);
 
-    return InferenceEngine::ExecutableNetwork {
+    return InferenceEngine::ExecutableNetwork{
         IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
             [](InferenceEngine::details::IRelease* p) {
                 p->Release();

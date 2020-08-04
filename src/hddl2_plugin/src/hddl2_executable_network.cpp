@@ -17,12 +17,12 @@
 #include <hddl2_async_infer_request.h>
 #include <hddl2_exceptions.h>
 #include <hddl2_executable_network.h>
-#include <ie_macro.hpp>
 #include <hddl2_infer_request.h>
 #include <hddl2_metrics.h>
 
 #include <algorithm>
 #include <fstream>
+#include <ie_macro.hpp>
 #include <memory>
 #include <string>
 #include <threading/ie_executor_manager.hpp>

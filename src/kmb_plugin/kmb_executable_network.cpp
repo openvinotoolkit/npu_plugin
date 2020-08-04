@@ -57,8 +57,8 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 void ExecutableNetwork::LoadBlob() {
     IE_PROFILING_AUTO_SCOPE(LoadBlob);
     auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config);
-    _executor = std::make_shared<KmbExecutor>(networkDescription,
-        _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
+    _executor = std::make_shared<KmbExecutor>(
+        networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
 
     _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
     _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());

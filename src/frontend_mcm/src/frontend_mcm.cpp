@@ -111,7 +111,6 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
 
 // clang-format on
 
-
 mv::DType precisionToDType(const ie::Precision& iePrecision) {
     mv::DType mvType;
     switch (iePrecision) {
@@ -527,7 +526,7 @@ int appendFQfromInput(const CNNLayerPtr inputLayer, std::vector<CNNLayerPtr>& re
 
 void FrontEndMcm::alignEltwiseScales(ie::CNNNetwork& network) {
     ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
-    for ( ; i != end; ++i) {
+    for (; i != end; ++i) {
         auto layer = *i;
         if (layer->type == "Eltwise") {
             std::vector<CNNLayerPtr> inputs;
@@ -587,7 +586,7 @@ bool FrontEndMcm::needsConcatScaleAlignment(const ie::CNNLayerPtr& layer) {
 
 void FrontEndMcm::alignConcatScales(ie::CNNNetwork& network) {
     ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
-    for ( ; i != end; ++i) {
+    for (; i != end; ++i) {
         auto layer = *i;
         if (layer->type == "Concat") {
             if (!needsConcatScaleAlignment(layer)) {
@@ -659,7 +658,7 @@ bool isFakeQuantizeOnWeights(const InferenceEngine::CNNLayerPtr& fakeQuantizeLay
 
 void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
     ie::details::CNNNetworkIterator i(&static_cast<const ie::ICNNNetwork&>(network)), end;
-    for ( ; i != end; ++i) {
+    for (; i != end; ++i) {
         auto layer = *i;
         if (layer->type == "FakeQuantize") {
             if (!isFakeQuantizeOnWeights(layer)) {
@@ -798,7 +797,7 @@ double inf = std::numeric_limits<double>::infinity();
 
 // PATCH(mcm2): This is needed to avoid a static initializer fiasco.
 static const mv::QuantizationParams& initialQuantParams() {
-    static mv::QuantizationParams init {{0}, {1}, {-inf}, {inf}};
+    static mv::QuantizationParams init{{0}, {1}, {-inf}, {inf}};
     return init;
 };
 
@@ -909,7 +908,8 @@ void FrontEndMcm::parseOutputData() {
         // FIXME: REMOVE_ME postfix was added to make output name unique.
         // compiler will fail if output name is equal to some layer name
         // S#34832
-        auto mvOutput = _modelMcm.output(lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}}, true, outputInfo.first + "REMOVE_ME");
+        auto mvOutput = _modelMcm.output(
+            lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}}, true, outputInfo.first + "REMOVE_ME");
         _output = std::make_shared<McmNodeObject>(mvOutput, lastLayerOut->desc());
         _nodes.push_back(_output);
     }
@@ -1188,7 +1188,7 @@ void FrontEndMcm::parseScaleImpl(
     std::vector<double> biasData;
     if (biases != nullptr) {
         biasData = packBlobToVector<double>(biases, biases->size());
-        mv::Shape shiftShape {biases->size()};
+        mv::Shape shiftShape{biases->size()};
         auto shiftData = _modelMcm.constant(
             biasData, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
         // TODO: return logging
@@ -1436,7 +1436,7 @@ InferenceEngine::CNNLayerPtr getInputLayerSafe(const InferenceEngine::CNNLayerPt
 
 namespace {
 bool isInteger(ie::Precision iePrecision) {
-    static std::set<ie::Precision> integer_precision {
+    static std::set<ie::Precision> integer_precision{
         ie::Precision::I8, ie::Precision::U8, ie::Precision::I32, ie::Precision::I64};
     return integer_precision.count(iePrecision);
 }
@@ -1672,8 +1672,8 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
 
         mv::Shape mcmShape = {static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), groupSize, 1lu};
 
-        auto mvWeightsValues = _modelMcm.constant(weightsData, mcmShape,
-            precisionToDType(Precision::FP32), mv::Order::getZMajorID(mcmShape.ndims()));
+        auto mvWeightsValues = _modelMcm.constant(
+            weightsData, mcmShape, precisionToDType(Precision::FP32), mv::Order::getZMajorID(mcmShape.ndims()));
         // TODO: Initially  this parameter is: precisionToDType(constBlob->getTensorDesc().getPrecision()),
         // but as Work Around it is set to: precisionToDType(Precision(Precision::ePrecision::FP32)).
         // It is so just because mcmCompiler has not supported FP16 yet.
@@ -1782,14 +1782,14 @@ void FrontEndMcm::parseNormalize(const ie::CNNLayerPtr& layer, const McmNodeVect
 
     IE_ASSERT((dims[1] == weightsSize) || (channel_shared == 1 && weightsSize == 1));
 
-   auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
+    auto weightsData = packBlobToVector<double>(weightsBlob, weightsSize);
     if (channel_shared) {
         weightsData.assign(dims[1], weightsData[0]);
         channel_shared = false;
     }
 
-    auto mvWeightsValues = _modelMcm.constant(weightsData, weightsShape,
-        mv::DType(precisionToDType(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
+    auto mvWeightsValues = _modelMcm.constant(
+        weightsData, weightsShape, mv::DType(precisionToDType(Precision::ePrecision::FP32)), mv::Order::getZMajorID(4));
 
     mv::Data::TensorIterator mvNormalize;
 
@@ -2007,10 +2007,9 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
         return mv::DType{"Default"};
     }();
 
-
     // `type` variable is to be used
-    auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData,
-        order, shape, mv::DType{"Default"}, initialQuantParams(), layer->name);
+    auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData, order, shape,
+        mv::DType{"Default"}, initialQuantParams(), layer->name);
 
     bindOutput(custom, layer->outData[0]);
     _logger->debug(FINISH_PARSING_STR, custom->getName());
@@ -2150,8 +2149,8 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
     IE_ASSERT(dims.size() == 3);
     int size = dims[0] * dims[1] * dims[2];
 
-    ParseLayersHelpers::priorBoxClusteredParam param {offset, clip, step_w, step_h, layer_width, layer_height,
-        img_width, img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
+    ParseLayersHelpers::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height, img_width,
+        img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
 
     auto boxes = computePriorboxClustered(param);
 

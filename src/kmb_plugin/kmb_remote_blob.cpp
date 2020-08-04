@@ -15,10 +15,11 @@
 //
 
 #include "kmb_remote_blob.h"
-#include "vpu/kmb_params.hpp"
 
 #include <memory>
 #include <string>
+
+#include "vpu/kmb_params.hpp"
 
 using namespace vpu::KmbPlugin;
 
@@ -66,7 +67,7 @@ KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const KmbC
 }
 
 KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params, const KmbConfig& config)
+    const InferenceEngine::ParamMap& params, const KmbConfig& config)
     : RemoteBlob(tensorDesc),
       _params(params, config),
       _remoteContextPtr(contextPtr),
@@ -84,10 +85,12 @@ KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, cons
     _logger->info("%s: KmbRemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
     if (_params.getRemoteMemoryHandle() != nullptr) {
-        _memoryHandle = kmbAllocatorPtr->wrapRemoteMemoryHandle(_remoteMemoryFd, this->size(), _params.getRemoteMemoryHandle());
+        _memoryHandle =
+            kmbAllocatorPtr->wrapRemoteMemoryHandle(_remoteMemoryFd, this->size(), _params.getRemoteMemoryHandle());
     } else {
         // fallback to offsets when memory handle is not specified
-        _memoryHandle = kmbAllocatorPtr->wrapRemoteMemoryOffset(_remoteMemoryFd, this->size(), _params.getRemoteMemoryOffset());
+        _memoryHandle =
+            kmbAllocatorPtr->wrapRemoteMemoryOffset(_remoteMemoryFd, this->size(), _params.getRemoteMemoryOffset());
     }
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << "Allocation error";
@@ -104,8 +107,7 @@ KmbRemoteBlob::KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngin
       _allocatorPtr(origBlob._allocatorPtr),
       _config(origBlob._config),
       _remoteMemoryFd(origBlob._remoteMemoryFd),
-      _logger(std::make_shared<Logger>("KmbRemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
-}
+      _logger(std::make_shared<Logger>("KmbRemoteBlob", origBlob._config.logLevel(), consoleOutput())) {}
 
 bool KmbRemoteBlob::deallocate() noexcept {
     if (_allocatorPtr == nullptr) {
@@ -115,23 +117,28 @@ bool KmbRemoteBlob::deallocate() noexcept {
 }
 
 InferenceEngine::LockedMemory<void> KmbRemoteBlob::buffer() noexcept {
-    return InferenceEngine::LockedMemory<void>(reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return InferenceEngine::LockedMemory<void>(
+        reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
 InferenceEngine::LockedMemory<const void> KmbRemoteBlob::cbuffer() const noexcept {
-    return InferenceEngine::LockedMemory<const void>(reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return InferenceEngine::LockedMemory<const void>(
+        reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
 InferenceEngine::LockedMemory<void> KmbRemoteBlob::rwmap() noexcept {
-    return InferenceEngine::LockedMemory<void>(reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return InferenceEngine::LockedMemory<void>(
+        reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
 InferenceEngine::LockedMemory<const void> KmbRemoteBlob::rmap() const noexcept {
-    return InferenceEngine::LockedMemory<const void>(reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return InferenceEngine::LockedMemory<const void>(
+        reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
 InferenceEngine::LockedMemory<void> KmbRemoteBlob::wmap() noexcept {
-    return InferenceEngine::LockedMemory<void>(reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
+    return InferenceEngine::LockedMemory<void>(
+        reinterpret_cast<InferenceEngine::IAllocator*>(_allocatorPtr.get()), _memoryHandle, 0);
 }
 
 std::string KmbRemoteBlob::getDeviceName() const noexcept {
@@ -152,9 +159,7 @@ const std::shared_ptr<InferenceEngine::IAllocator>& KmbRemoteBlob::getAllocator(
     return _allocatorPtr;
 }
 
-size_t KmbRemoteBlob::size() const noexcept {
-    return MemoryBlob::size();
-}
+size_t KmbRemoteBlob::size() const noexcept { return MemoryBlob::size(); }
 
 size_t KmbRemoteBlob::byteSize() const noexcept { return size() * element_size(); }
 

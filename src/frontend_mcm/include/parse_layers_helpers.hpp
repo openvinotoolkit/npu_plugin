@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include <vector>
 #include <sstream>
+#include <vector>
 
 #include "ie_common.h"
 

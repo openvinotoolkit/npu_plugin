@@ -15,13 +15,15 @@
 //
 
 #include "file_reader.h"
-#include "ie_compound_blob.h"
 
 #include <precision_utils.h>
+
 #include <fstream>
+
+#include "ie_compound_blob.h"
 #if defined(__arm__) || defined(__aarch64__)
-#include <unistd.h>
 #include <sys/mman.h>
+#include <unistd.h>
 #include <vpusmm/vpusmm.h>
 #endif
 
@@ -44,14 +46,15 @@ size_t getFileSize(std::istream& strm) {
 #if defined(__arm__) || defined(__aarch64__)
 class MemChunk {
 public:
-    MemChunk(void* virtAddr, size_t size, int fd) : _virtAddr(virtAddr), _size(size), _fd(fd) {}
+    MemChunk(void* virtAddr, size_t size, int fd): _virtAddr(virtAddr), _size(size), _fd(fd) {}
     ~MemChunk() {
-	if (_virtAddr != nullptr) {
-	   vpusmm_unimport_dmabuf(_fd);
-	   munmap(_virtAddr, _size);
-	   close(_fd);
-	}
+        if (_virtAddr != nullptr) {
+            vpusmm_unimport_dmabuf(_fd);
+            munmap(_virtAddr, _size);
+            close(_fd);
+        }
     }
+
 private:
     void* _virtAddr = nullptr;
     size_t _size = 0;
@@ -83,31 +86,31 @@ InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const
     size_t count = blob->size();
     if (in.good()) {
         if (desc.getPrecision() == InferenceEngine::Precision::FP16) {
-            InferenceEngine::ie_fp16 *blobRawDataFP16 = blob->buffer().as<InferenceEngine::ie_fp16 *>();
+            InferenceEngine::ie_fp16* blobRawDataFP16 = blob->buffer().as<InferenceEngine::ie_fp16*>();
             if (sizeFile == count * sizeof(float)) {
                 for (size_t i = 0; i < count; i++) {
                     float tmp;
-                    in.read(reinterpret_cast<char *>(&tmp), sizeof(float));
+                    in.read(reinterpret_cast<char*>(&tmp), sizeof(float));
                     blobRawDataFP16[i] = InferenceEngine::PrecisionUtils::f32tof16(tmp);
                 }
             } else if (sizeFile == count * sizeof(InferenceEngine::ie_fp16)) {
                 for (size_t i = 0; i < count; i++) {
                     InferenceEngine::ie_fp16 tmp;
-                    in.read(reinterpret_cast<char *>(&tmp), sizeof(InferenceEngine::ie_fp16));
+                    in.read(reinterpret_cast<char*>(&tmp), sizeof(InferenceEngine::ie_fp16));
                     blobRawDataFP16[i] = tmp;
                 }
             } else {
                 THROW_IE_EXCEPTION << "File has invalid size!";
             }
         } else if (desc.getPrecision() == InferenceEngine::Precision::FP32) {
-            float *blobRawData = blob->buffer();
+            float* blobRawData = blob->buffer();
             if (sizeFile == count * sizeof(float)) {
-                in.read(reinterpret_cast<char *>(blobRawData), count * sizeof(float));
+                in.read(reinterpret_cast<char*>(blobRawData), count * sizeof(float));
             } else {
                 THROW_IE_EXCEPTION << "File has invalid size!";
             }
         } else if (desc.getPrecision() == InferenceEngine::Precision::U8) {
-            char *blobRawData = blob->buffer().as<char *>();
+            char* blobRawData = blob->buffer().as<char*>();
             if (sizeFile == count * sizeof(char)) {
                 in.read(blobRawData, count * sizeof(char));
             } else {
@@ -121,10 +124,7 @@ InferenceEngine::Blob::Ptr fromBinaryFile(const std::string& input_binary, const
     return blob;
 }
 
-void readNV12FileHelper(const std::string &filePath,
-                        size_t sizeToRead,
-                        uint8_t *imageData,
-                        size_t readOffset) {
+void readNV12FileHelper(const std::string& filePath, size_t sizeToRead, uint8_t* imageData, size_t readOffset) {
     std::ifstream fileReader(filePath, std::ios_base::ate | std::ios_base::binary);
     if (!fileReader.good()) {
         throw std::runtime_error("readNV12FileHelper: failed to open file " + filePath);
@@ -135,22 +135,20 @@ void readNV12FileHelper(const std::string &filePath,
         throw std::runtime_error("readNV12FileHelper: size of " + filePath + " is less than expected");
     }
     fileReader.seekg(readOffset, std::ios_base::beg);
-    fileReader.read(reinterpret_cast<char *>(imageData), sizeToRead);
+    fileReader.read(reinterpret_cast<char*>(imageData), sizeToRead);
     fileReader.close();
 }
 
-InferenceEngine::Blob::Ptr fromNV12File(const std::string &filePath,
-                                        size_t imageWidth,
-                                        size_t imageHeight,
-                                        std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> &allocator) {
+InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imageWidth, size_t imageHeight,
+    std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator>& allocator) {
     const size_t expectedSize = imageWidth * (imageHeight * 3 / 2);
-    uint8_t *imageData = reinterpret_cast<uint8_t *>(allocator->allocate(expectedSize));
+    uint8_t* imageData = reinterpret_cast<uint8_t*>(allocator->allocate(expectedSize));
     readNV12FileHelper(filePath, expectedSize, imageData, 0);
 
-    InferenceEngine::TensorDesc planeY(InferenceEngine::Precision::U8,
-        {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
-    InferenceEngine::TensorDesc planeUV(InferenceEngine::Precision::U8,
-        {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeY(
+        InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth}, InferenceEngine::Layout::NHWC);
+    InferenceEngine::TensorDesc planeUV(
+        InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, InferenceEngine::Layout::NHWC);
     const size_t offset = imageHeight * imageWidth;
 
     InferenceEngine::Blob::Ptr blobY = InferenceEngine::make_shared_blob<uint8_t>(planeY, imageData);

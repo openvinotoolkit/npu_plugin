@@ -44,8 +44,10 @@ public:
 
     virtual ~KmbAllocator();
 
-    virtual void* wrapRemoteMemoryHandle(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
-    virtual void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept;
+    virtual void* wrapRemoteMemoryHandle(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
+    virtual void* wrapRemoteMemoryOffset(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept;
 
 protected:
     struct MemoryDescriptor {
@@ -55,7 +57,7 @@ protected:
         bool isAllocated;
     };
     std::unordered_map<void*, MemoryDescriptor> _allocatedMemory;
-    int _deviceId = 0; // signed integer to be consistent with vpurm API
+    int _deviceId = 0;  // signed integer to be consistent with vpurm API
 };
 
 }  // namespace KmbPlugin

@@ -16,18 +16,18 @@
 
 #pragma once
 
-#include <vector>
-#include <unordered_set>
-
 #include <ie_data.h>
+
 #include <ie_parallel.hpp>
+#include <unordered_set>
+#include <vector>
 
 namespace vpu {
 
 namespace KmbPlugin {
 
-template<typename T>
-void kchw_to_khwc(const T *src, T *dst, const InferenceEngine::TensorDesc &desc) {
+template <typename T>
+void kchw_to_khwc(const T* src, T* dst, const InferenceEngine::TensorDesc& desc) {
     IE_ASSERT(desc.getDims().size() > 3 && desc.getLayout() == InferenceEngine::Layout::NCHW);
 
     auto& dims = desc.getDims();
@@ -35,7 +35,6 @@ void kchw_to_khwc(const T *src, T *dst, const InferenceEngine::TensorDesc &desc)
     auto H = dims[2];
     auto C = dims[1];
     auto K = dims[0];
-
 
     InferenceEngine::parallel_for4d(K, W, H, C, [=](int k, int w, int h, int c) {
         auto inInd = w + h * W + c * H * W + k * C * H * W;

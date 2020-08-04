@@ -14,53 +14,51 @@
 // stated in the License.
 //
 
-#include <dims_parser.hpp>
 #include <details/ie_exception.hpp>
+#include <dims_parser.hpp>
 
 namespace vpu {
 
-void parseDims(const InferenceEngine::TensorDesc &desc, size_t &dimN, size_t &dimZ, size_t &dimY, size_t &dimX,
-               size_t defaultValue) {
+void parseDims(const InferenceEngine::TensorDesc& desc, size_t& dimN, size_t& dimZ, size_t& dimY, size_t& dimX,
+    size_t defaultValue) {
     dimN = dimZ = dimY = dimX = defaultValue;
-    const auto &dims = desc.getDims();
+    const auto& dims = desc.getDims();
     switch (dims.size()) {
-        case 1:
-            dimZ = dims[0];
-            break;
-        case 2:
-            dimN = dims[0];
-            dimZ = dims[1];
-            break;
-        case 3:
-            dimX = dims[2];
-            dimY = dims[1];
-            dimZ = dims[0];
-            break;
-        case 4:
-            dimX = dims[3];
-            dimY = dims[2];
-            dimZ = dims[1];
-            dimN = dims[0];
-            break;
-        default:
-            THROW_IE_EXCEPTION << "Unsupported dimensions layout";
-            break;
+    case 1:
+        dimZ = dims[0];
+        break;
+    case 2:
+        dimN = dims[0];
+        dimZ = dims[1];
+        break;
+    case 3:
+        dimX = dims[2];
+        dimY = dims[1];
+        dimZ = dims[0];
+        break;
+    case 4:
+        dimX = dims[3];
+        dimY = dims[2];
+        dimZ = dims[1];
+        dimN = dims[0];
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported dimensions layout";
+        break;
     }
 }
 
-InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc &desc, size_t defaultValue) {
+InferenceEngine::TensorDesc getNCHW(const InferenceEngine::TensorDesc& desc, size_t defaultValue) {
     size_t dimN, dimZ, dimY, dimX;
     parseDims(desc, dimN, dimZ, dimY, dimX, defaultValue);
-    InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimN, dimZ, dimY, dimX},
-                                         InferenceEngine::Layout::NCHW);
+    InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimN, dimZ, dimY, dimX}, InferenceEngine::Layout::NCHW);
     return new_desc;
 }
 
-InferenceEngine::TensorDesc getWHCN(const InferenceEngine::TensorDesc &desc, size_t defaultValue) {
+InferenceEngine::TensorDesc getWHCN(const InferenceEngine::TensorDesc& desc, size_t defaultValue) {
     size_t dimN, dimZ, dimY, dimX;
     parseDims(desc, dimN, dimZ, dimY, dimX, defaultValue);
-    InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimX, dimY, dimZ, dimN},
-                                         InferenceEngine::Layout::ANY);
+    InferenceEngine::TensorDesc new_desc(desc.getPrecision(), {dimX, dimY, dimZ, dimN}, InferenceEngine::Layout::ANY);
     return new_desc;
 }
 

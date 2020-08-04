@@ -21,8 +21,8 @@
 #include <memory>
 #include <string>
 
-#include "kmb_remote_context.h"
 #include "ie_remote_context.hpp"
+#include "kmb_remote_context.h"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -103,5 +103,5 @@ protected:
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
 };
 
-} // namespace KmbPlugin
-} // namespace vpu
+}  // namespace KmbPlugin
+}  // namespace vpu

@@ -18,6 +18,7 @@
 
 #include <fcntl.h>
 #include <ie_common.h>
+#include <ie_memcpy.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -25,14 +26,12 @@
 #include <map>
 #include <utility>
 #include <vector>
-
-#include <ie_memcpy.h>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/logger.hpp>
 
 #include "ie_macro.hpp"
-#include "kmb_config.h"
 #include "kmb_allocator.h"
+#include "kmb_config.h"
 
 #ifndef _WIN32
 #include <dlfcn.h>
@@ -51,12 +50,12 @@ using namespace std;
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
-KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-            const KmbAllocator::Ptr& allocator,
-            const KmbConfig& config) : _networkDescription(networkDescription),
-                                       _allocator(allocator),
-                                       _config(config),
-                                       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
+KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
+    const KmbConfig& config)
+    : _networkDescription(networkDescription),
+      _allocator(allocator),
+      _config(config),
+      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
     if (!_config.useKmbExecutor()) {
         return;
     }
