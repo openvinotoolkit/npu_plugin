@@ -720,18 +720,12 @@ TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroa
             0.1f, 0.3f);
 }
 
-// C++ exception with description "Output layout is not supported: NCHW
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:877
-// [Track number: D#2726]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("300x300/dog.bmp", false),
+                    .setUserInputLayout("input", Layout::NCHW),
+            TestImageDesc("736x416/dss_val_05.png", true),
             0.3f,
             0.1f, 0.3f);
 }
