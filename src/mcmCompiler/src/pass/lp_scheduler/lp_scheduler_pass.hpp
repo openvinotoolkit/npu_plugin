@@ -624,6 +624,7 @@ class Control_Edge_Set {
       // !comodel.pathExists(oitr_sink, oitr_source), however the calling the
       // calling this (CosumerControl) need to check avoiding edges between
       // the sibiling and then this check can be removed.
+#if 0
       if ( (flow_itr == cmodel.flowEnd()) &&
           !(cmodel.pathExists(oitr_source, oitr_sink)) ) {
         if (cmodel.pathExists(oitr_sink, oitr_source)) {
@@ -632,6 +633,12 @@ class Control_Edge_Set {
               sink->getName().c_str(), source->getName().c_str());
           throw "[LpScheduler] unexpected cycle in the control DAG ";
         }
+        cmodel.defineFlow(oitr_source, oitr_sink);
+        edge_added = true;
+      }
+#endif
+
+      if (flow_itr == cmodel.flowEnd()) {
         cmodel.defineFlow(oitr_source, oitr_sink);
         edge_added = true;
       }
