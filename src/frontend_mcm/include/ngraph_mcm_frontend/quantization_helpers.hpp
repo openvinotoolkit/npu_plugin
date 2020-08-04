@@ -20,6 +20,7 @@
 #ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/shape.hpp>
+#include <ngraph/node.hpp>
 #include <ngraph/type/element_type.hpp>
 #include <vector>
 
@@ -54,6 +55,8 @@ std::vector<int64_t> quantizeData(
         const std::vector<double>& scales,
         const std::vector<int64_t>& zeroPoints,
         const ngraph::Shape& scalesShape);
+
+std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node);
 
 #endif
 // clang-format on

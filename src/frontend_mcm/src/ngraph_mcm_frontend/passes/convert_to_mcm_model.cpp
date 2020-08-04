@@ -610,25 +610,6 @@ static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::ReLUIE),
     MAP_ENTRY(ngraph::op::v0::RegionYolo),
     MAP_ENTRY(ngraph::op::v0::ReorgYolo)
-#if 0
-//     MAP_ENTRY(ngraph::op::v1::Add), Eltwise
-    MAP_ENTRY(ngraph::op::v1::ReduceMean),
-    MAP_ENTRY(ngraph::op::FullyConnected),
-    // PT_MobileNet_V2
-
-    // CF_Inception_V1
-    MAP_ENTRY(ngraph::op::v0::LRN),
-    MAP_ENTRY(ngraph::op::v0::Convert),
-    // PT_Inception_V3
-    MAP_ENTRY(ngraph::op::PowerIE),
-    // CF SqueezeNet_1_1 - nothing
-    // TF Yolo tiny v2
-    MAP_ENTRY(ngraph::op::v0::PRelu),
-    MAP_ENTRY(ngraph::op::v0::RegionYolo),
-    // TF Yolo V2
-    MAP_ENTRY(ngraph::op::v0::ReorgYolo)
-#endif
-
 };
 
 #undef MAP_ENTRY
