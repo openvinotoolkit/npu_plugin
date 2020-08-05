@@ -47,7 +47,7 @@ std::string Graph::extractFileName(const std::string& fullPath) {
 }
 
 //------------------------------------------------------------------------------
-CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) {
+CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const vpu::MCMConfig& config) {
     // TODO We will throw exception of compilation, if not able to do that
     if (!MCMAdapter::isMCMCompilerAvailable()) {
         THROW_IE_EXCEPTION << "MCM compiler is not available!";
@@ -63,13 +63,13 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
 }
 
 //------------------------------------------------------------------------------
-ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
+ImportedGraph::ImportedGraph(const std::string& blobFilename, const vpu::MCMConfig& config) {
     std::vector<char> blob = loadFileToVector(blobFilename);
     const std::string graphName = extractFileName(blobFilename);
     _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config, graphName);
 }
 
-ImportedGraph::ImportedGraph(std::istream& networkModel, const MCMConfig& config) {
+ImportedGraph::ImportedGraph(std::istream& networkModel, const vpu::MCMConfig& config) {
     std::vector<char> blob = loadStreamToVector(networkModel);
     _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config);
 }

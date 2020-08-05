@@ -38,7 +38,7 @@ public:
 
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
-        const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config);
+        const HDDL2RemoteContext::Ptr& context, const vpu::HDDL2Config& config);
 
     void Infer() override;
     void InferImpl() override;

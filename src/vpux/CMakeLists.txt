@@ -22,7 +22,13 @@ set(TARGET_NAME vpux)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-add_library(${TARGET_NAME} SHARED ${SOURCES})
+# TODO: investigate linkage error for vpux target if building shared library on Windows
+if(UNIX)
+    add_library(${TARGET_NAME} SHARED ${SOURCES})
+else()
+    add_library(${TARGET_NAME} STATIC ${SOURCES})
+endif()
+
 
 target_include_directories(${TARGET_NAME}
     PUBLIC

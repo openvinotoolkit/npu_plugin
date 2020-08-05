@@ -46,7 +46,7 @@ public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
+        const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
         const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor);
 
     void InferImpl() override;
@@ -70,9 +70,9 @@ protected:
     virtual InferenceEngine::Blob::Ptr reallocateBlob(const InferenceEngine::Blob::Ptr& blob);
 
     static void dumpInputBlobHelper(
-        const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst, const Logger::Ptr& _logger);
+        const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& _logger);
     static void dumpOutputBlobHelper(
-        const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst, const Logger::Ptr& _logger);
+        const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& _logger);
     typedef std::function<void(const InferenceEngine::Blob::Ptr&, const std::string&, const Logger::Ptr&)>
         dumpFunctor_t;
     void dumpBlobs(
