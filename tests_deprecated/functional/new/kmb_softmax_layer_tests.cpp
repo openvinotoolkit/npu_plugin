@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -19,6 +19,8 @@
 struct SoftmaxTestParams final {
     SizeVector _inDims;
     size_t _axisSet = 0;
+    Precision _inPrecision;
+    Precision _outPrecision;
 
     SoftmaxTestParams& inDims(const SizeVector& inDims) {
         this->_inDims = inDims;
@@ -29,9 +31,19 @@ struct SoftmaxTestParams final {
         this->_axisSet = axis_set;
         return *this;
     }
+
+    SoftmaxTestParams& inPrecision(const Precision& inPrecision) {
+        this->_inPrecision = inPrecision;
+        return *this;
+    }
+
+    SoftmaxTestParams& outPrecision(const Precision& outPrecision) {
+        this->_outPrecision = outPrecision;
+        return *this;
+    }
 };
 std::ostream& operator<<(std::ostream& os, const SoftmaxTestParams& p) {
-    vpu::formatPrint(os, "[inDims:%v, axisSet:%v]", p._inDims, p._axisSet);
+    vpu::formatPrint(os, "[inDims:%v, axisSet:%v, inPrecision:%v, outPrecision:%v]", p._inDims, p._axisSet, p._inPrecision, p._outPrecision);
     return os;
 }
 
@@ -40,8 +52,8 @@ class KmbSoftmaxLayerTests : public KmbLayerTestBase, public testing::WithParamI
 TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
     const auto &p = GetParam();
 
-    const auto userInDesc = TensorDesc(Precision::FP16, p._inDims, Layout::NHWC);
-    const auto userOutDesc = TensorDesc(Precision::FP32, Layout::NHWC);
+    const auto userInDesc = TensorDesc(p._inPrecision, p._inDims, Layout::NHWC);
+    const auto userOutDesc = TensorDesc(p._outPrecision, Layout::NHWC);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
 
@@ -72,10 +84,45 @@ TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
 const std::vector<SoftmaxTestParams> softmaxParams {
         SoftmaxTestParams()
             .inDims({1, 1000, 2, 2})
-            .axisSet({1}),
+            .axisSet({1})
+            .inPrecision(Precision::FP16)
+            .outPrecision(Precision::FP32),
         SoftmaxTestParams()
             .inDims({1, 1001, 2, 2})
             .axisSet({1})
+            .inPrecision(Precision::FP16)
+            .outPrecision(Precision::FP32),
+        SoftmaxTestParams()
+            .inDims({1, 3, 32, 32})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP16),
+        SoftmaxTestParams()
+            .inDims({1, 3, 32, 32})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP32),
+        SoftmaxTestParams()
+            .inDims({1, 3, 16, 16})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP16),
+        SoftmaxTestParams()
+            .inDims({1, 3, 16, 16})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP32),
+        SoftmaxTestParams()
+            .inDims({1, 1000, 2, 2})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP32),
+        SoftmaxTestParams()
+            .inDims({1, 1001, 2, 2})
+            .axisSet({1})
+            .inPrecision(Precision::U8)
+            .outPrecision(Precision::FP32)
 };
+
 
 INSTANTIATE_TEST_CASE_P(precommit, KmbSoftmaxLayerTests, testing::ValuesIn(softmaxParams));
