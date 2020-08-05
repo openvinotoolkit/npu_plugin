@@ -52,7 +52,7 @@ class HDDL2RemoteAllocator : public InferenceEngine::IAllocator {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
-    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const HDDL2Config& config);
+    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const vpu::HDDL2Config& config);
 
     ~HDDL2RemoteAllocator() override = default;
 

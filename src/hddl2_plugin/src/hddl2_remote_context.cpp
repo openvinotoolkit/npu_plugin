@@ -48,7 +48,7 @@ InferenceEngine::ParamMap HDDL2ContextParams::getParamMap() const { return _para
 WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
 
 //------------------------------------------------------------------------------
-HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config)
+HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config)
     : _contextParams(paramMap),
       _config(config),
       _logger(std::make_shared<Logger>("HDDL2RemoteContext", config.logLevel(), consoleOutput())) {

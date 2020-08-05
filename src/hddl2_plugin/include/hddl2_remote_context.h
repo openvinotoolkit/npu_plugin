@@ -56,7 +56,7 @@ public:
     /**
      * @brief Constructor with parameters, to initialize from workload id
      */
-    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const HDDL2Config& config);
+    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);
 
     /**
      * @brief CreateBlob provide ability to create RemoteBlob from remote memory fd

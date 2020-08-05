@@ -40,7 +40,7 @@ static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
 }
 
 //------------------------------------------------------------------------------
-HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const HDDL2Config& config)
+HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
     : _logger(std::make_shared<Logger>("HDDL2BlobParams", config.logLevel(), consoleOutput())) {
     if (params.empty()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for blob is empty.";
@@ -87,7 +87,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-    const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params, const HDDL2Config& config)
+    const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
     : RemoteBlob(tensorDesc),
       _params(params, config),
       _remoteContextPtr(contextPtr),

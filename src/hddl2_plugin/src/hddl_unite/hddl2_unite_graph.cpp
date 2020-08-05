@@ -40,7 +40,7 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID, const LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
 
@@ -75,7 +75,7 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
 }
 
 HddlUniteGraph::HddlUniteGraph(
-    const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr, const LogLevel& logLevel)
+    const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {

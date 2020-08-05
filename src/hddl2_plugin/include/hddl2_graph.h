@@ -49,15 +49,15 @@ class CompiledGraph : public Graph {
 public:
     using Ptr = std::shared_ptr<CompiledGraph>;
 
-    explicit CompiledGraph(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
+    explicit CompiledGraph(InferenceEngine::ICNNNetwork& network, const vpu::MCMConfig& config);
 };
 
 class ImportedGraph : public Graph {
 public:
     using Ptr = std::shared_ptr<ImportedGraph>;
 
-    explicit ImportedGraph(const std::string& blobFilename, const MCMConfig& config);
-    explicit ImportedGraph(std::istream& networkModel, const MCMConfig& config);
+    explicit ImportedGraph(const std::string& blobFilename, const vpu::MCMConfig& config);
+    explicit ImportedGraph(std::istream& networkModel, const vpu::MCMConfig& config);
 };
 
 }  // namespace HDDL2Plugin

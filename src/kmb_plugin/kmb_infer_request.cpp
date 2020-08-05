@@ -36,7 +36,7 @@ using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
 
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-    const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<StageMetaInfo>& blobMetaData,
+    const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
     const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
@@ -99,7 +99,7 @@ void KmbInferRequest::InferImpl() {
 }
 
 void KmbInferRequest::dumpOutputBlobHelper(
-    const Blob::Ptr& outputBlobPtr, const std::string& dst, const Logger::Ptr& logger) {
+    const Blob::Ptr& outputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& logger) {
     static unsigned dumpOutputCounter = 0;
     std::ostringstream inputFullPath;
     inputFullPath << dst;
@@ -353,7 +353,7 @@ void KmbInferRequest::dumpBlobs(
 }
 
 void KmbInferRequest::dumpInputBlobHelper(
-    const Blob::Ptr& inputBlobPtr, const std::string& dst, const Logger::Ptr& logger) {
+    const Blob::Ptr& inputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& logger) {
     static unsigned dumpInputCounter = 0;
     std::ostringstream inputFullPath;
     inputFullPath << dst;

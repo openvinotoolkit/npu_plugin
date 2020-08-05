@@ -73,7 +73,7 @@ void ExecutableNetwork::loadGraphToDevice() {
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    const std::string& blobFilename, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _context(castIEContextToHDDL2(ieContext)) {
@@ -85,7 +85,7 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    IE::ICNNNetwork& network, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _context(castIEContextToHDDL2(ieContext)) {
@@ -95,7 +95,7 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, const HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
+    std::istream& networkModel, const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _context(castIEContextToHDDL2(ieContext)) {

@@ -61,7 +61,7 @@ ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap& dataM
 }
 
 MCMNetworkDescription::MCMNetworkDescription(
-    const std::vector<char>& compiledNetwork, const MCMConfig& config, const std::string& name)
+    const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config, const std::string& name)
     : _name(name),
       _compiledNetwork(compiledNetwork),
       _logger(std::make_shared<vpu::Logger>("MCMNetworkDescription", config.logLevel(), consoleOutput())) {

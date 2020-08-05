@@ -88,7 +88,7 @@ static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t
 
 //------------------------------------------------------------------------------
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
+    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const vpu::HDDL2Config& config)
     : InferRequestInternal(networkInputs, networkOutputs),
       _loadedGraphPtr(loadedGraph),
       _context(context),
