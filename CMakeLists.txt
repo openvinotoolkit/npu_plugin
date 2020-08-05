@@ -266,6 +266,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/apply_target_vars.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
@@ -338,6 +339,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/scheduling/layout_dma.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"

@@ -21,9 +21,9 @@ include_directories(${GTEST_INCLUDE_DIRS})
 #    "pass/*.cpp"
 #)
 #
-#file(GLOB compiler_src
-#    "compiler/*.cpp"
-#)
+file(GLOB compiler_src
+    "${CMAKE_SOURCE_DIR}/tests/unit/compiler/*.cpp"
+)
 #
 #file(GLOB model_src
 #    "model/*.cpp"
@@ -70,6 +70,7 @@ file(GLOB barrier_deps_test
 )
 file(GLOB scheduler_unit_tests
   "${CMAKE_SOURCE_DIR}/src/scheduler/*\_test.cpp"
+  "${CMAKE_SOURCE_DIR}/src/pass/scheduling/*\_test.cpp"
   "${CMAKE_SOURCE_DIR}/src/pass/lp_scheduler/*\_test.cpp"
 )
 
@@ -96,7 +97,7 @@ add_executable(mcm_unit_tests
 #    ${tensor}
 #    ${op_src}
 #    ${pass_src}
-#    ${compiler_src}
+    ${compiler_src}
 #    ${model_src}
 #    ${kmb}
 #    ${utils}
