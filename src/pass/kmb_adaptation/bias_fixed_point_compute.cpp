@@ -62,49 +62,51 @@ static void adaptFixedPointComputeFcn(const mv::pass::PassEntry&, mv::Computatio
         }
         };
 
+    auto floatBiasTensors = std::set<std::string>();
     for (auto& opIt : om.getOps("DPUTask"))
     {
         //NOTE: The order of the hardware is mult_acc->bias->mult/shift
         //So when there is fp16 input there should be s16.16 bias
         auto accDtype = opIt->getInputTensor(0)->getDType();
         if (opIt->hasAttr("bias") && accDtype == mv::DType("Float16") && opIt->hasFloatPrecision())
-        {
-            auto biasTensor = dm.getTensor(opIt->get<std::string>("bias"));
+            floatBiasTensors.insert(opIt->get<std::string>("bias"));
+    }
 
-            auto conversionFunctor = toFloatConversionMap.find(
+    for (auto biasTensorName : floatBiasTensors){
+        auto biasTensor = dm.getTensor(biasTensorName);
+        auto conversionFunctor = toFloatConversionMap.find(
+            biasTensor->getDType().toString());
+
+        if (conversionFunctor == toFloatConversionMap.cend())
+            throw mv::RuntimeError(om, biasTensor->getName() +
+                ": No conversion to float registered for bias dtype of " +
                 biasTensor->getDType().toString());
 
-            if (conversionFunctor == toFloatConversionMap.cend())
-                throw mv::RuntimeError(om, opIt->getName() +
-                    ": No conversion to float registered for bias dtype of " +
-                    biasTensor->getDType().toString());
+        auto biasData = biasTensor->getData();
+        auto fixedPointBiasData = std::vector<double>(biasData.size());
 
-            auto biasData = biasTensor->getData();
-            auto fixedPointBiasData = std::vector<double>(biasData.size());
+        std::transform(
+            biasData.cbegin(),
+            biasData.cend(),
+            fixedPointBiasData.begin(),
+            conversionFunctor->second);
 
-            std::transform(
-                biasData.cbegin(),
-                biasData.cend(),
-                fixedPointBiasData.begin(),
-                conversionFunctor->second);
+        // Regardless if the data is float or integer, we need to convert
+        // it to a S16.16 format for the HW compute, which is equivalent
+        // to a multiply of 2^16 to align the zero point
+        std::transform(
+            fixedPointBiasData.begin(),
+            fixedPointBiasData.end(),
+            fixedPointBiasData.begin(),
+            [](double element) {
+                return std::round(element * std::pow(2, 16));
+            });
 
-            // Regardless if the data is float or integer, we need to convert
-            // it to a S16.16 format for the HW compute, which is equivalent
-            // to a multiply of 2^16 to align the zero point
-            std::transform(
-                fixedPointBiasData.begin(),
-                fixedPointBiasData.end(),
-                fixedPointBiasData.begin(),
-                [](double element) {
-                    return std::round(element * std::pow(2, 16));
-                });
-
-            for (size_t idx = 0; idx < biasTensor->size(); idx++)
-            {
-                biasTensor->at(idx) = fixedPointBiasData[idx];
-            }
-            biasTensor->setDType(mv::DType("Int32"));
+        for (size_t idx = 0; idx < biasTensor->size(); idx++)
+        {
+            biasTensor->at(idx) = fixedPointBiasData[idx];
         }
-
+        biasTensor->setDType(mv::DType("Int32"));
     }
+
 }

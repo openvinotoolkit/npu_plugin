@@ -151,7 +151,7 @@ void GenerateDotFromModel(mv::ComputationModel& model,
         {
             mv::DataModel dataModel(model);
 
-            for (auto opIt = opModel.opBegin(); opIt != opModel.opEnd(); ++opIt)
+            for (auto opIt : reducedOps)
             {
                 if (!(outputScope == "ExecOpModel" || outputScope == "ExecOpControlModel")
                     || (opIt->hasTypeTrait("executable") || opIt->getOpType() == "Input" || opIt->getOpType() == "Output"))

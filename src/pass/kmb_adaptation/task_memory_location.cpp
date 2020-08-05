@@ -100,6 +100,37 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                         dpuCopyOut->set<std::size_t>("lineofConcatHeight",
                                                     sinkOp->get<std::size_t>("lineofConcatHeight"));
                     }
+                    else if (opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv"))
+                    {
+                        std::size_t slot = 0;
+                        for (std::size_t inputConcatTensorIdx = 0; inputConcatTensorIdx < sinkOp->getInputTensor().size();
+                             inputConcatTensorIdx++)
+                            if (sinkOp->getInputTensor()[inputConcatTensorIdx]->getName() == output->getName())
+                                slot = inputConcatTensorIdx;
+                        //NOTE: only the tensor which goes to ddr, the dst should have the dilated strides
+                        dpuCopyOut->set<bool>("dilatedWidthConcat", true);
+                        dpuCopyOut->set<unsigned>("dilationFactor",
+                                                         opIt->get<unsigned>("originalDilationFactor"));
+                        dpuCopyOut->set<std::size_t>("inputConcatTensorIdx", opIt->get<std::vector<std::size_t>>("subConvsCoordinates")[1]);
+                        dpuCopyOut->set<std::size_t>("lineofConcatHeight",
+                                                    opIt->get<std::vector<std::size_t>>("subConvsCoordinates")[0]);
+                        if (opIt->hasAttr("streamHId"))
+                        {
+                            auto streamHId = opIt->get<unsigned>("streamHId");
+                            auto symmetrical_first_dimensionH = opIt->get<std::size_t>("symmetrical_first_dimensionH");
+                            dpuCopyOut->set<unsigned>("streamHId", streamHId);
+                            dpuCopyOut->set<std::size_t>("symmetrical_first_dimensionH",
+                                                         symmetrical_first_dimensionH);
+                        }
+                        else if (opIt->hasAttr("streamKId"))
+                        {
+                            auto streamKId = opIt->get<unsigned>("streamKId");
+                            auto symmetrical_first_dimensionK = opIt->get<std::size_t>("symmetrical_first_dimensionK");
+                            dpuCopyOut->set<unsigned>("streamKId", streamKId);
+                            dpuCopyOut->set<std::size_t>("symmetrical_first_dimensionK",
+                                                         symmetrical_first_dimensionK);
+                        }
+                    }
                     auto dpuCopyOutOp = om.getSourceOp(dpuCopyOut);
                     dpuCopyOutOp->set<unsigned>("opId", opIt->get<unsigned>("opId"));
                     if (output->hasAttr("quantParams"))

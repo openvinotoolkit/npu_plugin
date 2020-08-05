@@ -407,7 +407,13 @@ void populateActivationStorageElementMap(
     };
 
     const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
-    auto dispFunctor = displacementFunctors.at(op->get<std::string>("taskOp"));
+    auto dispFunctor = displacementFunctors.find(op->get<std::string>("taskOp"));
+    if (dispFunctor == displacementFunctors.cend())
+        throw mv::RuntimeError(model, op->getName() +
+            ": Op marked sparsity solving yet no displacement " +
+            "solver registered for op type " +
+            op->get<std::string>("taskOp"));
+
 
     auto inputTensorIdx = 0;
     for (auto tidx : op->get<std::vector<std::size_t>>("storageElementIndex"))
@@ -417,7 +423,7 @@ void populateActivationStorageElementMap(
 
         if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
             op->get<std::string>("splitStrategy")) == segmentableStrategies.cend()) {
-                auto disp = dispFunctor(op, inputTensorIdx, clusterSolversFunctors[0], 0);
+                auto disp = dispFunctor->second(op, inputTensorIdx, clusterSolversFunctors[0], 0);
                 for (size_t i = 0; i < table_offsets.size(); ++i)
                     table_offsets[i] =
                         ((disp.first + i * disp.second) <<
@@ -430,7 +436,7 @@ void populateActivationStorageElementMap(
             auto running_index = 0;
 
             for (size_t cl = 0; cl < numClusters; cl++) {
-                auto disp = dispFunctor(op, inputTensorIdx, clusterSolversFunctors[1], cl);
+                auto disp = dispFunctor->second(op, inputTensorIdx, clusterSolversFunctors[1], cl);
                 auto clTotalSize =
                     storageElementTable->getSubTensor(cl).getShape().totalSize();
                 for (size_t i = 0; i < clTotalSize; ++i)
@@ -451,7 +457,8 @@ void populateActivationStorageElementMapForDilatedConvolution(mv::Data::OpListIt
 {
     auto input = dpuTaskOp->getInputTensor(0);
     auto subConvIndex = dpuTaskOp->get<unsigned>("subConvIndex");
-    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
+    auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->
+                                            get<std::vector<std::size_t>>("storageElementIndex")[0]);
     auto dilationFactor = dpuTaskOp->get<unsigned>("originalDilationFactor");
     auto originalWidth = dpuTaskOp->get<mv::Shape>("originalShape")[mv::IO_WIDTH_DIMENSION];
     auto inputChannels = input->getShape()[mv::IO_CHANNEL_DIMENSION];
@@ -501,6 +508,10 @@ void populateActivationStorageElementMapForLayerAfterDilatedConvolution(mv::Data
 
     auto input = dpuTaskOp->getInputTensor()[0];
     auto parentImplicitOp = om.getSourceOp(input);
+    while (parentImplicitOp->getOpType() != "ImplicitJoin")
+    {
+        parentImplicitOp = om.getSourceOp(parentImplicitOp->getInputTensor()[0]);
+    }
     std::size_t numberSubConvs = 0;
     int64_t inputBaseAddress = 0;
     auto activationStorageElement = dpuTaskOp->getInputTensor(dpuTaskOp->get<std::vector<std::size_t>>("storageElementIndex")[0]);
@@ -685,13 +696,6 @@ static void populateStorageElementPointersFcn(const mv::pass::PassEntry& , mv::C
                     && op->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
             {
                 populateActivationStorageElementMapForDilatedConvolution(op, model);
-            }
-
-            if(op->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv")
-                    && op->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv"))
-            {
-                // NB this function still needs the correct logic to generate the SEPs
-                populateActivationStorageElementMapForLayerAfterDilatedConvolution(op, model);
             }
         }
     }

@@ -245,7 +245,6 @@ void interpAsDepthConvFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
         auto outQuantParams  = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
 
         auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
-        auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
 
         auto sourceTensor = parentOpIt->getOutputTensor(0);
         auto inQuantParams = sourceTensor->get<mv::QuantizationParams>("quantParams");
@@ -308,7 +307,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         {
             outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
-        auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+        auto outputTensorType = mv::DType("Default");
 
         std::vector<mv::Data::TensorIterator> convOutputs;
 
@@ -319,26 +318,27 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
             {
                 int kernelOffset = colIdx + stride * rowIdx;
                 mv::Data::TensorIterator weight;
-                if (sourceTensor->isDoubleType())
+                if (sourceTensor->isFloatingPointType())
                 {
                     std::vector<double> weightData(C * stride * stride, 0.);
                     for (unsigned cIdx = 0; cIdx < C; cIdx++)
                     {
                         weightData[kernelOffset + cIdx * kernelStep] = 1.;
                     }
-                    weight = om.constant(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
-                                         mv::Order(mv::Order::getRowMajorID(4)),
-                                         weightsTensorQuantizationParams);
+                    weight = om.constant(weightData, {stride, stride, C, 1},
+                                        mv::DType("Float64"),
+                                        mv::Order(mv::Order::getColMajorID(4)),
+                                        weightsTensorQuantizationParams);
                 }
                 else
                 {
                     std::vector<int64_t> weightData(C * stride * stride, 0);
                     for (unsigned cIdx = 0; cIdx < C; cIdx++)
                     {
-                        weightData[kernelOffset + cIdx * kernelStep] = 1;
+                        weightData[kernelOffset + cIdx * kernelStep] = 1ll;
                     }
                     weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
-                                            mv::Order(mv::Order::getRowMajorID(4)),
+                                            mv::Order(mv::Order::getColMajorID(4)),
                                             weightsTensorQuantizationParams);
                 }
                 auto gridConv = om.depthwiseConv(sourceTensor, weight, {stride, stride}, {0, 0, 0, 0}, 1, outputTensorType,
@@ -459,21 +459,22 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         std::vector<double> scale(1, scaleValue);
         mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
         mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+        double inf = std::numeric_limits<double>::infinity();
+        mv::QuantizationParams neutralWeightsQuantParams = {{0},{1.0},{-inf},{inf}};
 
-        if (sourceTensor->isDoubleType())
+        if (sourceTensor->isFloatingPointType())
         {
             double weightsValue = scaleValue;
             std::vector<double> weightsData(total_shape, weightsValue);
             //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float64"),
+                                mv::Order(mv::Order::getRowMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
-            int64_t weightsValue = 1;
-            std::vector<int64_t> weightsData(total_shape, weightsValue);
+            std::vector<int64_t> weightsData(total_shape, 1ll);
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt(weightsData,
@@ -672,60 +673,58 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> max = { 1 };
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
     // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw,
-	// but using original kernel for scale improves observed accuracy
+    // but using original kernel for scale improves observed accuracy
     double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
     double inf = std::numeric_limits<double>::infinity();
 
-
     // Create weights tensor
-    if (sourceTensor->isDoubleType())
-	{
-		double weightsValue = scaleValue;
-		std::vector<double> weightsData(total_shape, weightsValue);
-		//NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
-		weights = om.constant(weightsData,
-                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
-    }
-	else
+    if (sourceTensor->isFloatingPointType())
     {
-		int64_t weightsValue = 1;
-		std::vector<int64_t> weightsData(total_shape, weightsValue);
-		// If the input model is quantized, then the replacement pass needs to create
-		// quantization params for the weights parameter of the depthwise convolution.
-		weights = om.constantInt(weightsData,
+        double weightsValue = scaleValue;
+        std::vector<double> weightsData(total_shape, weightsValue);
+        //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
+        weights = om.constant(weightsData,
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                mv::DType("Float64"), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+    }
+    else
+    {
+        std::vector<int64_t> weightsData(total_shape, 1ll);
+        // If the input model is quantized, then the replacement pass needs to create
+        // quantization params for the weights parameter of the depthwise convolution.
+        weights = om.constantInt(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
-	}
+    }
     // Create depthwise conv
-	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized() && quantRequired)
-	{
+    mv::Data::TensorIterator depthwise_conv;
+    if (sourceTensor->isQuantized() && quantRequired)
+    {
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name);
-	}
-	else
-	{
+    }
+    else
+    {
         mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
- 	}
+    }
 
     // Add depthwise conv to op model
-	auto depthwiseOp = om.getSourceOp(depthwise_conv);
-	auto weightsOp = om.getSourceOp(weights);
+    auto depthwiseOp = om.getSourceOp(depthwise_conv);
+    auto weightsOp = om.getSourceOp(weights);
 
-	if(opIt->hasAttr("opId"))
-	{
+    if(opIt->hasAttr("opId"))
+    {
         unsigned currentOpId = opIt->get<unsigned>("opId");
         weightsOp->set<unsigned>("opId", currentOpId);
         depthwiseOp->set<unsigned>("opId", currentOpId);
-	}
+    }
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-	depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
     return depthwise_conv;
 }
@@ -1237,6 +1236,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                     operation->getInputTensor(mv::IO_TENSOR_INPUT)->get<mv::DType>("dType"),
                     operation->get<mv::QuantizationParams>("quantParams"),
                     operation->getName() + sliceName);
+                    om.getSourceOp(op)->set<bool>("DWWithReplaceLargeStrides", true);
             }
             else if (operation->getOpType()== "Conv")
             {

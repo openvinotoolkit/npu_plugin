@@ -153,10 +153,21 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                                                     subConvOp->get<std::vector<std::size_t>>("subConvsCoordinates")[0]);
 
                         auto previousOp = om.getSourceOp(inputTensor);
-                        if (previousOp->hasAttr("streamId"))
+                        if (previousOp->hasAttr("streamKId"))
                         {
-                            auto streamId = previousOp->get<unsigned>("streamId");
-                            compensatorOutput->set<unsigned>("streamId", streamId);
+                            auto streamKId = previousOp->get<unsigned>("streamKId");
+                            auto symmetrical_first_dimensionK = previousOp->get<std::size_t>("symmetrical_first_dimensionK");
+                            compensatorOutput->set<std::size_t>("symmetrical_first_dimensionK",
+                                                                symmetrical_first_dimensionK);
+                            compensatorOutput->set<unsigned>("streamKId", streamKId);
+                        }
+                        else if (previousOp->hasAttr("streamHId"))
+                        {
+                            auto streamHId = previousOp->get<unsigned>("streamHId");
+                            auto symmetrical_first_dimensionH = previousOp->get<std::size_t>("symmetrical_first_dimensionH");
+                            compensatorOutput->set<std::size_t>("symmetrical_first_dimensionH",
+                                                                symmetrical_first_dimensionH);
+                            compensatorOutput->set<unsigned>("streamHId", streamHId);
                         }
 
                     }

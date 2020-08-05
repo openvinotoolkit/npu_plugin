@@ -60,16 +60,8 @@ void addQuantizationLayers(mv::OpModel om, std::vector<mv::Data::OpListIterator>
                     tensor = previousOpIt->getInputTensor()[0];
                     alignCase = true;
                 }
-
-                auto quant_params = tensor->get<mv::QuantizationParams>("quantParams");
-
-                // NOTE: workaround for SSD-512 to avoid fp16 overflow in Normalize kernel
-                //       to be removed when VPUNND-3235 is resolved
-                if (task->hasAttr("taskOp") && task->get<std::string>("taskOp") == "Normalize")
-                    quant_params = task->get<mv::QuantizationParams>("quantParams");
-
                 auto quantize = om.uPATaskQuantize({tensor}, outputDType,
-                            quant_params, "Quantize" + task->getName() + std::to_string(id));
+                            tensor->get<mv::QuantizationParams>("quantParams"), "Quantize" + task->getName() + std::to_string(id));
                 if (tensor->hasAttr("splitStrategy"))
                     quantize->set<std::string>("splitStrategy", tensor->get<std::string>("splitStrategy"));
                 
@@ -229,15 +221,26 @@ static void kmbQuantizeConversionFcn(const mv::pass::PassEntry&, mv::Computation
     std::vector<mv::Data::OpListIterator> slicesFP16 = {};
     for (auto& slice: slices)
     {
-        std::vector<mv::Data::OpListIterator> afterSlice =
-                mv::findSinkLayers(dm, slice->getOutputTensor(0));
-        // Handle back-to-back slices
-        if(afterSlice[0]->getOpType() == "Slice")
-            afterSlice[0] = afterSlice[0].leftmostOutput().sink();
-        auto it = std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
-                           afterSlice[0]->getName());
-        if (it != dpuTasksFP16Names.end())
-            slicesFP16.push_back(slice);
+        std::vector<mv::Data::OpListIterator> executable_ops;
+        std::queue<mv::Data::OpListIterator> op_itr_bfs;
+        op_itr_bfs.push(slice);
+        // BFS the non-executable subtree to find other slice and executable leafs
+        while (!op_itr_bfs.empty()) {
+            auto current_op_itr = op_itr_bfs.front();
+            for(auto outputFlow = current_op_itr.leftmostOutput();
+                outputFlow != om.flowEnd(); ++outputFlow) {
+                if (outputFlow.sink()->hasTypeTrait("executable")) {
+                    executable_ops.push_back(outputFlow.sink());
+                } else if (outputFlow.sink()->getOpType() != "Slice") {
+                    op_itr_bfs.push(outputFlow.sink());
+                }
+            }
+            op_itr_bfs.pop();
+        }
+        for (auto op : executable_ops)
+            if (std::find(dpuTasksFP16Names.begin(), dpuTasksFP16Names.end(),
+                    op->getName()) != dpuTasksFP16Names.end())
+                slicesFP16.push_back(slice);
     }
 
     for (auto& sliceFP16 : slicesFP16)
