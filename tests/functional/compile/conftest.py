@@ -36,15 +36,12 @@ KMB_KPI_MODELS = [
     'vd_kmb_models_public_ww22.tar.bz2/squeezenet1.1/caffe2/FP16-INT8/squeezenet1.1.xml',
 
     {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_intel_ww22.tar.bz2/faster-rcnn-resnet101-coco-sparse-60-0001/tf/FP16-INT8/faster-rcnn-resnet101-coco-sparse-60-0001.xml'},
-    {'marks': pytest.mark.xfail, 'path': 'vd_kmb_models_public_ww22.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
+    {'path': 'vd_kmb_models_public_ww22.tar.bz2/ssd512/caffe/FP16-INT8/ssd512.xml'},
     {'marks': pytest.mark.xfail,
      'path': 'vd_kmb_models_intel_ww22.tar.bz2/icnet-camvid-ava-0001/tf/FP16-INT8/icnet-camvid-ava-0001.xml'},
-    {'marks': pytest.mark.xfail,
-     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
-    {'marks': pytest.mark.xfail,
-     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
-    {'marks': pytest.mark.xfail,
-     'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
+    {'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-0001/tf/FP16-INT8/yolo-v2-ava-0001.xml'},
+    {'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-35-0001/tf/FP16-INT8/yolo-v2-ava-sparse-35-0001.xml'},
+    {'path': 'vd_kmb_models_intel_ww22.tar.bz2/yolo-v2-ava-sparse-70-0001/tf/FP16-INT8/yolo-v2-ava-sparse-70-0001.xml'},
 ]
 
 
@@ -65,13 +62,26 @@ def pytest_generate_tests(metafunc):
             shutil.rmtree(out)  # cleanup output folder
     else:
         out = tempfile.mkdtemp(prefix='_blobs-', dir='.')
-    metafunc.parametrize("param_ir", [SimpleNamespace(model=net,
-                                                      compiler_tool=metafunc.config.getoption(
-                                                          "compiler"),
-                                                      models_dir=metafunc.config.getoption(
-                                                          "models"),
-                                                      output_dir=out) for net in KMB_KPI_MODELS],
-                         ids=KMB_KPI_MODELS)
+    params = []
+    ids = []
+
+    for model in KMB_KPI_MODELS:
+        extra_args = {}
+        if isinstance(model, dict):
+            path = model['path']
+            if 'marks' in model:
+                extra_args['marks'] = model['marks']
+        else:
+            path = model
+
+        params.append(pytest.param(SimpleNamespace(
+            model=path,
+            compiler_tool=metafunc.config.getoption("compiler"),
+            benchmark_app=metafunc.config.getoption("benchmark_app"),
+            models_dir=metafunc.config.getoption("models"),
+            output_dir=out), **extra_args))
+        ids = ids + [path]
+    metafunc.parametrize("param_ir", params, ids=ids)
 
 
 @pytest.mark.optionalhook
@@ -85,7 +95,7 @@ def pytest_html_results_table_header(cells):
 def pytest_html_results_table_row(report, cells):
     """ Add extra columns to HTML report
     """
-    cells.insert(2, html.td(f'{report.peak_memory}Kb'))
+    cells.insert(2, html.td(f'{getattr(report, "peak_memory", 0)}Kb'))
 
 
 @pytest.mark.hookwrapper
