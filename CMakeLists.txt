@@ -32,10 +32,6 @@ list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
 #
 # Build rules
 #
-# TODO: Enable testing on Windows platform. Now it disabled due dependency on Boost.fs and we don't have ability to run tests on WIN32
-if(WIN32)
-    set(ENABLE_TESTS FALSE CACHE BOOL "" FORCE)
-endif()
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(features)
@@ -44,10 +40,6 @@ include(dependencies)
 
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
-endif()
-
-if(MSVC)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /sdl-")
 endif()
 
 # flatbuffers are necessary even when the compiler itself is disabled

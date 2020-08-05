@@ -81,3 +81,34 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
     blobFile.close();
 }
+
+TEST_F(ImportNetwork_Tests, canParseInputAndOutput) {
+    const std::string expected_input_name = "data";
+    const IE::Precision expected_input_precision = IE::Precision::U8;
+    const IE::SizeVector expected_input_dims = {1, 3, 224, 224};
+    const IE::Layout expected_input_layout = IE::Layout::NHWC;
+
+    const std::string expected_output_name = "prob";
+    const IE::Precision expected_output_precision = IE::Precision::FP32;
+    const IE::SizeVector expected_output_dims = {1, 1000};
+    const IE::Layout expected_output_layout = IE::Layout::NC;
+
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
+
+    InferenceEngine::InferRequest inferRequest;
+    ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
+
+    auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
+    const auto inputBlob = inferRequest.GetBlob(inputBlobName);
+    EXPECT_EQ(expected_input_name, inputBlobName);
+    EXPECT_EQ(expected_input_precision, inputBlob->getTensorDesc().getPrecision());
+    EXPECT_EQ(expected_input_dims, inputBlob->getTensorDesc().getDims());
+    EXPECT_EQ(expected_input_layout, inputBlob->getTensorDesc().getLayout());
+
+    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
+    const auto outputBlob = inferRequest.GetBlob(outputBlobName);
+    EXPECT_EQ(expected_output_name, outputBlobName);
+    EXPECT_EQ(expected_output_precision, outputBlob->getTensorDesc().getPrecision());
+    EXPECT_EQ(expected_output_dims, outputBlob->getTensorDesc().getDims());
+    EXPECT_EQ(expected_output_layout, outputBlob->getTensorDesc().getLayout());
+}
