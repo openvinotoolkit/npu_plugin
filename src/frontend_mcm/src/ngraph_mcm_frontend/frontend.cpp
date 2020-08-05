@@ -51,7 +51,7 @@ std::vector<char> compileNGraph(
 #include "ngraph_mcm_frontend/passes/split_fq.hpp"
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
-#include <ie_util_internal.hpp>
+#include <file_utils.h>
 #include <vpu/utils/logger.hpp>
 #include <ngraph/pass/manager.hpp>
 #include <ngraph/pass/constant_folding.hpp>
