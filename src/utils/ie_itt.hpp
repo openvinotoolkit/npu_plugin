@@ -24,7 +24,7 @@ namespace itt {
 
 namespace domains {
 
-    OV_ITT_DOMAIN(KmbPlugin);
+OV_ITT_DOMAIN(KmbPlugin);
 
 }  // namespace domains
 
