@@ -12,4 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-add_subdirectory(model-comparator)
+# TODO: It is disabled for Windows due dependency on Boost.fs
+if (UNIX)
+    add_subdirectory(model-comparator)
+endif()
