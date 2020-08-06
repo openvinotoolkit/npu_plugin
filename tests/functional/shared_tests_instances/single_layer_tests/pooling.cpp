@@ -1,5 +1,4 @@
 // Copyright (C) 2019 Intel Corporation
-//
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -8,6 +7,17 @@
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
+#include "kmb_layer_test.hpp"
+
+namespace LayerTestsDefinitions {
+
+class KmbPoolingLayerTest: public PoolingLayerTest, virtual public LayerTestsUtils::KmbLayerTestsCommon {};
+
+TEST_P(KmbPoolingLayerTest, CompareWithRefs) {
+    Run();
+}
+
+}  // namespace LayerTestsDefinitions
 
 using namespace ngraph::helpers;
 using namespace LayerTestsDefinitions;
@@ -30,10 +40,10 @@ const auto maxPool_ExplicitPad_FloorRounding_Params =
         ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_FloorRounding_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 /* ========== Explicit Pad Ceil Rounding ========== */
@@ -46,10 +56,10 @@ const auto maxPool_ExplicitPad_CeilRounding_Params =
         ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_CeilRounding_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg Pooling ========== */
@@ -64,10 +74,10 @@ const auto avgPoolExplicitPadCeilRoundingParams =
         ::testing::Values(ngraph::op::RoundingType::CEIL), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_AvgPool_ExplicitPad_CeilRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadCeilRoundingParams,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 /* +========== Explicit Pad Floor Rounding ========== */
@@ -78,10 +88,10 @@ const auto avgPoolExplicitPadFloorRoundingParams =
         ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_AvgPool_ExplicitPad_FloorRounding, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadFloorRoundingParams,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 ////* ========== Avg and Max Polling Cases ========== */
@@ -94,10 +104,10 @@ const auto allPools_ValidPad_Params = ::testing::Combine(::testing::Values(Pooli
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_MAX_and_AVGPool_ValidPad, PoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
     ::testing::Combine(allPools_ValidPad_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
-        ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY)),
+        ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     PoolingLayerTest::getTestCaseName);
 
 }  // namespace
