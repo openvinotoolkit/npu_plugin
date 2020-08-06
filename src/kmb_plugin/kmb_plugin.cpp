@@ -29,13 +29,14 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "ie_macro.hpp"
+#include <ie_itt.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu::KmbPlugin;
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const ICNNNetwork& network, const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(LoadExeNetworkImpl);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadExeNetworkImp");
     InputsDataMap networkInputs;
     OutputsDataMap networkOutputs;
 
@@ -111,7 +112,7 @@ Engine::Engine(): _metrics(), _defaultContextMap({}) {
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
-    IE_PROFILING_AUTO_SCOPE(ImportNetwork);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ImportNetwork");
     std::ifstream blobFile(modelFileName, std::ios::binary);
 
     if (!blobFile.is_open()) {

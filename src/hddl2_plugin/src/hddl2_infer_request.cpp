@@ -32,6 +32,7 @@
 #include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
+#include <ie_itt.hpp>
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -121,7 +122,7 @@ void HDDL2InferRequest::InferImpl() {
 }
 
 void HDDL2InferRequest::InferAsync() {
-    IE_PROFILING_AUTO_SCOPE(InferAsync)
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
     // TODO [Design flaw] InferData need to know if preprocessing required on creation.
     bool needUnitePreProcessing = false;
     IE::BlobMap updatedInputs;
@@ -191,7 +192,7 @@ void HDDL2InferRequest::InferAsync() {
 }
 
 void HDDL2InferRequest::WaitInferDone() {
-    IE_PROFILING_AUTO_SCOPE(WaitInferDone)
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "WaitInferDone");
     _inferDataPtr->waitInferDone();
 }
 
@@ -205,7 +206,7 @@ static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE:
 
 IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
     const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
-    IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "prepareInputForInference");
     if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
         /** Currently we ignore information of what type of remote blob we are using **/
         actualInput->is<IE::RemoteBlob>() ||
@@ -237,7 +238,7 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
 }
 
 void HDDL2InferRequest::GetResult() {
-    IE_PROFILING_AUTO_SCOPE(GetResult)
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "GetResult");
     for (const auto& inferOutput : _outputs) {
         const std::string outputName = inferOutput.first;
         auto foundOutputBlob = _outputs.find(outputName);
@@ -312,7 +313,7 @@ void HDDL2InferRequest::SetBlob(const char* name, const IE::Blob::Ptr& data) {
         return;
     }
 
-    IE_PROFILING_AUTO_SCOPE(SetBlob)
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "SetBlob");
     if (name == nullptr) {
         THROW_IE_EXCEPTION << NOT_FOUND_str + "Failed to set blob with empty name";
     }

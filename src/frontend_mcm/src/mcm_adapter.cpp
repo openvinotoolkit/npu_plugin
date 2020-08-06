@@ -24,7 +24,7 @@
 
 #include <frontend_mcm.hpp>
 #include <ie_icnn_network.hpp>
-#include <ie_profiling.hpp>
+#include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
 
 #include "include/mcm/compiler/compilation_unit.hpp"
@@ -112,7 +112,7 @@ std::vector<char> serializeMetaData(const char* memBlobData, const InferenceEngi
 
 void MCMAdapter::compileNetwork(
     InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& blob) {
-    IE_PROFILING_AUTO_SCOPE(compileNetwork);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "compileNetwork");
     auto unit = std::make_shared<mv::CompilationUnit>(network.getName());
 
     if (unit == nullptr) {

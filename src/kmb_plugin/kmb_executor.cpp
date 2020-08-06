@@ -37,7 +37,7 @@
 #include <dlfcn.h>
 #include <libgen.h>
 
-#include <ie_profiling.hpp>
+#include <ie_itt.hpp>
 
 #endif
 
@@ -73,7 +73,7 @@ KmbExecutor::~KmbExecutor() { deallocateGraph(); }
 
 void KmbExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
-    IE_PROFILING_AUTO_SCOPE(initVpualObjects);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "initVpualObjects");
     if (!RgnAlloc) {
         RgnAlloc = make_shared<RgnAllocator>();
     }
@@ -169,7 +169,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    IE_PROFILING_AUTO_SCOPE(allocateGraph);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "allocateGraph");
     initVpualObjects();
     static int graphId_main = 1;
     int nThreads = _config.throughputStreams();
@@ -361,7 +361,7 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    IE_PROFILING_AUTO_SCOPE(queueInference);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "queueInference");
     auto physAddr = _allocator->getPhysicalAddress(input_data);
     plgTensorInput_->Push(physAddr, input_bytes);
     _logger->info("Pushed input, size %d", input_bytes);
@@ -382,7 +382,7 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    IE_PROFILING_AUTO_SCOPE(getResult);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "getResult");
     uint32_t len_inferenceId = 0;
     uint32_t pAddr_inferenceId = 0;
     plgInferenceOutput_->PullInferenceID(&pAddr_inferenceId, &len_inferenceId);
@@ -415,7 +415,7 @@ void KmbExecutor::deallocateGraph() {
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    IE_PROFILING_AUTO_SCOPE(deallocateGraph);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "deallocateGraph");
     if (pipe) {
         pipe->Stop();
         pipe->Delete();

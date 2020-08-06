@@ -20,7 +20,7 @@
 #include <blob_factory.hpp>
 #include <frontend_mcm.hpp>
 #include <graph_tools.hpp>
-#include <ie_profiling.hpp>
+#include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
 #include <limits>
 #include <low_precision_transformations/network_helper.hpp>
@@ -229,7 +229,7 @@ std::set<std::string> FrontEndMcm::checkSupportedLayers(ie::ICNNNetwork& network
 }
 
 void FrontEndMcm::parseNetworkDFS(const ie::ICNNNetwork& network, ParsedNetwork& parsedNetwork) {
-    IE_PROFILING_AUTO_SCOPE(parseNetworkDFS);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "parseNetworkDFS");
 
     ie::details::CaselessEq<std::string> cmp;
 

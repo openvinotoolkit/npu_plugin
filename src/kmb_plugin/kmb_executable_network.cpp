@@ -22,6 +22,7 @@
 
 #include <ie_metric_helpers.hpp>
 #include <ie_plugin_config.hpp>
+#include <ie_itt.hpp>
 #include <net_pass.h>
 #include <generic_ie.hpp>
 #include <convert_function_to_cnn_network.hpp>
@@ -55,7 +56,7 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 }
 
 void ExecutableNetwork::LoadBlob() {
-    IE_PROFILING_AUTO_SCOPE(LoadBlob);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadBlob");
     auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config);
     _executor = std::make_shared<KmbExecutor>(
         networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
@@ -66,7 +67,7 @@ void ExecutableNetwork::LoadBlob() {
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
     : _config(config), _remoteContext(ctx) {
-    IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
     _netName = network.getName();
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
@@ -125,7 +126,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx)
     : _config(config), _remoteContext(ctx) {
-    IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
     const size_t graphSize = utils::getFileSize(strm);
