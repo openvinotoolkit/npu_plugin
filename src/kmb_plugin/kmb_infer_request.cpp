@@ -23,13 +23,13 @@
 #include <precision_utils.h>
 
 #include <description_buffer.hpp>
+#include <ie_itt.hpp>
 #include <vpu/kmb_plugin_config.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/perf_report.hpp>
 
 #include "dims_parser.hpp"
 #include "ie_utils.hpp"
-#include <ie_itt.hpp>
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
 

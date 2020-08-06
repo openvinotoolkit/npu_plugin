@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <ie_itt.hpp>
 #include <map>
 #include <memory>
 #include <string>
@@ -32,7 +33,6 @@
 #include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
-#include <ie_itt.hpp>
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;

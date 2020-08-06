@@ -22,6 +22,7 @@
 #include <cnn_network_impl.hpp>
 #include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
+#include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
 #include <inference_engine.hpp>
 #include <memory>
@@ -29,7 +30,6 @@
 #include <vpu/kmb_plugin_config.hpp>
 
 #include "ie_macro.hpp"
-#include <ie_itt.hpp>
 
 using namespace InferenceEngine;
 using namespace vpu::KmbPlugin;
