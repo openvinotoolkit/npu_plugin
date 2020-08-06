@@ -66,7 +66,9 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
         }
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
+        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
+        _memoryStorage.emplace(remMemHandle, memoryContainer);
+        ++_memoryHandleCounter[remMemHandle];
 
         _logger->info("%s: Allocate memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
@@ -95,7 +97,9 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryF
             std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, remoteMemoryFd, size);
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
+        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
+        _memoryStorage.emplace(remMemHandle, memoryContainer);
+        ++_memoryHandleCounter[remMemHandle];
 
         _logger->info("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
         return static_cast<void*>(remoteMemoryPtr.get());
@@ -103,6 +107,43 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryF
         _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
     }
+}
+
+void* HDDL2RemoteAllocator::incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept {
+    if (remoteMemoryHandle == nullptr) {
+        _logger->warning("%s: Invalid address: %p \n", __FUNCTION__, remoteMemoryHandle);
+        return nullptr;
+    }
+
+    std::lock_guard<std::mutex> lock(memStorageMutex);
+    auto counter_it = _memoryHandleCounter.find(const_cast<void*>(remoteMemoryHandle));
+    if (counter_it == _memoryHandleCounter.end()) {
+        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        return nullptr;
+    }
+
+    ++_memoryHandleCounter[const_cast<void*>(remoteMemoryHandle)];
+    return const_cast<void*>(remoteMemoryHandle);
+}
+
+size_t HDDL2RemoteAllocator::decrementRemoteMemoryCounter(void* remoteMemoryHandle, bool& findMemoryHandle) noexcept {
+    auto counter_it = _memoryHandleCounter.find(remoteMemoryHandle);
+    if (counter_it == _memoryHandleCounter.end()) {
+        findMemoryHandle = false;
+        return 0;
+    }
+
+    if (!counter_it->second) {
+        findMemoryHandle = false;
+        return 0;
+    }
+
+    findMemoryHandle = true;
+    auto ret_counter = --(counter_it->second);
+    if (!ret_counter) {
+        _memoryHandleCounter.erase(counter_it);
+    }
+    return ret_counter;
 }
 
 bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
@@ -122,6 +163,19 @@ bool HDDL2RemoteAllocator::free(void* remoteMemoryHandle) noexcept {
     if (memory->isLocked) {
         _logger->warning("%s: Memory %p is locked!\n", __FUNCTION__, remoteMemoryHandle);
         return false;
+    }
+
+    bool findMemoryHandle;
+    auto handle_counter = decrementRemoteMemoryCounter(remoteMemoryHandle, findMemoryHandle);
+    if (!findMemoryHandle) {
+        _logger->warning("%s: Memory %p is not found!\n", __FUNCTION__, remoteMemoryHandle);
+        return false;
+    }
+
+    if (handle_counter) {
+        _logger->info(
+            "%s: Memory %p found, remaining references = %lu\n", __FUNCTION__, remoteMemoryHandle, handle_counter);
+        return true;
     }
 
     _logger->info("%s: Memory %p found, removing element\n", __FUNCTION__, remoteMemoryHandle);

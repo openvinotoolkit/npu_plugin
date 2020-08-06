@@ -40,13 +40,11 @@ public:
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
     InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
     RemoteMemoryFD _remoteMemoryFd;
     InferenceEngine::ColorFormat _colorFormat;
-    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;
 };
 
@@ -58,6 +56,7 @@ public:
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
         const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config);
+    explicit HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**
@@ -96,6 +95,8 @@ public:
     size_t size() const noexcept override;
 
     size_t byteSize() const noexcept override;
+
+    InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
 
 protected:
     void* _memoryHandle = nullptr;

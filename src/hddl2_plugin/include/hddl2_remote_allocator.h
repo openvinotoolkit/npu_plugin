@@ -82,6 +82,12 @@ public:
     void* wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept;
 
     /**
+     * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
+     * @return Handle to allocated memory
+     */
+    void* incrementRemoteMemoryCounter(const void* remoteMemoryHandle) noexcept;
+
+    /**
      * @brief Free local memory and remote if we are owner
      * @return True if successful otherwise false
      */
@@ -92,6 +98,13 @@ public:
      */
     void Release() noexcept override;
 
+protected:
+    /**
+     * @brief Fake free of already allocated on device memory by decrementing remote memory counter
+     * @return Number of references on remote memory
+     */
+    size_t decrementRemoteMemoryCounter(void* remoteMemoryHandle, bool& findMemoryHandle) noexcept;
+
 private:
     HddlUnite::WorkloadContext::Ptr _contextPtr = nullptr;
 
@@ -99,6 +112,7 @@ private:
     std::mutex memStorageMutex;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
+    std::map<void*, size_t> _memoryHandleCounter;
 };
 
 }  // namespace HDDL2Plugin

@@ -72,16 +72,6 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
         }
     }
 
-    auto roiIt = params.find(IE::HDDL2_PARAM_KEY(ROI));
-    if (roiIt != params.end()) {
-        try {
-            IE::ROI roi = roiIt->second.as<IE::ROI>();
-            _roiPtr = std::make_shared<IE::ROI>(roi);
-        } catch (...) {
-            THROW_IE_EXCEPTION << CONFIG_ERROR_str << "ROI param have incorrect type information";
-        }
-    }
-
     _paramMap = params;
 }
 
@@ -94,8 +84,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
       _config(config),
       _remoteMemoryFd(_params.getRemoteMemoryFD()),
       _colorFormat(_params.getColorFormat()),
-      _roiPtr(_params.getROIPtr()),
-
+      _roiPtr(nullptr),
       _logger(std::make_shared<Logger>("HDDL2RemoteBlob", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
@@ -113,6 +102,27 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     }
 
     _allocatorPtr = hddlAllocatorPtr;
+}
+
+HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest)
+    : RemoteBlob(origBlob.getTensorDesc()),
+      _params(origBlob._params),
+      _remoteContextPtr(origBlob._remoteContextPtr),
+      _allocatorPtr(origBlob._allocatorPtr),
+      _config(origBlob._config),
+      _remoteMemoryFd(origBlob._remoteMemoryFd),
+      _colorFormat(origBlob._colorFormat),
+      _roiPtr(std::make_shared<InferenceEngine::ROI>(regionOfInterest)),
+      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
+    if (_allocatorPtr == nullptr) {
+        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
+    }
+
+    _memoryHandle = std::static_pointer_cast<HDDL2RemoteAllocator>(_allocatorPtr)
+                        ->incrementRemoteMemoryCounter(origBlob._memoryHandle);
+    if (_memoryHandle == nullptr) {
+        THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to copy remote memory handle";
+    }
 }
 
 bool HDDL2RemoteBlob::deallocate() noexcept {
@@ -174,3 +184,7 @@ size_t HDDL2RemoteBlob::size() const noexcept {
 }
 
 size_t HDDL2RemoteBlob::byteSize() const noexcept { return size() * element_size(); }
+
+InferenceEngine::Blob::Ptr HDDL2RemoteBlob::createROI(const InferenceEngine::ROI& regionOfInterest) const {
+    return Blob::Ptr(new HDDL2RemoteBlob(*this, regionOfInterest));
+}
