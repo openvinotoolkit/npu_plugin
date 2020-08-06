@@ -8,7 +8,8 @@
 3. There is precommit which is triggered for each MR. Precommit must be green.
 4. All discussions are resolved.
 
-    * A discussion is closed by a developer who creates it
+    * A discussion is closed by a developer who creates it, except there are no other explicit agreements
+    * All discussion started with `Nitpick:` are not necessary and can be resolved by any developer
   
 5. No "thumbs down" and some "thumbs up". The count of "thumbs up" depends
    on changes which bring the MR.
