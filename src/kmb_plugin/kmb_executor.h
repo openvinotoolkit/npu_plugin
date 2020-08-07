@@ -49,7 +49,7 @@ class KmbExecutor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
-    ~KmbExecutor();
+    virtual ~KmbExecutor();
     KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
         const KmbConfig& config);
 
@@ -94,8 +94,6 @@ private:
     void deallocateGraph();
     const int xlinkChannel = 0;
 
-    uint32_t _outTensorLen;
-    uint32_t _outTensorAddr;
     uint32_t* _inferenceVirtAddr;
     std::vector<void*> _scratchBuffers;
 };

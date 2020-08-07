@@ -32,9 +32,9 @@ public:
 
     void unlock(void* handle) noexcept override;
 
-    virtual void* alloc(size_t size) noexcept;
+    void* alloc(size_t size) noexcept override;
 
-    virtual bool free(void* handle) noexcept;
+    bool free(void* handle) noexcept override;
 
     void Release() noexcept override {}
 

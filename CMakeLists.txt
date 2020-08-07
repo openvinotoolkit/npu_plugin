@@ -42,6 +42,8 @@ if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
 endif()
 
+print_enabled_kmb_features()
+
 # flatbuffers are necessary even when the compiler itself is disabled
 if (NOT mcmCompiler_DIR)
     set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)

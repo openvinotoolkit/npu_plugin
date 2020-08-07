@@ -198,7 +198,7 @@ protected:
         };
 
         template <typename func>
-        void Add(const IN_OUT_desc& inDim, const IN_OUT_desc& outDim, calcWeights fillWeights, size_t weights_size,
+        void Add(const IN_OUT_desc& inDim, const IN_OUT_desc& outDim, calcWeights /*fillWeights*/, size_t weights_size,
             size_t biases_size, func&& cl, const ParamsStruct& params) {
             callbackObject obj;
             genInputOutput(obj, inDim, outDim);
@@ -220,8 +220,8 @@ protected:
         }
 
         template <typename func>
-        void Add(const IN_OUT_desc& inDim, const IN_OUT_desc& outDim, std::nullptr_t, size_t weights_size,
-            size_t biases_size, func&& cl, const ParamsStruct& params) {
+        void Add(const IN_OUT_desc& inDim, const IN_OUT_desc& outDim, std::nullptr_t, size_t /*weights_size*/,
+            size_t /*biases_size*/, func&& cl, const ParamsStruct& params) {
             callbackObject obj;
             genInputOutput(obj, inDim, outDim);
             auto f = std::bind(std::forward<func>(cl), obj.input, obj.output, params);

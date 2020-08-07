@@ -47,6 +47,8 @@ HDDL2RemoteAllocator::HDDL2RemoteAllocator(
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Context pointer is null";
     }
+
+    UNUSED(_config);
     _contextPtr = contextPtr;
 }
 

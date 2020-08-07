@@ -43,7 +43,7 @@ public:
 
     InferenceEngine::ParamMap blobParamMap;
     HDDL2RemoteBlob::Ptr remoteBlobPtr = nullptr;
-    const vpu::HDDL2Config config;
+    const vpu::HDDL2Config config = vpu::HDDL2Config();
 
     const float value = 42.;
     void setRemoteMemory(const std::string& data);

@@ -33,8 +33,8 @@ void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map
         doNetworkInit(layer_type, params, weights_size, biases_size, weights, outputPrecision, inputPrecision););
 }
 
-void kmbLayersTests_nightly::setup(
-    const CNNNetwork& network, InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
+void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
+    InferenceEngine::Precision inputPrecision, bool) {
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
@@ -77,7 +77,7 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 }
 
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
-    config = config;
+    config = this->config;
     config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
