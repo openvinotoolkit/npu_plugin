@@ -330,7 +330,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
-        
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
@@ -640,9 +639,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = subtensor.getAddress();
+        else if (t->hasAttr("cmx_concat_buffer")) {
+          size_t net_address = tensorBufferIt->getOffset();
+          if (subtensor.hasAttr("offset")) {
+              auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+              auto index = t->getOrder().subToInd(t->getShape(), offset);
+              size_t byte_index = index * t->getDType().getSizeInBits() / 8;
+              auto tensorStrides = t->computeNumericStrides();
+              tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+              std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+              if(numericStrides[4] != tensorStrides[4]){
+                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
+              }
+              net_address += byte_index;
+          }
+          toBuild->data->data_index = net_address;
+        }
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
@@ -1629,6 +1646,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
+
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
@@ -1683,9 +1701,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
+    if (opIt->hasAttr("cmx_concat_reader")) {
+      toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
+    }
+
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+
+
+
     if (opIt->hasAttr("multiCast"))
     {
         if (opIt->get<bool>("multiCast"))
@@ -1703,9 +1728,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
+
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
+
+    if (opIt->hasAttr("cmx_concat_writer")) {
+      toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
+    }
 
     if (opIt->get<bool>("multiCast"))
     {
@@ -1997,9 +2027,22 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
+
             auto locale_index = std::vector<unsigned int>(1,i);
             toBuild->invariant->input_data->locale_index = locale_index;
             toBuild->invariant->output_data->locale_index = locale_index;
+
+            if (opIt->hasAttr("cmx_concatable")) {
+              // clustering DPU task set locale = [0, 1, 2, 4] //
+              std::vector<unsigned int> cmx_concat_locale_index;
+              for (unsigned idx = numTask; idx > 0; idx--) {
+                cmx_concat_locale_index.push_back(idx-1);
+              }
+              toBuild->invariant->output_data->locale_index =
+                  cmx_concat_locale_index;
+            }
+
+
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
             else if (opIt->get<std::string>("taskOp") == "MaxPool" ||

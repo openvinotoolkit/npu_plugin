@@ -451,6 +451,8 @@ class Contiguous_Resource_State {
     bool does_interval_satisfy_demand(free_interval_iterator_t itr,
         const unit_t& demand,
         unit_t& interval_start, unit_t& interval_end) const {
+
+      if (!demand) { return true; }
       // note this always produces open intervals of the form:
       // (a,b) = { x | a < x < b } //
       unit_t a = std::max(location_begin_-1, itr.interval_begin());
@@ -1595,7 +1597,7 @@ class Feasible_Memory_Schedule_Generator {
     // Precondition: this must be a ready operation which means that all its
     // input compute operations are completed.
     bool is_ready_compute_operation_schedulable(operation_t op) const {
-      if (!is_operation_using_non_empty_resources(op)) { return true; }
+      //if (!is_operation_using_non_empty_resources(op)) { return true; }
       // first check if output resources for this operation are available //
       resource_t demand = traits::resource_utility(*input_ptr_, op);
 
@@ -1872,6 +1874,7 @@ class Feasible_Memory_Schedule_Generator {
 
         if (input_op == op) { continue; }
 
+
         schedule_input_op_for_compute_op(input_op);
 
         // update the max delay to set the start time //
@@ -1965,6 +1968,7 @@ class Feasible_Memory_Schedule_Generator {
         const operation_t& pop = *pitr;
 
         typename op_output_table_t::iterator itr = op_output_table_.find(pop);
+
         assert(itr != op_output_table_.end());
         op_output_info_t &pop_output_info = itr->second;
 
