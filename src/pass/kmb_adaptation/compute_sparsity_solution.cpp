@@ -55,8 +55,6 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))
     {
-        auto convs = om.getOps("Conv");
-
         if(opsMap["Conv"].size())
         {
             // Trim out channel major convolutions
