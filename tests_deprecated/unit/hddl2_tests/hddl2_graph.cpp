@@ -44,7 +44,7 @@ public:
     };
 
 private:
-    const vpu::MCMConfig _defaultMCMConfig;
+    const vpu::MCMConfig _defaultMCMConfig = vpu::MCMConfig();
 };
 
 void Graph_Common_UnitTests::SetUp() {

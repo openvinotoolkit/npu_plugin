@@ -54,7 +54,8 @@ public:
     MockExecutor(const KmbConfig& config): KmbExecutor(config) {}
 
     MOCK_METHOD0(deallocateGraph, void());
-    MOCK_METHOD1(allocateGraph, void(const std::vector<char>&));
+    MOCK_METHOD4(
+        allocateGraph, void(const std::vector<char>&, const ie::InputsDataMap&, const ie::OutputsDataMap&, bool));
     MOCK_METHOD2(getResult, void(void*, unsigned int));
     MOCK_METHOD2(queueInference, void(void*, size_t));
 

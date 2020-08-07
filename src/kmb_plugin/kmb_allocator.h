@@ -32,10 +32,6 @@ public:
 
     void unlock(void* handle) noexcept override;
 
-    virtual void* alloc(size_t size) noexcept = 0;
-
-    virtual bool free(void* handle) noexcept = 0;
-
     void Release() noexcept override {}
 
     virtual unsigned long getPhysicalAddress(void* handle) noexcept;

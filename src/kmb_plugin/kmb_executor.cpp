@@ -53,8 +53,6 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 KmbExecutor::KmbExecutor(const KmbConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
-      _outTensorLen(0),
-      _outTensorAddr(0),
       _inferenceVirtAddr(nullptr) {
     if (!_config.useKmbExecutor()) {
         return;
@@ -64,6 +62,8 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
     blob_file = nullptr;
     rgnAllocatorBuffer = nullptr;
     _inferenceVirtAddr = nullptr;
+#else
+    UNUSED(_inferenceVirtAddr);
 #endif
 }
 
@@ -430,6 +430,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     pipe->Start();
     _logger->info("Started FLIC pipeline...");
 #else
+    UNUSED(xlinkChannel);
     UNUSED(graphFileContent);
     UNUSED(networkInputs);
     UNUSED(networkOutputs);
