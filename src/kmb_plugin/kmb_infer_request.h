@@ -40,7 +40,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbConfig _config;
 
 protected:
-    void checkBlobs();
+    void checkBlobs() override;
 
 public:
     typedef std::shared_ptr<KmbInferRequest> Ptr;

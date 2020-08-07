@@ -353,18 +353,18 @@ void vpuLayersTests::setup(
     for (const auto& outputInfo : _outputsInfo) {
         outputInfo.second->setPrecision(outputPrecision);
     }
-    std::map<std::string, std::string> config(config);
+    std::map<std::string, std::string> test_config(config);
     if (useHWOpt) {
-        config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(YES);
+        test_config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(YES);
     } else {
-        config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(NO);
+        test_config[VPU_CONFIG_KEY(HW_STAGES_OPTIMIZATION)] = CONFIG_VALUE(NO);
     }
 #if 0
-    config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
+    test_config[CONFIG_KEY(LOG_LEVEL)] = CONFIG_VALUE(LOG_INFO);
 #endif
-    config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
+    test_config[CONFIG_KEY(PERF_COUNT)] = CONFIG_VALUE(YES);
 
-    _exeNetwork = core->LoadNetwork(network, deviceName, config);
+    _exeNetwork = core->LoadNetwork(network, deviceName, test_config);
     _inputsInfo = network.getInputsInfo();
     _outputsInfo = network.getOutputsInfo();
     genInputBlobs(inputPrecision);

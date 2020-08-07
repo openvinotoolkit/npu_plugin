@@ -33,8 +33,8 @@ public:
     void SetUp() override;
 
     HddlUnite::WorkloadContext::Ptr workloadContextPtr = nullptr;
-    const vpu::HDDL2Config config;
     const size_t correctSize = 1024 * 1024 * 1;
+    const vpu::HDDL2Config config = vpu::HDDL2Config();
 
 protected:
     WorkloadContext_Helper _workloadContextHelper;

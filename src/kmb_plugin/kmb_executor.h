@@ -48,7 +48,7 @@ public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
     explicit KmbExecutor(const KmbConfig& config);
-    ~KmbExecutor() = default;
+    virtual ~KmbExecutor() = default;
 
     virtual void allocateGraph(const std::vector<char>& graphFileContent, const ie::InputsDataMap& networkInputs,
         const ie::OutputsDataMap& networkOutputs, bool newFormat);
@@ -65,7 +65,6 @@ public:
     const KmbConfig& _config;
 
 private:
-    unsigned int _numStages = 0;
     Logger::Ptr _logger;
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<GraphManagerPlg> gg;
@@ -95,8 +94,6 @@ private:
 
     const int xlinkChannel = 0;
 
-    uint32_t _outTensorLen;
-    uint32_t _outTensorAddr;
     uint32_t* _inferenceVirtAddr;
     std::vector<void*> _scratchBuffers;
 };
