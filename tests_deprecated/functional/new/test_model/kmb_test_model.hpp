@@ -113,8 +113,9 @@ public:
     const std::map<std::string, std::string>& compileConfig() const {
         return _compileConfig;
     }
-    void setCompileConfig(const std::map<std::string, std::string>& compileConfig) {
+    TestNetwork& setCompileConfig(const std::map<std::string, std::string>& compileConfig) {
         _compileConfig = compileConfig;
+        return *this;
     }
 
 private:
