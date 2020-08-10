@@ -748,8 +748,9 @@ std::string getDimLabel(size_t dimIndex, ie::Layout ieLayout) {
 
 constexpr char FINISH_PARSING_STR[] = "Parsed to mcmModel as '%s";
 
-void logParsingStartHelper(Logger::Ptr logger, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    logger->debug("Start parsing '%s' layer: '%s'", layer->type, layer->name);
+void logParsingStartHelper(
+    Logger::Ptr logger, const ie::CNNLayerPtr& layer, const McmNodeVector& inputs, bool isCustom = false) {
+    logger->debug("Start parsing %s '%s' layer: '%s'", (isCustom ? "custom" : "native"), layer->type, layer->name);
 
     if (inputs.empty()) {
         logger->debug("Layer has no input");
@@ -1877,7 +1878,7 @@ void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeV
 }
 
 void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
-    logParsingStartHelper(_logger, layer, inputs);
+    logParsingStartHelper(_logger, layer, inputs, true);
     IE_ASSERT(layer != nullptr);
 
     const auto customLayer = [&] {
@@ -1885,8 +1886,6 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
         IE_ASSERT(customLayersForType != _customLayers.end());
         const auto suitableLayers = getSuitableCustomLayers(customLayersForType->second, layer);
         IE_ASSERT(!suitableLayers.empty());
-        // inputs there are always in HWC layout
-        // this check should be moved to mcm side somehow
         return findMatchingCustomLayer(suitableLayers, inputs);
     }();
 
@@ -1934,7 +1933,11 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
             }
         }
 
-        _logger->debug(FINISH_PARSING_STR, custom->getName() + "_stage#" + std::to_string(stageIdx++));
+        if (customLayer->kernels().size() == 1) {
+            _logger->debug(FINISH_PARSING_STR, custom->getName());
+        } else {
+            _logger->debug(FINISH_PARSING_STR, custom->getName() + "_stage#" + std::to_string(stageIdx++));
+        }
     }
 }
 
@@ -2144,19 +2147,22 @@ std::vector<CustomLayer::Ptr> FrontEndMcm::getSuitableCustomLayers(
 
 CustomLayer::Ptr FrontEndMcm::findMatchingCustomLayer(
     const std::vector<CustomLayer::Ptr>& customLayers, const McmNodeVector& inputs) {
-    const auto inputsLayoutMatch = [&](const SmallVector<mv::Order>& cnnEdges, const std::map<int, Layout>& clEdges) {
-        for (const auto clEdge : clEdges) {
-            size_t port = clEdge.first;
-            VPU_THROW_UNLESS(
-                port < cnnEdges.size(), "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
+    IE_ASSERT(customLayers.size());
 
-            const auto clFormat = clEdge.second;
+    const auto findMismatchedClEdge = [&](const SmallVector<mv::Order>& cnnEdges,
+                                          const std::map<int, Layout>& clEdges) {
+        for (auto clEdge = begin(clEdges); clEdge != end(clEdges); ++clEdge) {
+            int port = clEdge->first;
+            VPU_THROW_UNLESS(
+                port < (int)cnnEdges.size(), "Can't bind custom layer edge with port '%s' to CNNNetwork layer", port);
+
+            const auto clFormat = clEdge->second;
             const auto cnnFormat = cnnEdges[port];
             if (cnnFormat != layoutToOrder(clFormat) && clFormat != Layout::ANY) {
-                return false;
+                return clEdge;
             }
         }
-        return true;
+        return end(clEdges);
     };
 
     const auto mcmInputs = [&] {
@@ -2172,17 +2178,26 @@ CustomLayer::Ptr FrontEndMcm::findMatchingCustomLayer(
     for (const auto& customLayer : customLayers) {
         const auto clInputs = customLayer->inputs();
 
-        if (inputsLayoutMatch(mcmInputs, clInputs)) {
+        if (findMismatchedClEdge(mcmInputs, clInputs) == end(clInputs)) {
             _logger->debug("Found suitable '%s' custom layer", customLayer->layerName());
             return customLayer;
         }
     }
 
-    const auto firstGoodLayer = customLayers.front();
-    _logger->debug("Found suitable custom layer '%s'. Input layouts "
-                   "do not match up with what CNNNetwork expected",
-        firstGoodLayer->layerName());
-    return firstGoodLayer;
+    const auto& firstLayer = customLayers.front();
+    const auto& layerName = firstLayer->layerName();
+    const auto& clInputs = firstLayer->inputs();
+
+    const auto mismatch = findMismatchedClEdge(mcmInputs, clInputs);
+    const auto port = mismatch->first;
+    const auto mcmLayout = inputs.at(port)->desc().getLayout();
+    const auto clLayout = mismatch->second;
+
+    VPU_THROW_FORMAT("Failed to bind '%l' custom layer. MCM compiler expected input with port '%l' to have '%l' "
+                     "layout, but custom layer has '%l' layout instead.",
+        layerName, port, mcmLayout, clLayout);
+
+    return nullptr;
 }
 
 }  // namespace vpu

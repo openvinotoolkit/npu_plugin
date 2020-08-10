@@ -7,7 +7,7 @@
         <Source filename="yolov2_region_hwc.bin"/>
         <Parameters>
             <Tensor arg-name="src_data" type="input" port-index="0" format="BYXF"/>
-            <Tensor arg-name="dst_data" type="output" port-index="0" format="BYXF"/>
+            <Tensor arg-name="dst_data" type="output" port-index="0" format="BFYX"/>
             <Data arg-name="local_src" type="local_data" dim="input,0" size="X*(coords+1+classes)*2"/>
             <Data arg-name="local_dst" type="local_data" dim="input,0" size="X*(coords+1+classes)*2"/>
             <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>

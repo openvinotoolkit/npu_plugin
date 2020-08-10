@@ -124,5 +124,4 @@ mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims) {
     std::reverse(begin(dims), end(dims));
     return mv::Shape(dims);
 }
-
 #endif

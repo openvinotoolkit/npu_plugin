@@ -14,20 +14,31 @@
 // stated in the License.
 //
 
-#include "kmb_test_convert_def.hpp"
+#pragma once
 
-namespace {
+#include "kmb_test_model.hpp"
+#include "kmb_test_utils.hpp"
 
-BlobVector refConvert(const TestNetwork::NodePtr&, const BlobVector& inputs, const TestNetwork&) {
-    return inputs;
-}
+#include <ngraph/op/util/attr_types.hpp>
 
-}  // namespace
+struct ReorgYoloParams final {
+    int stride;
+};
 
-TestNetwork& ConvertLayerDef::build() {
-    std::shared_ptr<ngraph::Node> convertNode =
-        std::make_shared<ngraph::op::v0::Convert>(
-            testNet.getPort(inputPort), params.destination_type);
+struct ReorgYoloLayerDef final {
+    TestNetwork& testNet;
+    std::string name;
+    PortInfo inputPort;
+    ReorgYoloParams params;
 
-    return testNet.addLayer(name, convertNode, refConvert);
-}
+    ReorgYoloLayerDef(TestNetwork& testNet, std::string name, ReorgYoloParams params)
+        : testNet(testNet), name(std::move(name)), params(std::move(params)) {
+    }
+
+    ReorgYoloLayerDef& input(const std::string& lName, size_t port = 0) {
+        inputPort = PortInfo(lName, port);
+        return *this;
+    }
+
+    TestNetwork& build();
+};
