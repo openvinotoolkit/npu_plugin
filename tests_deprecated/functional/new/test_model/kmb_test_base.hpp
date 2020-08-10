@@ -136,6 +136,8 @@ public: \
         return params.Name; \
     }
 
+enum ImageFormat { RGB, BGR };
+
 //
 // KmbTestBase
 //
@@ -310,20 +312,20 @@ private:
 
 class TestImageDesc final {
 public:
-    TestImageDesc(const char* imageFileName, bool isBGR = true) : _imageFileName(imageFileName), _isBGR(isBGR) {}
-    TestImageDesc(std::string imageFileName, bool isBGR = true) : _imageFileName(std::move(imageFileName)), _isBGR(isBGR) {}
+    TestImageDesc(const char* imageFileName, ImageFormat imageFormat = ImageFormat::BGR) : _imageFileName(imageFileName), _imageFormat(imageFormat) {}
+    TestImageDesc(std::string imageFileName, ImageFormat imageFormat = ImageFormat::BGR) : _imageFileName(std::move(imageFileName)), _imageFormat(imageFormat) {}
 
     const std::string& imageFileName() const {
         return _imageFileName;
     }
 
     bool isBGR() const {
-        return _isBGR;
+        return (_imageFormat == ImageFormat::BGR);
     }
 
 private:
     std::string _imageFileName;
-    bool _isBGR = true;
+    ImageFormat _imageFormat = ImageFormat::BGR;
 };
 
 //

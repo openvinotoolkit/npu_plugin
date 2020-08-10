@@ -40,7 +40,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         1, 2.5f);
 }
 
@@ -50,7 +50,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_ResNet_50) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/husky.bmp", false),
+        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
         1, 0.7f);
 }
 
@@ -63,7 +63,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% spar
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -77,7 +77,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% spar
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -91,7 +91,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -106,7 +106,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_MobileNet_V2) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16)
             .setUserOutputLayout("output", Layout::NHWC),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         2, 0.7f);
 }
 
@@ -117,7 +117,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         3, 2.15f);
 }
 
@@ -127,7 +127,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -137,7 +137,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_SparseV1_TF_IRv7_MobileNet_V2) {  /
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -151,7 +151,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% s
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -165,7 +165,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-	TestImageDesc("224x224/watch.bmp", false),
+	    TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -182,7 +182,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         3, 1e-2f);
 }
 
@@ -198,7 +198,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -208,7 +208,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -222,7 +222,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -239,7 +239,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_Inception_V3) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("299x299/n01537544_28.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 1e-1f);
 }
 
@@ -252,7 +252,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("299x299/n01537544_28.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 1e-1f);
 }
 
@@ -262,7 +262,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_TF_IRv7_Inception_V3) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("299x299/n01537544_28.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -279,7 +279,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) 
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("227x227/cat3.bmp", false),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         3, 1e-1f);
 }
 
@@ -295,7 +295,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16)
             .setUserOutputLayout("input", Layout::NHWC),
-        TestImageDesc("227x227/cat3.bmp", false),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         1, 0.5f);
 }
 
@@ -305,7 +305,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 2.f);
 }
 
@@ -318,7 +318,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -335,7 +335,7 @@ TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("512x512/dog_croped512.bmp", false),
+        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
         0.3f,
         0.1f, 0.3f);
 }
@@ -350,7 +350,7 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("512x512/dog_croped512.bmp", false),
+        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, true);
 }
 
@@ -366,7 +366,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("512x512/dog_croped512.bmp", false),
+        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -384,7 +384,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Custom) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({customLayers}),
-        TestImageDesc("512x512/dog_croped512.bmp", false),
+        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -398,7 +398,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -416,7 +416,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Custom) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({customLayers}),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -435,7 +435,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -446,7 +446,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -456,7 +456,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -468,7 +468,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -484,7 +484,7 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", GetParam())
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/husky.bmp", false),
+        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
         1, 0.7f);
 }
 
@@ -498,7 +498,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngra
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/husky.bmp", false),
+        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
         3, 0.7f);
 }
 
@@ -508,7 +508,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         1, 7.0f);
 }
 
@@ -519,7 +519,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_ngra
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/watch.bmp", false),
+        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
         1, 7.0f);
 }
 
@@ -530,7 +530,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -542,7 +542,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.3f);
 }
 
@@ -552,7 +552,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("299x299/n01537544_28.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -565,7 +565,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_ngraph) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("299x299/n01537544_28.bmp", false),
+        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -576,7 +576,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32)
             .setUserOutputLayout("output", Layout::NHWC),
-        TestImageDesc("227x227/cat3.bmp", false),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         1, 2.0f);
 }
 
@@ -592,7 +592,7 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngr
             .setUserOutputPrecision("output", Precision::FP32)
             .setUserOutputLayout("output", Layout::NHWC)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("227x227/cat3.bmp", false),
+        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         1, 2.0f);
 }
 //////////////////////////////////////////
@@ -614,7 +614,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NCHW),
-            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
@@ -624,7 +624,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC),
-            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", false),
+            TestImageDesc("300x300/20_Family_Group_Family_Group_20_1003.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
@@ -640,7 +640,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp3
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("512x512/dog_croped512.bmp", false),
+            TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -656,7 +656,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_faster_rcnn_resnet101_coco_tf_dense_in
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("1024x600/frankfurt_001016.jpg", false),
+            TestImageDesc("1024x600/frankfurt_001016.jpg", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -667,7 +667,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_f
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("300x300/dog.bmp", false),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
             1, 0.06f);
 }
 
@@ -682,7 +682,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IR
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("300x300/dog.bmp", false),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -700,7 +700,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_facenet_20180408_102900_tf_dense_int8_I
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("160x160/cat3.bmp", false),
+            TestImageDesc("160x160/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -715,7 +715,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroa
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("1024x1024/frankfurt_001016.png", false),
+            TestImageDesc("1024x1024/frankfurt_001016.png", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -723,9 +723,8 @@ TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroa
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NCHW),
-            TestImageDesc("736x416/dss_val_05.png", true),
+                    .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("736x416/dss_val_05.png", ImageFormat::BGR),
             0.3f,
             0.1f, 0.3f);
 }
@@ -741,7 +740,7 @@ TEST_F(KmbDetectionNetworkTest, precommit_face_detection_retail_0004_caffe_dense
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("300x300/dog.bmp", false),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -752,7 +751,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_101_caffe_dense_int8_IRv10_from_
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", false),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -762,7 +761,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_152_caffe_dense_int8_IRv10_from_
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", false),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -777,7 +776,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp3
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("227x227/cat3.bmp", false),
+            TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -791,7 +790,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32)
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", false),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -802,7 +801,7 @@ TEST_F(KmbRetinaFaceNetworkTest, precommit_retinaface_mobilenetv2_0_25_modified)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setCompileConfig({{"VPU_COMPILER_COMPILATION_DESCRIPTOR", "release_kmb_retinaface"}}),
             "data",
-            TestImageDesc("224x224/cat3.bmp", false));
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB));
 }
 
 //////////////////////////////////////////
@@ -824,7 +823,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_i
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("416x416/person.bmp", false),
+            TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
             0.6, 0.4, 0.4, false);
 }
 
@@ -835,7 +834,7 @@ TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_fp16_to_int8) 
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("416x416/person.bmp", false),
+            TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
             0.6, 0.4, 0.4, false);
 }
 
@@ -845,7 +844,7 @@ TEST_F(KmbClassifyNetworkTest, resnet_50_pytorch_dense_int8_IRv10_fp16_to_int8) 
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", false),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 2.f);
 }
 
@@ -855,7 +854,7 @@ TEST_F(KmbClassifyNetworkTest, mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_fp16
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", false),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 2.62f);
 }
 
@@ -865,7 +864,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", false),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -875,7 +874,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("299x299/n01537544_28.bmp", false),
+            TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
 
@@ -886,7 +885,7 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_fp1
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32)
                     .setUserOutputLayout("output", Layout::NHWC),
-            TestImageDesc("227x227/watch.bmp", false),
+            TestImageDesc("227x227/watch.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
 
@@ -896,7 +895,7 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_googlenet_v4_tf_dense_int8_IRv10_fp16_to
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("299x299/n01537544_28.bmp", false),
+            TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
 
@@ -906,7 +905,7 @@ TEST_F(KmbClassifyNetworkTest, resnet_101_caffe_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", false),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
 
@@ -916,7 +915,7 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/watch.bmp", false),
+            TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
             1, 0.5f);
 }
 
@@ -931,7 +930,7 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
                     .setUserInputPrecision("input", Precision::U8)
                     .setUserInputLayout("input", Layout::NHWC)
                     .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("224x224/cat3.bmp", false),
+            TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
             1, 0.05f);
 }
 
@@ -956,7 +955,7 @@ TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
             .setUserOutputPrecision("cls_prob_reshape",  Precision::FP32)
             .setUserOutputPrecision("bbox_pred_reshape", Precision::FP32),
         "data",
-        TestImageDesc("224x224/cat3.bmp", false),
+        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         "im_info",
         {224.f, 224.f, 1.f});
 }
@@ -982,7 +981,7 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputLayout("output", Layout::CHW)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("1024x1024/frankfurt_001016.png", false), // isBGR is false
+        TestImageDesc("1024x1024/frankfurt_001016.png", ImageFormat::RGB),
         0.3f);  // mean intersection over union tolerance
 }
 
@@ -1031,6 +1030,6 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/age-gender-recognition-retail-0013/caffe/FP16-INT8/age-gender-recognition-retail-0013_ww22.xml")
             .setUserInputPrecision(input_name, Precision::U8),
-        TestImageDesc("62x62/face62.bmp", false),
+        TestImageDesc("62x62/face62.bmp", ImageFormat::RGB),
         0.1f);
 }

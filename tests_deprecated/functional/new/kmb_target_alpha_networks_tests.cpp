@@ -26,7 +26,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("/test_pictures/224x224/husky.bmp", false),
+        TestImageDesc("/test_pictures/224x224/husky.bmp", ImageFormat::RGB),
         1, 0.7f);
 }
 
@@ -39,7 +39,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_MobileNet_V2_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("/test_pictures/224x224/watch.bmp", false),
+        TestImageDesc("/test_pictures/224x224/watch.bmp", ImageFormat::RGB),
         // TODO: threshold is 7
         1, 7.05f);
 }
@@ -53,7 +53,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("/test_pictures/224x224/cat3.bmp", false),
+        TestImageDesc("/test_pictures/224x224/cat3.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -66,7 +66,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V3_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("/test_pictures/299x299/n01537544_28.bmp", false),
+        TestImageDesc("/test_pictures/299x299/n01537544_28.bmp", ImageFormat::RGB),
         1, 0.05f);
 }
 
@@ -79,7 +79,7 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("/test_pictures/224x224/cat3.bmp", false),
+        TestImageDesc("/test_pictures/224x224/cat3.bmp", ImageFormat::RGB),
         1, 2.f);
 }
 
@@ -96,7 +96,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("/test_pictures/416x416/person.bmp", false),
+            TestImageDesc("/test_pictures/416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -113,6 +113,6 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Alpha) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-            TestImageDesc("/test_pictures/416x416/person.bmp", false),
+            TestImageDesc("/test_pictures/416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
