@@ -71,7 +71,7 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
     std::copy(tensor->dimensions.begin(), tensor->dimensions.end(), std::back_inserter(dataDims));
 
     InferenceEngine::Layout dataLayout = extractLayoutFromStrides(tensor->strides);
-    InferenceEngine::Precision dataPrecision = DTypeToPrecision(tensor->data_dtype);
+    InferenceEngine::Precision dataPrecision = MvcnnDTypeToPrecision(tensor->data_dtype);
 
     InferenceEngine::TensorDesc ieDesc(dataPrecision, dataDims, dataLayout);
 
