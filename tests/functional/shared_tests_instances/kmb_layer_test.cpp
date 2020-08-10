@@ -16,9 +16,11 @@ const TargetDevice testPlatformTargetDevice(CommonTestUtils::DEVICE_KEEMBAY);
 const TargetDevice testPlatformTargetDevice(CommonTestUtils::DEVICE_KEEMBAY);
 #endif
 
-KmbLayerTestsCommon::KmbLayerTestsCommon() {
-    if (!kmbTestTool.envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
-        configuration[CONFIG_KEY(LOG_LEVEL)] = kmbTestTool.envConfig.IE_KMB_TESTS_LOG_LEVEL;
+const KmbTestEnvConfig KmbLayerTestsCommon::envConfig;
+
+KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
+    if (!envConfig.IE_KMB_TESTS_LOG_LEVEL.empty()) {
+        configuration[CONFIG_KEY(LOG_LEVEL)] = envConfig.IE_KMB_TESTS_LOG_LEVEL;
     }
     // todo: values are temporarily overriden to enable mcm compilation
     // targetDevice = testPlatformTargetDevice;
@@ -68,8 +70,9 @@ void KmbLayerTestsCommon::Run() {
 #else
     std::cout << "KmbLayerTestsCommon::ImportNetwork()" << std::endl;
     ASSERT_NO_THROW(ImportNetwork());
-    // todo: infers are not run forcefully; layer test networks hang the board
-    if (false && kmbTestTool.envConfig.IE_KMB_TESTS_RUN_INFER) {
+    if (envConfig.IE_KMB_TESTS_RUN_INFER) {
+        // todo: infers are not run forcefully; layer test networks hang the board
+        SKIP() << "Skip infer due to layer test networks hang the board";
         std::cout << "KmbLayerTestsCommon::Infer()" << std::endl;
         Infer();
         std::cout << "KmbLayerTestsCommon::Validate()" << std::endl;

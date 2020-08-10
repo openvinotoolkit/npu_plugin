@@ -8,16 +8,13 @@
 #include <fstream>
 #include <iomanip>
 
-#include "kmb_test_env_cfg.hpp"
 #include <vpu/utils/error.hpp>
 
 using namespace InferenceEngine;
 
 namespace LayerTestsUtils {
 
-const KmbTestEnvConfig KmbTestTool::envConfig;
-
-KmbTestTool::KmbTestTool():
+KmbTestTool::KmbTestTool(const KmbTestEnvConfig& envCfg): envConfig(envCfg),
     DEVICE_NAME(envConfig.IE_KMB_TESTS_DEVICE_NAME.empty() ? "KMB" : envConfig.IE_KMB_TESTS_DEVICE_NAME) {
 }
 
