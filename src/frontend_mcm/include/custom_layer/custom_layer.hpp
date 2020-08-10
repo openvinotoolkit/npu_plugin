@@ -6,7 +6,7 @@
 
 #include <ie_common.h>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <functional>
 #include <custom_layer/custom_kernel.hpp>
 #include <map>

@@ -18,7 +18,7 @@
 
 #include <cpp/ie_cnn_network.h>
 
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <map>
 #include <memory>
 #include <set>
