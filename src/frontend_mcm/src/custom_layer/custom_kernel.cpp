@@ -9,7 +9,7 @@
 
 #include <custom_layer/ShaveElfMetadataParser.hpp>
 #include <custom_layer/custom_kernel.hpp>
-#include <details/caseless.hpp>
+#include <caseless.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/extra.hpp>
 
