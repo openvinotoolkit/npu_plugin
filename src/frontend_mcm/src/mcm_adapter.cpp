@@ -138,6 +138,7 @@ void MCMAdapter::compileNetwork(
     // TODO: This hack needs to be fixed
     auto compDescName = config.mcmCompilationDesciptor();
     ie::InputsDataMap networkInputs;
+    ///
     bool layoutNCHW = true;
     network.getInputsInfo(networkInputs);
     for (const auto& netInput : networkInputs) {
@@ -149,6 +150,7 @@ void MCMAdapter::compileNetwork(
     if (layoutNCHW) {
         compDescName = "release_kmb_with_CM_Conv";
     }
+    ///
 
     const auto compDescPath =
         getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";

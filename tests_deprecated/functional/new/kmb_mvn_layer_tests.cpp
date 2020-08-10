@@ -18,30 +18,30 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-struct ConvertTestParams final {
-    ConvertParams params;
+struct MVNTestParams final {
+    MVNParams params;
 
-    LAYER_PARAMETER(ngraph::element::Type, destination_type);
-    PARAMETER(ngraph::element::Type, source_type);
+    LAYER_PARAMETER(bool, across_channels);
+    LAYER_PARAMETER(bool, normalize_variance);
+    LAYER_PARAMETER(float, eps);
     PARAMETER(SizeVector, dims);
 };
 
-std::ostream& operator<<(std::ostream& os, const ConvertTestParams &p) {
+std::ostream& operator<<(std::ostream& os, const MVNTestParams& p) {
     vpu::formatPrint(
-        os, "dims: %v, source_type: %t, destination_type: %t", p.dims(), p.source_type(), p.destination_type());
+        os, "dims: %l, across_channels: %l, normalize_variance: %l, eps: %l",
+        p.dims(), p.across_channels(), p.normalize_variance(), p.eps());
     return os;
 }
 
-class KmbConvertLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<ConvertTestParams> {};
+class KmbMVNLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<MVNTestParams> {};
 
-TEST_P(KmbConvertLayerTests, accuracy) {
+TEST_P(KmbMVNLayerTests, accuracy) {
     const auto &p = GetParam();
 
-    const auto netPrecision = Precision::FP32;
-
-    const auto dims = p.dims();
-    const auto userInDesc = TensorDesc(typeToPrecision(p.source_type()), dims, Layout::NCHW);
-    const auto userOutDesc = TensorDesc(typeToPrecision(p.destination_type()), dims, Layout::NCHW);
+    const auto& dims = p.dims();
+    const auto userInDesc = TensorDesc(Precision::FP16, dims, Layout::NCHW);
+    const auto userOutDesc = TensorDesc(Precision::FP32, dims, Layout::NCHW);
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
 
@@ -54,25 +54,24 @@ TEST_P(KmbConvertLayerTests, accuracy) {
     const auto netBuidler = [&](TestNetwork& testNet) {
         testNet
             .setUserInput("input", userInDesc.getPrecision(), userInDesc.getLayout())
-            .addNetInput("input", userInDesc.getDims(), netPrecision)
-            .addLayer<ConvertLayerDef>("convert", p.params)
+            .addNetInput("input", userInDesc.getDims(), Precision::FP32)
+            .addLayer<MVNLayerDef>("mvn", p.params)
                 .input("input")
                 .build()
-            .addNetOutput(PortInfo("convert"))
-            .setUserOutput(PortInfo("convert"), userOutDesc.getPrecision(), userOutDesc.getLayout())
+            .addNetOutput(PortInfo("mvn"))
+            .setUserOutput(PortInfo("mvn"), userOutDesc.getPrecision(), userOutDesc.getLayout())
             .useCustomLayers()
-            .disableMcmPasses({{"kmb_adapt", "KMBQuantizeConversion"}})
             .finalize();
     };
 
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-const std::vector<ConvertTestParams> convertParams = {
-        ConvertTestParams()
-            .dims({1, 3, 360, 480})
-            .source_type(ngraph::element::Type_t::u8)
-            .destination_type(ngraph::element::Type_t::f16)
+const std::vector<MVNTestParams> convertParams = {
+        MVNTestParams()
+            .dims({1, 3, 512, 896})
+            .normalize_variance(true)
+            .across_channels(true)
 };
 
-INSTANTIATE_TEST_CASE_P(precommit, KmbConvertLayerTests, testing::ValuesIn(convertParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbMVNLayerTests, testing::ValuesIn(convertParams));

@@ -39,15 +39,23 @@
 #include "kmb_test_convert_def.hpp"
 #include "kmb_test_reshape_def.hpp"
 #include "kmb_test_permute_def.hpp"
+#include "kmb_test_mvn_def.hpp"
+#include "kmb_test_region_yolo_def.hpp"
+#include "kmb_test_reorg_yolo_def.hpp"
+#include "kmb_test_grn_def.hpp"
+#include "kmb_test_ctc_greedy_decoder_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
+#include <single_layer_common.hpp>
 #include <tests_common.hpp>
 
 #include <gtest/gtest.h>
 #include <yolo_helpers.hpp>
 
 using namespace InferenceEngine;
+
+PRETTY_PARAM(UseCustomLayers, bool);
 
 // #define RUN_SKIPPED_TESTS
 
