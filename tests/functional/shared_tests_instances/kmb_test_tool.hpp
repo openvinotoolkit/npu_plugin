@@ -14,10 +14,10 @@ namespace LayerTestsUtils {
 
 class KmbTestTool {
 public:
-    static const KmbTestEnvConfig envConfig;
+    const KmbTestEnvConfig& envConfig;
     const std::string DEVICE_NAME;
 public:
-    explicit KmbTestTool();
+    explicit KmbTestTool(const KmbTestEnvConfig& envCfg);
 
     void exportNetwork(InferenceEngine::ExecutableNetwork& exeNet, const std::string& testName);
     InferenceEngine::ExecutableNetwork importNetwork(const std::shared_ptr<InferenceEngine::Core>& core, const std::string& testName);
