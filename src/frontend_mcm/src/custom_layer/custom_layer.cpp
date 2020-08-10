@@ -126,7 +126,7 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
 }
 
 
-CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer) : _configDir(std::move(configDir)) {
+CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer): _configDir(std::move(configDir)) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto nodeName = customLayer.name();
     VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"),
@@ -164,7 +164,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         _kernels.emplace_back(kernelNodes.front(), _configDir);
     } else {
         auto stageOrder = std::map<int, CustomKernel>{};
-        for (auto& kernel : kernelNodes) {
+        for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
             VPU_THROW_UNLESS(stageAttr, "Error while binding %s custom layer: for multi-kernel binding, "
                 "each kernel should be provided with 'stage' attribute.", _layerName);
@@ -186,7 +186,8 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         }
     }
 
-    const auto addPorts = [](std::map<int, ie::Layout>& ports, const CustomKernel::BindingParameter& newEdge) {
+    const auto addPorts = [](std::map<int, ie::Layout>& ports,
+                             const CustomKernel::BindingParameter& newEdge) {
         const auto layerInput = ports.find(newEdge.portIndex);
         const auto newEdgeLayout = formatToLayout(newEdge.format);
         if (layerInput == ports.end()) {

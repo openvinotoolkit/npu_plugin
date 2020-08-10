@@ -41,9 +41,9 @@
 
 #ifdef ENABLE_MCM_COMPILER
 
-#include <custom_layer/custom_layer_utils.hpp>
-#include <include/mcm/tensor/tiling.hpp>
 #include <converters.hpp>
+#include <custom_layer/custom_parser.hpp>
+#include <include/mcm/tensor/tiling.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -1883,120 +1883,52 @@ void FrontEndMcm::parseCustom(const ie::CNNLayerPtr& layer, const McmNodeVector&
         return findMatchingCustomLayer(suitableLayers, inputs);
     }();
 
-    const auto kernels = customLayer->kernels();
+    auto parser = CustomLayerParser{layer, inputs};
 
-    IE_ASSERT(kernels.size() == 1);  // TODO support multi-kernel layer when mcm supports size(outputs) > 1
+    int stageIdx = 0;
+    for (const auto& kernel : customLayer->kernels()) {
+        const auto sortedKernelBindings = [&] {
+            auto bindings = std::vector<CustomKernel::BindingParameter>{};
+            bindings.reserve(kernel.arguments().size());
 
-    const auto inputDescs = [&] {
-        auto inputsDesc = SmallVector<TensorDesc>();
-        inputsDesc.reserve(inputs.size());
-        for (const auto& input : inputs) {
-            inputsDesc.push_back(input->desc());
-        }
-        return inputsDesc;
-    }();
-
-    const auto outputDescs = [&] {
-        auto outputsDesc = SmallVector<TensorDesc>();
-        outputsDesc.reserve(layer->outData.size());
-        for (const auto& outData : layer->outData) {
-            outputsDesc.push_back(outData->getTensorDesc());
-        }
-        return outputsDesc;
-    }();
-
-    // TODO for each kernel in layer
-    const auto& kernel = kernels[0];
-    const auto defaultQuantParams = mv::QuantizationParams{{0}, {1.0}, {}, {}};
-
-    const auto kernelArgs = [&] {
-        auto kernelArgs = vpu::SmallVector<uint32_t>{};
-
-        for (const auto& arg : kernel.arguments()) {
-            const auto& binding = kernel.bindings().find(arg.name);
-            if (binding == kernel.bindings().end()) {
-                VPU_THROW_FORMAT("Failed to bind '%s' custom layer. Can't find kernel argument '%s' in binding list.",
+            for (const auto& arg : kernel.arguments()) {
+                const auto& binding = kernel.bindings().find(arg.name);
+                VPU_THROW_UNLESS(binding != kernel.bindings().end(),
+                    "Failed to bind '%s' custom layer. "
+                    "Can't find kernel argument '%s' in binding list.",
                     customLayer->layerName(), arg.name);
+                bindings.push_back(binding->second);
             }
 
-            const uint32_t value = parseKernelArgument(binding->second, layer, inputDescs, outputDescs);
-            kernelArgs.push_back(value);
-        }
+            return bindings;
+        }();
 
-        return kernelArgs;
-    }();
+        const auto stage = parser.parseKernelArguments(sortedKernelBindings);
 
-    const auto workGroupDims = 3;
+        const auto kernelData = parser.resolveKernelArguments(kernel, stage.arguments);
+        const auto stageOutputs = parser.resolveStageOutputs(kernel, *customLayer, stage.outputs);
 
-    const auto& wgDimSource = (kernel.dimSource() == CustomDimSource::Input) ? inputDescs : outputDescs;
-    const auto& wgDataDesc = wgDimSource.at(kernel.dimSourceIndex());
+        const auto layerName = layer->name + "_Custom:" + std::to_string(stageIdx);
 
-    const auto localWorkGroupSize = calcSizesFromParams(wgDataDesc, kernel.localGridSizeRules(), layer->params);
-    const auto globalWorkGroupSize = calcSizesFromParams(wgDataDesc, kernel.globalGridSizeRules(), layer->params);
-    IE_ASSERT(localWorkGroupSize.size() == globalWorkGroupSize.size());
-    IE_ASSERT(localWorkGroupSize.size() == workGroupDims);
+        auto custom = _modelMcm.custom(stage.inputs, kernel.kernelBinary(), kernelData, stageOutputs,
+            mv::DType{"Default"}, initialQuantParams(), layerName);
 
-    const auto globalOffset = std::array<uint32_t, workGroupDims>{0};
+        const auto sourceOp = _modelMcm.getSourceOp(custom);
+        const auto mcmOutputTensors = sourceOp->getOutputTensor();
 
-    auto kernelParams = std::vector<uint32_t>{};
-    kernelParams.reserve(workGroupDims * 3 + 2 + kernelArgs.size());
+        IE_ASSERT(stage.outputs.size() == mcmOutputTensors.size());
 
-    std::copy(begin(localWorkGroupSize), end(localWorkGroupSize), back_inserter(kernelParams));
-    for (size_t i = 0; i < localWorkGroupSize.size(); i++) {
-        IE_ASSERT(globalWorkGroupSize[i] % localWorkGroupSize[i] == 0);
-        kernelParams.push_back(globalWorkGroupSize[i] / localWorkGroupSize[i]);
-    }
-    std::copy(globalOffset.begin(), globalOffset.end(), std::back_inserter(kernelParams));
-    kernelParams.push_back(workGroupDims);
-    kernelParams.push_back(kernel.kernelId());
-
-    std::copy(kernelArgs.begin(), kernelArgs.end(), std::back_inserter(kernelParams));
-
-    auto layerData = std::vector<uint8_t>(kernelParams.size() * sizeof(uint32_t));
-    std::copy(kernelParams.begin(), kernelParams.end(), reinterpret_cast<uint32_t*>(layerData.data()));
-
-    const auto desc = outputDescs[0];
-    VPU_THROW_UNLESS(desc.getDims().size() <= 4, "Custom layer does not support tensors greater 4D");
-
-    auto shape = sizeVectorToShape(desc.getDims());
-    // Propagate shape to 4D, adding 1's on major dimensions
-    shape = mv::Shape::augment_major(shape, 4);
-
-    auto dtype = precisionToDType(desc.getPrecision());
-
-    auto order = layoutToOrder(customLayer->outputs()[0]);
-    // 4D tensor can be only in two layouts: NHWC (default) or NCHW.
-    if (order != mv::Order::getColMajorID(4)) {
-        order = mv::Order::getZMajorID(4);
-    }
-
-    const auto type = [&] {
-        for (const auto& binding : kernel.bindings()) {
-            if (binding.second.type != CustomParamType::Output) {
-                continue;
+        for (size_t i = 0; i < stage.outputs.size(); i++) {
+            const auto& output = stage.outputs[i];
+            if (output.isBuffer) {
+                parser.addBuffer(output.portIndex, mcmOutputTensors[i]);
+            } else {
+                bindOutput(mcmOutputTensors[i], layer->outData[output.portIndex]);
             }
-            const auto withBindingName = [&](const CustomKernel::Argument& arg) {
-                return arg.name == binding.first;
-            };
-
-            auto argument = std::find_if(begin(kernel.arguments()), end(kernel.arguments()), withBindingName);
-            IE_ASSERT(argument != kernel.arguments().end());
-
-            if (argument->underlyingTypeSize == 1) return mv::DType{"UInt8"};
-            if (argument->underlyingTypeSize == 2) return mv::DType{"Float16"};
-            VPU_THROW_EXCEPTION << "Custom layer output parameter '" << binding.first
-                                << "' has unsupported output data type with "
-                                << "underlying type size = " << argument->underlyingTypeSize;
         }
-        return mv::DType{"Default"};
-    }();
 
-    // `type` variable is to be used
-    auto custom = _modelMcm.custom({inputs[0]->getMcmNode()}, kernel.kernelBinary(), layerData, order, shape,
-        mv::DType{"Default"}, initialQuantParams(), layer->name);
-
-    bindOutput(custom, layer->outData[0]);
-    _logger->debug(FINISH_PARSING_STR, custom->getName());
+        _logger->debug(FINISH_PARSING_STR, custom->getName() + "_stage#" + std::to_string(stageIdx++));
+    }
 }
 
 void FrontEndMcm::parseMTCNN(const ie::CNNLayerPtr&, const McmNodeVector&) {
@@ -2170,6 +2102,16 @@ std::vector<CustomLayer::Ptr> FrontEndMcm::getSuitableCustomLayers(
 
             const auto validGridSizes =
                 std::all_of(begin(gws), end(gws), validSizeRule) && std::all_of(begin(lws), end(lws), validSizeRule);
+
+            const auto workGroupDims = 3;
+            VPU_THROW_UNLESS(lws.size() <= workGroupDims,
+                "Failed to parse '%s' custom layer binding list. Local work group size count "
+                "is greater than 3.",
+                customLayer->layerName());
+            VPU_THROW_UNLESS(gws.size() <= workGroupDims,
+                "Failed to parse '%s' custom layer binding list. Global work group size count "
+                "is greater than 3.",
+                customLayer->layerName());
 
             if (!validGridSizes) {
                 _logger->debug("Not suitable: Work group grid sizes are not valid");

@@ -29,8 +29,8 @@ public:
 
     std::vector<CustomKernel> kernels() const { return _kernels; }
     std::string layerName() const { return _layerName; }
-    std::map<int, ie::Layout> inputs() { return _inputs; }
-    std::map<int, ie::Layout> outputs() { return _outputs; }
+    std::map<int, ie::Layout> inputs() const { return _inputs; }
+    std::map<int, ie::Layout> outputs() const { return _outputs; }
 
     static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
                 const std::string& configFile,
@@ -42,7 +42,7 @@ public:
 private:
     std::string _configDir;
     std::string _layerName;
-    std::map<std::string, std::string> _whereParams;
+    std::unordered_map<std::string, std::string> _whereParams;
 
     std::vector<CustomKernel> _kernels;
 
