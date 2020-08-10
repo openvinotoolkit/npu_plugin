@@ -1,25 +1,23 @@
 # KMB Plugin
 
-## Introducing KMB Plugin
+## Introducing KMB Plugin for Inference Engine
 
-The Inference Engine KMB plugin is developed for inference of neural networks on Intel&reg; Movidius&trade; VPU Code-Named Keem Bay.
+KMB Plugin is developed for inference of neural networks on new Gen3 Intel&reg; Movidius&trade; VPU Code-Named Keem Bay.
 
 ## Supported networks
 
-The Inference Engine KMB plugin supports the following models:
+Currently, KMB Plugin supports only INT8 models quantized using [Post-Training Optimization Tool](https://docs.openvinotoolkit.org/latest/pot_README.html) delivered with the Intel&reg; Distribution of OpenVIN&trade; toolkit release package.
 
-**INT8 quantized:**
 
-* Inception v1, v3
-* MobileNet v2
-* ResNet-50
-* SqueezeNet v1.1
-* YOLO Tiny v2
-* YOLO v2
+## Offline compilation
 
-Currently, the KMD plugin supports only quantized models. To quantize the model, you can use the Post-Training Optimization Tool delivered with the Intel® Distribution of OpenVINO™ toolkit release package.
+NN Compilation is not available on ARM. Offline compilation step is required to be done using compile-tool from OpenVINO&trade; package for Ubuntu&reg;. 
+Please refer to release notes for details. 
+A pre-compiled model (blob) should be loaded to VPU via ImportNetwork API.
+
 
 ## Supported Configuration Parameters
+
 
 The KMB plugin accepts the following options:
 
@@ -29,7 +27,6 @@ The KMB plugin accepts the following options:
 | `VPU_COMPILER_ELTWISE_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable eltwise scales alignment |
 | `VPU_COMPILER_CONCAT_SCALES_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable concat scales alignment |
 | `VPU_COMPILER_WEIGHTS_ZERO_POINTS_ALIGNMENT`    | `YES`/`NO` | `YES` | Enable or disable weights zero points alignment |
-| `VPU_KMB_PLATFORM`    | `VPU_2490` | `VPU_2490` | Set the target device |
 | `KMB_THROUGHPUT_STREAMS`    | positive integer | 1 | Set the number of threads to use for model execution |
 | `VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION`    | `YES`/`NO` | `NO` | Enable or disable blob transfer to device if LoadNetwork is called |
 | `VPU_COMPILER_COMPILATION_PASS_BAN_LIST` | std::string | empty | List of mcm passes to be removed from mcm compilation descriptor (value example: kmb_adapt,KMBQuantizeConversion;adapt,TileOps) |

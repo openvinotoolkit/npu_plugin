@@ -38,7 +38,7 @@ public:
 
     InferenceEngine::ParamMap params;
     WorkloadContext_Helper workloadContextHelper;
-    const vpu::HDDL2Config config;
+    const vpu::HDDL2Config config = vpu::HDDL2Config();
 };
 
 //------------------------------------------------------------------------------

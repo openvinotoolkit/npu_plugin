@@ -66,6 +66,8 @@ KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription
     _inferenceVirtAddr = nullptr;
     initVpualObjects();
     allocateGraph(_networkDescription->getCompiledNetwork());
+#else
+    UNUSED(_inferenceVirtAddr);
 #endif
 }
 
@@ -351,6 +353,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     pipe->Start();
     _logger->info("Started FLIC pipeline...");
 #else
+    UNUSED(xlinkChannel);
     UNUSED(graphFileContent);
 #endif
 }
