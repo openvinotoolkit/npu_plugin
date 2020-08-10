@@ -19,6 +19,7 @@
 #include <cpp/ie_cnn_network.h>
 
 #include <caseless.hpp>
+#include <converters.hpp>
 #include <map>
 #include <memory>
 #include <set>
@@ -60,8 +61,6 @@ private:
 };
 
 MCM_DEFINE_MODEL_TYPES(McmNode, Object)
-
-namespace ie = InferenceEngine;
 
 class FrontEndMcm final : public std::enable_shared_from_this<FrontEndMcm> {
     //
@@ -174,8 +173,6 @@ private:
         float bias;
     };
 
-    InferenceEngine::Precision getDefaultLayerPrecision(const ParsedNetwork& net, const ie::CNNLayerPtr& layer);
-    void removeInputScaleShiftPattern(ie::CNNNetwork& network);
     void alignEltwiseScales(ie::CNNNetwork& network);
     void alignConcatScales(ie::CNNNetwork& network);
     void alignZeroPointsOnWeights(ie::CNNNetwork& network);

@@ -17,12 +17,24 @@
 #pragma once
 
 #include <flatbuffers/flatbuffers.h>
+#include <ie_common.h>
 #include <schema/graphfile/graphfile_generated.h>
 
-InferenceEngine::Layout orderToLayout(const std::vector<uint32_t>& tensorOrder);
-InferenceEngine::Precision DTypeToPrecision(const MVCNN::DType& dtype);
+#include <ie_precision.hpp>
+
+InferenceEngine::Layout orderVectorToLayout(const std::vector<uint32_t>& tensorOrder);
+InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);
 
 #ifdef ENABLE_MCM_COMPILER
-std::vector<uint32_t> layoutToOrder(const InferenceEngine::Layout& tensorLayout);
-MVCNN::DType precisionToDType(const InferenceEngine::Precision& tensorPrecision);
+
+#include <mcm/tensor/dtype/dtype.hpp>
+#include <mcm/tensor/order/order.hpp>
+#include <mcm/tensor/shape.hpp>
+
+std::vector<uint32_t> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout);
+MVCNN::DType precisionToMvcnnDType(const InferenceEngine::Precision& tensorPrecision);
+mv::DType precisionToDType(const InferenceEngine::Precision& iePrecision);
+mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout);
+mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims);
+
 #endif

@@ -43,6 +43,7 @@
 
 #include <custom_layer/custom_layer_utils.hpp>
 #include <include/mcm/tensor/tiling.hpp>
+#include <converters.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -110,50 +111,6 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
         };
 
 // clang-format on
-
-mv::DType precisionToDType(const ie::Precision& iePrecision) {
-    mv::DType mvType;
-    switch (iePrecision) {
-    case ie::Precision::UNSPECIFIED:
-        mvType = mv::DType("Default");
-        break;
-    case ie::Precision::I8:
-        mvType = mv::DType("Int8");
-        break;
-    case ie::Precision::U8:
-        mvType = mv::DType("UInt8");
-        break;
-    case ie::Precision::I32:
-        mvType = mv::DType("Int32");
-        break;
-    case ie::Precision::I64:
-        mvType = mv::DType("Int64");
-        break;
-    case ie::Precision::FP16:
-        mvType = mv::DType("Float16");
-        break;
-    case ie::Precision::FP32:
-        mvType = mv::DType("Float32");
-        break;
-    default:
-        VPU_THROW_EXCEPTION << "Data type handling is not implemented" << iePrecision.name();
-    }
-    return mvType;
-}
-
-mv::Order layoutToOrder(const ie::Layout& ieLayout) {
-    std::ostringstream layoutToOrder;
-    layoutToOrder << ieLayout;
-    return mv::Order(layoutToOrder.str());
-}
-
-mv::Shape sizeVectorToShape(SizeVector dims) {
-    if (dims.empty()) {
-        return mv::Shape({1});
-    }
-    std::reverse(begin(dims), end(dims));
-    return mv::Shape(dims);
-}
 
 }  // namespace
 

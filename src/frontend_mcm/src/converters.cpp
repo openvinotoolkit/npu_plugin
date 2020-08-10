@@ -14,10 +14,7 @@
 // stated in the License.
 //
 
-#include <flatbuffers/flatbuffers.h>
-#include <ie_layouts.h>
-#include <schema/graphfile/graphfile_generated.h>
-
+#include <converters.hpp>
 #include <ie_precision.hpp>
 #include <map>
 
@@ -46,7 +43,7 @@ static const std::map<InferenceEngine::Precision, MVCNN::DType> dataTypeMapping 
     {InferenceEngine::Precision::BIN, MVCNN::DType::DType_BIN},
 };
 
-InferenceEngine::Layout orderToLayout(const std::vector<uint32_t>& tensorOrder) {
+InferenceEngine::Layout orderVectorToLayout(const std::vector<uint32_t>& tensorOrder) {
     std::function<bool(const std::pair<InferenceEngine::Layout, std::vector<uint32_t>>&)> mapSearchPredicate =
         [tensorOrder](const std::pair<InferenceEngine::Layout, std::vector<uint32_t>>& orderPair) -> bool {
         size_t orderSize = tensorOrder.size();
@@ -61,7 +58,7 @@ InferenceEngine::Layout orderToLayout(const std::vector<uint32_t>& tensorOrder) 
     return mapIter->first;
 }
 
-InferenceEngine::Precision DTypeToPrecision(const MVCNN::DType& dtype) {
+InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype) {
     std::function<bool(const std::pair<InferenceEngine::Precision, MVCNN::DType>&)> mapSearchPredicate =
         [dtype](const std::pair<InferenceEngine::Precision, MVCNN::DType>& dataTypePair) -> bool {
         return dtype == dataTypePair.second;
@@ -75,11 +72,57 @@ InferenceEngine::Precision DTypeToPrecision(const MVCNN::DType& dtype) {
 }
 
 #ifdef ENABLE_MCM_COMPILER
-std::vector<uint32_t> layoutToOrder(const InferenceEngine::Layout& tensorLayout) {
+
+std::vector<uint32_t> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout) {
     return orderMapping.at(tensorLayout);
 }
 
-MVCNN::DType precisionToDType(const InferenceEngine::Precision& tensorPrecision) {
+MVCNN::DType precisionToMvcnnDType(const InferenceEngine::Precision& tensorPrecision) {
     return dataTypeMapping.at(tensorPrecision);
 }
+
+mv::DType precisionToDType(const InferenceEngine::Precision& InferenceEnginePrecision) {
+    mv::DType mvType;
+    switch (InferenceEnginePrecision) {
+    case InferenceEngine::Precision::UNSPECIFIED:
+        mvType = mv::DType("Default");
+        break;
+    case InferenceEngine::Precision::I8:
+        mvType = mv::DType("Int8");
+        break;
+    case InferenceEngine::Precision::U8:
+        mvType = mv::DType("UInt8");
+        break;
+    case InferenceEngine::Precision::I32:
+        mvType = mv::DType("Int32");
+        break;
+    case InferenceEngine::Precision::I64:
+        mvType = mv::DType("Int64");
+        break;
+    case InferenceEngine::Precision::FP16:
+        mvType = mv::DType("Float16");
+        break;
+    case InferenceEngine::Precision::FP32:
+        mvType = mv::DType("Float32");
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Data type handling is not implemented" << InferenceEnginePrecision.name();
+    }
+    return mvType;
+}
+
+mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout) {
+    std::ostringstream layoutToOrder;
+    layoutToOrder << ieLayout;
+    return mv::Order(layoutToOrder.str());
+}
+
+mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims) {
+    if (dims.empty()) {
+        return mv::Shape({1});
+    }
+    std::reverse(begin(dims), end(dims));
+    return mv::Shape(dims);
+}
+
 #endif
