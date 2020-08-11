@@ -465,7 +465,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // execute the blob
     std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
-        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
+        "make run -j8 CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -474,7 +474,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
         return FAIL_ERROR;
     }
     std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") << std::string("'") << std::endl;
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
     {
         if (!checkFilesExist({outputFile}))
             return FAIL_RUNTIME;
@@ -627,9 +627,9 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
 
         // compare
         float meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
-        float meanIntersectionOverUnionTolerance = 0.1f;
-        std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: " << meanIntersectionOverUnionTolerance << ")" << std::endl;
-        if (meanIoU < meanIntersectionOverUnionTolerance)
+        float meanIntersectionOverUnionTolerance = 0.5f;
+        std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: >" << meanIntersectionOverUnionTolerance << ")" << std::endl;
+        if (meanIntersectionOverUnionTolerance < meanIoU)
             pass = true;
     }
     std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
@@ -910,7 +910,7 @@ int main(int argc, char *argv[])
     std::string actualPathProcessed = "./output_transposed.dat";
 
     bool testPass=false;
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
     {
         result = postProcessActualResults(actualPath, blobPath);
         if ( result > 0 ) return result;
