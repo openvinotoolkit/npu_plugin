@@ -26,6 +26,7 @@
 
 namespace vpu {
 
+// FIXME: Use vpux::VPUXConfig instead
 class MCMConfig : public ParsedConfigBase {
 public:
     LogLevel mcmLogLevel() const { return _mcmLogLevel; }

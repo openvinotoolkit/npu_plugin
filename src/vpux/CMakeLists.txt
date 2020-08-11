@@ -32,9 +32,12 @@ endif()
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
-        include)
+        include
+    PRIVATE
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
 
-target_link_libraries(${TARGET_NAME} PUBLIC IE::inference_engine)
+target_link_libraries(${TARGET_NAME} PUBLIC  IE::inference_engine
+                                     PRIVATE IE::vpu_common_lib)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
