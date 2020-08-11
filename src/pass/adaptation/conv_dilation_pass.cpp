@@ -227,6 +227,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 }
                 concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
                                 name + std::to_string(i) + "DDR_WIDTH_join");
+                om.getSourceOp(concatIt)->set<bool>("avoid_cmx_concat", true);
+
                 om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                 om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
                 om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
@@ -235,6 +237,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 subConvsPerColumn.clear();
             }
             concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
+            om.getSourceOp(concatIt)->set<bool>("avoid_cmx_concat", true);
+
             om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
             om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
             om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
