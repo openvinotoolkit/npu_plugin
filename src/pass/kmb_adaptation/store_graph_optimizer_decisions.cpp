@@ -322,9 +322,12 @@ void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&,
                 auto previousSubConv = om.getSourceOp(concat->getInputTensor()[0]);
                 if (nextNotImplicitOp->getOpType() == "Output")
                 {
-                    if (previousSubConv->get<mv::DType>("dType") == mv::DType("UInt8") &&
+                    if ((previousSubConv->get<mv::DType>("dType") == mv::DType("UInt8") &&
                             (nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("Default") ||
                              nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("UInt8")))
+                             ||
+                             (previousSubConv->get<mv::DType>("dType") == mv::DType("Float16") &&
+                              nextNotImplicitOp->get<mv::DType>("precision") == mv::DType("Float16")))
                     {
                         outputAfterDilatedConcat = true;
                         setConcatTensorsLocation(concat, mv::Tensor::MemoryLocation::OUTPUT);
