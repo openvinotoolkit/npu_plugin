@@ -117,12 +117,13 @@ void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE:
 }
 
 std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
-    const auto outputBlob = _inferDataPtr->getOutputBlob(outputName);
-    if (outputBlob == nullptr) {
+    // TODO: send roiIndex (second parameter)
+    auto outputData = _inferDataPtr->getOutputData(outputName);
+    if (outputData.empty()) {
         THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
     }
     _profileData = _inferDataPtr->getProfileData();
-    return outputBlob->getData();
+    return outputData;
 }
 
 void HddlUniteInferData::waitInferDone() const {
