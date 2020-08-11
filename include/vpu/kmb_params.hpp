@@ -37,36 +37,35 @@ namespace KmbContextParams {
 #define KMB_PARAM_KEY(name) KmbContextParams::PARAM_##name
 
 #ifndef DECLARE_PARAM_KEY_IMPL
-# define DECLARE_PARAM_KEY_IMPL(...)
+#define DECLARE_PARAM_KEY_IMPL(...)
 #endif
 
 /**
  * @def DECLARE_KMB_PARAM_KEY(name, ...)
  * @brief Shortcut for defining object parameter keys
  */
-#define DECLARE_KMB_PARAM_KEY(name, ...)         \
-    static constexpr auto PARAM_##name = #name;    \
+#define DECLARE_KMB_PARAM_KEY(name, ...)        \
+    static constexpr auto PARAM_##name = #name; \
     DECLARE_PARAM_KEY_IMPL(name, __VA_ARGS__)
 
-    /**
-     * @brief Remote memory file descriptor
-     */
-    DECLARE_KMB_PARAM_KEY(REMOTE_MEMORY_FD, KmbRemoteMemoryFD);
+/**
+ * @brief Remote memory file descriptor
+ */
+DECLARE_KMB_PARAM_KEY(REMOTE_MEMORY_FD, KmbRemoteMemoryFD);
 
-    /**
-     * @brief Remote memory handle
-     */
-    DECLARE_KMB_PARAM_KEY(MEM_HANDLE, KmbHandleParam);
+/**
+ * @brief Remote memory handle
+ */
+DECLARE_KMB_PARAM_KEY(MEM_HANDLE, KmbHandleParam);
 
-    /**
-     * @brief Remote memory offset to map physical address properly
-     */
-    DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
+/**
+ * @brief Remote memory offset to map physical address properly
+ */
+DECLARE_KMB_PARAM_KEY(MEM_OFFSET, KmbOffsetParam);
 
-    /**
-     * @brief VPU device ID
-     */
-    DECLARE_KMB_PARAM_KEY(DEVICE_ID, std::string);
+/**
+ * @brief VPU device ID
+ */
+DECLARE_KMB_PARAM_KEY(DEVICE_ID, std::string);
 }  // namespace KmbContextParams
 }  // namespace InferenceEngine
-

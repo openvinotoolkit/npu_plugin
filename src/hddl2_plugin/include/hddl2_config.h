@@ -26,6 +26,8 @@
 
 namespace vpu {
 
+// FIXME: Stop using MCMConfig to avoid dependency from mcm compiler
+// Use vpux::VPUXConfig instead
 class HDDL2Config final : public MCMConfig {
 public:
     const std::string& platform() const { return _platform; }

@@ -92,6 +92,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(WEIGHTS_ZERO_POINTS_ALIGNMENT);
 /**
  * @brief [Only for vpu compiler]
  * Type: "YES/NO", default is "NO".
+ *
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER);
 

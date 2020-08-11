@@ -28,6 +28,8 @@ namespace KmbPlugin {
 
 namespace ie = InferenceEngine;
 
+// FIXME: Stop using MCMConfig to avoid dependency from mcm compiler
+// Use vpux::VPUXConfig instead
 class KmbConfig final : public MCMConfig {
 public:
     bool useKmbExecutor() const { return _useKmbExecutor; }
