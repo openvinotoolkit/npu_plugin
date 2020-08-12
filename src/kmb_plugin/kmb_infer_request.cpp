@@ -29,11 +29,14 @@
 #include <vpu/utils/perf_report.hpp>
 
 #include "dims_parser.hpp"
+#include "dumper.hpp"
 #include "ie_utils.hpp"
 #include "kmb_executable_network.h"
 #include "kmb_preproc.hpp"
 
+using namespace utils;
 using namespace vpu::KmbPlugin;
+using namespace vpu::KmbPlugin::utils;
 using namespace InferenceEngine;
 
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
@@ -99,30 +102,12 @@ void KmbInferRequest::InferImpl() {
     GetResult();
 }
 
-void KmbInferRequest::dumpOutputBlobHelper(
-    const Blob::Ptr& outputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& logger) {
-    static unsigned dumpOutputCounter = 0;
-    std::ostringstream inputFullPath;
-    inputFullPath << dst;
-    inputFullPath << "/output-dump";
-    inputFullPath << dumpOutputCounter++;
-    inputFullPath << ".bin";
-    logger->info("dumpOutputBlobHelper: dump to file %s", inputFullPath.str());
-    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
-    if (dumper.good()) {
-        dumper.write(outputBlobPtr->cbuffer().as<char*>(), outputBlobPtr->byteSize());
-    } else {
-        logger->warning("dumpOutputBlobHelper: failed to open %s", inputFullPath.str());
-    }
-    dumper.close();
-}
-
 void KmbInferRequest::InferAsync() {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
     execPreprocessing(_inputs);
 
     if (std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH") != nullptr) {
-        dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), dumpInputBlobHelper);
+        dumpBlobs(_inputs, std::getenv("IE_VPU_KMB_DUMP_INPUT_PATH"), "input", _logger);
     }
 
     // TODO: would be better to find a better place for such checks
@@ -342,35 +327,6 @@ Blob::Ptr KmbInferRequest::prepareInputForInference(
     return inputForInference;
 }
 
-void KmbInferRequest::dumpBlobs(
-    const InferenceEngine::BlobMap& blobMap, const std::string dstPath, const dumpFunctor_t& dumpFunctor) const {
-    if (dstPath.empty()) {
-        _logger->warning("KmbInferRequest::dumpBlobs: destination path is not set.");
-        return;
-    }
-    for (const auto& blob : blobMap) {
-        dumpFunctor(blob.second, dstPath, _logger);
-    }
-}
-
-void KmbInferRequest::dumpInputBlobHelper(
-    const Blob::Ptr& inputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& logger) {
-    static unsigned dumpInputCounter = 0;
-    std::ostringstream inputFullPath;
-    inputFullPath << dst;
-    inputFullPath << "/input-dump";
-    inputFullPath << dumpInputCounter++;
-    inputFullPath << ".bin";
-    logger->info("dumpInputBlobHelper: dump to file %s", inputFullPath.str());
-    std::ofstream dumper(inputFullPath.str(), std::ios_base::binary);
-    if (dumper.good()) {
-        dumper.write(inputBlobPtr->cbuffer().as<char*>(), inputBlobPtr->byteSize());
-    } else {
-        logger->warning("dumpInputBlobHelper: failed to open %s", inputFullPath.str());
-    }
-    dumper.close();
-}
-
 void KmbInferRequest::GetResult() {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "GetResult");
     auto dataName = _networkOutputs.begin()->first;
@@ -412,7 +368,7 @@ void KmbInferRequest::GetResult() {
             const Blob::Ptr devOutBlob =
                 make_blob_with_precision(deviceOutputDesc, _outputBuffer.get() + outputBufferOffset);
             // do precision conversion when necessary
-            Blob::Ptr blobWithCorrectPrecision = utils::convertPrecision(devOutBlob, inferOutputDesc.getPrecision());
+            Blob::Ptr blobWithCorrectPrecision = convertPrecision(devOutBlob, inferOutputDesc.getPrecision());
 
             // copy blob with correct precision to the output blob
             // copyBlob does layout conversion on its own
@@ -438,7 +394,7 @@ void KmbInferRequest::GetResult() {
 
     const char* dumpOutputPathEnv = std::getenv("IE_VPU_KMB_DUMP_OUTPUT_PATH");
     if (dumpOutputPathEnv != nullptr) {
-        dumpBlobs(_outputs, dumpOutputPathEnv, dumpOutputBlobHelper);
+        dumpBlobs(_outputs, dumpOutputPathEnv, "output", _logger);
     }
     _logger->debug("InferRequest::GetResult finished");
 }

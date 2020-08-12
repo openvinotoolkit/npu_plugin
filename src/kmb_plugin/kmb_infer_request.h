@@ -68,15 +68,6 @@ protected:
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
         unsigned int lpi);
     virtual InferenceEngine::Blob::Ptr reallocateBlob(const InferenceEngine::Blob::Ptr& blob);
-
-    static void dumpInputBlobHelper(
-        const InferenceEngine::Blob::Ptr& inputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& _logger);
-    static void dumpOutputBlobHelper(
-        const InferenceEngine::Blob::Ptr& outputBlobPtr, const std::string& dst, const vpu::Logger::Ptr& _logger);
-    typedef std::function<void(const InferenceEngine::Blob::Ptr&, const std::string&, const Logger::Ptr&)>
-        dumpFunctor_t;
-    void dumpBlobs(
-        const InferenceEngine::BlobMap& blobMap, const std::string dstPath, const dumpFunctor_t& dumpFunctor) const;
     void checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp);
 
 private:
