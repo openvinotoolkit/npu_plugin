@@ -24,7 +24,6 @@
 
 #include <cnn_network_impl.hpp>
 #include <convert_function_to_cnn_network.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <details/ie_irelease.hpp>
 #include <fstream>
 #include <generic_ie.hpp>
@@ -182,16 +181,5 @@ InferenceEngine::Parameter Engine::GetMetric(
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
-INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
-CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"}, std::make_shared<Engine>());
-        return InferenceEngine::StatusCode ::OK;
-    } catch (std::exception& ex) {
-        return DescriptionBuffer(InferenceEngine::GENERAL_ERROR, resp) << ex.what();
-    }
-}
-
-IE_SUPPRESS_DEPRECATED_END
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
