@@ -20,12 +20,19 @@
 
 #include <cstddef>
 
-namespace utils {
-InferenceEngine::Blob::Ptr convertPrecision(
-    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision);
-}
-
 namespace ie = InferenceEngine;
+
+namespace utils {
+
+ie::Blob::Ptr convertPrecision(const ie::Blob::Ptr& sourceData, const ie::Precision& targetPrecision);
+bool isBlobAllocatedByAllocator(
+    const ie::Blob::Ptr& blob, const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
+
+ie::Blob::Ptr reallocateBlob(const ie::Blob::Ptr& blob, const std::shared_ptr<ie::IAllocator>& allocator);
+
+std::size_t getByteSize(const ie::TensorDesc& desc);
+
+}  // namespace utils
 
 ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, float val);
 ie::Blob::Ptr makeSingleValueBlob(const ie::TensorDesc& desc, int64_t val);

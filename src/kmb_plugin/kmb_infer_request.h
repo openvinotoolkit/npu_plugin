@@ -35,19 +35,18 @@ namespace vpu {
 namespace KmbPlugin {
 
 class KmbInferRequest : public InferenceEngine::InferRequestInternal {
-    KmbExecutor::Ptr _executor;
+    std::shared_ptr<vpux::Executor> _executor;
+    std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
 
-protected:
-    void checkBlobs() override;
-
 public:
-    typedef std::shared_ptr<KmbInferRequest> Ptr;
+    using Ptr = std::shared_ptr<KmbInferRequest>;
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-        const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor);
+        const KmbConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
+        const std::shared_ptr<InferenceEngine::IAllocator>& allocator);
 
     void InferImpl() override;
     void InferAsync();
@@ -55,8 +54,6 @@ public:
 
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
-
-    void Infer() override;
 
 protected:
     void execPreprocessing(InferenceEngine::BlobMap& inputs);
@@ -67,18 +64,10 @@ protected:
         std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
         unsigned int lpi);
-    virtual InferenceEngine::Blob::Ptr reallocateBlob(const InferenceEngine::Blob::Ptr& blob);
     void checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp);
 
 private:
     Logger::Ptr _logger;
-
-    InferenceEngine::Blob::Ptr prepareInputForInference(
-        const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::TensorDesc& expectedDesc);
-
-    std::function<void(uint8_t*)> _deallocateHelper;
-    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
-    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 };
 
 }  // namespace KmbPlugin

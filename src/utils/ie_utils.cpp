@@ -19,6 +19,7 @@
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
 #include <ie_utils.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 //
 // makeSingleValueBlob
@@ -411,27 +412,74 @@ ie::Blob::Ptr toDefLayout(const ie::Blob::Ptr& in) {
     return toLayout(in, defLayout);
 }
 
-InferenceEngine::Blob::Ptr utils::convertPrecision(
-    const InferenceEngine::Blob::Ptr& sourceData, const InferenceEngine::Precision& targetPrecision) {
-    InferenceEngine::TensorDesc sourceTensorDesc = sourceData->getTensorDesc();
-    InferenceEngine::Precision sourcePrecision = sourceTensorDesc.getPrecision();
+namespace utils {
+
+ie::Blob::Ptr convertPrecision(const ie::Blob::Ptr& sourceData, const ie::Precision& targetPrecision) {
+    ie::TensorDesc sourceTensorDesc = sourceData->getTensorDesc();
+    ie::Precision sourcePrecision = sourceTensorDesc.getPrecision();
     if (sourcePrecision == targetPrecision) {
         return sourceData;
     }
 
-    InferenceEngine::Blob::Ptr target = make_blob_with_precision(
-        InferenceEngine::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
+    ie::Blob::Ptr target = make_blob_with_precision(
+        ie::TensorDesc(targetPrecision, sourceTensorDesc.getDims(), sourceTensorDesc.getLayout()));
     target->allocate();
-    if (sourcePrecision == InferenceEngine::Precision::FP16 && targetPrecision == InferenceEngine::Precision::FP32) {
-        InferenceEngine::PrecisionUtils::f16tof32Arrays(
-            target->buffer(), sourceData->cbuffer().as<InferenceEngine::ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
-    } else if (sourcePrecision == InferenceEngine::Precision::FP32 &&
-               targetPrecision == InferenceEngine::Precision::FP16) {
-        InferenceEngine::PrecisionUtils::f32tof16Arrays(
-            target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
+    if (sourcePrecision == ie::Precision::FP16 && targetPrecision == ie::Precision::FP32) {
+        ie::PrecisionUtils::f16tof32Arrays(
+            target->buffer(), sourceData->cbuffer().as<ie::ie_fp16*>(), sourceData->size(), 1.0f, 0.0f);
+    } else if (sourcePrecision == ie::Precision::FP32 && targetPrecision == ie::Precision::FP16) {
+        ie::PrecisionUtils::f32tof16Arrays(target->buffer(), sourceData->cbuffer().as<float*>(), sourceData->size());
     } else {
         THROW_IE_EXCEPTION << "Error: output precision conversion from " << sourcePrecision << " to " << targetPrecision
                            << " is not supported.";
     }
     return target;
 }
+
+bool isBlobAllocatedByAllocator(const ie::Blob::Ptr& blob, const std::shared_ptr<ie::IAllocator>& allocator) {
+    auto memoryBlob = ie::as<ie::MemoryBlob>(blob);
+    IE_ASSERT(memoryBlob);
+    auto lockedMemory = memoryBlob->cbuffer();
+
+    return allocator->lock(lockedMemory.as<void*>());
+}
+
+ie::Blob::Ptr reallocateBlob(const ie::Blob::Ptr& blob, const std::shared_ptr<ie::IAllocator>& allocator) {
+    ie::Blob::Ptr reallocatedBlob = make_blob_with_precision(blob->getTensorDesc(), allocator);
+    reallocatedBlob->allocate();
+
+    vpu::copyBlob(blob, reallocatedBlob);
+
+    return reallocatedBlob;
+}
+
+std::size_t getByteSize(const ie::TensorDesc& desc) {
+    std::size_t byteSize = 1;
+
+    for (auto&& dim : desc.getDims()) {
+        byteSize *= dim;
+    }
+
+    switch (desc.getPrecision()) {
+    case ie::Precision::U8:
+    case ie::Precision::I8:
+        byteSize *= sizeof(uint8_t);
+        break;
+    case ie::Precision::FP16:
+    case ie::Precision::I16:
+    case ie::Precision::U16:
+        byteSize *= sizeof(uint16_t);
+        break;
+    case ie::Precision::FP32:
+    case ie::Precision::I32:
+    case ie::Precision::U32:
+        byteSize *= sizeof(uint32_t);
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported precision";
+    }
+
+    return byteSize;
+}
+
+}  // namespace utils

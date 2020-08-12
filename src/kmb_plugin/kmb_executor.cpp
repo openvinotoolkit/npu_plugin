@@ -16,30 +16,23 @@
 
 #include "kmb_executor.h"
 
-#include <fcntl.h>
 #include <ie_common.h>
-#include <ie_memcpy.h>
-#include <stdio.h>
 
 #include <algorithm>
-#include <cstring>
+#include <blob_factory.hpp>
+#include <dims_parser.hpp>
+#include <ie_itt.hpp>
+#include <ie_macro.hpp>
+#include <ie_utils.hpp>
 #include <map>
 #include <utility>
 #include <vector>
 #include <vpu/utils/extra.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "ie_macro.hpp"
 #include "kmb_allocator.h"
 #include "kmb_config.h"
-
-#ifndef _WIN32
-#include <dlfcn.h>
-#include <libgen.h>
-
-#include <ie_itt.hpp>
-
-#endif
 
 using namespace vpu::KmbPlugin;
 using namespace InferenceEngine;
@@ -55,19 +48,40 @@ KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
-      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
+      _inputBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _allocator->free(buffer);
+          }),
+      _outputBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _allocator->free(buffer);
+          }),
+      _inferenceId(nullptr, [this](uint32_t* buffer) {
+          _allocator->free(buffer);
+      }) {
     if (!_config.useKmbExecutor()) {
         return;
     }
 
 #if defined(__arm__) || defined(__aarch64__)
     blob_file = nullptr;
-    rgnAllocatorBuffer = nullptr;
-    _inferenceVirtAddr = nullptr;
+    _inferenceId = nullptr;
+
+    std::size_t inputsTotalSize = 0;
+    for (auto&& in : _networkDescription->getDeviceInputsInfo()) {
+        const auto& tensorDesc = in.second->getTensorDesc();
+        inputsTotalSize += utils::getByteSize(tensorDesc);
+    }
+    _inputBuffer.reset(reinterpret_cast<uint8_t*>(allocator->alloc(inputsTotalSize)));
+    _logger->debug("Allocated buffer for input with the size: %d", inputsTotalSize);
+
+    // FIXME: allocate real size instead of POOL_SIZE
+    _outputBuffer.reset(reinterpret_cast<uint8_t*>(allocator->alloc(POOL_SIZE)));
+    _logger->debug("Allocated buffer for output with the size: %d", POOL_SIZE);
+
     initVpualObjects();
     allocateGraph(_networkDescription->getCompiledNetwork());
-#else
-    UNUSED(_inferenceVirtAddr);
 #endif
 }
 
@@ -112,15 +126,14 @@ void KmbExecutor::initVpualObjects() {
     if (!pipe) {
         pipe = make_shared<Pipeline>();
     }
-    if (!_inferenceVirtAddr) {
-        _inferenceVirtAddr = reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t)));
+    if (!_inferenceId) {
+        _inferenceId.reset(reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t))));
     }
 #endif
 }
 
 #if defined(__arm__) || defined(__aarch64__)
 namespace {
-
 /*
  * Wrapper to SetScratchBuffer
  * 1. Get required memory amount
@@ -238,7 +251,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 
     nnPl->Create(BHandle.get());
 
-    _scratchBuffers = setScratchHelper(nnPl, nThreads, getKmbAllocator(), _logger);
+    _scratchBuffers = setScratchHelper(nnPl, nThreads, _allocator, _logger);
 
     _logger->info("NN Plugin Create finished...");
 
@@ -296,12 +309,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     sumSizeTensorDescOut.heightStride = sumSizeTensorDescOut.totalSize;
     sumSizeTensorDescOut.channelsStride = sumSizeTensorDescOut.totalSize;
 
-    rgnAllocatorBuffer = _allocator->alloc(POOL_SIZE);
-    if (!rgnAllocatorBuffer) {
-        _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
-        THROW_IE_EXCEPTION << "allocateGraph: allocation failed for region allocator";
-    }
-    RgnAlloc->Create(_allocator->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
+    RgnAlloc->Create(_allocator->getPhysicalAddress(_outputBuffer.get()), POOL_SIZE);
     _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
 
     const unsigned int shavel2CacheLineSize = 64;
@@ -315,16 +323,16 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     plgPoolInferenceMsg->Create(HeapAlloc.get(), 1, 3 * inferenceIDSize);
     _logger->info("Created plgPoolInferenceMsg");
 
-    plgTensorInput_->Create(sumSizeTensorDescIn.totalSize, xlinkChannel, sumSizeTensorDescIn);
+    plgTensorInput_->Create(sumSizeTensorDescIn.totalSize, 0 /*ignored*/, sumSizeTensorDescIn);
     _logger->info("Created plgTensorInput");
 
-    plgTensorOutput_->Create(sumSizeTensorDescOut.totalSize, xlinkChannel, sumSizeTensorDescOut);
+    plgTensorOutput_->Create(sumSizeTensorDescOut.totalSize, 0 /*ignored*/, sumSizeTensorDescOut);
     _logger->info("Created plgTensorOutput");
 
-    plgInferenceInput_->Create(3 * inferenceIDSize, xlinkChannel);
+    plgInferenceInput_->Create(3 * inferenceIDSize, 0 /*ignored*/);
     _logger->info("Created plgInferenceInput_");
 
-    plgInferenceOutput_->Create(3 * inferenceIDSize, xlinkChannel);
+    plgInferenceOutput_->Create(3 * inferenceIDSize, 0 /*ignored*/);
     _logger->info("Created plgInferenceOutput_");
 
     _logger->info("Created all Plugins");
@@ -353,64 +361,257 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     pipe->Start();
     _logger->info("Started FLIC pipeline...");
 #else
-    UNUSED(xlinkChannel);
     UNUSED(graphFileContent);
 #endif
 }
 
-void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
+static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
+    const Blob::Ptr& blob, const Layout& srcLayout, const Layout& dstLayout, const KmbAllocator::Ptr& allocator) {
+    if (blob->getTensorDesc().getDims()[1] != 3) {
+        THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
+    }
+
+    // it would be nicer to construct srcTensorDesc from tensorDesc of blob
+    // and then call srcTensorDesc.setLayout(srcLayout) but copyBlob does work in that case
+    TensorDesc srcTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), srcLayout};
+    Blob::Ptr srcBlob = make_blob_with_precision(srcTensorDesc, blob->buffer());
+
+    TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), dstLayout};
+    Blob::Ptr dstBlob = make_blob_with_precision(dstTensorDesc, allocator);
+    dstBlob->allocate();
+
+    vpu::copyBlob(srcBlob, dstBlob);
+    return dstBlob;
+}
+
+static Blob::Ptr reallocateBlobToLayout(
+    const Blob::Ptr& blob, const Layout& layout, const KmbAllocator::Ptr& allocator) {
+    TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
+    Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
+    kmbBlob->allocate();
+
+    vpu::copyBlob(blob, kmbBlob);
+
+    return kmbBlob;
+}
+
+static bool needRepackForNHWC(const TensorDesc& actualDesc) {
+    /* NB: Brief overview:
+     * Runtime works only with NHWC layout, but actual input layout can be different
+     * therefore it should be repacked, let's to observe cases:
+         1) NC & C there isn't necessary to do repacking,
+            because these layouts has the same representation in NCHW & NHWC
+         2) NHWC isn't necessary to do repacking obviously
+         3) NCHW in general case it should be repacked, however if it is 11HW it isn't necessary
+         4) CHW the same as for NCHW case, it isn't necessary to do repacking in 1HW case
+     */
+    const auto actualLayout = actualDesc.getLayout();
+    const auto& actualDims = actualDesc.getDims();
+    switch (actualLayout) {
+    case Layout::NHWC:
+    case Layout::NC:
+    case Layout::C:
+        return false;
+    case Layout::NCHW:
+        return (actualDims[0] != 1) || (actualDims[1] != 1);
+    case Layout::CHW:
+        return actualDims[0] != 1;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported layout for actual blob: " << actualLayout;
+    }
+}
+
+Blob::Ptr KmbExecutor::prepareInputForInference(
+    const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc) {
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "prepareInputForInference");
+
+    // HACK: to overcome inability python API to pass a blob of NHWC layout
+    if (_config.forceNCHWToNHWC()) {
+        _logger->warning("VPU_KMB_FORCE_NCHW_TO_NHWC is enabled. Need to do re-layout.");
+        return reallocateBlobToLayoutIgnoringOriginalLayout(actualInput, Layout::NCHW, Layout::NHWC, _allocator);
+    }
+
+    Blob::Ptr inputForInference;
+    if (!utils::isBlobAllocatedByAllocator(actualInput, _allocator)) {
+        _logger->warning("Input blob is located in non-shareable memory. Need to do re-allocation.");
+        inputForInference = utils::reallocateBlob(actualInput, _allocator);
+    } else {
+        inputForInference = actualInput;
+    }
+
+    const auto& actualDesc = actualInput->getTensorDesc();
+    const auto& deviceLayout = deviceDesc.getLayout();
+
+    if (needRepackForNHWC(actualDesc) && deviceLayout == Layout::NHWC) {
+        _logger->warning("Input blob is inconsistent with network input. Need to do re-layout.");
+        // NB: It's possible to make repack data only with the same number of dimensions
+        // So just make a view without any copy
+        const auto outputMemoryBlob = as<MemoryBlob>(actualInput);
+        IE_ASSERT(outputMemoryBlob != nullptr);
+        const auto outputMemory = outputMemoryBlob->rmap();
+        IE_ASSERT(outputMemory != nullptr);
+        const auto outputPtr = outputMemory.as<void*>();
+        IE_ASSERT(outputPtr != nullptr);
+        Blob::Ptr actualView4D = make_blob_with_precision(getNCHW(actualInput->getTensorDesc()), outputPtr);
+        inputForInference = reallocateBlobToLayout(actualView4D, deviceLayout, _allocator);
+    }
+
+    return inputForInference;
+}
+void KmbExecutor::push(const InferenceEngine::BlobMap& inputs) {
     if (!_config.useKmbExecutor()) {
         return;
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "queueInference");
-    auto physAddr = _allocator->getPhysicalAddress(input_data);
-    plgTensorInput_->Push(physAddr, input_bytes);
-    _logger->info("Pushed input, size %d", input_bytes);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "push");
+    _logger->info("KmbExecutor::push started");
 
-    uint32_t inferenceInputID = 1;
-    _inferenceVirtAddr[0] = inferenceInputID;
-    auto inferencePhysAddr = _allocator->getPhysicalAddress(_inferenceVirtAddr);
-    plgInferenceInput_->PushInferenceID(inferencePhysAddr, sizeof(inferenceInputID));
+    ie::BlobMap updatedInputs;
+    const auto& deviceInputs = _networkDescription->getDeviceInputsInfo();
+    int inputsByteSize = 0;
+    for (const auto& inferInput : inputs) {
+        const auto& name = inferInput.first;
+        const auto& deviceInputDesc = deviceInputs.at(name)->getTensorDesc();
+        const auto& input = inferInput.second;
+
+        auto updatedInput = prepareInputForInference(input, deviceInputDesc);
+
+        updatedInputs.insert({inferInput.first, updatedInput});
+        inputsByteSize += updatedInput->byteSize();
+    }
+
+    auto inputBufferPhysAddr = extractPhysAddrForInference(updatedInputs);
+    plgTensorInput_->Push(inputBufferPhysAddr, inputsByteSize);
+
+    *_inferenceId = 1;
+    plgInferenceInput_->PushInferenceID(_allocator->getPhysicalAddress(_inferenceId.get()), sizeof(uint32_t));
+    _logger->info("KmbExecutor::push finished");
 #else
-    UNUSED(input_data);
-    UNUSED(input_bytes);
+    UNUSED(inputs);
 #endif
 }
 
-void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
+uint32_t KmbExecutor::extractPhysAddrForInference(const BlobMap& inputs) {
+    uint32_t physAddr = 0;
+    if (inputs.size() == 1) {
+        auto blob = as<MemoryBlob>(inputs.begin()->second);
+        auto memoryHolder = blob->rmap();
+        physAddr = _allocator->getPhysicalAddress(memoryHolder.as<uint8_t*>());
+        if (!physAddr) {
+            THROW_IE_EXCEPTION << "Memory of input is not valid";
+        }
+    } else {
+        _logger->warning("There are multiple blobs. Need to combine them into single buffer.");
+        std::size_t offset = 0;
+        for (const auto& input : inputs) {
+            auto name = input.first;
+            auto blob = as<MemoryBlob>(input.second);
+
+            if (!blob) {
+                THROW_IE_EXCEPTION << "Cannot cast to MemoryBlob";
+            }
+            auto memoryHolder = blob->rmap();
+
+            ie_memcpy(_inputBuffer.get() + offset, blob->byteSize(), memoryHolder.as<uint8_t*>(), blob->byteSize());
+            offset += blob->byteSize();
+        }
+
+        physAddr = _allocator->getPhysicalAddress(_inputBuffer.get());
+        if (!physAddr) {
+            THROW_IE_EXCEPTION << "Memory of input is not valid";
+        }
+    }
+
+    return physAddr;
+}
+
+void KmbExecutor::pull(InferenceEngine::BlobMap& outputs) {
     if (!_config.useKmbExecutor()) {
         return;
     }
 
 #if defined(__arm__) || defined(__aarch64__)
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "getResult");
-    uint32_t len_inferenceId = 0;
-    uint32_t pAddr_inferenceId = 0;
-    plgInferenceOutput_->PullInferenceID(&pAddr_inferenceId, &len_inferenceId);
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "pull");
+    _logger->info("KmbExecutor::pull started");
+    uint32_t idPhysAddr = 0;
+    uint32_t idLength = 0;
+    plgInferenceOutput_->PullInferenceID(&idPhysAddr, &idLength);
 
-    uint32_t len = 0;
-    uint32_t pAddr = 0;
-    plgTensorOutput_->Pull(&pAddr, &len);
-
-    _logger->info("Output tensor returned of length: %d", len);
-
-    // Convert the physical address we received back to a virtual address we can use.
-    uint32_t offset = pAddr - _allocator->getPhysicalAddress(rgnAllocatorBuffer);
-    unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
-
-    _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
-    IE_ASSERT(result_bytes >= len);
+    uint32_t outputBufferPhysAddr = 0;
+    uint32_t outputBufferLength = 0;
+    plgTensorOutput_->Pull(&outputBufferPhysAddr, &outputBufferLength);
     // FIXME output->Pull gives only the length of the first tensor
-    // result_bytes size has to be used here in order to copy data from subsequent tensors
-    std::memcpy(result_data, data, result_bytes);
-    _logger->info("KmbExecutor::getResult memcpy finished");
+    // need to check if we get buffer of expected size
+    BlobMap deviceOutputs = extractOutputsFromPhysAddr(outputBufferPhysAddr);
+    repackDeviceOutputsToNetworkOutputs(deviceOutputs, outputs);
+    _logger->info("KmbExecutor::pull finished");
 #else
-    UNUSED(result_data);
-    UNUSED(result_bytes);
+    UNUSED(outputs);
 #endif
 }
+
+BlobMap KmbExecutor::extractOutputsFromPhysAddr(uint32_t physAddr) {
+    BlobMap deviceOutputs;
+    std::size_t offset = physAddr - _allocator->getPhysicalAddress(_outputBuffer.get());
+    for (auto&& out : _networkDescription->getDeviceOutputsInfo()) {
+        auto desc = out.second->getTensorDesc();
+        auto blob = make_blob_with_precision(desc, _outputBuffer.get() + offset);
+        deviceOutputs.insert({out.first, blob});
+        offset += utils::getByteSize(desc);
+    }
+
+    return deviceOutputs;
+}
+
+void KmbExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap& deviceOutputs, ie::BlobMap& networkOutputs) {
+    for (const auto& item : deviceOutputs) {
+        const auto& name = item.first;
+        const auto& deviceBlob = item.second;
+        const auto& deviceDesc = deviceBlob->getTensorDesc();
+        const auto& outputBlob = networkOutputs[name];
+        const auto& networkDesc = outputBlob->getTensorDesc();
+
+        Blob::Ptr deviceBlobWithNetworkPrecision = nullptr;
+        if (deviceDesc.getPrecision() != networkDesc.getPrecision()) {
+            _logger->warning("Output blob is inconsistent with network output. "
+                             "Need to do convert precision from %d to %d.",
+                deviceDesc.getPrecision(), networkDesc.getPrecision());
+            deviceBlobWithNetworkPrecision = utils::convertPrecision(deviceBlob, networkDesc.getPrecision());
+        } else {
+            deviceBlobWithNetworkPrecision = deviceBlob;
+        }
+
+        const auto& outputMemoryBlob = as<MemoryBlob>(outputBlob);
+        IE_ASSERT(outputMemoryBlob != nullptr);
+        const auto outputMemory = outputMemoryBlob->rmap();
+        IE_ASSERT(outputMemory != nullptr);
+        const auto outputPtr = outputMemory.as<void*>();
+        IE_ASSERT(outputPtr != nullptr);
+        if (needRepackForNHWC(networkDesc) && deviceDesc.getLayout() == ie::Layout::NHWC) {
+            _logger->warning("Output blob is inconsistent with network output."
+                             "Need to do re-layout from %d to %d.",
+                networkDesc.getLayout(), deviceDesc.getLayout());
+            // NB: It's possible to make repack data only with the same number of dimensions
+            // So just make a view without any copy
+            const auto actualView4D = make_blob_with_precision(getNCHW(networkDesc), outputPtr);
+            vpu::copyBlob(deviceBlobWithNetworkPrecision, actualView4D);
+        } else {
+            vpu::copyBlob(deviceBlobWithNetworkPrecision, deviceDesc.getLayout(), outputPtr);
+        }
+    }
+}
+
+void KmbExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
+
+bool KmbExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) { return false; }
+
+std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> KmbExecutor::getLayerStatistics() {
+    THROW_IE_EXCEPTION << "Not implemented";
+    return std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>();
+}
+
+InferenceEngine::Parameter KmbExecutor::getParameter(const std::string&) { return InferenceEngine::Parameter(); }
 
 void KmbExecutor::deallocateGraph() {
     if (!_config.useKmbExecutor()) {
@@ -444,9 +645,6 @@ void KmbExecutor::deallocateGraph() {
     if (blob_file) {
         _allocator->free(blob_file);
     }
-    if (rgnAllocatorBuffer) {
-        _allocator->free(rgnAllocatorBuffer);
-    }
     if (plgInferenceInput_) {
         plgInferenceInput_->Delete();
     }
@@ -456,12 +654,9 @@ void KmbExecutor::deallocateGraph() {
     if (plgPoolInferenceMsg) {
         plgPoolInferenceMsg->Delete();
     }
-    if (_inferenceVirtAddr) {
-        _allocator->free(_inferenceVirtAddr);
-    }
 
     for (const auto& scratchPtr : _scratchBuffers) {
-        getKmbAllocator()->free(scratchPtr);
+        _allocator->free(scratchPtr);
     }
 #endif
 }

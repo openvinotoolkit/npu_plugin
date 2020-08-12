@@ -54,6 +54,16 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
     return options;
 }
 
+static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
+    if (src == "RGB") {
+        return InferenceEngine::ColorFormat::RGB;
+    } else if (src == "BGR") {
+        return InferenceEngine::ColorFormat::BGR;
+    } else {
+        THROW_IE_EXCEPTION << "Unsupported color format is passed.";
+    }
+}
+
 void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     MCMConfig::parse(config);
 

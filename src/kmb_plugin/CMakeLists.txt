@@ -62,7 +62,6 @@ target_include_directories(${TARGET_NAME}
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
-        IE::vpu_common_lib
         frontend_mcm
         ${VPUAL_NN_LIBRARY}
         ${VPUSMM_LIBRARY}
@@ -117,7 +116,6 @@ if(ENABLE_TESTS)
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
-            IE::vpu_common_lib
             frontend_mcm
             ${VPUAL_NN_LIBRARY}
             ${VPUSMM_LIBRARY}

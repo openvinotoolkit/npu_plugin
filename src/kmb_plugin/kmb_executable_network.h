@@ -32,6 +32,7 @@
 #include "kmb_config.h"
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
+#include "kmb_remote_context.h"
 #include "mcm_adapter.hpp"
 
 namespace vpu {
@@ -53,12 +54,18 @@ public:
 
     ie::InferRequestInternal::Ptr CreateInferRequestImpl(
         ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
-        return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs, _stagesMetaData, _config, _executor);
+        // TODO: it would be better to use some interface for context
+        // instead of a concrete KmbRemoteContext class
+        auto allocator = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext)->getAllocator();
+        return std::make_shared<KmbInferRequest>(
+            networkInputs, networkOutputs, _stagesMetaData, _config, _executor, allocator);
     }
 
     void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
-        auto syncRequestImpl =
-            std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs, _stagesMetaData, _config, _executor);
+        auto allocator = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext)->getAllocator();
+        auto syncRequestImpl = std::make_shared<KmbInferRequest>(
+            _networkInputs, _networkOutputs, _stagesMetaData, _config, _executor, allocator);
+
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
         auto asyncTreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(

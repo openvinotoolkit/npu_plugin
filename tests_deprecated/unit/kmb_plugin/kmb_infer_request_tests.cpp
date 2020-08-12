@@ -17,33 +17,36 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <vpux.hpp>
+
 #include "creators/creator_blob.h"
 #include "creators/creator_blob_nv12.h"
-#include "kmb_allocator.h"
 #include "kmb_infer_request.h"
 #include "kmb_private_config.hpp"
+
+namespace ie = InferenceEngine;
 
 using namespace ::testing;
 using namespace vpu::KmbPlugin;
 
 class kmbInferRequestConstructionUnitTests : public ::testing::Test {
 protected:
-    InferenceEngine::InputsDataMap setupInputsWithSingleElement() {
+    ie::InputsDataMap setupInputsWithSingleElement() {
         std::string inputName = "input";
         ie::TensorDesc inputDescription = ie::TensorDesc(ie::Precision::U8, {1, 3, 224, 224}, ie::Layout::NHWC);
         ie::DataPtr inputData = std::make_shared<ie::Data>(inputName, inputDescription);
         ie::InputInfo::Ptr inputInfo = std::make_shared<ie::InputInfo>();
         inputInfo->setInputData(inputData);
-        InferenceEngine::InputsDataMap inputs = {{inputName, inputInfo}};
+        ie::InputsDataMap inputs = {{inputName, inputInfo}};
 
         return inputs;
     }
 
-    InferenceEngine::OutputsDataMap setupOutputsWithSingleElement() {
+    ie::OutputsDataMap setupOutputsWithSingleElement() {
         std::string outputName = "output";
         ie::TensorDesc outputDescription = ie::TensorDesc(ie::Precision::U8, {1000}, ie::Layout::C);
         ie::DataPtr outputData = std::make_shared<ie::Data>(outputName, outputDescription);
-        InferenceEngine::OutputsDataMap outputs = {{outputName, outputData}};
+        ie::OutputsDataMap outputs = {{outputName, outputData}};
 
         return outputs;
     }
@@ -70,61 +73,55 @@ private:
     std::vector<char> network;
 };
 
-class MockExecutor : public KmbExecutor {
+class MockExecutor : public vpux::Executor {
 public:
-    MockExecutor(const KmbConfig& config)
-        : KmbExecutor(
-              std::make_shared<MockNetworkDescription>(), std::make_shared<KmbAllocator>(defaultDeviceId), config) {}
+    MOCK_METHOD1(push, void(const ie::BlobMap&));
+    MOCK_METHOD1(pull, void(ie::BlobMap&));
 
-    MOCK_METHOD1(allocateGraph, void(const std::string&));
-    MOCK_METHOD0(deallocateGraph, void());
-    MOCK_METHOD4(
-        allocateGraph, void(const std::vector<char>&, const ie::InputsDataMap&, const ie::OutputsDataMap&, bool));
-    MOCK_METHOD2(getResult, void(void*, unsigned int));
-    MOCK_METHOD2(queueInference, void(void*, size_t));
+    void setup(const InferenceEngine::ParamMap&) {}
 
-    MOCK_CONST_METHOD0(getDeviceInputs, vpux::DataMap&());
-    MOCK_CONST_METHOD0(getDeviceOutputs, vpux::DataMap&());
+    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) { return false; }
+    std::map<std::string, ie::InferenceEngineProfileInfo> getLayerStatistics() {
+        return std::map<std::string, ie::InferenceEngineProfileInfo>();
+    }
+
+    ie::Parameter getParameter(const std::string&) { return ie::Parameter(); }
 };
 
 TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyInputAndOutput) {
     KmbConfig config;
-    config.update({{"VPU_KMB_KMB_EXECUTOR", "NO"}});
 
-    auto executor = std::make_shared<MockExecutor>(config);
+    auto executor = std::make_shared<MockExecutor>();
     KmbInferRequest::Ptr inferRequest;
 
-    ASSERT_THROW(inferRequest = std::make_shared<KmbInferRequest>(InferenceEngine::InputsDataMap(),
-                     InferenceEngine::OutputsDataMap(), std::vector<vpu::StageMetaInfo>(), config, executor),
-        InferenceEngine::details::InferenceEngineException);
+    auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
+    ASSERT_THROW(inferRequest = std::make_shared<KmbInferRequest>(ie::InputsDataMap(), ie::OutputsDataMap(),
+                     std::vector<vpu::StageMetaInfo>(), config, executor, allocator),
+        ie::details::InferenceEngineException);
 }
 
 TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParameters) {
     KmbConfig config;
-    config.update({{"VPU_KMB_KMB_EXECUTOR", "NO"}});
-
-    auto executor = std::make_shared<MockExecutor>(config);
+    auto executor = std::make_shared<MockExecutor>();
     auto inputs = setupInputsWithSingleElement();
     auto outputs = setupOutputsWithSingleElement();
 
+    auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     KmbInferRequest::Ptr inferRequest;
     ASSERT_NO_THROW(inferRequest = std::make_shared<KmbInferRequest>(
-                        inputs, outputs, std::vector<vpu::StageMetaInfo>(), config, executor));
+                        inputs, outputs, std::vector<vpu::StageMetaInfo>(), config, executor, allocator));
 }
-
 class TestableKmbInferRequest : public KmbInferRequest {
 public:
-    TestableKmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-        const KmbConfig& kmbConfig, const KmbExecutor::Ptr& executor)
-        : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor){};
+    TestableKmbInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
+        const std::vector<vpu::StageMetaInfo>& blobMetaData, const KmbConfig& kmbConfig,
+        const std::shared_ptr<vpux::Executor>& executor, const std::shared_ptr<ie::IAllocator>& allocator)
+        : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor, allocator){};
 
 public:
-    MOCK_METHOD6(execKmbDataPreprocessing,
-        void(InferenceEngine::BlobMap&, std::map<std::string, InferenceEngine::PreProcessDataPtr>&,
-            InferenceEngine::InputsDataMap&, InferenceEngine::ColorFormat, unsigned int, unsigned int));
-    MOCK_METHOD2(execDataPreprocessing, void(InferenceEngine::BlobMap&, bool));
-    MOCK_METHOD1(reallocateBlob, ie::Blob::Ptr(const ie::Blob::Ptr&));
+    MOCK_METHOD6(execKmbDataPreprocessing, void(ie::BlobMap&, std::map<std::string, ie::PreProcessDataPtr>&,
+                                               ie::InputsDataMap&, ie::ColorFormat, unsigned int, unsigned int));
+    MOCK_METHOD2(execDataPreprocessing, void(ie::BlobMap&, bool));
 };
 
 // FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
@@ -134,29 +131,23 @@ public:
 
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
-    InferenceEngine::InputsDataMap _inputs;
-    vpux::DataMap _deviceInputs;
-    InferenceEngine::OutputsDataMap _outputs;
+    ie::InputsDataMap _inputs;
+    ie::OutputsDataMap _outputs;
     std::shared_ptr<MockExecutor> _executor;
     std::shared_ptr<TestableKmbInferRequest> _inferRequest;
 
 protected:
     void SetUp() override {
         KmbConfig config;
-        config.update({{VPU_KMB_CONFIG_KEY(KMB_EXECUTOR), "NO"}});
 
-        _executor = std::make_shared<MockExecutor>(config);
+        _executor = std::make_shared<MockExecutor>();
 
         _inputs = setupInputsWithSingleElement();
         _outputs = setupOutputsWithSingleElement();
 
-        _deviceInputs.insert({{_inputs.begin()->first, _inputs.begin()->second->getInputData()}});
-        ON_CALL(*_executor, getDeviceInputs()).WillByDefault(ReturnRef(_deviceInputs));
-
+        _allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
         _inferRequest = std::make_shared<TestableKmbInferRequest>(
-            _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
-
-        _allocatorPtr = std::make_shared<KmbAllocator>(defaultDeviceId);
+            _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor, _allocator);
     }
 
     ie::Blob::Ptr createVPUBlob(const ie::SizeVector dims, const ie::Layout layout = ie::Layout::NHWC) {
@@ -166,14 +157,14 @@ protected:
 
         ie::TensorDesc desc = {ie::Precision::U8, dims, layout};
 
-        auto blob = ie::make_shared_blob<uint8_t>(desc, _allocatorPtr);
+        auto blob = ie::make_shared_blob<uint8_t>(desc, _allocator);
         blob->allocate();
 
         return blob;
     }
 
     ie::NV12Blob::Ptr createNV12VPUBlob(const std::size_t width, const std::size_t height) {
-        nv12Data = reinterpret_cast<uint8_t*>(_allocatorPtr->alloc(height * width * 3 / 2));
+        nv12Data = reinterpret_cast<uint8_t*>(_allocator->alloc(height * width * 3 / 2));
         return NV12Blob_Creator::createFromMemory(width, height, nv12Data);
     }
 
@@ -181,15 +172,15 @@ protected:
         // nv12Data can be allocated in two different ways in the tests below
         // that why we need to branches to handle removing of memory
         if (nv12Data != nullptr) {
-            if (_allocatorPtr->isValidPtr(nv12Data)) {
-                _allocatorPtr->free(nv12Data);
+            if (_allocator->isValidPtr(nv12Data)) {
+                _allocator->free(nv12Data);
             }
         }
     }
 
 private:
     uint8_t* nv12Data = nullptr;
-    std::shared_ptr<KmbAllocator> _allocatorPtr;
+    std::shared_ptr<KmbAllocator> _allocator;
 };
 
 TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGetBlobReturns) {
@@ -197,28 +188,8 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesTheSameInputForInferenceAsGe
 
     ie::Blob::Ptr input;
     _inferRequest->GetBlob(inputName, input);
-    auto buffer = input->buffer().as<void*>();
-    EXPECT_CALL(*_executor, queueInference(buffer, input->byteSize())).Times(1);
-
-    ASSERT_NO_THROW(_inferRequest->InferAsync());
-}
-
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableInputToInfer) {
-    const auto inputDesc = _inputs.begin()->second->getTensorDesc();
-    ie::Blob::Ptr input = ie::make_shared_blob<uint8_t>(inputDesc);
-    input->allocate();
-
-    const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
-    auto reallocatedInput = createVPUBlob(dims);
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(input))
-        .Times(1)
-        .WillOnce(Return(reallocatedInput));
-
-    auto inputName = _inputs.begin()->first.c_str();
-    auto buffer = reallocatedInput->buffer().as<void*>();
-    EXPECT_CALL(*_executor, queueInference(buffer, reallocatedInput->byteSize())).Times(1);
-
-    _inferRequest->SetBlob(inputName, input);
+    ie::BlobMap inputs = {{inputName, input}};
+    EXPECT_CALL(*_executor, push(inputs)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
@@ -228,35 +199,10 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesExternalShareableBlobForInfe
     auto vpuBlob = createVPUBlob(dims);
 
     auto inputName = _inputs.begin()->first.c_str();
-    auto buffer = vpuBlob->buffer().as<void*>();
-    EXPECT_CALL(*_executor, queueInference(buffer, vpuBlob->byteSize())).Times(1);
+    ie::BlobMap inputs = {{inputName, vpuBlob}};
+    EXPECT_CALL(*_executor, push(inputs)).Times(1);
 
     _inferRequest->SetBlob(inputName, vpuBlob);
-
-    ASSERT_NO_THROW(_inferRequest->InferAsync());
-}
-
-// tracking number: S#32515
-TEST_F(kmbInferRequestUseCasesUnitTests, requestCopiesNonShareableNV12InputToPreprocWithSIPP) {
-    auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
-        .Times(1)
-        .WillOnce(Return(nv12Input->uv()));
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->y()))
-        .Times(1)
-        .WillOnce(Return(nv12Input->y()));
-
-    auto inputName = _inputs.begin()->first.c_str();
-    auto preProcInfo = _inputs.begin()->second->getPreProcess();
-    preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
-    preProcInfo.setColorFormat(ie::ColorFormat::NV12);
-    _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
-
-    EXPECT_CALL(
-        *dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), execKmbDataPreprocessing(_, _, _, _, _, _))
-        .Times(1);
-
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
@@ -272,19 +218,12 @@ TEST_F(kmbInferRequestUseCasesUnitTests, requestUsesNonSIPPPPreprocIfResize) {
 
     // TODO: enable this check after execDataPreprocessing become virtual
     // EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(inferRequest.get()), execDataPreprocessing(_, _));
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 }
 
-// tracking number: S#32515
 TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
     auto nv12Input = NV12Blob_Creator::createBlob(1080, 1080);
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->uv()))
-        .Times(1)
-        .WillOnce(Return(nv12Input->uv()));
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(nv12Input->y()))
-        .Times(1)
-        .WillOnce(Return(nv12Input->y()));
 
     auto inputName = _inputs.begin()->first.c_str();
     auto preProcInfo = _inputs.begin()->second->getPreProcess();
@@ -292,7 +231,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetNV12Blob) {
     preProcInfo.setColorFormat(ie::ColorFormat::NV12);
     _inferRequest->SetBlob(inputName, nv12Input, preProcInfo);
 
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
@@ -308,7 +247,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetVPUBlob) {
     auto inputName = _inputs.begin()->first.c_str();
     _inferRequest->SetBlob(inputName, vpuInput);
 
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
@@ -329,7 +268,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetLargeVPUBlob) 
     preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
     _inferRequest->SetBlob(inputName, vpuInput, preProcInfo);
 
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
@@ -343,15 +282,10 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobMa
     const auto dims = _inputs.begin()->second->getTensorDesc().getDims();
     auto inputToSet = Blob_Creator::createBlob(dims);
 
-    auto reallocatedInput = createVPUBlob(dims);
-    EXPECT_CALL(*dynamic_cast<TestableKmbInferRequest*>(_inferRequest.get()), reallocateBlob(inputToSet))
-        .Times(1)
-        .WillOnce(Return(reallocatedInput));
-
     auto inputName = _inputs.begin()->first.c_str();
     _inferRequest->SetBlob(inputName, inputToSet);
 
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
@@ -372,7 +306,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
     preProcInfo.setResizeAlgorithm(ie::ResizeAlgorithm::RESIZE_BILINEAR);
     _inferRequest->SetBlob(inputName, inputToSet, preProcInfo);
 
-    EXPECT_CALL(*_executor, queueInference(_, _)).Times(1);
+    EXPECT_CALL(*_executor, push(_)).Times(1);
 
     ASSERT_NO_THROW(_inferRequest->InferAsync());
 
@@ -381,7 +315,7 @@ TEST_F(kmbInferRequestUseCasesUnitTests, CanGetTheSameBlobAfterSetOrdinaryBlobNo
 
     ASSERT_EQ(inputToSet->buffer().as<void*>(), input->buffer().as<void*>());
 }
-// tracking number: S#32515
+
 TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) {
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
@@ -400,14 +334,15 @@ TEST_F(kmbInferRequestUseCasesUnitTests, BGRIsDefaultColorFormatForSIPPPreproc) 
 class kmbInferRequestOutColorFormatSIPPUnitTests :
     public kmbInferRequestUseCasesUnitTests,
     public testing::WithParamInterface<const char*> {};
-// tracking number: S#32515
+
 TEST_P(kmbInferRequestOutColorFormatSIPPUnitTests, preprocessingUseRGBIfConfigIsSet) {
     KmbConfig config;
     const auto configValue = GetParam();
     config.update({{VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), configValue}});
 
+    auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     _inferRequest = std::make_shared<TestableKmbInferRequest>(
-        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
+        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor, allocator);
 
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
@@ -448,8 +383,9 @@ TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
         setenv("USE_SIPP", "0", 1);
     }
 
+    auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     _inferRequest = std::make_shared<TestableKmbInferRequest>(
-        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor);
+        _inputs, _outputs, std::vector<vpu::StageMetaInfo>(), config, _executor, allocator);
 
     auto nv12Input = createNV12VPUBlob(1080, 1080);
 
