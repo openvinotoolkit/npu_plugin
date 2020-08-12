@@ -649,16 +649,17 @@ int copyImage(std::string imagePath, std::string blobPath)
     std::vector<int> inputShape;
     for (uint32_t x=0; x<graphFile.header->net_input[0]->dimensions.size(); ++x)
         inputShape.push_back( graphFile.header->net_input[0]->dimensions[x] );
-    std::cout << "Input Shape: " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
+    std::cout << "Input Shape (NCHW): " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
 
     std::cout << "Querying Z/Ch Major conv... " << std::endl;
     std::vector<int> inputStrides;
     for (uint32_t x=0; x<graphFile.header->net_input[0]->strides.size(); ++x)
         inputStrides.push_back( graphFile.header->net_input[0]->strides[x] );
-    std::cout << "Input Strides: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
+    std::cout << "Input Strides (KNCHW): " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << "," << inputStrides[4] <<std::endl;
 
+    // for channel major to be true, (NCHW), stride along width should be '1'
     bool zMajor = false;
-    if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
+    if (! ((inputShape[1] < 16) && (inputStrides[4] == 1) ))
         zMajor = true;
 
     if (!(imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
