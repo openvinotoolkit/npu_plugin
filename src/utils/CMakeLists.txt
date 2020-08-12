@@ -27,7 +27,7 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
 endif()
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
-target_link_libraries(${TARGET_NAME} PRIVATE ${VPUSMM_LIBRARY} PUBLIC IE::inference_engine_lp_transformations)
+target_link_libraries(${TARGET_NAME} PRIVATE ${VPUSMM_LIBRARY} PUBLIC IE::inference_engine_lp_transformations IE::vpu_common_lib)
 
 if(UNIX)
     target_compile_options(${TARGET_NAME}
@@ -41,6 +41,7 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
+	"${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
     SYSTEM PRIVATE
         ${MCM_COMPILER_INCLUDES})
 
