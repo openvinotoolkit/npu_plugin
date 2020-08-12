@@ -465,7 +465,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // execute the blob
     std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
-        "make run -j8 CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
+        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
