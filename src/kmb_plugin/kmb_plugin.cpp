@@ -20,7 +20,6 @@
 #include <kmb_remote_context.h>
 
 #include <cnn_network_impl.hpp>
-#include <cpp_interfaces/base/ie_plugin_base.hpp>
 #include <cpp_interfaces/impl/ie_executable_network_internal.hpp>
 #include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
@@ -200,15 +199,5 @@ RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
     return std::dynamic_pointer_cast<RemoteContext>(_defaultContextMap.at(deviceId));
 }
 
-IE_SUPPRESS_DEPRECATED_START
-
-INFERENCE_PLUGIN_API(StatusCode) CreatePluginEngine(IInferencePlugin*& plugin, ResponseDesc* resp) noexcept {
-    try {
-        plugin = make_ie_compatible_plugin({{2, 1}, CI_BUILD_NUMBER, "kmbPlugin"}, std::make_shared<Engine>());
-        return OK;
-    } catch (std::exception& ex) {
-        return DescriptionBuffer(GENERAL_ERROR, resp) << ex.what();
-    }
-}
-
-IE_SUPPRESS_DEPRECATED_END
+static const Version version = {{2, 1}, CI_BUILD_NUMBER, "kmbPlugin"};
+IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
