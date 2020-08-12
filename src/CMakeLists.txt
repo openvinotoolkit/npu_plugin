@@ -1,7 +1,7 @@
 set(TARGET_NAME "VPUXPlugin")
 set(VPUX_DEVICE_NAME VPUX)
 
-if(NOT ENABLE_HDDL2)
+if((X86 OR X86_64) AND NOT ENABLE_HDDL2)
     return()
 endif()
 

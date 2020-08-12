@@ -608,7 +608,7 @@ TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngr
 // tensor fire6/squeeze1x1:0_crop:0_align:0 needs sparsity but it can't be sparsified" thrown in the test body.
 // [Track number: D#3467]
 TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Compilation fails");
 
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
@@ -939,9 +939,9 @@ TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
 // inputs of the Eltwise/Concat do not have the same QuantParams"
 // [Track number: D#3453]
 TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "Compilation fails");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Compilation fails");
     // [Track number: S#3331]
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
 
     const std::string data_name    = "data";
     const std::string im_info_name = "im_info";
@@ -990,7 +990,7 @@ TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
     const auto right_eye_input_name = "right_eye_image";
     const auto head_pos_input_name = "head_pose_angles";
 
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/gaze-estimation-adas-0002/gaze_estimation_adas_0002_int8_from_fp16_ww22.xml")
             .setUserInputPrecision(left_eye_input_name, Precision::U8)
