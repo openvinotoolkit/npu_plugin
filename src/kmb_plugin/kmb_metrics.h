@@ -16,11 +16,11 @@
 
 #pragma once
 
+#include <ie_plugin_config.hpp>
 #include <string>
 #include <tuple>
 #include <vector>
-
-#include "kmb_executor.h"
+#include <vpu/kmb_params.hpp>
 
 using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 

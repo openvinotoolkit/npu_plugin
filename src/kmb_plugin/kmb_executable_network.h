@@ -56,15 +56,21 @@ public:
         ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
         // TODO: it would be better to use some interface for context
         // instead of a concrete KmbRemoteContext class
-        auto allocator = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext)->getAllocator();
+        const auto& kmbContext = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext);
+        if (kmbContext == nullptr) {
+            THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
+        }
         return std::make_shared<KmbInferRequest>(
-            networkInputs, networkOutputs, _stagesMetaData, _config, _executor, allocator);
+            networkInputs, networkOutputs, _stagesMetaData, _config, _executor, kmbContext->getAllocator());
     }
 
     void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
-        auto allocator = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext)->getAllocator();
+        const auto& kmbContext = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext);
+        if (kmbContext == nullptr) {
+            THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
+        }
         auto syncRequestImpl = std::make_shared<KmbInferRequest>(
-            _networkInputs, _networkOutputs, _stagesMetaData, _config, _executor, allocator);
+            _networkInputs, _networkOutputs, _stagesMetaData, _config, _executor, kmbContext->getAllocator());
 
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();

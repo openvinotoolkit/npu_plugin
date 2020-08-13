@@ -62,9 +62,6 @@ public:
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
     InferenceEngine::Parameter getParameter(const std::string& paramName) override;
 
-    // TODO: not presented in Executor interface
-    static std::vector<std::string> getAvailableDevices();
-
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
     KmbAllocator::Ptr _allocator;
