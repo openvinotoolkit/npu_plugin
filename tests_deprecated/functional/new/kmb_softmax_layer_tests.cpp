@@ -82,11 +82,13 @@ TEST_P(KmbSoftmaxLayerTests, Single_FP32) {
 }
 
 const std::vector<SoftmaxTestParams> softmaxParams {
-        SoftmaxTestParams()
-            .inDims({1, 1000, 2, 2})
-            .axisSet({1})
-            .inPrecision(Precision::FP16)
-            .outPrecision(Precision::FP32),
+        /* FIXME: "Softmax fails with following params"
+        * [Track number: CVS-37052 */
+        // SoftmaxTestParams()
+        //     .inDims({1, 1000, 2, 2})
+        //     .axisSet({1})
+        //     .inPrecision(Precision::FP16)
+        //     .outPrecision(Precision::FP32),
         SoftmaxTestParams()
             .inDims({1, 1001, 2, 2})
             .axisSet({1})

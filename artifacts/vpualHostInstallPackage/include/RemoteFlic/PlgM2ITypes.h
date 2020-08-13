@@ -8,7 +8,6 @@
 #include "VpuData.h"
 
 #define M2I_MAX_SUPPORTED_INPUT_WIDTH  (1920)
-#define M2I_MAX_SUPPORTED_INPUT_HEIGHT (1080)
 
 namespace vpum2i
 {
@@ -126,12 +125,6 @@ public:
     if(!(inFrm.spec.width <= M2I_MAX_SUPPORTED_INPUT_WIDTH)){
         std::cerr << "ERROR: Maximum supported input width for M2I exceeded: "
                   << inFrm.spec.width << std::endl;
-        return INVALID_PARAMS;
-    }
-
-    if(!(inFrm.spec.height <= M2I_MAX_SUPPORTED_INPUT_HEIGHT)){
-        std::cerr << "ERROR: Maximum supported input height for M2I exceeded: "
-                  << inFrm.spec.height << std::endl;
         return INVALID_PARAMS;
     }
 
