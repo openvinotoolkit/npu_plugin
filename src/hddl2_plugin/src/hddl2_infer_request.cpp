@@ -30,6 +30,7 @@
 #include <vector>
 #include <vpu/utils/ie_helpers.hpp>
 
+#include "hddl2_executor.h"
 #include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
@@ -88,8 +89,15 @@ static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t
 }
 
 //------------------------------------------------------------------------------
+HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+    const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
+    const vpu::HDDL2Config& config)
+    : HDDL2InferRequest(networkInputs, networkOutputs,
+          std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getUniteGraph(),
+          std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getContext(), config) {}
+
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const vpu::HDDL2Config& config)
+    const HddlUniteGraph::CPtr& loadedGraph, const HDDL2RemoteContext::CPtr& context, const vpu::HDDL2Config& config)
     : InferRequestInternal(networkInputs, networkOutputs),
       _loadedGraphPtr(loadedGraph),
       _context(context),

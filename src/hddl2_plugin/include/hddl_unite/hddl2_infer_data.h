@@ -41,7 +41,7 @@ public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
     explicit HddlUniteInferData(const bool& needPreProcessing = false,
-        const HDDL2RemoteContext::Ptr& remoteContext = nullptr,
+        const HDDL2RemoteContext::CPtr& remoteContext = nullptr,
         const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR);
 
     void prepareUniteInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);

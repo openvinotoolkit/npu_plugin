@@ -26,16 +26,34 @@ namespace HDDL2Plugin {
 #define CONFIG_ERROR_str std::string("[INVALID CONFIG] ")
 #define CONTEXT_ERROR_str std::string("[INVALID REMOTE CONTEXT] ")
 
-#define FAILED_START_SCHEDULER                                   \
+///  Scheduler
+#define FAILED_START_SERVICE                                     \
     std::string("Couldn't start the device scheduler service.\n" \
                 "Please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
+#define SERVICE_AVAILABLE std::string("HDDL Scheduler service is available. Ready to go.")
+#define SERVICE_NOT_AVAILABLE \
+    std::string("HDDL Scheduler service is not available. Please start scheduler before running application.")
+
+///  Network
 #define FAILED_LOAD_NETWORK                                   \
     std::string("Couldn't load the graph into the device.\n"  \
                 "Please check the service logs for errors.\n" \
                 "A reboot may be required to restore the device to a functional state.")
-#define GRAPH_NOT_LOADED                                                         \
-    std::string("Graph was not loaded on the device, only export can be made.\n" \
+
+/// Executor
+#define EXECUTOR_NOT_CREATED                                                              \
+    std::string("No executor has been created for the device, only export is possible.\n" \
                 "For execution, please start the service or check the environment variable \"KMB_INSTALL_DIR\".")
+
+///  Context
+#define FAILED_CAST_CONTEXT               \
+    std::string("Context is incorrect.\n" \
+                "Please make sure you are using HDDL2RemoteContext.")
+
+///  Infer request
+#define NO_EXECUTOR_FOR_INFERENCE             \
+    std::string("Can't create infer request!" \
+                "Please make sure that the device is available. Only exports can be made.")
 
 }  //  namespace HDDL2Plugin
 }  //  namespace vpu

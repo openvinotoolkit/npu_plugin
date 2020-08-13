@@ -29,22 +29,23 @@ namespace HDDL2Plugin {
 class HddlUniteGraph {
 public:
     using Ptr = std::shared_ptr<HddlUniteGraph>;
+    using CPtr = std::shared_ptr<const HddlUniteGraph>;
 
     /**
      * @brief Create HddlUnite graph object using context to specify which devices to use
      */
-    explicit HddlUniteGraph(const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& context,
-        const vpu::LogLevel& logLevel = LogLevel::Error);
+    explicit HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const HDDL2RemoteContext::Ptr& context,
+        const LogLevel& logLevel = LogLevel::Error);
 
     /**
      * @brief Create HddlUnite graph object using specific device. If empty, use all
      * available devices
      */
-    explicit HddlUniteGraph(
-        const Graph::Ptr& graphPtr, const std::string& deviceID = "", const vpu::LogLevel& logLevel = LogLevel::Error);
+    explicit HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const std::string& deviceID = "",
+        const LogLevel& logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
-    void InferAsync(const HddlUniteInferData::Ptr& data);
+    void InferAsync(const HddlUniteInferData::Ptr& data) const;
 
 protected:
     HddlUnite::Inference::Graph::Ptr _uniteGraphPtr = nullptr;

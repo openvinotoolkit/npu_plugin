@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -24,8 +24,7 @@
 
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 #include "hddl2_config.h"
-#include "hddl2_graph.h"
-#include "hddl_unite/hddl2_unite_graph.h"
+#include "hddl2_executor.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -45,7 +44,6 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
         const InferenceEngine::InputsDataMap networkInputs,
         const InferenceEngine::OutputsDataMap networkOutputs) override;
-
     void ExportImpl(std::ostream& model) override;
 
     void Export(const std::string& modelFileName) override;
@@ -53,13 +51,12 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
 private:
-    void loadGraphToDevice();
+    vpux::NetworkDescription::Ptr _networkPtr;
+    vpux::Executor::Ptr _executorPtr;
 
+    // TODO Use some vpux config
     const HDDL2Config _config;
     const Logger::Ptr _logger;
-    Graph::Ptr _graphPtr = nullptr;
-    HddlUniteGraph::Ptr _loadedGraph = nullptr;
-    HDDL2RemoteContext::Ptr _context = nullptr;
 };
 
 }  //  namespace HDDL2Plugin

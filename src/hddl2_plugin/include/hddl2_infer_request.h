@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -24,8 +24,10 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <vpux.hpp>
 
 #include "hddl2_config.h"
+#include "hddl2_executor.h"
 #include "hddl_unite/hddl2_infer_data.h"
 #include "hddl_unite/hddl2_unite_graph.h"
 
@@ -36,9 +38,13 @@ class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<HDDL2InferRequest>;
 
+    // TODO Temporary solution, infer request refactoring is next step
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
-        const HDDL2RemoteContext::Ptr& context, const vpu::HDDL2Config& config);
+        const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
+        const vpu::HDDL2Config& config);
+    HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+        const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::CPtr& loadedGraph,
+        const HDDL2RemoteContext::CPtr& context, const vpu::HDDL2Config& config);
 
     void Infer() override;
     void InferImpl() override;
@@ -54,12 +60,12 @@ protected:
     void checkBlobs() override;
     void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
 
-    HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
+    HddlUniteGraph::CPtr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 
     // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
     // need to store it here
-    HDDL2RemoteContext::Ptr _context = nullptr;
+    HDDL2RemoteContext::CPtr _context = nullptr;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
     const InferenceEngine::Layout deviceSupportedLayout = InferenceEngine::Layout::NHWC;

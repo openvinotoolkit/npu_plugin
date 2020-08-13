@@ -58,9 +58,9 @@ public:
     void pull(InferenceEngine::BlobMap& outputs) override;
     // TODO: not implemented
     void setup(const InferenceEngine::ParamMap& params) override;
-    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) override;
+    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const override;
     std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getLayerStatistics() override;
-    InferenceEngine::Parameter getParameter(const std::string& paramName) override;
+    InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
 private:
     vpux::NetworkDescription::Ptr _networkDescription;

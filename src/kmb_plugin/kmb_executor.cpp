@@ -604,14 +604,14 @@ void KmbExecutor::repackDeviceOutputsToNetworkOutputs(const ie::BlobMap& deviceO
 
 void KmbExecutor::setup(const InferenceEngine::ParamMap&) { THROW_IE_EXCEPTION << "Not implemented"; }
 
-bool KmbExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) { return false; }
+bool KmbExecutor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
 
 std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> KmbExecutor::getLayerStatistics() {
     THROW_IE_EXCEPTION << "Not implemented";
     return std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>();
 }
 
-InferenceEngine::Parameter KmbExecutor::getParameter(const std::string&) { return InferenceEngine::Parameter(); }
+InferenceEngine::Parameter KmbExecutor::getParameter(const std::string&) const { return InferenceEngine::Parameter(); }
 
 void KmbExecutor::deallocateGraph() {
     if (!_config.useKmbExecutor()) {
