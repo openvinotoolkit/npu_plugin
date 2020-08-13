@@ -20,17 +20,31 @@ namespace mv
             std::vector<Tensor>&)> outputDefFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args, std::vector<Tensor>& outputs)
         {
+            mv::Tensor outputTensor(*inputs[0]);
+
             auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
+            if(dTypeToUse != mv::DType("Default"))
+                outputTensor.setDType(dTypeToUse);
 
-            if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder()));
+            mv::QuantizationParams quantParams= {{},{},{},{}};
 
-            else
-                outputs.push_back(mv::Tensor(":0", inputs[0]->getShape(), dTypeToUse, inputs[0]->getOrder(), args.at("quantParams").get<mv::QuantizationParams>()));
+            if (!args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
+                quantParams = args.at("quantParams").get<mv::QuantizationParams>();
 
+            outputTensor.set<mv::QuantizationParams>("quantParams", quantParams);
 
+            outputs.push_back(std::move(outputTensor));
+            outputs[0].setName(outputs[0].getName() + ":0");
+            if (outputs[0].hasAttr("flows")) 
+                outputs[0].erase("flows");
+
+            if (outputs[0].hasSubTensors())
+            {
+                for (std::size_t i = 0; i < outputs[0].numSubTensors(); i++)
+                {
+                    outputs[0].getSubTensor(i).setName(outputs[0].getName() + "sub" + std::to_string(i));
+                }
+            }
         };
     }
 
