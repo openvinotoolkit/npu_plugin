@@ -15,42 +15,52 @@
 //
 
 #include <gtest/gtest.h>
-
-#include "hddl_unite/hddl2_unite_graph.h"
-#include "helper_graph.h"
-#include "helper_remote_context.h"
+#include <vpux_compiler.hpp>
+#include <network_desc.h>
+#include <helper_remote_context.h>
+#include "hddl2_unite_graph.h"
+#include "hddl2_helpers/skip_conditions.h"
 
 using namespace vpu::HDDL2Plugin;
-//------------------------------------------------------------------------------
-//      class HddlUniteGraph_UnitTests Declaration
+
 //------------------------------------------------------------------------------
 class HddlUniteGraph_UnitTests : public ::testing::Test {
 public:
     void SetUp() override;
-    Graph::Ptr graph;
+    vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
 
 protected:
-    ImportedGraph_Helper _importedGraphHelper;
+    vpux::NetworkDescription_Helper _networkDescriptionHelper;
 };
 
-void HddlUniteGraph_UnitTests::SetUp() { graph = _importedGraphHelper.getGraph(); }
+void HddlUniteGraph_UnitTests::SetUp() { networkDescPtr = _networkDescriptionHelper.getNetworkDesc(); }
+
 
 //------------------------------------------------------------------------------
-//      class HddlUniteGraph_UnitTests Initiation
-//------------------------------------------------------------------------------
-TEST_F(HddlUniteGraph_UnitTests, constructor_onlyGraph_NoThrow) {
-    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph));
+using HddlUniteGraph_Construct = HddlUniteGraph_UnitTests;
+TEST_F(HddlUniteGraph_Construct, onlyGraph_NoThrow) {
+    SKIP_IF_NO_DEVICE();
+    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(networkDescPtr));
 }
 
-TEST_F(HddlUniteGraph_UnitTests, constructor_withContext_NoThrow) {
+TEST_F(HddlUniteGraph_Construct, withContext_NoThrow) {
+    SKIP_IF_NO_DEVICE();
     RemoteContext_Helper contextHelper;
     auto context = contextHelper.remoteContextPtr;
 
-    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(graph, context));
+    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(networkDescPtr, context));
 }
 
-TEST_F(HddlUniteGraph_UnitTests, InferAsync_nullData_Throw) {
-    HddlUniteGraph hddlUniteGraph(graph);
+using HddlUniteGraph_Monkey = HddlUniteGraph_UnitTests;
+TEST_F(HddlUniteGraph_Monkey, network_nullData_Throw) {
+    SKIP_IF_NO_DEVICE();
+    auto nullptrNetwork = nullptr;
+    ASSERT_ANY_THROW(HddlUniteGraph hddlUniteGraph(nullptrNetwork));
+}
 
+TEST_F(HddlUniteGraph_Monkey, InferAsync_nullData_Throw) {
+    SKIP_IF_NO_DEVICE();
+    HddlUniteGraph hddlUniteGraph(networkDescPtr);
     ASSERT_ANY_THROW(hddlUniteGraph.InferAsync(nullptr));
 }
+

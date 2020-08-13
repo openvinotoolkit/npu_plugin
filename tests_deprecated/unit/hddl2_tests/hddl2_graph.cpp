@@ -33,24 +33,21 @@ class Graph_Common_UnitTests : public ::testing::Test, public ::testing::WithPar
 public:
     void SetUp() override;
 
-    Graph::Ptr graphPtr;
-
+    vpux::NetworkDescription::Ptr networkPtr = nullptr;
     struct PrintToStringParamName {
         std::string operator()(testing::TestParamInfo<typeOfGraph> const& info) const;
     };
-
-private:
-    const vpu::MCMConfig _defaultMCMConfig = vpu::MCMConfig();
 };
 
 void Graph_Common_UnitTests::SetUp() {
+    const vpu::MCMConfig defaultMCMConfig = vpu::MCMConfig();
     if (GetParam() == fromImportedGraph) {
-        const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-        ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
+        const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
+        ASSERT_NO_THROW(networkPtr = vpu::HDDL2Plugin::Graph::importGraph(modelToImport, defaultMCMConfig));
     } else {
         ModelPooling_Helper modelPoolingHelper;
         CNNNetwork network = modelPoolingHelper.getNetwork();
-        ASSERT_NO_THROW(graphPtr = std::make_shared<CompiledGraph>(network, _defaultMCMConfig));
+        ASSERT_NO_THROW(networkPtr = vpu::HDDL2Plugin::Graph::compileGraph(network, defaultMCMConfig));
     }
 }
 
@@ -66,25 +63,24 @@ std::string Graph_Common_UnitTests::PrintToStringParamName::operator()(
     }
 }
 
-
 //------------------------------------------------------------------------------
 TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
-    const std::string name = graphPtr->getGraphName();
+    const std::string name = networkPtr->getName();
     ASSERT_GT(name.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getInputsInfo_ReturnNotEmpty) {
-    auto inputsInfo = graphPtr->getInputsInfo();
+    auto inputsInfo = networkPtr->getInputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getOutputsInfo_ReturnNotEmpty) {
-    auto inputsInfo = graphPtr->getOutputsInfo();
+    auto inputsInfo = networkPtr->getOutputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
 TEST_P(Graph_Common_UnitTests, getGraphBlob_ReturnNotEmpty) {
-    auto graphBlob = graphPtr->getGraphBlob();
+    auto graphBlob = networkPtr->getCompiledNetwork();
     ASSERT_GT(graphBlob.size(), 0);
 }
 

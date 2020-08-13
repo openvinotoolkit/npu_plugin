@@ -36,8 +36,8 @@ static void checkData(const IE::DataPtr& desc) {
 }
 
 //------------------------------------------------------------------------------
-HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing, const HDDL2RemoteContext::Ptr& remoteContext,
-    const IE::ColorFormat& colorFormat)
+HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
+    const HDDL2RemoteContext::CPtr& remoteContext, const IE::ColorFormat& colorFormat)
     : _haveRemoteContext(remoteContext != nullptr),
       _needUnitePreProcessing(needUnitePreProcessing),
       _graphColorFormat(colorFormat) {

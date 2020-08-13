@@ -160,28 +160,13 @@ const std::shared_ptr<InferenceEngine::IAllocator>& HDDL2RemoteBlob::getAllocato
     return _allocatorPtr;
 }
 
-static void getImageSize(IE::TensorDesc tensorDesc, size_t& outWidth, size_t& outHeight) {
-    const auto layout = tensorDesc.getLayout();
-    const auto dims = tensorDesc.getDims();
-    outHeight = 0;
-    outWidth = 0;
-    if (layout == IE::Layout::NCHW) {
-        outHeight = dims.at(2);
-        outWidth = dims.at(3);
-    } else if (layout == IE::Layout::NHWC) {
-        outHeight = dims.at(1);
-        outWidth = dims.at(2);
-    } else {
-        THROW_IE_EXCEPTION << "Unsupported layout.";
-    }
-}
-
 size_t HDDL2RemoteBlob::size() const noexcept {
     if (_colorFormat == IE::ColorFormat::NV12) {
         if (tensorDesc.getLayout() == IE::Layout::SCALAR) return 1;
         // FIXME It's a very bad solution
-        size_t width, height;
-        getImageSize(tensorDesc, width, height);
+        const auto dims = tensorDesc.getDims();
+        size_t height = dims.at(2);
+        size_t width = dims.at(3);
         return (3 * width * height) / 2;
     } else {
         return MemoryBlob::size();

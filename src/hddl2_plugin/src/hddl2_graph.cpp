@@ -41,13 +41,13 @@ static std::vector<char> loadFileToVector(const std::string& filename) {
     return loadStreamToVector(streamWithBlob);
 }
 
-std::string Graph::extractFileName(const std::string& fullPath) {
+static std::string extractFileName(const std::string& fullPath) {
     const size_t lastSlashIndex = fullPath.find_last_of("/\\");
     return fullPath.substr(lastSlashIndex + 1);
 }
 
 //------------------------------------------------------------------------------
-CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const vpu::MCMConfig& config) {
+vpux::NetworkDescription::Ptr Graph::compileGraph(InferenceEngine::ICNNNetwork& network, const vpu::MCMConfig& config) {
     // TODO We will throw exception of compilation, if not able to do that
     if (!MCMAdapter::isMCMCompilerAvailable()) {
         THROW_IE_EXCEPTION << "MCM compiler is not available!";
@@ -59,17 +59,16 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const vpu::MCMConfig& con
     } catch (const std::exception& ex) {
         THROW_IE_EXCEPTION << "Failed to compile network! Error: " << ex.what();
     }
-    _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(graphBlob, config, network.getName());
+    return std::make_shared<MCMAdapter::MCMNetworkDescription>(graphBlob, config, network.getName());
 }
 
-//------------------------------------------------------------------------------
-ImportedGraph::ImportedGraph(const std::string& blobFilename, const vpu::MCMConfig& config) {
+vpux::NetworkDescription::Ptr Graph::importGraph(const std::string& blobFilename, const vpu::MCMConfig& config) {
     std::vector<char> blob = loadFileToVector(blobFilename);
     const std::string graphName = extractFileName(blobFilename);
-    _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config, graphName);
+    return std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config, graphName);
 }
 
-ImportedGraph::ImportedGraph(std::istream& networkModel, const vpu::MCMConfig& config) {
+vpux::NetworkDescription::Ptr Graph::importGraph(std::istream& networkModel, const vpu::MCMConfig& config) {
     std::vector<char> blob = loadStreamToVector(networkModel);
-    _networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config);
+    return std::make_shared<MCMAdapter::MCMNetworkDescription>(blob, config);
 }

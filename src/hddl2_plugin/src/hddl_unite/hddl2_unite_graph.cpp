@@ -23,7 +23,8 @@
 
 #include "hddl2_metrics.h"
 
-using namespace vpu::HDDL2Plugin;
+namespace vpu {
+namespace HDDL2Plugin {
 namespace IE = InferenceEngine;
 
 static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& deviceID) {
@@ -40,12 +41,16 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& deviceID, const vpu::LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(
+    const vpux::NetworkDescription::Ptr& network, const std::string& deviceID, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
+    if (!network) {
+        throw std::invalid_argument("Network pointer is null!");
+    }
     HddlStatusCode statusCode;
 
-    const std::string graphName = graphPtr->getGraphName();
-    const std::vector<char> graphData = graphPtr->getGraphBlob();
+    const std::string graphName = network->getName();
+    const std::vector<char> graphData = network->getCompiledNetwork();
 
     std::vector<HddlUnite::Device> devices_to_use = {};
 
@@ -60,12 +65,10 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     statusCode =
         HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use);
 
+    // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
         THROW_IE_EXCEPTION << IE::details::as_status << IE::StatusCode::NETWORK_NOT_LOADED;
     } else if (statusCode != HddlStatusCode::HDDL_OK) {
-        if (!HDDL2Metrics::isServiceRunning()) {
-            _logger->error(FAILED_START_SCHEDULER.c_str());
-        }
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;
     }
 
@@ -74,16 +77,16 @@ HddlUniteGraph::HddlUniteGraph(const Graph::Ptr& graphPtr, const std::string& de
     }
 }
 
-HddlUniteGraph::HddlUniteGraph(
-    const Graph::Ptr& graphPtr, const HDDL2RemoteContext::Ptr& contextPtr, const vpu::LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const HDDL2RemoteContext::Ptr& contextPtr,
+    const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";
     }
 
-    const std::string graphName = graphPtr->getGraphName();
-    const std::vector<char> graphData = graphPtr->getGraphBlob();
+    const std::string graphName = network->getName();
+    const std::vector<char> graphData = network->getCompiledNetwork();
 
     HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
 
@@ -104,7 +107,7 @@ HddlUniteGraph::~HddlUniteGraph() {
     }
 }
 
-void HddlUniteGraph::InferAsync(const HddlUniteInferData::Ptr& data) {
+void HddlUniteGraph::InferAsync(const HddlUniteInferData::Ptr& data) const {
     if (data == nullptr) {
         THROW_IE_EXCEPTION << "Data for inference is null!";
     }
@@ -118,3 +121,6 @@ void HddlUniteGraph::InferAsync(const HddlUniteInferData::Ptr& data) {
         THROW_IE_EXCEPTION << "InferAsync FAILED! return code:" << inferStatus;
     }
 }
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

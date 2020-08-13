@@ -80,12 +80,12 @@ public:
 
     void setup(const InferenceEngine::ParamMap&) {}
 
-    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) { return false; }
+    bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo&) const { return false; }
     std::map<std::string, ie::InferenceEngineProfileInfo> getLayerStatistics() {
         return std::map<std::string, ie::InferenceEngineProfileInfo>();
     }
 
-    ie::Parameter getParameter(const std::string&) { return ie::Parameter(); }
+    ie::Parameter getParameter(const std::string&) const { return ie::Parameter(); }
 };
 
 TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyInputAndOutput) {

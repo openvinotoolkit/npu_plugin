@@ -13,33 +13,24 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
-
-#pragma once
-
-#include <models/precompiled_resnet.h>
+#include "vpux_compiler.hpp"
+#include "models/precompiled_resnet.h"
 #include "hddl2_graph.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
-
-class ImportedGraph_Helper {
+namespace vpux {
+class NetworkDescription_Helper {
 public:
-    ImportedGraph_Helper();
-    Graph::Ptr getGraph();
+    NetworkDescription_Helper();
+    ~NetworkDescription_Helper() = default;
+    NetworkDescription::Ptr getNetworkDesc() { return _networkDescPtr; }
 
 protected:
     const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-    Graph::Ptr _graphPtr = nullptr;
+    NetworkDescription::Ptr _networkDescPtr = nullptr;
 };
 
-inline ImportedGraph_Helper::ImportedGraph_Helper() {
-    MCMConfig defaultConfig;
-    _graphPtr= std::make_shared<ImportedGraph>(_modelToImport, defaultConfig);
-}
-
-Graph::Ptr ImportedGraph_Helper::getGraph() {
-    return _graphPtr;
-}
-
+//------------------------------------------------------------------------------
+inline NetworkDescription_Helper::NetworkDescription_Helper() {
+    _networkDescPtr = vpu::HDDL2Plugin::Graph::importGraph(_modelToImport, vpu::MCMConfig());
 }
 }

@@ -22,43 +22,15 @@
 
 #include "mcm_network_description.hpp"
 
+// TODO This part should be replaced with vpux::Compiler (MCMCompiler)
 namespace vpu {
 namespace HDDL2Plugin {
+namespace Graph {
+vpux::NetworkDescription::Ptr compileGraph(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
 
-class Graph {
-public:
-    using Ptr = std::shared_ptr<Graph>;
+vpux::NetworkDescription::Ptr importGraph(const std::string& blobFilename, const MCMConfig& config);
 
-    const std::string getGraphName() const { return _networkDescription->getName(); }
-    const std::vector<char>& getGraphBlob() const { return _networkDescription->getCompiledNetwork(); }
-
-    InferenceEngine::InputsDataMap getInputsInfo() noexcept {
-        return MCMAdapter::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
-    }
-    InferenceEngine::OutputsDataMap getOutputsInfo() noexcept {
-        return MCMAdapter::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
-    }
-
-protected:
-    vpux::NetworkDescription::Ptr _networkDescription;
-
-    std::string extractFileName(const std::string& fullPath);
-};
-
-class CompiledGraph : public Graph {
-public:
-    using Ptr = std::shared_ptr<CompiledGraph>;
-
-    explicit CompiledGraph(InferenceEngine::ICNNNetwork& network, const vpu::MCMConfig& config);
-};
-
-class ImportedGraph : public Graph {
-public:
-    using Ptr = std::shared_ptr<ImportedGraph>;
-
-    explicit ImportedGraph(const std::string& blobFilename, const vpu::MCMConfig& config);
-    explicit ImportedGraph(std::istream& networkModel, const vpu::MCMConfig& config);
-};
-
+vpux::NetworkDescription::Ptr importGraph(std::istream& networkModel, const MCMConfig& config);
+}  // namespace Graph
 }  // namespace HDDL2Plugin
 }  // namespace vpu
