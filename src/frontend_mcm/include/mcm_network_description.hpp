@@ -54,8 +54,6 @@ private:
     std::shared_ptr<vpu::Logger> _logger;
 
     vpux::DataMap matchElementsByName(const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
-    vpux::DataMap matchElementsByLexicographicalOrder(
-        const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
     vpux::DataMap createDeviceMapWithCorrectNames(
         const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
 };
