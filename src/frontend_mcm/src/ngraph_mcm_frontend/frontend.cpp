@@ -61,7 +61,7 @@ std::vector<char> compileNGraph(
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <transformations/convert_reduce_to_pooling.hpp>
-#include <transformations/mul_add_squence_fusion.hpp>
+#include <transformations/lin_op_sequence_fusoin.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
@@ -125,7 +125,7 @@ std::vector<char> compileNGraph(
 
         passManager.register_pass<ngraph::pass::ConstantFolding>();
         passManager.register_pass<ngraph::pass::ConvertConvolutions>();
-        passManager.register_pass<ngraph::pass::MulAddFusion>();
+        passManager.register_pass<ngraph::pass::LinOpSequenceFusion>();
         passManager.register_pass<ngraph::pass::ConvertMatMulToFCorGemm>();
         passManager.register_pass<ngraph::pass::ConvFusion>();
         passManager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
