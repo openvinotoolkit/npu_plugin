@@ -102,7 +102,6 @@ void setDpuTasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     }
                     else if ((opIt->hasAttr("DilatedSubConv") && opIt->get<bool>("DilatedSubConv")) || (opIt->hasAttr("DeconvSubConv") && opIt->get<bool>("DeconvSubConv")))
                     {
-                        printf("DeconvSubConv\n");
                         std::size_t slot = 0;
                         for (std::size_t inputConcatTensorIdx = 0; inputConcatTensorIdx < sinkOp->getInputTensor().size();
                              inputConcatTensorIdx++)

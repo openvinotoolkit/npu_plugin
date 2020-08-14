@@ -160,7 +160,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     //so in order to concatenate later for the dilation case we will need to know
     //the dim of the n-1 first streams and this should be stored in the last stream
     std::size_t symmetrical_first_dimension = 0;
-    printf("number_of_splits = %d\n", number_of_splits);
     for (unsigned split = 0; split < number_of_splits; split++)
     {       
         mv::Data::TensorIterator slice;
@@ -246,7 +245,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         }
         std::string streamingOpName = op->getName() + "_streamK" + std::to_string(split);
         mv::Data::TensorIterator newTensor;
-        std::cout <<  "streamingOpName " << streamingOpName << std::endl;
         //todo:: clean this if-then-else conv/DpthwiseConv logic... it's just bloatware code
 
         if (op->getOpType() == "Conv")
@@ -268,7 +266,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
             if ((op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv")) || (op->hasAttr("DeconvSubConv") && op->get<bool>("DeconvSubConv")))
             {
-                printf("set streamKId\n");
                 om.getSourceOp(newTensor)->set<unsigned>("streamKId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionK",
                                                                 symmetrical_first_dimension);
@@ -544,7 +541,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             }
             if ((op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv")) || (op->hasAttr("DeconvSubConv") && op->get<bool>("DeconvSubConv")))
             {
-                printf("set streamHId\n");
                 om.getSourceOp(newTensor)->set<unsigned>("streamHId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH"
                                                          , symmetrical_first_dimension);
@@ -879,7 +875,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
     {
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
         //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
-        std::cout << "nodeName " << nodeName << std::endl;
         if (!om.checkOp(nodeName))
         {
             pass.log(mv::Logger::MessageType::Info, nodeName + " is not present in model, skipping streaming");
@@ -891,8 +886,6 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         //For now do streaming pass only for the DPU layers
         if ((opType != "Conv") && (opType != "DepthwiseConv") && (opType != "MaxPool") && (opType != "Eltwise"))
             continue;
-
-        std::cout << "nodeName " << nodeName << std::endl;
 
         std::size_t alignment = 1;
         if(passDesc.hasAttr("alignment"))
@@ -963,11 +956,8 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
             tiles = newChildTiles;
         }
 
-        std::cout << "masterTile.childTiles().size() " << masterTile.childTiles().size() << std::endl;
-
         if(masterTile.childTiles().size() > 1)
         {
-            std::cout << opIt->getName() << " " << opIt->getOpType() << " streamSplit " << masterTile.getAxis() << std::endl;
             auto result = (streamSplit[masterTile.getAxis()])(om, opIt, masterTile);
             //NOTE: FlowSibling iterators seem to lose some sinks so they are replced...
             // reconnect children to subgraph

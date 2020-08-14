@@ -193,7 +193,6 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
 
     // NO FQ on branches
     if (outQuantParams.empty()) {
-        std::cout << op->getName() << " " << op->getOpType() << " " << std::endl;
         return initial_quant_params();
     }
 
