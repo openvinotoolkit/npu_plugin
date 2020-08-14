@@ -23,7 +23,6 @@
 #include <ie_layouts.h>
 #include <ngraph/node.hpp>
 #include <ngraph/descriptor/tensor.hpp>
-#include <ngraph/descriptor/layout/dense_tensor_layout.hpp>
 #include <ngraph/op/util/op_annotations.hpp>
 #include <include/mcm/tensor/order/order.hpp>
 #include <include/mcm/tensor/quantization_params.hpp>
