@@ -324,24 +324,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
 }
 
 //
-// SSD 512
-//
-
-// KMB : Unsupported case, we expect only one child
-TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");  // TODO: create JIRA ticket
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("512x512/dog_croped512.bmp", false),
-        0.3f,
-        0.1f, 0.3f);
-}
-
-//
 // TinyYolo V1
 //
 
@@ -521,17 +503,10 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-// C++ exception with description "Op:mbox_priorbox - OpError: Invalid input inputs (0) -
-// Invalid shape of the input 1 tensor (0:24576 - inconsistent with the dimension of the first input (65536)
-// [Track number: S#30693]
-TEST_F(KmbDetectionNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
-
+TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
+                    .setUserInputPrecision("input", Precision::U8),
             TestImageDesc("512x512/dog_croped512.bmp", false),
             0.3f,
             0.1f, 0.3f);
@@ -563,17 +538,10 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_f
             1, 0.06f);
 }
 
-// C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1779
-// [Track number: S#30692]
-TEST_F(KmbDetectionNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPU", "compile error");
-
+TEST_F(KmbSSDNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
+                    .setUserInputPrecision("input", Precision::U8),
             TestImageDesc("300x300/dog.bmp", false),
             0.3f,
             0.1f, 0.3f);

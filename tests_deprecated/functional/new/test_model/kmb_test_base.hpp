@@ -374,12 +374,12 @@ public:
             float boxTolerance, float probTolerance);
 
 protected:
-    static std::vector<utils::YoloBBox> parseOutput(
+    static std::vector<utils::BoundingBox> parseOutput(
             const Blob::Ptr& blob,
             size_t imgWidth, size_t imgHeight,
             float confThresh);
 
-    void checkBBoxOutputs(std::vector<utils::YoloBBox> &actual, std::vector<utils::YoloBBox> &ref,
+    void checkBBoxOutputs(std::vector<utils::BoundingBox> &actual, std::vector<utils::BoundingBox> &ref,
             int imgWidth, int imgHeight, float boxTolerance, float probTolerance);
 };
 
@@ -409,6 +409,15 @@ public:
             float confThresh,
             float boxTolerance, float probTolerance,
             bool isTiny);
+};
+
+class KmbSSDNetworkTest : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            float confThresh,
+            float boxTolerance, float probTolerance);
 };
 
 using KmbYoloV1NetworkTest = KmbYoloV2NetworkTest;

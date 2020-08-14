@@ -20,25 +20,30 @@
 #include <sstream>
 
 namespace utils {
-    struct YoloBox final {
+    struct Box final {
         float x, y, w, h;
     };
 
-    struct YoloBBox final {
+    struct BoundingBox final {
         int idx;
         float left, right, top, bottom;
         float prob;
-        YoloBBox(int idx, float xmin, float ymin, float xmax, float ymax, float prob)
-                : idx(idx), left(xmin), right(xmax), top(ymin), bottom(ymax), prob (prob) {};
+        BoundingBox(int idx, float xmin, float ymin, float xmax, float ymax, float prob)
+                : idx(idx), left(xmin), right(xmax), top(ymin), bottom(ymax), prob (prob) {}
     };
 
-    std::vector<YoloBBox> parseYoloOutput(
+    std::vector<BoundingBox> parseYoloOutput(
         const InferenceEngine::Blob::Ptr& blob,
         size_t imgWidth, size_t imgHeight,
         float confThresh, bool isTiny);
 
-    void printYoloBBoxOutputs(std::vector<YoloBBox> &actualOutput, std::ostringstream& outputStream,
+    std::vector<BoundingBox> parseSSDOutput(
+        const InferenceEngine::Blob::Ptr& blob,
+        size_t imgWidth, size_t imgHeight,
+        float confThresh);
+
+    void printDetectionBBoxOutputs(std::vector<BoundingBox> &actualOutput, std::ostringstream& outputStream,
         const std::vector<std::string>& labels = {});
 
-    float boxIntersectionOverUnion(const YoloBox& a, const YoloBox& b);
+    float boxIntersectionOverUnion(const Box& a, const Box& b);
 }  // namespace utils

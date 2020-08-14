@@ -73,7 +73,7 @@ TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
     const auto userInDesc = TensorDesc(Precision::U8, p._inDims, p._inLayout);
     const auto userOutDesc = TensorDesc(Precision::FP16, p._outLayout);
 
-    const auto tolerance = 1e-3f;
+    const auto tolerance = 1e-2f;
 
     registerBlobGenerator("input", userInDesc, [&](const TensorDesc& desc) {
         return genBlobUniform(desc, rd, 0, 10);
