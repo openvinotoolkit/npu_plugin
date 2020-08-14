@@ -386,7 +386,7 @@ TEST_P(ConvolutionTest, DISABLED_u8_convolution_only_manual) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));
@@ -453,7 +453,7 @@ TEST_P(ConvolutionTest, DISABLED_convolution_and_relu_u8) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
     (exeNetwork = ie.LoadNetwork(network, deviceName, config));
@@ -595,7 +595,7 @@ TEST_P(ConvolutionTestIdent, DISABLED_u8_convolution_identity) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
     exeNetwork = ie.LoadNetwork(network, deviceName, config);
@@ -762,7 +762,7 @@ TEST_P(ConvolutionAndPoolingTest, DISABLED_convolution_and_pooling_u8) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_NO_THROW(exeNetwork = ie.LoadNetwork(network, deviceName, config));

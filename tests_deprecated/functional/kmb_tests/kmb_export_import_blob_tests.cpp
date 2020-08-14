@@ -70,7 +70,7 @@ void ExportImportBlobToFromFile(std::string deviceName, const CNNNetwork& networ
     std::string blobFileName1 = "TestExportImportBlob_" + testDescription + "_file01.blob";
     ASSERT_NO_THROW(exeNetwork.Export(blobFileName1));
     ASSERT_GT(getFileSize(blobFileName1), 0) << "Alarm! Alarm! We have gotten blob file with zero size!!!";
-    config[VPU_KMB_CONFIG_KEY(KMB_EXECUTOR)] = CONFIG_VALUE(NO);
+    config["VPU_KMB_KMB_EXECUTOR"] = CONFIG_VALUE(NO);
 
     ExecutableNetwork importedNetwork;
     ASSERT_NO_THROW(importedNetwork = ie.ImportNetwork(blobFileName1, deviceName, config));
