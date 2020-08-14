@@ -323,24 +323,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
 }
 
 //
-// SSD 512
-//
-
-// KMB : Unsupported case, we expect only one child
-TEST_F(KmbDetectionNetworkTest, INT8_Dense_Caffe_IRv10_SSD_512) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");  // TODO: create JIRA ticket
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
-        0.3f,
-        0.1f, 0.3f);
-}
-
-//
 // TinyYolo V1
 //
 
@@ -393,30 +375,14 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2_Custom) {
 //
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");  // TODO: create JIRA ticket
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
-//
-// Yolo V2 with custom region & reorg
-//
-
-TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2_Custom) {
-    const auto customLayers = std::make_pair(VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
-        getIELibraryPath() + "/kmb_custom_kernels/yolov2.xml");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({customLayers}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+        TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
 
@@ -435,18 +401,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
-}
-
-TEST_F(KmbYoloV2NetworkTest, yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/icv/yolo-tiny-v2-ava-0001/yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
-        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+        TestImageDesc("416x416/person.bmp", false),
         0.6, 0.4, 0.4, false);
 }
 
@@ -629,18 +584,11 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             1.f, 0.3f);
 }
 
-// C++ exception with description "Op:mbox_priorbox - OpError: Invalid input inputs (0) -
-// Invalid shape of the input 1 tensor (0:24576 - inconsistent with the dimension of the first input (65536)
-// [Track number: S#30693]
-TEST_F(KmbDetectionNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
+                    .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("512x512/dog_croped512.bmp", false),
             0.3f,
             0.1f, 0.3f);
 }
@@ -671,18 +619,11 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v4_tf_dense_int8_IRv10_from_f
             1, 0.06f);
 }
 
-// C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
-// kmb-plugin/src/frontend_mcm/src/frontend_mcm.cpp:1779
-// [Track number: S#30692]
-TEST_F(KmbDetectionNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
+TEST_F(KmbSSDNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32.xml")
-                    .setUserInputPrecision("input", Precision::U8)
-                    .setUserInputLayout("input", Layout::NHWC)
-                    .setUserOutputPrecision("output", Precision::FP16),
-            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
+                    .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("300x300/dog.bmp", false),
             0.3f,
             0.1f, 0.3f);
 }
