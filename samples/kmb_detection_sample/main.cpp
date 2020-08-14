@@ -372,7 +372,7 @@ int main(int argc, char *argv[]) {
 
         // Print result.
         std::ostringstream resultString;
-        utils::printYoloBBoxOutputs(detectionResult, resultString, postprocess::YOLOV2_TINY_LABELS);
+        utils::printDetectionBBoxOutputs(detectionResult, resultString, postprocess::YOLOV2_TINY_LABELS);
         slog::info << resultString.str() << slog::endl;
     }
     catch (const std::exception& error) {
