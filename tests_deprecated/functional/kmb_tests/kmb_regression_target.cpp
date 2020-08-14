@@ -81,7 +81,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config[VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION)] = CONFIG_VALUE(YES);
+    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     Core ie;
     InferenceEngine::ExecutableNetwork exeNetwork;

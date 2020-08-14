@@ -59,22 +59,9 @@ DECLARE_VPU_KMB_CONFIG_KEY(PLATFORM);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "YES".
- */
-DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
-
-/**
- * @brief [Only for kmbPlugin]
  * Type: integer, default is 1.
  */
 DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
-
-/**
- * @brief [Only for kmbPlugin]
- * Type: "YES/NO", default is "NO".
- * Enable or disable blob transfer to device
- */
-DECLARE_VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION);
 
 /**
  * @brief [Only for kmbPlugin]

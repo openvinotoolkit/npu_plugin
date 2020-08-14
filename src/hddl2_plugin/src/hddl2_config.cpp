@@ -29,7 +29,7 @@ const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
         merge(MCMConfig::getCompileOptions(), {
                                                   // TODO Just to avoid error, do nothing
-                                                  VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
+                                                  "VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION",
                                               });
     return options;
 }
