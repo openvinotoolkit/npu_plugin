@@ -459,7 +459,10 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
     if(blobfile_size_mb >= 100L)
     {
+        //TODO: Deprecated config key to remove after fully transitionning to
+        // runtime versions >= NN_Runtime_v2.46.0
         runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
+        runtimeOptions += std::string(" CONFIG_NN_WEIGHT_BUFFER_ALIGNMENT=1");
     }
 
     // execute the blob
