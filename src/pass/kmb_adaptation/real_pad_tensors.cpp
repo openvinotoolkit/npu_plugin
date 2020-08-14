@@ -478,7 +478,7 @@ void alignPopulatedTensorsFunc(const mv::pass::PassEntry& , mv::ComputationModel
             auto taskOp = layer->get<std::string>("taskOp");
             std::size_t outputChannelsPadded = outputTensorShape[mv::IO_CHANNEL_DIMENSION];
 
-            if (taskOp == "Conv")
+            if (taskOp == "Conv" || taskOp == "ChannelMajorConvolution")
                 alignedShape = mv::Shape({weightsTensorShape[mv::KERNEL_WIDTH], weightsTensorShape[mv::KERNEL_HEIGHT],
                                                     inputTensorShape[mv::IO_CHANNEL_DIMENSION], outputTensorShape[mv::IO_CHANNEL_DIMENSION]});
             else if (taskOp == "DepthwiseConv")

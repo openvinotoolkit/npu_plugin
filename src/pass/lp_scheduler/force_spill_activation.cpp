@@ -53,7 +53,7 @@ class Force_Spill_Activation {
       mv::Data::TensorIterator spilled_op_output_tensor_itr =
           spilled_op->getOutputTensor(0UL);
       mv::Data::TensorIterator spill_write_tensor_itr = om.dMATask(
-          spilled_op_output_tensor_itr, write_dma_direction, dma_op_name);
+          spilled_op_output_tensor_itr, write_dma_direction, 0, dma_op_name);
       Data::OpListIterator write_op_itr =
           om.getSourceOp(spill_write_tensor_itr);
       // set a dummy flows attribute //
@@ -71,7 +71,7 @@ class Force_Spill_Activation {
       dma_op_name =
         spilled_op->getName() + "_forceSpilledRead" + std::to_string(read_index++);
       mv::Data::TensorIterator spill_read_tensor_itr =
-        om.dMATask(spill_write_tensor_itr, read_dma_direction, dma_op_name);
+        om.dMATask(spill_write_tensor_itr, read_dma_direction, 0, dma_op_name);
       Data::OpListIterator read_op_itr =
           om.getSourceOp(spill_read_tensor_itr);
       read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);

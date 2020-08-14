@@ -118,6 +118,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     const std::string directionString = inputLocation.toString() + "2" + outputLocation.toString();
                     auto compensatorOutput = om.dMATask(inputTensor,
                                                     dmaDirectionStrings[directionString],
+                                                    0,
                                                     opIt->getName() + "_copy" + std::to_string(ctr));
 
                     //NOTE: When the dilated convolution is streamed, the dmas could be placed between
@@ -236,6 +237,7 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                     outQuantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
                 auto compensatorOutput = om.dMATask(outputTensor,
                                                         dmaDirectionStrings[directionString],
+                                                        0,
                                                         opIt->getName() + "_copy" + std::to_string(ctr));
 
                 if (compensatorOutput->hasAttr("quantParams"))

@@ -45,14 +45,14 @@ void strategyLayersToTensors(const mv::pass::PassEntry& , mv::ComputationModel& 
             unsigned startingIndex = 1;
             auto taskOp = layer->get<std::string>("taskOp");
 
-            if(taskOp == "Eltwise")
+            if (taskOp == "Eltwise")
                 startingIndex = 2;
 
-            for(unsigned i = startingIndex; i < n; ++i)
+            for (unsigned i = startingIndex; i < n; ++i)
             {
                 auto inputTensor = layer->getInputTensor(i);
                 inputTensor->set<std::string>("splitStrategy", opStrategy);
-                if(inputTensor->isSparse())
+                if (inputTensor->isSparse())
                     inputTensor->getSparsityMap()->set<std::string>("splitStrategy", opStrategy);
             }
         }

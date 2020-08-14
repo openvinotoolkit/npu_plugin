@@ -41,6 +41,7 @@ const std::string FILE_CPU_INPUT_NCHW_BGR   = "input_cpu_nchw_bgr.bin";
 const std::string FILE_CPU_INPUT_NHWC_BGR   = "input_cpu_nhwc_bgr.bin";
 const std::string DLDT_BIN_FOLDER       = "/bin/intel64/Debug/";
 const std::string FILE_BLOB_NAME        = "mcm.blob";
+const std::string TEST_RUNTIME          = "application/demo/InferenceManagerDemo";
 
 
 std::string getExtension(std::string& path)
@@ -99,6 +100,49 @@ template <typename T> void writeToFile(std::vector<T>& input, const std::string&
     std::ofstream dumper(dst, std::ios_base::binary);
     dumper.write(reinterpret_cast<char *>(&input[0]), input.size()*sizeof(T));
     dumper.close();
+}
+
+/*
+ * Calculates intersections and unions using associative containers.
+ * 1. Create intersection mapping with label as key and number of elements as value
+ * 2. Create union mapping with label as key and and number of elements as value
+ * 3. For each offset increase intersection and union maps
+ * 4. For each union label divide intersection cardinality by union cardinality
+ */
+static float calculateMeanIntersectionOverUnion(const std::vector<int32_t>& vpuOut, const std::vector<int32_t>& cpuOut) 
+{
+    std::map<int32_t, size_t> intersectionMap;
+    std::map<int32_t, size_t> unionMap;
+    for (size_t pos = 0; pos < vpuOut.size() && pos < cpuOut.size(); pos++) {
+        long vpuLabel = vpuOut.at(pos);
+        long cpuLabel = cpuOut.at(pos);
+        if (vpuLabel == cpuLabel) {
+            // labels are the same -- increment intersection at label key
+            // increment union at that label key only once
+            // if label has not been created yet, std::map sets it to 0
+            intersectionMap[vpuLabel]++;
+            unionMap[vpuLabel]++;
+        } else {
+            // labels are different -- increment element count at both labels
+            unionMap[vpuLabel]++;
+            unionMap[cpuLabel]++;
+        }
+    }
+
+    float totalIoU = 0.f;
+    size_t nonZeroUnions = 0;
+    for (const auto& unionPair : unionMap) {
+        const auto& labelId = unionPair.first;
+        float intersectionCardinality = intersectionMap[labelId];
+        float unionCardinality = unionPair.second;
+        float classIoU = intersectionCardinality / unionCardinality;
+        std::cout << "Label: " << labelId << " IoU: " << classIoU << std::endl;
+        nonZeroUnions++;
+        totalIoU += classIoU;
+    }
+
+    float meanIoU = totalIoU / nonZeroUnions;
+    return meanIoU;
 }
 
 void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
@@ -381,33 +425,26 @@ bool copyFile(std::string src, std::string dest)
 int runKmbInference(std::string evmIP, std::string blobPath)
 {
     // Clean old results
+    std::string testRuntime = getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME);
+    
     std::cout << "Deleting old kmb results files... " << std::endl;
-    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/output-0.bin");
+    std::string outputFile = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/output-0.bin");
     remove(outputFile.c_str());
 
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
-    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/input-0.bin");
+    std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
-    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/test.blob");
+    std::string blobDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/test.blob");
     if (!copyFile(blobPath, blobDest))
         return FAIL_GENERAL;
 
-    // read movisim port and runtime config from env var if exist
-    std::string movisimPort = "30001";
-    if(std::getenv("MOVISIM_PORT") != NULL)
-        movisimPort = std::getenv("MOVISIM_PORT");
-
-    std::string runtimeConfig = ".config";
-    if(std::getenv("RUNTIME_CONFIG") != NULL)
-        runtimeConfig = std::getenv("RUNTIME_CONFIG");
-
-    // accept runtime options from user to enable features, normally empty is opt-in option
-    std::string runtimeOptions = "";
-    if(std::getenv("RUNTIME_OPTIONS") != NULL)
-        runtimeOptions = std::getenv("RUNTIME_OPTIONS");
+    // read movisim port, runtime config and runtime options from env var if exist
+    std::string movisimPort = getEnvVarDefault("MOVISIM_PORT", "30001");
+    std::string runtimeConfig = getEnvVarDefault("RUNTIME_CONFIG", ".config");
+    std::string runtimeOptions = getEnvVarDefault("RUNTIME_OPTIONS", "");
 
     // check the size of the blob file
     std::ifstream blobfile(blobPath, std::ios::in);
@@ -430,7 +467,7 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // execute the blob
     std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
-    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + std::getenv("TEST_RUNTIME") + " && " +
+    std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
         "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
@@ -439,8 +476,8 @@ int runKmbInference(std::string evmIP, std::string blobPath)
         std::cout << std::endl << "Error occurred executing blob on runtime!" << std::endl;
         return FAIL_ERROR;
     }
-    std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << std::getenv("INFERENCE_PERFORMANCE_CHECK") << std::string("'") << std::endl;
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    std::cout << std::string("INFERENCE_PERFORMANCE_CHECK='") << getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") << std::string("'") << std::endl;
+    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
     {
         if (!checkFilesExist({outputFile}))
             return FAIL_RUNTIME;
@@ -458,7 +495,7 @@ int convertBlobToJson(std::string blobPath)
     std::string outputFile = getFilename(blobPath) + std::string(".json");
     remove(outputFile.c_str());
 
-    std::string commandline = std::string("flatc -t ") + mv::utils::projectRootPath() +
+    std::string commandline = std::string("flatc -t ") + std::getenv("MCM_HOME") +
         std::string("/schema/graphfile/src/schema/graphfile.fbs --strict-json -- ") + blobPath;
     std::cout << commandline << std::endl;
     int result = std::system(commandline.c_str());
@@ -473,7 +510,7 @@ int convertBlobToJson(std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-int validate(std::string blobPath, std::string expectedPath, std::string actualPath)
+int validate(std::string blobPath, std::string expectedPath, std::string actualPath, bool icNet=false)
 {
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
@@ -560,19 +597,44 @@ int validate(std::string blobPath, std::string expectedPath, std::string actualP
     }
     writeToFile(outputFP32, "./output-kmb-dequantized.bin");
 
+    bool pass = false;
     std::cout << "Reading in expected results... ";
     std::ifstream infile(expectedPath, std::ios::binary);
     infile.seekg(0, infile.end);
-    auto totalExpected = infile.tellg() / sizeof(float);
-    std::cout << totalExpected << " elements" << std::endl;
-    infile.seekg(0, infile.beg);
+    
+    if (!icNet) 
+    {   // expected results are float32 for all networks (except ICNet)
+        auto totalExpected = infile.tellg() / sizeof(float);
+        std::cout << totalExpected << " elements" << std::endl;
+        infile.seekg(0, infile.beg);
 
-    std::vector<float> expectedFP32(totalExpected);
-    infile.read(reinterpret_cast<char*>(&expectedFP32[0]), totalExpected*sizeof(float));
+        std::vector<float> expectedFP32(totalExpected);
+        infile.read(reinterpret_cast<char*>(&expectedFP32[0]), totalExpected*sizeof(float));
 
-    // compare
-    bool pass = false;
-    pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
+        // compare
+        pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
+    }
+    else
+    {   // Segmentation network comparison - ICnet CPU results are int32
+        auto totalExpected = infile.tellg() / sizeof(int32_t);
+        std::cout << totalExpected << " elements" << std::endl;
+        infile.seekg(0, infile.beg);
+
+        std::vector<int32_t> expectedInt32(totalExpected);
+        infile.read(reinterpret_cast<char*>(&expectedInt32[0]), totalExpected*sizeof(int32_t));
+        
+        // convert VPU results to int for comparison
+        std::vector<int32_t> actualInt32(outputFP32.size());
+        std::transform(outputFP32.begin(), outputFP32.end(), actualInt32.begin(), 
+                [](const float &arg) { return static_cast<int>(arg); });
+
+        // compare
+        float meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
+        float meanIntersectionOverUnionTolerance = 0.5f;
+        std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: >" << meanIntersectionOverUnionTolerance << ")" << std::endl;
+        if (meanIntersectionOverUnionTolerance < meanIoU)
+            pass = true;
+    }
     std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
     if (pass)
         return RESULT_SUCCESS;
@@ -590,16 +652,17 @@ int copyImage(std::string imagePath, std::string blobPath)
     std::vector<int> inputShape;
     for (uint32_t x=0; x<graphFile.header->net_input[0]->dimensions.size(); ++x)
         inputShape.push_back( graphFile.header->net_input[0]->dimensions[x] );
-    std::cout << "Input Shape: " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
+    std::cout << "Input Shape (NCHW): " << inputShape[0] << "," << inputShape[1] << "," << inputShape[2] << "," << inputShape[3] << std::endl;
 
     std::cout << "Querying Z/Ch Major conv... " << std::endl;
     std::vector<int> inputStrides;
     for (uint32_t x=0; x<graphFile.header->net_input[0]->strides.size(); ++x)
         inputStrides.push_back( graphFile.header->net_input[0]->strides[x] );
-    std::cout << "Input Strides: " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << std::endl;
+    std::cout << "Input Strides (KNCHW): " << inputStrides[0] << "," << inputStrides[1] << "," << inputStrides[2] << "," << inputStrides[3] << "," << inputStrides[4] <<std::endl;
 
+    // for channel major to be true, (NCHW), stride along width should be '1'
     bool zMajor = false;
-    if (! ((inputShape[1] < 16) && (inputShape[2] == inputStrides[3]) ))
+    if (! ((inputShape[1] < 16) && (inputStrides[4] == 1) ))
         zMajor = true;
 
     if (!(imagePath.find("bin") != std::string::npos) || (imagePath.find("dat") != std::string::npos))
@@ -709,7 +772,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     // call python script for numpy reshape/transpose
     std::string dtypeStr = "U8";
     if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
-    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() +
+    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME") +
         std::string("/python/tools/post_process.py --file ") + resultsPath + " --dtype " + dtypeStr + " --shape " +
         std::to_string(outputShape[0]) + "," + std::to_string(outputShape[1]) + "," + std::to_string(outputShape[2]) + "," + std::to_string(outputShape[3]) + sZMajor;
     std::cout << commandline << std::endl;
@@ -728,7 +791,7 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
 
 int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
 {
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") == std::string("true"))
+    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") == std::string("true"))
     {
         // InferencePerformanceCheck has no results to report
         return RESULT_SUCCESS;
@@ -737,11 +800,11 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
     // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
-    std::string commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults;
     if (networkType == "yolo") 
-        commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/yolo_bbox.py ") + imagePath;
+        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath;
     else if (networkType == "ssd") 
-        commandline = std::string("python3 ") + mv::utils::projectRootPath() + std::string("/python/tools/ssd_bbox.py ") + imagePath;
+        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/ssd_bbox.py ") + imagePath;
 
 
     std::cout << commandline << std::endl;
@@ -775,7 +838,6 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
     }
 
     // compare
-    // bool pass = (std::stoi(actualInferenceResults[0]) == std::stoi(expectedInferenceResults[0]));
     bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
     std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
     if (pass)
@@ -801,21 +863,24 @@ int main(int argc, char *argv[])
     if (!ParseAndCheckCommandLine(argc, argv))
         return FAIL_ERROR;
 
+    std::string networkType="classification";
+    if (FLAGS_m.find("yolo") != std::string::npos)
+        networkType="yolo";
+    else if (FLAGS_m.find("ssd") != std::string::npos)
+        networkType="ssd";
+    else if (FLAGS_m.find("icnet") != std::string::npos)
+        networkType="icnet";
+
     if (FLAGS_mode == "validate")
     {
         //bypass all and just run the validation function
         convertBlobToJson(FLAGS_b);
         std::string actualPathProcessed = "./output_transposed.dat";
         postProcessActualResults(FLAGS_a, FLAGS_b);
-        validate(FLAGS_b, FLAGS_e, actualPathProcessed);
-        
-        std::string networkType="classification";
-        if (FLAGS_m.find("yolo") != std::string::npos)
-            networkType="yolo";
-        else if (FLAGS_m.find("ssd") != std::string::npos)
-            networkType="ssd";
+        validate(FLAGS_b, FLAGS_e, actualPathProcessed, (networkType=="icnet"));
 
-        checkInference(FLAGS_a, FLAGS_i, networkType);
+        if (networkType!="icnet")
+            checkInference(FLAGS_a, FLAGS_i, networkType);
         return(0);
     }
 
@@ -845,23 +910,21 @@ int main(int argc, char *argv[])
     if ( result > 0 ) return result;
 
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
-    std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + std::getenv("TEST_RUNTIME") + std::string("/output-0.bin");
+    std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
     std::string actualPathProcessed = "./output_transposed.dat";
 
-    if(std::getenv("INFERENCE_PERFORMANCE_CHECK") != std::string("true"))
+    bool testPass=false;
+    if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
     {
         result = postProcessActualResults(actualPath, blobPath);
         if ( result > 0 ) return result;
 
-        validate(blobPath, expectedPath, actualPathProcessed);
+        testPass=validate(blobPath, expectedPath, actualPathProcessed, (networkType=="icnet"));
     }
 
-    // master test is if the top 1's match
-    std::string networkType="classification";
-    if (FLAGS_m.find("yolo") != std::string::npos)
-        networkType="yolo";
-    else if (FLAGS_m.find("ssd") != std::string::npos)
-        networkType="ssd";
+    // master test is if top 1's match - not for ICnet, it uses result of validate()
+    if (networkType!="icnet")
+        testPass = checkInference(actualPath, FLAGS_i, networkType);
 
-    return (checkInference(actualPath, FLAGS_i, networkType));
+    return testPass;
 }
