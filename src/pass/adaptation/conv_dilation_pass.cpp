@@ -482,18 +482,30 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
             om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
             om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-            auto dataUint8 = om.uPATaskQuantize({concatIt}, mv::DType("UInt8"), quantParams);
-            if (concatIt->hasAttr("splitStrategy"))
-                dataUint8->set<std::string>("splitStrategy", concatIt->get<std::string>("splitStrategy"));
-                        
-            auto quantizeOp = om.getSourceOp(dataUint8);
-            quantizeOp->set<unsigned>("opId", opId);
-
-            for (unsigned j = 0; j < opsToLink.size(); ++j)
+            if (nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
             {
-                opsToLink[j]->setInputTensor(dataUint8, inputSlots[j], false);
-                om.defineFlow(dataUint8, opsToLink[j], inputSlots[j]);
+                auto dataUint8 = om.uPATaskQuantize({concatIt}, mv::DType("UInt8"), quantParams);
+                if (concatIt->hasAttr("splitStrategy"))
+                    dataUint8->set<std::string>("splitStrategy", concatIt->get<std::string>("splitStrategy"));
+                            
+                auto quantizeOp = om.getSourceOp(dataUint8);
+                quantizeOp->set<unsigned>("opId", opId);
+
+                for (unsigned j = 0; j < opsToLink.size(); ++j)
+                {
+                    opsToLink[j]->setInputTensor(dataUint8, inputSlots[j], false);
+                    om.defineFlow(dataUint8, opsToLink[j], inputSlots[j]);
+                }
             }
+            else
+            {
+                for (unsigned j = 0; j < opsToLink.size(); ++j)
+                {
+                    opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                    om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+                }
+            }
+            
         }
 
         om.removeOp(deconvKernelOp);
