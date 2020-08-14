@@ -31,7 +31,7 @@
 #include "ngraph/op/reshape.hpp"
 #include <ngraph_ops/fully_connected.hpp>
 #include "ngraph/op/reduce_mean.hpp"
-#include "ngraph/op/fused/clamp.hpp"
+#include "ngraph/op/clamp.hpp"
 
 #include "ngraph/op/avg_pool.hpp"
 #include "ngraph/op/concat.hpp"
@@ -39,7 +39,7 @@
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/softmax.hpp"
 // not needed #include <ngraph_ops/prior_box_ie.hpp>
-#include "ngraph/op/fused/prelu.hpp"
+#include "ngraph/op/prelu.hpp"
 #include "ngraph/op/region_yolo.hpp"
 
 #include "ngraph/op/reorg_yolo.hpp"
@@ -51,7 +51,7 @@
 
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 
 #include <ngraph_ops/convolution_ie.hpp>
 #include <ngraph_ops/scaleshift.hpp>
@@ -61,7 +61,7 @@
 #include <ngraph/op/constant.hpp>
 
 #include <ngraph/op/transpose.hpp>
-#include <ngraph/op/fused/squeeze.hpp>
+#include <ngraph/op/squeeze.hpp>
 #include <ngraph/op/softmax.hpp>
 
 #include <memory>

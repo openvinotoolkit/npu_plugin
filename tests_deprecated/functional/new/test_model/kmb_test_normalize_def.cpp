@@ -17,7 +17,7 @@
 #include "kmb_test_normalize_def.hpp"
 
 #include <blob_factory.hpp>
-#include <ngraph/op/fused/normalize_l2.hpp>
+#include <ngraph/op/normalize_l2.hpp>
 #include <precision_utils.h>
 #include "vpu/utils/ie_helpers.hpp"
 

@@ -34,7 +34,7 @@
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 
 
 mv::QuantizationParams calcQuantParams(const float outputLowMin, const float outputHighMax, const int levels)
