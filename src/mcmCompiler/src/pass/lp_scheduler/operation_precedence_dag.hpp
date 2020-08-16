@@ -12,6 +12,7 @@
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 #include "pass/lp_scheduler/cmx_concat_transform.hpp"
+#include "pass/lp_scheduler/pipeline_transform.hpp"
 #include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
@@ -187,6 +188,10 @@ class Operation_Dag {
         cmx_concat_control_edge_t;
     typedef typename cmx_concat_algo_t::concat_subgraph_t cmx_concat_subgraph_t;
 
+    typedef mv::scheduler::Pipelining_Transform pipeline_algo_t;
+    typedef typename pipeline_algo_t::control_edge_t pipeline_control_edge_t;
+    typedef typename pipeline_algo_t::pipeline_subgraph_t pipeline_subgraph_t;
+
     struct cmx_concat_subgraph_hash_t {
       std::size_t operator() (const cmx_concat_subgraph_t& a) const {
         return (size_t)(a.representative_dpu_);
@@ -334,10 +339,19 @@ class Operation_Dag {
     void reset_from_cmx_concat_control_edges(mv::OpModel& omodel,
           const ControlEdgeContainer cedge_container) {
       init_from_model(omodel);
-      apply_cmx_concat_control_edges(cedge_container.begin(),
-            cedge_container.end());
-      update_resource_utility_for_cmx_concateable_dpu_ops(
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
+      update_resource_utility_with_attribute(
           cmx_concat_algo_t::cmx_concat_attribute() );
+    }
+
+    template<typename ControlEdgeContainer>
+    void reset_from_pipeline_control_edges(mv::OpModel& omodel,
+          const ControlEdgeContainer cedge_container) {
+      init_from_model(omodel);
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
+      connect_all_non_unit_outdegree_dmas_to_input(omodel);
+      update_resource_utility_with_attribute_all_ops(
+          pipeline_algo_t::pipeline_resource_attribute() );
     }
 
 
@@ -377,6 +391,27 @@ class Operation_Dag {
       // reinit the DAG with fresh op model //
       reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
     }
+
+    template<typename PipeLineControlEdgeContainer>
+    void enable_pipeline_transforms(mv::OpModel& omodel,
+          PipeLineControlEdgeContainer &pipeline_control_edges,
+            size_t cmx_size=917504UL) {
+
+      static_assert(std::is_same<
+          typename PipeLineControlEdgeContainer::value_type,
+            pipeline_control_edge_t>::value, "Invalid Control Edge container");
+
+      // generate control edges for CMX concatenation //
+      pipeline_algo_t pipeline_algo(omodel);
+
+      std::list<pipeline_subgraph_t> pipeline_subgraphs;
+      pipeline_algo.transform_op_model(
+          std::back_inserter(pipeline_control_edges), pipeline_subgraphs,
+            cmx_size);
+
+      reset_from_pipeline_control_edges(omodel, pipeline_control_edges);
+    }
+
 
     template<typename OpTypeIterator>
     void set_implicit_op_types(OpTypeIterator begin, OpTypeIterator end) {
@@ -471,6 +506,18 @@ class Operation_Dag {
       return (citr == citr_end);
     }
 
+    bool op_has_input_as_only_parent(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_parent_nodes(op),
+                                 citr_end = end_parent_nodes(op);
+
+      if (citr == citr_end) { return false; }
+      operation_t pop = *citr;
+      if (!is_input_op(pop)) { return false; }
+      ++citr;
+      bool ret_value = (citr == citr_end);
+
+    }
+
     // Precondition: out degree of op >= 1 //
     operation_t get_first_child_op(const operation_t& op) const {
       const_operation_iterator_t citr = begin_nodes(op);
@@ -535,9 +582,11 @@ class Operation_Dag {
     }
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
-      return dag.is_dma_op(op) &&
+      bool ret_value = dag.is_dma_op(op) &&
           !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
-          dag.op_has_unit_out_degree(op);
+           ( dag.op_has_zero_in_degree(op) ||
+             dag.op_has_input_as_only_parent(op) );
+      return ret_value;
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
       // an implicit op is a compute op which takes 0 resources //
@@ -1119,6 +1168,23 @@ class Operation_Dag {
       }
     }
 
+    void connect_all_non_unit_outdegree_dmas_to_input(mv::OpModel& model) {
+
+      // connect all non-unit outdegree DMAS to input //
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
+        operation_t op = &(*itr);
+        
+        if (is_operation_ignored(op, model)) { continue; }
+        if (!is_dma_op(op)) { continue; }
+        if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
+        if (op_has_unit_out_degree(op)) { continue; }
+
+        add_directed_edge_from_input(op);
+      }
+
+    }
+
       // short circuit implicit ops //
     void shorting_implicit_ops() {
       for (auto short_circuit_itr=implicit_op_types_.begin();
@@ -1135,7 +1201,7 @@ class Operation_Dag {
     }
 
     template<typename ControlEdgeIterator>
-    void apply_cmx_concat_control_edges(ControlEdgeIterator cbegin, 
+    void apply_control_edges(ControlEdgeIterator cbegin, 
         ControlEdgeIterator cend) {
       while (cbegin != cend) {
         operation_t src_op = (&(*((*cbegin).source_itr_)));
@@ -1145,15 +1211,26 @@ class Operation_Dag {
       }
     }
 
-    void update_resource_utility_for_cmx_concateable_dpu_ops(
-        const std::string& cmx_concat_attribute="cmx_concatable") {
+    void update_resource_utility_with_attribute(
+        const std::string& attribute="cmx_concatable") {
       for (typename resource_utility_map_t::iterator
             ritr = resource_utility_map_.begin();
             ritr != resource_utility_map_.end(); ++ritr) {
         operation_t op = ritr->first;
-        fflush(stdout);
-        if (is_dpu_op(op) && op->hasAttr(cmx_concat_attribute)) {
-          ritr->second = op->get<size_t>(cmx_concat_attribute);
+        if (is_dpu_op(op) && op->hasAttr(attribute)) {
+          ritr->second = op->get<size_t>(attribute);
+        }
+      }
+    }
+
+    void update_resource_utility_with_attribute_all_ops(
+        const std::string& attribute="cmx_concatable") {
+      for (typename resource_utility_map_t::iterator
+            ritr = resource_utility_map_.begin();
+            ritr != resource_utility_map_.end(); ++ritr) {
+        operation_t op = ritr->first;
+        if (op->hasAttr(attribute)) {
+          ritr->second = op->get<size_t>(attribute);
         }
       }
     }
@@ -1166,17 +1243,7 @@ class Operation_Dag {
       // Transform OpModel for scheduling //
       shorting_implicit_ops();
 
-      // connect all non-unit outdegree DMAS to input //
-      for (op_itr_t itr = mtraits::begin_operations(model);
-            itr != mtraits::end_operations(model); ++itr) {
-        operation_t op = &(*itr);
-        
-        if (is_operation_ignored(op, model)) { continue; }
-        if (!is_dma_op(op)) { continue; }
-        if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
-        if (op_has_unit_out_degree(op)) { continue; }
-        add_directed_edge_from_input(op);
-      }
+      connect_all_non_unit_outdegree_dmas_to_input(model);
 
       update_resource_utility_for_aligned_dma_ops(model);
 
@@ -1319,7 +1386,13 @@ class Operation_Dag {
       return true;
     }
 
+
     bool add_directed_edge_from_input(operation_t sink_op) {
+      operation_t source_op = get_input_op();
+      return add_directed_edge(source_op, sink_op);
+    }
+
+    bool add_directed_edge_from_input_old(operation_t sink_op) {
 
       operation_t source_op = get_input_op();
       master_op_iterator_t itr_source = ops_.find(source_op);

@@ -79,6 +79,11 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     alloc(tensor_itr);
   }
 
+  // Pipelining Addressing //
+  {
+    mv::scheduler::Pipelining_Transform pipeliner(om);
+    pipeliner.set_pipelined_operation_addresses();
+  }
 }
 
 
@@ -110,11 +115,23 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   // update the operation precedence dag with CMX concat transforms //
   bool apply_cmx_concat_transforms = passDesc.hasAttr("enable_cmx_concat") &&
     passDesc.get<bool>("enable_cmx_concat");
+  bool apply_pipeline_transforms = passDesc.hasAttr("enable_pipelining") &&
+    passDesc.get<bool>("enable_pipelining");
+
   typedef typename mv::scheduler::CMX_Concatenation::control_edge_t
       cmx_concat_control_edge_t;
-  std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
+  typedef typename mv::scheduler::Pipelining_Transform::control_edge_t
+      pipeline_control_edge_t;
 
-  if (apply_cmx_concat_transforms) {
+  std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
+  std::list<pipeline_control_edge_t> pipeline_control_edges;
+
+  //TODO(vamsikku): currently either CMX-concat or Pipelining can be done but
+  //not both.
+  if (apply_pipeline_transforms) {
+    input_dag.enable_pipeline_transforms(cm, pipeline_control_edges,
+          upper_bound);
+  } else if (apply_cmx_concat_transforms) {
     //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_before_transform.dot");
 
     std::string ignore_these_concats;
@@ -306,6 +323,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
   ///////////////////// REPACKING //////////////////////////////////////////////
+  //TODO(vamsikku): get rid of repacking.
   if (passDesc.hasAttr("enable_simple_repacking"))
   {
     // Repack all ops are now original//
@@ -325,7 +343,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
   }
   //////////////////////////////////////////////////////////////////////////////
-
 
 
 
@@ -375,6 +392,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
   }
 
+
   {
     control_edges.add_cmx_memory_control_edges(input_dag, model,
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
@@ -385,6 +403,11 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
+
+    if (!pipeline_control_edges.empty()) {
+      control_edges.add_control_edges_op_iterator(model,
+          pipeline_control_edges.begin(), pipeline_control_edges.end());
+    }
   }
   ////////////////////// Control Edge Generation ///////////////////////////////
 
