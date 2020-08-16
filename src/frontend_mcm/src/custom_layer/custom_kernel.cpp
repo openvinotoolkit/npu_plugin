@@ -82,28 +82,16 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
 SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
     IE_ASSERT(kernelDesc != nullptr);
-
-    // compiler workaround
+    // Number of elements we get from parser is always greater by one
     const auto argCount = kernelDesc->arg_count - 1;
-
-    const auto nextName = [](const char* name) {
-        while (*++name) {}
-        return name + 1;
-    };
-
-    auto namePtr = parser.get_string_table();
-    // first name in table is kernel name
-    namePtr = nextName(namePtr);
 
     auto arguments = SmallVector<CustomKernel::Argument>{};
     arguments.reserve(argCount);
     for (size_t i = 0; i < argCount; i++) {
         const auto arg = parser.get_argument(kernelDesc, i);
-        VPU_THROW_UNLESS(arg, "Cant find argument number %l", i);
-        // FIXME use get_name after compiler fix
-//        const auto argName = parser.get_name(arg);
-        arguments.emplace_back(std::string{namePtr}, static_cast<int>(arg->size_elm));
-        namePtr = nextName(namePtr);
+        VPU_THROW_UNLESS(arg, "Error while parsing custom layer elf file.");
+        const auto argName = parser.get_name(arg);
+        arguments.emplace_back(argName, static_cast<int>(arg->size_elm));
     }
 
     return arguments;

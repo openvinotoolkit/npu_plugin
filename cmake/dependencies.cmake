@@ -43,7 +43,7 @@ fetch_models_and_validation_set()
 # OpenCL compiler
 #
 
-set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.06.03")
+set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.06.03-with-symtable-fix")
 
 if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
