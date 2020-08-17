@@ -23,7 +23,7 @@
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 #include <details/ie_exception.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <memory>
 
 bool SplitFQ::run_on_node(std::shared_ptr<ngraph::Node> node) {

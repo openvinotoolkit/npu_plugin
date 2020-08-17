@@ -20,7 +20,7 @@
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 
 #include <memory>
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph/op/constant.hpp>
 #include <ngraph/type/element_type.hpp>
 #include "ngraph/op/concat.hpp"

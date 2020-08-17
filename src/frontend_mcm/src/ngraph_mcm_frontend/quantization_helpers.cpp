@@ -22,7 +22,7 @@
 #include <ngraph/runtime/reference/autobroadcast_binop.hpp>
 #include <ngraph/node.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <stack>
 #include <numeric>
 #include <algorithm>

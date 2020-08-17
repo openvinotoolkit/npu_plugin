@@ -22,7 +22,7 @@
 #include <ngraph/op/parameter.hpp>
 #include <ngraph/op/convert.hpp>
 #include <ngraph/op/constant.hpp>
-#include <ngraph/op/fused/fake_quantize.hpp>
+#include <ngraph/op/fake_quantize.hpp>
 #include <ngraph_ops/scaleshift.hpp>
 #include <vector>
 #include <numeric>
