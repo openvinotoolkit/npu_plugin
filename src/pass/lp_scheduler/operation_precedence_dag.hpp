@@ -515,7 +515,7 @@ class Operation_Dag {
       if (!is_input_op(pop)) { return false; }
       ++citr;
       bool ret_value = (citr == citr_end);
-
+      return ret_value;
     }
 
     // Precondition: out degree of op >= 1 //
