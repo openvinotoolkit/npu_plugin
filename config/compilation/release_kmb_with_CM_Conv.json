@@ -282,7 +282,7 @@
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
-              "enable_cmx_concat" : true
+              "enable_pipelining" : true
             },
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
@@ -338,6 +338,13 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "BuildGraphFileKmb",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

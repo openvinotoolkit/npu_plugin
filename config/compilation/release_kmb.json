@@ -24,8 +24,8 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ReferenceMode": false,
                 "ScaleFuseInput": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -57,6 +57,7 @@
                         "name_filter" : ".*weights.*",
                         "mem_location" : "BLOB"
                     }
+
                 ],
                 "streaming_strategy" :
                 [
@@ -138,7 +139,6 @@
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
                     "globalConfigs" : [
-
                         {"name" : "referenceDevice", "value" : "A0"},
                         {"name" : "totalClusters",  "value" : 4   },
                         {"name" : "clusterMemory",  "value" : 896 },
@@ -153,6 +153,7 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
+                        {"name" : "enablePipelining",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
@@ -166,17 +167,20 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : true}
+                                {"name" : "weightsSparsity",                      "value" : true},
+                                {"name" : "pipelining",                      "value" : true}
                             ]
                         },
                         {
                             "name" : "DepthwiseConv",
                             "strategies": [
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering", "SplitOverK"]},
+
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH", "StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH", "Clustering","SplitOverK"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                      "value" : true}
                             ]
                         },
                         {
@@ -186,7 +190,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                      "value" : true}
                             ]
                         },
                         {
@@ -195,7 +200,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                      "value" : false}
                             ]
                         },
                         {
@@ -205,7 +211,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                      "value" : true}
                             ]
                         }
                     ]
@@ -246,7 +253,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -277,13 +284,6 @@
         "Singular": [
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/input_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -294,20 +294,13 @@
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
             {
-                "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_control_model_before_tr.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
-            {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
             "TransitiveReduction",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/lp_scheduler_control_model.dot",
+                "output": "output/dots/scheduler_output_control.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
@@ -360,7 +353,7 @@
             "BuildGraphFileKmb",
             {
                 "name": "GenerateDot",
-                "output": "output/dots/before_serialization_control.dot",
+                "output": "output/dots/before_serialization.dot",
                 "scope": "ControlModel",
                 "content": "full",
                 "html": true
