@@ -40,6 +40,7 @@ if (UNIX)
                 IE::IESharedTests
                 IE::vpu_common_lib
                 IE::ngraph
+                IE::ngraph_reference
                 ${VPUSMM_LIB}
                 kmb_utils
                 Boost::filesystem

@@ -64,6 +64,7 @@ target_link_libraries(${TARGET_NAME}
         vpux
     PRIVATE
         IE::pugixml
+        IE::ngraph_reference
         kmb_utils
         ${MCM_COMPILER_LIBRARY})
 
