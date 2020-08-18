@@ -22,15 +22,6 @@ struct NodeItComparator
     }
 };
 
-struct DefaultComparator {
-  template<typename T>
-  bool operator()(T a, T b) const {
-    return a->getID() < b->getID();
-  }
-};
-
-
-
 using char_int_graph = mv::graph<char, int>;
 
 /*
@@ -258,60 +249,6 @@ TEST(graph_transitive_reduction, cycle) {
 
   EXPECT_FALSE(reducer.reduce());
 }
-
-
-TEST(graph_transitive_reduction, read_from_file) {
-  typedef size_t node_t;
-  typedef std::pair<size_t, size_t> edge_t;
-  using dag_t = mv::graph<node_t, edge_t>;
-  typedef typename dag_t::node_list_iterator node_iterator_t;
-  typedef mv::DAG_Transitive_Reducer<dag_t,
-          DefaultComparator, DefaultComparator> dag_transitive_reducer_t;
-
-
-  FILE *fptr = fopen("./test_input_dag_1.txt", "r");
-
-  dag_t test_dag;
-  std::unordered_map<node_t, node_iterator_t> node_iterators;
-
-  size_t node_count=0;
-  fscanf(fptr, "%*s%lu", &node_count);
-  printf("reading %lu nodes\n", node_count);
-
-  node_t node, node1, node2;
-  for (size_t i=0; i<node_count; i++) {
-    fscanf(fptr, "%lu", &node);
-    node_iterator_t node_itr = test_dag.node_insert(node);
-    node_iterators[node] = node_itr;
-  }
-
-  size_t edge_count=0;
-  fscanf(fptr, "%*s%lu", &edge_count);
-  printf("reading %lu edges\n", edge_count);
-
-  for (size_t i=0; i<edge_count; i++) {
-    fscanf(fptr, "%lu%lu", &node1, &node2);
-    auto node1_itr = node_iterators.find(node1);
-    auto node2_itr = node_iterators.find(node2);
-    ASSERT_TRUE(node1_itr != node_iterators.end());
-    ASSERT_TRUE(node2_itr != node_iterators.end());
-    edge_t e(node1, node2);
-
-    test_dag.edge_insert(node1_itr->second, node2_itr->second, e);
-  }
-
-  printf("done reading edges\n");
-  fflush(stdout);
-
-  dag_transitive_reducer_t reducer(test_dag);
-
-  EXPECT_TRUE(reducer.reduce());
-  reducer.dump_reduce_info();
-}
-
-
-
-
 
 template<typename IteratorA, typename IteratorB>
 bool EquivalentIteratorList(IteratorA abeg, IteratorA aend,
