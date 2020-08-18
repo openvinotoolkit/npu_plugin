@@ -411,11 +411,6 @@ ExecutableNetwork KmbTestBase::importNetwork() {
 void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
     IE_ASSERT(!DUMP_PATH.empty());
 
-    //  namespace fs = boost::filesystem;
-    //  if (!fs::exists(DUMP_PATH)) {
-    //      fs::create_directories(DUMP_PATH);
-    //  }
-
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 
     std::ofstream file(fileName, std::ios_base::out | std::ios_base::binary);
