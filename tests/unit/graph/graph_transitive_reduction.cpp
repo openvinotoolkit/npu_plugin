@@ -22,6 +22,177 @@ struct NodeItComparator
     }
 };
 
+struct DefaultComparator {
+  template<typename T>
+  bool operator()(T a, T b) const {
+    return a->getID() < b->getID();
+  }
+};
+
+
+
+using char_int_graph = mv::graph<char, int>;
+
+/*
+Generic sibling test:
+a--->d
+a--->e
+a--->f
+a--->g
+a--->h
+a--->i
+
+b--->d
+b--->e
+b--->f
+b--->g
+b--->h
+b--->i
+
+c--->d
+c--->e
+c--->f
+c--->g
+c--->h
+c--->i
+ */
+TEST (graph_transitive_reduction, sibling_test)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+    auto nf = g.node_insert('f');
+    auto ng = g.node_insert('g');
+    auto nh = g.node_insert('h');
+    auto ni = g.node_insert('i');
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(na, ne, 2);
+    auto e3 = g.edge_insert(na, nf, 3);
+    auto e4 = g.edge_insert(na, ng, 4);
+    auto e5 = g.edge_insert(na, nh, 5);
+    auto e6 = g.edge_insert(na, ni, 6);
+
+    auto e7 = g.edge_insert(nb, nd, 7);
+    auto e8 = g.edge_insert(nb, ne, 8);
+    auto e9 = g.edge_insert(nb, nf, 9);
+    auto e10 = g.edge_insert(nb, ng, 10);
+    auto e11 = g.edge_insert(nb, nh, 11);
+    auto e12 = g.edge_insert(nb, ni, 12);
+
+    auto e13 = g.edge_insert(nc, nd, 13);
+    auto e14 = g.edge_insert(nc, ne, 14);
+    auto e15 = g.edge_insert(nc, nf, 15);
+    auto e16 = g.edge_insert(nc, ng, 16);
+    auto e17 = g.edge_insert(nc, nh, 17);
+    auto e18 = g.edge_insert(nc, ni, 18);
+
+
+    // Siblings of node ne
+    std::vector<char> nodes_sid={'d','e','g','h','i'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nf); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node f";
+    }
+    EXPECT_EQ (nf->siblings_size(), count_nodes_sid) << "ERROR: wrong number of siblings of node f";
+
+    EXPECT_EQ ('e', *nd->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node d";
+    EXPECT_EQ ('d', *nf->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node f";
+    EXPECT_EQ ('d', *ni->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node i";
+
+    EXPECT_EQ ('i', *nd->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node d";
+    EXPECT_EQ ('i', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
+    EXPECT_EQ ('h', *ni->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node i";
+
+}
+
+/*
+Test:
+-check to get leftmost sibling: iterate over sibling of next parent
+-check when sibling share only 1 parent in common
+
+a     b
+|  / | \
+| /  |  \
+c    d    e
+ */
+
+
+TEST (graph_transitive_reduction, sibling_test_2)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+
+
+    auto e1 = g.edge_insert(na, nc, 1);
+    auto e2 = g.edge_insert(nb, nc, 2);
+    auto e3 = g.edge_insert(nb, nd, 3);
+    auto e4 = g.edge_insert(nb, ne, 4);
+
+    EXPECT_EQ ('e', *nc->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node c";
+    EXPECT_EQ ('d', *nc->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node c";
+
+    //Test for the previous bug found while removing parent when there is only one common parent with sibling
+    g.edge_erase(e1);
+
+    // Siblings of node nc
+    std::vector<char> nodes_sid={'d','e'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
+    }
+    EXPECT_EQ (2, count_nodes_sid) << "ERROR: wrong number of siblings of node c";
+
+}
+
+/*
+a  b  c
+|\ | /|
+| \|/ |
+d  e  f
+
+
+
+ */
+
+TEST (graph_transitive_reduction, sibling_test_3)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+    auto ne = g.node_insert('e');
+    auto nf = g.node_insert('f');
+
+
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(na, ne, 2);
+    auto e3 = g.edge_insert(nb, ne, 3);
+    auto e4 = g.edge_insert(nc, ne, 4);
+    auto e5 = g.edge_insert(nc, nf, 5);
+
+
+    EXPECT_EQ ('e', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
+    EXPECT_EQ ('e', *nf->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node f";
+
+    EXPECT_EQ (1, nf->siblings_size()) << "ERROR: wrong number of siblings of node f";
+}
+
+
 TEST (graph_transitive_reduction, test1)
 {
     // Define graph
@@ -32,7 +203,6 @@ TEST (graph_transitive_reduction, test1)
     auto nc = g.node_insert("c");
     auto nd = g.node_insert("d");
     auto ne = g.node_insert("e");
-
     g.edge_insert(na, nb, "na_nb");
     g.edge_insert(na, nc, "na_nc");
     g.edge_insert(na, nd, "na_nd");
@@ -71,14 +241,14 @@ TEST (graph_transitive_reduction, test1)
 typedef mv::DAG_Transitive_Reducer<graph_string_string,
         EdgeItComparator, NodeItComparator> transitive_reducer_t;
 TEST(graph_transitive_reduction, cycle) {
-  
+
   graph_string_string g;
 
   auto na = g.node_insert("a");
   auto nb = g.node_insert("b");
   auto nc = g.node_insert("c");
   auto nd = g.node_insert("d");
-  
+
   g.edge_insert(na, nb, "a->b");
   g.edge_insert(nb, nc, "b->c");
   g.edge_insert(nc, nd, "c->d");
@@ -88,6 +258,60 @@ TEST(graph_transitive_reduction, cycle) {
 
   EXPECT_FALSE(reducer.reduce());
 }
+
+
+TEST(graph_transitive_reduction, read_from_file) {
+  typedef size_t node_t;
+  typedef std::pair<size_t, size_t> edge_t;
+  using dag_t = mv::graph<node_t, edge_t>;
+  typedef typename dag_t::node_list_iterator node_iterator_t;
+  typedef mv::DAG_Transitive_Reducer<dag_t,
+          DefaultComparator, DefaultComparator> dag_transitive_reducer_t;
+
+
+  FILE *fptr = fopen("./test_input_dag_1.txt", "r");
+
+  dag_t test_dag;
+  std::unordered_map<node_t, node_iterator_t> node_iterators;
+
+  size_t node_count=0;
+  fscanf(fptr, "%*s%lu", &node_count);
+  printf("reading %lu nodes\n", node_count);
+
+  node_t node, node1, node2;
+  for (size_t i=0; i<node_count; i++) {
+    fscanf(fptr, "%lu", &node);
+    node_iterator_t node_itr = test_dag.node_insert(node);
+    node_iterators[node] = node_itr;
+  }
+
+  size_t edge_count=0;
+  fscanf(fptr, "%*s%lu", &edge_count);
+  printf("reading %lu edges\n", edge_count);
+
+  for (size_t i=0; i<edge_count; i++) {
+    fscanf(fptr, "%lu%lu", &node1, &node2);
+    auto node1_itr = node_iterators.find(node1);
+    auto node2_itr = node_iterators.find(node2);
+    ASSERT_TRUE(node1_itr != node_iterators.end());
+    ASSERT_TRUE(node2_itr != node_iterators.end());
+    edge_t e(node1, node2);
+
+    test_dag.edge_insert(node1_itr->second, node2_itr->second, e);
+  }
+
+  printf("done reading edges\n");
+  fflush(stdout);
+
+  dag_transitive_reducer_t reducer(test_dag);
+
+  EXPECT_TRUE(reducer.reduce());
+  reducer.dump_reduce_info();
+}
+
+
+
+
 
 template<typename IteratorA, typename IteratorB>
 bool EquivalentIteratorList(IteratorA abeg, IteratorA aend,
@@ -102,7 +326,7 @@ bool EquivalentIteratorList(IteratorA abeg, IteratorA aend,
     ++abeg;
     ++bbeg;
   }
-  return (abeg == aend) && (bbeg == bend); 
+  return (abeg == aend) && (bbeg == bend);
 }
 
 bool EquivalentLabelledGraphs(graph_string_string& g_a,
