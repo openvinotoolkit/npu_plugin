@@ -682,7 +682,7 @@ void TestNetworkDesc::fillUserOutputInfo(OutputsDataMap& info) const {
 
 Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels, int height, int width) {
     std::ostringstream imageFilePath;
-    imageFilePath << "get_data_path()" << "/" << image.imageFileName();
+    imageFilePath << TestDataHelpers::get_data_path() << "/" << image.imageFileName();
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);

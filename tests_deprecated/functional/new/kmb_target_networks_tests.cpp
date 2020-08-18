@@ -382,7 +382,7 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -401,7 +401,7 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_tiny_v2_ava_0001_tf_dense_int8_IRv10
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("416x416/person.bmp", false),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, false);
 }
 
@@ -588,7 +588,7 @@ TEST_F(KmbSSDNetworkTest, precommit_ssd512_caffe_dense_int8_IRv10_from_fp32) {
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd512/ssd512_caffe_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
-            TestImageDesc("512x512/dog_croped512.bmp", false),
+            TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
@@ -623,7 +623,7 @@ TEST_F(KmbSSDNetworkTest, precommit_ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_fr
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/ssd_mobilenet_v1_coco/ssd_mobilenet_v1_coco_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
-            TestImageDesc("300x300/dog.bmp", false),
+            TestImageDesc("300x300/dog.bmp", ImageFormat::RGB),
             0.3f,
             0.1f, 0.3f);
 }
