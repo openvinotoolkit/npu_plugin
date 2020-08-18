@@ -66,8 +66,7 @@ target_link_libraries(${TARGET_NAME}
         IE::pugixml
         IE::ngraph_reference
         kmb_utils
-        ${MCM_COMPILER_LIBRARY}
-        )
+        ${MCM_COMPILER_LIBRARY})
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
