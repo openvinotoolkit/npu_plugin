@@ -7,6 +7,7 @@
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
 #include "include/mcm/op_model.hpp"
+#include "pass/lp_scheduler/cmx_concat_transform.hpp"
 
 
 namespace mv {
@@ -20,6 +21,9 @@ class Pipelining_Transform {
     typedef const mv::Op* operation_t;
     typedef mv::Op* operation_non_const_t;
     typedef std::list<operation_t> op_list_t;
+    typedef CMX_Concatenation concat_subgraph_finder_t;
+    typedef typename concat_subgraph_finder_t::concat_subgraph_t
+        concat_subgraph_t;
 
     class exception_t : std::string {
       public:
@@ -107,6 +111,12 @@ class Pipelining_Transform {
 
       pipeline_subgraph_t() : dpus_(), weight_reads_(), writes_(), id_(),
         concat_root_() {}
+
+
+      bool is_valid() const {
+        return !dpus_.empty() && !weight_reads_.empty() &&
+          !weight_reads_.empty() && (concat_root_ != NULL);
+      }
 
       const std::string& name() const {
         return concat_root_->getName(); 
@@ -275,7 +285,7 @@ class Pipelining_Transform {
     }
 
     template<typename OutputIterator>
-    size_t locate_pipeline_subgraphs(OutputIterator output) {
+    size_t locate_pipeline_subgraphs_with_attribute(OutputIterator output) {
       std::unordered_map<size_t, pipeline_subgraph_t> subgraphs;
 
       for (mv::Data::OpListIterator oitr=omodel_.opBegin();
@@ -292,6 +302,77 @@ class Pipelining_Transform {
       }
       return subgraphs.size();
     }
+
+    template<typename T>
+    bool is_the_output_of_this_op_in_cmx(T op) const {
+      if (op->outputSlots() != 1UL) { return false; }
+      auto op_itr = omodel_.getOp(op->getName());
+      mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(0UL);
+      return tensor_itr->get<mv::Tensor::MemoryLocation>("Location") ==
+        mv::Tensor::MemoryLocation::NNCMX;
+    }
+
+    template<typename T>
+    bool is_the_output_of_this_op_populated_tensor(T op) const {
+      if (op->outputSlots() != 1UL) { return false; }
+      auto op_itr = omodel_.getOp(op->getName());
+      mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(0UL);
+      return tensor_itr->isPopulated();
+    }
+
+
+    pipeline_subgraph_t create_pipeline_subgraph_from_concat_subgraph(
+        const concat_subgraph_t& subgraph) const {
+      pipeline_subgraph_t pipeline_subgraph;
+      static size_t id = 0UL;
+
+      pipeline_subgraph.dpus_ = subgraph.dpu_in_;
+      pipeline_subgraph.concat_root_ = subgraph.concat_root_;
+      pipeline_subgraph.writes_ = subgraph.writes_;
+      pipeline_subgraph.id_ = ++id;
+
+
+      // fill the weight_reads_ //
+      const op_list_t &dpus = pipeline_subgraph.dpus_;
+      for (operation_t dpu : dpus) {
+        mv::Data::OpListIterator dpu_itr = omodel_.getOp(dpu->getName());
+        for (auto pitr=dpu_itr.leftmostParent(); pitr!=omodel_.opEnd();
+              ++pitr) {
+          //TODO(vamsikku): handle the case where the same DMA read is the 
+          //weight input for several DPU tasks.
+          if ( (pitr->getOpType() == "DMATask") &&
+                (is_the_output_of_this_op_in_cmx(pitr)) && 
+                (is_the_output_of_this_op_populated_tensor(pitr)) ) {
+            pipeline_subgraph.weight_reads_.push_back( &(*pitr) );
+          }
+        }
+      }
+
+      printf("pipeline_id = %lu is_valid=%s\n", id,
+            (pipeline_subgraph.is_valid()) ? "YES" : "NO");
+
+      return pipeline_subgraph;
+    }
+
+    template<typename OutputIterator>
+    size_t locate_pipeline_subgraphs(OutputIterator output) {
+      // STEP-0: locate all concat subgraphs //
+      concat_subgraph_finder_t subgraph_finder(omodel_);
+      std::list<concat_subgraph_t> concat_subgraphs;
+
+      subgraph_finder.locate_all_concat_subgraphs(
+          std::back_inserter(concat_subgraphs));
+
+      for (auto subgraph : concat_subgraphs) {
+        pipeline_subgraph_t pipelined_subgraph =
+            create_pipeline_subgraph_from_concat_subgraph(subgraph);
+        if (pipelined_subgraph.is_valid()) {
+          output = pipelined_subgraph;
+        }
+      }
+    }
+
+
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
@@ -311,6 +392,7 @@ class Pipelining_Transform {
 
         // STEP-0: normalize the subgraph //
         subitr->normalize(omodel_);
+        subitr->print();
         if (!(subitr->is_pipelineable(cmx_size))) { continue; }
 
 
