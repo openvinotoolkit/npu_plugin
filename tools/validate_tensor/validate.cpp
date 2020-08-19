@@ -971,7 +971,7 @@ int main(int argc, char *argv[])
     {
         testPass = true;
         for (auto idx=0; idx<countOutputs; ++idx)
-            testPass = testPass && checkInference(actualResults[0], expectedPaths[0], FLAGS_i, networkType);
+            testPass = testPass && checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
     }
 
     return testPass;
