@@ -857,10 +857,7 @@ int checkInference(std::string actualResults, std::string expectedResults, std::
     // compare
     bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
     std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
-    if (pass)
-        return RESULT_SUCCESS;
-    else
-        return FAIL_VALIDATION;
+    return pass;
 }
 
 int main(int argc, char *argv[])
@@ -878,7 +875,7 @@ int main(int argc, char *argv[])
     }
 
     if (!ParseAndCheckCommandLine(argc, argv))
-        return FAIL_ERROR;
+        return FAIL_ERROR; 
 
     std::string networkType="classification";
     if (FLAGS_m.find("yolo") != std::string::npos)
@@ -922,7 +919,7 @@ int main(int argc, char *argv[])
     // Normal operation
     int result = 0;
 
-    std::string blobPath("");
+    std::string blobPath(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/mcm.blob"));
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 ) return result;
 
@@ -946,7 +943,7 @@ int main(int argc, char *argv[])
     int32_t countOutputs = graphFile.header->net_output.size();
     std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu0.bin");
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
-    // std::string actualPathProcessed = "./output_transposed.dat";
+
     for (auto count=0; count<countOutputs; ++count)
     {   
         std::string outFile = actualPath.substr(0, actualPath.length()-5) + std::to_string(count) + ".bin";
@@ -970,8 +967,11 @@ int main(int argc, char *argv[])
     if (networkType!="icnet")
     {
         testPass = true;
-        for (auto idx=0; idx<countOutputs; ++idx)
-            testPass = testPass && checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
+        std::cout << countOutputs << std::endl;
+        for (auto idx=0; idx<countOutputs; ++idx) {
+            bool thisResult = checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
+            testPass = testPass && thisResult;
+        }
     }
 
     return testPass;
