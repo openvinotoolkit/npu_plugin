@@ -16,7 +16,6 @@ namespace KmbPreproc {
 
 enum class Path : int { SIPP = 0, M2I };
 
-bool useSIPP();
 bool isApplicable(
     const BlobMap& inputs, const std::map<std::string, PreProcessDataPtr>& preprocData, InputsDataMap& networkInputs);
 

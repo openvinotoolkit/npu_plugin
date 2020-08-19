@@ -109,14 +109,7 @@ protected:
     Blob::Ptr readReference(const std::string& reference_path, const TensorDesc& tensor_desc) const;
 
     Blob::Ptr createFakeNHWCBlob(const Blob::Ptr& blob) const;
-
-    bool isSIPP() const;
 };
-
-bool KmbPrivateConfigTests::isSIPP() const {
-    std::string USE_SIPP = std::getenv("USE_SIPP") != nullptr ? std::getenv("USE_SIPP") : "";
-    return !(USE_SIPP.find("0") != std::string::npos);
-}
 
 Blob::Ptr KmbPrivateConfigTests::createFakeNHWCBlob(const Blob::Ptr& blob) const {
     auto tensorDesc = blob->getTensorDesc();
@@ -195,11 +188,15 @@ Blob::Ptr KmbPrivateConfigTests::readReference(const std::string& reference_path
 TEST_P(KmbPrivateConfigTests, IE_VPU_KMB_PRIVATE_CONFIG_COMMON) {
 #if !defined(__arm__) && !defined(__aarch64__)
     SKIP();
+#else
+    if (!useSIPP()) {
+        SKIP();
+    }
 #endif
 
     const auto& p = GetParam();
 
-    if (p._checkSIPP && !isSIPP()) SKIP() << "The test is intended to be run with SIPP enabled";
+    if (p._checkSIPP) SKIP() << "The test is intended to be run with SIPP enabled";
 
     Blob::Ptr outputBlob =
         runInferWithConfig(p._modelPath, p._inputPath, p._preProc, p._privateConfig, p._inputWidth, p._inputHeight);

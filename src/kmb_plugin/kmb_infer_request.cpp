@@ -116,13 +116,7 @@ void KmbInferRequest::checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap&
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
-    // TODO: [Track number: S#31121]
-    // Get rid of environment variable USE_SIPP
-    if (getenv("USE_SIPP") != nullptr) {
-        checkConfigsAndExecPreprocessing(inputs, KmbPreproc::useSIPP());
-    } else {
-        checkConfigsAndExecPreprocessing(inputs, _config.useSIPP());
-    }
+    checkConfigsAndExecPreprocessing(inputs, _config.useSIPP());
 }
 
 static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob, const KmbAllocator::Ptr& allocator) {
@@ -172,7 +166,7 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
 void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     std::map<std::string, PreProcessDataPtr>& preprocData, InferenceEngine::InputsDataMap& networkInputs,
     InferenceEngine::ColorFormat out_format, unsigned int numShaves, unsigned int lpi) {
-    IE_ASSERT(_config.useSIPP() || KmbPreproc::useSIPP() || _config.useM2I());
+    IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(inputs, preprocData, networkInputs, out_format, numShaves, lpi, ppPath);
 }

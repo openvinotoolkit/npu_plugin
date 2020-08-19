@@ -18,19 +18,6 @@
 namespace InferenceEngine {
 namespace KmbPreproc {
 
-bool useSIPP() {
-#if defined(__arm__) || defined(__aarch64__)
-    const bool USE_SIPP = [](const char* str) -> bool {
-        std::string var(str ? str : "");
-        return var == "Y" || var == "YES" || var == "ON" || var == "1";
-    }(std::getenv("USE_SIPP"));
-
-    return USE_SIPP;
-#else
-    return false;
-#endif
-}
-
 #if defined(__arm__) || defined(__aarch64__)
 static bool supported(ResizeAlgorithm interp, ColorFormat inFmt) {
     return (interp == RESIZE_BILINEAR) && (inFmt == ColorFormat::NV12);
