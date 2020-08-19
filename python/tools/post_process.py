@@ -11,7 +11,7 @@ import re
 # command:
 #   python3 post_process.py --file <path to results file> --shape n,c,h,w --zmajor
 
-def convert_output(file_path, shape, datatype=np.uint8, zmajor=True):
+def convert_output(file_path, shape, datatype=np.uint8, zmajor=True, output_file="./output_transposed.dat"):
 
     new_shape = [int(shape[0]),
                  int(shape[1]),
@@ -25,7 +25,7 @@ def convert_output(file_path, shape, datatype=np.uint8, zmajor=True):
     else:
         data = data.transpose([0, 1, 2])
 
-    fp = open("output_transposed.dat", "wb")
+    fp = open(output_file, "wb")
     fp.write ((data.flatten()).astype(datatype).data)
     fp.close
 
@@ -36,6 +36,7 @@ def main():
     parser.add_argument('--dtype', type=str)
     parser.add_argument('--shape', type=str)
     parser.add_argument('--zmajor', action='store_true')
+    parser.add_argument('--output', type=str, default="./output_transposed.dat")
 
     args = parser.parse_args()
 
@@ -50,7 +51,7 @@ def main():
         else:
             datatype = np.uint8
 
-    convert_output(args.file, image_shape, datatype)
+    convert_output(args.file, image_shape, datatype, args.output)
     
 if __name__ == "__main__":
     main()
