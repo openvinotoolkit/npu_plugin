@@ -27,7 +27,6 @@
 #include <single_layer_common.hpp>
 #include <format_reader_ptr.h>
 #include <vpu/utils/error.hpp>
-#include <boost/filesystem.hpp>
 #include <blob_factory.hpp>
 
 //
@@ -411,11 +410,6 @@ ExecutableNetwork KmbTestBase::importNetwork() {
 
 void KmbTestBase::dumpBlob(const std::string& blobName, const Blob::Ptr& blob) {
     IE_ASSERT(!DUMP_PATH.empty());
-
-    namespace fs = boost::filesystem;
-    if (!fs::exists(DUMP_PATH)) {
-        fs::create_directories(DUMP_PATH);
-    }
 
     const auto fileName = vpu::formatString("%v/%v_%v.blob", DUMP_PATH, dumpBaseName, cleanName(blobName));
 
@@ -996,7 +990,7 @@ void KmbDetectionNetworkTest::runTest(
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
-std::vector<utils::YoloBBox> KmbDetectionNetworkTest::parseOutput(
+std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
         const Blob::Ptr& blob,
         size_t imgWidth, size_t imgHeight,
         float confThresh) {
@@ -1004,7 +998,7 @@ std::vector<utils::YoloBBox> KmbDetectionNetworkTest::parseOutput(
 
     const auto count = blob->size() / ELEM_COUNT;
 
-    std::vector<utils::YoloBBox> out;
+    std::vector<utils::BoundingBox> out;
     out.reserve(count);
 
     const auto ptr = blob->cbuffer().as<const float*>();
@@ -1028,7 +1022,7 @@ std::vector<utils::YoloBBox> KmbDetectionNetworkTest::parseOutput(
         const float xmax = ptr[i * ELEM_COUNT + 5];
         const float ymax = ptr[i * ELEM_COUNT + 6];
 
-        utils::YoloBBox bb (class_id, imgWidth * xmin, imgHeight * ymin, imgWidth * xmax, imgHeight * ymax, conf);
+        utils::BoundingBox bb (class_id, imgWidth * xmin, imgWidth * xmax, imgHeight * ymin, imgHeight * ymax, conf);
 
         out.push_back(bb);
     }
@@ -1036,8 +1030,8 @@ std::vector<utils::YoloBBox> KmbDetectionNetworkTest::parseOutput(
     return out;
 }
 
-void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::YoloBBox> &actualOutput,
-        std::vector<utils::YoloBBox> &refOutput, int imgWidth, int imgHeight, float boxTolerance, float probTolerance) {
+void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
+        std::vector<utils::BoundingBox> &refOutput, int imgWidth, int imgHeight, float boxTolerance, float probTolerance) {
     std::cout << "Ref Top:" << std::endl;
     for (size_t i = 0; i < refOutput.size(); ++i) {
         const auto& bb = refOutput[i];
@@ -1072,13 +1066,13 @@ void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::YoloBBox> &act
                 continue;
             }
 
-            const utils::YoloBox actualBox {
+            const utils::Box actualBox {
                     actualBB.left / imgWidth,
                     actualBB.top / imgHeight,
                     (actualBB.right - actualBB.left) / imgWidth,
                     (actualBB.bottom - actualBB.top) / imgHeight
             };
-            const utils::YoloBox refBox {
+            const utils::Box refBox {
                     refBB.left / imgWidth,
                     refBB.top / imgHeight,
                     (refBB.right - refBB.left) / imgWidth,
@@ -1148,6 +1142,35 @@ void KmbYoloV2NetworkTest::runTest(
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
+void KmbSSDNetworkTest::runTest(const TestNetworkDesc &netDesc, const TestImageDesc &image, float confThresh, float boxTolerance, float probTolerance)
+{
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        IE_ASSERT(actualBlobs.size() == 1u &&
+                   actualBlobs.size() == refBlobs.size());
+        auto actualBlob = actualBlobs.begin()->second;
+        auto refBlob    = refBlobs.begin()->second;
+
+        const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+
+        const auto imgWidth = inputDesc.getDims().at(3);
+        const auto imgHeight = inputDesc.getDims().at(2);
+
+        auto actualOutput = utils::parseSSDOutput(toFP32(actualBlob), imgWidth, imgHeight, confThresh);
+        auto refOutput = utils::parseSSDOutput(toFP32(refBlob), imgWidth, imgHeight, confThresh);
+
+        checkBBoxOutputs(actualOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CustomNet ///////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,9 +27,9 @@ static int entryIndex(int lw, int lh, int lcoords, int lclasses, int lnum, int b
     return batch * loutputs + n * lw * lh * (lcoords + lclasses + 1) + entry * lw * lh + loc;
 }
 
-static utils::YoloBox getRegionBox(
+static utils::Box getRegionBox(
     float* x, const std::vector<float>& biases, int n, int index, int i, int j, int w, int h, int stride) {
-    utils::YoloBox b;
+    utils::Box b;
     b.x = (i + x[index + 0 * stride]) / w;
     b.y = (j + x[index + 1 * stride]) / h;
     b.w = std::exp(x[index + 2 * stride]) * biases[2 * n] / w;
@@ -38,8 +38,7 @@ static utils::YoloBox getRegionBox(
     return b;
 }
 
-static void correctRegionBoxes(
-    std::vector<utils::YoloBox>& boxes, int n, int w, int h, int netw, int neth, int relative) {
+static void correctRegionBoxes(std::vector<utils::Box>& boxes, int n, int w, int h, int netw, int neth, int relative) {
     int new_w = 0;
     int new_h = 0;
     if ((static_cast<float>(netw) / w) < (static_cast<float>(neth) / h)) {
@@ -52,7 +51,7 @@ static void correctRegionBoxes(
 
     IE_ASSERT(static_cast<int>(boxes.size()) >= n);
     for (int i = 0; i < n; ++i) {
-        utils::YoloBox b = boxes[i];
+        utils::Box b = boxes[i];
         b.x = (b.x - (netw - new_w) / 2. / netw) / (static_cast<float>(new_w) / netw);
         b.y = (b.y - (neth - new_h) / 2. / neth) / (static_cast<float>(new_h) / neth);
         b.w *= static_cast<float>(netw) / new_w;
@@ -68,7 +67,7 @@ static void correctRegionBoxes(
 }
 
 static void getRegionBoxes(std::vector<float>& predictions, int lw, int lh, int lcoords, int lclasses, int lnum, int w,
-    int h, int netw, int neth, float thresh, std::vector<std::vector<float>>& probs, std::vector<utils::YoloBox>& boxes,
+    int h, int netw, int neth, float thresh, std::vector<std::vector<float>>& probs, std::vector<utils::Box>& boxes,
     int relative, const std::vector<float>& anchors) {
     for (int i = 0; i < lw * lh; ++i) {
         int row = i / lw;
@@ -114,7 +113,7 @@ static float overlap(float x1, float w1, float x2, float w2) {
     return right - left;
 }
 
-static float boxIntersection(const utils::YoloBox& a, const utils::YoloBox& b) {
+static float boxIntersection(const utils::Box& a, const utils::Box& b) {
     const float w = overlap(a.x, a.w, b.x, b.w);
     const float h = overlap(a.y, a.h, b.y, b.h);
 
@@ -125,17 +124,17 @@ static float boxIntersection(const utils::YoloBox& a, const utils::YoloBox& b) {
     return w * h;
 }
 
-static float boxUnion(const utils::YoloBox& a, const utils::YoloBox& b) {
+static float boxUnion(const utils::Box& a, const utils::Box& b) {
     const float i = boxIntersection(a, b);
     return a.w * a.h + b.w * b.h - i;
 }
 
-float utils::boxIntersectionOverUnion(const utils::YoloBox& a, const utils::YoloBox& b) {
+float utils::boxIntersectionOverUnion(const utils::Box& a, const utils::Box& b) {
     return boxIntersection(a, b) / boxUnion(a, b);
 }
 
 static void doNonMaximumSupressionSort(
-    std::vector<utils::YoloBox>& boxes, std::vector<std::vector<float>>& probs, int total, int classes, float thresh) {
+    std::vector<utils::Box>& boxes, std::vector<std::vector<float>>& probs, int total, int classes, float thresh) {
     std::vector<sortableYoloBBox> boxCandidates;
 
     for (int i = 0; i < total; ++i) {
@@ -153,9 +152,9 @@ static void doNonMaximumSupressionSort(
         });
         for (int i = 0; i < total; ++i) {
             if (probs[boxCandidates[i].index][k] == 0) continue;
-            utils::YoloBox a = boxes[boxCandidates[i].index];
+            utils::Box a = boxes[boxCandidates[i].index];
             for (int j = i + 1; j < total; ++j) {
-                utils::YoloBox b = boxes[boxCandidates[j].index];
+                utils::Box b = boxes[boxCandidates[j].index];
                 if (utils::boxIntersectionOverUnion(a, b) > thresh) {
                     probs[boxCandidates[j].index][k] = 0;
                 }
@@ -192,14 +191,14 @@ static float clampToImageSize(const float& valueToClamp, const float& low, const
     return result;
 }
 
-static void getDetections(int imw, int imh, int num, float thresh, utils::YoloBox* boxes,
-    std::vector<std::vector<float>>& probs, int classes, std::vector<utils::YoloBBox>& detect_result) {
+static void getDetections(int imw, int imh, int num, float thresh, utils::Box* boxes,
+    std::vector<std::vector<float>>& probs, int classes, std::vector<utils::BoundingBox>& detect_result) {
     for (int i = 0; i < num; ++i) {
         int idxClass = maxIndex(probs[i], classes);
         float prob = probs[i][idxClass];
 
         if (prob > thresh) {
-            utils::YoloBox b = boxes[i];
+            utils::Box b = boxes[i];
 
             float left = (b.x - b.w / 2.) * imw;
             float right = (b.x + b.w / 2.) * imw;
@@ -210,18 +209,18 @@ static void getDetections(int imw, int imh, int num, float thresh, utils::YoloBo
             float clampedTop = clampToImageSize(top, 0, imh);
             float clampedBottom = clampToImageSize(bot, 0, imh);
 
-            utils::YoloBBox bx(idxClass, clampedLeft, clampedTop, clampedRight, clampedBottom, prob);
+            utils::BoundingBox bx(idxClass, clampedLeft, clampedTop, clampedRight, clampedBottom, prob);
             detect_result.push_back(bx);
         }
     }
 }
 
-static std::vector<utils::YoloBBox> yolov2BoxExtractor(
+static std::vector<utils::BoundingBox> yolov2BoxExtractor(
     float threshold, std::vector<float>& net_out, int imgWidth, int imgHeight, int class_num, bool isTiny) {
     int classes = class_num;
     int coords = 4;
     int num = 5;
-    std::vector<utils::YoloBBox> boxes_result;
+    std::vector<utils::BoundingBox> boxes_result;
 
     std::vector<float> TINY_YOLOV2_ANCHORS = {1.08, 1.19, 3.42, 4.41, 6.63, 11.38, 9.42, 5.11, 16.62, 10.52};
     std::vector<float> YOLOV2_ANCHORS = {
@@ -236,7 +235,7 @@ static std::vector<utils::YoloBBox> yolov2BoxExtractor(
     int lh = 13;
     float nms = 0.4;
 
-    std::vector<utils::YoloBox> boxes(lw * lh * num);
+    std::vector<utils::Box> boxes(lw * lh * num);
     std::vector<std::vector<float>> probs(lw * lh * num, std::vector<float>(classes + 1, 0.0));
 
     std::vector<float> anchors;
@@ -258,7 +257,29 @@ static std::vector<utils::YoloBBox> yolov2BoxExtractor(
     return boxes_result;
 }
 
-std::vector<utils::YoloBBox> utils::parseYoloOutput(
+static std::vector<utils::BoundingBox> SSDBoxExtractor(
+    float threshold, std::vector<float>& net_out, size_t imgWidth, size_t imgHeight) {
+    std::vector<utils::BoundingBox> boxes_result;
+
+    if (net_out.empty()) {
+        return boxes_result;
+    }
+    size_t oneDetectionSize = 7;
+
+    IE_ASSERT(net_out.size() % oneDetectionSize == 0);
+
+    for (size_t i = 0; i < net_out.size() / oneDetectionSize; i++) {
+        if (net_out[i * oneDetectionSize + 2] > threshold) {
+            boxes_result.emplace_back(net_out[i * oneDetectionSize + 1], net_out[i * oneDetectionSize + 3] * imgWidth,
+                net_out[i * oneDetectionSize + 4] * imgHeight, net_out[i * oneDetectionSize + 5] * imgWidth,
+                net_out[i * oneDetectionSize + 6] * imgHeight, net_out[i * oneDetectionSize + 2]);
+        }
+    }
+
+    return boxes_result;
+}
+
+std::vector<utils::BoundingBox> utils::parseYoloOutput(
     const ie::Blob::Ptr& blob, size_t imgWidth, size_t imgHeight, float confThresh, bool isTiny) {
     auto ptr = blob->cbuffer().as<float*>();
     IE_ASSERT(ptr != nullptr);
@@ -268,14 +289,29 @@ std::vector<utils::YoloBBox> utils::parseYoloOutput(
         results[i] = ptr[i];
     }
 
-    std::vector<utils::YoloBBox> out;
+    std::vector<utils::BoundingBox> out;
     int classes = 20;
     out = yolov2BoxExtractor(confThresh, results, imgWidth, imgHeight, classes, isTiny);
 
     return out;
 }
 
-void utils::printYoloBBoxOutputs(std::vector<utils::YoloBBox>& actualOutput, std::ostringstream& outputStream,
+std::vector<utils::BoundingBox> utils::parseSSDOutput(
+    const InferenceEngine::Blob::Ptr& blob, size_t imgWidth, size_t imgHeight, float confThresh) {
+    auto blobPtr = InferenceEngine::as<InferenceEngine::MemoryBlob>(blob);
+    IE_ASSERT(blobPtr != nullptr);
+
+    auto minputHolder = blobPtr->wmap();
+    auto dataPtr = minputHolder.as<float*>();
+    std::vector<float> results(blob->size());
+    std::copy_n(dataPtr, blob->size(), results.begin());
+
+    std::vector<utils::BoundingBox> out;
+    out = SSDBoxExtractor(confThresh, results, imgWidth, imgHeight);
+    return out;
+}
+
+void utils::printDetectionBBoxOutputs(std::vector<utils::BoundingBox>& actualOutput, std::ostringstream& outputStream,
     const std::vector<std::string>& labels) {
     outputStream << "Actual top:" << std::endl;
     for (size_t i = 0; i < actualOutput.size(); ++i) {
