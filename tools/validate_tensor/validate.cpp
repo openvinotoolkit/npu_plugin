@@ -891,12 +891,13 @@ int main(int argc, char *argv[])
     std::vector<std::string> actualResults;
     std::vector<std::string> actualResultsProcessed;
     std::vector<std::string> expectedPaths;
-    MVCNN::GraphFileT graphFile;
-    generateGraphFile(FLAGS_b, graphFile);
-    int32_t countOutputs = graphFile.header->net_output.size();
 
     if (FLAGS_mode == "validate")
     {
+        MVCNN::GraphFileT graphFile;
+        generateGraphFile(FLAGS_b, graphFile);
+        int32_t countOutputs = graphFile.header->net_output.size();
+
         //bypass all and just run the validation function
         for (auto count=0; count<countOutputs; ++count)
         {   // output-0.bin -> output-1.bin
@@ -940,6 +941,9 @@ int main(int argc, char *argv[])
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
 
+    MVCNN::GraphFileT graphFile;
+    generateGraphFile(FLAGS_b, graphFile);
+    int32_t countOutputs = graphFile.header->net_output.size();
     // std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
     // std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
     // std::string actualPathProcessed = "./output_transposed.dat";
