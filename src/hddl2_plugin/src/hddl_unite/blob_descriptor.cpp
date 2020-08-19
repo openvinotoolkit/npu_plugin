@@ -95,11 +95,12 @@ static size_t calculateBlobSizeFromTensor(const IE::TensorDesc& tensorDesc) {
     return IE::details::product(tensorDesc.getDims().begin(), tensorDesc.getDims().end());
 }
 
-using matchColorFormats_t = std::unordered_map<IE::ColorFormat, HddlUnite::Inference::FourCC>;
+using matchColorFormats_t = std::unordered_map<int, HddlUnite::Inference::FourCC>;
 
 static HddlUnite::Inference::FourCC getColorFormat(IE::ColorFormat colorFormat) {
-    static const matchColorFormats_t matchColorFormats = {{IE::ColorFormat::BGR, HddlUnite::Inference::FourCC::BGR},
-        {IE::ColorFormat::RGB, HddlUnite::Inference::FourCC::RGB}};
+    static const matchColorFormats_t matchColorFormats = {
+        {static_cast<int>(IE::ColorFormat::BGR), HddlUnite::Inference::FourCC::BGR},
+        {static_cast<int>(IE::ColorFormat::RGB), HddlUnite::Inference::FourCC::RGB}};
 
     auto format = matchColorFormats.find(colorFormat);
     if (format == matchColorFormats.end()) {
