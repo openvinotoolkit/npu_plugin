@@ -303,14 +303,10 @@ bool tensorIter(SizeVector& ind, const TensorDesc& desc) {
 void KmbTestBase::compareOutputs(
         const Blob::Ptr& refOutput, const Blob::Ptr& actualOutput,
         float tolerance, CompareMethod method) {
-    ASSERT_EQ(refOutput->size(), actualOutput->size());
-
     const auto& refDesc = refOutput->getTensorDesc();
     const auto& actualDesc = actualOutput->getTensorDesc();
 
-    const auto& ref_dims = refDesc.getDims();
-    const auto& actual_dims = actualDesc.getDims();
-    ASSERT_TRUE(ref_dims == actual_dims);
+    ASSERT_EQ(refDesc.getDims(), actualDesc.getDims());
 
     BufferWrapper refPtr(refOutput);
     BufferWrapper actualPtr(actualOutput);
@@ -319,7 +315,7 @@ void KmbTestBase::compareOutputs(
 
     SizeVector tensorInd(refDesc.getDims().size());
 
-    for (size_t i = 0; (i < printCount) && tensorIter(tensorInd, refDesc); ++i) {
+    for (size_t i = 0; i < printCount; ++i) {
         const auto refOffset = refDesc.offset(tensorInd);
         const auto actualOffset = actualDesc.offset(tensorInd);
 
@@ -333,6 +329,10 @@ void KmbTestBase::compareOutputs(
                   << " actual : " << std::setw(10) << actualVal
                   << " absdiff : " << std::setw(10) << absdiff
                   << std::endl;
+
+        if (!tensorIter(tensorInd, refDesc)) {
+            break;
+        }
     }
 
     EXPECT_NO_FATAL_FAILURE(compareBlobs(actualOutput, refOutput, tolerance, method));
