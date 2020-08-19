@@ -27,6 +27,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -66,10 +67,10 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceConcatOfPopulatedTensorsFcn(pass, model);
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
+    replacePermuteAsReshape(pass, model);
 }
 
-void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
-{
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model) {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
@@ -77,8 +78,7 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
     auto detectionOps = om.getOps("DetectionOutput");
 
-    for (auto& opIt : detectionOps)
-    {
+    for (auto &opIt : detectionOps) {
         auto confData = opIt->getInputTensor(1);
         auto parent = om.getSourceOp(confData);
 
@@ -88,15 +88,13 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
         auto sourceFlowStart = parent.leftmostOutput();
 
-        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
-        {
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow) {
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             flowsToRemove.push_back(sinkFlow);
         }
 
-        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-        {
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++) {
             om.undefineFlow(flowsToRemove[flowIdx]);
         }
 
@@ -104,15 +102,27 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         uint64_t numClasses = opIt->get<int64_t>("num_classes");
         auto totalSize = confData->getShape().totalSize();
         mv::Shape newShape({numClasses, totalSize / numClasses, 1, 1});
-        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeBeforePermute");
+        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0},
+                                                                                                                  {1},
+                                                                                                                  {-inf},
+                                                                                                                  {inf}},
+                                                                       "reshapeBeforePermute");
 
         std::string newOrder = "NCWH";
-        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "new_permute");
+        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder),
+                                                             mv::DType("Default"), {{0},
+                                                                                    {1},
+                                                                                    {-inf},
+                                                                                    {inf}}, "new_permute");
 
-        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeAfterPermute");
+        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(),
+                                                                      mv::DType("Default"), {{0},
+                                                                                             {1},
+                                                                                             {-inf},
+                                                                                             {inf}},
+                                                                      "reshapeAfterPermute");
 
-        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-        {
+        for (unsigned op = 0; op < opsToLink.size(); ++op) {
             opsToLink[op]->setInputTensor(reshapeAfterPermuteData, inputSlots[op], false);
             om.defineFlow(reshapeAfterPermuteData, opsToLink[op], inputSlots[op]);
         }
@@ -120,8 +130,7 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         auto reshapeBeforeOp = om.getSourceOp(reshapeBeforePermuteData);
         auto permuteOp = om.getSourceOp(transposedData);
         auto reshapeAfterOp = om.getSourceOp(reshapeAfterPermuteData);
-        if(parent->hasAttr("opId"))
-        {
+        if (parent->hasAttr("opId")) {
             unsigned currentOpId = parent->get<unsigned>("opId");
             reshapeBeforeOp->set<unsigned>("opId", currentOpId);
             permuteOp->set<unsigned>("opId", currentOpId);
@@ -131,6 +140,70 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         reshapeAfterPermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+    auto permuteOps = om.getOps("Permute");
+
+    for (auto& opIt : permuteOps)
+    {
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+
+        std::vector<size_t> inputRealShape, outputRealShape;
+        for (int i = 0; i < 4; i++)
+        {
+            if(inputShape[i] != 1)
+            {
+                inputRealShape.push_back(inputShape[i]);
+            }
+            if(outputShape[i] != 1)
+            {
+                outputRealShape.push_back(outputShape[i]);
+            }
+        }
+
+        if(inputRealShape.size() == outputRealShape.size())
+        {
+            bool match = true;
+            for(int i = 0; i < inputRealShape.size(); i++)
+            {
+                match &= (inputRealShape[i] == outputRealShape[i]);
+            }
+
+            if(match)
+            {
+                auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                auto sourceTensor = opIt->getInputTensor(0);
+                auto parentOpIt = om.getSourceOp(sourceTensor);
+                auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+                auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+                auto zp = outputTensorQuantizationParams.getZeroPoint();
+                auto scale = outputTensorQuantizationParams.getScale();
+
+                std::cout << "outputTensorType " << outputTensorType.toString() << std::endl;
+                std::cout << "zp " << zp[0] << std::endl;
+                std::cout << "scale " << scale[0] << std::endl;
+                
+                auto reshape = om.reshape(sourceTensor, outputShape, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
+                auto reshapeOp = om.getSourceOp(reshape);
+
+                if(opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    reshapeOp->set<unsigned>("opId", currentOpId);
+                }
+
+                linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
+                reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
+        }
     }
 }
 
