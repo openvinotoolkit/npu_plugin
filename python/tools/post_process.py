@@ -51,7 +51,7 @@ def main():
         else:
             datatype = np.uint8
 
-    convert_output(args.file, image_shape, datatype, args.output)
+    convert_output(args.file, image_shape, datatype, zmajor=True, output_file=args.output)
     
 if __name__ == "__main__":
     main()

@@ -32,7 +32,7 @@ const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 
 // files used
 const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
-const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
+const std::string FILE_CPU_OUTPUT       = "output_cpu0.bin";
 const std::string FILE_CPU_INPUT        = "input_cpu.bin";
 const std::string FILE_CPU_INPUT_FP16   = "input_cpu_fp16.bin";
 const std::string FILE_CPU_INPUT_NCHW_RGB   = "input_cpu_nchw_rgb.bin";
@@ -942,18 +942,18 @@ int main(int argc, char *argv[])
     if ( result > 0 ) return result;
 
     MVCNN::GraphFileT graphFile;
-    generateGraphFile(FLAGS_b, graphFile);
+    generateGraphFile(blobPath, graphFile);
     int32_t countOutputs = graphFile.header->net_output.size();
-    // std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
-    // std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
+    std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu0.bin");
+    std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
     // std::string actualPathProcessed = "./output_transposed.dat";
     for (auto count=0; count<countOutputs; ++count)
-    {   // output-0.bin -> output-1.bin
-        std::string outFile = FLAGS_a.substr(0, FLAGS_a.length()-5) + std::to_string(count) + ".bin";
+    {   
+        std::string outFile = actualPath.substr(0, actualPath.length()-5) + std::to_string(count) + ".bin";
         actualResults.emplace_back(outFile);
 
         // output_cpu
-        std::string expectedFile = FLAGS_e.substr(0, FLAGS_e.length()-5) + std::to_string(count) + ".bin";
+        std::string expectedFile = expectedPath.substr(0, expectedPath.length()-5) + std::to_string(count) + ".bin";
         expectedPaths.emplace_back(expectedFile);
     }
 
