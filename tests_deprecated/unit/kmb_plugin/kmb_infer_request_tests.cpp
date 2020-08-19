@@ -377,11 +377,7 @@ class kmbInferRequestSIPPPreprocessing :
 TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
     KmbConfig config;
     const auto param = GetParam();
-    if (param == "config_option") {
-        config.update({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}});
-    } else if (param == "environment_variable") {
-        setenv("USE_SIPP", "0", 1);
-    }
+    config.update({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(NO)}});
 
     auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     _inferRequest = std::make_shared<TestableKmbInferRequest>(
@@ -401,9 +397,6 @@ TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
 
     _inferRequest->InferAsync();
 
-    if (param == "environment_variable") {
-        unsetenv("USE_SIPP");
-    }
 }
 
 INSTANTIATE_TEST_CASE_P(
