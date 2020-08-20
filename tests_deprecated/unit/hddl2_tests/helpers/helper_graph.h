@@ -16,8 +16,10 @@
 
 #pragma once
 
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <models/precompiled_resnet.h>
 #include "hddl2_graph.h"
+#include <fstream>
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -26,18 +28,42 @@ class ImportedGraph_Helper {
 public:
     ImportedGraph_Helper();
     Graph::Ptr getGraph();
+    static void skipMagic(std::ifstream &blobStream);
 
 protected:
     const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
     Graph::Ptr _graphPtr = nullptr;
 };
 
-inline ImportedGraph_Helper::ImportedGraph_Helper() {
-    MCMConfig defaultConfig;
-    _graphPtr= std::make_shared<ImportedGraph>(_modelToImport, defaultConfig);
+inline void ImportedGraph_Helper::skipMagic(std::ifstream &blobStream) {
+    if (!blobStream.is_open()) {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
+    }
+    InferenceEngine::ExportMagic magic = {};
+    blobStream.seekg(0, blobStream.beg);
+    blobStream.read(magic.data(), magic.size());
+    auto exportedWithName = (exportMagic == magic);
+    if (exportedWithName) {
+        std::string tmp;
+        std::getline(blobStream, tmp);
+    } else {
+        blobStream.seekg(0, blobStream.beg);
+    }
 }
 
-Graph::Ptr ImportedGraph_Helper::getGraph() {
+inline ImportedGraph_Helper::ImportedGraph_Helper() {
+    MCMConfig defaultConfig;
+    std::ifstream blobFile(_modelToImport, std::ios::binary);
+
+    if (!blobFile.is_open()) {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
+    }
+
+    skipMagic(blobFile);
+    _graphPtr= std::make_shared<ImportedGraph>(blobFile, defaultConfig);
+}
+
+inline Graph::Ptr ImportedGraph_Helper::getGraph() {
     return _graphPtr;
 }
 

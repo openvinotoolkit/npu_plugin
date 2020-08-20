@@ -91,15 +91,25 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(const ICore* core, con
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
-    auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    IE_PROFILING_AUTO_SCOPE(ImportNetwork);
+    std::ifstream blobFile(modelFileName, std::ios::binary);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
+    if (!blobFile.is_open()) {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
+    }
 
-    return IExecutableNetwork::Ptr(new ExecutableNetworkBase<ExecutableNetworkInternal>(executableNetwork),
-        [](InferenceEngine::details::IRelease* p) {
-            p->Release();
-        });
+    InferenceEngine::ExportMagic magic = {};
+    blobFile.seekg(0, blobFile.beg);
+    blobFile.read(magic.data(), magic.size());
+    auto exportedWithName = (exportMagic == magic);
+    if (exportedWithName) {
+        std::string tmp;
+        std::getline(blobFile, tmp);
+    } else {
+        blobFile.seekg(0, blobFile.beg);
+    }
+
+    return ImportNetworkImpl(blobFile, config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(

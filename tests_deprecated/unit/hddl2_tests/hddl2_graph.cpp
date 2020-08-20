@@ -18,6 +18,7 @@
 
 #include "gtest/gtest.h"
 #include "hddl2_plugin.h"
+#include "helper_graph.h"
 #include "mcm_config.h"
 #include "models/model_pooling.h"
 #include "models/precompiled_resnet.h"
@@ -43,14 +44,16 @@ public:
         std::string operator()(testing::TestParamInfo<typeOfGraph> const& info) const;
     };
 
-private:
+protected:
     const vpu::MCMConfig _defaultMCMConfig = vpu::MCMConfig();
 };
 
 void Graph_Common_UnitTests::SetUp() {
     if (GetParam() == fromImportedGraph) {
         const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-        ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(_modelToImport, _defaultMCMConfig));
+        std::ifstream blobFile(_modelToImport, std::ios::binary);
+        ASSERT_NO_THROW(ImportedGraph_Helper::skipMagic(blobFile));
+        ASSERT_NO_THROW(graphPtr = std::make_shared<ImportedGraph>(blobFile, _defaultMCMConfig));
     } else {
         ModelPooling_Helper modelPoolingHelper;
         CNNNetwork network = modelPoolingHelper.network;

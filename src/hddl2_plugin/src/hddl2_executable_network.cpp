@@ -73,18 +73,6 @@ void ExecutableNetwork::loadGraphToDevice() {
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    const std::string& blobFilename, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : _config(config),
-      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
-      _context(castIEContextToHDDL2(ieContext)) {
-    _graphPtr = std::make_shared<ImportedGraph>(blobFilename, config);
-    this->_networkInputs = _graphPtr->getInputsInfo();
-    this->_networkOutputs = _graphPtr->getOutputsInfo();
-
-    loadGraphToDevice();
-}
-
-ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),

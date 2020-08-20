@@ -70,22 +70,6 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
 }
 
 //------------------------------------------------------------------------------
-ImportedGraph::ImportedGraph(const std::string& blobFilename, const MCMConfig& config) {
-    // TODO find usage for mcmConfig in case of imported network
-    UNUSED(config);
-
-    std::ifstream blobFile(blobFilename, std::ios::binary);
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << "[ERROR] Could not open file: " << blobFilename;
-    }
-
-    loadFileToString(blobFilename, _blobContentString);
-
-    _graphName = extractFileName(blobFilename);
-    MCMAdapter::getNetworkInputs(_blobContentString.c_str(), _networkInputs);
-    MCMAdapter::getNetworkOutputs(_blobContentString.c_str(), _networkOutputs);
-}
-
 ImportedGraph::ImportedGraph(std::istream& networkModel, const MCMConfig& config) {
     // TODO find usage for mcmConfig in case of imported network
     UNUSED(config);
