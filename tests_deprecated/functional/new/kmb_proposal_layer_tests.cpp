@@ -55,9 +55,7 @@ std::ostream& operator<<(std::ostream& os, const ProposalTestParams& p) {
 class KmbProposalLayerTests : public KmbLayerTestBase,
                               public testing::WithParamInterface<ProposalTestParams> {};
 
-/* FIXME: mcmCompiler doesn't support multiple inputs with float precision
- * [Track number: D#3036] */
-TEST_P(KmbProposalLayerTests, DISABLED_AccuracyTest) {
+TEST_P(KmbProposalLayerTests, AccuracyTest) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
 
     const auto& p = GetParam();
@@ -145,7 +143,7 @@ const std::vector<ProposalTestParams> proposalParams {
                                 .min_size(16u)
                                 .nms_thresh(0.7)
                                 .normalize(false)
-                                .post_nms_topn(300)
+                                .post_nms_topn(1)
                                 .pre_nms_topn(6000)
                                 .for_deformable(false)
                                 .framework("tensorflow")
@@ -166,7 +164,7 @@ const std::vector<ProposalTestParams> proposalParams {
                                     .min_size(10u)
                                     .nms_thresh(0.7)
                                     .normalize(false)
-                                    .post_nms_topn(100)
+                                    .post_nms_topn(1)
                                     .pre_nms_topn(2147483647)
                                     .for_deformable(false)
                                     .framework("tensorflow")
@@ -185,7 +183,7 @@ const std::vector<ProposalTestParams> proposalParams {
                                     .min_size(10u)
                                     .nms_thresh(0.7)
                                     .normalize(false)
-                                    .post_nms_topn(300)
+                                    .post_nms_topn(1)
                                     .pre_nms_topn(6000)
                                     .for_deformable(false)
                                     .framework("caffe")

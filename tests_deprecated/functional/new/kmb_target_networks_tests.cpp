@@ -956,7 +956,7 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
+TEST_F(GazeEstimationNetworkTest, gaze_estimation_adas_0002) {
     const auto left_eye_input_name = "left_eye_image";
     const auto right_eye_input_name = "right_eye_image";
     const auto head_pos_input_name = "head_pose_angles";
