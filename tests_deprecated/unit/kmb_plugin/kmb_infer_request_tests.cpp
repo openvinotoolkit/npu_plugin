@@ -75,6 +75,7 @@ private:
 
 class MockExecutor : public vpux::Executor {
 public:
+    MOCK_METHOD2(push, void(const ie::BlobMap&, const vpux::PreprocMap&));
     MOCK_METHOD1(push, void(const ie::BlobMap&));
     MOCK_METHOD1(pull, void(ie::BlobMap&));
 
@@ -127,8 +128,8 @@ public:
 // FIXME: cannot be run on x86 the tests below use vpusmm allocator and requires vpusmm driver instaled
 // can be enabled with other allocator
 // [Track number: S#28136]
+// TODO Compile these tests, but do not run [Track number: S#37579]
 #if defined(__arm__) || defined(__aarch64__)
-
 class kmbInferRequestUseCasesUnitTests : public kmbInferRequestConstructionUnitTests {
 protected:
     ie::InputsDataMap _inputs;

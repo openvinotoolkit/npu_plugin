@@ -44,8 +44,9 @@ public:
         const HDDL2RemoteContext::CPtr& remoteContext = nullptr,
         const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR);
 
-    void prepareUniteInput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::InputInfo::Ptr& info);
-    void prepareUniteOutput(const InferenceEngine::Blob::Ptr& blob, const InferenceEngine::DataPtr& desc);
+    // TODO Now similar to prepareUniteOutput, make one for all?
+    void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
+    void prepareUniteOutput(const InferenceEngine::DataPtr& desc);
 
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
     void waitInferDone() const;

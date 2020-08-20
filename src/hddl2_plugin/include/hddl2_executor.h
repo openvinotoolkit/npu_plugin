@@ -33,7 +33,7 @@ public:
 
     void setup(const InferenceEngine::ParamMap& params) override;
 
-    void push(const InferenceEngine::BlobMap& inputs) override;
+    void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
 
     bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const override;
@@ -43,17 +43,21 @@ public:
     InferenceEngine::Parameter getParameter(const std::string& paramName) const override;
 
     // TODO Temporary solution. Remove when infer request implementation will be done
-    vpu::HDDL2Plugin::HddlUniteGraph::CPtr getUniteGraph() { return _uniteGraphPtr; }
-    vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr getContext() { return _context; }
+    vpu::HDDL2Plugin::HddlUniteGraph::CPtr getUniteGraph() const { return _uniteGraphPtr; }
+    vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr getContext() const { return _context; }
+    NetworkDescription::CPtr getNetworkDesc() const { return _network; }
+
+    void push(const InferenceEngine::BlobMap& inputs) override;
 
 private:
-    NetworkDescription::Ptr _network;
+    NetworkDescription::CPtr _network;
     vpu::HDDL2Plugin::HDDL2RemoteContext::Ptr _context;
 
     const vpu::HDDL2Config _config;
     const vpu::Logger::Ptr _logger;
 
     vpu::HDDL2Plugin::HddlUniteGraph::Ptr _uniteGraphPtr;
+    vpu::HDDL2Plugin::HddlUniteInferData::Ptr _inferDataPtr = nullptr;
     void loadGraphToDevice();
 };
 }  // namespace HDDL2

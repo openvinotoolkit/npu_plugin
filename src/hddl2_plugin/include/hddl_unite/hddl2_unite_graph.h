@@ -34,14 +34,14 @@ public:
     /**
      * @brief Create HddlUnite graph object using context to specify which devices to use
      */
-    explicit HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const HDDL2RemoteContext::Ptr& context,
+    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::Ptr& context,
         const LogLevel& logLevel = LogLevel::Error);
 
     /**
      * @brief Create HddlUnite graph object using specific device. If empty, use all
      * available devices
      */
-    explicit HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const std::string& deviceID = "",
+    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID = "",
         const LogLevel& logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();

@@ -51,15 +51,14 @@ protected:
 };
 
 //------------------------------------------------------------------------------
-//      class HDDL2RemoteBlob
-//------------------------------------------------------------------------------
 class HDDL2RemoteBlob : public InferenceEngine::RemoteBlob {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteBlob>;
+    using CPtr = std::shared_ptr<const HDDL2RemoteBlob>;
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
         const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config);
-    ~HDDL2RemoteBlob() override { deallocate(); }
+    ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**
      * @details Since Remote blob just wrap remote memory, allocation is not required

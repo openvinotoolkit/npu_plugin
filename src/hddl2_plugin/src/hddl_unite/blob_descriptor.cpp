@@ -31,7 +31,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static void checkBlobIsValid(const IE::Blob::Ptr& blob) {
+static void checkBlobIsValid(const IE::Blob::CPtr& blob) {
     if (blob == nullptr) {
         THROW_IE_EXCEPTION << "Blob is null";
     }
@@ -40,7 +40,7 @@ static void checkBlobIsValid(const IE::Blob::Ptr& blob) {
     }
 }
 
-static void checkBlobCompatibility(const IE::Blob::Ptr& blob) {
+static void checkBlobCompatibility(const IE::Blob::CPtr& blob) {
     if (blob->is<HDDL2RemoteBlob>() || blob->is<IE::MemoryBlob>() || blob->is<IE::NV12Blob>()) {
         return;
     }
@@ -56,17 +56,17 @@ static void checkDataIsValid(const IE::DataPtr& data) {
     }
 }
 
-static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::Ptr& blob) {
+static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::CPtr& blob) {
     RemoteMemoryFD memoryFd = 0;
     try {
-        HDDL2RemoteBlob::Ptr remoteBlobPtr = std::dynamic_pointer_cast<HDDL2RemoteBlob>(blob);
+        HDDL2RemoteBlob::CPtr remoteBlobPtr = std::dynamic_pointer_cast<const HDDL2RemoteBlob>(blob);
         memoryFd = remoteBlobPtr->getRemoteMemoryFD();
     } catch (const std::exception& ex) {
         printf("Failed to get memory fd from remote blob! %s\n", ex.what());
     }
     return memoryFd;
 }
-static bool isBlobContainsNV12Data(const IE::Blob::Ptr& blobPtr) {
+static bool isBlobContainsNV12Data(const IE::Blob::CPtr& blobPtr) {
     if (blobPtr->is<IE::NV12Blob>()) {
         return true;
     } else if (blobPtr->is<HDDL2RemoteBlob>()) {
@@ -76,7 +76,7 @@ static bool isBlobContainsNV12Data(const IE::Blob::Ptr& blobPtr) {
     return false;
 }
 
-static IE::SizeVector getNV12ImageDims(const IE::Blob::Ptr& blobPtr) {
+static IE::SizeVector getNV12ImageDims(const IE::Blob::CPtr& blobPtr) {
     if (blobPtr->is<IE::NV12Blob>()) {
         auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
         if (nv12Ptr == nullptr) {
@@ -110,15 +110,31 @@ static HddlUnite::Inference::FourCC getColorFormat(IE::ColorFormat colorFormat) 
     return format->second;
 }
 
-//------------------------------------------------------------------------------
-BlobDescriptor::BlobDescriptor(
-    const IE::DataPtr& desc, const IE::Blob::Ptr& blob, bool createRemoteMemoryDescriptor, bool isNeedAllocation)
-    : _createRemoteMemoryDescriptor(createRemoteMemoryDescriptor), _isNeedAllocation(isNeedAllocation) {
-    checkBlobIsValid(blob);
-    checkBlobCompatibility(blob);
+static size_t getSizeFromTensor(const IE::TensorDesc& tensorDesc) {
+    if (tensorDesc.getLayout() == IE::Layout::SCALAR) {
+        return 1;
+    }
+    const auto& dims = tensorDesc.getDims();
+    const auto elementSize = tensorDesc.getPrecision().size();
+    const size_t size =
+        elementSize * std::accumulate(std::begin(dims), std::end(dims), (size_t)1, std::multiplies<size_t>());
+    return size;
+}
 
-    _isNV12Data = isBlobContainsNV12Data(blob);
-    _blobPtr = blob;
+//------------------------------------------------------------------------------
+BlobDescriptor::BlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob, bool createRemoteMemoryDescriptor,
+    bool isNeedAllocation, bool isOutput)
+    : _createRemoteMemoryDescriptor(createRemoteMemoryDescriptor),
+      _isNeedAllocation(isNeedAllocation),
+      _blobPtr(blob),
+      _isOutput(isOutput) {
+    /// For output use only desc information
+    if (!isOutput) {
+        checkBlobIsValid(blob);
+        checkBlobCompatibility(blob);
+
+        _isNV12Data = isBlobContainsNV12Data(blob);
+    }
 
     checkDataIsValid(desc);
     _desc = desc;
@@ -129,13 +145,18 @@ HddlUnite::Inference::BlobDesc BlobDescriptor::createUniteBlobDesc(
     HddlUnite::Inference::BlobDesc blobDesc;
     HddlUnite::Inference::Precision precision = Unite::convertFromIEPrecision(_desc->getPrecision());
 
-    size_t blobSize = _blobPtr->byteSize();
+    size_t blobSize = 0;
+    if (!_isOutput) {
+        blobSize = _blobPtr->byteSize();
 
-    // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
-    if (_blobPtr->is<IE::NV12Blob>()) {
-        createRepackedNV12Blob(_blobPtr);
-        checkBlobIsValid(_repackedBlob);
-        blobSize = _repackedBlob->byteSize();
+        // TODO [Workaround] If it's NV12 Blob, use repacked memory instead
+        if (_blobPtr->is<IE::NV12Blob>()) {
+            createRepackedNV12Blob(_blobPtr);
+            checkBlobIsValid(_repackedBlob);
+            blobSize = _repackedBlob->byteSize();
+        }
+    } else {
+        blobSize = getSizeFromTensor(_desc->getTensorDesc());
     }
 
     blobDesc = HddlUnite::Inference::BlobDesc(precision, _createRemoteMemoryDescriptor, _isNeedAllocation, blobSize);
@@ -144,7 +165,7 @@ HddlUnite::Inference::BlobDesc BlobDescriptor::createUniteBlobDesc(
     return blobDesc;
 }
 
-void BlobDescriptor::createRepackedNV12Blob(const IE::Blob::Ptr& blobPtr) {
+void BlobDescriptor::createRepackedNV12Blob(const IE::Blob::CPtr& blobPtr) {
     if (!blobPtr->is<IE::NV12Blob>()) THROW_IE_EXCEPTION << "Incorrect blob for repacking!";
 
     auto nv12Ptr = blobPtr->as<IE::NV12Blob>();
@@ -239,7 +260,8 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
         blobDesc.m_fd = getFDFromRemoteBlob(_blobPtr);
     } else {
-        blobDesc.m_srcPtr = _blobPtr->buffer().as<void*>();
+        // TODO Replace with rlock
+        blobDesc.m_srcPtr = _blobPtr->cbuffer().as<void*>();
 
         if (_blobPtr->is<IE::NV12Blob>()) {
             if (_repackedBlob == nullptr) {
@@ -252,16 +274,16 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
 }
 
 //------------------------------------------------------------------------------
-LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob, false, true) {
+LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
+    : BlobDescriptor(desc, blob, false, true, blob == nullptr) {
     if (blob->is<HDDL2RemoteBlob>()) {
         THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
     }
 }
 
 //------------------------------------------------------------------------------
-RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::Ptr& blob)
-    : BlobDescriptor(desc, blob, true, blob && !blob->is<HDDL2RemoteBlob>()) {
+RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
+    : BlobDescriptor(desc, blob, true, blob ? !blob->is<HDDL2RemoteBlob>() : true, blob == nullptr) {
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
         _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
     }

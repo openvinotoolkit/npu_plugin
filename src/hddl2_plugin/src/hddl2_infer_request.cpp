@@ -94,15 +94,20 @@ HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::InputsDataMap& netwo
     const vpu::HDDL2Config& config)
     : HDDL2InferRequest(networkInputs, networkOutputs,
           std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getUniteGraph(),
-          std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getContext(), config) {}
+          std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getContext(),
+          std::dynamic_pointer_cast<vpux::HDDL2::HDDL2Executor>(executor)->getNetworkDesc(), config, executor) {}
 
 HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
-    const HddlUniteGraph::CPtr& loadedGraph, const HDDL2RemoteContext::CPtr& context, const vpu::HDDL2Config& config)
+    const HddlUniteGraph::CPtr& loadedGraph, const HDDL2RemoteContext::CPtr& context,
+    const vpux::NetworkDescription::CPtr& networkDesc, const vpu::HDDL2Config& config,
+    const vpux::Executor::Ptr& executor)
     : InferRequestInternal(networkInputs, networkOutputs),
-      _loadedGraphPtr(loadedGraph),
-      _context(context),
+      _executorPtr(executor),
       _config(config),
-      _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())),
+      _networkDesc(networkDesc),
+      _loadedGraphPtr(loadedGraph),
+      _context(context) {
     for (const auto& networkInput : _networkInputs) {
         const std::string inputName = networkInput.first;
         const IE::TensorDesc inputTensorDesc = networkInput.second->getTensorDesc();
@@ -129,92 +134,28 @@ void HDDL2InferRequest::InferImpl() {
     GetResult();
 }
 
-void HDDL2InferRequest::InferAsync() {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
-    // TODO [Design flaw] InferData need to know if preprocessing required on creation.
-    bool needUnitePreProcessing = false;
-    IE::BlobMap updatedInputs;
+//------------------------------------------------------------------------------
+//      UNDER CONSTRUCTION SECTION - START
+//      Helpers for push (to be removed) - START
+//------------------------------------------------------------------------------
 
-    for (const auto& networkInput : _networkInputs) {
-        const std::string inputName = networkInput.first;
-        auto foundInputBlob = _inputs.find(inputName);
-        if (foundInputBlob == _inputs.end()) {
-            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
-        }
+// clang-format off
 
-        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-        if (preProcessingRequired(networkInput.second, inputBlobPtr)) {
-            needUnitePreProcessing = true;
-        }
-        if (inputBlobPtr->is<HDDL2RemoteBlob>()) {
-            needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
-        }
-
-        const auto deviceInputLayout = GetSupportedLayout();
-
-        // TODO [Design flaw] If preprocessing is required, blob is stored inside _preprocData, not in _networkInputs.
-        if (!needUnitePreProcessing) {
-            updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
-        } else {
-            updatedInputs[foundInputBlob->first] = foundInputBlob->second;
-        }
-    }
-
-    std::call_once(_onceFlagInferData, [&] {
-        _inferDataPtr =
-            std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context, _config.getGraphColorFormat());
-    });
-
-    for (const auto& networkInput : _networkInputs) {
-        const std::string inputName = networkInput.first;
-        const IE::InputInfo::Ptr inputDesc = networkInput.second;
-
-        // TODO [Design flaw] At this point we have input blob or preprocessing blob specified inside _preProcData
-        if (_preProcData.find(inputName) != _preProcData.end()) {
-            const IE::PreProcessDataPtr preprocessData = _preProcData.find(inputName)->second;
-            const IE::Blob::Ptr blobForPreprocessing = preprocessData->getRoiBlob();
-
-            _inferDataPtr->prepareUniteInput(blobForPreprocessing, inputDesc);
-        } else {
-            auto foundInputBlob = updatedInputs.find(inputName);
-            if (foundInputBlob == updatedInputs.end()) {
-                THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
-            }
-            const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
-            _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
-        }
-    }
-
-    for (const auto& networkOutput : _networkOutputs) {
-        const std::string outputName = networkOutput.first;
-        auto foundOutputBlob = _outputs.find(outputName);
-        if (foundOutputBlob == _outputs.end()) {
-            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
-        }
-        const IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
-
-        _inferDataPtr->prepareUniteOutput(outputBlobPtr, networkOutput.second);
-    }
-
-    _loadedGraphPtr->InferAsync(_inferDataPtr);
-}
-
-void HDDL2InferRequest::WaitInferDone() {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "WaitInferDone");
-    _inferDataPtr->waitInferDone();
+// TODO Inside executor we have such information (deviceInputs)
+static IE::Layout getSupportedLayout() {
+    return InferenceEngine::Layout::NHWC;
 }
 
 static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE::Layout layout) {
     IE::Blob::Ptr newBlob =
-        make_blob_with_precision({blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout});
+            make_blob_with_precision({blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout});
     newBlob->allocate();
     vpu::copyBlob(blob, newBlob);
     return newBlob;
 }
 
-IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
-    const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "prepareInputForInference");
+static IE::Blob::Ptr prepareInputForInference(
+        const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
     if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
         /** Currently we ignore information of what type of remote blob we are using **/
         actualInput->is<IE::RemoteBlob>() ||
@@ -224,7 +165,6 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
         return actualInput;
     }
 
-    _logger->info("Input blob is inconsistent with network input. Need to do re-layout.");
     IE::Blob::Ptr inputForInference;
 
     if (is2DTensor(actualInput->getTensorDesc().getDims())) {
@@ -237,12 +177,126 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
         inputForInference->allocate();
 
         ie_memcpy(
-            inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
+                inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
     } else {
         inputForInference = reallocateBlobToLayout(actualInput, expectedLayout);
     }
 
     return inputForInference;
+}
+/**
+ * @brief Create map with preProcessing info and move all preProcessing blobs to inputs BlobMap
+ * @param[in/out] inputs Map with NN blobs. PP blobs should be placed instead for some inputs.
+ * @param[in] networkInputs Contains information of pre-processing, which should be done
+ * @param[in] preProcData Container with blobs, which should be preprocessed
+ * @return Map with preprocess information
+ */
+vpux::PreprocMap
+HDDL2InferRequest::preparePreProcessing(InferenceEngine::BlobMap &inputs,
+                                        const InferenceEngine::InputsDataMap &networkInputs,
+                                        const std::map<std::string, InferenceEngine::PreProcessDataPtr> &preProcData) {
+    vpux::PreprocMap preProcMap;
+    for (auto& input : networkInputs) {
+        const std::string inputName = input.second->name();
+        const auto& preProcDataIt = preProcData.find(inputName);
+        if (preProcDataIt != preProcData.end()) {
+            const IE::Blob::Ptr& blobForPreProcessing = preProcDataIt->second->getRoiBlob();
+            if (preProcessingRequired(input.second, blobForPreProcessing)) {
+                IE::Blob::Ptr blobForPreProc = preProcDataIt->second->getRoiBlob();
+                /// If pre-processing required, we need use PP blobs instead of NN for inputs
+                inputs.at(inputName) = blobForPreProcessing;
+                preProcMap.emplace(input.first, input.second->getPreProcess());
+            }
+        }
+    }
+    return preProcMap;
+}
+
+//------------------------------------------------------------------------------
+//      Helpers for push (to be removed) - END
+//------------------------------------------------------------------------------
+
+/**
+ * FIXME Stub to reduce dependencies step by step
+ */
+static void pushStab(const vpux::NetworkDescription::CPtr &_networkDesc,
+                     const InferenceEngine::BlobMap &inputs,
+                     const vpux::PreprocMap &preProcMap,
+                     const HddlUniteGraph::CPtr &_loadedGraphPtr,
+                     HddlUniteInferData::Ptr &_inferDataPtr, std::once_flag &_onceFlagInferData,
+                     const vpu::HDDL2Config &_config, const HDDL2RemoteContext::CPtr &_context) {
+    // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
+    bool needUnitePreProcessing = false;
+    IE::BlobMap updatedInputs;
+
+    const auto& networkInputs = _networkDesc->getInputsInfo();
+    for (const auto& networkInput : networkInputs) {
+        const std::string inputName = networkInput.first;
+        auto foundInputBlob = inputs.find(inputName);
+        if (foundInputBlob == inputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        if (preProcMap.find(inputName) != preProcMap.end()) {
+            needUnitePreProcessing = true;
+        }
+        if (inputBlobPtr->is<HDDL2RemoteBlob>()) {
+            needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
+        }
+
+        const auto deviceInputLayout = getSupportedLayout();
+        updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
+    }
+
+    // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
+    std::call_once(_onceFlagInferData, [&] {
+        _inferDataPtr = std::make_shared<HddlUniteInferData>(needUnitePreProcessing, _context, _config.getGraphColorFormat());
+    });
+
+    for (const auto& networkInput : networkInputs) {
+        const std::string inputName = networkInput.first;
+        const IE::DataPtr inputDesc = networkInput.second;
+
+        if (preProcMap.find(inputName) != preProcMap.end()) {
+            IE::Blob::CPtr blobRequiredPreProcessing;
+            InferenceEngine::PreProcessInfo preProcessInfo = preProcMap.find(inputName)->second;
+            // TODO preProcessInfo are not used [Track number: S#37393]
+            UNUSED(preProcessInfo);
+        }
+        auto foundInputBlob = updatedInputs.find(inputName);
+        if (foundInputBlob == updatedInputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
+    }
+
+    const auto& networkOutputs = _networkDesc->getOutputsInfo();
+    for (const auto& networkOutput : networkOutputs) {
+        // TODO Will not work for multi-output [Track number: S#36862]
+        _inferDataPtr->prepareUniteOutput(networkOutput.second);
+    }
+
+    _loadedGraphPtr->InferAsync(_inferDataPtr);
+}
+
+void HDDL2InferRequest::InferAsync() {
+    // TODO [Track number: S#36866]
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
+    const auto preProcMap = preparePreProcessing(_inputs, _networkInputs, _preProcData);
+    pushStab(_networkDesc,
+             _inputs, preProcMap, _loadedGraphPtr, _inferDataPtr, _onceFlagInferData, _config, _context);
+}
+
+//------------------------------------------------------------------------------
+//      UNDER CONSTRUCTION SECTION - END
+//------------------------------------------------------------------------------
+// clang-format on
+
+void HDDL2InferRequest::WaitInferDone() {
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "WaitInferDone");
+    _inferDataPtr->waitInferDone();
 }
 
 void HDDL2InferRequest::GetResult() {

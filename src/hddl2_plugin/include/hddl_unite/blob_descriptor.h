@@ -37,8 +37,8 @@ public:
     BlobDescriptor& operator=(const BlobDescriptor&) = delete;
     BlobDescriptor& operator=(const BlobDescriptor&&) = delete;
 
-    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob,
-        bool createRemoteMemoryDescriptor, bool isNeedAllocation);
+    explicit BlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob,
+        bool createRemoteMemoryDescriptor, bool isNeedAllocation, bool isOutput);
     virtual ~BlobDescriptor() = default;
 
     virtual HddlUnite::Inference::BlobDesc createUniteBlobDesc(
@@ -50,11 +50,11 @@ public:
 
 protected:
     const bool _createRemoteMemoryDescriptor;
-    const bool _isNeedAllocation;
-    bool _isNV12Data;
+    const bool _isNeedAllocation = true;
+    bool _isNV12Data = false;
     std::shared_ptr<InferenceEngine::ROI> _roiPtr;
 
-    InferenceEngine::Blob::Ptr _blobPtr = nullptr;
+    InferenceEngine::Blob::CPtr _blobPtr = nullptr;
 
     InferenceEngine::DataPtr _desc = nullptr;
 
@@ -64,20 +64,23 @@ protected:
      * @brief Workaround to provide to HddlUnite one sequence of raw data
      * (NV12 Blob can contains two pointer to data which are not sequential)
      */
-    void createRepackedNV12Blob(const InferenceEngine::Blob::Ptr& blobPtr);
+    void createRepackedNV12Blob(const InferenceEngine::Blob::CPtr& blobPtr);
     InferenceEngine::Blob::Ptr _repackedBlob;  //!< Repacked NV12 Blob if specified
+
+    // TODO To be removed
+    const bool _isOutput = true;
 };
 
 //------------------------------------------------------------------------------
 class LocalBlobDescriptor : public BlobDescriptor {
 public:
-    explicit LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit LocalBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob);
 };
 
 //------------------------------------------------------------------------------
 class RemoteBlobDescriptor : public BlobDescriptor {
 public:
-    explicit RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::Ptr& blob);
+    explicit RemoteBlobDescriptor(const InferenceEngine::DataPtr& desc, const InferenceEngine::Blob::CPtr& blob);
 };
 }  // namespace HDDL2Plugin
 }  // namespace vpu

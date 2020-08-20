@@ -24,7 +24,7 @@ class InferData_UnitTests : public ::testing::Test {
 public:
     const bool enablePreProcessing = false;
 
-    InferenceEngine::InputInfo::Ptr inputInfo;
+    InferenceEngine::DataPtr inputInfo;
     InferenceEngine::DataPtr outputInfo;
 
     InferenceEngine::Blob::Ptr blob;
@@ -35,11 +35,7 @@ protected:
 };
 
 void InferData_UnitTests::SetUp() {
-    inputInfo = std::make_shared<InferenceEngine::InputInfo>();
-    InferenceEngine::DataPtr inputData =
-        std::make_shared<InferenceEngine::Data>("input", tensorDescriptionHelper.tensorDesc);
-    inputInfo->setInputData(inputData);
-
+    inputInfo = std::make_shared<InferenceEngine::Data>("input", tensorDescriptionHelper.tensorDesc);
     outputInfo = std::make_shared<InferenceEngine::Data>("output", tensorDescriptionHelper.tensorDesc);
     blob = InferenceEngine::make_shared_blob<uint8_t>(tensorDescriptionHelper.tensorDesc);
 }
@@ -61,30 +57,16 @@ TEST_F(InferData_prepareUniteInput, monkey_nullBlob_Throw) {
     ASSERT_ANY_THROW(inferData.prepareUniteInput(nullptr, inputInfo));
 }
 
-TEST_F(InferData_prepareUniteInput, monkey_nullInfo_Throw) {
+TEST_F(InferData_prepareUniteInput, monkey_nullDesc_Throw) {
     HddlUniteInferData inferData;
 
     ASSERT_ANY_THROW(inferData.prepareUniteInput(blob, nullptr));
 }
 
-TEST_F(InferData_prepareUniteInput, monkey_nullDesc_Throw) {
-    HddlUniteInferData inferData;
-    inputInfo->setInputData(nullptr);
-
-    ASSERT_ANY_THROW(inferData.prepareUniteInput(blob, inputInfo));
-}
-
 //------------------------------------------------------------------------------
 using InferData_prepareUniteOutput = InferData_UnitTests;
-TEST_F(InferData_prepareUniteOutput, monkey_nullBlob_Throw) {
-    HddlUniteInferData inferData;
-
-    ASSERT_ANY_THROW(inferData.prepareUniteOutput(nullptr, outputInfo));
-}
-
 TEST_F(InferData_prepareUniteOutput, monkey_nullDesc_Throw) {
     HddlUniteInferData inferData;
-    InferenceEngine::Blob::Ptr blob;
 
-    ASSERT_ANY_THROW(inferData.prepareUniteOutput(blob, nullptr));
+    ASSERT_ANY_THROW(inferData.prepareUniteOutput(nullptr));
 }

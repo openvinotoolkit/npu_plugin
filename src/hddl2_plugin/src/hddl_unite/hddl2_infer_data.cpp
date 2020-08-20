@@ -57,14 +57,12 @@ HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
     }
 }
 
-void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::InputInfo::Ptr& info) {
-    if (!info) {
-        THROW_IE_EXCEPTION << "Input blob info is null";
+void HddlUniteInferData::prepareUniteInput(const IE::Blob::CPtr& blob, const IE::DataPtr& desc) {
+    checkData(desc);
+    if (blob == nullptr) {
+        THROW_IE_EXCEPTION << "Blob for input is null";
     }
-    checkData(info->getInputData());
-
-    const std::string name = info->getInputData()->getName();
-    IE::DataPtr desc = info->getInputData();
+    const std::string name = desc->getName();
 
     BlobDescriptor::Ptr blobDescriptorPtr;
     if (_haveRemoteContext) {
@@ -96,7 +94,7 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::Ptr& blob, const IE::
     _inputs[name] = blobDescriptorPtr;
 }
 
-void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE::DataPtr& desc) {
+void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
     std::call_once(_onceFlagOutputAllocations, [&] {
         checkData(desc);
 
@@ -104,9 +102,9 @@ void HddlUniteInferData::prepareUniteOutput(const IE::Blob::Ptr& blob, const IE:
 
         BlobDescriptor::Ptr blobDescriptorPtr;
         if (_haveRemoteContext) {
-            blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, blob);
+            blobDescriptorPtr = std::make_shared<RemoteBlobDescriptor>(desc, nullptr);
         } else {
-            blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, blob);
+            blobDescriptorPtr = std::make_shared<LocalBlobDescriptor>(desc, nullptr);
         }
 
         const bool isInput = false;
