@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
