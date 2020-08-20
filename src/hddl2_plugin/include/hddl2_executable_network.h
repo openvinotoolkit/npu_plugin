@@ -36,8 +36,6 @@ public:
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const HDDL2Config& config,
         const InferenceEngine::RemoteContext::Ptr& context = nullptr);
-    explicit ExecutableNetwork(const std::string& blobFilename, const HDDL2Config& config,
-        const InferenceEngine::RemoteContext::Ptr& context = nullptr);
     explicit ExecutableNetwork(std::istream& networkModel, const HDDL2Config& config,
         const InferenceEngine::RemoteContext::Ptr& context = nullptr);
     ~ExecutableNetwork() override = default;

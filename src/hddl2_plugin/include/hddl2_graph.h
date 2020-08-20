@@ -60,7 +60,6 @@ class ImportedGraph : public Graph {
 public:
     using Ptr = std::shared_ptr<ImportedGraph>;
 
-    explicit ImportedGraph(const std::string& blobFilename, const MCMConfig& config);
     explicit ImportedGraph(std::istream& networkModel, const MCMConfig& config);
 };
 
