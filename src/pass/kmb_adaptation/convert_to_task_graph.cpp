@@ -634,6 +634,13 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
 
+            // special logic for DetectionOutput Optimization
+            if (opIt->getOpType() == "Permute")
+            {
+                 auto OutputTensor = opIt->getOutputTensor(0);
+                 newTensor->setOrder(OutputTensor->getOrder());
+            }
+
             if (newTensorOp->getOpType() == "DPUTask")
             {
                 //NOTE: There are multiple cases of DPU Task:

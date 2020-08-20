@@ -26,6 +26,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -64,6 +65,69 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     flattenAsReshapeFcn(pass, model);
     replaceConcatOfPopulatedTensorsFcn(pass, model);
     reorgYoloAsConvConcatFcn(pass, model);
+    insertPermuteBeforeDetFcn(pass, model);
+}
+
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto detectionOps = om.getOps("DetectionOutput");
+
+    for (auto& opIt : detectionOps)
+    {
+        auto confData = opIt->getInputTensor(1);
+        auto parent = om.getSourceOp(confData);
+
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+        auto sourceFlowStart = parent.leftmostOutput();
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            flowsToRemove.push_back(sinkFlow);
+        }
+
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
+
+        double inf = std::numeric_limits<double>::infinity();
+        uint64_t numClasses = opIt->get<int64_t>("num_classes");
+        auto totalSize = confData->getShape().totalSize();
+        mv::Shape newShape({numClasses, totalSize / numClasses, 1, 1});
+        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeBeforePermute");
+
+        std::string newOrder = "NCWH";
+        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "new_permute");
+        transposedData->setOrder(mv::Order("NCHW"));
+
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
+            opsToLink[op]->setInputTensor(transposedData, inputSlots[op], false);
+            om.defineFlow(transposedData, opsToLink[op], inputSlots[op]);
+        }
+
+        auto reshapeOp = om.getSourceOp(reshapeBeforePermuteData);
+        auto permuteOp = om.getSourceOp(transposedData);
+        if(parent->hasAttr("opId"))
+        {
+            unsigned currentOpId = parent->get<unsigned>("opId");
+            reshapeOp->set<unsigned>("opId", currentOpId);
+            permuteOp->set<unsigned>("opId", currentOpId);
+        }
+        auto outputMemoryLocation = parent->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
