@@ -618,7 +618,6 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::vector<int64_t> weightsData(total_shape, 1ll);
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
-            sourceTensor->setDType(mv::DType("UInt8"));
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(),
@@ -1490,6 +1489,15 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] || stride[mv::STRIDE_VERTICAL] == 1) // symmetric and corner case H==1
             continue;
+        if( opIt->getOpType() == "AveragePool")
+        {
+            std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+            auto inputTensorShape = opIt->getInputTensor(0)->getShape();
+            if((inputTensorShape[mv::IO_WIDTH_DIMENSION] == kSize[0]) && (inputTensorShape[mv::IO_HEIGHT_DIMENSION] == kSize[1]))
+            {
+                continue;
+            }
+        }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
         //stride supported not slicing, stride not supported slicing with slices dimensions of stride
