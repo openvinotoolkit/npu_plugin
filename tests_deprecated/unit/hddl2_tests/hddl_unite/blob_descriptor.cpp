@@ -37,10 +37,6 @@ TEST_F(LocalBlobDescriptor_constructor, monkey_NullDesc) {
     EXPECT_ANY_THROW(LocalBlobDescriptor blobDescriptor(nullptr, blob));
 }
 
-TEST_F(LocalBlobDescriptor_constructor, monkey_NullBlob) {
-    EXPECT_ANY_THROW(LocalBlobDescriptor blobDescriptor(desc, nullptr));
-}
-
 //------------------------------------------------------------------------------
 using RemoteBlobDescriptor_constructor = BlobDescriptor_UnitTests;
 TEST_F(RemoteBlobDescriptor_constructor, default_NoThrow) {
@@ -49,8 +45,4 @@ TEST_F(RemoteBlobDescriptor_constructor, default_NoThrow) {
 
 TEST_F(RemoteBlobDescriptor_constructor, monkey_NullDesc) {
     EXPECT_ANY_THROW(RemoteBlobDescriptor blobDescriptor(nullptr, blob));
-}
-
-TEST_F(RemoteBlobDescriptor_constructor, monkey_NullBlob) {
-    EXPECT_ANY_THROW(RemoteBlobDescriptor blobDescriptor(desc, nullptr));
 }

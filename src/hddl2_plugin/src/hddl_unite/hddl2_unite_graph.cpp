@@ -42,7 +42,7 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
 }
 
 HddlUniteGraph::HddlUniteGraph(
-    const vpux::NetworkDescription::Ptr& network, const std::string& deviceID, const vpu::LogLevel& logLevel)
+    const vpux::NetworkDescription::CPtr& network, const std::string& deviceID, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
@@ -77,7 +77,7 @@ HddlUniteGraph::HddlUniteGraph(
     }
 }
 
-HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::Ptr& network, const HDDL2RemoteContext::Ptr& contextPtr,
+HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::Ptr& contextPtr,
     const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;

@@ -34,7 +34,7 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
+class HDDL2InferRequest final : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<HDDL2InferRequest>;
 
@@ -44,7 +44,8 @@ public:
         const vpu::HDDL2Config& config);
     HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::CPtr& loadedGraph,
-        const HDDL2RemoteContext::CPtr& context, const vpu::HDDL2Config& config);
+        const HDDL2RemoteContext::CPtr& context, const vpux::NetworkDescription::CPtr& networkDesc,
+        const vpu::HDDL2Config& config, const vpux::Executor::Ptr& executor);
 
     void Infer() override;
     void InferImpl() override;
@@ -52,31 +53,33 @@ public:
     void WaitInferDone();
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
-    InferenceEngine::Layout GetSupportedLayout() const { return deviceSupportedLayout; }
 
     void GetResult();
 
 protected:
     void checkBlobs() override;
+
+    vpux::PreprocMap preparePreProcessing(InferenceEngine::BlobMap& inputs,
+        const InferenceEngine::InputsDataMap& networkInputs,
+        const std::map<std::string, InferenceEngine::PreProcessDataPtr>& preProcData);
     void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
 
+    const vpux::Executor::Ptr _executorPtr;
+    const HDDL2Config& _config;
+    const Logger::Ptr _logger;
+
+    // TODO This part required refactoring,
+    vpux::NetworkDescription::CPtr _networkDesc = nullptr;
     HddlUniteGraph::CPtr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 
     // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
     // need to store it here
     HDDL2RemoteContext::CPtr _context = nullptr;
-    const HDDL2Config& _config;
-    const Logger::Ptr _logger;
-    const InferenceEngine::Layout deviceSupportedLayout = InferenceEngine::Layout::NHWC;
 
     // TODO [Workaround] Avoid allocation inferData each time. If size of inputs is changed, need
     //  to recreating (not implemented yet)
     std::once_flag _onceFlagInferData;
-
-private:
-    InferenceEngine::Blob::Ptr prepareInputForInference(
-        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::Layout& expectedLayout);
 };
 
 }  //  namespace HDDL2Plugin

@@ -26,6 +26,7 @@ using DataMap = std::map<std::string, InferenceEngine::DataPtr>;
 class NetworkDescription {
 public:
     using Ptr = std::shared_ptr<NetworkDescription>;
+    using CPtr = std::shared_ptr<const NetworkDescription>;
 
     virtual const std::string& getName() const = 0;
     virtual const DataMap& getInputsInfo() const = 0;

@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <blob_factory.hpp>
+#include <cpp_interfaces/exception2status.hpp>
 #include <dims_parser.hpp>
 #include <ie_itt.hpp>
 #include <ie_macro.hpp>
@@ -458,6 +459,11 @@ Blob::Ptr KmbExecutor::prepareInputForInference(
 
     return inputForInference;
 }
+
+void KmbExecutor::push(const InferenceEngine::BlobMap& /*inputs*/, const vpux::PreprocMap& /*preProcMap*/) {
+    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+}
+
 void KmbExecutor::push(const InferenceEngine::BlobMap& inputs) {
     if (!_config.useKmbExecutor()) {
         return;

@@ -74,10 +74,10 @@ vpux::HDDL2::HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::Netwo
         if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
             logger->error(FAILED_LOAD_NETWORK.c_str());
         } else {
-            logger->error(EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
+            logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
         }
     } catch (const std::exception& exception) {
-        logger->error(EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
+        logger->error("%s%s", EXECUTOR_NOT_CREATED.c_str(), std::string("\nERROR: ") + exception.what());
     }
     return executor;
 }
@@ -96,8 +96,11 @@ void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) {
+void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) { UNUSED(inputs); }
+
+void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) {
     UNUSED(inputs);
+    UNUSED(preProcMap);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
@@ -128,6 +131,5 @@ void HDDL2Executor::loadGraphToDevice() {
         _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _context, _config.logLevel());
     }
 }
-
 }  // namespace HDDL2
 }  // namespace vpux

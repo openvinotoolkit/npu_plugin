@@ -42,6 +42,7 @@ public:
         const std::shared_ptr<NetworkDescription>& network, const InferenceEngine::ParamMap& params) = 0;
 };
 
+using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {
 public:
     using Ptr = std::shared_ptr<Executor>;
@@ -49,6 +50,8 @@ public:
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
 
     virtual void push(const InferenceEngine::BlobMap& inputs) = 0;
+    virtual void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) = 0;
+
     virtual void pull(InferenceEngine::BlobMap& outputs) = 0;
 
     virtual bool isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const = 0;

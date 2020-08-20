@@ -55,6 +55,8 @@ public:
         const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
+    void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
+
     void pull(InferenceEngine::BlobMap& outputs) override;
     // TODO: not implemented
     void setup(const InferenceEngine::ParamMap& params) override;
