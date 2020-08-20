@@ -135,12 +135,31 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(
     return updatedMap;
 }
 
+vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(
+    const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names) {
+    _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder started.");
+    vpux::DataMap updatedMap;
+
+    std::size_t curMatchPos = 0;
+    for (const auto& data : actualDeviceData) {
+        auto name = names[curMatchPos];
+        updatedMap.insert({name, data.second});
+        _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
+        curMatchPos++;
+    }
+
+    _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder finished.");
+    return updatedMap;
+}
+
 vpux::DataMap MCMNetworkDescription::createDeviceMapWithCorrectNames(
     const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names) {
     vpux::DataMap updatedMap;
 
     updatedMap = matchElementsByName(actualDeviceData, names);
-    IE_ASSERT(updatedMap.size() == actualDeviceData.size());
+    if (updatedMap.empty()) {
+        updatedMap = matchElementsByLexicographicalOrder(actualDeviceData, names);
+    }
 
     return updatedMap;
 }
