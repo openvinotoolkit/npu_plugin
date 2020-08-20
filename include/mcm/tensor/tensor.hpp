@@ -278,6 +278,15 @@ namespace mv
                 !hasAttr("dilatedSubConvSE");
         }
 
+        inline bool isWeights() const
+        {
+            return !hasAttr("weightTable") &&
+                !hasAttr("sparsityMap") &&
+                !hasAttr("solvedSparsity") &&
+                !hasAttr("dilatedSubConvSM") &&
+                !hasAttr("dilatedSubConvSE");
+        }
+
         inline unsigned size() const
         {
             return shape_.totalSize();
