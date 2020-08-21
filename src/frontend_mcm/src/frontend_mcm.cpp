@@ -1870,8 +1870,27 @@ void FrontEndMcm::parseProposal(const ie::CNNLayerPtr& layer, const McmNodeVecto
     bindOutput(proposal, layer->outData[0]);
 }
 
-void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "ROIPooling layer is not supported by kmbPlugin";
+void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(2 == inputs.size());
+    unsigned pooled_h = static_cast<unsigned>(layer->GetParamAsInt("pooled_h"));
+    unsigned pooled_w = static_cast<unsigned>(layer->GetParamAsInt("pooled_w"));
+    double spatial_scale = layer->GetParamAsFloat("spatial_scale", 0.0625f);
+    std::string method = layer->GetParamAsString("method", "max");
+    unsigned roi_pooling_method = (method == "bilinear") ? 1 : 0;
+
+    std::vector<mv::Data::TensorIterator> roi_inputs;
+    for (const auto& input : inputs) {
+        roi_inputs.push_back(input->getMcmNode());
+    }
+
+    size_t n_roi, stub;
+    parseDims(inputs.at(1)->desc(), n_roi, stub, stub, stub);
+    unsigned num_rois = static_cast<unsigned int>(n_roi);
+
+    auto roipool = _modelMcm.rOIPooling(roi_inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois,
+        mv::DType("Default"), initialQuantParams(), layer->name);
+
+    bindOutput(roipool, layer->outData[0]);
 }
 
 void FrontEndMcm::parsePSROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {

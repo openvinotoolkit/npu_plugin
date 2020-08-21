@@ -62,6 +62,7 @@ bool ReplaceScaleShiftWithMcmScale::run_on_node(std::shared_ptr<ngraph::Node> no
         IE_ASSERT(1 == ieScaleOutputs.size());
         const auto outputNode = ieScaleOutputs.begin()->get_node();
         const auto fq =  dynamic_cast<ngraph::op::FakeQuantize*>(outputNode);
+        IE_ASSERT(nullptr != fq);
 
         const auto inputLow = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(1).get_node_shared_ptr());
         const auto inputHigh = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(2).get_node_shared_ptr());

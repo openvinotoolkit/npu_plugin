@@ -38,8 +38,10 @@
 #include "ngraph/op/convert.hpp"
 #include "ngraph/op/lrn.hpp"
 #include "ngraph/op/softmax.hpp"
-// not needed #include <ngraph_ops/prior_box_ie.hpp>
+
 #include "ngraph/op/prelu.hpp"
+#include <ngraph/op/roi_pooling.hpp>
+
 #include "ngraph/op/region_yolo.hpp"
 
 #include "ngraph/op/reorg_yolo.hpp"
@@ -109,17 +111,22 @@ void registerOutputs(std::shared_ptr<ngraph::Node> node, std::vector<mv::Data::T
 }
 
 void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
-    const auto mvShape = cvtShapeToMCM(param->get_shape());
+    auto mvShape = cvtShapeToMCM(param->get_shape());
     const auto mvDType = mv::DType("UInt8"); // cvtElemTypeToMCM(param->get_element_type());
     const auto mvOrder = mv::Order("NHWC");// McmOpAttrs::getOrder(param);
     const auto& mvQuantParams = McmOpAttrs::getQuantParams(param);
     const auto& opName = param->get_friendly_name();
 
+    if (mvShape.ndims() == 2)  {
+        std::vector<size_t> dims {1, 1, mvShape[0], mvShape[1]};
+        mvShape = mv::Shape(dims);
+    }
+
     // MCM Compiler requirements
     IE_ASSERT(mv::DType("UInt8") == mvDType);
     IE_ASSERT(mv::Order("NHWC") == mvOrder);
-
-	bool mvNetworkInput = true;
+    IE_ASSERT(4 == mvShape.ndims());
+    bool mvNetworkInput = true;
     const auto mcmOutput = mcmModel.input(mvShape, mvDType, mvOrder, mvQuantParams, mvNetworkInput, opName);
 
     registerOutputs(param, {mcmOutput}, mcmOutputsMap);
@@ -542,6 +549,24 @@ void convert(std::shared_ptr<ngraph::op::ReLUIE> relu, mv::OpModel& mcmModel, No
     }
 }
 
+void convert(std::shared_ptr<ngraph::op::v0::ROIPooling> roipool, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
+    auto mcmInputs = getMcmInputs(roipool, mcmOutputsMap);
+    IE_ASSERT(2 == mcmInputs.size());
+    const auto mvDType = mv::DType("Default");
+    const auto& inputQuantParams = McmOpAttrs::getQuantParams(roipool);
+    const auto& opName = roipool->get_friendly_name();
+    const double spatial_scale = roipool->get_spatial_scale();
+    const std::string method = roipool->get_method();
+    const unsigned roi_pooling_method = (method == "bilinear") ? 1 : 0;
+    unsigned num_rois = roipool->get_input_shape(0)[0];
+    unsigned pooled_h = roipool->get_output_shape(0)[2];
+    unsigned pooled_w = roipool->get_output_shape(0)[3];
+
+    const auto roipoolOutput = mcmModel.rOIPooling(mcmInputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois,
+        mvDType, inputQuantParams, opName);
+    registerOutputs(roipool, {roipoolOutput}, mcmOutputsMap);
+}
+
 void convert(std::shared_ptr<ngraph::op::v0::ReorgYolo> reorg, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(reorg, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
@@ -591,7 +616,8 @@ void convertDispatch(std::shared_ptr<ngraph::Node> node, mv::OpModel& mcmModel, 
 static const DispatchMap dispatchMap {
     MAP_ENTRY(ngraph::op::Parameter),
     MAP_ENTRY(ngraph::op::Result),
-    MAP_ENTRY(ngraph::op::Constant), // crashes on yolo
+    MAP_ENTRY(ngraph::op::Constant),
+    MAP_ENTRY(ngraph::op::v0::ROIPooling),
     MAP_ENTRY(McmConv),
     MAP_ENTRY(McmBias),
     MAP_ENTRY(McmScale),
