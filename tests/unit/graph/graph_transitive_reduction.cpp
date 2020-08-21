@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -47,7 +48,7 @@ c--->g
 c--->h
 c--->i
  */
-TEST (graph_transitive_reduction, sibling_test)
+TEST (graph_dynamic_sibling_enumeration, sibling_test)
 {
     char_int_graph g;
 
@@ -86,7 +87,7 @@ TEST (graph_transitive_reduction, sibling_test)
     // Siblings of node ne
     std::vector<char> nodes_sid={'d','e','g','h','i'};
     int count_nodes_sid= 0 ;
-    for (char_int_graph::node_sibling_iterator it(nf); it != g.node_end(); ++it)
+    for (char_int_graph::node_sibling_iterator it(nf); it != char_int_graph::node_sibling_iterator(); ++it)
     {
         EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node f";
     }
@@ -114,7 +115,7 @@ c    d    e
  */
 
 
-TEST (graph_transitive_reduction, sibling_test_2)
+TEST (graph_dynamic_sibling_enumeration, sibling_test_2)
 {
     char_int_graph g;
 
@@ -123,7 +124,6 @@ TEST (graph_transitive_reduction, sibling_test_2)
     auto nc = g.node_insert('c');
     auto nd = g.node_insert('d');
     auto ne = g.node_insert('e');
-
 
     auto e1 = g.edge_insert(na, nc, 1);
     auto e2 = g.edge_insert(nb, nc, 2);
@@ -139,7 +139,7 @@ TEST (graph_transitive_reduction, sibling_test_2)
     // Siblings of node nc
     std::vector<char> nodes_sid={'d','e'};
     int count_nodes_sid= 0 ;
-    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
+    for (char_int_graph::node_sibling_iterator it(nc); it != char_int_graph::node_sibling_iterator(); ++it)
     {
         EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
     }
@@ -148,16 +148,47 @@ TEST (graph_transitive_reduction, sibling_test_2)
 }
 
 /*
+	a
+   /|
+  b |
+   \|
+    c
+
+    sibling is also a parent
+ */
+
+TEST (graph_dynamic_sibling_enumeration, sibling_test_3)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+
+    auto e1 = g.edge_insert(na, nb, 1);
+    auto e2 = g.edge_insert(na, nc, 2);
+    auto e7 = g.edge_insert(nb, nc, 3);
+
+    EXPECT_EQ ('b', *nc->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node c";
+    EXPECT_EQ (nc->siblings_size(), 1) << "ERROR: wrong number of siblings of node c";
+
+    // Siblings of node nc
+    std::vector<char> nodes_sid={'b'};
+    int count_nodes_sid= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nc); it != char_int_graph::node_sibling_iterator(); ++it)
+    {
+        EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
+    }
+}
+
+/*
 a  b  c
 |\ | /|
 | \|/ |
 d  e  f
-
-
-
  */
 
-TEST (graph_transitive_reduction, sibling_test_3)
+TEST (graph_dynamic_sibling_enumeration, sibling_test_4)
 {
     char_int_graph g;
 
@@ -168,14 +199,11 @@ TEST (graph_transitive_reduction, sibling_test_3)
     auto ne = g.node_insert('e');
     auto nf = g.node_insert('f');
 
-
-
     auto e1 = g.edge_insert(na, nd, 1);
     auto e2 = g.edge_insert(na, ne, 2);
     auto e3 = g.edge_insert(nb, ne, 3);
     auto e4 = g.edge_insert(nc, ne, 4);
     auto e5 = g.edge_insert(nc, nf, 5);
-
 
     EXPECT_EQ ('e', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
     EXPECT_EQ ('e', *nf->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node f";
@@ -183,6 +211,46 @@ TEST (graph_transitive_reduction, sibling_test_3)
     EXPECT_EQ (1, nf->siblings_size()) << "ERROR: wrong number of siblings of node f";
 }
 
+TEST (graph_dynamic_sibling_enumeration, sibling_test_no_sibling)
+{
+    char_int_graph g;
+
+    auto na = g.node_insert('a');
+    auto nb = g.node_insert('b');
+    auto nc = g.node_insert('c');
+    auto nd = g.node_insert('d');
+
+    auto e1 = g.edge_insert(na, nd, 1);
+    auto e2 = g.edge_insert(nb, nd, 2);
+    auto e3 = g.edge_insert(nc, nd, 3);
+
+    try
+    {
+     char_int_graph::node_sibling_iterator it(nd);
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "Sibling iterator returns " << e.what() << std::endl;
+    }
+    try
+    {
+       auto left_sibling = *nd->leftmost_sibling();
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "leftmost_sibling returns " << e.what() << std::endl;
+    }
+    try
+    {
+       auto right_Sibling = *nd->rightmost_sibling();
+    }
+    catch (std::exception& e)
+    {
+       std::cout << "rightmost_sibling returns " << e.what() << std::endl;
+    }
+
+    EXPECT_EQ (0, nd->siblings_size()) << "ERROR: wrong number of siblings of node d";
+}
 
 TEST (graph_transitive_reduction, test1)
 {
