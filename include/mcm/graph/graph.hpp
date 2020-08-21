@@ -197,28 +197,6 @@ namespace mv
                 return parents_;
             }
 
-            //Cannot return reference of siblings set, as it is collected locally, hence get_siblings returns set
-            iterable_access_set<T_iterable> get_siblings()
-            {
-               iterable_access_set<T_iterable> siblings;
-
-               auto itr = leftmost_sibling();
-               siblings.insert(itr);
-               auto itr_rightmost_silbling = rightmost_sibling();
-
-               //If there is only 1 sibling, leftmost_sibling will be same as rightmost_sibling
-               while(itr->getID() != itr_rightmost_silbling->getID())
-               { 
-                 if(itr->getID() != this->getID())
-                 siblings.insert(itr);
-                 ++itr;
-               }
-
-               siblings.insert(itr_rightmost_silbling);
-
-               return siblings;
-            }
-
             void add_child_(const std::weak_ptr<T_iterable>& child)
             {
 
@@ -293,7 +271,6 @@ namespace mv
                 if(leftmost_sibling() == sibling_iterator<T_iterable, T_content>())
                    return 0;
 
-                auto result = get_siblings();
                 size_t numSiblings = 1;
                 auto itr = leftmost_sibling();
                 auto itr_rightmost_silbling = rightmost_sibling();
