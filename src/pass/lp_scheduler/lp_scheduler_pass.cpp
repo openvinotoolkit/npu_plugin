@@ -115,6 +115,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     passDesc.get<bool>("enable_cmx_concat");
   bool apply_pipeline_transforms = passDesc.hasAttr("enable_pipelining") &&
     passDesc.get<bool>("enable_pipelining");
+  bool apply_chain_pipeline_transforms =
+      passDesc.hasAttr("enable_chain_pipelining") &&
+      passDesc.get<bool>("enable_chain_pipelining");
 
   typedef typename mv::scheduler::CMX_Concatenation::control_edge_t
       cmx_concat_control_edge_t;
@@ -126,7 +129,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
   //TODO(vamsikku): currently either CMX-concat or Pipelining can be done but
   //not both.
-  if (apply_pipeline_transforms) {
+  if (apply_chain_pipeline_transforms) {
+    input_dag.enable_chain_pipeline_transforms(cm);
+  }else if (apply_pipeline_transforms) {
     input_dag.enable_pipeline_transforms(cm, pipeline_control_edges,
           upper_bound);
   } else if (apply_cmx_concat_transforms) {

@@ -13,6 +13,7 @@
 #include "include/mcm/utils/warning_manager.hpp"
 #include "pass/lp_scheduler/cmx_concat_transform.hpp"
 #include "pass/lp_scheduler/pipeline_transform.hpp"
+#include "pass/lp_scheduler/pipeline_chains_transform.hpp"
 #include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
@@ -192,6 +193,11 @@ class Operation_Dag {
     typedef typename pipeline_algo_t::control_edge_t pipeline_control_edge_t;
     typedef typename pipeline_algo_t::pipeline_subgraph_t pipeline_subgraph_t;
 
+    typedef mv::scheduler::Pipeline_Chains pipeline_chain_algo_t;
+    typedef typename pipeline_chain_algo_t::chain_subgraph_t chain_subgraph_t;
+    typedef typename pipeline_chain_algo_t::control_edge_t chain_control_edge_t;
+
+
     struct cmx_concat_subgraph_hash_t {
       std::size_t operator() (const cmx_concat_subgraph_t& a) const {
         return (size_t)(a.representative_dpu_);
@@ -352,6 +358,61 @@ class Operation_Dag {
       connect_all_non_unit_outdegree_dmas_to_input(omodel);
       update_resource_utility_with_attribute_all_ops(
           pipeline_algo_t::pipeline_resource_attribute() );
+
+      printf("====================\n");
+      printf("SCHEDULE DAG:\n");
+      for (const_operation_iterator_t itr=begin_nodes();
+            itr!=end_nodes(); ++itr) {
+        operation_t curr_op = *itr;
+
+        printf("node=%s\n", (curr_op->getName()).c_str());
+        printf("out_going_edges:\n");
+        for (const_operation_iterator_t citr=begin_nodes(curr_op);
+              citr!=end_nodes(curr_op); ++citr) {
+          operation_t cop = *citr;
+          printf("%s\n", (cop->getName()).c_str());
+        }
+
+        printf("\nin_coming_edges:\n");
+        for (const_operation_iterator_t pitr=begin_parent_nodes(curr_op);
+              pitr!=end_parent_nodes(curr_op); ++pitr){
+          operation_t pop = *pitr;
+          printf("%s\n", (pop->getName()).c_str());
+        }
+        printf("\n");
+      }
+      printf("====================\n");
+    }
+
+    template<typename ControlEdgeContainer>
+    void reset_from_chain_pipeline_control_edges(mv::OpModel& omodel,
+          const ControlEdgeContainer cedge_container) {
+      init_from_model(omodel);
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
+
+      printf("====================\n");
+      printf("SCHEDULE DAG:\n");
+      for (const_operation_iterator_t itr=begin_nodes();
+            itr!=end_nodes(); ++itr) {
+        operation_t curr_op = *itr;
+
+        printf("node=%s\n", (curr_op->getName()).c_str());
+        printf("out_going_edges:\n");
+        for (const_operation_iterator_t citr=begin_nodes(curr_op);
+              citr!=end_nodes(curr_op); ++citr) {
+          operation_t cop = *citr;
+          printf("%s\n", (cop->getName()).c_str());
+        }
+
+        printf("\nin_coming_edges:\n");
+        for (const_operation_iterator_t pitr=begin_parent_nodes(curr_op);
+              pitr!=end_parent_nodes(curr_op); ++pitr){
+          operation_t pop = *pitr;
+          printf("%s\n", (pop->getName()).c_str());
+        }
+        printf("\n");
+      }
+      printf("====================\n");
     }
 
 
@@ -392,6 +453,16 @@ class Operation_Dag {
       reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
     }
 
+    void enable_chain_pipeline_transforms(mv::OpModel& omodel) {
+      pipeline_chain_algo_t algo(omodel);
+      std::list<chain_subgraph_t> pipeline_subgraphs;
+      std::list<chain_control_edge_t> chain_control_edges;
+
+      algo.transform_op_model(std::back_inserter(chain_control_edges),
+          pipeline_subgraphs);
+      reset_from_chain_pipeline_control_edges(omodel, chain_control_edges);
+    }
+
     template<typename PipeLineControlEdgeContainer>
     void enable_pipeline_transforms(mv::OpModel& omodel,
           PipeLineControlEdgeContainer &pipeline_control_edges,
@@ -408,6 +479,8 @@ class Operation_Dag {
       pipeline_algo.transform_op_model(
           std::back_inserter(pipeline_control_edges), pipeline_subgraphs,
             cmx_size);
+      mv::GenerateDotFromModel(omodel, "OpModel",
+            "pipeline_transformed_model.dot");
 
       reset_from_pipeline_control_edges(omodel, pipeline_control_edges);
     }
@@ -586,6 +659,8 @@ class Operation_Dag {
           !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
            ( dag.op_has_zero_in_degree(op) ||
              dag.op_has_input_as_only_parent(op) );
+      printf("op=%s is_data_operation=%s\n",
+          (op->getName()).c_str(), ret_value ? "YES" : "NO");
       return ret_value;
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {

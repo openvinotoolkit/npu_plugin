@@ -1,6 +1,7 @@
 #include "include/mcm/pass/pass_registry.hpp"
 #include "include/mcm/computation/model/computation_model.hpp"
 #include "pass/lp_scheduler/pipeline_transform.hpp"
+#include "pass/lp_scheduler/pipeline_chains_transform.hpp"
 
 static void LocatePipeLinedOps(
     const mv::pass::PassEntry& , mv::ComputationModel&, mv::TargetDescriptor&,
@@ -33,3 +34,28 @@ void LocatePipeLinedOps(const mv::pass::PassEntry&,
     }
   }
 }
+
+void LocatePipeLineChains(const mv::pass::PassEntry&,
+    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
+    mv::Element&) {
+  mv::OpModel om(model);
+  typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
+  typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
+
+  std::list<subgraph_t> subgraphs;
+  pipeline_chains_t pipeliner(om);
+
+  pipeliner.locate_chains(std::back_inserter(subgraphs));
+
+  for (auto itr=subgraphs.begin(); itr!=subgraphs.end(); ++itr) {
+    itr->print();
+  }
+}
+
+namespace mv {
+  namespace pass {
+    MV_REGISTER_PASS(LocatePipeLineChains)
+      .setFunc(LocatePipeLineChains)
+      .setDescription("Locate Pipeline Chains");
+  } // namespace mv //
+} // namespace pass //
