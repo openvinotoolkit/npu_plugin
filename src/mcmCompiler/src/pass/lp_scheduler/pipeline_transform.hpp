@@ -2,7 +2,6 @@
 #define PIPELINE_SCHEDULE_TRANSFORMS_H
 
 #include <unordered_set>
-
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
 #include "include/mcm/computation/model/iterator/tensor.hpp"
@@ -24,6 +23,7 @@ class Pipelining_Transform {
     typedef CMX_Concatenation concat_subgraph_finder_t;
     typedef typename concat_subgraph_finder_t::concat_subgraph_t
         concat_subgraph_t;
+    typedef std::map<operation_t, size_t> depth_map_t;
 
     class exception_t : std::string {
       public:
@@ -72,9 +72,34 @@ class Pipelining_Transform {
             continue;
           }
           mv::Data::TensorIterator titr = pitr->getOutputTensor(0UL);
-          input_size += titr->getClusterSize();
+
+          if (titr->get<mv::Tensor::MemoryLocation>("Location") == 
+                mv::Tensor::MemoryLocation::NNCMX) {
+            input_size += titr->getClusterSize();
+          }
         }
         return input_size;
+      }
+
+
+      operation_t compute_non_read_input_operation(mv::OpModel& om) const {
+        std::unordered_set<std::string> weight_map;
+        operation_t non_read_input = NULL;
+
+        for (auto itr=weight_reads_.begin(); itr!=weight_reads_.end(); ++itr) {
+          weight_map.insert((*itr)->getName());
+        }
+
+        size_t input_size = 0UL;
+        mv::Data::OpListIterator dpu_itr = om.getOp(dpu_->getName());
+        for (auto pitr=dpu_itr.leftmostParent(); pitr!=om.opEnd(); ++pitr) {
+          if (weight_map.find(pitr->getName()) != weight_map.end()) {
+            continue;
+          }
+          non_read_input = &(*pitr);
+          break;
+        }
+        return non_read_input;
       }
 
       size_t compute_read_input_size(mv::OpModel& om) const {
@@ -121,7 +146,9 @@ class Pipelining_Transform {
       const std::string& name() const {
         return concat_root_->getName(); 
       }
-      void normalize(mv::OpModel& om) {
+
+
+      bool normalize(mv::OpModel& om) {
         stream_map_.clear();
 
         for (auto ditr=dpus_.begin(); ditr!=dpus_.end(); ++ditr) {
@@ -139,13 +166,19 @@ class Pipelining_Transform {
                 ++citr) {
             ++out_degree;
             if (out_degree > 1UL) {
-              throw exception_t("Reads cannot have outdegree > 1\n");
+              fprintf(stdout, "Reads ccannot have outdegree > 1 %s\n",
+                    (citr->getName()).c_str());
+              fflush(stdout);
+              return false;
             }
           }
 
           auto citr = weight_op_itr.leftmostChild();
           if (stream_map_.find(citr->getName()) == stream_map_.end()) {
-            throw exception_t("Missing DPU for read: " + citr->getName());
+              fprintf(stdout, "Missing DPU for read %s\n",
+                    (citr->getName()).c_str());
+              fflush(stdout);
+              return false;
           }
           stream_map_[citr->getName()].weight_reads_.push_back(*witr);
         }
@@ -159,13 +192,19 @@ class Pipelining_Transform {
                 ++pitr) {
             ++out_degree;
             if (out_degree > 1UL) {
-              throw exception_t("Writes cannot have indegree > 1\n");
+              fprintf(stdout, "Writes cannot have indegree > 1 %s\n",
+                    (pitr->getName()).c_str());
+              fflush(stdout);
+              return false;
             }
           }
 
           auto pitr = write_op_itr.leftmostParent();
           if (stream_map_.find(pitr->getName()) == stream_map_.end()) {
-            throw exception_t("Missing DPU for write: " + pitr->getName());
+            fprintf(stdout, "Missing DPU for write : %s\n",
+                  (pitr->getName()).c_str());
+            fflush(stdout);
+            return false;
           }
           stream_map_[ pitr->getName() ].write_ = *witr;
         }
@@ -262,7 +301,8 @@ class Pipelining_Transform {
 
     Pipelining_Transform(mv::OpModel& omodel,
         const std::string pipeline_layer_attribute="schedule_for_dpu_dma_overlap")
-      : omodel_(omodel), pipeline_attribute_(pipeline_layer_attribute) {}
+      : omodel_(omodel), pipeline_attribute_(pipeline_layer_attribute),
+        depth_map_() {}
 
     // "pipeline_read_rep" : "dma_read_op_name" //
     static const std::string pipeline_read_representative_attribute() {
@@ -382,6 +422,7 @@ class Pipelining_Transform {
             typename SubGraphContainer::value_type>::value,
               "Invalid container for pipeline subgraphs");
 
+      compute_depth_map();
       mv::OpModel &om = omodel_;
       pipeline_subgraphs.clear();
       locate_pipeline_subgraphs(std::back_inserter(pipeline_subgraphs));
@@ -389,9 +430,14 @@ class Pipelining_Transform {
             subitr!=pipeline_subgraphs.end(); ++subitr) {
         // Foreach pipelineable subgraph //
 
+        //TODO(vamsikku): to avoid any kind of spilling avoid pipelining if the
+        //dpus are not all at the same depth.
+        if (!are_all_dpus_at_same_depth(*subitr)) { continue; }
 
         // STEP-0: normalize the subgraph //
-        subitr->normalize(omodel_);
+        bool normalized = subitr->normalize(omodel_);
+        if (!normalized) { continue; }
+
         subitr->print();
         if (!(subitr->is_pipelineable(cmx_size))) { continue; }
 
@@ -448,6 +494,21 @@ class Pipelining_Transform {
           output = control_edge_t(weight_read_itr, dpu_rep_itr);
 
           ++weight_reads_itr;
+        }
+
+        // Add a control edge between non-weight read input of DPU and the 
+        // weight_read_rep_itr //
+        operation_t non_read_dpu_rep_input =
+            stream_op.compute_non_read_input_operation(omodel_);
+
+        if (non_read_dpu_rep_input) {
+          auto non_read_dpu_rep_input_itr =
+              omodel_.getOp(non_read_dpu_rep_input->getName());
+          printf("non_read_dpu_rep: %s -> %s\n",
+                non_read_dpu_rep_input->getName().c_str(),
+                weight_read_rep_itr->getName().c_str());
+          output =
+              control_edge_t(non_read_dpu_rep_input_itr, weight_read_rep_itr);
         }
 
         // add the read_offset for all even streams //
@@ -603,6 +664,58 @@ class Pipelining_Transform {
 
   private:
 
+    bool are_all_dpus_at_same_depth(const pipeline_subgraph_t& subgraph) {
+      size_t depth = depth_map_[subgraph.dpus_.front()];
+      for (operation_t dpu_op : subgraph.dpus_) {
+        if (depth_map_[dpu_op] != depth) { return false; }
+      }
+      return true;
+    }
+
+    void compute_depth_map() {
+      depth_map_.clear();
+      std::unordered_map<operation_t, size_t> in_degree_map;
+
+      for (mv::Data::OpListIterator oitr=omodel_.opBegin();
+            oitr!=omodel_.opEnd(); ++oitr) {
+        size_t in_degree = 0UL;
+        for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+          ++in_degree;
+        }
+        in_degree_map[ &(*oitr) ] = in_degree;
+      }
+
+      std::vector<operation_t> ops_in_level[2UL];
+      size_t curr_depth = 0UL;
+      for (auto ditr=in_degree_map.begin(); ditr!=in_degree_map.end(); ++ditr) {
+        if (!(ditr->second)) {
+          ops_in_level[curr_depth%2UL].push_back(ditr->first);
+        }
+      }
+
+      while (!(ops_in_level[curr_depth%2UL].empty())) {
+        std::vector<operation_t> &curr_level_ops = ops_in_level[curr_depth%2UL];
+        std::vector<operation_t> &next_level_ops =
+            ops_in_level[(curr_depth+1UL)%2UL];
+
+        next_level_ops.clear();
+        for (operation_t op : curr_level_ops) {
+          depth_map_[op] = curr_depth;
+          auto op_itr = omodel_.getOp(op->getName());
+          for (auto cop_itr = op_itr.leftmostChild();
+                cop_itr != omodel_.opEnd(); ++cop_itr) {
+            in_degree_map[ &(*cop_itr) ]--;
+            if (!in_degree_map[ &(*cop_itr) ]) {
+              next_level_ops.push_back( &(*cop_itr) );
+            }
+          }
+        }
+        curr_level_ops.clear();
+        ++curr_depth;
+      }
+
+    }
+
     template<typename OperationIterator>
     size_t get_address(OperationIterator op_itr) {
       mv::Data::TensorIterator tensor_itr = op_itr->getOutputTensor(0UL);
@@ -631,6 +744,7 @@ class Pipelining_Transform {
 
     mv::OpModel& omodel_;
     const std::string pipeline_attribute_;
+    depth_map_t depth_map_;
 }; // class Pipelining_Transform //
 
 
