@@ -130,7 +130,8 @@ const std::vector<PermuteTestParams> unsupportedCases {
 };
 
 INSTANTIATE_TEST_CASE_P(SupportedCases,            KmbPermuteLayerTests, testing::ValuesIn(supportedCases));
-INSTANTIATE_TEST_CASE_P(FaceDetectionRetail,       KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
+// [Track number: S-37612]
+INSTANTIATE_TEST_CASE_P(DISABLED_FaceDetectionRetail, KmbPermuteLayerTests, testing::ValuesIn(FaceDetectionRetailCases));
 INSTANTIATE_TEST_CASE_P(DISABLED_UnsupportedCases, KmbPermuteLayerTests, testing::ValuesIn(unsupportedCases));
 
 static std::vector<std::vector<int64_t>> genPermutations(std::vector<int64_t> seq) {
