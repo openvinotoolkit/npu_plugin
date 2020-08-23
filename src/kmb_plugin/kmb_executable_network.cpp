@@ -57,12 +57,16 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
 
 void ExecutableNetwork::LoadBlob() {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadBlob");
-    auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config);
+    static int loadBlobCounter = 1;
+    const std::string networkName = "net" + std::to_string(loadBlobCounter);
+    loadBlobCounter++;  // increment blob static counter to make unique network ID
+    auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config, networkName);
     _executor = std::make_shared<KmbExecutor>(
         networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
 
     _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
     _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());
+    _netName = networkDescription->getName();
 }
 
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
