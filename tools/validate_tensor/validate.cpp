@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <vector>
 #include <ios>
+#include <string>
 
 /**
  * Required environmental variables
@@ -440,6 +441,11 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
+    if (FLAGS_il == "NC"){
+        inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
+        if (!checkFilesExist({inputCPU}))
+            return FAIL_RUNTIME;
+    }
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
