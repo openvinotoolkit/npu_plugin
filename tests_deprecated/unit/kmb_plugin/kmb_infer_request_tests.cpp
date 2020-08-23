@@ -97,7 +97,7 @@ TEST_F(kmbInferRequestConstructionUnitTests, cannotCreateInferRequestWithEmptyIn
 
     auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     ASSERT_THROW(inferRequest = std::make_shared<KmbInferRequest>(ie::InputsDataMap(), ie::OutputsDataMap(),
-                     std::vector<vpu::StageMetaInfo>(), config, executor, allocator),
+                     std::vector<vpu::StageMetaInfo>(), config, executor, allocator, "networkName"),
         ie::details::InferenceEngineException);
 }
 
@@ -110,14 +110,14 @@ TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParam
     auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     KmbInferRequest::Ptr inferRequest;
     ASSERT_NO_THROW(inferRequest = std::make_shared<KmbInferRequest>(
-                        inputs, outputs, std::vector<vpu::StageMetaInfo>(), config, executor, allocator));
+                        inputs, outputs, std::vector<vpu::StageMetaInfo>(), config, executor, allocator, "networkName"));
 }
 class TestableKmbInferRequest : public KmbInferRequest {
 public:
     TestableKmbInferRequest(const ie::InputsDataMap& networkInputs, const ie::OutputsDataMap& networkOutputs,
         const std::vector<vpu::StageMetaInfo>& blobMetaData, const KmbConfig& kmbConfig,
         const std::shared_ptr<vpux::Executor>& executor, const std::shared_ptr<ie::IAllocator>& allocator)
-        : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor, allocator){};
+        : KmbInferRequest(networkInputs, networkOutputs, blobMetaData, kmbConfig, executor, allocator, "networkName"){};
 
 public:
     MOCK_METHOD6(execKmbDataPreprocessing, void(ie::BlobMap&, std::map<std::string, ie::PreProcessDataPtr>&,
@@ -397,7 +397,6 @@ TEST_P(kmbInferRequestSIPPPreprocessing, canDisableSIPP) {
         .Times(0);
 
     _inferRequest->InferAsync();
-
 }
 
 INSTANTIATE_TEST_CASE_P(

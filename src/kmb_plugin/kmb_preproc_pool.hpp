@@ -70,12 +70,14 @@ class PreprocPool {
     static constexpr unsigned int pipesPerPool = 1;
 
     friend PreprocPool& preprocPool();
-    std::map<int, std::unique_ptr<PreprocessorPool>> _preprocPools;
+    std::map<std::string, std::unique_ptr<PreprocessorPool>> _preprocPools;
     std::mutex _mutex;
-    PreprocessorPool& getPool(int w, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
+    PreprocessorPool& getPool(
+        const std::string& preprocPoolId, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
 
 public:
-    void execDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath);
+    void execDataPreprocessing(const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath,
+        const std::string& graphId);
 };
 
 PreprocPool& preprocPool();

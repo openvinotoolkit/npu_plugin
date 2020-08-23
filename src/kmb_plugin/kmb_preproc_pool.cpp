@@ -80,9 +80,9 @@ void PreprocessorPool::execDataPreprocessing(const PreprocTask& task) {
 unsigned int PreprocessorPool::getNumberOfShaves() const { return _numberOfShaves; }
 
 PreprocessorPool& PreprocPool::getPool(
-    int w, unsigned int numberOfShaves, unsigned int lpi, Path ppPath) {
+    const std::string& preprocPoolId, unsigned int numberOfShaves, unsigned int lpi, Path ppPath) {
     std::unique_lock<std::mutex> lock(_mutex);
-    if (_preprocPools.count(w) == 0) {
+    if (_preprocPools.count(preprocPoolId) == 0) {
         //First SHAVE number is actually obsolete parameter.
         //Resource manager can ignore it and choose first SHAVE number by its own.
         //Anyway some valid value should be provided to sippCreatePipeline by plugin.
@@ -101,22 +101,22 @@ PreprocessorPool& PreprocPool::getPool(
         IE_ASSERT(lastShave < 16) << "PreprocPool error: attempt to execute preprocessing on " << firstFreeShave
                                   << "-" << lastShave << " SHAVEs, last SHAVE index must be less than 16";
 
-        _preprocPools[w].reset(new PreprocessorPool(firstFreeShave, lastShave, pipesPerPool, lpi, ppPath));
+        _preprocPools[preprocPoolId].reset(new PreprocessorPool(firstFreeShave, lastShave, pipesPerPool, lpi, ppPath));
     } else if (_preprocPools.size() > maxPools) {
         THROW_IE_EXCEPTION << "Error: max pool number exceeded!";
     }
     lock.unlock();
 
-    return *_preprocPools[w];
+    return *_preprocPools[preprocPoolId];
 }
 
 void PreprocPool::execDataPreprocessing(
-    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath) {
+    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath, const std::string& preprocPoolId) {
     if (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
     auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
-    getPool(dims[3], numberOfShaves, lpi, ppPath).execDataPreprocessing(task);
+    getPool(preprocPoolId, numberOfShaves, lpi, ppPath).execDataPreprocessing(task);
 }
 
 PreprocPool& preprocPool() {
