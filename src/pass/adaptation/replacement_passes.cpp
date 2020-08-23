@@ -179,6 +179,12 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
 
             if(match)
             {
+                // DO PERMUTE WHEN 2 DIMENSION' SIZE EQUAL.
+                std::set<size_t> noRepeatShape(inputRealShape.begin(), inputRealShape.end());
+                match &= (noRepeatShape.size()==inputRealShape.size());
+            }
+            if(match)
+            {
                 auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
                 auto sourceTensor = opIt->getInputTensor(0);
                 auto parentOpIt = om.getSourceOp(sourceTensor);
