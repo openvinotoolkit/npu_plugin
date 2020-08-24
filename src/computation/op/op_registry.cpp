@@ -94,11 +94,11 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const mv::Data::TensorIterator& tensor)
     {
         *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const std::vector<mv::Data::TensorIterator>& tensors)
     {
         *codeOut << "{";
         if (!tensors.empty())
@@ -144,15 +144,20 @@ namespace
         }
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const T& attr)
     {
         *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* /* codeOut */, 
+                std::ostream* /* dataOut */, 
+                const std::string& /* outVarName */, 
+                const std::vector<std::string>& /* paramNames */, 
+                const ParamTuple& /* paramValues */)
     {
+        //This function is empty because it is a recursion end point. Executed when I == std::tuple_size::value.
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
