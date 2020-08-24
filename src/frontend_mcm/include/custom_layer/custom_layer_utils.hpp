@@ -179,6 +179,7 @@ static uint32_t parseKernelArgument(const CustomKernel::BindingParameter& bindin
             VPU_THROW_FORMAT("Unable to deduce parameter '%s' for '%s' layer. Name is: '%s'", binding.argName,
                 layer->type, layer->name);
         }
+    IE_ASSERT(false);
 }
 
 }  // namespace vpu

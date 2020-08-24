@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Intel Corporation.
+# Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -13,23 +13,6 @@
 # express or implied warranties, other than those that are expressly
 # stated in the License.
 #
-
-function(add_3rdparty_subdir SUBDIR_NAME)
-    if(NOT EXISTS "${CMAKE_CURRENT_LIST_DIR}/${SUBDIR_NAME}")
-        message(FATAL_ERROR "${SUBDIR_NAME} was not found. Please run `git submodule update --init --recursive`")
-    endif()
-
-    # Remove problematic compiler flags
-    foreach(flag "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
-        string(REPLACE ${flag} "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-        string(REPLACE ${flag} "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-    endforeach()
-
-    set(CMAKE_C_VISIBILITY_PRESET default)
-    set(CMAKE_CXX_VISIBILITY_PRESET default)
-
-    add_subdirectory(${SUBDIR_NAME})
-endfunction()
 
 set(VPU_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
 add_custom_target(vpu_dir ALL
@@ -83,9 +66,55 @@ else()
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
 
-if(mcmCompiler_FOUND AND UNIX)
-    set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
+if(ENABLE_MCM_FROM_REPO)
+    include(FetchContent)
+    file(READ "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/revisions.txt" revision_file)
+    string(REPLACE " " ";" revision_file ${revision_file})
+    list(GET revision_file 1 revision)
 
+    FetchContent_Declare(mcmcompiler
+        GIT_REPOSITORY git@github.com:movidius/mcmCompiler.git
+        GIT_TAG ${revision})
+
+    FetchContent_GetProperties(mcmcompiler)
+    if(NOT mcmcompiler_POPULATED)
+        FetchContent_Populate(mcmcompiler)
+        # TODO: remove if compiler starts to respect -Werror
+        foreach(flag "-Werror")
+            string(REPLACE ${flag} "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+            string(REPLACE ${flag} "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+        endforeach()
+        set_directory_properties(PROPERTIES EXCLUDE_FROM_ALL YES)
+        add_subdirectory(${mcmcompiler_SOURCE_DIR} ${mcmcompiler_BINARY_DIR})
+
+        add_library(MCM::cm ALIAS cm)
+
+        set(mcmCompilerDescriptor_DIR "${mcmCompiler_SOURCE_DIR}/config")
+    endif()
+else()
+    set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
+    if(UNIX)
+        find_package(mcmCompiler REQUIRED CONFIG PATHS ${mcmCompiler_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
+        set_target_properties(cm PROPERTIES IMPORTED_GLOBAL TRUE)
+
+        add_library(MCM::cm ALIAS cm)
+        # TODO: should be done in compiler CMake files
+        get_target_property(MCM_INCLUDE_DIR cm INTERFACE_INCLUDE_DIRECTORIES) 
+        target_include_directories(cm
+            INTERFACE 
+                ${MCM_INCLUDE_DIR}
+                ${MCM_INCLUDE_DIR}/mcm/meta)
+
+    endif()
+    # mcmCompiler_DIR is assumed to be pointing at share/cmake/mcmCompiler
+    set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
+    set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
+    set(mcmCompilerDescriptor_DIR "${mcmCompiler_DIR}/../../../config")
+endif()
+
+# TODO: remove if once windows is supported
+if(UNIX)
+    set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
     add_custom_target(mcm_compiler_copy_libs ALL
             COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_PROPERTY:cm,LOCATION>
                                                $<TARGET_PROPERTY:model,LOCATION>
@@ -93,28 +122,13 @@ if(mcmCompiler_FOUND AND UNIX)
                                                ${COMPILATION_OUT_DIR}
             COMMENT "[MCM Compiler] Copy lib files")
 
-    set(mcmCompilerDescriptor_DIR "${mcmCompiler_DIR}/../../../config")
-    set(mcmCustomCompilerDescriptor_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config") 
-
+    set(mcmCustomCompilerDescriptor_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config")
     add_custom_target(mcm_compiler_copy_configs ALL
             COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCompilerDescriptor_DIR}"
                                                          "${COMPILATION_OUT_DIR}/mcm_config"
             COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCustomCompilerDescriptor_DIR}"
                                                          "${COMPILATION_OUT_DIR}/mcm_config"
             COMMENT "[MCM Compiler] Copy config files for compilation")
-
-    set(MCM_COMPILER_LIBRARY cm CACHE INTERNAL "")
-    set(MCM_COMPILER_INCLUDES $<TARGET_PROPERTY:cm,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
-
-    get_target_property(META_DIR_PATH cm INTERFACE_INCLUDE_DIRECTORIES)
-    set(META_DIR_PATH "${META_DIR_PATH}/mcm/meta" CACHE INTERNAL "")
-else()
-    set(MCM_COMPILER_LIBRARY "" CACHE INTERNAL "")
-    set(MCM_COMPILER_INCLUDES "" CACHE INTERNAL "")
-    set(META_DIR_PATH "" CACHE INTERNAL "")
-    # mcmCompiler_DIR is assumed to be pointing at share/cmake/mcmCompiler
-    set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
-    set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
 endif()
 
 # copy firmware to lib folder to have vpu.bin in a package
