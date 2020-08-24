@@ -64,14 +64,14 @@ void Huffman::reset()
 
 void Huffman::constructHeap(const vector<Symbol> &data, int bpb)
 {
-    HuffmanTuple_t t;
     for (unsigned int i = 0; i < data.size(); i++)
     {
-        t = HuffmanTuple_t(data[i].symbol, data[i].occurrences, i, -1, -1);
-        nodes.push_back(t);
+        nodes.emplace_back(data[i].symbol, data[i].occurrences, i, -1, -1);
     }
-    for (HuffmanTuple_t &it : nodes)
+    for (HuffmanTuple_t &it : nodes) 
+    {
         heap.push(it);
+    }
     SIZE_OF_SYMBOL = bpb;
     nrOfDistSyms = nodes.size();
     if(encodeSymbols > 0)
@@ -324,8 +324,8 @@ void Huffman::generateEncodedSymbols()
     sort(encSymLengths.begin(), encSymLengths.end());
     encSyms.push_back((1 << encSymLengths[0].first) - 1);
     codedSyms.insert(make_pair(encSymLengths[0].second,
-                               HuffmanCoded_t(encSyms[0],
-                                       encSymLengths[0].first)));
+                               HuffmanCoded_t{static_cast<uint32_t>(encSyms[0]),
+                                       static_cast<uint32_t>(encSymLengths[0].first)}));
 
     Log(4, "generateEncodedSymbols: encoded Symbol %0x, length: %0d from original byte 0x%0x", encSyms[0], encSymLengths[0].first, encSymLengths[0].second[0] & 0xFF);
 
@@ -334,7 +334,7 @@ void Huffman::generateEncodedSymbols()
         const int sh = (encSymLengths[i].first - encSymLengths[i - 1].first);
 
         encSyms.push_back((encSyms[i - 1] << sh) - 1);
-        codedSyms.insert(make_pair(symbol, HuffmanCoded_t(encSyms[i], encSymLengths[i].first)));
+        codedSyms.insert(make_pair(symbol, HuffmanCoded_t{static_cast<uint32_t>(encSyms[i]), static_cast<uint32_t>(encSymLengths[i].first)}));
 
         Log(4, "generateEncodedSymbols: encoded Symbol %0x, length: %0d from original byte 0x%0x", encSyms[i], encSymLengths[i].first, symbol[0] & 0xFF);
     }
@@ -1049,13 +1049,19 @@ found_solution_again: ;
         int status = 0;
         if ( outputDataRouting == WRITE_TO_FILE )
         {
-            if((status = writeToFile(encodedValues.bits.data(), encodedValues.bits.size(), outputDataFileName)));
-            }
-        else
-        {
-            if((status = writeToBuffer(encodedValues.bits.data(), encodedValues.bits.size(), outputDataBuffer)));
+            if((status = writeToFile(encodedValues.bits.data(), encodedValues.bits.size(), outputDataFileName)))
+            {
+                return encodedValues.bits.size()*8;
             }
         }
+        else
+        {
+            if((status = writeToBuffer(encodedValues.bits.data(), encodedValues.bits.size(), outputDataBuffer)))
+            {
+                return encodedValues.bits.size()*8;
+            }
+        }
+    }
     return (encodedValues.length);
 }
 
@@ -1237,9 +1243,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         else
         {
             d_read = inputDataBuffer[bytes_read++];
-        }
             Log(2, "readEncodedData: Block = %0d Mode = %x ODV size = %0ld (delta %0ld, d_read 0x%0x, bytes_read %0d)", lviBlockNumber, (d_read & 0x03), outputDataVector->size(), ( outputDataVector->size() - odvSizePrev ), (d_read&0xFFFF), bytes_read);
             odvSizePrev = outputDataVector->size();
+        }
 
         //---------------------------------------------------------------------------------------------------------------------
         // BYPASS mode 
@@ -1350,10 +1356,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             }
             else
             {
-                for ( uint32_t i = 0; i < bytes.size(); i++ )
-                {
-                    outputDataVector->push_back(bytes[i]);
-                }
+                outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
             }
 
             if ( RLE_BLOCKS_PADDED_TO_32_BYTES )
@@ -1573,10 +1576,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         }
         else
         {
-            for ( uint32_t i = 0; i < bytes.size(); i++ )
-            {
-                outputDataVector->push_back(bytes[i]);
-            }
+            outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
         }
 
         // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
@@ -1601,9 +1601,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     {
         outputDataLength = outputDataVector->size();
         
-        if ( outputDataLength > 0 )
+        if ( !outputDataVector->empty() )
         {
-            memcpy(reinterpret_cast<void*>(outputDataBuffer), reinterpret_cast<void*>(outputDataVector->data()), outputDataLength);
+            move(outputDataVector->begin(), outputDataVector->end(), outputDataBuffer);
             delete outputDataVector;
         }
         else
