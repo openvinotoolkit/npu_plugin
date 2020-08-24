@@ -44,29 +44,39 @@ else()
 endif()
 
 target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        ${MCM_COMPILER_INCLUDES}
-        ${MCM_COMPILER_INCLUDES}/include
-        ${META_DIR_PATH}
-        "${FLATBUFFERS_INCLUDE_PATH}"
-        "${SCHEMA_INCLUDE_PATH}"
     PUBLIC
-        "include"
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        ${IE_MAIN_SOURCE_DIR}/thirdparty/pugixml/src)
+        "include")
+
+# TODO: remove when compiler works on ARM and Windows
+if(ARM OR AARCH64 OR WIN32)
+    target_include_directories(${TARGET_NAME}
+        PRIVATE 
+            ${FLATBUFFERS_INCLUDE_PATH}
+            ${SCHEMA_INCLUDE_PATH})
+endif()
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
         IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
-        IE::vpu_common_lib
         vpux
     PRIVATE
         IE::pugixml
         IE::ngraph_reference
         kmb_utils
-        ${MCM_COMPILER_LIBRARY})
+        IE::vpu_common_lib)
+
+# TODO: move to the targer_link_libraries above when compiler works on ARM
+# TODO remove NOT WIN32 when we have compiler for Windows
+if((X86 OR X86_64) AND NOT WIN32)
+    target_link_libraries(${TARGET_NAME}
+        PRIVATE
+            MCM::cm)
+   # FIXME: remove define once we hide all logic for compiler in a separate library
+   target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MCM_COMPILER)
+endif()
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

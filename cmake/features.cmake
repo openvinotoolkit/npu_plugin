@@ -15,6 +15,9 @@ ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for 
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
 
+# TODO: the option works only for x86 unix platform now
+ie_dependent_option(ENABLE_MCM_FROM_REPO "Enable compiler to be built from sources" OFF "NOT ARM; NOT AARCH64; NOT WIN32" OFF)
+
 function (print_enabled_kmb_features)
     message(STATUS "KmbPlugin enabled features: ")
     message(STATUS "")
@@ -23,3 +26,4 @@ function (print_enabled_kmb_features)
     endforeach()
     message(STATUS "")
 endfunction()
+

@@ -34,6 +34,8 @@ if (UNIX)
                 ${IE_MAIN_SOURCE_DIR}/src/vpu/graph_transformer/include
             DEFINES
                 -DKMB_ALPHA_TESTS_DATA_PATH="${MODELS_PATH}"
+                # FIXME: remove define once we hide all logic for compiler in a separate library
+                -DENABLE_MCM_COMPILER
             DEPENDENCIES
                 kmb_custom_kernels
             LINK_LIBRARIES

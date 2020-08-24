@@ -44,15 +44,6 @@ endif()
 
 print_enabled_kmb_features()
 
-# flatbuffers are necessary even when the compiler itself is disabled
-if (NOT mcmCompiler_DIR)
-    set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
-endif()
-if(X86_64 AND UNIX)
-    find_package(mcmCompiler REQUIRED CONFIG PATHS ${mcmCompiler_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
-    add_definitions(-DENABLE_MCM_COMPILER)
-endif()
-
 if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
