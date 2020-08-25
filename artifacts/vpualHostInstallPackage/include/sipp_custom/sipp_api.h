@@ -37,7 +37,7 @@ typedef struct SippPipeline SippPipeline;
  * @param mask - Mask to set desired initialisation steps.
  *               bit0 - clear bit to bypass CMXDMA SW reset.
  */
-void sippSetInitMask(uint32_t mask);
+void sippSetInitMask(uint32_t mask, uint32_t device_id = 0);
 
 /**
  * Create a basic SIPP pipeline without initially assigning any shaves or
@@ -45,7 +45,7 @@ void sippSetInitMask(uint32_t mask);
  *
  * @return [SippPipeline*] Pointer to new SIPP pipeline.
  */
-SippPipeline* sippCreateBasicPipeline(void);
+SippPipeline* sippCreateBasicPipeline(uint32_t device_id);
 
 /**
  * Create a SIPP pipeline.
@@ -56,7 +56,7 @@ SippPipeline* sippCreateBasicPipeline(void);
  *
  * @return [SippPipeline*] Pointer to new SIPP pipeline.
  */
-SippPipeline* sippCreatePipeline(uint32_t first_slice, uint32_t last_slice, uint8_t* pmBinImg);
+SippPipeline* sippCreatePipeline(uint32_t first_slice, uint32_t last_slice, uint8_t* pmBinImg, uint32_t device_id = 0);
 
 /**
  * Add SHAVE and CMX slice resources to a SIPP pipeline instance.

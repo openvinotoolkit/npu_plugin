@@ -96,7 +96,7 @@ class XPool : public PluginStub
             auto rc { SendBufferBlocking(Alloc(bufferSize), bufferSize) };
             // TODO more graceful handling of this?
             if (0 != rc) {
-                throw std::runtime_error("XPool error when allocating new buffer.");
+                throw std::runtime_error("XPool error in AllocThread-SendBufferBlocking");
             }
         }
     }
@@ -119,11 +119,11 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
                 auto sc = xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId, msg, &size);
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "XPool: XLink read error: "
+                        "Xpool error xlink_read_data_to_buffer: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -138,7 +138,7 @@ class XPool : public PluginStub
                 sc = xlink_read_data(&XlinkDeviceHandle, chanId, &out_data, (uint32_t*)&data_size);
                 if (sc) {
                     std::string error_message {
-                        "XPool: XLink read error: "
+                        "Xpool error xlink_read_data: "
                         + std::to_string(sc)
                         };
                 }
@@ -154,12 +154,12 @@ class XPool : public PluginStub
 
                 uint8_t msg[128];
                 uint32_t size { 0 };
-                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+                xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
                 auto sc { xlink_read_data_to_buffer(&XlinkDeviceHandle, chanId,
                                                     msg, &size) };
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "XPool: XLink read error: "
+                        "Xpool error xlink_read_data_to_buffer: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -177,7 +177,7 @@ class XPool : public PluginStub
 
                 if (sc != X_LINK_SUCCESS) {
                     std::string error_message {
-                        "XPool: XLink read error: "
+                        "Xpool error xlink_read_data: "
                         + std::to_string(sc)
                         };
                     throw std::runtime_error(error_message);
@@ -225,7 +225,11 @@ class XPool : public PluginStub
   public:
 
     /** Constructor declaration (definition is type dependant). */
-    XPool();
+    XPool(uint32_t device_id);
+
+    // TODO - May be gcc bug, but we need this declaration to help with initialisation.
+    //        Copy-elision should occur, so we will never use it.
+    XPool(const XPool&); // Declare copy ctor, but don't define.
 
     /**
      * Destructor.
@@ -296,7 +300,7 @@ class XPool : public PluginStub
         }
 
         // Open blocking each way, with no timeout.
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
         xlink_error status = xlink_open_channel(&XlinkDeviceHandle, xId, RXB_TXB, (nBuf * bSize) * 4, 0);
         if (status) {
             std::cerr << "XPool Open Channel Status: " << status << std::endl;
@@ -362,7 +366,7 @@ class XPool : public PluginStub
 
     /** Delete method. Close the channel. */
     void Delete (void) {
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
         xlink_error rc = xlink_close_channel(&XlinkDeviceHandle, chanId);
         if (X_LINK_SUCCESS != rc) {
             std::cerr << "XPool close channel status: " << rc << std::endl;
@@ -391,7 +395,7 @@ class XPool : public PluginStub
             std::cout << "Warning, sending more buffers than XPool can hold on the VPU." << std::endl;
         }
 
-        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle()};
+        xlink_handle XlinkDeviceHandle {getXlinkDeviceHandle(getDeviceId())};
 #ifdef __REMOTE_HOST__
         // TODO We actually just want to do a sort of:
         //    xlink_allocate_vpu_buffer(chan, bufferSize);
@@ -400,7 +404,7 @@ class XPool : public PluginStub
         auto rc { xlink_write_data(&XlinkDeviceHandle, chanId, reinterpret_cast<uint8_t *>(&buffer), bufferSize) };
 #endif // __REMOTE_HOST__
         if (X_LINK_SUCCESS != rc) {
-            std::cerr << "XPool: XLink write error: " << rc << std::endl;
+            std::cerr << "Error in XPool XLinkWrite: " << rc << std::endl;
         } else {
             output_buffers.push(buffer);
         }

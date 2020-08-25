@@ -53,8 +53,11 @@ class PlgOTXin : public PluginStub
     MSender<float> out2;
 
     /** Constructor. */
-    PlgOTXin() : PluginStub("PlgOTXin"),
-                 channelID(XLINK_INVALID_CHANNEL_ID)
+    PlgOTXin(uint32_t device_id) : PluginStub("PlgOTXin", device_id),
+                 channelID(XLINK_INVALID_CHANNEL_ID),
+                 out0{device_id},
+                 out1{device_id},
+                 out2{device_id}
                  {};
 
     /** Destructor. */

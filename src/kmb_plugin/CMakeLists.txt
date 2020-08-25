@@ -42,6 +42,14 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -DDEVICE_NAME="${KMB_DEVICE_NA
 
 include(compile_options)
 
+if(ENABLE_M2I)
+    set(M2I_INCLUDES "${GAPI_M2I_INCLUDES}")
+    set(M2I_LIBRARY "${GAPI_M2I_LIBRARY}")
+else()
+    set(M2I_INCLUDES "")
+    set(M2I_LIBRARY "")
+endif()
+
 if(UNIX)
     # TODO: Remove when warnings are fixed in vpualHost
     set_source_files_properties(kmb_preproc_gapi_kernels_sipp.cpp PROPERTIES
@@ -52,7 +60,7 @@ target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
-        ${GAPI_M2I_INCLUDES}
+        ${M2I_INCLUDES}
     PRIVATE
         "${FRONTEND_VPUX_INCLUDE_DIR}"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
@@ -66,7 +74,7 @@ target_link_libraries(${TARGET_NAME}
     PRIVATE
         ${INTEL_ITT_LIBS}
         ${GAPI_SIPP_LIBRARY}
-        ${GAPI_M2I_LIBRARY}
+        ${M2I_LIBRARY}
         kmb_utils
         vpux)
 
@@ -107,7 +115,7 @@ if(ENABLE_TESTS)
         SYSTEM PRIVATE
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
-            ${GAPI_M2I_INCLUDES}
+            ${M2I_INCLUDES}
             "${FRONTEND_VPUX_INCLUDE_DIR}"
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
@@ -120,7 +128,7 @@ if(ENABLE_TESTS)
         PRIVATE
             ${INTEL_ITT_LIBS}
             ${GAPI_SIPP_LIBRARY}
-            ${GAPI_M2I_LIBRARY}
+            ${M2I_LIBRARY}
             kmb_utils
             vpux)
 

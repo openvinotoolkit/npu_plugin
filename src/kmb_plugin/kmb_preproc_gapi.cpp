@@ -10,7 +10,9 @@
 
 #include <memory>
 #include <opencv2/gapi.hpp>
+#ifdef ENABLE_M2I
 #include <opencv2/gapi_m2i/preproc.hpp>
+#endif
 #include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <utility>
 #include <vector>
@@ -93,6 +95,7 @@ public:
             ColorFormat in_fmt, ColorFormat out_fmt) override;
 };
 
+#ifdef ENABLE_M2I
 class PrivM2I final: public PreprocEngine::Priv {
     std::unique_ptr<cv::GComputation> _comp = nullptr;
 
@@ -101,6 +104,7 @@ public:
             const ResizeAlgorithm& algorithm,
             ColorFormat in_fmt, ColorFormat out_fmt) override;
 };
+#endif
 
 namespace {
 namespace G {
@@ -207,6 +211,7 @@ std::vector<cv::gapi::own::Mat> bind_to_blob(const Blob::Ptr& blob) {
     return result;
 }
 
+#ifdef ENABLE_M2I
 cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     // This is a special case for M2I & NV12.
     // FIXME: M2I has a single input only!
@@ -240,6 +245,7 @@ cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     IE_ASSERT(ie_desc_blk.getOffsetPadding() == 0);
     return {size.height, size.width, CV_8UC1, input_y.data, stride};
 }
+#endif
 
 // validate input/output ColorFormat-related parameters
 void validateColorFormats(const G::Desc &in_desc,
@@ -794,6 +800,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     }
 }
 
+#ifdef ENABLE_M2I
 void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
                  ColorFormat in_fmt, ColorFormat out_fmt) {
@@ -843,14 +850,17 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     _comp->apply(cv::gin(input), cv::gout(output),
                  cv::compile_args(cv::gapi::preproc::m2i::kernels()));
 }
+#endif
 
 PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
                              unsigned int lpi, Path ppPath) {
     IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
     if (ppPath == Path::SIPP) {
         _priv.reset(new PrivSIPP(shaveFirst, shaveLast, lpi));
+#ifdef ENABLE_M2I
     } else if (ppPath == Path::M2I) {
         _priv.reset(new PrivM2I());
+#endif
     } else {
         THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
                            << std::to_string(static_cast<int>(ppPath));

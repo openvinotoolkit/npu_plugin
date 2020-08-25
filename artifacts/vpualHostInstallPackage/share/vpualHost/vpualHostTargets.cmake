@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget VpualDispatcher RemoteFlic NN OSD sipp_custom XLink ResMgr)
+foreach(_expectedTarget VpualDispatcher RemoteFlic NN sipp_custom XLink)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -73,14 +73,6 @@ set_target_properties(NN PROPERTIES
   INTERFACE_LINK_LIBRARIES "XLink;RemoteFlic;VpualDispatcher;pthread"
 )
 
-# Create imported target OSD
-add_library(OSD SHARED IMPORTED)
-
-set_target_properties(OSD PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/OSD"
-  INTERFACE_LINK_LIBRARIES "VpualDispatcher"
-)
-
 # Create imported target sipp_custom
 add_library(sipp_custom SHARED IMPORTED)
 
@@ -94,13 +86,6 @@ add_library(XLink SHARED IMPORTED)
 
 set_target_properties(XLink PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/XLink"
-)
-
-# Create imported target ResMgr
-add_library(ResMgr SHARED IMPORTED)
-
-set_target_properties(ResMgr PROPERTIES
-  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/ResMgr"
 )
 
 if(CMAKE_VERSION VERSION_LESS 2.8.12)

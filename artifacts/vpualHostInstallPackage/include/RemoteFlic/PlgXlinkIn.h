@@ -45,9 +45,14 @@ class PlgXlinkIn : public PluginStub
     MSender<ImgFramePtr> out;
 
     /** Constructor. */
-    PlgXlinkIn() : PluginStub("PlgXlinkIn"),
-                   channelID(XLINK_INVALID_CHANNEL_ID)
+    PlgXlinkIn(uint32_t device_id) : PluginStub("PlgXlinkIn", device_id),
+                   channelID(XLINK_INVALID_CHANNEL_ID),
+                   out{device_id}
                    {};
+
+    // TODO - May be a gcc bug, but we need this declaration to help with initialisation.
+    //        Copy-elision should occur, so we will never use it.
+    PlgXlinkIn(const PlgXlinkIn&); // Declare copy ctor, but don't define.
 
     /** Destructor. */
     ~PlgXlinkIn();

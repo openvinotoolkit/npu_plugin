@@ -32,7 +32,7 @@ class PlgTensorSource : public PluginStub
     MSender<TensorMsgPtr> tensorOut;
 
     /** Constructor. */
-    PlgTensorSource() : PluginStub("PlgTensorSource"){};
+        PlgTensorSource(uint32_t device_id = 0) : PluginStub("PlgTensorSource", device_id), tensorOut{device_id} {}
 
     /** Destructor. */
     ~PlgTensorSource();
