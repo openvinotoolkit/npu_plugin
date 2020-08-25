@@ -1150,7 +1150,7 @@ namespace mv
                         && clustering == "SplitOverH")
                     return FailCause::DilatedSOH;
 
-                if (clustering == "SplitOverH" && !isChanMajor &&
+                if (op.getOpType() == "Conv" && clustering == "SplitOverH" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
 

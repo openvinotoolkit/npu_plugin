@@ -96,6 +96,16 @@ endif()
 include(cmake-modules/code-coverage.cmake)
 add_code_coverage()
 
+# sanitizer options
+option(ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
+# TODO: it makes sense to print all important options on generation stage
+message(STATUS "ENABLE_SANITIZER: " ${ENABLE_SANITIZER})
+
+option(ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
+message(STATUS "ENABLE_THREAD_SANITIZER: " ${ENABLE_THREAD_SANITIZER})
+
+include(sanitizer)
+
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
@@ -266,6 +276,7 @@ set(pass
 
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/global_config_params_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/compute_memory.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/initialization/apply_target_vars.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_unique_op_id.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/create_source_structure.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/initialization/assign_output_node.cpp"
@@ -338,6 +349,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/optimization/kmb_default_configs.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/scheduling/scheduling_passes.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/scheduling/layout_dma.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_blob_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/serialization/generate_json.cpp"
@@ -353,6 +365,9 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/op_model_cutter.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/force_spill_activation.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/cmx_concat_transform.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/target/target_descriptor.cpp"
 

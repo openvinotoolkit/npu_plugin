@@ -43,8 +43,8 @@ struct OpModel_Path_Update_Traits {
     bool operator()(node_iterator_t itr, const dag_t& dag) const {
       std::string op_type = (*itr).getOpType();
       return (op_type == "Slice") || (op_type == "Crop") 
-          || (op_type == "Align") || (op_type == "ImplicitPermute") ||
-          (op_type == "ImplicitConcat") ;
+          || (op_type == "Align") || (op_type == "ImplicitPermute")
+          || (op_type == "ImplicitReshape") || (op_type == "ImplicitConcat") ;
     }
   }; // struct implicit_op_selector_t //
 

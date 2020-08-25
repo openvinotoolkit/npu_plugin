@@ -32,10 +32,10 @@ namespace mv
 
             auto input = inputs[0];
             auto outputOrder = input->getOrder();
-            auto W = args.at("post_nms_topn").get<unsigned>();
+            size_t W = 1;
             size_t H = 1;
             size_t C = 5;
-            size_t N = 1;
+            size_t N = args.at("post_nms_topn").get<unsigned>();
 
             mv::Shape outputShape({W, H, C, N});;
 

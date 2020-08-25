@@ -28,7 +28,7 @@ TEST(generate_json, case1)
     auto scale = om.scale(conv, scales);
     om.output(scale);
     
-    unit1.loadTargetDescriptor(mv::Target::ma2480);
+    unit1.loadTargetDescriptor(mv::Target::ma2490);
     unit1.compilationDescriptor()["GenerateJSON"]["output"] = json;
     unit1.compilationDescriptor()["GenerateBlob"]["output"] = originalBlob;
     unit1.initialize();
@@ -43,7 +43,7 @@ TEST(generate_json, case1)
     unit2.loadModelFromJson(json);
     mv::OpModel om2 = unit2.model();
 
-    unit2.loadTargetDescriptor(mv::Target::ma2480);
+    unit2.loadTargetDescriptor(mv::Target::ma2490);
     unit2.compilationDescriptor()["GenerateBlob"]["output"] = restoredBlob;
     unit2.initialize();
     unit2.passManager().disablePass();

@@ -3,30 +3,71 @@
 #include "include/mcm/utils/env_loader.hpp"
 #include <cstdlib>
 
-TEST(target_descriptor, load_from_file)
+namespace {
+
+std::string getDescPath(mv::Target target)
+{
+    const char* filename;
+
+    switch (target)
+    {
+        case mv::Target::ma2490:
+            filename = "release_kmb.json";
+            break;
+
+        case mv::Target::ma3100:
+            filename = "release_thb.json";
+            break;
+
+        default:
+            ADD_FAILURE() << "Unimplemented target descriptor path";
+            filename = "unimplemented";
+            break;
+    }
+
+    return mv::utils::projectRootPath() + "/config/target/" + filename;
+}
+
+class TargetDescriptorTest : public testing::TestWithParam<mv::Target> {};
+
+TEST_P(TargetDescriptorTest, load_from_file)
 {
 
-    std::string descPath = mv::utils::projectRootPath() + std::string("/config/target/ma2480.json");
     mv::TargetDescriptor desc;
-    ASSERT_TRUE(desc.load(descPath));
-    ASSERT_EQ(desc.getTarget(), mv::Target::ma2480);
+    ASSERT_TRUE(desc.load(getDescPath(GetParam())));
+    ASSERT_EQ(desc.getTarget(), GetParam());
 
-}  
+}
 
-TEST(target_descriptor, compose)
+TEST_P(TargetDescriptorTest, compose)
 {
 
     mv::TargetDescriptor desc;
     
-    desc.setTarget(mv::Target::ma2480);
+    desc.setTarget(GetParam());
     desc.setDType(mv::DType("Float16"));
 
     desc.defineOp("Conv");
 
-    ASSERT_EQ(desc.getTarget(), mv::Target::ma2480);
+    ASSERT_EQ(desc.getTarget(), GetParam());
     ASSERT_EQ(desc.getDType(), mv::DType("Float16"));
     ASSERT_TRUE(desc.opSupported("Conv"));
     ASSERT_FALSE(desc.opSupported("UndefinedOp"));
 
 }
 
+INSTANTIATE_TEST_SUITE_P(Targets,
+                         TargetDescriptorTest,
+                         testing::Values(mv::Target::ma2490, mv::Target::ma3100));
+
+TEST(ThbDmaControllerCount, load_from_file)
+{
+
+    mv::TargetDescriptor desc;
+    ASSERT_TRUE(desc.load(getDescPath(mv::Target::ma3100)));
+    ASSERT_EQ(desc.nceDefs().at("DMAControllers").totalNumber, 2);
+
+}
+
+
+}  // namespace

@@ -86,6 +86,23 @@
             "ComputeMemory",
             "AssignUniqueOpId",
             {
+                "name": "ApplyTargetVars",
+                "Vars": [
+                    {
+                        "name": "dmaControllers",
+                        "block": "nce",
+                        "var": "DMAControllers",
+                        "default": 1
+                    },
+                    {
+                        "name": "csramLimit",
+                        "block": "nce",
+                        "var": "CSRAM",
+                        "default": 0
+                    }
+                ]
+            },
+            {
                 "name": "CreateSourceStructure",
                 "VersionMajor": 3,
                 "VersionMinor": 11,
@@ -263,7 +280,11 @@
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "enable_cmx_concat" : true
+            },
+            {
+              "name" : "RecomputeImplicitOpMemoryLocations"
             },
             {
                 "name": "TransitiveReduction",
@@ -302,8 +323,9 @@
               "barrier_bound" : 16,
               "producer_bound" : 256,
               "remove_barriers_in_upa_tail" : true,
-              "remove_redundant_wait_barriers" : true	
-            }
+              "remove_redundant_wait_barriers" : true
+            },
+            "LayoutDMA"
         ]
     },
     "validate": {

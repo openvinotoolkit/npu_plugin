@@ -178,7 +178,6 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
 
     while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output") {
-        assert(!isQuantizableOp(current_ops[0]));
         idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
         current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(idx));
         assert(current_ops[0]->getOutputTensor().size() < 2);
@@ -272,7 +271,8 @@ void propagateParameters(mv::ComputationModel& model) {
         }
 
         if ((isQuantizableOp(op) && isOpQuantized(om, op)) || op->getOpType() == "Constant" // NOTE: float16 case is not handled here
-            || op->getOpType() == "Interp" || op->getOpType() == "Normalize") { //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Interp" || op->getOpType() == "Normalize" //Interp might be used for re-quantize, need the quant params
+            || op->getOpType() == "Deconv") { 
             quant_params = findOutputQuantParams(model, op);
 
             if (op->getOpType() == "AveragePool" && isEqual(quant_params, initial_quant_params())) {
@@ -280,7 +280,10 @@ void propagateParameters(mv::ComputationModel& model) {
             }
 
             setQuantizationParams(op, quant_params);
-        } else if (op->getOpType() != "Input" && op->getOpType() != "ConstantInt") {
+        } else if (op->getOpType() != "Input" &&
+                   op->getOpType() != "ImplicitInput" &&
+                   op->getOpType() != "ImplicitInputSlice" &&
+                   op->getOpType() != "ConstantInt") {
             auto parent = om.getSourceOp(op->getInputTensor(0));
             if (parent->getOpType() == "Input" && op->getOpType() == "Scale")
                 continue;
@@ -477,6 +480,8 @@ void quantizeBias(mv::ComputationModel& model) {
 void quantizeIO(mv::ComputationModel& model) {
     mv::OpModel om(model);
     auto inputs = om.getOps("Input");
+    auto implicit_inputs = om.getOps("ImplicitInput");
+    inputs.insert(inputs.end(), implicit_inputs.begin(), implicit_inputs.end());
     mv::DataModel dm(om);
     for (size_t idx = 0; idx < inputs.size(); idx++) {
         auto input = inputs.at(idx);
@@ -490,7 +495,7 @@ void quantizeIO(mv::ComputationModel& model) {
         std::shared_ptr<mv::Element> globalParams = model.getGlobalConfigParams();
         bool scaleFuseInput = globalParams->hasAttr("ScaleFuseInput") ? globalParams->get<bool>("ScaleFuseInput") : false;
 
-        //Fuse scaleshift(multiply+add) into quantization parameters to boost performance 
+        //Fuse scaleshift(multiply+add) into quantization parameters to boost performance
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "Scale" && scaleFuseInput) {
             auto child_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(0));
             if(child_ops.size() == 1 && child_ops[0]->getOpType() == "Bias") {
@@ -595,10 +600,10 @@ void quantizeIO(mv::ComputationModel& model) {
                     std::vector<double> min;
                     std::vector<double> max;
 
-                    float output_min_value = (realBiasValue[0] * realScaleValue[0] + 
+                    float output_min_value = (realBiasValue[0] * realScaleValue[0] +
                     realBiasValue[1] * realScaleValue[1] + realBiasValue[2] * realScaleValue[2]) / 3;
 
-                    float output_max_value = ((realBiasValue[0] + 255) * realScaleValue[0] + 
+                    float output_max_value = ((realBiasValue[0] + 255) * realScaleValue[0] +
                     (realBiasValue[1] + 255) * realScaleValue[1] + (realBiasValue[2] + 255) * realScaleValue[2]) / 3;
 
                     zero_points.push_back(calculateZeroPoint(output_min_value, output_max_value, levels, getDType(Precision::U8)));
@@ -637,7 +642,7 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
     mv::DataModel dm(model);
 
     // Quantize all Scale
-    // Extend Scale to whole netwrok, not only for Input, networks e.g.Facenet need it 
+    // Extend Scale to whole netwrok, not only for Input, networks e.g.Facenet need it
     auto scaleOps = om.getOps("Scale");
     for (auto& current_op : scaleOps) {
         if (current_op->getInputTensor(1)->isDoubleType()) {

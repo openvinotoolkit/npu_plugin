@@ -131,9 +131,20 @@ MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
     return dTypeMapping_.at(dtype.toString());
 }
 
-MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName)
+MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
+                                                                       mv::Tensor::MemoryLocation& tensorLocation)
 {
-    return memoryLocationMapping_.at(allocatorName);
+    if (tensorLocation == mv::Tensor::MemoryLocation::Location::CSRAM)
+    {
+        return MVCNN::MemoryLocation::MemoryLocation_VPU_CSRAM;
+    }
+    else
+    {
+        // TODO: It's unclear that the allocator is the correct way to
+        // find the tensor's memory locale; it might be better to use
+        // the MemoryLocation in all cases.
+        return memoryLocationMapping_.at(allocatorName);
+    }
 }
 
 MVCNN::PPELayerType mv::RuntimeModel::convertPPELayerType(PPELayerTypeEnum ppe)
@@ -203,6 +214,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = t->getName();
+
+    auto tensorLocation = t->get<mv::Tensor::MemoryLocation>("Location");
 
     auto tensorAllocators = t->get<std::set<std::string>>("allocators");
 
@@ -317,7 +330,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
-        
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
@@ -388,7 +400,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
 
     }
-    toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
+
+    toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
     toBuild->data_dtype = convertDtype(t->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -481,6 +494,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild = std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
 
     toBuild->name = subtensor.getName();
+
+    auto tensorLocation = t->get<mv::Tensor::MemoryLocation>("Location");
 
     auto tensorAllocators = t->get<std::set<std::string>>("allocators");
 
@@ -624,9 +639,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = subtensor.getAddress();
+        else if (t->hasAttr("cmx_concat_buffer")) {
+          size_t net_address = tensorBufferIt->getOffset();
+          if (subtensor.hasAttr("offset")) {
+              auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+              auto index = t->getOrder().subToInd(t->getShape(), offset);
+              size_t byte_index = index * t->getDType().getSizeInBits() / 8;
+              auto tensorStrides = t->computeNumericStrides();
+              tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+              std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+              if(numericStrides[4] != tensorStrides[4]){
+                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
+              }
+              net_address += byte_index;
+          }
+          toBuild->data->data_index = net_address;
+        }
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
@@ -646,7 +679,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         }
     }
 
-    toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName);
+    toBuild->locale = convertAllocatorToMemoryLocale(*tensorAllocatorName, tensorLocation);
     toBuild->data_dtype = convertDtype(t->getDType());
 
     // could also be t->hasAttr("quantizationParameters")
@@ -1042,7 +1075,7 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
-                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator, const std::string& dstAllocator)
+                               bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator, const std::string& dstAllocator)
 {
     std::unique_ptr<MVCNN::TaskT> toPush = std::unique_ptr<MVCNN::TaskT>(new MVCNN::TaskT());
     auto tmp = new MVCNN::NNDMATaskT();
@@ -1050,12 +1083,13 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     tmp->src = buildTensorReferenceT(cm, compilationDescriptor, src, srcAllocator);
     tmp->dst = buildTensorReferenceT(cm, compilationDescriptor, dst, dstAllocator);
+    tmp->port = port;
 
     if(dmaToDma)
     {
         tmp->src->dimensions = tmp->dst->dimensions;
     }
-    if (direction != mv::DDR2NNCMX)
+    if (direction != mv::DDR2NNCMX && direction != mv::CSRAM2NNCMX)
     {
         if (padFinalOutput && dst->hasAttr("alignment"))
             alignTensor(cm, tmp->dst, *dst, IO_CHANNEL_DIMENSION, padFinalOutput);
@@ -1065,7 +1099,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
     for (unsigned idx = numTasks; idx > 0; idx--)
         locale_index.push_back(idx - 1);
 
-    if(direction == mv::DDR2NNCMX)
+    if(direction == mv::DDR2NNCMX || direction == mv::CSRAM2NNCMX)
         tmp->dst->locale_index = locale_index;
 
     // Passing -1 as subtensor index, will have us get the full tensor
@@ -1082,7 +1116,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
 void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::DmaDirection direction, mv::Element &compilationDescriptor,
                                bool padFinalOutput, bool dmaToDMA, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn,
-                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, const std::string& srcAllocator,
+                               mv::Data::TensorIterator src, mv::Data::TensorIterator dst, std::uint8_t port, const std::string& srcAllocator,
                                const std::string& dstAllocator)
 {
     mv::OpModel om(cm);
@@ -1101,14 +1135,16 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
             updateTensorReferenceT(cm, compilationDescriptor, src, dst, i, tmp->src, srcAllocator);
         }
 
-        if (direction != mv::DDR2NNCMX)
+        tmp->port = port;
+
+        if (direction != mv::DDR2NNCMX && direction != mv::CSRAM2NNCMX)
         {
             if (padFinalOutput && dst->hasAttr("alignment"))
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_CHANNEL_DIMENSION, padFinalOutput);
         }
 
-        //Check if DMA is DDR2CMX
-        if (direction == mv::DDR2NNCMX)
+        //Check if DMA is DDR2CMX or CSRAM2NNCMX
+        if (direction == mv::DDR2NNCMX || direction == mv::CSRAM2NNCMX)
         {
             if (dst->hasAttr("alignWidth")){
                 alignTensor(cm, tmp->dst, dst->getSubTensor(i), IO_WIDTH_DIMENSION, false);
@@ -1151,7 +1187,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     bool sourceIsBroadCasted = inputTensor->isBroadcasted();
 
     //NOTE: When strategy is overwritten
-    if (opIt->get<mv::DmaDirection>("direction") == mv::DmaDirectionEnum::DDR2NNCMX)
+    if (direction == mv::DmaDirectionEnum::DDR2NNCMX || direction == mv::DmaDirectionEnum::CSRAM2NNCMX)
     {
        // inputTensor->setShape(outputTensor->getShape());
         if (inputTensor->hasAttr("overwriteStrategy"))
@@ -1207,6 +1243,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
     }
 
+    std::uint8_t port = opIt->get<std::uint8_t>("port");
+
     // Case 1 of MC DMAs - Source tensor is broadcasted, i.e. present in it's entirety
     // in all clusters, OR populated tensors going into clustering op
     // (which for some reason are not marked as broadcasted).
@@ -1223,7 +1261,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     {
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
-        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor);
+        case1MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput, dmaToDma, toReturn, inputTensor, outputTensor, port);
 
         if(inputTensor->isSparse())
         {
@@ -1233,7 +1271,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1246,12 +1284,13 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap);
+                  outputSparsityMap, port);
             case1MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable);
+                  outputStorageElementTable, port);
           }
         }
+
         return toReturn;
     }
     // Case 2 of MC DMAs - All cases that are not case 1 or 2. Mostly applied to SOH tensors for activation
@@ -1266,7 +1305,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
         std::vector<std::unique_ptr<MVCNN::TaskT>> toReturn;
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
-            dmaToDma, toReturn, inputTensor, outputTensor);
+            dmaToDma, toReturn, inputTensor, outputTensor, port);
         // If the input tensor for a DMA task is sparse then we also need to 
         // create DMA tasks which transfer Storage Element (SE) Table and 
         // Sparsity Map (SM).
@@ -1277,7 +1316,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             auto tensorSparsityMap = dm.getTensor(inputTensor->getSparsityMap()->getName());
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, tensorSparsityMap,
-                  tensorSparsityMap, "GraphFile", "VPU_CMX_NN");
+                  tensorSparsityMap, port, "GraphFile", "VPU_CMX_NN");
           } else {
             auto inputSparsityMap =
                 dm.getTensor(inputTensor->getSparsityMap()->getName());
@@ -1290,11 +1329,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
-                  outputSparsityMap);
+                  outputSparsityMap, port);
                 
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
-                  outputStorageElementTable);
+                  outputStorageElementTable, port);
           }
         }
         return toReturn;
@@ -1607,6 +1646,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
 
+
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
     if(opIt->hasAttr("PPETask"))
@@ -1661,9 +1701,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
+    if (opIt->hasAttr("cmx_concat_reader")) {
+      toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
+    }
+
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+
+
+
     if (opIt->hasAttr("multiCast"))
     {
         if (opIt->get<bool>("multiCast"))
@@ -1681,9 +1728,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
+
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
+
+    if (opIt->hasAttr("cmx_concat_writer")) {
+      toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
+    }
 
     if (opIt->get<bool>("multiCast"))
     {
@@ -1975,9 +2027,22 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
+
             auto locale_index = std::vector<unsigned int>(1,i);
             toBuild->invariant->input_data->locale_index = locale_index;
             toBuild->invariant->output_data->locale_index = locale_index;
+
+            if (opIt->hasAttr("cmx_concatable")) {
+              // clustering DPU task set locale = [0, 1, 2, 4] //
+              std::vector<unsigned int> cmx_concat_locale_index;
+              for (unsigned idx = numTask; idx > 0; idx--) {
+                cmx_concat_locale_index.push_back(idx-1);
+              }
+              toBuild->invariant->output_data->locale_index =
+                  cmx_concat_locale_index;
+            }
+
+
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
             else if (opIt->get<std::string>("taskOp") == "MaxPool" ||

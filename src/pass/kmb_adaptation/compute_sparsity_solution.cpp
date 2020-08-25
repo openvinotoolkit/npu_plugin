@@ -55,11 +55,14 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
 
     if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))
     {
-        // Trim out channel major convolutions
-        auto new_end = std::remove_if(opsMap.at("Conv").begin(), opsMap.at("Conv").end(),
-                    [](const mv::Data::OpListIterator op)
-                    {return op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;});
-        opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
+        if(opsMap["Conv"].size())
+        {
+            // Trim out channel major convolutions
+            auto new_end = std::remove_if(opsMap.at("Conv").begin(), opsMap.at("Conv").end(),
+                        [](const mv::Data::OpListIterator op)
+                        {return op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;});
+            opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
+        }
     }
 
     for (auto convOp : opsMap["Conv"])
