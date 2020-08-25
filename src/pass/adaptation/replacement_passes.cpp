@@ -190,13 +190,6 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
                 auto parentOpIt = om.getSourceOp(sourceTensor);
                 auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
                 auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
-                auto zp = outputTensorQuantizationParams.getZeroPoint();
-                auto scale = outputTensorQuantizationParams.getScale();
-
-                std::cout << "outputTensorType " << outputTensorType.toString() << std::endl;
-                std::cout << "zp " << zp[0] << std::endl;
-                std::cout << "scale " << scale[0] << std::endl;
-                
                 auto reshape = om.reshape(sourceTensor, outputShape, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
                 auto reshapeOp = om.getSourceOp(reshape);
 
