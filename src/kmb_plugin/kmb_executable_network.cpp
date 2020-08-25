@@ -29,8 +29,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
-#include <mcm_network_description.hpp>
-#include <ngraph_mcm_frontend/frontend.hpp>
+#include <vpux_compiler.hpp>
 
 #include "kmb_remote_context.h"
 #include "file_reader.h"
@@ -60,17 +59,19 @@ void ExecutableNetwork::LoadBlob() {
     static int loadBlobCounter = 1;
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
-    auto networkDescription = std::make_shared<MCMAdapter::MCMNetworkDescription>(_graphBlob, _config, networkName);
     _executor = std::make_shared<KmbExecutor>(
-        networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
+        _networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
 
-    _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(networkDescription->getInputsInfo());
-    _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(networkDescription->getOutputsInfo());
-    _netName = networkDescription->getName();
+    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+    _netName = _networkDescription->getName();
 }
 
+ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const ie::RemoteContext::Ptr& ctx)
+    : _config(config), _remoteContext(ctx), _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)) {}
+
 ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
-    : _config(config), _remoteContext(ctx) {
+    : ExecutableNetwork(config, ctx) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
     _netName = network.getName();
@@ -88,21 +89,18 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
             OutputsDataMap outputsInfo;
             network.getOutputsInfo(outputsInfo);
 
-            _graphBlob = compileNGraph(func, network.getName(), inputsInfo, outputsInfo, _config);
+            _networkDescription = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
         } else {
             _logger->warning("Failed to read NGraph network");
         }
     } else {
         _logger->info("NGraph parser disabled");
-    }
-
-    if (_graphBlob.empty()) {
         _logger->info("Using CNNNetwork parser");
-#ifdef ENABLE_MCM_COMPILER
         // HACK: convert nGraph to old CNNNetwork to fix LP transformations
 
         std::shared_ptr<ICNNNetwork> convertedNetwork;
         auto actualNetwork = &network;
+        (void)actualNetwork;
 
         if (network.getFunction()) {
             auto nGraphFunc = network.getFunction();
@@ -116,10 +114,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
             actualNetwork = convertedNetwork.get();
         }
 
-        MCMAdapter::compileNetwork(*actualNetwork, _config, _graphBlob);
-#else
-        THROW_IE_EXCEPTION << "Network compilation is disabled";
-#endif
+        _networkDescription = _compiler->compile(*actualNetwork, _config);
     }
 
     if (_config.loadNetworkAfterCompilation()) {
@@ -129,13 +124,10 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 }
 
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx)
-    : _config(config), _remoteContext(ctx) {
+    : ExecutableNetwork(config, ctx) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-
-    const size_t graphSize = utils::getFileSize(strm);
-    _graphBlob.resize(graphSize);
-    strm.read(_graphBlob.data(), _graphBlob.size());
+    _networkDescription = _compiler->parse(strm, _config);
     LoadBlob();
     ConfigureExecutor("ExecutableNetwork");
 }

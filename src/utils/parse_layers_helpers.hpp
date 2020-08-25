@@ -22,7 +22,10 @@
 #include "ie_common.h"
 
 namespace vpu {
-namespace ParseLayersHelpers {
+
+namespace KmbPlugin {
+
+namespace utils {
 
 struct priorBoxParam {
     priorBoxParam(float offset, float step, const std::vector<float>& min_sizes, const std::vector<float>& max_sizes,
@@ -81,10 +84,9 @@ struct priorBoxClusteredParam {
 
 std::vector<double> computePriorbox(const priorBoxParam& param);
 std::vector<double> computePriorboxClustered(const priorBoxClusteredParam& param);
+
 template <typename T>
 std::string vectorToStr(const std::vector<T>& array) {
-    if (array.empty()) return std::string();
-
     std::stringstream outStream;
 
     for (size_t i = 0; i < array.size(); ++i) {
@@ -96,5 +98,8 @@ std::string vectorToStr(const std::vector<T>& array) {
     return outStream.str();
 }
 
-}  // namespace ParseLayersHelpers
+}  // namespace utils
+
+}  // namespace KmbPlugin
+
 }  // namespace vpu

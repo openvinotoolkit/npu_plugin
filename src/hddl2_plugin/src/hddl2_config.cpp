@@ -27,16 +27,16 @@ namespace IE = InferenceEngine;
 
 const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(MCMConfig::getCompileOptions(), {
-                                                  // TODO Just to avoid error, do nothing
-                                                  "VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION",
-                                              });
+        merge(vpux::VPUXConfig::getCompileOptions(), {
+                                                         // TODO Just to avoid error, do nothing
+                                                         "VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION",
+                                                     });
     return options;
 }
 
 const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(ParsedConfigBase::getRunTimeOptions(), {
+        merge(vpux::VPUXConfig::getRunTimeOptions(), {
                                                          CONFIG_KEY(PERF_COUNT),
                                                          CONFIG_KEY(DEVICE_ID),
                                                          VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT),
@@ -46,7 +46,7 @@ const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
 }
 
 void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
-    MCMConfig::parse(config);
+    vpux::VPUXConfig::parse(config);
 
     static const std::unordered_map<std::string, LogLevel> logLevels = {{CONFIG_VALUE(LOG_NONE), LogLevel::None},
         {CONFIG_VALUE(LOG_ERROR), LogLevel::Error}, {CONFIG_VALUE(LOG_WARNING), LogLevel::Warning},

@@ -16,10 +16,9 @@
 
 #pragma once
 
+#include <mcm_config.hpp>
 #include <vpu/utils/logger.hpp>
 #include <vpux_compiler.hpp>
-
-#include "mcm_config.h"
 
 namespace vpu {
 namespace MCMAdapter {
@@ -59,12 +58,5 @@ private:
     vpux::DataMap createDeviceMapWithCorrectNames(
         const vpux::DataMap& actualDeviceData, const std::vector<std::string>& names);
 };
-
-// TODO find a better place for this helpers
-namespace helpers {
-InferenceEngine::InputsDataMap dataMapIntoInputsDataMap(const vpux::DataMap& dataMap);
-InferenceEngine::OutputsDataMap dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap);
-}  // namespace helpers
-
 }  // namespace MCMAdapter
 }  // namespace vpu

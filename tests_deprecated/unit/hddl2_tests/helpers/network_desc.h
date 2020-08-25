@@ -13,9 +13,11 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+#include <vpux_config.hpp>
+#include <vpux_compiler.hpp>
+
 #include "vpux_compiler.hpp"
 #include "models/precompiled_resnet.h"
-#include "hddl2_graph.h"
 
 namespace vpux {
 class NetworkDescription_Helper {
@@ -31,6 +33,7 @@ protected:
 
 //------------------------------------------------------------------------------
 inline NetworkDescription_Helper::NetworkDescription_Helper() {
-    _networkDescPtr = vpu::HDDL2Plugin::Graph::importGraph(_modelToImport, vpu::MCMConfig());
+    auto compiler = ICompiler::create(CompilerType::MCMCompiler);
+    _networkDescPtr = compiler->parse(_modelToImport);
 }
-}
+}  // namespace vpux

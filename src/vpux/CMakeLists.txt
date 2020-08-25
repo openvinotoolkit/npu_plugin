@@ -20,32 +20,16 @@ endif()
 
 set(TARGET_NAME vpux)
 
-file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+set(FRONTEND_VPUX_INCLUDE_DIR
+    ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "FRONTEND_VPUX_INCLUDE_DIR")
 
-# TODO: investigate linkage error for vpux target if building shared library on Windows
-if(UNIX)
-    add_library(${TARGET_NAME} SHARED ${SOURCES})
-else()
-    add_library(${TARGET_NAME} STATIC ${SOURCES})
-endif()
+file(GLOB_RECURSE VPUX_SOURCES *.cpp *.hpp *.h)
 
+add_library(${TARGET_NAME} STATIC ${VPUX_SOURCES})
 
-target_include_directories(${TARGET_NAME}
-    PUBLIC
-        include
-    PRIVATE
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
+target_include_directories(${TARGET_NAME} PRIVATE include)
 
-target_link_libraries(${TARGET_NAME} PUBLIC  IE::inference_engine
-                                     PRIVATE IE::vpu_common_lib)
-
-if(UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+target_link_libraries(${TARGET_NAME} kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

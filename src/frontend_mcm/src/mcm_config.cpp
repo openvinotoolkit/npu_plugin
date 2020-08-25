@@ -14,10 +14,9 @@
 // stated in the License.
 //
 
-#include "mcm_config.h"
-
 #include <cpp_interfaces/exception2status.hpp>
 #include <map>
+#include <mcm_config.hpp>
 #include <private_vpu_compiler_config.hpp>
 #include <string>
 #include <unordered_map>
@@ -28,7 +27,7 @@ using namespace vpu;
 
 const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(ParsedConfigBase::getCompileOptions(), {
+        merge(vpux::VPUXConfig::getCompileOptions(), {
                                                          VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR_PATH),
                                                          VPU_COMPILER_CONFIG_KEY(TARGET_DESCRIPTOR),
                                                          VPU_COMPILER_CONFIG_KEY(COMPILATION_DESCRIPTOR_PATH),
@@ -43,7 +42,6 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                          VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT),
                                                          VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT),
                                                          VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
-                                                         VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
                                                          VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
                                                          VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST),
                                                      });
@@ -57,7 +55,7 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
         {CONFIG_VALUE(LOG_INFO), LogLevel::Info}, {CONFIG_VALUE(LOG_DEBUG), LogLevel::Debug},
         {CONFIG_VALUE(LOG_TRACE), LogLevel::Trace}};
 
-    ParsedConfigBase::parse(config);
+    vpux::VPUXConfig::parse(config);
 
     setOption(_mcmLogLevel, logLevels, config, VPU_COMPILER_CONFIG_KEY(LOG_LEVEL));
 
@@ -80,8 +78,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_concatScalesAlignment, switches, config, VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT));
 
     setOption(_serializeCNNBeforeCompileFile, config, VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE));
-
-    setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
 
     setOption(_customLayers, config, VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS));
 

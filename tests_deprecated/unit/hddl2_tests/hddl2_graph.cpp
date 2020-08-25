@@ -14,11 +14,8 @@
 // stated in the License.
 //
 
-#include "hddl2_graph.h"
-
 #include "gtest/gtest.h"
 #include "hddl2_plugin.h"
-#include "mcm_config.h"
 #include "models/model_pooling.h"
 #include "models/precompiled_resnet.h"
 
@@ -40,14 +37,14 @@ public:
 };
 
 void Graph_Common_UnitTests::SetUp() {
-    const vpu::MCMConfig defaultMCMConfig = vpu::MCMConfig();
+    auto compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
     if (GetParam() == fromImportedGraph) {
         const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-        ASSERT_NO_THROW(networkPtr = vpu::HDDL2Plugin::Graph::importGraph(modelToImport, defaultMCMConfig));
+        ASSERT_NO_THROW(networkPtr = compiler->parse(modelToImport));
     } else {
         ModelPooling_Helper modelPoolingHelper;
         CNNNetwork network = modelPoolingHelper.getNetwork();
-        ASSERT_NO_THROW(networkPtr = vpu::HDDL2Plugin::Graph::compileGraph(network, defaultMCMConfig));
+        ASSERT_NO_THROW(networkPtr = compiler->compile(network));
     }
 }
 

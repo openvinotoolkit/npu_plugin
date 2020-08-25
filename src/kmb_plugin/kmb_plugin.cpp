@@ -81,32 +81,22 @@ void Engine::QueryNetwork(
     if (network.getFunction()) {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str << " ngraph::Function is not supported nativelly";
     }
-#ifdef ENABLE_MCM_COMPILER
+
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
     auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
-    auto layerNames = MCMAdapter::getSupportedLayers(copyNet, parsedConfigCopy);
+
+    auto compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    auto layerNames = compiler->getSupportedLayers(copyNet);
 
     for (auto&& layerName : layerNames) {
         res.supportedLayersMap.insert({layerName, GetName()});
     }
-
-#else
-    UNUSED(network);
-    UNUSED(res);
-    UNUSED(config);
-#endif
 }
 
 Engine::Engine(): _metrics(), _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
-
-#ifdef ENABLE_MCM_COMPILER
-    if (!MCMAdapter::isMCMCompilerAvailable()) {
-        THROW_IE_EXCEPTION << "Compiler not found";
-    }
-#endif
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
@@ -135,7 +125,7 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(
         networkModel, parsedConfigCopy, GetDefaultContext(parsedConfigCopy.deviceId()));
@@ -173,7 +163,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     }
 
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, ctx);
     return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};

@@ -23,6 +23,8 @@
 
 #pragma once
 
+#include <vpu/vpu_compiler_config.hpp>
+
 namespace InferenceEngine {
 namespace VPUConfigParams {
 

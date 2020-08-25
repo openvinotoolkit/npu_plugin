@@ -149,9 +149,9 @@ class KmbComputePriorboxClusteredTest :
         REPLACE_WITH_NUM(model, "_OH_", p._out_dims[1]);
         REPLACE_WITH_NUM(model, "_OC_", p._out_dims[0]);
 
-        REPLACE_WITH_STR(model, "_WIDTH_", vpu::ParseLayersHelpers::vectorToStr(p._width));
-        REPLACE_WITH_STR(model, "_HEIGHT_", vpu::ParseLayersHelpers::vectorToStr(p._height));
-        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::ParseLayersHelpers::vectorToStr(p._variance));
+        REPLACE_WITH_STR(model, "_WIDTH_", vpu::KmbPlugin::utils::vectorToStr(p._width));
+        REPLACE_WITH_STR(model, "_HEIGHT_", vpu::KmbPlugin::utils::vectorToStr(p._height));
+        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::KmbPlugin::utils::vectorToStr(p._variance));
 
         REPLACE_WITH_NUM(model, "_CLIP_", p._clip);
         REPLACE_WITH_NUM(model, "_FLIP_", p._flip);
@@ -208,9 +208,9 @@ class KmbComputePriorboxClusteredTest :
         IE_ASSERT(dims.size() == 3);
         int size = dims[0] * dims[1] * dims[2];
 
-        vpu::ParseLayersHelpers::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height,
+        vpu::KmbPlugin::utils::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height,
             img_width, img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
-        std::vector<double> kmb_priorbox_clustered_result = vpu::ParseLayersHelpers::computePriorboxClustered(param);
+        std::vector<double> kmb_priorbox_clustered_result = vpu::KmbPlugin::utils::computePriorboxClustered(param);
         return kmb_priorbox_clustered_result;
     }
 

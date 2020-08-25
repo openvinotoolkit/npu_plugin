@@ -23,6 +23,7 @@ namespace vpux {
 class VPUXConfigBase : public vpu::ParsedConfigBase {
 public:
     const std::map<std::string, std::string>& getConfig() const { return _config; }
+    const std::unordered_set<std::string>& getCompileOptions() const override;
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
@@ -34,9 +35,12 @@ private:
 class VPUXConfig : public VPUXConfigBase {
 public:
     bool useNGraphParser() const { return _useNGraphParser; }
-    void parse(const VPUXConfigBase& other);
+    void parseFrom(const VPUXConfig& other);
+    // [Track number: S#37572]
+    void update(const std::map<std::string, std::string>& config, vpu::ConfigMode mode = vpu::ConfigMode::Any);
 
 protected:
+    const std::unordered_set<std::string>& getCompileOptions() const override;
     void parse(const std::map<std::string, std::string>& config) override;
 
     bool _useNGraphParser = false;

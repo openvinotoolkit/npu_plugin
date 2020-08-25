@@ -53,23 +53,22 @@ target_include_directories(${TARGET_NAME}
         ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
         ${GAPI_M2I_INCLUDES}
-    PUBLIC
-        "${IE_FRONTEND_MCM_INCLUDE_DIR}"
     PRIVATE
+        "${FRONTEND_VPUX_INCLUDE_DIR}"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
         ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
         IE::inference_engine
-        frontend_mcm
         ${VPUAL_NN_LIBRARY}
         ${VPUSMM_LIBRARY}
     PRIVATE
         ${INTEL_ITT_LIBS}
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY}
-        kmb_utils)
+        kmb_utils
+        vpux)
 
 # install
 ie_cpack_add_component(kmb REQUIRED)
@@ -109,21 +108,21 @@ if(ENABLE_TESTS)
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
             ${GAPI_M2I_INCLUDES}
-            "${IE_FRONTEND_MCM_INCLUDE_DIR}"
+            "${FRONTEND_VPUX_INCLUDE_DIR}"
         PUBLIC
             "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
             ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
-            frontend_mcm
             ${VPUAL_NN_LIBRARY}
             ${VPUSMM_LIBRARY}
         PRIVATE
             ${INTEL_ITT_LIBS}
             ${GAPI_SIPP_LIBRARY}
             ${GAPI_M2I_LIBRARY}
-            kmb_utils)
+            kmb_utils
+            vpux)
 
     if(ENABLE_CLANG_FORMAT)
         add_clang_format_target(clang_format_${TARGET_NAME}_test_static FOR_TARGETS ${TARGET_NAME}_test_static ALL)

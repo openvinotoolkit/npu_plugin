@@ -18,6 +18,7 @@
 
 #include <map>
 #include <string>
+#include <vpux_compiler.hpp>
 
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "hddl2_config.h"

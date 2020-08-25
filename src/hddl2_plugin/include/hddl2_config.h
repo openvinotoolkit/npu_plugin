@@ -17,18 +17,16 @@
 #pragma once
 
 #include <ie_common.h>
-#include <mcm_config.h>
 
 #include <hddl2/hddl2_plugin_config.hpp>
 #include <map>
 #include <string>
 #include <unordered_set>
+#include <vpux_config.hpp>
 
 namespace vpu {
 
-// FIXME: Stop using MCMConfig to avoid dependency from mcm compiler
-// Use vpux::VPUXConfig instead
-class HDDL2Config final : public MCMConfig {
+class HDDL2Config final : public vpux::VPUXConfig {
 public:
     const std::string& platform() const { return _platform; }
     const std::string& device_id() const { return _device_id; }
@@ -37,11 +35,11 @@ public:
 
     // FIXME [Workaround to change default log lvl]
     LogLevel logLevel() const;
+    void parse(const std::map<std::string, std::string>& config) override;
 
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
-    void parse(const std::map<std::string, std::string>& config) override;
 
 private:
     std::string _platform = "HDDL2";

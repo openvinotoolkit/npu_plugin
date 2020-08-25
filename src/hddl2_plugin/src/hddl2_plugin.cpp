@@ -103,7 +103,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
     return InferenceEngine::make_executable_network(executableNetwork);
@@ -112,7 +112,7 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
     return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
@@ -121,7 +121,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = _parsedConfig;
-    parsedConfigCopy.update(config, ConfigMode::RunTime);
+    parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, context);
     return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};

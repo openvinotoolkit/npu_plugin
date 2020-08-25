@@ -1,4 +1,3 @@
-//
 // Copyright 2019 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
@@ -28,28 +27,28 @@ using namespace vpu::KmbPlugin;
 
 const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(MCMConfig::getCompileOptions(), {
-                                                  VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
-                                                  VPU_KMB_CONFIG_KEY(PLATFORM),
-                                              });
+        merge(vpux::VPUXConfig::getCompileOptions(), {
+                                                         VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
+                                                         VPU_KMB_CONFIG_KEY(PLATFORM),
+                                                     });
 
     return options;
 }
 
 const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(MCMConfig::getCompileOptions(), {
-                                                  VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
-                                                  KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-                                                  VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
-                                                  VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
-                                                  VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
-                                                  VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
-                                                  VPU_KMB_CONFIG_KEY(USE_SIPP),
-                                                  CONFIG_KEY(PERF_COUNT),
-                                                  VPU_KMB_CONFIG_KEY(USE_M2I),
-                                                  CONFIG_KEY(DEVICE_ID),
-                                              });
+        merge(vpux::VPUXConfig::getCompileOptions(), {
+                                                         VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
+                                                         KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                         VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
+                                                         VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
+                                                         VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
+                                                         VPU_KMB_CONFIG_KEY(USE_SIPP),
+                                                         CONFIG_KEY(PERF_COUNT),
+                                                         VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                         CONFIG_KEY(DEVICE_ID),
+                                                     });
 
     return options;
 }
@@ -65,11 +64,11 @@ static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
 }
 
 void KmbConfig::parse(const std::map<std::string, std::string>& config) {
-    MCMConfig::parse(config);
-
-    setOption(_useKmbExecutor, switches, config, VPU_KMB_CONFIG_KEY(KMB_EXECUTOR));
+    vpux::VPUXConfig::parse(config);
 
     setOption(_loadNetworkAfterCompilation, switches, config, VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION));
+
+    setOption(_useKmbExecutor, switches, config, VPU_KMB_CONFIG_KEY(KMB_EXECUTOR));
 
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
 

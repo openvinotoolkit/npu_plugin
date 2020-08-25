@@ -16,13 +16,14 @@
 
 #include "mcm_adapter.hpp"
 
+#include "frontend_mcm.hpp"
+
 #ifdef ENABLE_MCM_COMPILER
 
 #include <file_utils.h>
 #include <net_pass.h>
 #include <sys/stat.h>
 
-#include <frontend_mcm.hpp>
 #include <ie_icnn_network.hpp>
 #include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
@@ -142,6 +143,7 @@ void MCMAdapter::compileNetwork(
     for (const auto& netInput : networkInputs) {
         if (netInput.second->getLayout() != InferenceEngine::Layout::NCHW) {
             layoutNCHW = false;
+            break;
         }
     }
     if (layoutNCHW) {
@@ -299,7 +301,9 @@ void vpu::MCMAdapter::compileNetwork(
     THROW_IE_EXCEPTION << "Compiler is disabled";
 }
 
-std::set<std::string> vpu::MCMAdapter::getSupportedLayers() { THROW_IE_EXCEPTION << "Compiler is disabled"; }
+std::set<std::string> vpu::MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwork&, const MCMConfig&) {
+    THROW_IE_EXCEPTION << "Compiler is disabled";
+}
 
 bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
 

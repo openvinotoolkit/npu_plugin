@@ -28,6 +28,7 @@ target_link_libraries(${TARGET}
         PRIVATE
         gapi_test_computations
         kmbPlugin_test_static
+        IE::inference_engine_plugin_api
         IE::gtest IE::gtest_main
         opencv_core opencv_imgproc)
 
