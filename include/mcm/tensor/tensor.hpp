@@ -271,14 +271,10 @@ namespace mv
             // so that they can be compressed by the HDE
             return hasAttr("splitStrategy") &&
                 get<std::string>("splitStrategy") == "SplitOverK" &&
-                !hasAttr("weightTable") &&
-                !hasAttr("sparsityMap") &&
-                !hasAttr("solvedSparsity") &&
-                !hasAttr("dilatedSubConvSM") &&
-                !hasAttr("dilatedSubConvSE");
+                isPopulatedTensor();
         }
 
-        inline bool isWeights() const
+        inline bool isPopulatedTensor()  const
         {
             return !hasAttr("weightTable") &&
                 !hasAttr("sparsityMap") &&

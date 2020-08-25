@@ -823,7 +823,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
      * These should be comprssed for additional performance
     */
 
-    if(huffmanCompression && t.isWeights() && t.getDType() != mv::DType("Float16"))
+    if(huffmanCompression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
