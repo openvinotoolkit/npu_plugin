@@ -17,15 +17,16 @@
 #include <gtest/gtest.h>
 
 #include <ie_core.hpp>
-#include <parse_layers_helpers.hpp>
 #include <single_layer_common.hpp>
 #include <tests_common.hpp>
+
+#include "parse_layers_helpers.hpp"
 
 using namespace InferenceEngine;
 
 class KmbComputePriorboxTest :
     public TestsCommon,
-    public testing::WithParamInterface<vpu::ParseLayersHelpers::priorBoxParam> {
+    public testing::WithParamInterface<vpu::KmbPlugin::utils::priorBoxParam> {
     std::string model_t = R"V0G0N(
 <Net Name="PriorBox_Only" version="2" precision="FP32" batch="1">
     <layers>
@@ -83,7 +84,7 @@ class KmbComputePriorboxTest :
 </Net>
 )V0G0N";
 
-    std::string getModel(vpu::ParseLayersHelpers::priorBoxParam p) {
+    std::string getModel(vpu::KmbPlugin::utils::priorBoxParam p) {
         std::string model = model_t;
 
         REPLACE_WITH_NUM(model, "_IW1_", p._data_dims[3]);
@@ -98,13 +99,13 @@ class KmbComputePriorboxTest :
         REPLACE_WITH_NUM(model, "_OH_", p._out_dims[1]);
         REPLACE_WITH_NUM(model, "_OC_", p._out_dims[0]);
 
-        REPLACE_WITH_STR(model, "_ASP_RAT_", vpu::ParseLayersHelpers::vectorToStr(p._src_aspect_ratios));
-        REPLACE_WITH_STR(model, "_DENSITY_", vpu::ParseLayersHelpers::vectorToStr(p._densitys));
-        REPLACE_WITH_STR(model, "_F_RAT_", vpu::ParseLayersHelpers::vectorToStr(p._fixed_ratios));
-        REPLACE_WITH_STR(model, "_F_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._densitys));
-        REPLACE_WITH_STR(model, "_MAX_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._max_sizes));
-        REPLACE_WITH_STR(model, "_MIN_SIZE_", vpu::ParseLayersHelpers::vectorToStr(p._min_sizes));
-        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::ParseLayersHelpers::vectorToStr(p._src_variance));
+        REPLACE_WITH_STR(model, "_ASP_RAT_", vpu::KmbPlugin::utils::vectorToStr(p._src_aspect_ratios));
+        REPLACE_WITH_STR(model, "_DENSITY_", vpu::KmbPlugin::utils::vectorToStr(p._densitys));
+        REPLACE_WITH_STR(model, "_F_RAT_", vpu::KmbPlugin::utils::vectorToStr(p._fixed_ratios));
+        REPLACE_WITH_STR(model, "_F_SIZE_", vpu::KmbPlugin::utils::vectorToStr(p._densitys));
+        REPLACE_WITH_STR(model, "_MAX_SIZE_", vpu::KmbPlugin::utils::vectorToStr(p._max_sizes));
+        REPLACE_WITH_STR(model, "_MIN_SIZE_", vpu::KmbPlugin::utils::vectorToStr(p._min_sizes));
+        REPLACE_WITH_STR(model, "_VARIANCE_", vpu::KmbPlugin::utils::vectorToStr(p._src_variance));
 
         REPLACE_WITH_NUM(model, "_CLIP_", p._clip ? 1 : 0);
         REPLACE_WITH_NUM(model, "_FLIP_", p._flip ? 1 : 0);
@@ -119,8 +120,8 @@ protected:
     virtual void SetUp() {
         try {
             // prepase model
-            vpu::ParseLayersHelpers::priorBoxParam p =
-                ::testing::WithParamInterface<vpu::ParseLayersHelpers::priorBoxParam>::GetParam();
+            vpu::KmbPlugin::utils::priorBoxParam p =
+                ::testing::WithParamInterface<vpu::KmbPlugin::utils::priorBoxParam>::GetParam();
             std::string model = getModel(p);
 
             // calc priorbox output using CPU plugin
@@ -161,7 +162,7 @@ protected:
             inferRequest.Infer();
 
             // calc priorbox output using kmb plugin
-            std::vector<double> kmb_priorbox_result = vpu::ParseLayersHelpers::computePriorbox(p);
+            std::vector<double> kmb_priorbox_result = vpu::KmbPlugin::utils::computePriorbox(p);
 
             // compare CPU and KMB outputs
 
@@ -182,16 +183,16 @@ TEST_P(KmbComputePriorboxTest, TestsPriorBox) {}
 
 #ifndef __aarch64__
 INSTANTIATE_TEST_CASE_P(KmbTestsPriorBox, KmbComputePriorboxTest,
-    ::testing::Values(vpu::ParseLayersHelpers::priorBoxParam(0.5, 16, {76.8}, {153.6}, true, false, true, {}, {}, {},
+    ::testing::Values(vpu::KmbPlugin::utils::priorBoxParam(0.5, 16, {76.8}, {153.6}, true, false, true, {}, {}, {},
                           {2, 3}, {0.1, 0.1, 0.2, 0.2}, {1, 1024, 32, 32}, {1, 3, 512, 512}, {2, 1, 24576}),
-        vpu::ParseLayersHelpers::priorBoxParam(0.5, 32, {153.6}, {230.4}, true, false, true, {}, {}, {}, {2, 3},
+        vpu::KmbPlugin::utils::priorBoxParam(0.5, 32, {153.6}, {230.4}, true, false, true, {}, {}, {}, {2, 3},
             {0.1, 0.1, 0.2, 0.2}, {1, 512, 16, 16}, {1, 3, 512, 512}, {2, 1, 6144}),
-        vpu::ParseLayersHelpers::priorBoxParam(0.5, 64, {230.4}, {307.2}, true, false, true, {}, {}, {}, {2, 3},
+        vpu::KmbPlugin::utils::priorBoxParam(0.5, 64, {230.4}, {307.2}, true, false, true, {}, {}, {}, {2, 3},
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 8, 8}, {1, 3, 512, 512}, {2, 1, 1536}),
-        vpu::ParseLayersHelpers::priorBoxParam(0.5, 128, {307.2}, {384.0}, true, false, true, {}, {}, {}, {2, 3},
+        vpu::KmbPlugin::utils::priorBoxParam(0.5, 128, {307.2}, {384.0}, true, false, true, {}, {}, {}, {2, 3},
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 4, 4}, {1, 3, 512, 512}, {2, 1, 384}),
-        vpu::ParseLayersHelpers::priorBoxParam(0.5, 256, {384.0}, {460.8}, true, false, true, {}, {}, {}, {2},
+        vpu::KmbPlugin::utils::priorBoxParam(0.5, 256, {384.0}, {460.8}, true, false, true, {}, {}, {}, {2},
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 2, 2}, {1, 3, 512, 512}, {2, 1, 64}),
-        vpu::ParseLayersHelpers::priorBoxParam(0.5, 512, {460.8}, {537.6}, true, false, true, {}, {}, {}, {2},
+        vpu::KmbPlugin::utils::priorBoxParam(0.5, 512, {460.8}, {537.6}, true, false, true, {}, {}, {}, {2},
             {0.1, 0.1, 0.2, 0.2}, {1, 256, 1, 1}, {1, 3, 512, 512}, {2, 1, 16})));
 #endif

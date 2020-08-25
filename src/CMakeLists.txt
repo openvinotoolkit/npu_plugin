@@ -40,13 +40,14 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
     PRIVATE
+        ${FRONTEND_VPUX_INCLUDE_DIR}
         ${HEADERS_DIRS})
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
         ${INTEL_ITT_LIBS}
-        frontend_mcm
+        vpux
         ${LIBRARIES}
         kmb_utils
         IE::vpu_common_lib)

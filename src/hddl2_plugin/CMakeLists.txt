@@ -1,4 +1,5 @@
 #
+
 # Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
@@ -90,7 +91,7 @@ set(HDDL_UNITE_OUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
 
 target_include_directories(${TARGET_NAME}
     PRIVATE
-        "${IE_FRONTEND_MCM_INCLUDE_DIR}"
+        "${FRONTEND_VPUX_INCLUDE_DIR}"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
         "${IE_MAIN_SOURCE_DIR}/include"
@@ -102,7 +103,7 @@ target_link_libraries(${TARGET_NAME}
         HddlUnite
         IE::vpu_common_lib
         kmb_utils
-        frontend_mcm)
+        vpux)
 
 log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
 
@@ -115,11 +116,12 @@ if (ENABLE_TESTS)
 
     target_include_directories(${TARGET_NAME}_test_static
         PUBLIC
-            "${IE_FRONTEND_MCM_INCLUDE_DIR}"
             "${CMAKE_CURRENT_SOURCE_DIR}/include"
             "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
             "${IE_MAIN_SOURCE_DIR}/include"
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
+        PRIVATE
+            "${FRONTEND_VPUX_INCLUDE_DIR}")
 
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
@@ -129,7 +131,7 @@ if (ENABLE_TESTS)
         PRIVATE
             HddlUnite
             kmb_utils
-            frontend_mcm)
+            vpux)
 
     if(ENABLE_CLANG_FORMAT)
         add_clang_format_target(clang_format_${TARGET_NAME}_test_static FOR_TARGETS ${TARGET_NAME}_test_static ALL)

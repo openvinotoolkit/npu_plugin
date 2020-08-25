@@ -6,10 +6,6 @@ if (ENABLE_HDDL2_TESTS)
     add_subdirectory(hddl2_tests)
 endif()
 
-if (mcmCompiler_FOUND)
-    add_subdirectory(frontend_mcm)
-endif()
-
 # TODO: It is disabled for Windows due dependency on Boost.fs
 if (UNIX)
     set(TARGET_NAME "KmbFunctionalTests")

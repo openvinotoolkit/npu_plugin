@@ -17,9 +17,9 @@
 #pragma once
 
 #include <memory>
+#include <vpux.hpp>
 
 #include "InferGraph.h"
-#include "hddl2_graph.h"
 #include "hddl2_infer_data.h"
 #include "hddl2_remote_context.h"
 

@@ -17,18 +17,16 @@
 #pragma once
 
 #include <ie_common.h>
-#include <mcm_config.h>
 
 #include <map>
 #include <string>
 #include <unordered_set>
+#include <vpux_config.hpp>
 
 namespace vpu {
 namespace KmbPlugin {
 
-// FIXME: Stop using MCMConfig to avoid dependency from mcm compiler
-// Use vpux::VPUXConfig instead
-class KmbConfig final : public MCMConfig {
+class KmbConfig final : public vpux::VPUXConfig {
 public:
     bool useKmbExecutor() const { return _useKmbExecutor; }
 
@@ -52,10 +50,12 @@ public:
     bool useM2I() const { return _useM2I; }
     std::string deviceId() const { return _deviceId; }
 
+public:
+    void parse(const std::map<std::string, std::string>& config) override;
+
 protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
-    void parse(const std::map<std::string, std::string>& config) override;
 
 private:
 #if defined(__arm__) || defined(__aarch64__)

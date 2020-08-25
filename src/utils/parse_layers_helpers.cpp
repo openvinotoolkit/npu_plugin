@@ -25,15 +25,13 @@ using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 
 namespace vpu {
-namespace ParseLayersHelpers {
 
-namespace {
+namespace KmbPlugin {
 
-static inline float clip_great(float x, float threshold) { return x < threshold ? x : threshold; }
+namespace utils {
 
-static inline float clip_less(float x, float threshold) { return x > threshold ? x : threshold; }
-
-}  // namespace
+static float clip_great(float x, float threshold) { return x < threshold ? x : threshold; }
+static float clip_less(float x, float threshold) { return x > threshold ? x : threshold; }
 
 std::vector<double> computePriorbox(const priorBoxParam& param) {
     std::vector<float> dst_aspect_ratios{1.0f};
@@ -330,5 +328,8 @@ std::vector<double> computePriorboxClustered(const priorBoxClusteredParam& param
     return boxes;
 }
 
-}  // namespace ParseLayersHelpers
+}  // namespace utils
+
+}  // namespace KmbPlugin
+
 }  // namespace vpu

@@ -52,12 +52,20 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
 private:
-    vpux::NetworkDescription::Ptr _networkPtr;
-    vpux::Executor::Ptr _executorPtr;
+    explicit ExecutableNetwork(const vpu::HDDL2Config& config);
 
+private:
     // TODO Use some vpux config
     const HDDL2Config _config;
     const Logger::Ptr _logger;
+
+    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
+    // due _compiler is opened as plugin and _networkDescription is created by _compiler
+    // Need to design more accurate solution to avoid missunderstanding in future
+    // [Track number: S#37571]
+    vpux::ICompiler::Ptr _compiler = nullptr;
+    vpux::NetworkDescription::Ptr _networkPtr = nullptr;
+    vpux::Executor::Ptr _executorPtr;
 };
 
 }  //  namespace HDDL2Plugin

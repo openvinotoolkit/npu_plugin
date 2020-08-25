@@ -38,28 +38,6 @@ std::vector<std::string> extractKeys(const std::map<std::string, T>& map) {
 }
 }  // namespace
 
-ie::InputsDataMap helpers::dataMapIntoInputsDataMap(const vpux::DataMap& dataMap) {
-    ie::InputsDataMap inputsDataMap = {};
-
-    for (const auto& input : dataMap) {
-        ie::InputInfo info;
-        info.setInputData(input.second);
-        inputsDataMap.insert({input.first, std::make_shared<ie::InputInfo>(info)});
-    }
-
-    return inputsDataMap;
-}
-
-ie::OutputsDataMap helpers::dataMapIntoOutputsDataMap(const vpux::DataMap& dataMap) {
-    ie::OutputsDataMap outputsDataMap = {};
-
-    for (const auto& output : dataMap) {
-        outputsDataMap.insert({output.first, output.second});
-    }
-
-    return outputsDataMap;
-}
-
 MCMNetworkDescription::MCMNetworkDescription(
     const std::vector<char>& compiledNetwork, const vpu::MCMConfig& config, const std::string& name)
     : _name(name),

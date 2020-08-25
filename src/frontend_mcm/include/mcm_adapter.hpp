@@ -16,8 +16,8 @@
 
 #pragma once
 
-#include "ie_core.hpp"
-#include "mcm_config.h"
+#include <ie_core.hpp>
+#include <mcm_config.hpp>
 
 namespace vpu {
 namespace MCMAdapter {
@@ -26,8 +26,6 @@ bool isMCMCompilerAvailable();
 void compileNetwork(InferenceEngine::ICNNNetwork& network, const MCMConfig& config, std::vector<char>& outBlob);
 
 std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network, const MCMConfig& config);
-
-std::set<std::string> getSupportedLayers();
 
 std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> deserializeMetaData(
     const std::vector<char>& outBlob, const MCMConfig& config);

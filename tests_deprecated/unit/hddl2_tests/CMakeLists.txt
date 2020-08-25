@@ -22,6 +22,7 @@ addIeTargetTest(
     INCLUDES
         "helpers"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
+        "${FRONTEND_VPUX_INCLUDE_DIR}"
     LINK_LIBRARIES
         IE::IESharedTests
         HDDL2Plugin_test_static
@@ -29,7 +30,7 @@ addIeTargetTest(
         ${XLINK_LIB}
         IE::gtest
         IE::gtest_main
-        frontend_mcm
+        vpux
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
 )

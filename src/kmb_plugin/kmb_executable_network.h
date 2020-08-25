@@ -33,7 +33,6 @@
 #include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "kmb_remote_context.h"
-#include "mcm_adapter.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -83,10 +82,14 @@ public:
         asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
-    void ExportImpl(std::ostream& model) override { model.write(_graphBlob.data(), _graphBlob.size()); }
+    void ExportImpl(std::ostream& model) override {
+        const auto& blob = _networkDescription->getCompiledNetwork();
+        model.write(blob.data(), blob.size());
+    }
 
     void Export(const std::string& modelFileName) override {
-        if (!_graphBlob.empty()) {
+        const auto& blob = _networkDescription->getCompiledNetwork();
+        if (!blob.empty()) {
             std::ofstream modelFile(modelFileName, std::ios::out | std::ios::binary);
 
             if (modelFile.is_open()) {
@@ -100,14 +103,15 @@ public:
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
 private:
+    explicit ExecutableNetwork(const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
+
     void ConfigureExecutor(const std::string& networkName);
     void LoadBlob();
 
     ie::ITaskExecutor::Ptr getNextTaskExecutor();
 
     Logger::Ptr _logger;
-    KmbExecutor::Ptr _executor;
-    std::vector<char> _graphBlob;
+
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
     std::map<std::string, ie::Parameter> _parsedConfig;
@@ -118,6 +122,14 @@ private:
 
     std::string _netName;
     ie::RemoteContext::Ptr _remoteContext = nullptr;
+
+    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
+    // due _compiler is opened as plugin and _networkDescription is created by _compiler
+    // Need to design more accurate solution to avoid missunderstanding in future
+    // [Track number: S#37571]
+    vpux::ICompiler::Ptr _compiler = nullptr;
+    vpux::NetworkDescription::Ptr _networkDescription = nullptr;
+    KmbExecutor::Ptr _executor;
 };
 
 }  // namespace KmbPlugin

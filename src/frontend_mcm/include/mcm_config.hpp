@@ -16,18 +16,16 @@
 
 #pragma once
 
+#include <frontend_private_config.hpp>
 #include <map>
 #include <string>
 #include <unordered_set>
-#include <vpu/parsed_config_base.hpp>
-#include <vpu/vpu_compiler_config.hpp>
-
-#include "frontend_private_config.hpp"
+#include <vpu/utils/logger.hpp>
+#include <vpux_config.hpp>
 
 namespace vpu {
 
-// FIXME: Use vpux::VPUXConfig instead
-class MCMConfig : public ParsedConfigBase {
+class MCMConfig : public vpux::VPUXConfig {
 public:
     LogLevel mcmLogLevel() const { return _mcmLogLevel; }
 
@@ -58,8 +56,6 @@ public:
     bool zeroPointsOnWeightsAlignment() const { return _zeroPointsOnWeightsAlignment; }
 
     const std::string& serializeCNNBeforeCompileFile() const { return _serializeCNNBeforeCompileFile; }
-
-    bool useNGraphParser() const { return _useNGraphParser; }
 
     std::string customLayers() const { return _customLayers; }
 
@@ -92,11 +88,9 @@ private:
     bool _zeroPointsOnWeightsAlignment = true;
     std::string _serializeCNNBeforeCompileFile = "";
 
-    bool _useNGraphParser = false;
-
     std::string _customLayers = "";
 
     std::string _mcmCompilationPassBanList = "";
 };
 
-}  // namespace vpu
+}  //  namespace vpu

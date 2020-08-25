@@ -25,6 +25,7 @@
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <vector>
+#include <vpux_compiler.hpp>
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -32,36 +33,45 @@ namespace HDDL2Plugin {
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
+//      Shared init ctor
+//------------------------------------------------------------------------------
+ExecutableNetwork::ExecutableNetwork(const vpu::HDDL2Config& config)
+    : _config(config),
+      _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
+      _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)) {}
+
+//------------------------------------------------------------------------------
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
-    _networkPtr = Graph::compileGraph(network, _config);
+    : ExecutableNetwork(config) {
+    _networkPtr = _compiler->compile(network, _config);
     _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
 }
 
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
+
 ExecutableNetwork::ExecutableNetwork(
     const std::string& blobFilename, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
-    _networkPtr = Graph::importGraph(blobFilename, config);
+    : ExecutableNetwork(config) {
+    _networkPtr = _compiler->parse(blobFilename, _config);
     _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
 
-    _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-    _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
+    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
 }
 
 ExecutableNetwork::ExecutableNetwork(
     std::istream& networkModel, const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
-    : _config(config), _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())) {
-    _networkPtr = Graph::importGraph(networkModel, config);
+    : ExecutableNetwork(config) {
+    _networkPtr = _compiler->parse(networkModel, _config);
     _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
 
-    _networkInputs = MCMAdapter::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-    _networkOutputs = MCMAdapter::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
+    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
+    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
 }
 
 //------------------------------------------------------------------------------

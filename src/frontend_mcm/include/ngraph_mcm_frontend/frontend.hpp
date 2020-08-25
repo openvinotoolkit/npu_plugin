@@ -18,7 +18,7 @@
 
 // clang-format off
 
-#include "mcm_config.h"
+#include "mcm_config.hpp"
 #include <cpp/ie_cnn_network.h>
 #include <ngraph/function.hpp>
 #include <memory>

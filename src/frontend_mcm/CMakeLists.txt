@@ -28,7 +28,8 @@ if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
     source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 endif()
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(${TARGET_NAME} SHARED ${SOURCES})
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 if(UNIX)
     target_compile_options(${TARGET_NAME}
@@ -44,6 +45,8 @@ else()
 endif()
 
 target_include_directories(${TARGET_NAME}
+    PRIVATE
+        ${FRONTEND_VPUX_INCLUDE_DIR}
     PUBLIC
         ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
         "include")
@@ -57,13 +60,13 @@ if(ARM OR AARCH64 OR WIN32)
 endif()
 
 target_link_libraries(${TARGET_NAME}
-    PUBLIC
+    PRIVATE
         IE::inference_engine
         IE::inference_engine_transformations
         IE::inference_engine_lp_transformations
         vpux
-    PRIVATE
         IE::pugixml
+        vpux
         IE::ngraph_reference
         kmb_utils
         IE::vpu_common_lib)

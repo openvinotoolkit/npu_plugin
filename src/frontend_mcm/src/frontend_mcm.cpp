@@ -2109,10 +2109,10 @@ void FrontEndMcm::parsePriorBox(const ie::CNNLayerPtr& layer, const McmNodeVecto
     const std::vector<float> src_aspect_ratios = layer->GetParamAsFloats("aspect_ratio", {});
     const std::vector<float> src_variance = layer->GetParamAsFloats("variance", {});
 
-    ParseLayersHelpers::priorBoxParam param(offset, step, min_sizes, max_sizes, flip, clip, scale_all_sizes,
-        fixed_sizes, fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
+    KmbPlugin::utils::priorBoxParam param(offset, step, min_sizes, max_sizes, flip, clip, scale_all_sizes, fixed_sizes,
+        fixed_ratios, densitys, src_aspect_ratios, src_variance, data_dims, image_dims, out_dims);
 
-    auto boxes = ParseLayersHelpers::computePriorbox(param);
+    auto boxes = KmbPlugin::utils::computePriorbox(param);
     auto priorbox = _modelMcm.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
         initialQuantParams(), layer->name + "_const");
 
@@ -2178,7 +2178,7 @@ void FrontEndMcm::parsePriorBoxClustered(const ie::CNNLayerPtr& layer, const Mcm
     IE_ASSERT(dims.size() == 3);
     int size = dims[0] * dims[1] * dims[2];
 
-    ParseLayersHelpers::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height, img_width,
+    KmbPlugin::utils::priorBoxClusteredParam param{offset, clip, step_w, step_h, layer_width, layer_height, img_width,
         img_height, num_priors, std::move(widths), std::move(heights), std::move(variance), size};
 
     auto boxes = computePriorboxClustered(param);
