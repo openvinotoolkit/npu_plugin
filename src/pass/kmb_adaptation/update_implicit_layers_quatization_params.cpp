@@ -120,6 +120,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 }
                 auto compensatorOutput = om.dMATask(opIt->getInputTensor(0),
                                                         mv::DmaDirectionEnum::NNCMX2DDR,
+                                                        0,
                                                         opIt->getName() + "_copyDMA");
                 compensatorOutput->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::DDR);
                 om.getSourceOp(compensatorOutput)->set<unsigned>("opId", opIt->get<unsigned>("opId"));

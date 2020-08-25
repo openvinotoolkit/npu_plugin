@@ -99,11 +99,32 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   mv::OpModel cm(model);
-  dag_t input_dag(cm);
+  dag_t input_dag;
   auto params = model.getGlobalConfigParams();
 
   dag_t::resource_t upper_bound = params->get<unsigned>("totalCmx");
   printfInfo("LpScheduler:", "[upper_bound = %lu]\n", upper_bound);
+
+  // update the operation precedence dag with CMX concat transforms //
+  bool apply_cmx_concat_transforms = passDesc.hasAttr("enable_cmx_concat") &&
+    passDesc.get<bool>("enable_cmx_concat");
+  typedef typename mv::scheduler::CMX_Concatenation::control_edge_t
+      cmx_concat_control_edge_t;
+  std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
+
+  if (apply_cmx_concat_transforms) {
+    //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_before_transform.dot");
+
+    std::string ignore_these_concats;
+    if (passDesc.hasAttr("ignore_these_concats")) {
+      ignore_these_concats = passDesc.get<std::string>("ignore_these_concats");
+    }
+    input_dag.enable_cmx_concat_transforms(cm, cmx_concat_control_edges,
+          upper_bound, ignore_these_concats);
+    //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_after_transform.dot");
+  } else {
+    input_dag.reset(cm);
+  }
 
   FILE *fptr = nullptr;
   if (mv::isDebugFilesEnabled()) {
@@ -197,8 +218,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         fflush(fptr);
 
         if (scheduled_op.has_active_resource()) {
-          fprintf(fptr, " resource=[%lu %lu]\n", scheduled_op.cmx_address_start_,
-              scheduled_op.cmx_address_end_);
+          fprintf(fptr, " resource=[%lu %lu] size=%lu\n",
+              scheduled_op.cmx_address_start_, scheduled_op.cmx_address_end_,
+         (scheduled_op.cmx_address_end_ - scheduled_op.cmx_address_start_)+1UL);
         } else {
           fprintf(fptr, " resource=<none>\n");
         }
@@ -223,6 +245,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(dynamic_spill_control_edges));
 
+    dynamic_spill.generate_control_edges_for_spilled_cmx_concat_ops(
+        std::back_inserter(dynamic_spill_control_edges));
+
     { // Erase any redundant spilled writes //
       scheduled_op_list_iterator_t sched_itr=scheduled_ops.begin(),
                                    sched_itr_next;
@@ -240,7 +265,16 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     // update the input_dag with updated opModel
     mv::OpModel updated_om(model);
-    input_dag.reset(updated_om);
+    if (apply_cmx_concat_transforms) {
+      //mv::GenerateDotFromModel(updated_om, "OpModel",
+       //     "opmodel_before_spilled_transform.dot");
+      input_dag.reset_from_cmx_concat_control_edges(updated_om,
+            cmx_concat_control_edges);
+      //mv::GenerateDotFromModel(updated_om, "OpModel",
+       //     "opmodel_after_spilled_transform.dot");
+    } else {
+      input_dag.reset(updated_om);
+    }
 
     // updated schedule //
     if (fptr) {
@@ -342,6 +376,9 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
+
+    //NOTE: dynamic_spill_control_edges for spilled CMX Concat DPU reps are 
+    //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
   }

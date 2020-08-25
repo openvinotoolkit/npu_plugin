@@ -21,7 +21,6 @@ klocwork/
 .idea/
 cmake-build-debug/
 tags
-*.cmake
 *CMakeFiles*
 CMakeCache*
 tests/Makefile
