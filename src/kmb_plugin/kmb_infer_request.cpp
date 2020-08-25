@@ -43,13 +43,14 @@ using namespace InferenceEngine;
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
     const KmbConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
-    const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName)
+    const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName, const int deviceId)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
       _allocator(allocator),
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _netUniqueId(netName),
+      _deviceId(deviceId),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "KmbInferRequest");
     if (_networkOutputs.empty() || _networkInputs.empty()) {
@@ -170,7 +171,7 @@ void KmbInferRequest::execKmbDataPreprocessing(InferenceEngine::BlobMap& inputs,
     IE_ASSERT(_config.useSIPP() || _config.useM2I());
     const KmbPreproc::Path ppPath = _config.useM2I() ? KmbPreproc::Path::M2I : KmbPreproc::Path::SIPP;
     KmbPreproc::execDataPreprocessing(
-        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, ppPath);
+        inputs, preprocData, networkInputs, out_format, numShaves, lpi, _netUniqueId, _deviceId, ppPath);
 }
 
 void KmbInferRequest::GetResult() {

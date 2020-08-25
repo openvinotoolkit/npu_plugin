@@ -51,7 +51,8 @@ public:
 
     virtual void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                     const ResizeAlgorithm& algorithm,
-                    ColorFormat in_fmt, ColorFormat out_fmt) = 0;
+                    ColorFormat in_fmt, ColorFormat out_fmt,
+                    const int deviceId) = 0;
 };
 
 class PrivSIPP final: public PreprocEngine::Priv {
@@ -74,7 +75,8 @@ public:
                      const TensorDesc& out_desc_ie,
                      const Blob::Ptr& inBlob,
                      const std::vector<cv::gapi::own::Mat>& input_plane_mats,
-                     Update update);
+                     Update update,
+                     const unsigned int deviceId);
 
     void executeGraph(const std::vector<cv::gapi::own::Mat>& input_plane_mats,
                             std::vector<cv::gapi::own::Mat>& output_plane_mats);
@@ -82,7 +84,7 @@ public:
     template<typename BlobTypePtr>
     void preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
                         ResizeAlgorithm algorithm,
-                        ColorFormat in_fmt, ColorFormat out_fmt);
+                        ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId);
 
     PrivSIPP(unsigned int shaveFirst, unsigned int shaveLast, unsigned int lpi)
         : _shaveFirst(shaveFirst)
@@ -92,7 +94,8 @@ public:
 
     void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             const ResizeAlgorithm& algorithm,
-            ColorFormat in_fmt, ColorFormat out_fmt) override;
+            ColorFormat in_fmt, ColorFormat out_fmt,
+            const int deviceId) override;
 };
 
 #ifdef ENABLE_M2I
@@ -102,7 +105,8 @@ class PrivM2I final: public PreprocEngine::Priv {
 public:
     void go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             const ResizeAlgorithm& algorithm,
-            ColorFormat in_fmt, ColorFormat out_fmt) override;
+            ColorFormat in_fmt, ColorFormat out_fmt,
+            const int deviceId) override;
 };
 #endif
 
@@ -639,7 +643,8 @@ void PrivSIPP::updateGraph(const detail::CallDesc& callDesc,
                            const TensorDesc& out_desc_ie,
                            const Blob::Ptr& inBlob,
                            const std::vector<cv::gapi::own::Mat>& input_plane_mats,
-                           Update update) {
+                           Update update,
+                           const unsigned int deviceId) {
     _lastCall = cv::util::make_optional(std::move(callDesc));
     detail::BlobDesc new_in  = _lastCall.value().in_desc;
     detail::BlobDesc new_out = _lastCall.value().out_desc;
@@ -662,7 +667,7 @@ void PrivSIPP::updateGraph(const detail::CallDesc& callDesc,
     }
 
     auto args = cv::compile_args(InferenceEngine::gapi::preproc::sipp::kernels(),
-                                 cv::GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi},
+                                 cv::GSIPPBackendInitInfo {_shaveFirst, _shaveLast, _lpi, deviceId},
                                  max_sizes);
 
     if (Update::REBUILD == update) {
@@ -726,7 +731,7 @@ std::vector<cv::gapi::own::Mat> input_from_blob(const NV12Blob::Ptr& inBlob) {
 template<typename BlobTypePtr>
 void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlob,
                               ResizeAlgorithm algorithm,
-                              ColorFormat in_fmt, ColorFormat out_fmt) {
+                              ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
     validateBlob(inBlob);
 
     auto desc_and_layout = getTensorDescAndLayout(inBlob);
@@ -757,7 +762,7 @@ void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlo
 
     if (update != Update::NOTHING) {
         updateGraph(thisCall, in_desc_ie, out_desc_ie, inBlob, input_plane_mats,
-                    update);
+                    update, deviceId);
     }
 
     executeGraph(input_plane_mats, output_plane_mats);
@@ -765,7 +770,7 @@ void PrivSIPP::preprocessBlob(const BlobTypePtr &inBlob, MemoryBlob::Ptr &outBlo
 
 void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                   const ResizeAlgorithm& algorithm,
-                  ColorFormat in_fmt, ColorFormat out_fmt) {
+                  ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
     // The only supported configuration for now
     IE_ASSERT(in_fmt == ColorFormat::NV12);
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
@@ -786,7 +791,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected NV12Blob";
         }
-        preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt);
+        preprocessBlob(inNV12Blob, outMemoryBlob, algorithm, in_fmt, out_fmt, deviceId);
         break;
     }
     default:
@@ -795,7 +800,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
             THROW_IE_EXCEPTION  << "Unsupported input blob for color format " << in_fmt
                                 << ": expected MemoryBlob";
         }
-        preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt);
+        preprocessBlob(inMemoryBlob, outMemoryBlob, algorithm, in_fmt, out_fmt, deviceId);
         break;
     }
 }
@@ -803,7 +808,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
 #ifdef ENABLE_M2I
 void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
-                 ColorFormat in_fmt, ColorFormat out_fmt) {
+                 ColorFormat in_fmt, ColorFormat out_fmt, const int) {
     // NB.: Still follow the same constraints as with SIPP
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
@@ -871,8 +876,9 @@ PreprocEngine::~PreprocEngine() = default;
 
 void PreprocEngine::preproc(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                             const ResizeAlgorithm& algorithm,
-                            ColorFormat in_fmt, ColorFormat out_fmt) {
-    return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt);
+                            ColorFormat in_fmt, ColorFormat out_fmt,
+                            const int deviceId) {
+    return _priv->go(inBlob, outBlob, algorithm, in_fmt, out_fmt, deviceId);
 }
 
 }  // namespace KmbPreproc
