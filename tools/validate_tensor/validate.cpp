@@ -360,6 +360,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     if (! FLAGS_il.empty() )
         commandline += (" -il " + FLAGS_il);
 
+    if (! FLAGS_ip.empty() )
+        commandline += (" -ip " + FLAGS_ip);
+
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -441,10 +444,10 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
-    if (FLAGS_il == "NC"){
+    if ((!FLAGS_ip.empty()) && (FLAGS_ip != "U8")){
         inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
         if (!checkFilesExist({inputCPU}))
-            return FAIL_RUNTIME;
+            return FAIL_GENERAL;
     }
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
