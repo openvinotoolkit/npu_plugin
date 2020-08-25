@@ -3188,7 +3188,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
             // Add inputs to NNDMA operations to the cacheable tensor set.
             // NNDMA tasks are DMATasks whose direction does not involve UPA.
             //
-            // N.B. This loop will add *all* tensors that are inputs to NNDMA operations to the cacheable set,
+            // N.B. This loop will add all tensors that are inputs to NNDMA operations to the cacheable set,
             // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
             // accessed for tensors that we're actually adding to the output.
             auto direction = opIterator->get<mv::DmaDirection>("direction");
