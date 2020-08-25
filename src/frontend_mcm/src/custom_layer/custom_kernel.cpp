@@ -4,7 +4,33 @@
 
 #ifdef __unix__
 #include <elf.h>
+#else
+#include <cstdint>
+__pragma(pack(push, 1))
+struct Elf32_Ehdr {
+    uint8_t  offs1[28];
+    uint32_t e_phoff;        // Program header offset
+    uint32_t e_shoff;        // Section header offset
+    uint8_t  offs2[12];
+    uint16_t e_shnum;        // Number of sections
+    uint16_t e_shstrndx;     // String table index
+};
+
+struct Elf32_Shdr {
+    uint32_t sh_name;        // Section name index
+    uint32_t sh_type;
+    uint32_t sh_flags;
+    uint32_t sh_addr;        // Section virtual address
+    uint32_t sh_offset;      // Section file offset
+    uint32_t sh_size;
+    uint32_t sh_link;
+    uint32_t sh_info;
+    uint32_t sh_addralign;   // Section alignment
+    uint32_t sh_entsize;
+};
+__pragma(pack(pop))
 #endif
+
 #include <xml_parse_utils.h>
 
 #include <custom_layer/ShaveElfMetadataParser.hpp>
@@ -15,7 +41,6 @@
 
 namespace vpu {
 
-#ifdef __unix__
 static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
     IE_ASSERT(elf_data);
     IE_ASSERT(section_name);
@@ -41,7 +66,7 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
     const char *firstStr = reinterpret_cast<const char *>(elf_data + strShdr->sh_offset);
 
     // Find the section with the custom SHAVEComputeAorta data
-    for (Elf32_Half i = 0; i < ehdr->e_shnum; i++) {
+    for (decltype(ehdr->e_shnum) i = 0; i < ehdr->e_shnum; i++) {
         const char *currentSectionName = firstStr + shdr[i].sh_name;
 
         if (0 == strcmp(currentSectionName, section_name)) {
@@ -53,10 +78,6 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
     // the name we were looking for
     return nullptr;
 }
-#else
-#define get_elf_section_with_name(...) 0
-struct Elf32_Shdr {size_t sh_offset = 0; size_t sh_size = 0;};
-#endif
 
 SmallVector<CustomKernel::Argument> deduceKernelArguments(const md_parser_t& parser, int kernelId) {
     const auto kernelDesc = parser.get_kernel(kernelId);
