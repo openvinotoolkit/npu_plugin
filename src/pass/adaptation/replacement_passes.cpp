@@ -108,25 +108,29 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
         std::string newOrder = "NCWH";
         mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "new_permute");
-        transposedData->setOrder(mv::Order("NCHW"));
+
+        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeAfterPermute");
 
         for(unsigned op = 0 ; op < opsToLink.size(); ++op)
         {
-            opsToLink[op]->setInputTensor(transposedData, inputSlots[op], false);
-            om.defineFlow(transposedData, opsToLink[op], inputSlots[op]);
+            opsToLink[op]->setInputTensor(reshapeAfterPermuteData, inputSlots[op], false);
+            om.defineFlow(reshapeAfterPermuteData, opsToLink[op], inputSlots[op]);
         }
 
-        auto reshapeOp = om.getSourceOp(reshapeBeforePermuteData);
+        auto reshapeBeforeOp = om.getSourceOp(reshapeBeforePermuteData);
         auto permuteOp = om.getSourceOp(transposedData);
+        auto reshapeAfterOp = om.getSourceOp(reshapeAfterPermuteData);
         if(parent->hasAttr("opId"))
         {
             unsigned currentOpId = parent->get<unsigned>("opId");
-            reshapeOp->set<unsigned>("opId", currentOpId);
+            reshapeBeforeOp->set<unsigned>("opId", currentOpId);
             permuteOp->set<unsigned>("opId", currentOpId);
+            reshapeAfterOp->set<unsigned>("opId", currentOpId);
         }
         auto outputMemoryLocation = parent->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        reshapeAfterPermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
     }
 }
 

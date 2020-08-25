@@ -634,13 +634,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             auto newTensorOp = om.getSourceOp(newTensor);
             newTensorOp->setAttrs(attrsToCopy);
 
-            // special logic for DetectionOutput Optimization
-            if (opIt->getOpType() == "Permute")
-            {
-                 auto OutputTensor = opIt->getOutputTensor(0);
-                 newTensor->setOrder(OutputTensor->getOrder());
-            }
-
             if (newTensorOp->getOpType() == "DPUTask")
             {
                 //NOTE: There are multiple cases of DPU Task:
@@ -704,6 +697,15 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
                     output->set<mv::DType>("dType", mv::DType("Float16"));
                 }
             }
+        }
+    }
+
+    // special logic for DetectionOutput Optimization
+    auto upaOps = om.getOps("UPATask");
+    for (auto &opIt : upaOps) {
+        if (opIt->get<std::string>("taskOp") == "DetectionOutput") {
+            std::cout << "DetectionOutput" << std::endl;
+            opIt->getInputTensor(1)->setOrder(mv::Order("NCHW"));
         }
     }
 }
