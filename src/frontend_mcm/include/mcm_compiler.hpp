@@ -32,7 +32,7 @@ public:
         const InferenceEngine::OutputsDataMap& outputsInfo, const vpux::VPUXConfig& config) override;
 
     std::shared_ptr<vpux::NetworkDescription> parse(
-        const std::vector<char>& network, const vpux::VPUXConfig& config) override;
+        const std::vector<char>& network, const vpux::VPUXConfig& config, const std::string& graphName = "") override;
 
     std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) override;
 

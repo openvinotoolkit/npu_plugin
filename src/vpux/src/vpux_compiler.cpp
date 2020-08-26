@@ -23,8 +23,8 @@ public:
     }
 
     std::shared_ptr<vpux::NetworkDescription> parse(
-        const std::vector<char>& network, const vpux::VPUXConfig& config) override {
-        return _impl->parse(network, config);
+        const std::vector<char>& network, const vpux::VPUXConfig& config, const std::string& graphName) override {
+        return _impl->parse(network, config, graphName);
     }
 
     std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) override {
@@ -36,23 +36,29 @@ private:
     ICompilerPtr _impl;
 };
 
+static std::string extractFileName(const std::string& fullPath) {
+    const size_t lastSlashIndex = fullPath.find_last_of("/\\");
+    return fullPath.substr(lastSlashIndex + 1);
+}
+
 std::shared_ptr<vpux::NetworkDescription> vpux::ICompiler::parse(
     const std::string& filename, const VPUXConfig& config) {
     std::ifstream stream(filename, std::ios::binary);
     if (!stream.is_open()) {
         THROW_IE_EXCEPTION << "Could not open file: " << filename;
     }
-    return parse(stream, config);
+    const std::string graphName = extractFileName(filename);
+    return parse(stream, config, graphName);
 }
 
-std::shared_ptr<vpux::NetworkDescription> vpux::ICompiler::parse(std::istream& stream, const VPUXConfig& config) {
+std::shared_ptr<vpux::NetworkDescription> vpux::ICompiler::parse(
+    std::istream& stream, const VPUXConfig& config, const std::string& graphName) {
     const size_t graphSize = vpu::KmbPlugin::utils::getFileSize(stream);
     if (graphSize == 0) {
         THROW_IE_EXCEPTION << "Blob is empty";
     }
-    std::vector<char> blob(graphSize);
-    stream.read(blob.data(), blob.size());
-    return parse(blob, config);
+    auto blob = std::vector<char>(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    return parse(blob, config, graphName);
 }
 
 std::shared_ptr<vpux::ICompiler> vpux::ICompiler::create(CompilerType t) {

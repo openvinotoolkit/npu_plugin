@@ -26,7 +26,7 @@ std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(
     copy.parseFrom(config);
 
     vpu::MCMAdapter::compileNetwork(network, copy, compiledNetwork);
-    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
+    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy, network.getName());
 }
 
 std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,
@@ -40,11 +40,11 @@ std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(const std::shared
 }
 
 std::shared_ptr<vpux::NetworkDescription> MCMCompiler::parse(
-    const std::vector<char>& compiledNetwork, const vpux::VPUXConfig& config) {
+    const std::vector<char>& compiledNetwork, const vpux::VPUXConfig& config, const std::string& graphName) {
     auto copy = _config;
     copy.parseFrom(config);
 
-    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
+    return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy, graphName);
 }
 
 std::set<std::string> MCMCompiler::getSupportedLayers(InferenceEngine::ICNNNetwork& network) {

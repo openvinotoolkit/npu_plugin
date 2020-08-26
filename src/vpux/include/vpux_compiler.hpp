@@ -60,10 +60,11 @@ public:
         const InferenceEngine::OutputsDataMap& outputsInfo, const VPUXConfig& config = {}) = 0;
 
     virtual std::shared_ptr<vpux::NetworkDescription> parse(
-        const std::vector<char>& network, const VPUXConfig& config = {}) = 0;
+        const std::vector<char>& network, const VPUXConfig& config = {}, const std::string& graphName = "") = 0;
 
     virtual std::shared_ptr<vpux::NetworkDescription> parse(const std::string& filename, const VPUXConfig& config = {});
-    virtual std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {});
+    virtual std::shared_ptr<vpux::NetworkDescription> parse(
+        std::istream& stream, const VPUXConfig& config = {}, const std::string& graphName = "");
 
     virtual std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) = 0;
 
