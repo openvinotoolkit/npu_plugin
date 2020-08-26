@@ -28,12 +28,17 @@ public:
 
 protected:
     const std::string _modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
+    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
+    // due _compiler is opened as plugin and _networkDescription is created by _compiler
+    // Need to design more accurate solution to avoid missunderstanding in future
+    // [Track number: S#37571]
+    ICompiler::Ptr _compiler = nullptr;
     NetworkDescription::Ptr _networkDescPtr = nullptr;
 };
 
 //------------------------------------------------------------------------------
 inline NetworkDescription_Helper::NetworkDescription_Helper() {
-    auto compiler = ICompiler::create(CompilerType::MCMCompiler);
-    _networkDescPtr = compiler->parse(_modelToImport);
+    _compiler = ICompiler::create(CompilerType::MCMCompiler);
+    _networkDescPtr = _compiler->parse(_modelToImport);
 }
 }  // namespace vpux

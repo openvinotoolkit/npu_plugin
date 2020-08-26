@@ -109,8 +109,8 @@ TEST_F(kmbInferRequestConstructionUnitTests, canCreateInferRequestWithValidParam
 
     auto allocator = std::make_shared<KmbAllocator>(defaultDeviceId);
     KmbInferRequest::Ptr inferRequest;
-    ASSERT_NO_THROW(inferRequest = std::make_shared<KmbInferRequest>(
-                        inputs, outputs, std::vector<vpu::StageMetaInfo>(), config, executor, allocator, "networkName"));
+    ASSERT_NO_THROW(inferRequest = std::make_shared<KmbInferRequest>(inputs, outputs, std::vector<vpu::StageMetaInfo>(),
+                        config, executor, allocator, "networkName"));
 }
 class TestableKmbInferRequest : public KmbInferRequest {
 public:
