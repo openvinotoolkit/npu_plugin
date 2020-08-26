@@ -617,6 +617,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             std::vector<int64_t> weightsData(total_shape, 1ll);
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
+            sourceTensor->setDType(mv::DType("UInt8"));
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(),
