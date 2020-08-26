@@ -34,7 +34,7 @@ public:
     /**
      * @brief Create HddlUnite graph object using context to specify which devices to use
      */
-    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::Ptr& context,
+    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::CPtr& context,
         const LogLevel& logLevel = LogLevel::Error);
 
     /**

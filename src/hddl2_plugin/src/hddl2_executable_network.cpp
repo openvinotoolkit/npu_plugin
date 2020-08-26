@@ -82,7 +82,8 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
     if (_executorPtr == nullptr) {
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _executorPtr, _config);
+    const auto inferExecutor = _executorPtr->clone();
+    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
 }
 
 void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
@@ -90,24 +91,22 @@ void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& 
         THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
     }
 
-    auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, _executorPtr, _config);
+    const auto inferExecutor = _executorPtr->clone();
+    auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
     const std::string resultExecutorName = "HDDL2ResultExecutor";
     auto resultExecutor = IE::ExecutorManager::getInstance()->getExecutor(resultExecutorName);
 
-    const std::string waitExecutorName = "HDDL2WaitExecutor";
-    auto waitExecutor = IE::ExecutorManager::getInstance()->getExecutor(waitExecutorName);
-
-    auto asyncTreadSafeImpl = std::make_shared<HDDL2AsyncInferRequest>(
-        syncRequestImpl, _taskExecutor, resultExecutor, waitExecutor, _callbackExecutor);
+    auto asyncThreadSafeImpl =
+        std::make_shared<HDDL2AsyncInferRequest>(syncRequestImpl, _taskExecutor, resultExecutor, _callbackExecutor);
     asyncRequest.reset(
-        new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncTreadSafeImpl),
+        new InferenceEngine::InferRequestBase<InferenceEngine::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
         [](InferenceEngine::IInferRequest* p) {
             p->Release();
         });
-    asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+    asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
 }
 
 //------------------------------------------------------------------------------

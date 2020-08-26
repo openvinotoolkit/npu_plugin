@@ -26,10 +26,9 @@ class HDDL2AsyncInferRequest final : public InferenceEngine::AsyncInferRequestTh
 public:
     using Ptr = std::shared_ptr<HDDL2AsyncInferRequest>;
 
-    HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr& inferRequest,
+    explicit HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr& inferRequest,
         const InferenceEngine::ITaskExecutor::Ptr& requestExecutor,
         const InferenceEngine::ITaskExecutor::Ptr& getResultExecutor,
-        const InferenceEngine::ITaskExecutor::Ptr& waitInferDoneExecutor,
         const InferenceEngine::ITaskExecutor::Ptr& callbackExecutor);
 
     ~HDDL2AsyncInferRequest() override;
@@ -37,7 +36,6 @@ public:
 private:
     HDDL2InferRequest::Ptr _inferRequest;
     InferenceEngine::ITaskExecutor::Ptr _getResultExecutor;
-    InferenceEngine::ITaskExecutor::Ptr _waitForResultExecutor;
 };
 
 }  // namespace HDDL2Plugin

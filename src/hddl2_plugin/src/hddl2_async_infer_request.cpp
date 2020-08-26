@@ -23,14 +23,11 @@ namespace IE = InferenceEngine;
 HDDL2AsyncInferRequest::HDDL2AsyncInferRequest(const HDDL2InferRequest::Ptr &inferRequest,
                                                const IE::ITaskExecutor::Ptr &requestExecutor,
                                                const IE::ITaskExecutor::Ptr &getResultExecutor,
-                                               const IE::ITaskExecutor::Ptr &waitInferDoneExecutor,
                                                const IE::ITaskExecutor::Ptr &callbackExecutor)
         : IE::AsyncInferRequestThreadSafeDefault(inferRequest, requestExecutor, callbackExecutor),
-          _inferRequest(inferRequest), _getResultExecutor(getResultExecutor),
-          _waitForResultExecutor(waitInferDoneExecutor) {
+          _inferRequest(inferRequest), _getResultExecutor(getResultExecutor) {
     _pipeline = {
             {_requestExecutor,       [this] { _inferRequest->InferAsync(); }},
-            {_waitForResultExecutor, [this] { _inferRequest->WaitInferDone(); }},
             {_getResultExecutor,     [this] { _inferRequest->GetResult(); }}
     };
 }

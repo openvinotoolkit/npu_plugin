@@ -51,7 +51,7 @@ public:
     HddlUnite::Inference::InferData::Ptr& getHddlUniteInferData() { return _inferDataPtr; }
     void waitInferDone() const;
 
-    void getHddlUnitePerfCounters(std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& retPerfCounters);
+    std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> getHDDLUnitePerfCounters() const;
 
     /**
      * @brief Wait when inference is done and get result from HddlUnite

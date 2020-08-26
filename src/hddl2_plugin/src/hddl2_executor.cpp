@@ -16,8 +16,15 @@
 
 #include "hddl2_executor.h"
 
+#include <hddl2_remote_blob.h>
+#include <ie_compound_blob.h>
+#include <ie_memcpy.h>
+
+#include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
 #include <ie_remote_context.hpp>
+#include <ie_utils.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "hddl2_exceptions.h"
 #include "hddl2_metrics.h"
@@ -56,6 +63,62 @@ static vpu::HDDL2Plugin::HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::
     return pluginContext;
 }
 
+// TODO [Track number: S#21391]
+// FIXME: does not work for batch != 1
+static bool is2DTensor(const IE::SizeVector& dims) {
+    size_t ones = std::count(dims.begin(), dims.end(), 1);
+    return (dims.size() - ones) == 1;
+}
+
+static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, const size_t& size) {
+    if (source == nullptr) {
+        THROW_IE_EXCEPTION << "Source data is nullptr!";
+    }
+    if (dest->byteSize() != size) {
+        THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite: " << size
+                           << " and expected output: " << dest->byteSize();
+    }
+    IE::MemoryBlob::Ptr mblob = IE::as<IE::MemoryBlob>(dest);
+    if (!mblob) {
+        THROW_IE_EXCEPTION << "Failed output blob type!";
+    }
+    auto lockedMemory = mblob->wmap();
+    void* data = lockedMemory.as<void*>();
+    auto result = ie_memcpy(data, dest->byteSize(), source, size);
+    if (result != 0) {
+        THROW_IE_EXCEPTION << "Failed to copy memory.";
+    }
+}
+
+static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
+    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
+        /** Currently we ignore information of what type of remote blob we are using **/
+        actualInput->is<IE::RemoteBlob>() ||
+        /** Repacking for NV12 Blob is not required, compound blob should be handled other way **/
+        // TODO Add repacking for compound blob case
+        actualInput->is<IE::NV12Blob>() || actualInput->is<IE::CompoundBlob>()) {
+        return actualInput;
+    }
+
+    IE::Blob::Ptr inputForInference;
+
+    if (is2DTensor(actualInput->getTensorDesc().getDims())) {
+        auto tensorDims = actualInput->getTensorDesc().getDims();
+        for (size_t dimInd = actualInput->getTensorDesc().getDims().size(); dimInd < 4; dimInd++) {
+            tensorDims.push_back(1);
+        }
+        IE::TensorDesc TensorDesc = {actualInput->getTensorDesc().getPrecision(), tensorDims, expectedLayout};
+        inputForInference = make_blob_with_precision(TensorDesc);
+        inputForInference->allocate();
+
+        ie_memcpy(
+            inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
+    } else {
+        inputForInference = toLayout(actualInput, expectedLayout);
+    }
+
+    return inputForInference;
+}
 //------------------------------------------------------------------------------
 vpux::HDDL2::HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
     const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContextPtr) {
@@ -82,31 +145,158 @@ vpux::HDDL2::HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::Netwo
     return executor;
 }
 
-HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::Ptr& network, const vpu::HDDL2Config& config,
-    vpu::HDDL2Plugin::HDDL2RemoteContext::Ptr context)
+HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpu::HDDL2Config& config,
+    vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr context)
     : _network(network),
       _context(context),
       _config(config),
-      _logger(std::make_shared<vpu::Logger>("ExecutableNetwork", config.logLevel(), vpu::consoleOutput())) {
+      // TODO Make executor logger name unique
+      _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())) {
     loadGraphToDevice();
 }
+
+HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
+    : _network(ex._network), _context(ex._context), _config(ex._config), _uniteGraphPtr(ex._uniteGraphPtr) {}
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) { UNUSED(inputs); }
+void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs) { push(inputs, {}); }
 
 void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) {
-    UNUSED(inputs);
-    UNUSED(preProcMap);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    // TODO [Design flaw] InferData need to know if preprocessing required on creation [Track number: S#31308]
+    bool needUnitePreProcessing = false;
+    IE::BlobMap updatedInputs;
+
+    const auto& networkInputs = _network->getInputsInfo();
+    const auto& deviceInputs = _network->getDeviceInputsInfo();
+
+    if (inputs.size() != networkInputs.size()) {
+        _logger->warning("Amount of blobs and network inputs mismatch!\n"
+                         "Blobs: %d, network inputs: %d",
+            inputs.size(), networkInputs.size());
+    } else if (networkInputs.size() != deviceInputs.size()) {
+        _logger->warning("Amount of network inputs and expected device inputs mismatch!\n"
+                         "Network inputs: %d, Device inputs: %d",
+            networkInputs.size(), deviceInputs.size());
+    }
+
+    for (const auto& networkInput : networkInputs) {
+        const std::string inputName = networkInput.first;
+        auto foundInputBlob = inputs.find(inputName);
+        if (foundInputBlob == inputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        if (preProcMap.find(inputName) != preProcMap.end()) {
+            needUnitePreProcessing = true;
+        }
+        if (inputBlobPtr->is<vpu::HDDL2Plugin::HDDL2RemoteBlob>()) {
+            needUnitePreProcessing |= (inputBlobPtr->as<vpu::HDDL2Plugin::HDDL2RemoteBlob>()->getROIPtr() != nullptr);
+        }
+
+        const auto deviceInputLayout = deviceInputs.at(inputName)->getLayout();
+        updatedInputs[foundInputBlob->first] = prepareInputForInference(foundInputBlob->second, deviceInputLayout);
+    }
+
+    // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
+    std::call_once(_onceFlagInferData, [&] {
+        _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
+            needUnitePreProcessing, _context, _config.getGraphColorFormat());
+    });
+
+    // TODO Should we use deviceInputs instead of networkInputs here?
+    for (const auto& networkInput : networkInputs) {
+        const std::string inputName = networkInput.first;
+        const IE::DataPtr inputDesc = networkInput.second;
+
+        if (preProcMap.find(inputName) != preProcMap.end()) {
+            IE::Blob::CPtr blobRequiredPreProcessing;
+            InferenceEngine::PreProcessInfo preProcessInfo = preProcMap.find(inputName)->second;
+            // TODO preProcessInfo are not used [Track number: S#37393]
+            UNUSED(preProcessInfo);
+        }
+        auto foundInputBlob = updatedInputs.find(inputName);
+        if (foundInputBlob == updatedInputs.end()) {
+            THROW_IE_EXCEPTION << "Error: input [" << inputName << "] is not provided.";
+        }
+        const IE::Blob::Ptr inputBlobPtr = foundInputBlob->second;
+        _inferDataPtr->prepareUniteInput(inputBlobPtr, inputDesc);
+    }
+
+    /// Use what expected on device instead of what expected on IE side
+    const auto& deviceOutputs = _network->getDeviceOutputsInfo();
+    for (const auto& deviceOutput : deviceOutputs) {
+        // TODO Will not work for multi-output [Track number: S#36862]
+        _inferDataPtr->prepareUniteOutput(deviceOutput.second);
+    }
+
+    _uniteGraphPtr->InferAsync(_inferDataPtr);
 }
 
 void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
-    UNUSED(outputs);
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+    for (const auto& inferOutput : outputs) {
+        const std::string outputName = inferOutput.first;
+        auto foundOutputBlob = outputs.find(outputName);
+        if (foundOutputBlob == outputs.end()) {
+            THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
+        }
+        IE::Blob::Ptr outputBlobPtr = foundOutputBlob->second;
+
+        const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
+
+        const auto networkTensorDesc = inferOutput.second->getTensorDesc();
+        const auto outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
+
+        const auto networkOutputPrecision = networkTensorDesc.getPrecision();
+        const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
+
+        if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
+            if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                                   << blobOutputPrecision << " is not supported.";
+            }
+            auto tempUniteOutputTensorDesc = networkTensorDesc;
+            // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
+            tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
+            if (outputBlobPtr->getTensorDesc().getDims().size() == 4) {
+                tempUniteOutputTensorDesc.setLayout(IE::Layout::NHWC);
+            }
+
+            IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
+            tempFP16Blob->allocate();
+            copyDataToBlob(tempFP16Blob, outputUniteData.data(), outputUniteData.size());
+            if (tempUniteOutputTensorDesc.getPrecision() != blobOutputPrecision) {
+                outputBlobPtr = utils::convertPrecision(tempFP16Blob, outputBlobTensorDesc.getPrecision());
+            } else {
+                outputBlobPtr = tempFP16Blob;
+            }
+        } else {
+            if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
+                                   << blobOutputPrecision << " is not supported.";
+            }
+            if (outputUniteData.size() != outputBlobPtr->byteSize()) {
+                THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
+            }
+            copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
+            if (!is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+                outputBlobPtr->getTensorDesc().setLayout(IE::Layout::NHWC);
+            }
+        }
+        if (is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+            outputs[outputName] = outputBlobPtr;
+        } else {
+            if (outputBlobPtr->getTensorDesc().getLayout() != networkTensorDesc.getLayout()) {
+                outputs[outputName] = toLayout(outputBlobPtr, networkTensorDesc.getLayout());
+            } else {
+                outputs[outputName] = outputBlobPtr;
+            }
+        }
+    }
 }
 
 bool HDDL2Executor::isPreProcessingSupported(const InferenceEngine::PreProcessInfo& preProcessInfo) const {
@@ -114,8 +304,8 @@ bool HDDL2Executor::isPreProcessingSupported(const InferenceEngine::PreProcessIn
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
 
-std::map<std::string, InferenceEngine::InferenceEngineProfileInfo> HDDL2Executor::getLayerStatistics() {
-    THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
+std::map<std::string, IE::InferenceEngineProfileInfo> HDDL2Executor::getLayerStatistics() {
+    return _inferDataPtr->getHDDLUnitePerfCounters();
 }
 
 InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramName) const {
@@ -131,5 +321,8 @@ void HDDL2Executor::loadGraphToDevice() {
         _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _context, _config.logLevel());
     }
 }
+
+Executor::Ptr HDDL2Executor::clone() const { return std::make_shared<HDDL2Executor>(*this); }
+
 }  // namespace HDDL2
 }  // namespace vpux

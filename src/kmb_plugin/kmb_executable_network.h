@@ -73,13 +73,13 @@ public:
 
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
-        auto asyncTreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
+        auto asyncThreadSafeImpl = std::make_shared<KmbAsyncInferRequest>(
             syncRequestImpl, _taskExecutor, taskExecutorGetResult, _callbackExecutor, _logger);
-        asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(asyncTreadSafeImpl),
+        asyncRequest.reset(new ie::InferRequestBase<ie::AsyncInferRequestThreadSafeDefault>(asyncThreadSafeImpl),
             [](ie::IInferRequest* p) {
                 p->Release();
             });
-        asyncTreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
+        asyncThreadSafeImpl->SetPointerToPublicInterface(asyncRequest);
     }
 
     void ExportImpl(std::ostream& model) override {
