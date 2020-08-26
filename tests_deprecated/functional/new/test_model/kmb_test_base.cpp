@@ -1433,3 +1433,58 @@ void SmokeNetworkTest::runTest(const TestNetworkDesc& netDesc) {
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
+
+void PersonAttrNetworkTest::runTest(const TestNetworkDesc& netDesc, const TestImageDesc& image, float tolerance) {
+    const auto check = [=](const BlobMap& actualBlobs, const BlobMap& refBlobs,
+                           const ConstInputsDataMap& /*inputsDesc*/) {
+        IE_ASSERT(actualBlobs.size() == refBlobs.size());
+
+        auto actualBlob = actualBlobs.begin()->second;
+        auto refBlob = refBlobs.begin()->second;
+
+        ASSERT_EQ(refBlob->getTensorDesc().getDims(), actualBlob->getTensorDesc().getDims());
+
+        auto actualOutput = parseOutput(toFP32(actualBlob));
+        auto refOutput = parseOutput(toFP32(refBlob));
+
+        std::cout << "actual person attributes: \n" << actualOutput << std::endl;
+        std::cout << "actual person attributes: \n" << refOutput << std::endl;
+
+        comparePersonsAttributes(actualOutput, refOutput, tolerance);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+PersonAttrNetworkTest::PersonAttributes PersonAttrNetworkTest::parseOutput(const Blob::Ptr& blob) {
+    IE_ASSERT(blob->byteSize() == sizeof(PersonAttributes));
+    const auto blobPtr = blob->cbuffer().as<PersonAttributes*>();
+    IE_ASSERT(blobPtr != nullptr);
+
+    return *blobPtr;
+}
+
+void PersonAttrNetworkTest::comparePersonsAttributes(const PersonAttrNetworkTest::PersonAttributes& p1,
+    const PersonAttrNetworkTest::PersonAttributes& p2, float tolerance) {
+    std::map<float, uint> differences;
+    for (uint i = 0; i < ATTRIBUTES_COUNT; ++i) {
+        differences[std::abs(p1.attrs[i] - p2.attrs[i])] = i;
+    }
+
+    std::cout << "Max difference on " << std::prev(differences.end())->second << " - "
+              << std::prev(differences.end())->first << std::endl;
+    IE_ASSERT(std::prev(differences.end())->first < tolerance);
+}
+
+std::ostream& operator<<(std::ostream& stream, const PersonAttrNetworkTest::PersonAttributes& p) {
+    for (uint i = 0; i < ATTRIBUTES_COUNT; ++i) {
+        stream << i << " - " << p.attrs[i] << "\n";
+    }
+    stream << std::endl;
+    return stream;
+}
