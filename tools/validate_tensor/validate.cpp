@@ -323,12 +323,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
 
-    do
-    {   //delete any previous blobs (different names each time)
-        std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
-        std::cout << "Removing: " << fullBlobPath << std::endl;
-        remove(fullBlobPath.c_str());
-    } while (blobPath != "");
+    //delete any previous blobs (different names each time)
+    std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    std::cout << "Removing: " << fullBlobPath << std::endl;
+    remove(fullBlobPath.c_str());
 
     // check if we have 2 input xml models (CPU/KMB)
     std::vector<std::string> pathXMLvector;
@@ -919,7 +917,7 @@ int main(int argc, char *argv[])
     // Normal operation
     int result = 0;
 
-    std::string blobPath(std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/mcm.blob"));
+    std::string blobPath("");
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 ) return result;
 
