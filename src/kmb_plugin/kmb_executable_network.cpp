@@ -28,6 +28,7 @@
 #include <convert_function_to_cnn_network.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <vpux_compiler.hpp>
 
@@ -108,6 +109,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
+            ngraph::pass::ConvertPriorBox().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
             convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network, true);
