@@ -33,7 +33,8 @@ namespace mv
                 OUTPUT = 4,
                 BLOB = 5,
                 VIRTUAL = 6,
-                DEFAULT = 7
+                CSRAM = 7,
+                DEFAULT = 8
             };
         private:
             Location location_;
@@ -48,6 +49,7 @@ namespace mv
                             {"OUTPUT",OUTPUT},
                             {"BLOB",BLOB},
                             {"VIRTUAL",VIRTUAL},
+                            {"CSRAM",CSRAM},
                             {"DEFAULT",DEFAULT}
                     };
             }
@@ -187,6 +189,12 @@ namespace mv
             return getDType().isDoubleType();
         }
 
+        // All floating point datatypes
+        // FP16 is underlyingly stored on int64
+        inline bool isFloatingPointType() const {
+            return getDType().isDoubleType() || getDType() == mv::DType("Float16");
+        }
+
         std::vector<DataElement> getData();
         const std::vector<int64_t> getDataPacked();
         int getNumZeroPoints();
@@ -257,6 +265,19 @@ namespace mv
             if (hasAttr("broadcasted"))
                 return get<bool>("broadcasted");
             return true; //by default is true
+        }
+
+        inline bool isAllocatedPerCluster() const
+        {
+            // SOK non-sparse weights are also serialised individually
+            // so that they can be compressed by the HDE
+            return hasAttr("splitStrategy") &&
+                get<std::string>("splitStrategy") == "SplitOverK" &&
+                !hasAttr("weightTable") &&
+                !hasAttr("sparsityMap") &&
+                !hasAttr("solvedSparsity") &&
+                !hasAttr("dilatedSubConvSM") &&
+                !hasAttr("dilatedSubConvSE");
         }
 
         inline unsigned size() const

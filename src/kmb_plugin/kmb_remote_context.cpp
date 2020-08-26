@@ -24,6 +24,9 @@ using namespace vpu::KmbPlugin;
 
 static std::map<std::string, int> deviceIdMapping = {
     {"VPU-0", 0},
+    {"VPU-1", 1},
+    {"VPU-2", 2},
+    {"VPU-3", 3},
 };
 
 KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)
