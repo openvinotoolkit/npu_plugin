@@ -97,7 +97,9 @@ vpux::DataMap MCMNetworkDescription::matchElementsByName(
         bool isNameFound = false;
         for (const auto& data : actualDeviceData) {
             if (data.first.find(name) != std::string::npos) {
-                updatedMap.insert({name, data.second});
+                const auto dataCorrectedName = data.second;
+                dataCorrectedName->setName(name);
+                updatedMap.insert({name, dataCorrectedName});
                 isNameFound = true;
                 _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
             }
@@ -121,7 +123,9 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(
     std::size_t curMatchPos = 0;
     for (const auto& data : actualDeviceData) {
         auto name = names[curMatchPos];
-        updatedMap.insert({name, data.second});
+        const auto dataCorrectedName = data.second;
+        dataCorrectedName->setName(name);
+        updatedMap.insert({name, dataCorrectedName});
         _logger->debug("Matched \'%s\' with \'%s'\\n", name, data.first);
         curMatchPos++;
     }

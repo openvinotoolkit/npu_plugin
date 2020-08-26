@@ -48,6 +48,7 @@ public:
     using Ptr = std::shared_ptr<Executor>;
 
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
+    virtual Executor::Ptr clone() const { THROW_IE_EXCEPTION << "Not implemented"; }
 
     virtual void push(const InferenceEngine::BlobMap& inputs) = 0;
     virtual void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) = 0;

@@ -115,6 +115,7 @@ void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
 }
 
 std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
+    waitInferDone();
     const auto outputBlob = _inferDataPtr->getOutputBlob(outputName);
     if (outputBlob == nullptr) {
         THROW_IE_EXCEPTION << "Failed to get blob from hddlUnite!";
@@ -130,22 +131,23 @@ void HddlUniteInferData::waitInferDone() const {
     }
 }
 
-void HddlUniteInferData::getHddlUnitePerfCounters(
-    std::map<std::string, IE::InferenceEngineProfileInfo>& retPerfCounters) {
+std::map<std::string, IE::InferenceEngineProfileInfo> HddlUniteInferData::getHDDLUnitePerfCounters() const {
+    std::map<std::string, IE::InferenceEngineProfileInfo> perfCounts;
     IE::InferenceEngineProfileInfo info;
     info.status = IE::InferenceEngineProfileInfo::EXECUTED;
     info.cpu_uSec = 0;
     info.execution_index = 0;
     info.realTime_uSec = 0;
 
-    info.realTime_uSec = _profileData.infer.time;
+    info.realTime_uSec = static_cast<long long>(_profileData.infer.time);
     IE_ASSERT(info.realTime_uSec != 0);
-    retPerfCounters["Total scoring time"] = info;
+    perfCounts["Total scoring time"] = info;
 
-    info.realTime_uSec = _profileData.nn.time;
+    info.realTime_uSec = static_cast<long long>(_profileData.nn.time);
     IE_ASSERT(info.realTime_uSec != 0);
-    retPerfCounters["Total scoring time on inference"] = info;
+    perfCounts["Total scoring time on inference"] = info;
 
-    info.realTime_uSec = _profileData.pp.time;
-    retPerfCounters["Total scoring time on preprocess"] = info;
+    info.realTime_uSec = static_cast<long long>(_profileData.pp.time);
+    perfCounts["Total scoring time on preprocess"] = info;
+    return perfCounts;
 }

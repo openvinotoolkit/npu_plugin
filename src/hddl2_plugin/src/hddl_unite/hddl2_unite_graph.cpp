@@ -77,8 +77,8 @@ HddlUniteGraph::HddlUniteGraph(
     }
 }
 
-HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::Ptr& contextPtr,
-    const vpu::LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
+    const HDDL2RemoteContext::CPtr& contextPtr, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {

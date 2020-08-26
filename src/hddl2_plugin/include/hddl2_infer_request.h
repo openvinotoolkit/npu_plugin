@@ -38,19 +38,13 @@ class HDDL2InferRequest final : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<HDDL2InferRequest>;
 
-    // TODO Temporary solution, infer request refactoring is next step
-    HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+    explicit HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
         const vpu::HDDL2Config& config);
-    HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
-        const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::CPtr& loadedGraph,
-        const HDDL2RemoteContext::CPtr& context, const vpux::NetworkDescription::CPtr& networkDesc,
-        const vpu::HDDL2Config& config, const vpux::Executor::Ptr& executor);
 
     void Infer() override;
     void InferImpl() override;
     void InferAsync();
-    void WaitInferDone();
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
 
@@ -67,19 +61,6 @@ protected:
     const vpux::Executor::Ptr _executorPtr;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
-
-    // TODO This part required refactoring,
-    vpux::NetworkDescription::CPtr _networkDesc = nullptr;
-    HddlUniteGraph::CPtr _loadedGraphPtr = nullptr;
-    HddlUniteInferData::Ptr _inferDataPtr = nullptr;
-
-    // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
-    // need to store it here
-    HDDL2RemoteContext::CPtr _context = nullptr;
-
-    // TODO [Workaround] Avoid allocation inferData each time. If size of inputs is changed, need
-    //  to recreating (not implemented yet)
-    std::once_flag _onceFlagInferData;
 };
 
 }  //  namespace HDDL2Plugin

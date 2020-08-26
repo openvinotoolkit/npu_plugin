@@ -35,6 +35,7 @@ public:
 
     explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const vpu::HDDL2Config& config,
         const InferenceEngine::RemoteContext::Ptr& context = nullptr);
+
     explicit ExecutableNetwork(const std::string& blobFilename, const vpu::HDDL2Config& config,
         const InferenceEngine::RemoteContext::Ptr& context = nullptr);
     explicit ExecutableNetwork(std::istream& networkModel, const vpu::HDDL2Config& config,
@@ -55,7 +56,6 @@ private:
     explicit ExecutableNetwork(const vpu::HDDL2Config& config);
 
 private:
-    // TODO Use some vpux config
     const HDDL2Config _config;
     const Logger::Ptr _logger;
 

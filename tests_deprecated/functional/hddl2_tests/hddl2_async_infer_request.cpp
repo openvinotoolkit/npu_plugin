@@ -239,7 +239,7 @@ void AsyncInferRequest_DifferentInput::SetUp() {
 }
 
 //------------------------------------------------------------------------------
-TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffledNV12And) {
+TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPreprocAndPreproc) {
     // --- Create requests
     std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
