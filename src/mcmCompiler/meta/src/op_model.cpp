@@ -1644,6 +1644,21 @@ mv::Data::TensorIterator mv::OpModel::proposal(const std::vector< Data::TensorIt
     return output;
 }
 
+mv::Data::TensorIterator mv::OpModel::pseudoOp(const std::vector< Data::TensorIterator >& inputs, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "PseudoOp",
+        inputs,
+        {
+        },
+        name,
+        false
+    
+    );
+    return output;
+}
+
 mv::Data::TensorIterator mv::OpModel::quantize(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)

@@ -390,6 +390,8 @@ class Operation_Dag {
       init_from_model(omodel);
       apply_control_edges(cedge_container.begin(), cedge_container.end());
 
+
+
       printf("====================\n");
       printf("SCHEDULE DAG:\n");
       for (const_operation_iterator_t itr=begin_nodes();
@@ -460,6 +462,9 @@ class Operation_Dag {
 
       algo.transform_op_model(std::back_inserter(chain_control_edges),
           pipeline_subgraphs);
+
+      mv::GenerateDotFromModel(omodel, "OpModel",
+            "pipeline_chain_transformed_model.dot");
       reset_from_chain_pipeline_control_edges(omodel, chain_control_edges);
     }
 
