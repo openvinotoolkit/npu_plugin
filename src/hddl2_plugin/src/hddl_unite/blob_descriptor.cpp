@@ -276,7 +276,7 @@ void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc)
 //------------------------------------------------------------------------------
 LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
     : BlobDescriptor(desc, blob, false, true, blob == nullptr) {
-    if (blob->is<HDDL2RemoteBlob>()) {
+    if (blob && blob->is<HDDL2RemoteBlob>()) {
         THROW_IE_EXCEPTION << "Unable to create local blob descriptor from remote memory";
     }
 }
@@ -284,7 +284,7 @@ LocalBlobDescriptor::LocalBlobDescriptor(const IE::DataPtr& desc, const IE::Blob
 //------------------------------------------------------------------------------
 RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Blob::CPtr& blob)
     : BlobDescriptor(desc, blob, true, blob ? !blob->is<HDDL2RemoteBlob>() : true, blob == nullptr) {
-    if (_blobPtr->is<HDDL2RemoteBlob>()) {
+    if (_blobPtr && _blobPtr->is<HDDL2RemoteBlob>()) {
         _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
     }
 }

@@ -43,12 +43,11 @@ HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::SMM::Rem
 
 HDDL2RemoteAllocator::HDDL2RemoteAllocator(
     const HddlUnite::WorkloadContext::Ptr& contextPtr, const vpu::HDDL2Config& config)
-    : _config(config), _logger(std::make_shared<Logger>("HDDL2RemoteAllocator", config.logLevel(), consoleOutput())) {
+    : _config(config), _logger(std::make_shared<Logger>("RemoteAllocator", config.logLevel(), consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Context pointer is null";
     }
 
-    UNUSED(_config);
     _contextPtr = contextPtr;
 }
 
