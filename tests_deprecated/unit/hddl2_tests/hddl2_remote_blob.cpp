@@ -147,6 +147,20 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
     ASSERT_TRUE(remoteROIBlobPtr->deallocate());
 }
 
+TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobIntoBoundsNoThrow) {
+    IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
+    IE::ROI roi {0, 5, 5, 100, 100};
+    IE::RemoteBlob::Ptr remoteROIBlobPtr;
+    ASSERT_NO_THROW(remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi)));
+}
+
+TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
+    IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
+    IE::ROI roi {0, 2, 2, 1000, 1000};
+    IE::RemoteBlob::Ptr remoteROIBlobPtr;
+    ASSERT_ANY_THROW(remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi)));
+}
+
 TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
@@ -155,10 +169,17 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
 
     {
         IE::ROI roi {0, 2, 2, 221, 221};
+        IE::ROI roi2 {0, 5, 5, 100, 100};
         IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
 
         {
-            IE::RemoteBlob::Ptr remoteROI2BlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteROIBlobPtr->createROI(roi));
+            IE::RemoteBlob::Ptr remoteROI2BlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteROIBlobPtr->createROI(roi2));
+            auto roi2Ptr = remoteROI2BlobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
+            ASSERT_TRUE(roi2Ptr != nullptr);
+            ASSERT_TRUE(roi2Ptr->posX == roi.posX + roi2.posX);
+            ASSERT_TRUE(roi2Ptr->posY == roi.posY + roi2.posY);
+            ASSERT_TRUE(roi2Ptr->sizeX == roi2.sizeX);
+            ASSERT_TRUE(roi2Ptr->sizeY == roi2.sizeY);
             uint8_t *bROIData = remoteROI2BlobPtr->rmap().as<uint8_t*>();
             size_t bROISize = remoteROI2BlobPtr->byteSize();
             std::vector<uint8_t> blobROIData{bROIData, bROIData + bROISize};

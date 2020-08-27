@@ -108,7 +108,7 @@ protected:
     const HDDL2Config& _config;
     const RemoteMemoryFD _remoteMemoryFd;
     const InferenceEngine::ColorFormat _colorFormat;
-    const std::shared_ptr<InferenceEngine::ROI> _roiPtr;
+    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;
 
     void* getHandle() const noexcept override;

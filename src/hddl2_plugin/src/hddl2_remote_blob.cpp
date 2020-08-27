@@ -112,7 +112,6 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const Inferenc
       _config(origBlob._config),
       _remoteMemoryFd(origBlob._remoteMemoryFd),
       _colorFormat(origBlob._colorFormat),
-      _roiPtr(std::make_shared<InferenceEngine::ROI>(regionOfInterest)),
       _logger(std::make_shared<Logger>("HDDL2RemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
     if (_allocatorPtr == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
@@ -122,6 +121,35 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const Inferenc
                         ->incrementRemoteMemoryCounter(origBlob._memoryHandle);
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to copy remote memory handle";
+    }
+
+    auto origROIPtr = origBlob.getROIPtr();
+    if (origROIPtr) {
+        InferenceEngine::ROI newROI = regionOfInterest;
+        newROI.posX += origROIPtr->posX;
+        newROI.posY += origROIPtr->posY;
+        _roiPtr = std::make_shared<IE::ROI>(newROI);
+    } else {
+        _roiPtr = std::make_shared<IE::ROI>(regionOfInterest);
+    }
+
+    size_t W, H;
+    switch (tensorDesc.getLayout()) {
+    case IE::NCHW:
+        W = tensorDesc.getDims()[3];
+        H = tensorDesc.getDims()[2];
+        break;
+    case IE::NHWC:
+        W = tensorDesc.getDims()[2];
+        H = tensorDesc.getDims()[1];
+        break;
+    default:
+        THROW_IE_EXCEPTION << "Unsupported layout for HDDL2RemoteBlob";
+        break;
+    }
+
+    if ((_roiPtr->posX + _roiPtr->sizeX > W) || (_roiPtr->posY + _roiPtr->sizeY > H)) {
+        THROW_IE_EXCEPTION << "ROI out of blob bounds";
     }
 }
 
