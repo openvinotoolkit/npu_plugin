@@ -972,5 +972,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    return testPass;
+    if(testPass) return 0;
+    else return 1;
 }
