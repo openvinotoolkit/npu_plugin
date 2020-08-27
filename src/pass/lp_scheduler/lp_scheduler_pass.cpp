@@ -163,11 +163,14 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      pass.log(mv::Logger::MessageType::Info," Exceeding Op: " + (itr->first)->getName() +
-                                                  " with resources:# " + (std::to_string(itr->second)));
-
+      pass.log(mv::Logger::MessageType::Info,
+          " Exceeding Op: " + (itr->first)->getName() +
+          " with resources:# " + (std::to_string(itr->second)));
     }
-    assert(exceeding_ops.empty());
+
+    if (!(exceeding_ops.empty())) {
+      throw "Exceeding ops";
+    }
   }
 
   if (fptr) {
