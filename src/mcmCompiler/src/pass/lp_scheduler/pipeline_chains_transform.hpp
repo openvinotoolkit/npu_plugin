@@ -209,7 +209,6 @@ class Pipeline_Chains {
         ++curr_itr;
         ++curr_dpu_itr;
 
-
         if (curr_itr == weight_reads.end()) { continue; }
         ++curr_itr;
         ++curr_dpu_itr;
@@ -217,14 +216,38 @@ class Pipeline_Chains {
         while (curr_itr != weight_reads.end()) {
           // add control edge between first read of pprev and all reads of
           // curr //
-          const op_list_t & pprev_read_list = *pprev_itr;
           const op_list_t & curr_read_list = *curr_itr;
+          const op_list_t & pprev_read_list = *pprev_itr;
 
           if (!pprev_read_list.empty()) {
             operation_t pprev_read_op = pprev_read_list.front();
             mv::Data::OpListIterator src_itr =
                 omodel_.getOp((*pprev_dpu_itr)->getName());
                 //omodel_.getOp(pprev_read_op->getName());
+            {
+              auto net_dpu_itr = pprev_dpu_itr; // 1 level //
+
+              if (net_dpu_itr != dpu_chain.begin()) { // 2 levels //
+                --net_dpu_itr;
+                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
+              }
+
+              if (net_dpu_itr != dpu_chain.begin()) { // 3 levels //
+                --net_dpu_itr;
+                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
+              }
+              if (net_dpu_itr != dpu_chain.begin()) { // 4 levels //
+                --net_dpu_itr;
+                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
+              }
+
+#if 0
+              if (net_dpu_itr != dpu_chain.begin()) { // 5 levels //
+                --net_dpu_itr;
+                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
+              }
+#endif
+            }
                 
 
             for (operation_t curr_read_op : curr_read_list ){
@@ -233,31 +256,6 @@ class Pipeline_Chains {
 
               mv::Data::TensorIterator src_tensor_itr
                   = src_itr->getOutputTensor(0UL);
-              size_t sink_input_idx = sink_itr->inputSlots();
-
-              std::vector<mv::Data::TensorIterator> pseudo_op_inputs;
-              pseudo_op_inputs.push_back(src_tensor_itr);
-
-              sprintf(buf, "pseudo_op-%lu", ++pseudo_op_id);
-
-#if 0
-              mv::Data::TensorIterator pseudo_op_tensor_itr = 
-                omodel_.pseudoOp(pseudo_op_inputs, std::string(buf));
-              mv::Data::OpListIterator pseudo_op_itr =
-                  omodel_.getSourceOp(pseudo_op_tensor_itr);
-
-              printf("op=%s output slots = %lu\n", 
-                  (pseudo_op_itr->getName()).c_str(),
-                    pseudo_op_itr->outputSlots());
-
-              printf("op=%s output slots = %lu\n",
-                  (src_itr->getName()).c_str(), src_itr->outputSlots());
-
-              //omodel_.defineFlow(pseudo_op_tensor_itr, sink_itr, 0UL);
-#endif
-
-              printf("defineFlow(%s, %s)\n", (src_itr->getName()).c_str(),
-                  (sink_itr->getName()).c_str());
               omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
 
               //output = control_edge_t(src_itr, sink_itr);
