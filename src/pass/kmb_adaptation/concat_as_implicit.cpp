@@ -35,10 +35,14 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto name = concat->getName();
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         std::string splitStrategy;
+        bool mixedToFloat = false;
         if(concat->hasAttr("splitStrategy"))
             splitStrategy = concat->get<std::string>("splitStrategy");
         if(concat->hasAttr("quantParams"))
             quantParams = concat->get<mv::QuantizationParams>("quantParams");
+        if(concat->hasAttr("mixedToFloat"))
+            mixedToFloat = concat->get<bool>("mixedToFloat");
+
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);
@@ -48,5 +52,10 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         if(!splitStrategy.empty())
             om.getSourceOp(implicitConcat)->set<std::string>("splitStrategy", splitStrategy);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
+        if(mixedToFloat)
+        {
+            implicitConcat->set<mv::DType>("dType",  mv::DType("Float16"));
+            om.getSourceOp(implicitConcat)->set<bool>("mixedToFloat", mixedToFloat);
+        }
     }
 }
