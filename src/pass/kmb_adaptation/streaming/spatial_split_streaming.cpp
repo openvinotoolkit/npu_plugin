@@ -128,7 +128,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     // Weights K || C (depthwise ops) stream, need only overwrite shape and bias
     auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
-    bool mixedToFloat = op->get<bool>("mixedToFloat");
+    bool mixedToFloat = false;
+    
+    if(op->hasAttr("mixedToFloat"))
+        mixedToFloat = op->get<bool>("mixedToFloat");
 
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
