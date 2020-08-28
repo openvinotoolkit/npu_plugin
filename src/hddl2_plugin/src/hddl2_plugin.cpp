@@ -34,6 +34,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
+#include "file_reader.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
@@ -106,23 +107,7 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
     parsedConfigCopy.update(config);
 
     std::ifstream blobStream(modelFileName, std::ios::binary);
-    if (!blobStream.is_open()) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
-    }
-
-    InferenceEngine::ExportMagic magic = {};
-
-    blobStream.seekg(0, blobStream.beg);
-    blobStream.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        std::string tmp;
-        std::getline(blobStream, tmp);
-    } else {
-        blobStream.seekg(0, blobStream.beg);
-    }
-
-    return ImportNetworkImpl(blobStream, config);
+    return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
