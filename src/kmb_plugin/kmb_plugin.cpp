@@ -28,6 +28,7 @@
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "file_reader.h"
 #include "ie_macro.hpp"
 
 using namespace InferenceEngine;
@@ -103,24 +104,8 @@ Engine::Engine(): _metrics(), _defaultContextMap({}) {
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ImportNetwork");
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
-    }
-
-    InferenceEngine::ExportMagic magic = {};
-    blobFile.seekg(0, blobFile.beg);
-    blobFile.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        std::string tmp;
-        std::getline(blobFile, tmp);
-    } else {
-        blobFile.seekg(0, blobFile.beg);
-    }
-
-    return ImportNetworkImpl(blobFile, config);
+    std::ifstream blobStream(modelFileName, std::ios::binary);
+    return ImportNetworkImpl(utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(

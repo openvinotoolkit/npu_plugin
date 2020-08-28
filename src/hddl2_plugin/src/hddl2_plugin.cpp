@@ -34,6 +34,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
+#include "file_reader.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
@@ -107,8 +108,8 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
-    return InferenceEngine::make_executable_network(executableNetwork);
+    std::ifstream blobStream(modelFileName, std::ios::binary);
+    return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(

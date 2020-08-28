@@ -53,17 +53,6 @@ ExecutableNetwork::ExecutableNetwork(
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
-
-ExecutableNetwork::ExecutableNetwork(
-    const std::string& blobFilename, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
-    : ExecutableNetwork(config) {
-    _networkPtr = _compiler->parse(blobFilename, _config);
-    _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
-
-    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
-    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
-}
-
 ExecutableNetwork::ExecutableNetwork(
     std::istream& networkModel, const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
     : ExecutableNetwork(config) {

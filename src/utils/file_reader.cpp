@@ -16,8 +16,10 @@
 
 #include "file_reader.h"
 
+#include <ie_common.h>
 #include <precision_utils.h>
 
+#include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include <fstream>
 
 #include "ie_compound_blob.h"
@@ -156,6 +158,26 @@ InferenceEngine::Blob::Ptr fromNV12File(const std::string& filePath, size_t imag
 
     InferenceEngine::Blob::Ptr nv12Blob = InferenceEngine::make_shared_blob<InferenceEngine::NV12Blob>(blobY, blobUV);
     return nv12Blob;
+}
+
+std::ifstream& skipMagic(std::ifstream& blobStream) {
+    if (!blobStream.is_open()) {
+        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << InferenceEngine::NETWORK_NOT_READ;
+    }
+
+    InferenceEngine::ExportMagic magic = {};
+
+    blobStream.seekg(0, blobStream.beg);
+    blobStream.read(magic.data(), magic.size());
+    auto exportedWithName = (exportMagic == magic);
+    if (exportedWithName) {
+        std::string tmp;
+        std::getline(blobStream, tmp);
+    } else {
+        blobStream.seekg(0, blobStream.beg);
+    }
+
+    return blobStream;
 }
 
 }  // namespace utils
