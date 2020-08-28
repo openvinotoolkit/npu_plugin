@@ -325,16 +325,17 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                     {
                         weightData[kernelOffset + cIdx * kernelStep] = 1.;
                     }
-                    weight = om.constant(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
-                                         mv::Order(mv::Order::getColMajorID(4)),
-                                         weightsTensorQuantizationParams);
+                    weight = om.constant(weightData, {stride, stride, C, 1},
+                                        mv::DType("Float64"),
+                                        mv::Order(mv::Order::getColMajorID(4)),
+                                        weightsTensorQuantizationParams);
                 }
                 else
                 {
                     std::vector<int64_t> weightData(C * stride * stride, 0);
                     for (unsigned cIdx = 0; cIdx < C; cIdx++)
                     {
-                        weightData[kernelOffset + cIdx * kernelStep] = 1;
+                        weightData[kernelOffset + cIdx * kernelStep] = 1ll;
                     }
                     weight = om.constantInt(weightData, {stride, stride, C, 1}, sourceTensor->getDType(),
                                             mv::Order(mv::Order::getColMajorID(4)),
@@ -458,6 +459,8 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
         std::vector<double> scale(1, scaleValue);
         mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
         mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
+        double inf = std::numeric_limits<double>::infinity();
+        mv::QuantizationParams neutralWeightsQuantParams = {{0},{1.0},{-inf},{inf}};
 
         if (sourceTensor->isDoubleType())
         {
@@ -466,19 +469,18 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float64"),
+                                mv::Order(mv::Order::getColMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
-            int64_t weightsValue = 1;
-            std::vector<int64_t> weightsData(total_shape, weightsValue);
+            std::vector<int64_t> weightsData(total_shape, 1ll);
             // If the input model is quantized, then the replacement pass needs to create
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)),
+                                mv::Order(mv::Order::getColMajorID(4)),
                                 weightsQuantParams);
         }
 
@@ -629,7 +631,7 @@ std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
             factors.second++;
 
 
-        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) || 
+        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) ||
                 (factors.first * factors.second > (kernelSize + factors.second/2) ) )
         {
             // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
@@ -653,7 +655,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
+                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
                                                  std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
@@ -671,60 +673,57 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     std::vector<double> max = { 1 };
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
     // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw,
-	// but using original kernel for scale improves observed accuracy
-    double scaleValue = 1/double(originalKernel);
+    // but using original kernel for scale improves observed accuracy
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
     double inf = std::numeric_limits<double>::infinity();
 
-
     // Create weights tensor
     if (sourceTensor->isDoubleType())
-	{
-		double weightsValue = scaleValue;
-		std::vector<double> weightsData(total_shape, weightsValue);
-		//NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
-		weights = om.constant(weightsData,
-                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
-    }
-	else
     {
-		int64_t weightsValue = 1;
-		std::vector<int64_t> weightsData(total_shape, weightsValue);
-		// If the input model is quantized, then the replacement pass needs to create
-		// quantization params for the weights parameter of the depthwise convolution.
-		weights = om.constantInt(weightsData,
+        double weightsValue = scaleValue;
+        std::vector<double> weightsData(total_shape, weightsValue);
+        //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
+        weights = om.constant(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
-	}
+                                mv::DType("Float64"), mv::Order(mv::Order::getColMajorID(4)), emptyWeightsQuantParams);
+    }
+    else
+    {
+        std::vector<int64_t> weightsData(total_shape, 1ll);
+        // If the input model is quantized, then the replacement pass needs to create
+        // quantization params for the weights parameter of the depthwise convolution.
+        weights = om.constantInt(weightsData,
+                                {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
+                                sourceTensor->getDType(), mv::Order(mv::Order::getColMajorID(4)), weightsQuantParams);
+    }
     // Create depthwise conv
-	mv::Data::TensorIterator depthwise_conv;
-	if (sourceTensor->isQuantized() && quantRequired)
-	{
+    mv::Data::TensorIterator depthwise_conv;
+    if (sourceTensor->isQuantized() && quantRequired)
+    {
         auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
         // use default dilation factor
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), quantParams, name);
-	}
-	else
-	{
+    }
+    else
+    {
         mv::QuantizationParams emptyQuantParams({{0}, {1}, {-inf}, {inf}});
         depthwise_conv = om.depthwiseConv(sourceTensor, weights, stride, padding, 1, mv::DType("Default"), emptyQuantParams, name);
- 	}
+    }
 
     // Add depthwise conv to op model
-	auto depthwiseOp = om.getSourceOp(depthwise_conv);
-	auto weightsOp = om.getSourceOp(weights);
+    auto depthwiseOp = om.getSourceOp(depthwise_conv);
+    auto weightsOp = om.getSourceOp(weights);
 
-	if(opIt->hasAttr("opId"))
-	{
+    if(opIt->hasAttr("opId"))
+    {
         unsigned currentOpId = opIt->get<unsigned>("opId");
         weightsOp->set<unsigned>("opId", currentOpId);
         depthwiseOp->set<unsigned>("opId", currentOpId);
-	}
+    }
     auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-	depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    depthwise_conv->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
 
     return depthwise_conv;
 }
@@ -988,11 +987,13 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
+        double firstRescale = 1.0 / (newKernel[0] * newKernel[1]);
+        double secondRescale = static_cast<double>((newKernel[0] * newKernel[1])) / (kSize[0] * kSize[1]);
         mv::Data::TensorIterator op0;
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
-                                            name + "_DepthwiseConv0",
-                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
+                                         name + "_DepthwiseConv0",
+                                         firstRescale, newKernel, padding, producers_quantized.first);
         else if (opIt->getOpType()== "MaxPool")
         {
             op0 = om.maxPool(sourceTensor,
@@ -1045,8 +1046,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         mv::Data::TensorIterator op1;
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
-                                            name + "_DepthwiseConv1",
-                                            kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
+                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0}, producers_quantized.second);
         else if (input_op0->getOpType() == "MaxPool")
         {
             op1 = om.maxPool(op0,
