@@ -182,6 +182,12 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
                 // DO PERMUTE WHEN 2 DIMENSION' SIZE EQUAL.
                 std::set<size_t> noRepeatShape(inputRealShape.begin(), inputRealShape.end());
                 match &= (noRepeatShape.size()==inputRealShape.size());
+                // DO PERMUTE WHEN NEXT STEP IS RESHAPE.
+                mv::DataModel dm(model);
+                auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+                if (nextOp->getOpType() == "Reshape") {
+                    match = false;
+                }
             }
             if(match)
             {
@@ -1488,7 +1494,13 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
     {
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] || stride[mv::STRIDE_VERTICAL] == 1) // symmetric and corner case H==1
+        {
+            if ((stride[mv::STRIDE_HORIZONTAL] != stride[mv::STRIDE_VERTICAL]) && (stride[mv::STRIDE_VERTICAL] == 1)) {
+                stride[mv::STRIDE_VERTICAL] = stride[mv::STRIDE_HORIZONTAL];
+                opIt->set("stride", stride);
+            }
             continue;
+        }
         if( opIt->getOpType() == "AveragePool")
         {
             std::array<unsigned short, 2> kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
