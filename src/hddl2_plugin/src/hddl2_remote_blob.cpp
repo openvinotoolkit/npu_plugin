@@ -133,20 +133,12 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const Inferenc
         _roiPtr = std::make_shared<IE::ROI>(regionOfInterest);
     }
 
-    size_t W, H;
-    switch (tensorDesc.getLayout()) {
-    case IE::NCHW:
-        W = tensorDesc.getDims()[3];
-        H = tensorDesc.getDims()[2];
-        break;
-    case IE::NHWC:
-        W = tensorDesc.getDims()[2];
-        H = tensorDesc.getDims()[1];
-        break;
-    default:
+    if (tensorDesc.getDims().size() < 4) {
         THROW_IE_EXCEPTION << "Unsupported layout for HDDL2RemoteBlob";
-        break;
     }
+
+    const auto W = tensorDesc.getDims()[3];
+    const auto H = tensorDesc.getDims()[2];
 
     if ((_roiPtr->posX + _roiPtr->sizeX > W) || (_roiPtr->posY + _roiPtr->sizeY > H)) {
         THROW_IE_EXCEPTION << "ROI out of blob bounds";
