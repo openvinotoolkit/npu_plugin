@@ -35,6 +35,7 @@ public:
         const std::vector<char>& network, const vpux::VPUXConfig& config, const std::string& graphName = "") override;
 
     std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) override;
+    std::unordered_set<std::string> getSupportedOptions() override;
 
 private:
     vpu::MCMConfig _config;

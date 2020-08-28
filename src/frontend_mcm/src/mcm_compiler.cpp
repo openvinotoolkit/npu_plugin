@@ -51,6 +51,8 @@ std::set<std::string> MCMCompiler::getSupportedLayers(InferenceEngine::ICNNNetwo
     return vpu::MCMAdapter::getSupportedLayers(network, _config);
 }
 
+std::unordered_set<std::string> MCMCompiler::getSupportedOptions() { return _config.getCompileOptions(); }
+
 INFERENCE_PLUGIN_API(InferenceEngine::StatusCode)
 CreateVPUXCompiler(vpux::ICompiler*& compiler, InferenceEngine::ResponseDesc* resp) noexcept {
     try {

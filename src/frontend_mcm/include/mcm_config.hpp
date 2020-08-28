@@ -61,8 +61,9 @@ public:
 
     const std::string& mcmCompilationPassBanList() const { return _mcmCompilationPassBanList; }
 
-protected:
     const std::unordered_set<std::string>& getCompileOptions() const override;
+
+protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
 private:

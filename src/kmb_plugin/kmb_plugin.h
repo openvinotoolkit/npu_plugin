@@ -30,6 +30,7 @@
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"
 #include "kmb_remote_context.h"
+#include <vpux_compiler.hpp>
 
 // clang-format on
 
@@ -70,6 +71,7 @@ private:
     // map to cover the case when networks use different device IDs
     std::map<std::string, KmbRemoteContext::Ptr> _defaultContextMap;
     std::mutex _contextCreateMutex;
+    vpux::ICompiler::Ptr _compiler;
 };
 
 }  // namespace KmbPlugin
