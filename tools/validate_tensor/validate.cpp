@@ -915,23 +915,23 @@ int main(int argc, char *argv[])
     int result = 0;
 
     std::string blobPath("/home/aleckey/git/icv/dldt/bin/intel64/Debug/mcm.blob");
-    // result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
-    // if ( result > 0 ) return result;
+    result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
+    if ( result > 0 ) return result;
 
-    // if (! FLAGS_i.empty())
-    // {
-    //     result = copyImage(FLAGS_i, blobPath);
-    //     if ( result > 0 ) return result;
-    // }
-    // else
-    // {
-    //     // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
-    //     std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
-    //     result = copyImage(binPath, blobPath);
-    // }
+    if (! FLAGS_i.empty())
+    {
+        result = copyImage(FLAGS_i, blobPath);
+        if ( result > 0 ) return result;
+    }
+    else
+    {
+        // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
+        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
+        result = copyImage(binPath, blobPath);
+    }
 
-    // result = runKmbInference(FLAGS_k, blobPath);
-    // if ( result > 0 ) return result;
+    result = runKmbInference(FLAGS_k, blobPath);
+    if ( result > 0 ) return result;
 
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
