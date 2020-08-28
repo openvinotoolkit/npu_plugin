@@ -812,7 +812,7 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
 
     std::cout << "Checking inference results ..." << std::endl;
 
-    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults + " " + expectedResults;
     if (networkType == "yolo") 
         commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath + " " + actualResults + " " + expectedResults;
     else if (networkType == "ssd") 
@@ -914,24 +914,24 @@ int main(int argc, char *argv[])
     // Normal operation
     int result = 0;
 
-    std::string blobPath("");
-    result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
-    if ( result > 0 ) return result;
+    std::string blobPath("/home/aleckey/git/icv/dldt/bin/intel64/Debug/mcm.blob");
+    // result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
+    // if ( result > 0 ) return result;
 
-    if (! FLAGS_i.empty())
-    {
-        result = copyImage(FLAGS_i, blobPath);
-        if ( result > 0 ) return result;
-    }
-    else
-    {
-        // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
-        std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
-        result = copyImage(binPath, blobPath);
-    }
+    // if (! FLAGS_i.empty())
+    // {
+    //     result = copyImage(FLAGS_i, blobPath);
+    //     if ( result > 0 ) return result;
+    // }
+    // else
+    // {
+    //     // both Zmajor and Cmajor inputs available. So passing any one is ok to check and delete the unwanted one
+    //     std::string binPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT_NCHW_BGR;
+    //     result = copyImage(binPath, blobPath);
+    // }
 
-    result = runKmbInference(FLAGS_k, blobPath);
-    if ( result > 0 ) return result;
+    // result = runKmbInference(FLAGS_k, blobPath);
+    // if ( result > 0 ) return result;
 
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
