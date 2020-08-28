@@ -56,7 +56,6 @@ public:
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
         const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config);
-    explicit HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**
@@ -110,6 +109,8 @@ protected:
     const InferenceEngine::ColorFormat _colorFormat;
     std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;
+
+    explicit HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
 
     void* getHandle() const noexcept override;
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
