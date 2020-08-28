@@ -31,6 +31,9 @@ MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
     .enter("enableStreaming").set(true);
 
 MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
+    .enter("enablePipelining").set(true);
+
+MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
     .enter("doubleBuffering").set(false);
 
 MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY()
@@ -47,7 +50,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH", "SplitOverK"})
     .registerSet("inputActivationSparsity").insert(true)
     .registerSet("outputActivationSparsity").insert(true)
-    .registerSet("weightsSparsity").insert(true);
+    .registerSet("weightsSparsity").insert(true)
+    .registerSet("pipelining").insert(true);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("DepthwiseConv")
@@ -55,7 +59,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("ClusteringStrategies").insert(vector<string>{"Clustering","SplitOverH", "SplitOverK"})
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(true)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(true);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("MaxPool")
@@ -63,7 +68,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(true)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Eltwise")
@@ -71,7 +77,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("clusteringStrategies").insert(vector<string>{"Clustering","SplitOverH","HKSwitch"})
     .registerSet("inputActivationSparsity").insert(true)
     .registerSet("outputActivationSparsity").insert(true)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Concat")
@@ -80,7 +87,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("forceSpilling").insert(true)
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(false)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Input")
@@ -89,7 +97,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("forceSpilling").insert(false)
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(false)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("ImplicitInput")
@@ -98,7 +107,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("forceSpilling").insert(false)
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(false)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .enter("Output")
@@ -107,7 +117,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
     .registerSet("forceSpilling").insert(true)
     .registerSet("inputActivationSparsity").insert(false)
     .registerSet("outputActivationSparsity").insert(false)
-    .registerSet("weightsSparsity").insert(false);
+    .registerSet("weightsSparsity").insert(false)
+    .registerSet("pipelining").insert(false);
 
 
 
@@ -119,7 +130,8 @@ MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY()
    .registerSet("forceSpilling").insert(true)
    .registerSet("inputActivationSparsity").insert(false)
    .registerSet("outputActivationSparsity").insert(false)
-   .registerSet("weightsSparsity").insert(false);
+   .registerSet("weightsSparsity").insert(false)
+   .registerSet("pipelining").insert(false);
 
 }
 }

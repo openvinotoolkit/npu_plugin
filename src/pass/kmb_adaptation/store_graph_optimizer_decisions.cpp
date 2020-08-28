@@ -12,7 +12,9 @@ static void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&, mv::Computati
 static void solveDilatedSlicingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void validateDilationSubConvolutions(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -50,8 +52,10 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
 
 void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+    ensureCMXConcatsDMASPlacedCorrectly(pass, model);
     storeLayerSplitStrategyFcn(pass, model);
     storeLayerSparsityStrategyFcn(pass, model);
+    storeLayerPipeliningStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
     //NOTE: The idea of that pass is that for the dilation convolution all the dmas of the subconvolutions
     //need to write on one master buffer located or in the ddr or in the output location
@@ -141,6 +145,51 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 opIt->set<bool>("inputActivationSparsity", false);
                 opIt->set<bool>("outputActivationSparsity", false);
                 opIt->set<bool>("weightsSparsity", false);
+            }
+        }
+    }
+}
+
+void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    auto globalParams = model.getGlobalConfigParams();
+
+    if (!globalParams->hasAttr("pipelining_strategy"))
+    {
+        pass.log(mv::Logger::MessageType::Debug, "No custom pipelining strategy provided, exiting...");
+        return;
+    }
+
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("pipelining_strategy");
+
+    mv::OpModel om(model);
+
+    unsigned pipelineId = 0;
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        if (opType != "Output" && opType != "Input")
+        {
+            for (auto s: strategyList)
+            {
+                std::string& name_filter = s.get<std::string>("name_filter");
+                std::regex exp(name_filter);
+                if (std::regex_match(opIt->getName(), exp))
+                {
+                    std::string pipelineStrategy = "None";
+                    if(s.hasAttr("pipelining"))
+                        pipelineStrategy = s.get<std::string>("pipelining");
+
+                    if(pipelineStrategy != "None")
+                    {                        
+                        opIt->set<std::string>("pipelining", pipelineStrategy);
+                        opIt->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+                        pipelineId++;
+                    }
+                }
             }
         }
     }
@@ -403,6 +452,56 @@ void validateDilationSubConvolutions(const mv::pass::PassEntry&,
             //if not disable the optimization of streaming with same weigths
             assert (setOfDilationStrategies.size() == 1);
             it++;
+        }
+    }
+}
+
+//NOTE: The idea of this pass is that in case of an operation is output-ed from graph
+//optimizer as cmx streaming/concatenation and then there is an operation that needs
+//to have input tensor in ddr like upa/output etc, the dmas should not be placed in the
+//inputs of the concat tensor but in the output tensor of concat with the next operation...
+void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
+                                mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto globalParams = model.getGlobalConfigParams();
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    for (auto layerNameStrategy : strategyList)
+    {
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        mv::Data::OpListIterator opIt;
+        if (nodeName != "Example")
+        {
+            opIt =  om.getOp(nodeName);
+            if (opIt->getOpType() != "Output"
+                    && opIt->getOpType() != "Concat")
+            {
+                auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                bool isStreaming = (streaming_strategy[3].get<int>("K") > 1 ||
+                                    streaming_strategy[1].get<int>("H") > 1 ||
+                                    streaming_strategy[2].get<int>("C") > 1 ||
+                                    streaming_strategy[4].get<int>("N") > 1 ) ? true : false;
+                if( isStreaming && // Note: all streaming output tensors set to DDR for debug, should never get here TODO renable
+                    opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                                                        == mv::Tensor::MemoryLocation::NNCMX)
+                    opIt->set<bool>("cmxConcatenation", true);
+
+                //Note: GO can't make decisions about cmx concat across parallel branches
+                //TODO scheduler forces cmx concat, and creates an exceeding op! follow up with vamsi for fix
+                if( opIt->getOpType() == "Eltwise" &&
+                    isStreaming &&
+                    opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                                                        == mv::Tensor::MemoryLocation::DDR)
+                    opIt->set<bool>("avoidCmxConcat", true);
+
+            }
+            else if (opIt->getOpType() == "Concat")
+            { //Note: GO does not have sufficient information to good decisions across parallel branches, so all explict concat layer
+            // will spill to DDR still for now. So should never enter this if
+                if (opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                        == mv::Tensor::MemoryLocation::NNCMX)
+                    opIt->set<bool>("cmxConcatenation", true);
+            }
         }
     }
 }

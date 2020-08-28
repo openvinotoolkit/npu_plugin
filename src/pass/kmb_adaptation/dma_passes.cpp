@@ -50,6 +50,16 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
 
     for(auto& opIt : dpuTasks)
     {
+        // Note: Marking pipelining hints for the scheduler, these DMAs can be overlapped with corresponding DPU tasks
+        // These strategy choices come from the GO/SM
+        bool pipelineInput = opIt->hasAttr("pipelining") && 
+                                    (opIt->get<std::string>("pipelining") == "PipelineActivations");
+        bool pipelineWeights = opIt->hasAttr("pipelining") && 
+                                    (opIt->get<std::string>("pipelining") == "PipelineWeights");
+        unsigned pipelineId = 0;
+        if(opIt->hasAttr("schedule_for_dpu_dma_overlap"))
+            pipelineId = opIt->get<unsigned>("schedule_for_dpu_dma_overlap");
+
         auto opId = opIt->get<unsigned>("opId");
         unsigned n = opIt->inputSlots();
         //Note: Adds dmas not only for weights like the name says...
@@ -84,6 +94,10 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
                 inputTensorDma->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::NNCMX);
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                 inputTensorDmaOp->set<unsigned>("opId", opId);
+                if(pipelineInput && inputOp->getOpType() == "Slice")
+                    inputTensorDmaOp->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+                if(pipelineWeights && inputOp->getOpType() != "Slice")
+                    inputTensorDmaOp->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
 
                 for(auto flowStr: flows)
                 {
