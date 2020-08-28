@@ -105,24 +105,24 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-    if (!blobFile.is_open()) {
+    std::ifstream blobStream(modelFileName, std::ios::binary);
+    if (!blobStream.is_open()) {
         THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
     }
 
     InferenceEngine::ExportMagic magic = {};
 
-    blobFile.seekg(0, blobFile.beg);
-    blobFile.read(magic.data(), magic.size());
+    blobStream.seekg(0, blobStream.beg);
+    blobStream.read(magic.data(), magic.size());
     auto exportedWithName = (exportMagic == magic);
     if (exportedWithName) {
         std::string tmp;
-        std::getline(blobFile, tmp);
+        std::getline(blobStream, tmp);
     } else {
-        blobFile.seekg(0, blobFile.beg);
+        blobStream.seekg(0, blobStream.beg);
     }
 
-    return ImportNetworkImpl(blobFile, config);
+    return ImportNetworkImpl(blobStream, config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
