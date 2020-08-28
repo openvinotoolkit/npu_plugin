@@ -508,7 +508,7 @@ int convertBlobToJson(std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-int validate(std::string blobPath, std::vector<std::string> expectedPaths, std::vector<std::string>& actualResultsProcessed, bool icNet=false)
+bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std::vector<std::string>& actualResultsProcessed, bool icNet=false)
 {
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
@@ -646,10 +646,7 @@ int validate(std::string blobPath, std::vector<std::string> expectedPaths, std::
     for (bool eachResult: allResults)
         overallResult = overallResult && eachResult;
 
-    if (overallResult)
-        return RESULT_SUCCESS;
-    else
-        return FAIL_VALIDATION;
+    return overallResult;
 }
 
 int copyImage(std::string imagePath, std::string blobPath)
@@ -805,7 +802,7 @@ int postProcessActualResults(std::vector<std::string>& actualResults, std::strin
     return RESULT_SUCCESS;
 }
 
-int checkInference(std::string actualResults, std::string expectedResults, std::string imagePath, std::string networkType = "classification")
+bool checkInference(std::string actualResults, std::string expectedResults, std::string imagePath, std::string networkType = "classification")
 {
     if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") == std::string("true"))
     {
@@ -972,6 +969,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(testPass) return 0;
-    else return 1;
+    if(testPass) return RESULT_SUCCESS;
+    else return FAIL_VALIDATION;
 }
