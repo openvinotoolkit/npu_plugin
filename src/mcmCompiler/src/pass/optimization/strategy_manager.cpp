@@ -272,11 +272,14 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
     for (auto elem : strategiesToConvert)
     {
         auto& strategy = *elem;
-        std::string newStrategy = strategy["clustering"];
-        std::string newName = strategy["name"] ;
-        if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), newName) == hasClusterSpec.end())
+        std::string newStrategy = strategy["clustering"].get<std::string>();
+        std::string opName = strategy["name"].get<std::string>();
+        auto op = model_.getOp(opName);
+        if(op->getOpType() == "Concat")
+            newStrategy = std::string("Clustering");
+        if ( std::find(hasClusterSpec.begin(), hasClusterSpec.end(), opName) == hasClusterSpec.end())
         {
-            copyCElement.set("name_filter",newName);
+            copyCElement.set("name_filter",opName);
             copyCElement.set("strategy",newStrategy);
             clusteringStrategyList.push_back(copyCElement);
         }
@@ -343,6 +346,39 @@ std::vector<mv::Element> StrategyManager::convertSparsityStrategyToElement(Criti
     return sparsityStrategyList;
 }
 
+std::vector<mv::Element> StrategyManager::convertPipeliningStrategyToElement(CriticalPathNodes &strategiesToConvert)
+{
+    log(Logger::MessageType::Debug, "GraphOptimizer: Converting Pipelining Strategies to Element");
+
+    mv::Element copyLElement("");
+    std::vector<mv::Element> pipeliningStrategyList;
+
+    for(auto elem: strategiesToConvert)
+    {
+        auto& strategy = *elem;
+        auto pipelining = strategy["pipelined"].get<bool>();
+        auto opName   = strategy["name"].get<string>();
+        std::string pipelineStrategy = "None";
+
+        if(pipelining)
+        {
+            auto streaming = strategy["streaming"].get<mv::Shape>();
+        
+            if(streaming["K"] > 1)
+                pipelineStrategy = "PipelineWeights";
+            else if(streaming["H"] > 1)
+                pipelineStrategy = "PipelineActivations";
+        }
+        
+     copyLElement.set("pipelining", pipelineStrategy);
+        copyLElement.set("name_filter", opName);
+
+        pipeliningStrategyList.push_back(copyLElement);
+    }
+
+    return pipeliningStrategyList;
+}
+
 void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 {
     struct {
@@ -359,12 +395,44 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     const bool enableSaveStrategyToDescriptor = true;
     const bool enableSaveStrategyToJsonFile = true;
 
+    // Give pipelined attribute
+    for(auto elem : criticalPathNodes)
+    {
+        auto& strategy = *elem;
+        auto opName = strategy["name"].get<std::string>();
+
+        auto op = model_.getOp(opName);
+
+        auto software = op->hasAttr("softwareExecuted") && op->get<bool>("softwareExecuted");
+        strategy["pipelined"] = false;
+        if ((op->hasTypeTrait("executable")) && !software && op->getOpType() != "Input")
+        {
+            // Determine if final strategy choice enabled pipelining for this op
+            auto parentOp = model_.getSourceOp(op->getInputTensor(0));
+            auto parentSpill = true;
+            for(auto parentElem : criticalPathNodes)
+            {
+                auto& parentStrategy = *parentElem;
+                if(parentOp->getName() == parentStrategy["name"].get<std::string>())
+                {
+                    parentSpill = parentStrategy["spilling"].get<bool>();
+                    break;
+                }
+            }
+            if(isPipeliningPossible(*op, strategy, parentSpill))
+            {
+                strategy["pipelined"] = true;
+            }
+        }
+    }
+
     auto globalParams = model_.getGlobalConfigParams();
 
     std::vector<mv::Element> streamingStrategyElements = convertStreamingStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> multiClusterStrategyElements = convertClusteringStrategyToElement(criticalPathNodes, globalParams);
     std::vector<mv::Element> locationStrategyElements = convertLocationStrategyToElement(criticalPathNodes);
     std::vector<mv::Element> sparsityStrategyElements = convertSparsityStrategyToElement(criticalPathNodes);
+    std::vector<mv::Element> pipeliningStrategyElements = convertPipeliningStrategyToElement(criticalPathNodes);
 
     if (enableSaveStrategyToDescriptor)
     {
@@ -373,6 +441,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         compDesc->set("streaming_strategy", streamingStrategyElements);
         compDesc->set("split_strategy", multiClusterStrategyElements);
         compDesc->set("sparsity_strategy", sparsityStrategyElements);
+        compDesc->set("pipelining_strategy", pipeliningStrategyElements);
     }
 
     if (enableSaveStrategyToJsonFile)
@@ -392,18 +461,22 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         mv::Element CSA("Clustering strategies generated by mcmCompiler "+timeStamp);
         mv::Element LSA("Tensor placement strategies generated by mcmCompiler "+timeStamp);
         mv::Element SpSA("Sparsity strategies generated by mcmCompiler "+timeStamp);
+        mv::Element PSA("Pipelining strategies generated by mcmCompiler "+timeStamp);
         SSA.set("streaming_strategy",streamingStrategyElements);
         CSA.set("split_strategy",multiClusterStrategyElements);
         LSA.set("tensor_placement_override",locationStrategyElements);
         SpSA.set("sparsity_strategy",sparsityStrategyElements);
+        PSA.set("pipelining_strategy",pipeliningStrategyElements);
         auto jsonSStrategy = SSA.toJSON(true);
         auto jsonCStrategy = CSA.toJSON(true);
         auto jsonLStrategy = LSA.toJSON(true);
         auto jsonSpStrategy = SpSA.toJSON(true);
+        auto jsonPStrategy = PSA.toJSON(true);
         jsonOutputFile << jsonSStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonCStrategy.stringifyPretty() << "," << std::endl;
         jsonOutputFile << jsonLStrategy.stringifyPretty()  << "," << std::endl;
-        jsonOutputFile << jsonSpStrategy.stringifyPretty() << std::endl;
+        jsonOutputFile << jsonSpStrategy.stringifyPretty()  << "," << std::endl;
+        jsonOutputFile << jsonPStrategy.stringifyPretty() << std::endl;
 
         jsonOutputFile.close();
     }
@@ -413,7 +486,8 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
     {
         auto& strategy = *elem;
         auto spilling = strategy["spilling"].get<bool>();
-        auto opName   = strategy["name"].get<string>();
+        auto streamShape = strategy["streaming"].get<mv::Shape>();
+        auto opName   = strategy["name"].get<std::string>();
 
         auto op = model_.getOp(opName);
         if(op->getOpType() == "Output")
@@ -422,7 +496,9 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
         auto outTensor = op->getOutputTensor(0);
         auto executable = op->hasTypeTrait("executable") ? true : false;
 
-        if(spilling && executable)
+        bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"] 
+                                            * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
+        if((spilling && executable) || isStreaming)
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
@@ -846,6 +922,10 @@ void StrategyManager::graphParameterOptimizations()
 
 }
 
+bool StrategyManager::isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
+{
+    throw mv::ArgumentError("StrategyManager", "isPipeliningPossible", op.toString(), "Unable to determine pipelining");
+}
 void StrategyManager::generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec)
 {
     throw mv::ArgumentError("StrategyManager", "generateStrategySetForLayer", op.toString(), "No strategy for this layer");

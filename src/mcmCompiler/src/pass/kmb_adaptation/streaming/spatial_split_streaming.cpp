@@ -419,6 +419,11 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
+    if(op->hasAttr("schedule_for_dpu_dma_overlap"))
+    {
+        auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
+        om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+    }
     if(mixedToFloat)
         om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
@@ -659,6 +664,11 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
+    if(op->hasAttr("schedule_for_dpu_dma_overlap"))
+    {
+        auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
+        om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+    }
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
     return concat;

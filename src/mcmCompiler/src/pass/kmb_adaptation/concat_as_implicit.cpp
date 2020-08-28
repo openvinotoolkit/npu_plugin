@@ -35,11 +35,24 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         auto name = concat->getName();
         mv::QuantizationParams quantParams = {{}, {}, {}, {}};
         std::string splitStrategy;
+        bool pipelined = false;
+        unsigned pipelineId;
+        bool cmxConcatenation = false;
+        bool avoidCmxConcatenation = false;
         bool mixedToFloat = false;
         if(concat->hasAttr("splitStrategy"))
             splitStrategy = concat->get<std::string>("splitStrategy");
         if(concat->hasAttr("quantParams"))
             quantParams = concat->get<mv::QuantizationParams>("quantParams");
+        if(concat->hasAttr("schedule_for_dpu_dma_overlap"))
+        {
+            pipelined = true;
+            pipelineId = concat->get<unsigned>("schedule_for_dpu_dma_overlap");
+        }
+        if(concat->hasAttr("cmxConcatenation"))
+            cmxConcatenation = concat->get<bool>("cmxConcatenation");
+        if(concat->hasAttr("avoid_cmx_concat"))
+            avoidCmxConcatenation = concat->get<bool>("avoid_cmx_concat");
         if(concat->hasAttr("mixedToFloat"))
             mixedToFloat = concat->get<bool>("mixedToFloat");
 
@@ -51,6 +64,12 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         implicitConcat->set<mv::Tensor::MemoryLocation>("Location", outputLocation);
         if(!splitStrategy.empty())
             om.getSourceOp(implicitConcat)->set<std::string>("splitStrategy", splitStrategy);
+        if(pipelined)
+            om.getSourceOp(implicitConcat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+        if (cmxConcatenation)
+            om.getSourceOp(implicitConcat)->set<bool>("cmxConcatenation", cmxConcatenation);
+        if(avoidCmxConcatenation)
+            om.getSourceOp(implicitConcat)->set<bool>("avoid_cmx_concat", avoidCmxConcatenation);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
         if(mixedToFloat)
         {
