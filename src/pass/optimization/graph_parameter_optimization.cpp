@@ -40,20 +40,13 @@ namespace mv
         {
 
         public:
-            // StrategyManagerKmb(OpModel& model,mv::Element& passDesc, const mv::TargetDescriptor& td) :
-            //     StrategyManager(model,passDesc)
             StrategyManagerKmb(OpModel& model,mv::Element& passDesc) :
                 StrategyManager(model,passDesc)
             {
                 auto globalParams = model.getGlobalConfigParams();
                 enableChannelMajorConv = globalParams->get<bool>("enable_channel_major_conv");
-
-                // Load the HDE hardware specs
-                // auto hdeDef = td.hdeDef();
-                // hde_.reset(new Hde(hdeDef.bitPerSymbol, hdeDef.maxNumberEncodedSymbols, 0, hdeDef.blockSize, false, hdeDef.bypassMode));
             }
 
-            // std::unique_ptr<Hde> hde_ = nullptr;
             size_t totalClusters=4;
             size_t clusterMemoryKb=896;
             size_t dpuPerCluster=5;
@@ -145,51 +138,6 @@ namespace mv
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
             }
 
-            std::vector<Attribute> createTFStrategyPoolFromBool(mv::Op op,std::string name)
-            {
-                auto& streamingStrategy = getStrategy(op,name);
-
-                bool value = streamingStrategy.get<bool>();
-                if(value)
-                    return std::vector<Attribute>{true,false};
-                else
-                    return std::vector<Attribute>{false};
-            }
-
-            std::vector<mv::Attribute> createTStrategyPoolFromBool(mv::Op op,std::string name)
-            {
-                auto& streamingStrategy = getStrategy(op,name);
-
-                bool value = streamingStrategy.get<bool>();
-                if(value)
-                    return std::vector<mv::Attribute>{true};
-                else
-                    return std::vector<mv::Attribute>{true,false};
-            }
-
-            bool createStrategyFromBool(mv::Op op, std::string name){
-                auto& streamingStrategy = getStrategy(op,name);
-
-                bool value = streamingStrategy.get<bool>();
-                if(value)
-                    return true;
-                else
-                    return false;
-            }
-
-            std::vector<mv::Attribute> createStrategyPoolFromStrategySet(mv::Op op, std::string name)
-            {
-                auto streamingStrategy = getStrategy(op,name);
-
-                std::vector<mv::Attribute> attr;
-
-                for (auto elem : streamingStrategy.get<std::vector<std::string>>())
-                {
-                    attr.push_back(elem);
-                }
-
-                return attr;
-            }
 
             std::size_t realTensorSize(const mv::Data::TensorIterator tensorToSize, const mv::Shape& streamingPool, bool isCMConv)
             {
@@ -327,73 +275,6 @@ namespace mv
                             * dtypeMultiplier;
                 }
             }
-
-            bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
-            {
-                if(!globalEnablePipelining)
-                    return false;
-
-                // Is this op type enabled for pipelining? For now, default turned on for just conv and dw
-                if(!createStrategyFromBool(op, "pipelining"))
-                    return false;
-
-                auto stream = strategy["streaming"].get<Shape>();
-                auto clustering = strategy["clustering"].get<std::string>();
-                auto inputSparsity = strategy["inputSparsity"].get<bool>();
-                auto outputSparsity = strategy["outputSparsity"].get<bool>();
-                auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
-                auto spilling = strategy["spilling"].get<bool>();
-                
-                //Note: for now, only support pipelining over H and K
-                if((stream["N"] * stream["C"]) > 1)
-                    return false;
-
-                size_t input, output, weights;
-                std::tie(input, output, weights) = memorySize(op,
-                                                                clustering,
-                                                                inputSparsity,
-                                                                outputSparsity,
-                                                                weightsSparsity,
-                                                                stream,
-                                                                requiresFakeActivationSparsity(op),
-                                                                spilling,
-                                                                parentSpilling);
-
-                if(stream["K"] > 1) // Full activation in CMX, stream weights
-                {
-                    std::cout << "Considering pipelining for layer " << std::endl;
-                    std::cout << "Name: " + op.getName() << std::endl;
-                    std::cout << "MCStrategy: " + clustering<< std::endl;
-                    std::cout << "Streaming(W,H,C,K,N): " + stream.toString() << std::endl<<std::endl;
-                    auto memReq = input + output + 2*weights;
-                    if(memReq < clusterMemory)
-                    {   
-                        std::cout << "Pipelining Possible !" <<std::endl<<std::endl;
-
-                        return true;
-                    }
-                }
-                else if(stream["H"] > 1)
-                {
-                    if(!spilling && !parentSpilling) //Activations all in CMX, nothing to pipeline
-                        return false;
-
-                    double memReq = 0;
-
-                    //Note: memory size function is smart enough to take care of input/output size relative to spilling
-                    if(parentSpilling) //streamed input, either full or streamed output
-                        memReq = 2*input + weights + output; 
-                    else //full input, streamed output
-                        memReq = input + weights + 2*output;
-
-                    if(memReq < clusterMemory)
-                    {
-                        return true;
-                    }
-                }
-                return false; // without streaming, there is no pipelining
-            }
-
 
             std::tuple<size_t,size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
                                             bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, 
@@ -593,206 +474,70 @@ namespace mv
                 return std::tuple<std::size_t,std::size_t,std::size_t>(inputSize, outputSize,weightSize);
             }
 
-            bool validateHStream(mv::Op& op, mv::Attribute clustering, std::size_t splits)
+                        bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
             {
-                if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
-                {
-                    if(clustering.get<std::string>() == "SplitOverH")
-                    {
-                        auto weightsShape = op.getInputTensor(1)->getShape();
-                        //Try to guess subtensor height, and avoid situations where kernel is bigger than last workload dimension
-                        auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-                        auto workloadHeight = ceil((double)outputHeight / (double)(totalClusters * splits));
-                        if(totalClusters > 1) //last
-                            workloadHeight = outputHeight - (workloadHeight * (totalClusters-1)); //get remaining height
-                        if(workloadHeight < weightsShape[KERNEL_HEIGHT])
-                            return false;
-                    }
-                }
-                return true;
-            }
-            // Note: This function will return the potential streams over H for this op. For simplicity, we want to limit
-            // the options to reasonable configurations. This always includes H=1, or in other words no streaming over H.
-            // If H streaming fits at all (i.e. weights fit), find the H just big enough to fit into CMX. If CMX concat,
-            // spilling will be false, and H stream will be higher accordingly.
-            std::vector<size_t> getStreamsOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                                bool wSparsity, bool fSparsity, bool spilling)
-            {
-                auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
-                if(minSplitsToFit == 0) // stream over H doesn't fit
-                    return {1};
+                if(!globalEnablePipelining)
+                    return false;
 
-                // Case 0, Not spilling, cmx concat. If pipelined, need room for 2 input slices.
-                if(!spilling && globalEnablePipelining)
-                {   
-                    auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, true);
-                    if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
-                        return {pipelinedMinSplitsToFit, minSplitsToFit, 1};
-                }
-                else if(spilling) // Case 1 Spilling, ddr concat. Find min stream over H for both input in cmx and input streamed.
-                {
-                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);                
-                    if(inputCmxMinSplitsToFit > 1 && inputCmxMinSplitsToFit != minSplitsToFit)
-                        return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
-                }
+                // Is this op type enabled for pipelining? For now, default turned on for just conv and dw
+                if(!createStrategyFromBool(op, "pipelining"))
+                    return false;
 
-                return {minSplitsToFit, 1};
-            }
+                auto stream = strategy["streaming"].get<Shape>();
+                auto clustering = strategy["clustering"].get<std::string>();
+                auto inputSparsity = strategy["inputSparsity"].get<bool>();
+                auto outputSparsity = strategy["outputSparsity"].get<bool>();
+                auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
+                auto spilling = strategy["spilling"].get<bool>();
+                
+                //Note: for now, only support pipelining over H and K
+                if((stream["N"] * stream["C"]) > 1)
+                    return false;
 
-            // Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
-            // (for example, weights don't fit) then return 0
-            unsigned getMinStreamOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                        bool wSparsity, bool fSparsity, bool spilling, bool inputCMX = false, bool pipelined = false)
-            {
                 size_t input, output, weights;
-                std::tie(input, output, weights) = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling);
-                auto activationsSize = input + output;
-                auto weightsSize = weights;
-                double availableMemory = (double) clusterMemory - (double) weightsSize;
+                std::tie(input, output, weights) = memorySize(op,
+                                                                clustering,
+                                                                inputSparsity,
+                                                                outputSparsity,
+                                                                weightsSparsity,
+                                                                stream,
+                                                                requiresFakeActivationSparsity(op),
+                                                                spilling,
+                                                                parentSpilling);
 
-                if (availableMemory <= 0) // Weights don't fit, can't stream over H
-                    return 0;
-
-                // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
-                auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
-
-                // Every output slice must have at least one line to compute
-                unsigned upperBoundH = outputHeight;
-                if(clustering.toString() == "SplitOverH") 
-                    upperBoundH = upperBoundH/totalClusters;
-
-                // Start searching for min stream at naive requirement for splits to fit, rather than 1
-                for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
+                if(stream["K"] > 1) // Full activation in CMX, stream weights
                 {
-                    Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
-                    auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,!inputCMX);
-                    if( pipelined && //TODO inputCMX here too
-                        (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
-                        validateHStream(op, clustering, splits) )
-                    {
-                        return splits;
-                    }
-                    else if(!pipelined && 
-                            (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
-                            validateHStream(op, clustering, splits))
-                    {
-                        return splits;
+                    std::cout << "Considering pipelining for layer " << std::endl;
+                    std::cout << "Name: " + op.getName() << std::endl;
+                    std::cout << "MCStrategy: " + clustering<< std::endl;
+                    std::cout << "Streaming(W,H,C,K,N): " + stream.toString() << std::endl<<std::endl;
+                    auto memReq = input + output + 2*weights;
+                    if(memReq < clusterMemory)
+                    {   
+                        std::cout << "Pipelining Possible !" <<std::endl<<std::endl;
+
+                        return true;
                     }
                 }
-
-                return 0;
-            }
-
-            unsigned findBestK(unsigned alignedSize, unsigned channels){
-                return std::ceil((double)alignedSize / ((alignedSize/2) - channels));
-            }
-            //Note: this function only used to generate many stream over k options when we nested stream
-            std::vector<size_t> getMaxStreamOverK(mv::Op& op)
-            {
-                auto outputShape = op.getOutputTensor(0)->getShape();
-                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
-                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
-
-                std::vector<size_t> splits;
-
-                //Add max split
-                splits.push_back(alignedOutputChannelSize/16);
-
-                // For each aligned-to-16 number of output channels possibility, add only the
-                // minimum number of streams over k that will be aligned to that number
-                for(int channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
-                    auto possibleK = findBestK(alignedOutputChannelSize, channels);
-                    if(splits.back() != possibleK and possibleK >= 1)
-                        splits.push_back(possibleK);
-                }
-                if(splits.back() > 2)
-                    splits.push_back(2);
-
-                if(splits.back() > 1)
-                    splits.push_back(1);
-
-                return splits;
-            }
-
-            bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling)
-            {
-                if( op.getOpType() == "Conv" && 
-                    clustering.get<std::string>() == "SplitOverK")
+                else if(stream["H"] > 1)
                 {
-                    auto weightsShape = op.getInputTensor(1)->getShape();
-                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
-                    if((numOutChannels/split * totalClusters) < 16)
+                    if(!spilling && !parentSpilling) //Activations all in CMX, nothing to pipeline
                         return false;
-                }
-                if(!spilling)
-                {
-                    auto outputShape = op.getOutputTensor(0)->getShape();
-                    size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
-                    //ok it fits, now make sure that if we are !spilling that there's no crop
-                    size_t outputChannelSlice = ceil((double)outputChannelSize/(double)split);
-                    size_t lastSlice = outputChannelSize - outputChannelSlice*(split - 1);
-                    if (!(outputChannelSlice%16 == 0 && lastSlice%16 == 0)) //would need crop
-                        return false;
-                }
-                        
-                return true;
-            }
 
-            unsigned getMinStreamOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                                bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
-            {
-                auto outputShape = op.getOutputTensor(0)->getShape();
-                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
-                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
+                    double memReq = 0;
 
-                auto maxSplit = alignedOutputChannelSize / 16;
+                    //Note: memory size function is smart enough to take care of input/output size relative to spilling
+                    if(parentSpilling) //streamed input, either full or streamed output
+                        memReq = 2*input + weights + output; 
+                    else //full input, streamed output
+                        memReq = input + weights + 2*output;
 
-                if(clustering.get<std::string>() == "SplitOverK")
-                    maxSplit = maxSplit / totalClusters;
-
-                for(unsigned split = 1; split <= maxSplit; split++)
-                {
-                    auto memFitCheck = memorySize(op, clustering,iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
-                    if( pipelined && //pipelining weights requires 2 weights streams to fit
-                        (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
-                        validateKStream(op, clustering, split, spilling) )
+                    if(memReq < clusterMemory)
                     {
-                        return split;
-                    }
-                    else if(!pipelined &&
-                            (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
-                            validateKStream(op, clustering, split, spilling) )
-                    {
-                        return split;
+                        return true;
                     }
                 }
-
-                return 0;
-            }
-
-           // Note: This function produces the potential stream over K strategies for each layer
-           // Try to find 2 possible combinations of K, in addition ot K=1 (no streams in this dimension)
-           // First, just enough to fit in cmx. Second, enough to enable pipelining.
-            std::vector<std::size_t> getStreamsOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                                bool wSparsity, bool fSparsity, bool spilling)
-            {
-                auto minSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
-                if(minSplitsToFit == 0) // No suitable stream over K found
-                    return {1};
-
-                std::vector<std::size_t> splits;
-                splits.push_back(1);
-                if(minSplitsToFit != 1)
-                    splits.push_back(minSplitsToFit);
-
-                if(globalEnablePipelining)
-                {
-                    auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
-                    if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
-                        splits.push_back(pipelinedMinSplitsToFit);
-                }
-
-                return splits;
+                return false; // without streaming, there is no pipelining
             }
 
             double dmaTime(Op& op,StrategySet& strategySet, bool parentSpilling = false)
@@ -1679,7 +1424,65 @@ namespace mv
         /************************************************************************
          * Everything below here is to GENERATE STRATEGY SETS
          * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
+         * 
          * *********************************************************************/
+        std::vector<Attribute> createTFStrategyPoolFromBool(mv::Op op,std::string name)
+            {
+                auto& streamingStrategy = getStrategy(op,name);
+
+                bool value = streamingStrategy.get<bool>();
+                if(value)
+                    return std::vector<Attribute>{true,false};
+                else
+                    return std::vector<Attribute>{false};
+            }
+
+            std::vector<mv::Attribute> createTStrategyPoolFromBool(mv::Op op,std::string name)
+            {
+                auto& streamingStrategy = getStrategy(op,name);
+
+                bool value = streamingStrategy.get<bool>();
+                if(value)
+                    return std::vector<mv::Attribute>{true};
+                else
+                    return std::vector<mv::Attribute>{true,false};
+            }
+
+            bool createStrategyFromBool(mv::Op op, std::string name){
+                auto& streamingStrategy = getStrategy(op,name);
+
+                bool value = streamingStrategy.get<bool>();
+                if(value)
+                    return true;
+                else
+                    return false;
+            }
+
+            std::vector<mv::Attribute> createStrategyPoolFromStrategySet(mv::Op op, std::string name)
+            {
+                auto streamingStrategy = getStrategy(op,name);
+
+                std::vector<mv::Attribute> attr;
+
+                for (auto elem : streamingStrategy.get<std::vector<std::string>>())
+                {
+                    attr.push_back(elem);
+                }
+
+                return attr;
+            }
 
             bool decideWeightsSparsity(mv::Op op)
             {
@@ -1721,6 +1524,208 @@ namespace mv
                     return false;
 
                 return true;
+            }
+
+            bool validateHStream(mv::Op& op, mv::Attribute clustering, std::size_t splits)
+            {
+                if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                {
+                    if(clustering.get<std::string>() == "SplitOverH")
+                    {
+                        auto weightsShape = op.getInputTensor(1)->getShape();
+                        //Try to guess subtensor height, and avoid situations where kernel is bigger than last workload dimension
+                        auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                        auto workloadHeight = ceil((double)outputHeight / (double)(totalClusters * splits));
+                        if(totalClusters > 1) //last
+                            workloadHeight = outputHeight - (workloadHeight * (totalClusters-1)); //get remaining height
+                        if(workloadHeight < weightsShape[KERNEL_HEIGHT])
+                            return false;
+                    }
+                }
+                return true;
+            }
+            // Note: This function will return the potential streams over H for this op. For simplicity, we want to limit
+            // the options to reasonable configurations. This always includes H=1, or in other words no streaming over H.
+            // If H streaming fits at all (i.e. weights fit), find the H just big enough to fit into CMX. If CMX concat,
+            // spilling will be false, and H stream will be higher accordingly.
+            std::vector<size_t> getStreamsOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                                bool wSparsity, bool fSparsity, bool spilling)
+            {
+                auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
+                if(minSplitsToFit == 0) // stream over H doesn't fit
+                    return {1};
+
+                // Case 0, Not spilling, cmx concat. If pipelined, need room for 2 input slices.
+                if(!spilling && globalEnablePipelining)
+                {   
+                    auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, true);
+                    if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
+                        return {pipelinedMinSplitsToFit, minSplitsToFit, 1};
+                }
+                else if(spilling) // Case 1 Spilling, ddr concat. Find min stream over H for both input in cmx and input streamed.
+                {
+                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);                
+                    if(inputCmxMinSplitsToFit > 1 && inputCmxMinSplitsToFit != minSplitsToFit)
+                        return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
+                }
+
+                return {minSplitsToFit, 1};
+            }
+
+            // Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
+            // (for example, weights don't fit) then return 0
+            unsigned getMinStreamOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                        bool wSparsity, bool fSparsity, bool spilling, bool inputCMX = false, bool pipelined = false)
+            {
+                size_t input, output, weights;
+                std::tie(input, output, weights) = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling);
+                auto activationsSize = input + output;
+                auto weightsSize = weights;
+                double availableMemory = (double) clusterMemory - (double) weightsSize;
+
+                if (availableMemory <= 0) // Weights don't fit, can't stream over H
+                    return 0;
+
+                // Keep increasing H until we find one big enough to fit, or we run out of H dimension to stream
+                auto outputHeight = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+
+                // Every output slice must have at least one line to compute
+                unsigned upperBoundH = outputHeight;
+                if(clustering.toString() == "SplitOverH") 
+                    upperBoundH = upperBoundH/totalClusters;
+
+                // Start searching for min stream at naive requirement for splits to fit, rather than 1
+                for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
+                {
+                    Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
+                    auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,!inputCMX);
+                    if( pipelined && //TODO inputCMX here too
+                        (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
+                        validateHStream(op, clustering, splits) )
+                    {
+                        return splits;
+                    }
+                    else if(!pipelined && 
+                            (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
+                            validateHStream(op, clustering, splits))
+                    {
+                        return splits;
+                    }
+                }
+
+                return 0;
+            }
+
+            unsigned findBestK(unsigned alignedSize, unsigned channels){
+                return std::ceil((double)alignedSize / ((alignedSize/2) - channels));
+            }
+            //Note: this function only used to generate many stream over k options when we nested stream
+            std::vector<size_t> getMaxStreamOverK(mv::Op& op)
+            {
+                auto outputShape = op.getOutputTensor(0)->getShape();
+                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
+                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
+
+                std::vector<size_t> splits;
+
+                //Add max split
+                splits.push_back(alignedOutputChannelSize/16);
+
+                // For each aligned-to-16 number of output channels possibility, add only the
+                // minimum number of streams over k that will be aligned to that number
+                for(int channels = (alignedOutputChannelSize/2 -16); channels >= 16; channels=channels-16){
+                    auto possibleK = findBestK(alignedOutputChannelSize, channels);
+                    if(splits.back() != possibleK and possibleK >= 1)
+                        splits.push_back(possibleK);
+                }
+                if(splits.back() > 2)
+                    splits.push_back(2);
+
+                if(splits.back() > 1)
+                    splits.push_back(1);
+
+                return splits;
+            }
+
+            bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling)
+            {
+                if( op.getOpType() == "Conv" && 
+                    clustering.get<std::string>() == "SplitOverK")
+                {
+                    auto weightsShape = op.getInputTensor(1)->getShape();
+                    auto numOutChannels = weightsShape[KERNEL_OUTPUT_CHANNELS];
+                    if((numOutChannels/split * totalClusters) < 16)
+                        return false;
+                }
+                if(!spilling)
+                {
+                    auto outputShape = op.getOutputTensor(0)->getShape();
+                    size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
+                    //ok it fits, now make sure that if we are !spilling that there's no crop
+                    size_t outputChannelSlice = ceil((double)outputChannelSize/(double)split);
+                    size_t lastSlice = outputChannelSize - outputChannelSlice*(split - 1);
+                    if (!(outputChannelSlice%16 == 0 && lastSlice%16 == 0)) //would need crop
+                        return false;
+                }
+                        
+                return true;
+            }
+
+            unsigned getMinStreamOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                                bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
+            {
+                auto outputShape = op.getOutputTensor(0)->getShape();
+                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
+                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
+
+                auto maxSplit = alignedOutputChannelSize / 16;
+
+                if(clustering.get<std::string>() == "SplitOverK")
+                    maxSplit = maxSplit / totalClusters;
+
+                for(unsigned split = 1; split <= maxSplit; split++)
+                {
+                    auto memFitCheck = memorySize(op, clustering,iSparsity,oSparsity,wSparsity,{1,1,1,split,streams["B"]},fSparsity, spilling);
+                    if( pipelined && //pipelining weights requires 2 weights streams to fit
+                        (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + 2*std::get<2>(memFitCheck) < clusterMemory) &&
+                        validateKStream(op, clustering, split, spilling) )
+                    {
+                        return split;
+                    }
+                    else if(!pipelined &&
+                            (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
+                            validateKStream(op, clustering, split, spilling) )
+                    {
+                        return split;
+                    }
+                }
+
+                return 0;
+            }
+
+           // Note: This function produces the potential stream over K strategies for each layer
+           // Try to find 2 possible combinations of K, in addition ot K=1 (no streams in this dimension)
+           // First, just enough to fit in cmx. Second, enough to enable pipelining.
+            std::vector<std::size_t> getStreamsOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                                bool wSparsity, bool fSparsity, bool spilling)
+            {
+                auto minSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
+                if(minSplitsToFit == 0) // No suitable stream over K found
+                    return {1};
+
+                std::vector<std::size_t> splits;
+                splits.push_back(1);
+                if(minSplitsToFit != 1)
+                    splits.push_back(minSplitsToFit);
+
+                if(globalEnablePipelining)
+                {
+                    auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
+                    if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
+                        splits.push_back(pipelinedMinSplitsToFit);
+                }
+
+                return splits;
             }
 
             void generateStrategySetForLayer(mv::Op& op,std::vector<StrategySet>& strategyVec)
