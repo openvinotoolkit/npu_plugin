@@ -140,6 +140,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     size_t biasEndIndex = 0;
 
     bool isDilatedConv = op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv");
+    bool avoidCmxConcat = op->hasAttr("avoidCmxConcat") && op->get<bool>("avoidCmxConcat");
 
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
@@ -424,6 +425,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
         auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
         om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
     }
+    if(avoidCmxConcat)
+        om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
     if(mixedToFloat)
         om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
@@ -452,6 +455,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     // Spatial H || W stream, need only overwrite shape, padding
     auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
+    bool avoidCmxConcat = op->hasAttr("avoidCmxConcat") && op->get<bool>("avoidCmxConcat");
 
     std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
@@ -669,6 +673,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
         auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
         om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
     }
+    if(avoidCmxConcat)
+        om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
     return concat;
