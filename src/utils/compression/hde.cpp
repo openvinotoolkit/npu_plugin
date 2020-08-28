@@ -21,7 +21,7 @@ std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>&
     compressedDataBuffer.erase(endDataIterator,compressedDataBuffer.end());
     
     //sometimes even if the tensor is > 4KB it might not be compressable
-    if(compressedSize > uncompressedDataSize)
+    if(compressedSize >= uncompressedDataSize)
     {
         toReturn.first = data;
         toReturn.second = uncompressedDataSize;
