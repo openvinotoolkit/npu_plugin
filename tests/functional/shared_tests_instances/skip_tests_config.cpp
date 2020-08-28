@@ -29,8 +29,5 @@ std::vector<std::string> disabledTestPatterns() {
         ".*BehaviorTests.*",
         ".*BehaviorTestInput.*",
         ".*BehaviorTestOutput.*",
-
-        // [Track number: S#37572]
-        ".*SetConfigAllThrows.*"
     };
 }

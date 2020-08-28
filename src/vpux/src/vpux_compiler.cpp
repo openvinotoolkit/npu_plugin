@@ -31,6 +31,8 @@ public:
         return _impl->getSupportedLayers(network);
     }
 
+    std::unordered_set<std::string> getSupportedOptions() override { return _impl->getSupportedOptions(); };
+
 private:
     using ICompilerPtr = InferenceEngine::details::SOPointer<vpux::ICompiler>;
     ICompilerPtr _impl;

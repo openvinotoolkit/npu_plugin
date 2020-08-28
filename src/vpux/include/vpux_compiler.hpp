@@ -68,6 +68,8 @@ public:
 
     virtual std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) = 0;
 
+    virtual std::unordered_set<std::string> getSupportedOptions() { return {}; };
+
     virtual void Release() noexcept override { delete this; }
 };
 

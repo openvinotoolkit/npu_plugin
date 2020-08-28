@@ -87,8 +87,7 @@ void Engine::QueryNetwork(
 
     auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
 
-    auto compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
-    auto layerNames = compiler->getSupportedLayers(copyNet);
+    auto layerNames = _compiler->getSupportedLayers(copyNet);
 
     for (auto&& layerName : layerNames) {
         res.supportedLayersMap.insert({layerName, GetName()});
@@ -97,6 +96,8 @@ void Engine::QueryNetwork(
 
 Engine::Engine(): _metrics(), _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
+    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
