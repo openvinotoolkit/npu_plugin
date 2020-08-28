@@ -704,7 +704,6 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     auto upaOps = om.getOps("UPATask");
     for (auto &opIt : upaOps) {
         if (opIt->get<std::string>("taskOp") == "DetectionOutput") {
-            std::cout << "DetectionOutput" << std::endl;
             opIt->getInputTensor(1)->setOrder(mv::Order("NCHW"));
         }
     }
