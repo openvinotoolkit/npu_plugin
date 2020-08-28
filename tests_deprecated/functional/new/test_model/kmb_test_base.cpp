@@ -1256,6 +1256,30 @@ void AgeGenderNetworkTest::runTest(const TestNetworkDesc& netDesc,
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
 
+void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
+                                   const TestImageDesc& myVariable,
+                                   float tolerance) {
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      registerSingleImage(myVariable, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+      ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+
+      for (const auto& actualBlob : actualBlobs) {
+          auto ref_it = refBlobs.find(actualBlob.first);
+          ASSERT_TRUE(ref_it != refBlobs.end());
+          std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+      }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RFCNNetworkAdapter ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

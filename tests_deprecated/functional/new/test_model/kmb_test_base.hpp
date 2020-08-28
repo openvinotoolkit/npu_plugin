@@ -488,6 +488,14 @@ public:
         float tolerance);
 };
 
+class PersonAttrRecNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& person_image,
+        float tolerance);
+};
+
 //
 // SmokeNetworkTest
 //
