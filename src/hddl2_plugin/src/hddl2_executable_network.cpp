@@ -69,6 +69,7 @@ ExecutableNetwork::ExecutableNetwork(
             _networkPtr = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
         } else {
             _logger->warning("Failed to read NGraph network");
+            throw std::runtime_error("Failed to read NGraph network");
         }
     } else {
         _logger->info("NGraph parser disabled");

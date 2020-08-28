@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <chrono>
 
 std::vector<char> compileNGraph(
         const std::shared_ptr<ngraph::Function>&,
@@ -58,6 +59,7 @@ std::vector<char> compileNGraph(
 
 #include <ngraph/pass/visualize_tree.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_mul_add_to_scaleshift_or_power.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_mul_or_add_finally.hpp>
 #include <transformations/convert_opset1_to_legacy/conv_bias_fusion.hpp>
 #include <transformations/convert_opset1_to_legacy/fc_bias_fusion.hpp>
 #include <transformations/convert_reduce_to_pooling.hpp>
@@ -65,6 +67,7 @@ std::vector<char> compileNGraph(
 #include <transformations/convert_opset1_to_legacy/convert_convolutions.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_matmul_to_fc_or_gemm.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prelu_to_relu_ie.hpp>
+#include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <include/mcm/compiler/compilation_unit.hpp>
 #include <memory>
 #include <string>
@@ -134,10 +137,13 @@ std::vector<char> compileNGraph(
         passManager.register_pass<ngraph::pass::ConvFusion>();
         passManager.register_pass<ngraph::pass::FullyConnectedBiasFusion>();
         passManager.register_pass<ngraph::pass::ConvertMulAddToScaleShiftOrPower>();
+        passManager.register_pass<ngraph::pass::ConvertMulOrAddFinally>();
         passManager.register_pass<ngraph::pass::ConvertReduceToPooling>();
         passManager.register_pass<ngraph::pass::ConstantFolding>();
-
+        passManager.register_pass<ngraph::pass::ConvertPriorBox>();
         passManager.register_pass<ngraph::pass::ConvertPReLUToReLUIE>();
+
+        // TBD passManager.register_pass<ngraph::pass::ConvertQuantizeDequantize>(); // transformation for ONNX importer #34095
 
         passManager.register_pass<ConvertToMcmConv>();
         passManager.register_pass<ConvertToMcmFC>();
@@ -147,7 +153,13 @@ std::vector<char> compileNGraph(
         passManager.register_pass<AlignConcatScales>();
         passManager.register_pass<ConvertToMcmModel>(mcmModel, mcmOutputsMap);
 
+        const auto start = std::chrono::high_resolution_clock::now();
         passManager.run_passes(func);
+        const auto end = std::chrono::high_resolution_clock::now();
+        const auto process_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
+        std::stringstream msg;
+        msg << "Plugin time: " << process_time.count() << " ms" << std::endl;
+        log->debug(msg.str().c_str());
     }
 
     //
@@ -157,8 +169,14 @@ std::vector<char> compileNGraph(
     {
         log->debug("Run MCM Compiler");
         VPU_LOGGER_SECTION(log);
-
+        const auto start = std::chrono::high_resolution_clock::now();
         mcmCompiler.run();
+        const auto end = std::chrono::high_resolution_clock::now();
+        const auto compile_time = std::chrono::duration_cast<std::chrono::milliseconds> (end - start);
+        std::stringstream msg;
+        msg << "MCM Compiler time: " << compile_time.count() << " ms" << std::endl;
+        log->debug(msg.str().c_str());
+
     }
 
     //
