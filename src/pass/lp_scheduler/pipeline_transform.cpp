@@ -35,27 +35,72 @@ void LocatePipeLinedOps(const mv::pass::PassEntry&,
   }
 }
 
-void LocatePipeLineChains(const mv::pass::PassEntry&,
+struct noop_back_insert_iterator_t {
+  const noop_back_insert_iterator_t& operator++() const { return *this; }
+
+  template<typename T>
+  void operator=(const T&) { }
+  noop_back_insert_iterator_t& operator*() { return *this; }
+}; // noop_back_insert_iterator_t //
+
+void ChainPipeliningTransform(const mv::pass::PassEntry&,
     mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
     mv::Element&) {
   mv::OpModel om(model);
   typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
   typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
 
-  std::list<subgraph_t> subgraphs;
   pipeline_chains_t pipeliner(om);
 
-  pipeliner.locate_chains(std::back_inserter(subgraphs));
+  mv::GenerateDotFromModel(om, "OpModel",
+        "before_pipeline_chain_transform.dot");
+  FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
+  pipeliner.transform_op_model(pipeline_report_fptr);
+  fclose(pipeline_report_fptr);
+  mv::GenerateDotFromModel(om, "OpModel","after_pipeline_chain_transform.dot");
+}
 
-  for (auto itr=subgraphs.begin(); itr!=subgraphs.end(); ++itr) {
-    itr->print();
+void ChainPipeliningInverseTransform(const mv::pass::PassEntry&,
+    mv::ComputationModel& model, mv::TargetDescriptor& , mv::Element& passDesc,
+    mv::Element&) {
+  mv::OpModel om(model);
+  typedef mv::scheduler::Pipeline_Chains pipeline_chains_t;
+  typedef typename pipeline_chains_t::chain_subgraph_t subgraph_t;
+
+  pipeline_chains_t pipeliner(om);
+
+  mv::GenerateDotFromModel(om, "OpModel",
+            "before_pipeline_chain_inverse_transform.dot");
+  FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
+
+  std::list<mv::Data::OpListIterator> ops_to_remove;
+  for (mv::Data::OpListIterator oitr=om.opBegin(); oitr!=om.opEnd();
+        ++oitr) {
+    if (oitr->getOpType() == "PseudoOp") {
+      ops_to_remove.push_back(oitr);
+    }
   }
+
+  for (mv::Data::OpListIterator oitr : ops_to_remove) {
+    om.removeOp(oitr);
+  }
+
+  mv::GenerateDotFromModel(om, "OpModel",
+      "after_pipeline_chain_inverse_transform.dot");
 }
 
 namespace mv {
   namespace pass {
-    MV_REGISTER_PASS(LocatePipeLineChains)
-      .setFunc(LocatePipeLineChains)
-      .setDescription("Locate Pipeline Chains");
+    MV_REGISTER_PASS(ChainPipeliningTransform)
+      .setFunc(ChainPipeliningTransform)
+      .setDescription("ChainPipeliningTransform");
+  } // namespace mv //
+} // namespace pass //
+
+namespace mv {
+  namespace pass {
+    MV_REGISTER_PASS(ChainPipeliningInverseTransform)
+      .setFunc(ChainPipeliningInverseTransform)
+      .setDescription("ChainPipeliningInverseTransform");
   } // namespace mv //
 } // namespace pass //

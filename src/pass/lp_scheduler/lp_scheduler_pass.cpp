@@ -77,11 +77,6 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     alloc(tensor_itr);
   }
 
-  // Pipelining Addressing //
-  {
-    mv::scheduler::Pipelining_Transform pipeliner(om);
-    pipeliner.set_pipelined_operation_addresses();
-  }
 }
 
 
@@ -113,28 +108,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   // update the operation precedence dag with CMX concat transforms //
   bool apply_cmx_concat_transforms = passDesc.hasAttr("enable_cmx_concat") &&
     passDesc.get<bool>("enable_cmx_concat");
-  bool apply_pipeline_transforms = passDesc.hasAttr("enable_pipelining") &&
-    passDesc.get<bool>("enable_pipelining");
-  bool apply_chain_pipeline_transforms =
-      passDesc.hasAttr("enable_chain_pipelining") &&
-      passDesc.get<bool>("enable_chain_pipelining");
-
   typedef typename mv::scheduler::CMX_Concatenation::control_edge_t
       cmx_concat_control_edge_t;
-  typedef typename mv::scheduler::Pipelining_Transform::control_edge_t
-      pipeline_control_edge_t;
 
   std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
-  std::list<pipeline_control_edge_t> pipeline_control_edges;
 
-  //TODO(vamsikku): currently either CMX-concat or Pipelining can be done but
-  //not both.
-  if (apply_chain_pipeline_transforms) {
-    input_dag.enable_chain_pipeline_transforms(cm);
-  }else if (apply_pipeline_transforms) {
-    input_dag.enable_pipeline_transforms(cm, pipeline_control_edges,
-          upper_bound);
-  } else if (apply_cmx_concat_transforms) {
+  if (apply_cmx_concat_transforms) {
     //mv::GenerateDotFromModel(cm, "OpModel", "opmodel_before_transform.dot");
 
     std::string ignore_these_concats;
@@ -201,18 +180,34 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       rend = upper_bound;
     }
 
-    mv::lp_scheduler::op_type_e scheduled_op_enum;
-    if (scheduled_op_type == "ORIGINAL") {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
-    } else if (scheduled_op_type == "SPILLED_READ") {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
-    } else {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
+    if (op->getOpType() != "PseudoOp") {
+      mv::lp_scheduler::op_type_e scheduled_op_enum;
+      if (scheduled_op_type == "ORIGINAL") {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
+      } else if (scheduled_op_type == "SPILLED_READ") {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
+      } else {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
+      }
+      scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+            rbegin, rend, scheduled_op_enum));
     }
-    scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
-          rbegin, rend, scheduled_op_enum));
     ++scheduler;
   } // while (scheduler != scheduler_end) //
+
+  { // remove any pseudo ops //
+    std::list<mv::Data::OpListIterator> ops_to_remove;
+    for (mv::Data::OpListIterator oitr=cm.opBegin(); oitr!=cm.opEnd();
+          ++oitr) {
+      if (oitr->getOpType() == "PseudoOp") {
+        ops_to_remove.push_back(oitr);
+      }
+    }
+
+    for (mv::Data::OpListIterator oitr : ops_to_remove) {
+      cm.removeOp(oitr);
+    }
+  }
 
   { 
     std::list<scheduled_op_t> new_scheduled_ops;
@@ -407,11 +402,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
-
-    if (!pipeline_control_edges.empty()) {
-      control_edges.add_control_edges_op_iterator(model,
-          pipeline_control_edges.begin(), pipeline_control_edges.end());
-    }
   }
   ////////////////////// Control Edge Generation ///////////////////////////////
 

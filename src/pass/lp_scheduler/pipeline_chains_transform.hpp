@@ -1,6 +1,7 @@
 #ifndef PIPELINE_CHAIN_TRANSFORM_HPP
 #define PIPELINE_CHAIN_TRANSFORM_HPP
 
+#include <cstdio>
 #include <unordered_set>
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/model/iterator/data_context.hpp"
@@ -22,19 +23,19 @@ class Pipeline_Chains {
       op_list_t dpu_chain_;
       std::list<op_list_t> weight_reads_;
 
-      void print() const {
-        printf("\n===========================\n");
+      void print(FILE *fptr=stdout) const {
+        fprintf(fptr, "\n===========================\n");
         auto read_itr = weight_reads_.begin();
 
         for (operation_t dpu_op : dpu_chain_) {
-          printf("%s : ", (dpu_op->getName()).c_str());
+          fprintf(fptr, "%s : ", (dpu_op->getName()).c_str());
           for (operation_t read_op : *read_itr) {
-            printf(" %s ", (read_op->getName()).c_str());
+            fprintf(fptr, " %s ", (read_op->getName()).c_str());
           }
-          printf("\n");
+          fprintf(fptr, "\n");
           ++read_itr;
         }
-        printf("\n===========================\n");
+        fprintf(fptr, "\n===========================\n");
       }
     }; // struct chain_subgraph_t //
 
@@ -83,6 +84,20 @@ class Pipeline_Chains {
         if (is_weight_read(pitr)) { continue; }
         if (single_input_op) { return NULL; }
         single_input_op = &(*pitr);
+      }
+
+      return single_input_op;
+    }
+
+    template<typename T>
+    operation_t get_non_weight_input(T dpu_op) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      operation_t single_input_op = NULL;
+
+      for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+        if (is_weight_read(pitr)) { continue; }
+        single_input_op = &(*pitr);
+        break;
       }
 
       return single_input_op;
@@ -179,10 +194,101 @@ class Pipeline_Chains {
       }
     }
 
+    void transform_op_model(FILE *fptr=stdout) {
+      std::list<control_edge_t> control_edges;
+      std::list<chain_subgraph_t> subgraphs;
+      transform_op_model(std::back_inserter(control_edges), subgraphs, fptr);
+    }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
-        SubGraphContainer& chain_subgraphs) {
+        SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
+
+      static_assert( std::is_same<chain_subgraph_t,
+            typename SubGraphContainer::value_type>::value,
+              "Invalid container for chain subgraphs");
+
+      mv::OpModel &om = omodel_;
+      chain_subgraphs.clear();
+      locate_chains(std::back_inserter(chain_subgraphs));
+
+
+      char buf[4096];
+      static size_t pseudo_op_id = 0UL;
+      for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
+
+        const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
+        const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
+
+        chain_subgraph.print(fptr);
+        /*
+         *  Input: G_sub
+         *
+         *           [read1]  [read2]         [read-N]
+         *             |        |               |
+         *             v        v               v
+         *  (head)-->[DPU1]-->[DPU2]-->.....->[DPU-N]
+         *
+         *    transform with a pseduo op chain 
+         *
+         *  Output: G_sub U G_sub_pseduo
+         *
+         *  (head)-->[PSEUDO-1]-->[read-2]
+         *              |
+         *              v
+         *           [PSEDUO-2]-->[read-3]
+         *              |
+         *              v
+         *           [PSEDUO-3]-->[read-4]
+         *              .
+         *              . 
+         *              .
+         *           [PSEUDO-N-1]-->[read-N]
+         */
+        auto curr_dpu_itr = dpu_chain.begin();
+        auto curr_weights_itr = weight_reads.begin();
+
+        auto pprev_dpu_itr = curr_dpu_itr;
+        operation_t chain_head = get_non_weight_input(*curr_dpu_itr);
+        if (!chain_head) {
+          fprintf(fptr, "chain_head invalid for %s\n",
+              (*curr_dpu_itr)->getName());
+          continue;
+        }
+
+        operation_t pseudo_tail = chain_head, curr_pseudo_op;
+        for (++curr_dpu_itr, ++curr_weights_itr; curr_dpu_itr!=dpu_chain.end();
+             ++curr_dpu_itr, ++curr_weights_itr) {
+          mv::Data::TensorIterator tail_output_tensor_itr =
+              (om.getOp(pseudo_tail->getName()))->getOutputTensor(0UL);
+
+          std::vector<mv::Data::TensorIterator> inputs;
+          inputs.push_back(tail_output_tensor_itr);
+
+          sprintf(buf, "PseduoOp-%lu", ++pseudo_op_id);
+          mv::Data::TensorIterator curr_pseudo_op_tensor_itr =
+              om.pseudoOp(inputs, buf);
+          mv::Data::OpListIterator curr_pseudo_op_itr =
+              om.getSourceOp(curr_pseudo_op_tensor_itr);
+
+          // add pseudo data flows between curr_pseudo_op and all the reads of
+          // curr_dpu_itr //
+          const op_list_t& reads_of_this_dpu = *curr_weights_itr;
+          for (operation_t weight_read : reads_of_this_dpu) {
+            mv::Data::OpListIterator weight_read_itr =
+                om.getOp(weight_read->getName());
+            omodel_.defineFlow(curr_pseudo_op_tensor_itr, weight_read_itr, 0UL);
+          }
+
+          pseudo_tail = &(*curr_pseudo_op_itr);
+        }
+
+      } // foreach chain subgraph //
+    }
+
+    template<typename ControlEdgeOutput, typename SubGraphContainer>
+    void transform_op_model_old(ControlEdgeOutput output,
+        SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
             typename SubGraphContainer::value_type>::value,
@@ -198,6 +304,8 @@ class Pipeline_Chains {
       for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
+
+        chain_subgraph.print(fptr);
 
         auto curr_dpu_itr = dpu_chain.begin();
         auto pprev_dpu_itr = curr_dpu_itr;
