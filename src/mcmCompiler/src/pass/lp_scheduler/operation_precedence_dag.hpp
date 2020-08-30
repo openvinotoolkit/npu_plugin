@@ -862,6 +862,10 @@ class Operation_Dag {
       size_t ret_value = 0UL;
       for (op_size_table_t::const_iterator itr=op_size_table.begin();
             itr != op_size_table.end(); ++itr) {
+        if ((itr->first)->getOpType() == "DPUTask") {
+          printf("op=%s cmx_memory=%lu\n", (itr->first)->getName().c_str(),
+                itr->second);
+        }
         if (itr->second >= threshold) {
           output = std::make_pair(itr->first, itr->second);
           ++output;
