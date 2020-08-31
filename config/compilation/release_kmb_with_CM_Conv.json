@@ -197,7 +197,7 @@
                         {
                             "name" : "Concat",
                             "strategies": [
-                                {"name" : "clusteringStrategies", "value" : ["Clustering","SplitOverH","SplitOverK"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false},
