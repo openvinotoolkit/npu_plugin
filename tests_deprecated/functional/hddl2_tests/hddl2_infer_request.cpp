@@ -378,7 +378,7 @@ protected:
 void InferenceCheckPortsNetwork::SetUp() {
     modelPath =
         ModelsPath() + "/KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10.xml";
-    inputPath = "227x227/cat3.bmp";
+    inputPath = "cat3.bmp";
 }
 
 TEST_P(InferenceCheckPortsNetwork, common) {
@@ -413,9 +413,8 @@ TEST_P(InferenceCheckPortsNetwork, common) {
 
     // --- Input Blob
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
-    IE::Blob::Ptr inputBlob, tmpInputBlob;
-    ASSERT_NO_THROW(tmpInputBlob = loadImage(inputPath, inputWidth, inputHeight));
-    inputBlob = toLayout(tmpInputBlob, p._blobInputLayout);
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = loadImage(inputPath, inputWidth, inputHeight, p._blobInputLayout, false));
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // --- Infer

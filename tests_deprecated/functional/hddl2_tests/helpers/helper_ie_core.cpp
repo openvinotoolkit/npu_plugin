@@ -4,12 +4,8 @@
 
 #include <blob_factory.hpp>
 #include <ie_utils.hpp>
-<<<<<<< HEAD
 #include <tests_common.hpp>
 namespace IE = InferenceEngine;
-=======
-#include <test_model_repo.hpp>
->>>>>>> Add input layout tests
 
 IE_Core_Helper::IE_Core_Helper()
     : pluginName(
