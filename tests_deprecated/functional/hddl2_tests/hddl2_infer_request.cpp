@@ -285,14 +285,10 @@ TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
 }
 
 //------------------------------------------------------------------------------
-<<<<<<< HEAD
 class InferenceWithCheckLayout : public ExecutableNetwork_Tests {
 public:
     const size_t numberOfTopClassesToCompare = 3;
     IE::Blob::Ptr cat227x227Blob = nullptr;
-=======
-class InferenceWithCheckLayout : public Inference_onSpecificDevice {
->>>>>>> Add input layout tests
 protected:
     void SetUp() override;
 };
@@ -388,8 +384,6 @@ void InferenceCheckPortsNetwork::SetUp() {
 TEST_P(InferenceCheckPortsNetwork, common) {
     const auto& p = GetParam();
 
-    std::cout << "Parameters: " << p << std::endl;
-
     // --- CNN Network and inputs
     std::cout << "Reading network..." << std::endl;
     ASSERT_NO_THROW(network = ie.ReadNetwork(modelPath));
@@ -444,15 +438,25 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     }
 }
 
-// TODO Simplify this by GTEST ranges or something similar
 const std::vector<CheckPortsNetworkTestParams> checkPortsNetworkParams {
-    CheckPortsNetworkTestParams().inputLayout(IE::Layout::NCHW).blobInputLayout(IE::Layout::NCHW).importNetwork(false),
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NCHW)
+        .importNetwork(false),
 
-    CheckPortsNetworkTestParams().inputLayout(IE::Layout::NCHW).blobInputLayout(IE::Layout::NHWC).importNetwork(false),
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NHWC)
+        .importNetwork(false),
 
-    CheckPortsNetworkTestParams().inputLayout(IE::Layout::NCHW).blobInputLayout(IE::Layout::NCHW).importNetwork(true),
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NCHW)
+        .importNetwork(true),
 
-    CheckPortsNetworkTestParams().inputLayout(IE::Layout::NCHW).blobInputLayout(IE::Layout::NHWC).importNetwork(true)};
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NHWC)
+        .importNetwork(true)};
 
-INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::ValuesIn(checkPortsNetworkParams));
-
+ INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::ValuesIn(checkPortsNetworkParams), testing::PrintToStringParamName());
