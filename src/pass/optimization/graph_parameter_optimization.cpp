@@ -1571,7 +1571,6 @@ namespace mv
                     }
                 }
 
-
                 // If we can pipeline, consider this speedup
                 // else if we can prefetch, consider this speedup
                 // else consider serialized read + compute + write

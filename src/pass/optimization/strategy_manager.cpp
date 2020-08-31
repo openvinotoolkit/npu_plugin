@@ -498,7 +498,7 @@ void StrategyManager::saveMetaStrategy(CriticalPathNodes& criticalPathNodes)
 
         bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"] 
                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
-        if((spilling && executable) || isStreaming)
+        if((spilling && executable) || isStreaming) // TODO remove this isStreaming check
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DDR);
         else
             outTensor->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::NNCMX);
