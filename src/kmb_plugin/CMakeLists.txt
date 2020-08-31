@@ -49,14 +49,16 @@ if(UNIX)
 endif()
 
 target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        ${VPUAL_NN_INCLUDES}
-        ${GAPI_SIPP_INCLUDES}
-        ${GAPI_M2I_INCLUDES}
     PRIVATE
         "${FRONTEND_VPUX_INCLUDE_DIR}"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
         ${CMAKE_CURRENT_SOURCE_DIR})
+
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        ${VPUAL_NN_INCLUDES}
+        ${GAPI_SIPP_INCLUDES}
+        ${GAPI_M2I_INCLUDES})
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
@@ -104,14 +106,16 @@ if(ENABLE_TESTS)
     target_compile_definitions(${TARGET_NAME}_test_static PRIVATE -DDEVICE_NAME="${KMB_DEVICE_NAME}")
 
     target_include_directories(${TARGET_NAME}_test_static
+        PUBLIC
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+            ${CMAKE_CURRENT_SOURCE_DIR})
+    target_include_directories(${TARGET_NAME}_test_static
         SYSTEM PRIVATE
             ${VPUAL_NN_INCLUDES}
             ${GAPI_SIPP_INCLUDES}
             ${GAPI_M2I_INCLUDES}
-            "${FRONTEND_VPUX_INCLUDE_DIR}"
-        PUBLIC
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-            ${CMAKE_CURRENT_SOURCE_DIR})
+            "${FRONTEND_VPUX_INCLUDE_DIR}")
+
     target_link_libraries(${TARGET_NAME}_test_static
         PUBLIC
             IE::inference_engine
