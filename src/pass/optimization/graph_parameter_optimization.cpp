@@ -1572,15 +1572,10 @@ namespace mv
                 // If we can pipeline, consider this speedup
                 // else if we can prefetch, consider this speedup
                 // else consider serialized read + compute + write
-                double compTime1 = 0;
-                double compTime2 = 0;
-                double dmaTime1 = 0;
-                double dmaTime2 = 0;
-
-                compTime1 = computeTime(parentOp,parent);
-                compTime2 = computeTime(childOp,child);
-                compTime1 = dmaTime(parentOp, parent);
-                compTime2 = dmaTime(childOp, child, parentSpilling);
+                auto compTime1 = computeTime(parentOp,parent);
+                auto compTime2 = computeTime(childOp,child);
+                auto dmaTime1 = dmaTime(parentOp, parent);
+                auto dmaTime2 = dmaTime(childOp, child, parentSpilling);
 
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
