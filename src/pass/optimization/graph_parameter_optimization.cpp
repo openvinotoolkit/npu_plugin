@@ -278,7 +278,7 @@ namespace mv
 
             std::tuple<size_t,size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
                                             bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, 
-                                            bool fakeSparsity, bool spilling = false, bool parentSpilling = true)
+                                            bool fakeSparsity, bool spilling = false, bool parentSpilling = true, bool eltwiseParentSpilling = true)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
 
@@ -302,7 +302,7 @@ namespace mv
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
                     dilatedLayerInputMemory = true;
 
-                if(opType != "Input" && opType != "Concat")
+                if(opType != "Input" && opType != "Concat" && opType != "Eltwise")
                 {
                     // Note: when an operation is streaming activations, but it's parent didn't spill, the input won't be streamed
                     Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
@@ -353,8 +353,12 @@ namespace mv
                 else if(opType == "Eltwise" && !software)
                 {
                     weightTableSize = 0;
-                    weightSize = 0; 
-                    inputSize += activationTensorSize(op.getInputTensor(1),clusterStrategy,{streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]}, isCMConv, op);
+                    weightSize = 0;
+                    Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
+                    if(!eltwiseParentSpilling)
+                        temporaryStreamConfig = {1,1,1,1,1};
+                    inputSize = activationTensorSize(op.getInputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op);
+                    inputSize += activationTensorSize(op.getInputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op);
                 }
 
                 //Additional memory footprint for sparsity
@@ -465,6 +469,8 @@ namespace mv
                 // Note: for SOH and SOK, division by number of clusters is done in activationTensorSize
                 // and alignedWeightsSize, respectively. This allows greater precision than dividing
                 // totalClusters. Multiclustering doesn't perfectly split tensor, depends on subtensor size!
+                if(clusterStrategy == "HKSwitch")
+                    inputSize = div(inputSize,totalClusters);
                 if(clusterStrategy == "SplitOverHOverlapped")
                 {
                     inputSize = div(inputSize,totalClusters);
@@ -474,7 +480,17 @@ namespace mv
                 return std::tuple<std::size_t,std::size_t,std::size_t>(inputSize, outputSize,weightSize);
             }
 
-                        bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
+            bool createStrategyFromBool(mv::Op op, std::string name){
+                auto& streamingStrategy = getStrategy(op,name);
+
+                bool value = streamingStrategy.get<bool>();
+                if(value)
+                    return true;
+                else
+                    return false;
+            }
+
+            bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
             {
                 if(!globalEnablePipelining)
                     return false;
@@ -898,12 +914,15 @@ namespace mv
 
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
                 // be made with the information on hand. Will not optimize strategies for these.
-                // In store graph optimizer decisions pass, we will mark those that can fit in CMX
+                // In later pass, we will mark those that can fit in CMX
                 // as CMX-able.
-                if((op.getOpType() == "Concat" && !spilling) || 
-                    (op.getOpType() == "Eltwise"  && isStreaming && !spilling))
+                //Note: Removing eltwise from here becuase of course hkswitch needs to be in cmx
+                if(op.getOpType() == "Concat" && !spilling)
                     return FailCause::cmxConcatDecision;
 
+                bool eltwiseParentSpilling = true;
+                if(op.getOpType() == "Eltwise")
+                    eltwiseParentSpilling = strategy["eltwiseParentSpilling"].get<bool>();
 
                 if(opInCMX(op, strategy))
                 {
@@ -915,7 +934,9 @@ namespace mv
                                                                     weightsSparsity,
                                                                     streamShape,
                                                                     requiresFakeActivationSparsity(op),
-                                                                    spilling);
+                                                                    spilling,
+                                                                    true,
+                                                                    eltwiseParentSpilling);
                     if (input + output + weights >= clusterMemory)
                         return FailCause::MemorySize;
 
@@ -941,6 +962,12 @@ namespace mv
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) && (clustering == "HKSwitch"))
+                    return FailCause::SpillHKSwitch;
+
+                if( isStreaming && (clustering == "HKSwitch"))
+                    return FailCause::SpillHKSwitch;
+
+                if( op.getOpType() == "Eltwise" && eltwiseParentSpilling && (clustering == "HKSwitch"))
                     return FailCause::SpillHKSwitch;
 
                 if( op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
@@ -1283,6 +1310,10 @@ namespace mv
                 if(!parentSpilling && !childSpilling && (childStreamShape["H"] > 1))
                     return INF;
 
+                //Note: Synchronize across parallel branches so we can keep track of eltwise parent activation in ddr or cmx
+                if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
+                    return INF;
+
                 if( violatesClusteringStrategyRules(parentOp, childOp, parent, child) )
                 {
                     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
@@ -1460,15 +1491,6 @@ namespace mv
                     return std::vector<mv::Attribute>{true,false};
             }
 
-            bool createStrategyFromBool(mv::Op op, std::string name){
-                auto& streamingStrategy = getStrategy(op,name);
-
-                bool value = streamingStrategy.get<bool>();
-                if(value)
-                    return true;
-                else
-                    return false;
-            }
 
             std::vector<mv::Attribute> createStrategyPoolFromStrategySet(mv::Op op, std::string name)
             {
@@ -1549,22 +1571,22 @@ namespace mv
             // If H streaming fits at all (i.e. weights fit), find the H just big enough to fit into CMX. If CMX concat,
             // spilling will be false, and H stream will be higher accordingly.
             std::vector<size_t> getStreamsOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                                bool wSparsity, bool fSparsity, bool spilling)
+                                                bool wSparsity, bool fSparsity, bool spilling, bool eltwiseParentSpilling = true)
             {
-                auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
-                if(minSplitsToFit == 0) // stream over H doesn't fit
+                auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, false, eltwiseParentSpilling);
+                if(minSplitsToFit == 0 || clustering.get<std::string>() == "HKSwitch") // stream over H doesn't fit
                     return {1};
 
                 // Case 0, Not spilling, cmx concat. If pipelined, need room for 2 input slices.
                 if(!spilling && globalEnablePipelining)
                 {   
-                    auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, true);
+                    auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, true, eltwiseParentSpilling);
                     if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
                         return {pipelinedMinSplitsToFit, minSplitsToFit, 1};
                 }
                 else if(spilling) // Case 1 Spilling, ddr concat. Find min stream over H for both input in cmx and input streamed.
                 {
-                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);                
+                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true, false, eltwiseParentSpilling);                
                     if(inputCmxMinSplitsToFit > 1 && inputCmxMinSplitsToFit != minSplitsToFit)
                         return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
                 }
@@ -1575,10 +1597,10 @@ namespace mv
             // Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
             // (for example, weights don't fit) then return 0
             unsigned getMinStreamOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
-                                        bool wSparsity, bool fSparsity, bool spilling, bool inputCMX = false, bool pipelined = false)
+                                        bool wSparsity, bool fSparsity, bool spilling, bool inputCMX = false, bool pipelined = false, bool eltwiseParentSpilling = true)
             {
                 size_t input, output, weights;
-                std::tie(input, output, weights) = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling);
+                std::tie(input, output, weights) = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,streams,fSparsity,spilling,true,eltwiseParentSpilling);
                 auto activationsSize = input + output;
                 auto weightsSize = weights;
                 double availableMemory = (double) clusterMemory - (double) weightsSize;
@@ -1598,7 +1620,7 @@ namespace mv
                 for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
                 {
                     Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
-                    auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,!inputCMX);
+                    auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,!inputCMX,eltwiseParentSpilling);
                     if( pipelined && //TODO inputCMX here too
                         (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
                         validateHStream(op, clustering, splits) )
@@ -1796,7 +1818,15 @@ namespace mv
                     for( auto outputSparsity : outputActivationSparsity)
                     {
                         bool fakeSparsity = requiresFakeActivationSparsity(op);
+                        std::vector<Attribute> eltwiseParentPool;
+                        if(op.getOpType() == "Eltwise")
+                            eltwiseParentPool = {true, false};
+                        else
+                            eltwiseParentPool.push_back(true);
 
+                        
+                        for( const auto eltwiseParentStrategy : eltwiseParentPool)
+                        {
 
                         // Determine streaming options
                         // 0. Determine if streams over H are possible
@@ -1807,7 +1837,8 @@ namespace mv
                         std::vector<size_t> streamsOverH;
                         if(hasStreamOverH)
                             streamsOverH = getStreamsOverH(op, clustering, {1,1,1,1,1}, inputSparsity.get<bool>(), 
-                                                                outputSparsity.get<bool>(), weightsSparsity, fakeSparsity, spilling.get<bool>());
+                                                                outputSparsity.get<bool>(), weightsSparsity, fakeSparsity,
+                                                                spilling.get<bool>(),eltwiseParentStrategy.get<bool>());
                         else
                             streamsOverH.push_back(1);
 
@@ -1886,11 +1917,11 @@ namespace mv
                                     s["spilling"] = spilling;
                                     s["clustering"] = clustering;
                                     s["streaming"] = streamShape;
+                                    if(op.getOpType() == "Eltwise")
+                                        s["eltwiseParentSpilling"] = eltwiseParentStrategy;
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = validateStrategy(op,s);
-                                    // if(op.getName() == "yolov2/darknet19_model/max_pool1/MaxPool")
-                                    //     std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : " << spilling.toString() << " : " << failure_causes[strategyCheck] << std::endl;
                                     if(strategyCheck != FailCause::Pass)
                                         continue;
 
@@ -1906,6 +1937,7 @@ namespace mv
                                    
                                 }
                             }
+                        }
                         }
                         }
                         }
