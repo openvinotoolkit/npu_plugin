@@ -52,7 +52,7 @@ public:
 
     virtual ~KmbExecutor();
     KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
-        const KmbConfig& config);
+        const int deviceId, const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
@@ -108,6 +108,7 @@ private:
     // _inferenceId is used to satisfy VPUAL API which requires to pass some id for each inference
     // there are no contraints on a value passed, so we pass id=1 each inference
     std::unique_ptr<uint32_t, std::function<void(uint32_t*)>> _inferenceId;
+    const int _deviceId;
 };
 
 }  // namespace KmbPlugin

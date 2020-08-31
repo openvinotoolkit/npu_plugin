@@ -44,8 +44,10 @@ using namespace std;
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
+// FIXME this is a wrong way to pass device ID to executors
+// it breaks encapsulation. executor shouldn't care what device id is
 KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
-    const KmbConfig& config)
+    const int deviceId, const KmbConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
@@ -58,9 +60,11 @@ KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
           }),
-      _inferenceId(nullptr, [this](uint32_t* buffer) {
-          _allocator->free(buffer);
-      }) {
+      _inferenceId(nullptr,
+          [this](uint32_t* buffer) {
+              _allocator->free(buffer);
+          }),
+      _deviceId(deviceId) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -92,40 +96,42 @@ void KmbExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "initVpualObjects");
     if (!RgnAlloc) {
-        RgnAlloc = make_shared<RgnAllocator>();
+        RgnAlloc = make_shared<RgnAllocator>(_deviceId);
     }
     if (!HeapAlloc) {
-        HeapAlloc = make_shared<HeapAllocator>();
+        constexpr size_t heapAllocAlignment = 64;
+        HeapAlloc = make_shared<HeapAllocator>(heapAllocAlignment, _deviceId);
     }
     if (!nnPl) {
-        nnPl = make_shared<NNFlicPlg>();
+        nnPl = make_shared<NNFlicPlg>(_deviceId);
     }
     if (!gg) {
-        gg = make_shared<GraphManagerPlg>();
+        gg = make_shared<GraphManagerPlg>(_deviceId);
     }
     if (!plgTensorInput_) {
-        plgTensorInput_ = make_shared<PlgTensorSource>();
+        plgTensorInput_ = make_shared<PlgTensorSource>(_deviceId);
     }
     if (!plgTensorOutput_) {
-        plgTensorOutput_ = make_shared<PlgStreamResult>();
+        plgTensorOutput_ = make_shared<PlgStreamResult>(_deviceId);
     }
     if (!plgInferenceInput_) {
-        plgInferenceInput_ = make_shared<PlgInferenceInput>();
+        plgInferenceInput_ = make_shared<PlgInferenceInput>(_deviceId);
     }
     if (!plgInferenceOutput_) {
-        plgInferenceOutput_ = make_shared<PlgInferenceOutput>();
+        plgInferenceOutput_ = make_shared<PlgInferenceOutput>(_deviceId);
     }
     if (!plgPoolOutputs) {
-        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>();
+        plgPoolOutputs = make_shared<PlgPool<TensorMsg>>(_deviceId);
     }
     if (!plgPoolInferenceMsg) {
-        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>();
+        plgPoolInferenceMsg = make_shared<PlgPool<InferenceMsg>>(_deviceId);
     }
     if (!BHandle) {
         BHandle = make_shared<BlobHandle_t>();
     }
     if (!pipe) {
-        pipe = make_shared<Pipeline>();
+        constexpr size_t maxPluginsPerPipeline = 32;
+        pipe = make_shared<Pipeline>(maxPluginsPerPipeline, _deviceId);
     }
     if (!_inferenceId) {
         _inferenceId.reset(reinterpret_cast<uint32_t*>(_allocator->alloc(sizeof(uint32_t))));
@@ -157,7 +163,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 
     std::vector<void*> virtAddrVec;
     virtAddrVec.reserve(threadCount);
-    std::vector<uint32_t> physAddrVec;
+    std::vector<void*> physAddrVec;
     physAddrVec.reserve(threadCount);
     for (unsigned int threadIdx = 0; threadIdx < threadCount; threadIdx++) {
         uint8_t* scratchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(memoryReqs));
@@ -169,7 +175,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
             THROW_IE_EXCEPTION << "scratchHelper: failed to get physical address";
         }
         // NB: narrowing unsigned long (uint64_t on 64-bit Yocto) to uint32_t here
-        physAddrVec.push_back(scratchPhysAddr);
+        physAddrVec.push_back(reinterpret_cast<void*>(scratchPhysAddr));
         virtAddrVec.push_back(scratchVirtAddr);
     }
 

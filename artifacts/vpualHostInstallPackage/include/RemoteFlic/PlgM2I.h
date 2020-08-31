@@ -21,18 +21,10 @@ class PlgM2I : public PluginStub
     MSender<vpum2i::M2IObj> out;
 
     /** Constructor. */
-    PlgM2I() : PluginStub("PlgM2I"){};
-    /** Destructor. */
-    ~PlgM2I();
+    PlgM2I(uint32_t device_id) : PluginStub("PlgM2I", device_id), out{device_id} {};
 
     /** Create method. */
     int Create();
-
-    vpum2i::M2IDesc* GetSharedDesc();
-    int ReleaseDesc(vpum2i::M2IDesc* desc);
-
-  private:
-    std::vector<vpum2i::M2IDesc*> descList;
 };
 
 #endif // __PLG_M2I_H__

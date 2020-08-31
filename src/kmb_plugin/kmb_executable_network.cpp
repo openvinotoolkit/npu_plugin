@@ -60,8 +60,9 @@ void ExecutableNetwork::LoadBlob() {
     static int loadBlobCounter = 1;
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
+    const auto& remoteCtx = _remoteContext->as<KmbRemoteContext>();
     _executor = std::make_shared<KmbExecutor>(
-        _networkDescription, _remoteContext->as<KmbRemoteContext>()->getAllocator(), _config);
+        _networkDescription, remoteCtx->getAllocator(), remoteCtx->getDeviceId(), _config);
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());

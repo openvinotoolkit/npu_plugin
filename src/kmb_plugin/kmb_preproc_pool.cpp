@@ -20,7 +20,7 @@ Preprocessor::Preprocessor(unsigned int shaveFirst, unsigned int shaveLast, unsi
 
 Preprocessor::~Preprocessor() = default;
 
-void Preprocessor::execDataPreprocessing(const PreprocTask& t) {
+void Preprocessor::execDataPreprocessing(const PreprocTask& t, const int deviceId) {
     IE_ASSERT(t.inputs.size() == 1);
     for (auto& input : t.inputs) {
         const auto& blobName = input.first;
@@ -31,7 +31,8 @@ void Preprocessor::execDataPreprocessing(const PreprocTask& t) {
                               input.second,
                               preprocInfo.getResizeAlgorithm(),
                               preprocInfo.getColorFormat(),
-                              t.out_format);
+                              t.out_format,
+                              deviceId);
         }
     }
 }
@@ -58,7 +59,7 @@ PreprocessorPool::PreprocessorPool(
     }
 }
 
-void PreprocessorPool::execDataPreprocessing(const PreprocTask& task) {
+void PreprocessorPool::execDataPreprocessing(const PreprocTask& task, const int deviceId) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (_free_preprocs.empty()) {
         _free_cond.wait(lock, [&]() {
@@ -69,7 +70,7 @@ void PreprocessorPool::execDataPreprocessing(const PreprocTask& task) {
     _free_preprocs.pop();
     lock.unlock();
 
-    preproc->execDataPreprocessing(task);
+    preproc->execDataPreprocessing(task, deviceId);
 
     lock.lock();
     _free_preprocs.push(preproc);
@@ -111,12 +112,12 @@ PreprocessorPool& PreprocPool::getPool(
 }
 
 void PreprocPool::execDataPreprocessing(
-    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath, const std::string& preprocPoolId) {
+    const PreprocTask& task, unsigned int numberOfShaves, unsigned int lpi, Path ppPath, const std::string& preprocPoolId,
+    const int deviceId) {
     if (task.inputs.empty()) {
         THROW_IE_EXCEPTION << "Inputs are empty.";
     }
-    auto dims = task.inputs.begin()->second->getTensorDesc().getDims();
-    getPool(preprocPoolId, numberOfShaves, lpi, ppPath).execDataPreprocessing(task);
+    getPool(preprocPoolId, numberOfShaves, lpi, ppPath).execDataPreprocessing(task, deviceId);
 }
 
 PreprocPool& preprocPool() {

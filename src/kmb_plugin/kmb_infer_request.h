@@ -40,6 +40,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     std::vector<StageMetaInfo> _stagesMetaData;
     KmbConfig _config;
     const std::string _netUniqueId;
+    const int _deviceId;
 
 public:
     using Ptr = std::shared_ptr<KmbInferRequest>;
@@ -47,7 +48,7 @@ public:
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
         const KmbConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
-        const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName);
+        const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName, const int deviceId);
 
     void InferImpl() override;
     void InferAsync();

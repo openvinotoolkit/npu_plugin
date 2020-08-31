@@ -59,8 +59,8 @@ public:
         if (kmbContext == nullptr) {
             THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
         }
-        return std::make_shared<KmbInferRequest>(
-            networkInputs, networkOutputs, _stagesMetaData, _config, _executor, kmbContext->getAllocator(), _netName);
+        return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs, _stagesMetaData, _config, _executor,
+            kmbContext->getAllocator(), _netName, kmbContext->getDeviceId());
     }
 
     void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
@@ -68,8 +68,8 @@ public:
         if (kmbContext == nullptr) {
             THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
         }
-        auto syncRequestImpl = std::make_shared<KmbInferRequest>(
-            _networkInputs, _networkOutputs, _stagesMetaData, _config, _executor, kmbContext->getAllocator(), _netName);
+        auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs, _stagesMetaData,
+            _config, _executor, kmbContext->getAllocator(), _netName, kmbContext->getDeviceId());
 
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();

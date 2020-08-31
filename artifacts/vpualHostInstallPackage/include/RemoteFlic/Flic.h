@@ -37,7 +37,7 @@ class PluginStub;
 class Pipeline : private VpualStub
 {
   public:
-    Pipeline(int maxPlugs = MAX_PLUGS_PER_PIPE);
+    Pipeline(int maxPlugs = MAX_PLUGS_PER_PIPE, uint32_t device_id = 0);
 
     virtual void Add(PluginStub *plg, const char *name = NULL);
 
@@ -62,7 +62,7 @@ class PluginStub : public VpualStub
 
   public:
     /** Constructor just invokes the parent constructor. */
-    PluginStub(std::string type) : VpualStub(type){};
+    PluginStub(std::string type, uint32_t device_id = 0) : VpualStub(type, device_id){};
 
     virtual void Stop  () {};   // By default do nothing.
     virtual void Delete() {};   // By default do nothing.

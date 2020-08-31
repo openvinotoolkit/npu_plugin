@@ -14,6 +14,7 @@ ie_dependent_option(ENABLE_MODELS "download all models required for functional t
 ie_dependent_option(ENABLE_VALIDATION_SET "download validation_set required for functional testing" ON "ENABLE_FUNCTIONAL_TESTS" OFF)
 
 ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker -export-dynamic options" OFF)
+ie_option(ENABLE_M2I "Enable Media-to-Inference (M2I) module for image pre-processing" OFF)
 
 # TODO: the option works only for x86 unix platform now
 ie_dependent_option(ENABLE_MCM_FROM_REPO "Enable compiler to be built from sources" OFF "NOT ARM; NOT AARCH64; NOT WIN32" OFF)

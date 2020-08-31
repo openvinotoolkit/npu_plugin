@@ -49,7 +49,7 @@ class NNFlicPlg : public PluginStub{
   public:
 
     /** Constructor. */
-    NNFlicPlg() : PluginStub("NNFlicDecoder"){};
+    NNFlicPlg(uint32_t device_id = 0) : PluginStub("NNFlicDecoder", device_id), output{device_id}, inferenceOutput{device_id} {}
 
     void Create(BlobHandle_t * Blhdl);
     // void Delete();
@@ -57,8 +57,8 @@ class NNFlicPlg : public PluginStub{
 
     void SetNumberOfThreads(int32_t threadNum);
     void SetNumberOfShaves(int32_t shaves);
-    void SetScratchBuffer(const std::vector<uint32_t> &physAddrs) const;
-    void SetPrefetchBuffer(uint32_t physAddrs, unsigned int size, bool skipInit = false) const;
+    void SetScratchBuffer(const std::vector<void *> &physAddrs) const;
+    void SetPrefetchBuffer(void* physAddrs, unsigned int size, bool skipInit = false) const;
 
     NNPlgState GetLatestState();
 

@@ -41,7 +41,7 @@ class PlgXlinkOut : public PluginStub
     SReceiver<ImgFramePtr> in;
 
     /** Constructor. */
-    PlgXlinkOut() : PluginStub("PlgXlinkOut"),
+    PlgXlinkOut(uint32_t device_id) : PluginStub("PlgXlinkOut", device_id),
                     channelID(XLINK_INVALID_CHANNEL_ID)
                     {};
 
