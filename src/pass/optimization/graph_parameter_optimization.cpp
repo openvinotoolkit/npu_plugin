@@ -1019,7 +1019,7 @@ namespace mv
                 //Guide early on the proposal of a valid strategy
                 if (op.getOpType() == "DepthwiseConv")
                 {
-                    if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > 8192)
+                    if ((op.getInputTensor(0)->getShape()[mv::IO_CHANNEL_DIMENSION] > mv::MAX_DIM_SIZE)
                             && (streamShape["C"] == 1))
                         return FailCause::DWChannels;
                 }
@@ -1750,6 +1750,42 @@ namespace mv
                 return splits;
             }
 
+            unsigned getMinStreamOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                                bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
+            {
+                auto inputShape = op.getInputTensor(0)->getShape();
+                size_t inputChannelSize = inputShape[IO_CHANNEL_DIMENSION];
+
+                unsigned startSplit = 1;
+                if(inputChannelSize > mv::MAX_DIM_SIZE)
+                    startSplit = 2;
+
+                for(unsigned split = startSplit; split <= inputChannelSize; split++)
+                {
+                    auto memFitCheck = memorySize(op, clustering,iSparsity,oSparsity,wSparsity,{1,1,split,1,streams["B"]},fSparsity, spilling);
+                    if((std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory))
+                        return split;
+                }
+
+                return 0;
+            }
+
+            std::vector<std::size_t> getStreamsOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+                                                bool wSparsity, bool fSparsity, bool spilling)
+            {
+                auto minSplitsToFit = getMinStreamOverC(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
+                if(minSplitsToFit == 0) // No suitbale stream over C found
+                    return {1};
+
+                std::vector<std::size_t> splits;
+                splits.push_back(1);
+
+                if(minSplitsToFit != 1)
+                    splits.push_back(minSplitsToFit);
+
+                return splits;
+            }
+
             void generateStrategySetForLayer(mv::Op& op,std::vector<StrategySet>& strategyVec)
             {
                 auto findStrategy = [](std::vector<Attribute>& vec,const std::string& str) ->bool { for(const auto elem : vec) if(str==elem.get<std::string>()) return true; return false;};
@@ -1860,7 +1896,8 @@ namespace mv
 
                         std::vector<size_t> streamsOverC;
                         if (hasStreamOverC)
-                            streamsOverC = {1,2,3,4}; // TODO calculate properly
+                            streamsOverC = getStreamsOverC(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(), 
+                                                            outputSparsity.get<bool>(), weightsSparsity, fakeSparsity, spilling.get<bool>());
                         else
                             streamsOverC.push_back(1);
 
