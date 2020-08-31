@@ -41,13 +41,11 @@ using namespace InferenceEngine::details;
 using namespace TestsTimeout;
 using namespace KmbRegressionTarget;
 
-#ifdef ENABLE_MCM_COMPILER
+#if !defined(__arm__) && !defined(__aarch64__)
 using kmbLayersTestsConvolution = kmbLayersTests_nightly;
 
-TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
-#if !defined(__arm__) && !defined(__aarch64__)
-    SKIP();
-#endif
+// NB: Kmb doesn't support compilation and inference on the same device
+TEST_F(kmbLayersTestsConvolution, DISABLED_compilationLoadNetworkAndInfer) {
     std::string model = convolution_u8_only;
 
     const size_t convolutionWeightsByteSize = 36864;
@@ -101,9 +99,7 @@ TEST_F(kmbLayersTestsConvolution, compilationLoadNetworkAndInfer) {
     Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(output_name));
 }
-#endif
-
-#if defined(__arm__) || defined(__aarch64__)
+#else
 
 const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
     {
