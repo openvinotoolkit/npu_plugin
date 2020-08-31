@@ -1452,6 +1452,9 @@ namespace mv
                 if(!parentSpilling && !childSpilling && (childStreamShape["H"] > 1))
                     return INF;
 
+                if(childOpType == "Output" && !parentSpilling)
+                    return INF;
+
                 //Note: Synchronize across parallel branches so we can keep track of eltwise parent activation in ddr or cmx
                 if(childOpType == "Eltwise" && (child["eltwiseParentSpilling"].get<bool>() != parentSpilling))
                     return INF;
@@ -1589,7 +1592,12 @@ namespace mv
 
                 // Extremely simplistic overlap computation, assume cost of compute is hidden by pipelining
                 if(isPipeliningPossible(childOp, child, parent["spilling"].get<bool>()))
-                    execTime2 = 0;
+                {
+                    // If we can pipeline, we are max(dma,compute)
+                    return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2);
+                }
+                else if(isPrefetchPossible())
+                {
 
                 //TODO if prefetch is possible, eliminate dma time for child op
                 
@@ -1979,15 +1987,10 @@ namespace mv
 
                 if(stream["K"] > 1) // Full activation in CMX, stream weights
                 {
-                    std::cout << "Considering pipelining for layer " << std::endl;
-                    std::cout << "Name: " + op.getName() << std::endl;
-                    std::cout << "MCStrategy: " + clustering<< std::endl;
-                    std::cout << "Streaming(W,H,C,K,N): " + stream.toString() << std::endl<<std::endl;
+                    //Note: memory size function is smart enough to take care of input/output size relative to spilling
                     auto memReq = input + output + 2*weights;
                     if(memReq < clusterMemory)
                     {   
-                        std::cout << "Pipelining Possible !" <<std::endl<<std::endl;
-
                         return true;
                     }
                 }
