@@ -21,13 +21,14 @@
 #include "creators/creator_blob.h"
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
+
 class BlobDescriptor_UnitTests : public ::testing::Test {
 public:
-    InferenceEngine::DataPtr inputDesc =
+    IE::DataPtr inputDesc =
             std::make_shared<IE::Data>("input", IE::Precision::U8, IE::Layout::NCHW);
-    InferenceEngine::DataPtr outputDesc =
+    IE::DataPtr outputDesc =
             std::make_shared<IE::Data>("output", IE::Precision::U8, IE::Layout::NCHW);
-    InferenceEngine::Blob::Ptr blob = Blob_Creator::createBlob({1, 1, 1, 1}, IE::Layout::NCHW);
+    IE::Blob::Ptr blob = Blob_Creator::createBlob({1, 1, 1, 1}, IE::Layout::NCHW);
 };
 
 //------------------------------------------------------------------------------
