@@ -1580,23 +1580,25 @@ namespace mv
                 auto dmaTime1 = dmaTime(parentOp, parent);
                 auto dmaTime2 = dmaTime(childOp, child, parentSpilling);
 
+                double sparsityCost = 0;
+
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
                 // so no real sparse acceleration will pe provided, only sparse decoding overhead
                 auto sparsityOverhead = childOp.getInputTensor(0)->isFloatingPointType() ?
                     0.0625 : 0.125;
                 if (!parentOutputSparsity && childInputSparsity)
-                    compTime2 += compTime2 * sparsityOverhead;
+                    sparsityCost = compTime2 * sparsityOverhead;
 
                 //TODO capture sparse speedup potential here if childInputSparsity && parentOutputSparsity both true
                 // but probably only enable when activation sparsity is requested from CD. Otherwise, discourage?
                 if(childInputSparsity && !requiresActivationSparsity(childOp, childClustering))
-                    compTime2 += compTime2 * 0.01; // penalize not needed sparsity
+                    sparsityCost = compTime2 * 0.01; // penalize not needed sparsity
 
                 if(isPipeliningPossible(childOp, child, parent["spilling"].get<bool>()))
                 {
                     // If we can pipeline, we are max(dma,compute)
-                    return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2);
+                    return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2) + sparsityCost;
                 }
                 else if(isPrefetchPossible())
                 {
@@ -1604,7 +1606,7 @@ namespace mv
                 }
                 else
                 {
-                    return compTime1 + dmaTime1 + compTime2 + dmaTime2;
+                    return compTime1 + dmaTime1 + compTime2 + dmaTime2 + sparsityCost;
                 }
         }
 
