@@ -40,13 +40,11 @@ public:
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     RemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
     InferenceEngine::ColorFormat getColorFormat() const { return _colorFormat; }
-    std::shared_ptr<InferenceEngine::ROI> getROIPtr() const { return _roiPtr; }
 
 protected:
     InferenceEngine::ParamMap _paramMap;
     RemoteMemoryFD _remoteMemoryFd;
     InferenceEngine::ColorFormat _colorFormat;
-    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;
 };
 
@@ -97,6 +95,8 @@ public:
 
     size_t byteSize() const noexcept override;
 
+    InferenceEngine::Blob::Ptr createROI(const InferenceEngine::ROI& regionOfInterest) const override;
+
 protected:
     void* _memoryHandle = nullptr;
 
@@ -107,8 +107,10 @@ protected:
     const HDDL2Config& _config;
     const RemoteMemoryFD _remoteMemoryFd;
     const InferenceEngine::ColorFormat _colorFormat;
-    const std::shared_ptr<InferenceEngine::ROI> _roiPtr;
+    std::shared_ptr<InferenceEngine::ROI> _roiPtr;
     const Logger::Ptr _logger;
+
+    explicit HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
 
     void* getHandle() const noexcept override;
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;
