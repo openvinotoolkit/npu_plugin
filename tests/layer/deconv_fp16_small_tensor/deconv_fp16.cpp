@@ -5,12 +5,9 @@
 int main()
 {
 
-    mv::CompilationUnit unit("Fp16Input");
+    mv::CompilationUnit unit("Deconv");
     mv::OpModel& om = unit.model();
     static const auto inf = std::numeric_limits<double>::infinity();
-
-    // auto input0 = om.input({4,4,16,1}, mv::DType("Float16"), mv::Order::getZMajorID(4),  {{0},{1.0},{},{}}, "input#01");
-
 
     auto data_0 = om.input({4,4,16,1}, mv::DType("UInt8"), mv::Order::getZMajorID(4) /*NHWC*/,  {{0},{0.00392156862745098},{0},{1},{0},{1}}, "input");
 

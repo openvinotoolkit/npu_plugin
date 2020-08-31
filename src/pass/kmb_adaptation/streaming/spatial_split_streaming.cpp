@@ -161,7 +161,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     //the dim of the n-1 first streams and this should be stored in the last stream
     std::size_t symmetrical_first_dimension = 0;
     for (unsigned split = 0; split < number_of_splits; split++)
-    {       
+    {
         mv::Data::TensorIterator slice;
         auto kernelSliceShape = childTiles[split].getKernelShape();
         auto kernelSliceStart = childTiles[split].getKernelStart();

@@ -254,11 +254,6 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
 
     for (auto& opIt : convOps)
     {
-        // std::cout << "layer name" << opIt->getName() << std::endl;
-        // std::cout << "layer type" << opIt->getOpType() << std::endl;
-
-        /*auto opType = opIt->getOpType();
-        if (opType == "Conv" || opType == "DepthwiseConv")*/
         auto dilationFactor = opIt->get<unsigned>("dilationFactor");
         if (dilationFactor > 1)
         {
