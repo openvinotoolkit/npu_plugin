@@ -385,8 +385,11 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
     auto globalParams = model.getGlobalConfigParams();
     auto referenceDevice = globalParams->get<std::string>("referenceDevice");
 
+    std::cout<< "Start loop" <<std::endl;
+
     for(auto tensor = dm.tensorBegin(); tensor != dm.tensorEnd(); ++tensor)
     {
+        std::cout<< "Process tensor:" << tensor->getName() <<std::endl;
         // Probably an inner tensor, skip
         if(!tensor->hasAttr("flows"))
             continue;
@@ -434,13 +437,18 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
                sink->getOpType() != "DPUTask" ||
                sink->get<std::string>("taskOp") != "Conv")
             {
+                if(tensorNeedsSparsity) {
+                    std::cout<< "source->getOpType():" << source->getOpType() <<std::endl;
+                }
                 tensorSparsifiable = false;
                 break;
             }
         }
 
-        if(tensorNeedsSparsity && !tensorSparsifiable)
+        if(tensorNeedsSparsity && !tensorSparsifiable) {
+            std::cout<< "BP" <<std::endl;
             throw std::runtime_error("Wrong strategy generated: tensor " + tensor->getName() + " needs sparsity but it can't be sparsified");
+        }
         if((tensorSparsifiable && inputActivationSparsity && outputActivationSparsity) || tensorNeedsSparsity)
         {
             tensor->set<bool>("needs_sparse", true);

@@ -42,7 +42,7 @@ const mv::Workload& mv::Workloads::operator[](int nworkload) const
 
     if (nworkload >= static_cast<int>(workloads_.size()) || static_cast<int>(workloads_.size()) + nworkload < 0)
         throw ArgumentError(*this, "index subscript", std::to_string(nworkload),
-            "Exceeds the dimensionality " + std::to_string(nWorkloads()));
+            "W Exceeds the dimensionality " + std::to_string(nWorkloads()));
 
     if (nworkload < 0)
         return workloads_[workloads_.size() + nworkload];

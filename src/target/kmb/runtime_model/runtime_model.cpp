@@ -330,7 +330,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
-        
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
@@ -2916,6 +2915,37 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAFakeQuantizeTask(ComputationMod
     return toBuild;
 }
 
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input0 = opIt->getInputTensor(0);
+    auto input1 = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    //toBuild->maxShaves = ;
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_GatherParams;
+
+    auto softLayerParamsValue = new MVCNN::GatherParamsT();
+
+    // Fill in required params
+
+    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+
+//    toBuild->softLayerParams.value = softLayerParamsValue;
+//    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input0);
+//    toBuild->
+//    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
 {
@@ -2979,6 +3009,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPARefConvTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "FakeQuantize")
         toReturn[0]->task.value = buildUPAFakeQuantizeTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Gather")
+        toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))
