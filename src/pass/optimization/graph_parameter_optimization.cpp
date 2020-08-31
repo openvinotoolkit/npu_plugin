@@ -1568,8 +1568,19 @@ namespace mv
                     }
                 }
 
-                auto execTime1 = computeTime(parentOp,parent);
-                auto execTime2 = computeTime(childOp,child);
+
+                // If we can pipeline, consider this speedup
+                // else if we can prefetch, consider this speedup
+                // else consider serialized read + compute + write
+                double compTime1 = 0;
+                double compTime2 = 0;
+                double dmaTime1 = 0;
+                double dmaTime2 = 0;
+
+                compTime1 = computeTime(parentOp,parent);
+                compTime2 = computeTime(childOp,child);
+                compTime1 = dmaTime(parentOp, parent);
+                compTime2 = dmaTime(childOp, child, parentSpilling);
 
                 // Case in which child input sparsity will be provided by compiler
                 // Compiler provided sparsity is a dummy sparsity (all 1's sparse map)
@@ -1577,27 +1588,27 @@ namespace mv
                 auto sparsityOverhead = childOp.getInputTensor(0)->isFloatingPointType() ?
                     0.0625 : 0.125;
                 if (!parentOutputSparsity && childInputSparsity)
-                    execTime2 += execTime2 * sparsityOverhead;
+                    compTime2 += compTime2 * sparsityOverhead;
 
                 //TODO capture sparse speedup potential here if childInputSparsity && parentOutputSparsity both true
                 // but probably only enable when activation sparsity is requested from CD. Otherwise, discourage?
                 if(childInputSparsity && !requiresActivationSparsity(childOp, childClustering))
-                    execTime2 += execTime2 * 0.01; // penalize not needed sparsity
+                    compTime2 += compTime2 * 0.01; // penalize not needed sparsity
 
-                // cout << parentOp.getName() << " : " << parentStreamShape.toString() << " --> " << childOp.getName() << " : " << childStreamShape.toString() << endl;
-                auto commTime1 = dmaTime(parentOp, parent);
-                auto commTime2 = dmaTime(childOp, child, parentSpilling);
-
-                // Extremely simplistic overlap computation, assume cost of compute is hidden by pipelining
                 if(isPipeliningPossible(childOp, child, parent["spilling"].get<bool>()))
-                    execTime2 = 0;
+                {
+                    // If we can pipeline, we are max(dma,compute)
+                    std::cout << compTime1 << " + " << dmaTime1 << " max(" <<compTime2 << ", " << dmaTime2 << ")"<<std::endl;
+                    return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2);
+                }
+                else if(isPrefetchPossible())
+                {
 
-                //TODO if prefetch is possible, eliminate dma time for child op
-                
-                // std::cout << "Parent ID " << parent["id"].toString() <<"   " << execTime1 << " + " << commTime1 << std::endl;
-                // std::cout << "Child ID " << child["id"].toString() << "   " << execTime2 << " + " << commTime2 << std::endl << std::endl;
-
-                return execTime1 + commTime1 + execTime2 + commTime2;
+                }
+                else
+                {
+                    return compTime1 + dmaTime1 + compTime2 + dmaTime2;
+                }
         }
 
             bool violatesClusteringStrategyRules(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
@@ -1886,6 +1897,7 @@ namespace mv
                 if(op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                     OPS = 1.792 * 1099511627776;
 
+                auto inputShape = op.getInputTensor(0)->getShape();
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 auto clustering = strategySet["clustering"].get<std::string>();
                 auto streaming = strategySet["streaming"].get<Shape>();
@@ -1933,8 +1945,13 @@ namespace mv
                         std::max(1lu, totalClusters - 1);
 
                 //TODO to capture fully, should calculate the cost to bring data to compute from cmx and output back to cmx
-                //double readIn = (totalStreams * LATENCY_CMX) +  
-                auto totalToCompute = (outputShape.totalSize() / totalStreams);
+                auto inputSize = inputShape.totalSize();
+                auto outputSize = outputShape.totalSize();
+                if(opType == "Conv" || opType == "DepthwiseConv" || opType == "Eltwise")
+                    inputSize += op.getInputTensor(1)->getShape().totalSize();
+                double readIn = (totalStreams * LATENCY_CMX) + (inputSize / BANDWIDTH_CMX);  
+                auto totalToCompute = (outputSize / totalStreams);
+                double readOut = (totalStreams * LATENCY_CMX) + (outputSize / BANDWIDTH_CMX);  
 
                 // Multiclustering allows parallelism
                 if(clustering != "Clustering")
@@ -1944,7 +1961,7 @@ namespace mv
                 
                 double compTime = ((totalToCompute * baseKernelCost) / OPS);
 
-                return  (totalStreams * compTime) * 1000000; //return in us
+                return  (readIn + readOut + (totalStreams * compTime)) * 1000000; //return in us
             }
 
             bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
@@ -1964,7 +1981,8 @@ namespace mv
                 auto spilling = strategy["spilling"].get<bool>();
                 
                 //Note: for now, only support pipelining over H and K
-                if((stream["N"] * stream["C"]) > 1)
+                //TODO renable for H
+                if((stream["B"] * stream["C"] * stream["H"]) > 1)
                     return false;
 
                 size_t input, output, weights;
@@ -2011,6 +2029,11 @@ namespace mv
                     }
                 }
                 return false; // without streaming, there is no pipelining
+            }
+
+            bool isPrefetchPossible()
+            {
+                return false; //TODO implement this function
             }
         };
 
