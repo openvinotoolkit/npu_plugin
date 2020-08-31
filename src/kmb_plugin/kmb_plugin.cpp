@@ -115,7 +115,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(
         networkModel, parsedConfigCopy, GetDefaultContext(parsedConfigCopy.deviceId()));
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(
@@ -152,7 +152,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, ctx);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
