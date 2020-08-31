@@ -118,7 +118,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
@@ -127,7 +127,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, context);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
