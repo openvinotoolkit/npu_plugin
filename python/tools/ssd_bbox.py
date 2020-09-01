@@ -94,7 +94,7 @@ def parse_output(output, image_path, actual, display_image=False):
 
 def main():
     output = np.fromfile(os.getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo/output-0.bin", dtype=np.float16)
-    ref = np.fromfile(os.getenv("DLDT_HOME") + "/bin/intel64/Debug/output_cpu.bin", dtype=np.float32)
+    ref = np.fromfile(os.getenv("DLDT_HOME") + "/bin/intel64/Debug/output_cpu0.bin", dtype=np.float32)
     
     display_image=False
     if len(sys.argv) > 2: # pass arg to display image
