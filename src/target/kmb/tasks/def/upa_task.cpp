@@ -27,10 +27,6 @@ namespace mv
         {
             auto opIt = args.at("taskOp").get<std::string>();
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
     }

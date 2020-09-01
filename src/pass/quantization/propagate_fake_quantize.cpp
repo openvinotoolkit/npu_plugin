@@ -223,23 +223,15 @@ bool areAllInputQuantParamsEqual(mv::OpModel om, mv::Data::OpListIterator op) {
     for (size_t i = 0; i < op->getInputTensor().size(); ++i) {
         input_params.push_back(getParentQuantParams(om, op, i));
     }
+
     for (unsigned i = 0; (input_params.size()>1) && i < input_params.size()-1; i++)
     {
         if (!isEqualScale(*(input_params.begin()) , *(input_params.begin()+i+1)) ) //compare the first element with the succeeding elements
         {
             return false;//we found mismatch no need to go further
         }
-        else
-        {
-            /* navigate till end of the list */
-        }
     }
     return true;
-
-    return std::adjacent_find(input_params.begin(), input_params.end(),
-            [](const mv::QuantizationParams& left, const mv::QuantizationParams& right) {
-        return isEqualScale(left, right);
-    }) == input_params.end();
 }
 
 //NOTE: here is FQ operation parameters propagation algorithm.
@@ -674,16 +666,154 @@ void quantizeInputScaleShift(mv::ComputationModel& model) {
     }
 }
 
-void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&) {
+void fakeQuantizeConstOp(
+        mv::OpModel& om,
+        mv::Data::OpListIterator origOp,
+        mv::Data::OpListIterator fqOp,
+        const mv::QuantizationParams& inputQP,
+        const mv::QuantizationParams& outputQP)
+{
+    // TODO: fp16 tensors. need to handle
+    assert(origOp->getOpType() == "Constant");
+
+    const auto origTensor = origOp->getOutputTensor(0);
+    assert(origTensor->isDoubleType());
+
+    const auto shape = origTensor->getShape();
+
+    size_t OC, IC, KH, KW;
+    getWeightsDims(shape, OC, IC, KW, KH);
+
+    // Workaround for depthwise convolution
+    // Because we expect shpae of depthwise conv to be in {KH, KW, N, 1} format
+    // and all other weights have shape like {KW, KW, IC, N} we have OC=1 and IC=N
+    // But further logic requires OC be equal to N and IC equal to 1
+    if (origOp->hasAttr("is_depthwise_weights")) {
+        std::swap(OC, IC);
+    }
+
+    auto origData = origTensor->getDoubleData();
+    std::vector<double> newData(origData.size());
+
+    const auto inputLowData = inputQP.getMin();
+    const auto inputHighData = inputQP.getMax();
+
+    const auto outputLowData = outputQP.getMin();
+    const auto outputHighData = outputQP.getMax();
+
+    // TODO: rewrite. We can do it only for ochannel loop.
+    for (size_t oc = 0; oc < OC; ++oc)
+    {
+        const auto inputLow = inputLowData.at(inputLowData.size() > 1 ? oc : 0);
+        const auto inputHigh = inputHighData.at(inputHighData.size() > 1 ? oc : 0);
+        const auto inputScale = inputQP.getScale(oc);
+
+        const auto outputLow = outputLowData.at(inputLowData.size() > 1 ? oc : 0);
+        const auto outputHigh = outputHighData.at(inputHighData.size() > 1 ? oc : 0);
+        const auto outputScale = outputQP.getScale(oc);
+
+        const auto startInd = oc * IC * KW * KH;
+        const auto endInd = (oc + 1) * IC * KW * KH;
+
+        for (auto i = startInd; i < endInd; ++i) {
+            const auto origVal = origData[i];
+
+            double newVal = 0.0;
+            if (origVal <= inputLow) {
+                newVal = outputLow;
+            } else if (origVal > inputHigh) {
+                newVal = outputHigh;
+            } else {
+                const auto valQuant = std::round((origVal - inputLow) / inputScale);
+                newVal = valQuant * outputScale + outputLow;
+            }
+
+            newData[i] = newVal;
+        }
+    }
+
+    const auto newTensor = om.constant(
+        newData, shape,
+        origTensor->getDType(),
+        origTensor->getOrder(),
+        mv::QuantizationParams({}, {}, {}, {}),
+        origOp->getName() + ":fq");
+
+    const auto newOp = om.getSourceOp(newTensor);
+
+    if (origOp->hasAttr("opId"))
+    {
+        const auto origID = origOp->get<unsigned>("opId");
+        newTensor->set<unsigned>("opId", origID);
+        newOp->set<unsigned>("opId", origID);
+    }
+
+    mv::linkNewOperationsReplacement(mv::Data::OpListIterator(), newTensor, om, origOp);
+    mv::linkNewOperationsRemove(newOp, newTensor, om, fqOp);
+}
+
+void fakeQuantizeConst(mv::ComputationModel& model)
+{
     mv::OpModel om(model);
-    auto fq_ops = om.getOps("FakeQuantize");
-    if (fq_ops.empty())
+
+    for (auto& fqOp : om.getOps("FakeQuantize"))
+    {
+        const auto origOp = om.getSourceOp(fqOp->getInputTensor(0));
+
+        if (origOp->getOpType() != "Constant")
+        {
+            continue;
+        }
+
+        const auto origTensor = origOp->getOutputTensor(0);
+        if (origTensor->getDType() == getDType(Precision::I8) ||
+            origTensor->getDType() == getDType(Precision::U8))
+        {
+            // Weights would already be quantized
+            // Do nothing
+            return;
+        }
+
+        const auto inputQP = extractQuantParamsI(fqOp, false);
+        const auto outputQP = extractQuantParamsO(fqOp, false);
+        fakeQuantizeConstOp(om, origOp, fqOp, inputQP, outputQP);
+    }
+}
+
+void quantizeGraphFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS);
+
+    mv::OpModel om(model);
+
+    if (om.getOps("FakeQuantize").empty())
+    {
         return;
+    }
+
+    const auto globalParams = model.getGlobalConfigParams();
+    const auto refMode = globalParams->hasAttr("ReferenceMode") && globalParams->get<bool>("ReferenceMode");
+
+    if (refMode)
+    {
+        fakeQuantizeConst(model);
+
+        // Mark the rest FakeQuantize ops to be executed as SW task.
+        for (const auto& fqOp : om.getOps("FakeQuantize"))
+        {
+            fqOp->set("dType", mv::DType("Default"));
+            fqOp->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
+            fqOp->getOutputTensor(0)->set("quantParams", mv::QuantizationParams({0},{1.0},{},{}));
+            fqOp->set<bool>("softwareExecuted", true);
+        }
+
+        return;
+    }
 
     quantizeInputScaleShift(model);
     quantizeIO(model);
 
-    propagateParameters( model);
+    propagateParameters(model);
 
     quantizeConst(model);
     quantizeBias(model);

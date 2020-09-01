@@ -144,7 +144,8 @@ namespace mv
             .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
             .setInputCheck(op_conv::inputCheckFcn)
             .setOutputDef(op_conv::outputDefFcn)
-            .setTypeTrait({"executable"});
+            .setTypeTrait({"executable"})
+            .setExtraInputs(true);
     }
 
 }

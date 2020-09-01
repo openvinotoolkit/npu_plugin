@@ -45,7 +45,7 @@ namespace mv
         .setArg<unsigned>("levels")
         .setInputCheck(op_fake_quantize::inputCheckFcn)
         .setOutputDef(op_fake_quantize::outputDefFcn)
-        .setTypeTrait({"exposed"});
+        .setTypeTrait({"exposed", "executable"});
     }
 
 }

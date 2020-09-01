@@ -556,6 +556,17 @@ mv::Data::TensorIterator convertRefConvToUPATask(mv::OpModel& om, const std::vec
         inputs, strides, padding, dilationFactor, group, outputTensorType, quantParams, name);
 }
 
+mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    const auto levels = attrs.at("levels").get<unsigned>();
+    const auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    return om.uPATaskFakeQuantize(
+        inputs, levels, quantParams, name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -604,6 +615,7 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Tile", convertTileToUPATask},
     {"CTCDecoder", convertCTCDecoderToUPATask},
     {"RefConv", convertRefConvToUPATask},
+    {"FakeQuantize", convertFakeQuantizeToUPATask},
     };
 
     for(auto& opType: opsTypesToConvert)
