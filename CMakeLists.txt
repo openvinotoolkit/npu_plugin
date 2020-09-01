@@ -58,6 +58,7 @@ endif()
 
 add_subdirectory(thirdparty)
 
+add_subdirectory(src/vpual_backend)
 add_subdirectory(src/vpux)
 # TODO: Frontend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config

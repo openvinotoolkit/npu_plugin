@@ -24,22 +24,92 @@
 #include <map>
 #include <set>
 
+#include <details/ie_so_pointer.hpp>
 #include <ie_blob.h>
 #include <ie_common.h>
 #include <ie_remote_context.hpp>
 #include <ie_icnn_network.hpp>
 
+#include <vpu/kmb_params.hpp>
+
 #include "vpux_compiler.hpp"
+#include "vpux_config.hpp"
 
 namespace vpux {
 
+class IDevice;
+
+class IEngineBackend : public InferenceEngine::details::IRelease {
+public:
+    virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const = 0;
+
+    virtual void Release() noexcept override { delete this; }
+};
+
+class Allocator : public InferenceEngine::IAllocator {
+public:
+    // TODO: need update methods to remove Kmb from parameters
+    virtual void* wrapRemoteMemoryHandle(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept = 0;
+    virtual void* wrapRemoteMemoryOffset(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept = 0;
+
+    // FIXME: temporary exposed to allow executor to use vpux::Allocator
+    virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
+};
+
 class Executor;
 
-class SubPlugin : public InferenceEngine::details::IRelease {
+class IDevice : public InferenceEngine::details::IRelease {
 public:
-    virtual std::shared_ptr<InferenceEngine::IAllocator> getAllocator() = 0;
-    virtual std::shared_ptr<Executor> createExecutor(
-        const std::shared_ptr<NetworkDescription>& network, const InferenceEngine::ParamMap& params) = 0;
+    virtual std::shared_ptr<Allocator> getAllocator() const = 0;
+
+    // TODO: uncomment once we have a concrete executor for the backend
+    /* virtual std::shared_ptr<Executor> createExecutor( */
+    /* const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0; */
+
+    virtual std::string getName() const = 0;
+
+    virtual void Release() noexcept override { delete this; }
+};
+
+class Device final {
+    // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
+    // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
+    // an instance of IDevice
+    std::shared_ptr<IDevice> _actual = nullptr;
+    InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
+
+public:
+    Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
+        : _actual(device), _plg(plg) {}
+    std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
+
+    // TODO: uncomment once we have a concrete executor for the backend
+    /* virtual std::shared_ptr<Executor> createExecutor( */
+    /* const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0; */
+
+    std::string getName() const { return _actual->getName(); }
+
+    ~Device() { _actual = nullptr; }
+};
+
+class EngineBackendConfigurator;
+
+class EngineBackend final {
+    friend class EngineBackendConfigurator;
+
+    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
+    IEngineBackendPtr _impl = {};
+    const std::map<std::string, std::shared_ptr<Device>> _devices = {};
+
+public:
+    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
+
+private:
+    EngineBackend(std::string name);
+    EngineBackend() = default;
+    const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
 };
 
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
@@ -62,12 +132,22 @@ public:
     virtual ~Executor() = default;
 };
 
-class SubPluginManager {
+class EngineBackendConfigurator {
 public:
-    std::shared_ptr<SubPlugin> findSubPlugin(const InferenceEngine::ParamMap& params);
+    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
 
 private:
-    SubPluginManager();
+    EngineBackendConfigurator();
 };
 
 }  // namespace vpux
+
+namespace InferenceEngine {
+namespace details {
+template <>
+class SOCreatorTrait<vpux::IEngineBackend> {
+public:
+    static constexpr auto name = "CreateVPUXEngineBackend";
+};
+}  // namespace details
+}  // namespace InferenceEngine

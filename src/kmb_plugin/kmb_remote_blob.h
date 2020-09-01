@@ -22,6 +22,7 @@
 #include <string>
 
 #include "ie_remote_context.hpp"
+#include "kmb_config.h"
 #include "kmb_remote_context.h"
 
 namespace vpu {
@@ -49,7 +50,8 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteBlob>;
 
     explicit KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params, const KmbConfig& config);
+        const InferenceEngine::ParamMap& params, const KmbConfig& config,
+        const std::shared_ptr<vpux::Allocator>& allocator);
     explicit KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~KmbRemoteBlob() override = default;
 
@@ -98,6 +100,7 @@ protected:
     const KmbConfig& _config;
     const KmbRemoteMemoryFD _remoteMemoryFd;
     const Logger::Ptr _logger;
+    const std::shared_ptr<InferenceEngine::IAllocator> _allocator = nullptr;
 
     void* getHandle() const noexcept override;
     const std::shared_ptr<InferenceEngine::IAllocator>& getAllocator() const noexcept override;

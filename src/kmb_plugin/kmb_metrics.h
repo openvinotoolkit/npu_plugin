@@ -21,6 +21,7 @@
 #include <tuple>
 #include <vector>
 #include <vpu/kmb_params.hpp>
+#include <vpux.hpp>
 
 using RangeType = std::tuple<unsigned int, unsigned int, unsigned int>;
 
@@ -35,7 +36,7 @@ namespace KmbPlugin {
 class KmbMetrics {
 public:
     // Constructor
-    KmbMetrics();
+    KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>>& devices);
 
     // Accessors
     std::vector<std::string> AvailableDevicesNames() const;
@@ -60,6 +61,7 @@ private:
 
     // Metric to provide information about a range for streams.(bottom bound, upper bound)
     const std::tuple<uint32_t, uint32_t> _rangeForStreams{1u, 4u};
+    std::vector<std::string> _availableDevices;
 };
 
 }  // namespace KmbPlugin

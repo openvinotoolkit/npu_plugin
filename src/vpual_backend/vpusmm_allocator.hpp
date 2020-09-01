@@ -18,36 +18,36 @@
 
 #include <ie_allocator.hpp>
 #include <unordered_map>
+#include <vpux.hpp>
 
 #include "vpu/kmb_params.hpp"
 
-namespace vpu {
-namespace KmbPlugin {
+namespace vpux {
 
-class KmbAllocator : public InferenceEngine::IAllocator {
+class VpusmmAllocator : public Allocator {
 public:
-    using Ptr = std::shared_ptr<KmbAllocator>;
-    KmbAllocator(const int& deviceId);
+    using Ptr = std::shared_ptr<VpusmmAllocator>;
+    VpusmmAllocator(const int& deviceId);
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;
 
-    void* alloc(size_t size) noexcept override;
+    virtual void* alloc(size_t size) noexcept;
 
-    bool free(void* handle) noexcept override;
+    virtual bool free(void* handle) noexcept;
 
     void Release() noexcept override {}
 
-    virtual unsigned long getPhysicalAddress(void* handle) noexcept;
+    unsigned long getPhysicalAddress(void* handle) noexcept override;
 
     virtual bool isValidPtr(void* ptr) noexcept;
 
-    virtual ~KmbAllocator();
+    virtual ~VpusmmAllocator();
 
-    virtual void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept;
-    virtual void* wrapRemoteMemoryOffset(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept;
+    void* wrapRemoteMemoryHandle(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept override;
+    void* wrapRemoteMemoryOffset(
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept override;
 
 protected:
     struct MemoryDescriptor {
@@ -60,5 +60,4 @@ protected:
     int _deviceId = 0;  // signed integer to be consistent with vpurm API
 };
 
-}  // namespace KmbPlugin
-}  // namespace vpu
+}  // namespace vpux

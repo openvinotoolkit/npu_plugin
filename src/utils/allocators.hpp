@@ -42,6 +42,8 @@ public:
     void* importDMA(const int& fileDesc);
     int getFileDescByVirtAddr(void* virtAddr) override;
 
+    bool free(void* handle);
+
 private:
     std::vector<std::tuple<int, void*, size_t>> _memChunks;
     static uint32_t _pageSize;
