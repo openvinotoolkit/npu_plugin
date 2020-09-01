@@ -361,7 +361,7 @@ namespace mv
                     return {1};
 
                 // Case 0, Not spilling, cmx concat. If pipelined, need room for 2 input slices.
-                if(!spilling && globalEnablePipelining)
+                if(!spilling && globalEnablePipelining && createStrategyFromBool(op, "pipelining"))
                 {   
                     auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, true, eltwiseParentSpilling);
                     if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
@@ -455,11 +455,17 @@ namespace mv
                 if(minSplitsToFit != 1)
                     splits.push_back(minSplitsToFit);
 
-                if(globalEnablePipelining)
+                if(globalEnablePipelining && createStrategyFromBool(op, "pipelining")) //Only find extra K streams if pipelining enabled
                 {
                     auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
-                    if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
-                        splits.push_back(pipelinedMinSplitsToFit);
+                    if(pipelinedMinSplitsToFit > 1)
+                    {
+                        if(pipelinedMinSplitsToFit != minSplitsToFit)
+                            splits.push_back(pipelinedMinSplitsToFit);
+                        auto nextKStream = getNextStreamOverK(op, clustering, pipelinedMinSplitsToFit, spilling);
+                        if(nextKStream > 0)
+                            splits.push_back(nextKStream);
+                    }
                 }
 
                 return splits;
@@ -492,6 +498,27 @@ namespace mv
                     {
                         return split;
                     }
+                }
+
+                return 0;
+            }
+
+            unsigned getNextStreamOverK(mv::Op& op, mv::Attribute clustering, size_t startSplit, bool spilling)
+            {
+                auto outputShape = op.getOutputTensor(0)->getShape();
+                size_t outputChannelSize = outputShape[IO_CHANNEL_DIMENSION];
+                size_t alignedOutputChannelSize = mv::round_up(outputChannelSize, 16);
+
+                //Find max split
+                auto maxSplit = alignedOutputChannelSize/16;
+
+                for(unsigned split = startSplit+1; split <= maxSplit; split++)
+                {
+                    //TODO can we steal some logic from nested streaming to jump to the next "best" K
+                    // would be useful for when many streams over K are needed just to fit and we
+                    // run into +1 doesn't result in a differing number of channels in final task...
+                    if(validateKStream(op, clustering, split, spilling))
+                        return split;
                 }
 
                 return 0;
@@ -1585,7 +1612,7 @@ namespace mv
                 //TODO capture sparse speedup potential here if childInputSparsity && parentOutputSparsity both true
                 // but probably only enable when activation sparsity is requested from CD. Otherwise, discourage?
                 if(childInputSparsity && !requiresActivationSparsity(childOp, childClustering))
-                    sparsityCost = compTime2 * 0.01; // penalize not needed sparsity
+                    sparsityCost = sparsityCost + (compTime2 * 0.05); // penalize not needed sparsity
 
                 // cout << parentOp.getName() << " : " << parentStreamShape.toString() << " --> " << childOp.getName() << " : " << childStreamShape.toString() << endl;
                 auto commTime1 = dmaTime(parentOp, parent);
