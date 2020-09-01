@@ -962,7 +962,6 @@ int main(int argc, char *argv[])
     if (networkType!="icnet")
     {
         testPass = true;
-        std::cout << countOutputs << std::endl;
         for (auto idx=0; idx<countOutputs; ++idx) {
             bool thisResult = checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
             testPass = testPass && thisResult;
