@@ -153,7 +153,7 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "enablePipelining",   "value" : false       },
+                        {"name" : "enablePipelining",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
