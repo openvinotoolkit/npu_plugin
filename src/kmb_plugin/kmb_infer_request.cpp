@@ -50,6 +50,10 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _netUniqueId(netName),
+      _prepprocBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _allocator->free(buffer);
+          }),
       _logger(std::make_shared<Logger>("KmbInferRequest", kmbConfig.logLevel(), consoleOutput())) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "KmbInferRequest");
     if (_networkOutputs.empty() || _networkInputs.empty()) {
@@ -105,23 +109,15 @@ void KmbInferRequest::InferAsync() {
     _executor->push(_inputs);
 }
 
-void KmbInferRequest::checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp) {
-    if ((useSipp || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
+void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
+    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
+    if ((_config.useSIPP() || _config.useM2I()) && KmbPreproc::isApplicable(inputs, _preProcData, _networkInputs)) {
         relocationAndExecKmbDataPreprocessing(
             inputs, _networkInputs, _config.outColorFmtSIPP(), _config.numberOfSIPPShaves(), _config.SIPPLpi());
     } else {
         _logger->warning("SIPP/M2I is enabled but configuration is not supported.");
         execDataPreprocessing(inputs);
     }
-}
-
-void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "execPreprocessing");
-    checkConfigsAndExecPreprocessing(inputs, _config.useSIPP());
-}
-
-static bool isBlobPlacedInShareableMemory(const Blob::Ptr& blob, const KmbAllocator::Ptr& allocator) {
-    return allocator->isValidPtr(blob->buffer().as<void*>());
 }
 
 // TODO: SIPP preprocessing usage can be merged to common preprocessing pipeline
@@ -139,19 +135,28 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
         preprocDataRealloc[preProcDataIter->first] = CreatePreprocDataHelper();
         Blob::Ptr blobData = preProcDataIter->second->getRoiBlob();
         if (blobData->is<NV12Blob>()) {
-            // check if planes of nv12 blob were allocated with KMB allocator
             NV12Blob::Ptr origNV12Blob = as<NV12Blob>(blobData);
             Blob::Ptr& origYBlob = origNV12Blob->y();
             Blob::Ptr& origUVBlob = origNV12Blob->uv();
 
             Blob::Ptr kmbYBlob = origYBlob;
-            const auto& kmbAllocator = std::dynamic_pointer_cast<KmbAllocator>(_allocator);
-            if (!isBlobPlacedInShareableMemory(origYBlob, kmbAllocator)) {
-                kmbYBlob = utils::reallocateBlob(origYBlob, kmbAllocator);
-            }
             Blob::Ptr kmbUVBlob = origUVBlob;
-            if (!isBlobPlacedInShareableMemory(origUVBlob, kmbAllocator)) {
-                kmbUVBlob = utils::reallocateBlob(origUVBlob, kmbAllocator);
+            if (!utils::isBlobAllocatedByAllocator(origYBlob, _allocator) ||
+                !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
+                _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
+                _prepprocBuffer.reset(
+                    reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
+
+                auto memoryHolderYPlane = as<MemoryBlob>(origYBlob)->rmap();
+                ie_memcpy(_prepprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
+                    origYBlob->byteSize());
+                kmbYBlob = ie::make_shared_blob<uint8_t>(origYBlob->getTensorDesc(), _prepprocBuffer.get());
+
+                auto memoryHolderUVPlane = as<MemoryBlob>(origUVBlob)->rmap();
+                ie_memcpy(_prepprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
+                    memoryHolderUVPlane.as<uint8_t*>(), origUVBlob->byteSize());
+                kmbUVBlob = ie::make_shared_blob<uint8_t>(
+                    origUVBlob->getTensorDesc(), _prepprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =

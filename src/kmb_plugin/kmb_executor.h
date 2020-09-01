@@ -41,8 +41,6 @@
 
 #include <vpux.hpp>
 
-#include "kmb_allocator.h"
-
 namespace vpu {
 namespace KmbPlugin {
 
@@ -51,8 +49,8 @@ public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
     virtual ~KmbExecutor();
-    KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
-        const KmbConfig& config);
+    KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+        const std::shared_ptr<vpux::Allocator>& allocator, const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
@@ -66,7 +64,7 @@ public:
 
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
-    KmbAllocator::Ptr _allocator;
+    std::shared_ptr<vpux::Allocator> _allocator;
     const KmbConfig& _config;
     Logger::Ptr _logger;
 

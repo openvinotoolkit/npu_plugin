@@ -18,32 +18,16 @@
 
 #include <ie_blob.h>
 
+#include <ie_allocator.hpp>
+#include <ie_remote_context.hpp>
 #include <memory>
 #include <string>
+#include <vpux.hpp>
 
-#include "ie_remote_context.hpp"
-#include "kmb_allocator.h"
 #include "kmb_config.h"
 
 namespace vpu {
 namespace KmbPlugin {
-//------------------------------------------------------------------------------
-//      class KmbContextParams
-//------------------------------------------------------------------------------
-class KmbContextParams {
-public:
-    explicit KmbContextParams(const InferenceEngine::ParamMap& paramMap);
-
-    InferenceEngine::ParamMap getParamMap() const;
-    int getDeviceId() const;
-    std::string getDeviceIdStr() const;
-
-protected:
-    InferenceEngine::ParamMap _paramMap;
-    int _deviceId;
-    std::string _deviceIdStr;
-};
-
 //------------------------------------------------------------------------------
 //      class KmbRemoteContext
 //------------------------------------------------------------------------------
@@ -52,25 +36,22 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteContext>;
     using CPtr = std::shared_ptr<const KmbRemoteContext>;
 
-    explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const KmbConfig& config);
+    explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const KmbConfig& config,
+        const std::shared_ptr<vpux::Device>& device);
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
 
     std::string getDeviceName() const noexcept override;
-    int getDeviceId() const noexcept;
 
     InferenceEngine::ParamMap getParams() const override;
-    KmbAllocator::Ptr getAllocator();
-    KmbContextParams getContextParams() const;
 
 protected:
-    const KmbConfig _config;
-    KmbContextParams _contextParams;
-    KmbAllocator::Ptr _allocatorPtr = nullptr;
+    const KmbConfig& _config;
+    InferenceEngine::ParamMap _params;
 
     const Logger::Ptr _logger;
-    int _deviceId;
+    std::shared_ptr<vpux::Device> _device = nullptr;
 };
 
 }  // namespace KmbPlugin

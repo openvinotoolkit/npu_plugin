@@ -98,7 +98,6 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
     config = this->config;
-    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
 }

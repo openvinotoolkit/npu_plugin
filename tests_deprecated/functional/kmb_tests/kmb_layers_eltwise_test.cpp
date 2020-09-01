@@ -78,8 +78,6 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTheSameInputToBothPortsNegative_Test)
     std::map<std::string, std::string> config;
     setCommonConfig(config);
 
-    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
-
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_ANY_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));
 }
@@ -121,7 +119,6 @@ TEST_P(EltwiseTest, DISABLED_TestsEltwiseOnTwoDifferentInputsNegative_Test) {
 
     std::map<std::string, std::string> config;
     setCommonConfig(config);
-    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
 
     InferenceEngine::ExecutableNetwork exeNetwork;
     ASSERT_ANY_THROW(exeNetwork = core->LoadNetwork(network, deviceName, config));

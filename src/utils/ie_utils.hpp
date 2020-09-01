@@ -20,6 +20,7 @@
 
 #include <cstddef>
 
+// FIMXE: remove namespace from a header to avoid possible conflicts
 namespace ie = InferenceEngine;
 
 namespace utils {

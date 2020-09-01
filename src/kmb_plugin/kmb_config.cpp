@@ -27,10 +27,9 @@ using namespace vpu::KmbPlugin;
 
 const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfig::getCompileOptions(), {
-                                                         VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION),
-                                                         VPU_KMB_CONFIG_KEY(PLATFORM),
-                                                     });
+        merge(VPUXConfig::getCompileOptions(), {
+                                                   VPU_KMB_CONFIG_KEY(PLATFORM),
+                                               });
 
     return options;
 }
@@ -65,8 +64,6 @@ static InferenceEngine::ColorFormat parseColorFormat(const std::string& src) {
 
 void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     vpux::VPUXConfig::parse(config);
-
-    setOption(_loadNetworkAfterCompilation, switches, config, VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION));
 
     setOption(_useKmbExecutor, switches, config, VPU_KMB_CONFIG_KEY(KMB_EXECUTOR));
 

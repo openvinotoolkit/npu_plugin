@@ -26,11 +26,7 @@ using namespace vpu;
 namespace IE = InferenceEngine;
 
 const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
-    static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfig::getCompileOptions(), {
-                                                         // TODO Just to avoid error, do nothing
-                                                         "VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION",
-                                                     });
+    static const std::unordered_set<std::string> options = vpux::VPUXConfig::getCompileOptions();
     return options;
 }
 
