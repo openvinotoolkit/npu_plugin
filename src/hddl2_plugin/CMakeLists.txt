@@ -26,7 +26,7 @@ if(UNIX)
     set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww34)
     set(ARCH_FORMAT ".tgz")
 else()
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww31_Windows)
+    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww34_Windows)
     set(ARCH_FORMAT ".zip")
 endif()
 
