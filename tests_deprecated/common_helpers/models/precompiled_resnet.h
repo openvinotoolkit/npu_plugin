@@ -24,6 +24,7 @@ struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
     std::string nv12Input, nv12Output;
     std::string nv12_1080Input, nv12_1080Output;
+    std::string xmlPath;
 };
 
 struct modelTensors {
@@ -31,26 +32,28 @@ struct modelTensors {
 };
 
 namespace PrecompiledResNet_Helper {
-    const std::string resnet_50_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+    const std::string resnet_50_blob_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+    const std::string resnet_50_IR_folder = ModelsPath() + "/KMB_models/INT8/public/ResNet-50/";
 
     // Actual version, fp16 output
     static const modelBlobInfo resnet50 =
             {
                     .graphName = "resnet-50",
-                    .graphPath = resnet_50_folder + "resnet-50.blob",
-                    .inputPath = resnet_50_folder + "input.bin",
-                    .outputPath = resnet_50_folder + "output.bin",
-                    .nv12Input = resnet_50_folder + "input-228x228-nv12.bin",
-                    .nv12Output = resnet_50_folder + "output-228x228-nv12.bin",
+                    .graphPath = resnet_50_blob_folder + "resnet-50.blob",
+                    .inputPath = resnet_50_blob_folder + "input.bin",
+                    .outputPath = resnet_50_blob_folder + "output.bin",
+                    .nv12Input = resnet_50_blob_folder + "input-228x228-nv12.bin",
+                    .nv12Output = resnet_50_blob_folder + "output-228x228-nv12.bin",
                     .nv12_1080Input= "input-cat-1080x1080-nv12.bin",
-                    .nv12_1080Output = "output-cat-1080x1080-nv12.bin"
+                    .nv12_1080Output = "output-cat-1080x1080-nv12.bin",
+                    .xmlPath = resnet_50_IR_folder + "resnet50_uint8_int8_weights_pertensor.xml"
             };
 
     static const modelTensors resnet50_tensors =
             {
                     .inputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
                                                                {1, 3, 224, 224},
-                                                               InferenceEngine::Layout::NCHW
+                                                               InferenceEngine::Layout::NHWC
                     ),
                     .outputTensor = InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
                                                                 {1, 1000, 1, 1},

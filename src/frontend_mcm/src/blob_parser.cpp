@@ -16,15 +16,15 @@
 
 #include "blob_parser.hpp"
 
-#ifdef ENABLE_MCM_COMPILER
 #include <flatbuffers/flatbuffers.h>
 #include <schema/graphfile/graphfile_generated.h>
-#endif
 
 #include <cassert>
 #include <ie_input_info.hpp>
 #include <memory>
 #include <string>
+
+#include "converters.hpp"
 
 #ifndef UNUSED
 #define UNUSED(var) (void)var
@@ -32,101 +32,82 @@
 
 namespace vpu {
 namespace MCMAdapter {
-#ifdef ENABLE_MCM_COMPILER
-static InferenceEngine::Precision convertmvType(const MVCNN::DType& mvDataType) {
-    InferenceEngine::Precision iePrecision = InferenceEngine::Precision::UNSPECIFIED;
-    switch (mvDataType) {
-    case MVCNN::DType::DType_NOT_SET:
-        iePrecision = InferenceEngine::Precision::UNSPECIFIED;
-        break;
-    case MVCNN::DType::DType_FP32:
-        iePrecision = InferenceEngine::Precision::FP32;
-        break;
-    case MVCNN::DType::DType_FP16:
-        iePrecision = InferenceEngine::Precision::FP16;
-        break;
-    case MVCNN::DType::DType_U16:
-        iePrecision = InferenceEngine::Precision::U16;
-        break;
-    case MVCNN::DType::DType_U8:
-        iePrecision = InferenceEngine::Precision::U8;
-        break;
-    case MVCNN::DType::DType_I32:
-        iePrecision = InferenceEngine::Precision::I32;
-        break;
-    case MVCNN::DType::DType_I16:
-        iePrecision = InferenceEngine::Precision::I16;
-        break;
-    case MVCNN::DType::DType_I8:
-        iePrecision = InferenceEngine::Precision::I8;
-        break;
-    case MVCNN::DType::DType_BIN:
-        iePrecision = InferenceEngine::Precision::BIN;
-        break;
-    default:
-        iePrecision = InferenceEngine::Precision::CUSTOM;
-    }
-    return iePrecision;
-}
+// FIXME: inconsistency with how we extract layout info from meta data
+// we need a single way how to extract layout from compiled network
+static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<uint32_t>& strides) {
+    const std::size_t MAX_DIM_COUNT = 5;
+    const std::size_t /*DIM_X = 0, DIM_N = 1,*/ DIM_C = 2, DIM_H = 3, DIM_W = 4;
 
-static InferenceEngine::SizeVector convertmvDims(const flatbuffers::Vector<uint32_t>* mvcnnDims) {
-    InferenceEngine::SizeVector ieDims(mvcnnDims->begin(), mvcnnDims->end());
-    return ieDims;
-}
+    IE_ASSERT(strides.size() == MAX_DIM_COUNT)
+        << "extractLayoutFromStrides works only with " << MAX_DIM_COUNT << "elements in strides parameter";
 
-static InferenceEngine::Layout getLayoutFrommv(const flatbuffers::Vector<uint32_t>* mvcnnDims) {
-    InferenceEngine::Layout ieLayout = InferenceEngine::Layout::ANY;
-
-    switch (mvcnnDims->size()) {
-    case 1:
-        ieLayout = InferenceEngine::Layout::C;
-        break;
-    case 2:
-        ieLayout = InferenceEngine::Layout::NC;
-        break;
-    case 3:
-        ieLayout = InferenceEngine::Layout::CHW;
-        break;
-    case 4:
-        ieLayout = InferenceEngine::Layout::NCHW;
-        break;
-    default:
-        ieLayout = InferenceEngine::Layout::ANY;
-    }
-    return ieLayout;
-}
-
-static InferenceEngine::Data deserializeTensor(const MVCNN::TensorReference& tensor) {
-    auto dimsPtr = tensor.dimensions();
-    InferenceEngine::SizeVector dataDims = convertmvDims(dimsPtr);
-
-    auto dataNamePtr = tensor.name();
-    std::string dataName = "";
-    if (dataNamePtr != nullptr) {
-        dataName = dataNamePtr->c_str();
+    InferenceEngine::Layout tensorLayout = InferenceEngine::Layout::NCHW;
+    auto maxStrideVal = *std::max_element(strides.begin() + DIM_C, strides.end());
+    if (maxStrideVal == strides[DIM_H]) {
+        if (std::max(strides[DIM_W], strides[DIM_C]) == strides[DIM_W]) {
+            tensorLayout = InferenceEngine::Layout::NHWC;
+        } else {
+            // NHCW
+            THROW_IE_EXCEPTION << "getIOLayout: NHCW layout is not supported";
+        }
+    } else if (maxStrideVal == strides[DIM_C]) {
+        if (std::max(strides[DIM_H], strides[DIM_W]) == strides[DIM_H]) {
+            tensorLayout = InferenceEngine::Layout::NCHW;
+        } else {
+            // NCWH
+            THROW_IE_EXCEPTION << "getIOLayout: NCWH layout is not supported";
+        }
+    } else {
+        // width-major
+        THROW_IE_EXCEPTION << "getIOLayout: W-major layout is not supported";
     }
 
-    InferenceEngine::Layout dataLayout = getLayoutFrommv(dimsPtr);
-    auto dataType = tensor.data_dtype();
-    InferenceEngine::Precision dataPrecision = convertmvType(dataType);
+    return tensorLayout;
+}
+
+static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
+    auto dimsPtr = tensor->dimensions;
+    InferenceEngine::SizeVector dataDims;
+    std::copy(tensor->dimensions.begin(), tensor->dimensions.end(), std::back_inserter(dataDims));
+
+    InferenceEngine::Layout dataLayout = extractLayoutFromStrides(tensor->strides);
+    InferenceEngine::Precision dataPrecision = DTypeToPrecision(tensor->data_dtype);
 
     InferenceEngine::TensorDesc ieDesc(dataPrecision, dataDims, dataLayout);
-    InferenceEngine::Data ieData(dataName, ieDesc);
+
+    auto eraseSubStr = [](std::string& str, std::string strToRemove, bool removeAllAfterSubstr = false) {
+        std::size_t pos = str.find(strToRemove);
+        if (pos != std::string::npos) {
+            if (removeAllAfterSubstr) {
+                str.erase(pos);
+            } else {
+                str.erase(pos, strToRemove.size());
+            }
+        }
+    };
+
+    std::string name = tensor->name;
+    // FIXME: For some reason, the compiler adds Precision prefix for all its outputs
+    // remove once it fixed
+    eraseSubStr(name, "Precision");
+    // FIXME: frontend_mcm adds REMOVE_ME postfix to make output name unique
+    // remove once the compiler able to handle output which name equal to one of network operations
+    eraseSubStr(name, "REMOVE_ME", true);
+    InferenceEngine::Data ieData(name, ieDesc);
 
     return ieData;
 }
 
-#endif
-
 void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkInputs) {
-    UNUSED(networkInputs);
     IE_ASSERT(nullptr != data);
-#ifdef ENABLE_MCM_COMPILER
-    const MVCNN::GraphFile* file = MVCNN::GetGraphFile(data);
-    auto header = file->header();
-    auto inputs = header->net_input();
 
-    auto processTensor = [&](const MVCNN::TensorReference& tensor) {
+    const auto* graphFilePtr = MVCNN::GetGraphFile(data);
+    MVCNN::GraphFileT graphFileInstance;
+    graphFilePtr->UnPackTo(&graphFileInstance);
+
+    auto& inputs = graphFileInstance.header->net_input;
+
+    auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
 
         InferenceEngine::InputInfo inputInfo;
@@ -134,33 +115,26 @@ void getNetworkInputs(const void* data, InferenceEngine::InputsDataMap& networkI
         networkInputs[inputInfo.name()] = std::make_shared<InferenceEngine::InputInfo>(inputInfo);
     };
 
-    for (auto tensor : *inputs) {
-        processTensor(*tensor);
+    for (const auto& tensor : inputs) {
+        processTensor(tensor);
     }
-#else
-    THROW_IE_EXCEPTION << "MCM Compiler is disabled";
-#endif
 }
 
 void getNetworkOutputs(const void* data, InferenceEngine::OutputsDataMap& networkOutputs) {
-    UNUSED(networkOutputs);
     IE_ASSERT(nullptr != data);
-#ifdef ENABLE_MCM_COMPILER
-    const MVCNN::GraphFile* file = MVCNN::GetGraphFile(data);
-    auto header = file->header();
-    auto outputs = header->net_output();
+    const auto* graphFilePtr = MVCNN::GetGraphFile(data);
+    MVCNN::GraphFileT graphFileInstance;
+    graphFilePtr->UnPackTo(&graphFileInstance);
 
-    auto processTensor = [&](const MVCNN::TensorReference& tensor) {
+    const auto& outputs = graphFileInstance.header->net_output;
+    auto processTensor = [&](const std::unique_ptr<MVCNN::TensorReferenceT>& tensor) {
         InferenceEngine::Data ieData = deserializeTensor(tensor);
         networkOutputs[ieData.getName()] = std::make_shared<InferenceEngine::Data>(ieData);
     };
 
-    for (auto tensor : *outputs) {
-        processTensor(*tensor);
+    for (const auto& tensor : outputs) {
+        processTensor(tensor);
     }
-#else
-    THROW_IE_EXCEPTION << "MCM Compiler is disabled";
-#endif
 }
 
 }  // namespace MCMAdapter
