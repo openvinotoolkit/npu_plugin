@@ -52,8 +52,8 @@ using namespace InferenceEngine;
 // #define RUN_SKIPPED_TESTS
 
 #ifdef RUN_SKIPPED_TESTS
-#   define SKIP_ON(_device_, _reason_)
-#   define SKIP_INFER_ON(_device_, _reason_)
+#   define SKIP_INFER_ON(...)
+#   define SKIP_ON(...)
 #else
 
 #   define SKIP_ON1(_device0_, _reason_)                                        \
@@ -107,9 +107,10 @@ using namespace InferenceEngine;
 #endif
 
 #define GET_MACRO(_1,_2,_3, _4, NAME,...) NAME
+#ifndef RUN_SKIPPED_TESTS
 #define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
-
 #define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
+#endif
 
 //
 // Kmb test parameters accessors
@@ -493,6 +494,15 @@ public:
     void runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& person_image,
+        float tolerance);
+};
+
+// inherit parseOutput from KmbClassifyNetworkTest
+class VehicleAttrRecNetworkTest : public KmbClassifyNetworkTest {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& vehicle_image,
         float tolerance);
 };
 
