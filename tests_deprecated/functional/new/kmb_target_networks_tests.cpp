@@ -1028,3 +1028,15 @@ TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0238) {
         TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
         0.1f);
 }
+
+// [Track number: D#3604]
+TEST_F(KmbSSDNetworkTest, ssdlite_mobilenet_v2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/ssdlite_mobilenet_v2/ssdlite_mobilenet_v2.xml")
+            .setUserInputPrecision("image_tensor", Precision::U8),
+        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+        0.3f,
+        0.1f, 0.3f);
+}
