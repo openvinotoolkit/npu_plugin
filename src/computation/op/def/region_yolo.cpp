@@ -98,8 +98,8 @@ namespace mv
             auto input = inputs[0];
 
             auto in_order = input->getOrder();
-            auto out_order = mv::Order("NCHW");
             auto out_shape = input->getShape();
+            auto out_order = mv::Order(mv::Order::getColMajorID(out_shape.ndims()));
             auto do_softmax = args.at("do_softmax").get<bool>();
             if (do_softmax) {
                 auto new_w = input->getShape()[IO_CHANNEL_DIMENSION] * input->getShape()[IO_HEIGHT_DIMENSION] *
