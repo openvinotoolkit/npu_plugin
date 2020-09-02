@@ -18,11 +18,13 @@
 #include <hddl2_helpers/helper_remote_blob.h>
 #include <hddl2_helpers/helper_remote_memory.h>
 #include <hddl2_helpers/helper_workload_context.h>
+#include <helper_calc_cpu_ref.h>
 #include <helper_remote_context.h>
 #include <models/model_mobilenet_v2.h>
 #include <models/model_pooling.h>
 
 #include <vpu/utils/ie_helpers.hpp>
+#include <fstream>
 
 #include "comparators.h"
 #include "hddl2_load_network.h"
@@ -330,4 +332,130 @@ TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) 
         Comparators::compareTopClasses(toFP32(firstOutputBlob), toFP32(secondOutputBlob), numberOfTopClassesToCompare));
 }
 
+//------------------------------------------------------------------------------
+struct CheckPortsNetworkTestParams final {
+    IE::Layout _inputLayout;
+    IE::Layout _blobInputLayout;
+    bool _importNetwork;
 
+    CheckPortsNetworkTestParams& inputLayout(const IE::Layout& input_layout) {
+        this->_inputLayout = input_layout;
+        return *this;
+    }
+
+    CheckPortsNetworkTestParams& blobInputLayout(const IE::Layout& blob_input_layout) {
+        this->_blobInputLayout = blob_input_layout;
+        return *this;
+    }
+
+    CheckPortsNetworkTestParams& importNetwork(const bool& import_network) {
+        this->_importNetwork = import_network;
+        return *this;
+    }
+};
+std::ostream& operator<<(std::ostream& os, const CheckPortsNetworkTestParams& p) {
+    vpu::formatPrint(os, "[inputLayout:%v, blobInputLayout:%v, importNetwork:%v]", p._inputLayout, p._blobInputLayout,
+        p._importNetwork);
+    return os;
+}
+
+class InferenceCheckPortsNetwork :
+    public CoreAPI_Tests,
+    public testing::WithParamInterface<CheckPortsNetworkTestParams> {
+public:
+    std::string modelPath;
+    std::string inputPath;
+    const size_t inputWidth = 227;
+    const size_t inputHeight = 227;
+    const size_t numberOfTopClassesToCompare = 3;
+    const bool orderedClasses = true;
+    const IE::Precision inputPrecision = IE::Precision::U8;
+
+protected:
+    void SetUp() override;
+};
+
+void InferenceCheckPortsNetwork::SetUp() {
+    modelPath =
+        ModelsPath() + "/KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10.xml";
+    inputPath = "cat3.bmp";
+}
+
+TEST_P(InferenceCheckPortsNetwork, common) {
+    const auto& p = GetParam();
+
+    // --- CNN Network and inputs
+    std::cout << "Reading network..." << std::endl;
+    ASSERT_NO_THROW(network = ie.ReadNetwork(modelPath));
+    IE::InputsDataMap input_info = network.getInputsInfo();
+    for (auto& item : input_info) {
+        auto input_data = item.second;
+        input_data->setLayout(p._inputLayout);
+        input_data->setPrecision(inputPrecision);
+    }
+
+    if (p._importNetwork) {
+        const std::string exportName = "tmpfile";
+        IE::ExecutableNetwork exportExecutableNetwork;
+        std::cout << "Loading network..." << std::endl;
+        ASSERT_NO_THROW(exportExecutableNetwork = ie.LoadNetwork(network, pluginName));
+        ASSERT_NO_THROW(exportExecutableNetwork.Export(exportName));
+        std::cout << "Importing network..." << std::endl;
+        ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork> (ie.ImportNetwork(exportName, pluginName)));
+        ASSERT_TRUE(std::remove(exportName.c_str()) == 0);
+    } else {
+        std::cout << "Loading network..." << std::endl;
+        ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork> (ie.LoadNetwork(network, pluginName)));
+    }
+
+    // --- Infer request
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
+
+    // --- Input Blob
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = loadImage(inputPath, inputWidth, inputHeight, p._blobInputLayout, false));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
+
+    // --- Infer
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get result
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
+    IE::Blob::Ptr outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    // --- Reference Blob
+    IE::Blob::Ptr refInputBlob = toLayout(inputBlob, p._inputLayout);
+    IE::Blob::Ptr refOutputBlob;
+    ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReference(network, refInputBlob));
+    if (orderedClasses) {
+        ASSERT_NO_THROW(
+            Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
+    } else {
+        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
+            toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
+    }
+}
+
+const std::vector<CheckPortsNetworkTestParams> checkPortsNetworkParams {
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NCHW)
+        .importNetwork(false),
+
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NHWC)
+        .importNetwork(false),
+
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NCHW)
+        .importNetwork(true),
+
+    CheckPortsNetworkTestParams()
+        .inputLayout(IE::Layout::NCHW)
+        .blobInputLayout(IE::Layout::NHWC)
+        .importNetwork(true)};
+
+ INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::ValuesIn(checkPortsNetworkParams), testing::PrintToStringParamName());

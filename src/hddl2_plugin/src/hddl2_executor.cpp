@@ -91,7 +91,10 @@ static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, const 
 }
 
 static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
-    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
+    if (actualInput == nullptr) {
+        THROW_IE_EXCEPTION << "Actual input blob null pointer!";
+    }
+    if (actualInput->getTensorDesc().getLayout() == expectedLayout ||
         /** Currently we ignore information of what type of remote blob we are using **/
         actualInput->is<IE::RemoteBlob>() ||
         /** Repacking for NV12 Blob is not required, compound blob should be handled other way **/
