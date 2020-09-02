@@ -325,7 +325,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = validateStrategy(op,s);
-                                    // std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                                    std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
                                     if(strategyCheck != FailCause::Pass)
                                         continue;
 
@@ -1633,6 +1633,20 @@ namespace mv
                 if(childInputSparsity && !requiresActivationSparsity(childOp, childClustering))
                     sparsityCost = sparsityCost + (cFullComp * 0.01); // penalize not needed sparsity
 
+                // TODO capture this somehow in the larger cost idea below
+                // but for now a simple speedup factor will have to do
+                double finalLayerStreamingBoost = 0;
+                if(parentOpType == "Conv" && childOpType == "Output")
+                {
+                    auto streams = parentStreamShape["K"];
+                    if(streams > 1 && parentClustering == "SplitOverK")
+                        finalLayerStreamingBoost = streams * ((pFullDma + pFullComp) * 0.1); // streaming over more K is better
+                    std::cout << parentClustering << " : " << parentStreamShape.toString() << std::endl;
+                    std::cout << "  Decreasing cost by " << finalLayerStreamingBoost << std::endl;
+                }
+
+                double heuristics = sparsityCost - finalLayerStreamingBoost;
+
                 auto pipelineable = isPipeliningPossible(childOp, child, parent["spilling"].get<bool>());
                 auto prefetchable = isPrefetchPossible(parentOp, childOp, parent, child);
 
@@ -1647,7 +1661,7 @@ namespace mv
                     auto pipelineOverlap =  ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
                     auto prefetchOverlap = std::max(pFullComp, cWeightDma);
 
-                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + sparsityCost;
+                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
                 }
                 else if(pipelineable)
                 {
@@ -1657,7 +1671,7 @@ namespace mv
                     // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
                     auto cStreamComp = ((double) cFullComp / streams);
                     auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
-                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + sparsityCost;
+                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + heuristics;
                 }
                 else if(prefetchable)
                 {
@@ -1667,12 +1681,12 @@ namespace mv
                     // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
                     auto prefetchOverlap = std::max(pFullComp, cWeightDma);
                     auto remainderChildDma = ((streams - 1) * cWeightDma) + (streams*(cInDma + cOutDma));
-                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + sparsityCost;
+                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + heuristics;
                 }
                 else
                 {
                     //Fully serialized dma and compute between and internally in this layer
-                    return pFullDma + pFullComp + cFullDma + cFullComp + sparsityCost;
+                    return pFullDma + pFullComp + cFullDma + cFullComp + heuristics;
                 }
         }
 
