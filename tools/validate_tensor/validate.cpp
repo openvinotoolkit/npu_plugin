@@ -445,6 +445,8 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
     if ((!FLAGS_ip.empty()) && (FLAGS_ip != "U8")){
+        // hardcoded for AclNet.
+        // if the input precision is set and not 'U8', a U8 precision input SHOULD be prepared manually.
         inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
         if (!checkFilesExist({inputCPU}))
             return FAIL_GENERAL;

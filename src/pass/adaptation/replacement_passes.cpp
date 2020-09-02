@@ -179,10 +179,10 @@ void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationMod
 
             if(match)
             {
-                // DO PERMUTE WHEN 2 DIMENSION' SIZE EQUAL.
+                // do permute when 2 dimensions' size equal.
                 std::set<size_t> noRepeatShape(inputRealShape.begin(), inputRealShape.end());
                 match &= (noRepeatShape.size()==inputRealShape.size());
-                // DO PERMUTE WHEN NEXT STEP IS RESHAPE.
+                // do permute when next step is reshape
                 mv::DataModel dm(model);
                 auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
                 if (nextOp->getOpType() == "Reshape") {
@@ -1495,6 +1495,9 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
             continue;
+        // if stride vertical equals 1 and input horizontal equals kernel horizontal size, no need to split.
+        // but replace strides (s_w,1) with (s_w,s_w) s_w>=2 when height=1
+        // e.g kernel=[8, 1], stride = [8, 1], input = [4000, 1], stride replaced with [8, 8]
         if (stride[mv::STRIDE_VERTICAL] == 1)
         {
             bool verticalMatch = false;
@@ -1508,7 +1511,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
             else if (opIt->getOpType() == "AveragePool" || opIt->getOpType() == "MaxPool")
             {
                 auto kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
-                if (kSize[1] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
+                if (kSize[mv::IO_HEIGHT_DIMENSION] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
                     verticalMatch = true;
             }
             if (verticalMatch)  // operate only one time on vertical.
