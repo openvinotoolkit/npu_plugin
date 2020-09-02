@@ -1630,9 +1630,9 @@ namespace mv
                     // If we can pipeline, we are max(dma,compute)
                     return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2) + sparsityCost;
                 }
-                else if(isPrefetchPossible())
+                else if(isPrefetchPossible(parentOp, childOp, parent, child))
                 {
-
+                    return std::max(compTime1,dmaTime2) + dmaTime1 + compTime2 + sparsityCost;
                 }
                 else
                 {
@@ -2058,9 +2058,33 @@ namespace mv
                 return false; // without streaming, there is no pipelining
             }
 
-            bool isPrefetchPossible()
+            bool isPrefetchPossible(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
-                return false; //TODO implement this function
+                //Note: No sense in prefetching weights if we just have to wait for activations
+                if(parent["spilling"].get<bool>())
+                    return false;
+
+                //TODO this should work for depthwise too, but for now just check convs
+                if(childOp.getOpType() != "Conv") // Need something to prefetch, i.e. weights!
+                    return false;    
+                
+                //Prefetch is possible if the previous op leaves enough CMX open to fit a slice of the childs weights
+                size_t childWeight = alignedWeightsSize(childOp.getInputTensor(1), 
+                                                        child["streaming"].get<mv::Shape>(), 
+                                                        child["clustering"].get<std::string>());
+
+                size_t parentInput, parentOutput, parentWeight;
+                std::tie(parentInput, parentOutput, parentWeight) = memorySize( parentOp,
+                                                                                parent["clustering"].get<std::string>(),
+                                                                                parent["inputSparsity"].get<bool>(),
+                                                                                parent["outputSparsity"].get<bool>(),
+                                                                                parent["weightsSparsity"].get<bool>(),
+                                                                                parent["streaming"].get<mv::Shape>(),
+                                                                                requiresFakeActivationSparsity(parentOp));
+
+                if(parentInput+parentOutput+parentWeight + childWeight < clusterMemory)
+                    return true;
+
             }
         };
 
