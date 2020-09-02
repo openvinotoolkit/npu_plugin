@@ -87,10 +87,13 @@ static void copyDataToBlob(const IE::Blob::Ptr& dest, const void* source, size_t
 }
 
 //------------------------------------------------------------------------------
-HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
+HDDL2InferRequest::HDDL2InferRequest(const IE::InputsDataMap& deviceInputs, const IE::OutputsDataMap& deviceOutputs,
+    const IE::InputsDataMap& networkInputs, const IE::OutputsDataMap& networkOutputs,
     const HddlUniteGraph::Ptr& loadedGraph, const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config)
     : InferRequestInternal(networkInputs, networkOutputs),
       _loadedGraphPtr(loadedGraph),
+      _deviceInputs(deviceInputs),
+      _deviceOutputs(deviceOutputs),
       _context(context),
       _config(config),
       _logger(std::make_shared<Logger>("HDDL2InferRequest", config.logLevel(), consoleOutput())) {
@@ -141,7 +144,7 @@ void HDDL2InferRequest::InferAsync() {
             needUnitePreProcessing |= (inputBlobPtr->as<HDDL2RemoteBlob>()->getROIPtr() != nullptr);
         }
 
-        const auto deviceInputLayout = GetSupportedLayout();
+        const auto deviceInputLayout = networkInput.second->getLayout();
 
         // TODO [Design flaw] If preprocessing is required, blob is stored inside _preprocData, not in _networkInputs.
         if (!needUnitePreProcessing) {
@@ -195,18 +198,10 @@ void HDDL2InferRequest::WaitInferDone() {
     _inferDataPtr->waitInferDone();
 }
 
-static IE::Blob::Ptr reallocateBlobToLayout(const IE::Blob::Ptr& blob, const IE::Layout layout) {
-    IE::Blob::Ptr newBlob =
-        make_blob_with_precision({blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout});
-    newBlob->allocate();
-    vpu::copyBlob(blob, newBlob);
-    return newBlob;
-}
-
 IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
     const IE::Blob::Ptr& actualInput, const IE::Layout& expectedLayout) {
     IE_PROFILING_AUTO_SCOPE(prepareInputForInference);
-    if (actualInput->getTensorDesc().getLayout() == IE::Layout::NHWC ||
+    if (actualInput->getTensorDesc().getLayout() == expectedLayout ||
         /** Currently we ignore information of what type of remote blob we are using **/
         actualInput->is<IE::RemoteBlob>() ||
         /** Repacking for NV12 Blob is not required, compound blob should be handled other way **/
@@ -216,6 +211,7 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
     }
 
     _logger->info("Input blob is inconsistent with network input. Need to do re-layout.");
+
     IE::Blob::Ptr inputForInference;
 
     if (is2DTensor(actualInput->getTensorDesc().getDims())) {
@@ -230,7 +226,7 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
         ie_memcpy(
             inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
     } else {
-        inputForInference = reallocateBlobToLayout(actualInput, expectedLayout);
+        inputForInference = toLayout(actualInput, expectedLayout);
     }
 
     return inputForInference;
@@ -238,8 +234,15 @@ IE::Blob::Ptr HDDL2InferRequest::prepareInputForInference(
 
 void HDDL2InferRequest::GetResult() {
     IE_PROFILING_AUTO_SCOPE(GetResult)
-    for (const auto& inferOutput : _outputs) {
-        const std::string outputName = inferOutput.first;
+    if (_networkOutputs.size() != _deviceOutputs.size()) {
+        THROW_IE_EXCEPTION << "Error: network/device outputs size mismatch";
+    }
+
+    // TODO : need refactoring when device/network output names will be equal
+    auto networkOutput = _networkOutputs.cbegin();
+    auto deviceOutput = _deviceOutputs.cbegin();
+    for (; networkOutput != _networkOutputs.cend(); ++networkOutput, ++deviceOutput) {
+        const std::string outputName = networkOutput->first;
         auto foundOutputBlob = _outputs.find(outputName);
         if (foundOutputBlob == _outputs.end()) {
             THROW_IE_EXCEPTION << "Error: output [" << outputName << "] is not provided.";
@@ -248,53 +251,37 @@ void HDDL2InferRequest::GetResult() {
 
         const std::string outputUniteData = _inferDataPtr->getOutputData(outputName);
 
-        IE::TensorDesc networkTensorDesc = inferOutput.second->getTensorDesc();
+        IE::TensorDesc deviceTensorDesc = deviceOutput->second->getTensorDesc();
         IE::TensorDesc outputBlobTensorDesc = outputBlobPtr->getTensorDesc();
 
-        const auto networkOutputPrecision = networkTensorDesc.getPrecision();
-        const auto blobOutputPrecision = outputBlobTensorDesc.getPrecision();
+        IE::Precision devicePrecision = deviceTensorDesc.getPrecision();
+        IE::Precision outputBlobPrecision = outputBlobTensorDesc.getPrecision();
+        IE::Layout deviceLayout = deviceTensorDesc.getLayout();
+        IE::Layout outputBlobLayout = outputBlobTensorDesc.getLayout();
 
-        if (networkOutputPrecision == IE::Precision::FP32 || blobOutputPrecision == IE::Precision::FP32) {
-            if (networkOutputPrecision == IE::Precision::U8 || blobOutputPrecision == IE::Precision::U8) {
-                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
-                                   << blobOutputPrecision << " is not supported.";
+        if (devicePrecision == IE::Precision::FP32 || outputBlobPrecision == IE::Precision::FP32) {
+            if (devicePrecision == IE::Precision::U8 || outputBlobPrecision == IE::Precision::U8) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << devicePrecision << " to "
+                                   << outputBlobPrecision << " is not supported.";
             }
-            auto tempUniteOutputTensorDesc = networkTensorDesc;
-            // MCM Compiler will work with FP16 instead of FP32, so we need to set output precision manually
-            tempUniteOutputTensorDesc.setPrecision(IE::Precision::FP16);
-            if (outputBlobPtr->getTensorDesc().getDims().size() == 4) {
-                tempUniteOutputTensorDesc.setLayout(IE::Layout::NHWC);
-            }
-
-            IE::Blob::Ptr tempFP16Blob = make_blob_with_precision(tempUniteOutputTensorDesc);
-            tempFP16Blob->allocate();
-            copyDataToBlob(tempFP16Blob, outputUniteData.data(), outputUniteData.size());
-            if (tempUniteOutputTensorDesc.getPrecision() != blobOutputPrecision) {
-                outputBlobPtr = utils::convertPrecision(tempFP16Blob, outputBlobTensorDesc.getPrecision());
-            } else {
-                outputBlobPtr = tempFP16Blob;
-            }
+            IE::Blob::Ptr deviceOutputBlob = make_blob_with_precision(deviceTensorDesc);
+            deviceOutputBlob->allocate();
+            copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
+            outputBlobPtr = toPrecision(deviceOutputBlob, outputBlobPrecision);
         } else {
-            if (networkOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
-                THROW_IE_EXCEPTION << "Error: output precision conversion from " << networkOutputPrecision << " to "
-                                   << blobOutputPrecision << " is not supported.";
+            if (devicePrecision == IE::Precision::U8 && outputBlobPrecision == IE::Precision::FP16) {
+                THROW_IE_EXCEPTION << "Error: output precision conversion from " << devicePrecision << " to "
+                                   << outputBlobPrecision << " is not supported.";
             }
             if (outputUniteData.size() != outputBlobPtr->byteSize()) {
                 THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
             }
             copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
-            if (!is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
-                outputBlobPtr->getTensorDesc().setLayout(IE::Layout::NHWC);
-            }
         }
-        if (is2DTensor(outputBlobPtr->getTensorDesc().getDims())) {
+        if (is2DTensor(outputBlobTensorDesc.getDims()) || (outputBlobLayout == deviceLayout)) {
             _outputs[outputName] = outputBlobPtr;
         } else {
-            if (outputBlobPtr->getTensorDesc().getLayout() != networkTensorDesc.getLayout()) {
-                _outputs[outputName] = reallocateBlobToLayout(outputBlobPtr, networkTensorDesc.getLayout());
-            } else {
-                _outputs[outputName] = outputBlobPtr;
-            }
+            _outputs[outputName] = toLayout(outputBlobPtr, outputBlobLayout);
         }
     }
 }

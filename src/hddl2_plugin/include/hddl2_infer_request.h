@@ -36,7 +36,8 @@ class HDDL2InferRequest : public InferenceEngine::InferRequestInternal {
 public:
     using Ptr = std::shared_ptr<HDDL2InferRequest>;
 
-    HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
+    HDDL2InferRequest(const InferenceEngine::InputsDataMap& deviceInputs,
+        const InferenceEngine::OutputsDataMap& deviceOutputs, const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const HddlUniteGraph::Ptr& loadedGraph,
         const HDDL2RemoteContext::Ptr& context, const HDDL2Config& config);
 
@@ -46,7 +47,6 @@ public:
     void WaitInferDone();
     void GetPerformanceCounts(
         std::map<std::string, InferenceEngine::InferenceEngineProfileInfo>& perfMap) const override;
-    InferenceEngine::Layout GetSupportedLayout() const { return deviceSupportedLayout; }
 
     void GetResult();
 
@@ -57,12 +57,14 @@ protected:
     HddlUniteGraph::Ptr _loadedGraphPtr = nullptr;
     HddlUniteInferData::Ptr _inferDataPtr = nullptr;
 
+    InferenceEngine::InputsDataMap _deviceInputs;
+    InferenceEngine::OutputsDataMap _deviceOutputs;
+
     // TODO [Workaround] This variable should be inside infer data, but since we are creating it before inference, we
     // need to store it here
     HDDL2RemoteContext::Ptr _context = nullptr;
     const HDDL2Config& _config;
     const Logger::Ptr _logger;
-    const InferenceEngine::Layout deviceSupportedLayout = InferenceEngine::Layout::NHWC;
 
     // TODO [Workaround] Avoid allocation inferData each time. If size of inputs is changed, need
     //  to recreating (not implemented yet)

@@ -62,8 +62,8 @@ namespace NV12Blob_Creator {
     }
 
     inline InferenceEngine::NV12Blob::Ptr createBlob(const InferenceEngine::TensorDesc& tensorDesc) {
-        if (tensorDesc.getLayout() != InferenceEngine::NCHW) {
-            THROW_IE_EXCEPTION << "Only NCHW Layout supported in nv12 blob creator!";
+        if ((tensorDesc.getLayout() != InferenceEngine::NCHW) && (tensorDesc.getLayout() != InferenceEngine::NHWC)) {
+            THROW_IE_EXCEPTION << "Only NCHW/NHWC Layout supported in nv12 blob creator!";
         }
         if (tensorDesc.getPrecision() != InferenceEngine::Precision::U8) {
             THROW_IE_EXCEPTION << "Only U8 Precision supported in nv12 blob creator!";

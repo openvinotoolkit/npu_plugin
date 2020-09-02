@@ -1,5 +1,5 @@
 //
-// Copyright 2019-2020 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -18,13 +18,8 @@
 
 #include "ie_core.hpp"
 
-class IE_Core_Helper {
-public:
-    InferenceEngine::Core ie;
-    IE_Core_Helper();
-    const std::string pluginName;
+namespace IE = InferenceEngine;
 
-    static InferenceEngine::Blob::Ptr loadCatImage(const InferenceEngine::Layout& targetImageLayout = InferenceEngine::Layout::NHWC);
-    static InferenceEngine::Blob::Ptr loadImage(const std::string &path, const size_t width, const size_t height,
-        const InferenceEngine::Layout& targetImageLayout = InferenceEngine::Layout::NHWC);
-};
+namespace ReferenceHelper {
+    IE::Blob::Ptr CalcCpuReference(IE::CNNNetwork& network, const IE::Blob::Ptr& input_blob);
+}

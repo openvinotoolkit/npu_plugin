@@ -49,6 +49,25 @@ std::string Graph::extractFileName(const std::string& fullPath) {
     return fullPath.substr(lastSlashIndex + 1);
 }
 
+void Graph::getPortsFromBlob(const std::string& blobContentString, const MCMConfig& config) {
+    std::vector<char> graphBlob(blobContentString.begin(), blobContentString.end());
+    auto portsInfo = MCMAdapter::deserializeMetaData(graphBlob, config);
+    const InferenceEngine::InputsDataMap& deserializedInputs = portsInfo.first;
+    const InferenceEngine::OutputsDataMap& deserializedOutputs = portsInfo.second;
+    const bool newFormat = (deserializedInputs.size() > 0) && (deserializedOutputs.size() > 0);
+
+    MCMAdapter::getNetworkInputs(blobContentString.c_str(), _deviceInputs);
+    MCMAdapter::getNetworkOutputs(blobContentString.c_str(), _deviceOutputs);
+
+    if (newFormat) {
+        _networkInputs = deserializedInputs;
+        _networkOutputs = deserializedOutputs;
+    } else {
+        _networkInputs = _deviceInputs;
+        _networkOutputs = _deviceOutputs;
+    }
+}
+
 //------------------------------------------------------------------------------
 CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) {
     _graphName = network.getName();
@@ -67,6 +86,8 @@ CompiledGraph::CompiledGraph(IE::ICNNNetwork& network, const MCMConfig& config) 
         THROW_IE_EXCEPTION << "Failed to compile network! Error: " << ex.what();
     }
     _blobContentString = std::string(graphBlob.begin(), graphBlob.end());
+    MCMAdapter::getNetworkInputs(_blobContentString.c_str(), _deviceInputs);
+    MCMAdapter::getNetworkOutputs(_blobContentString.c_str(), _deviceOutputs);
 }
 
 //------------------------------------------------------------------------------
@@ -77,6 +98,5 @@ ImportedGraph::ImportedGraph(std::istream& networkModel, const MCMConfig& config
 
     // TODO: Think about where to get the name
     _graphName = "None";
-    MCMAdapter::getNetworkInputs(_blobContentString.c_str(), _networkInputs);
-    MCMAdapter::getNetworkOutputs(_blobContentString.c_str(), _networkOutputs);
+    getPortsFromBlob(_blobContentString, config);
 }

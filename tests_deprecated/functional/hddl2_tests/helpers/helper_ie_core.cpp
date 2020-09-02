@@ -11,16 +11,21 @@ IE_Core_Helper::IE_Core_Helper()
           std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "HDDL2") {}
 
 InferenceEngine::Blob::Ptr IE_Core_Helper::loadCatImage(const InferenceEngine::Layout& targetImageLayout) {
-    std::string catImagePath = "224x224/cat3.bmp";
+    return loadImage("224x224/cat3.bmp", 224, 224, targetImageLayout);
+}
+
+InferenceEngine::Blob::Ptr IE_Core_Helper::loadImage(const std::string& path, const size_t width, const size_t height,
+    const InferenceEngine::Layout& targetImageLayout) {
     std::ostringstream imageFilePath;
-    imageFilePath << TestsCommon::get_data_path() << "/" << catImagePath;
+    imageFilePath << TestsCommon::get_data_path() << "/" << path;
 
     FormatReader::ReaderPtr reader(imageFilePath.str().c_str());
     IE_ASSERT(reader.get() != nullptr);
 
     const size_t C = 3;
-    const size_t H = 224;
-    const size_t W = 224;
+    IE_ASSERT((width != 0) && (height != 0));
+    const size_t H = width;
+    const size_t W = height;
 
     // CV::Mat BGR & NHWC
     // In NCHW format
@@ -47,4 +52,4 @@ InferenceEngine::Blob::Ptr IE_Core_Helper::loadCatImage(const InferenceEngine::L
     const InferenceEngine::TensorDesc targetDesc(InferenceEngine::Precision::U8, targetImageLayout);
 
     return toPrecision(toLayout(blob, targetDesc.getLayout()), targetDesc.getPrecision());
-};
+}

@@ -81,13 +81,13 @@ TEST_P(Graph_Common_UnitTests, getDeviceName_ReturnNotNull) {
     ASSERT_GT(name.size(), 0);
 }
 
-TEST_P(Graph_Common_UnitTests, getInputsInfo_ReturnNotEmpty) {
-    auto inputsInfo = graphPtr->getInputsInfo();
+TEST_P(Graph_Common_UnitTests, getDeviceInputsInfo_ReturnNotEmpty) {
+    auto inputsInfo = graphPtr->getDeviceInputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 
-TEST_P(Graph_Common_UnitTests, getOutputsInfo_ReturnNotEmpty) {
-    auto inputsInfo = graphPtr->getOutputsInfo();
+TEST_P(Graph_Common_UnitTests, getDeviceOutputsInfo_ReturnNotEmpty) {
+    auto inputsInfo = graphPtr->getDeviceOutputsInfo();
     ASSERT_GT(inputsInfo.size(), 0);
 }
 

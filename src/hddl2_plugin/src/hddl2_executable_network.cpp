@@ -72,12 +72,23 @@ void ExecutableNetwork::loadGraphToDevice() {
     }
 }
 
+void ExecutableNetwork::initNetworkPorts() {
+    if (_graphPtr == nullptr) {
+        THROW_IE_EXCEPTION << "Null graph!";
+    }
+    _networkInputs = _graphPtr->getNetworkInputsInfo();
+    _networkOutputs = _graphPtr->getNetworkOutputsInfo();
+    _deviceInputs = _graphPtr->getDeviceInputsInfo();
+    _deviceOutputs = _graphPtr->getDeviceOutputsInfo();
+}
+
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, const HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _context(castIEContextToHDDL2(ieContext)) {
     _graphPtr = std::make_shared<CompiledGraph>(network, config);
+    initNetworkPorts();
 
     loadGraphToDevice();
 }
@@ -88,8 +99,7 @@ ExecutableNetwork::ExecutableNetwork(
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _context(castIEContextToHDDL2(ieContext)) {
     _graphPtr = std::make_shared<ImportedGraph>(networkModel, config);
-    this->_networkInputs = _graphPtr->getInputsInfo();
-    this->_networkOutputs = _graphPtr->getOutputsInfo();
+    initNetworkPorts();
 
     loadGraphToDevice();
 }
@@ -100,7 +110,8 @@ IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRe
         THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
     }
 
-    return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, _loadedGraph, _context, _config);
+    return std::make_shared<HDDL2InferRequest>(
+        _deviceInputs, _deviceOutputs, networkInputs, networkOutputs, _loadedGraph, _context, _config);
 }
 
 void ExecutableNetwork::ExportImpl(std::ostream& model) {
@@ -122,8 +133,8 @@ void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& 
     if (_loadedGraph == nullptr) {
         THROW_IE_EXCEPTION << "Can not create infer request without network loaded on device";
     }
-    auto syncRequestImpl =
-        std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, _loadedGraph, _context, _config);
+    auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(
+        _deviceInputs, _deviceOutputs, _networkInputs, _networkOutputs, _loadedGraph, _context, _config);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
 
