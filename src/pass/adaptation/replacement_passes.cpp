@@ -70,7 +70,8 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replacePermuteAsReshape(pass, model);
 }
 
-void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model) {
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+{
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
 
     mv::OpModel om(model);
@@ -78,7 +79,8 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
     auto detectionOps = om.getOps("DetectionOutput");
 
-    for (auto &opIt : detectionOps) {
+    for (auto& opIt : detectionOps)
+    {
         auto confData = opIt->getInputTensor(1);
         auto parent = om.getSourceOp(confData);
 
@@ -88,13 +90,15 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
         auto sourceFlowStart = parent.leftmostOutput();
 
-        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow) {
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
             opsToLink.push_back(sinkFlow.sink());
             inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
             flowsToRemove.push_back(sinkFlow);
         }
 
-        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++) {
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
             om.undefineFlow(flowsToRemove[flowIdx]);
         }
 
@@ -102,27 +106,15 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         uint64_t numClasses = opIt->get<int64_t>("num_classes");
         auto totalSize = confData->getShape().totalSize();
         mv::Shape newShape({numClasses, totalSize / numClasses, 1, 1});
-        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0},
-                                                                                                                  {1},
-                                                                                                                  {-inf},
-                                                                                                                  {inf}},
-                                                                       "reshapeBeforePermute");
+        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeBeforePermute");
 
         std::string newOrder = "NCWH";
-        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder),
-                                                             mv::DType("Default"), {{0},
-                                                                                    {1},
-                                                                                    {-inf},
-                                                                                    {inf}}, "new_permute");
+        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "new_permute");
 
-        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(),
-                                                                      mv::DType("Default"), {{0},
-                                                                                             {1},
-                                                                                             {-inf},
-                                                                                             {inf}},
-                                                                      "reshapeAfterPermute");
+        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeAfterPermute");
 
-        for (unsigned op = 0; op < opsToLink.size(); ++op) {
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
             opsToLink[op]->setInputTensor(reshapeAfterPermuteData, inputSlots[op], false);
             om.defineFlow(reshapeAfterPermuteData, opsToLink[op], inputSlots[op]);
         }
@@ -130,7 +122,8 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         auto reshapeBeforeOp = om.getSourceOp(reshapeBeforePermuteData);
         auto permuteOp = om.getSourceOp(transposedData);
         auto reshapeAfterOp = om.getSourceOp(reshapeAfterPermuteData);
-        if (parent->hasAttr("opId")) {
+        if(parent->hasAttr("opId"))
+        {
             unsigned currentOpId = parent->get<unsigned>("opId");
             reshapeBeforeOp->set<unsigned>("opId", currentOpId);
             permuteOp->set<unsigned>("opId", currentOpId);
@@ -1498,6 +1491,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         // if stride vertical equals 1 and input horizontal equals kernel horizontal size, no need to split.
         // but replace strides (s_w,1) with (s_w,s_w) s_w>=2 when height=1
         // e.g kernel=[8, 1], stride = [8, 1], input = [4000, 1], stride replaced with [8, 8]
+        // avoid cutting in too many workloads and obtaining a bad performance
         if (stride[mv::STRIDE_VERTICAL] == 1)
         {
             bool verticalMatch = false;
