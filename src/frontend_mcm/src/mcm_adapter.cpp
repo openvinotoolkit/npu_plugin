@@ -154,11 +154,10 @@ void MCMAdapter::compileNetwork(
     const auto& resultsPath = config.mcmCompilationResultsPath();
     auto resultNames = config.mcmCompilationResults();
     resultNames = (resultNames == "") ? network.getName() : resultNames;
-    if (config.mcmGenerateBlob() || config.mcmGenerateJSON() || config.mcmGenerateDOT()) {
-        mkdir(resultsPath.c_str(), 0755);
-        mkdir((resultsPath + "/" + compDescName).c_str(), 0755);
-        mkdir((resultsPath + "/" + compDescName + "/" + targetName).c_str(), 0755);
-    }
+
+    mkdir(resultsPath.c_str(), 0755);
+    mkdir((resultsPath + "/" + compDescName).c_str(), 0755);
+    mkdir((resultsPath + "/" + compDescName + "/" + targetName).c_str(), 0755);
 
     std::string resultsFullName = resultsPath + "/" + compDescName + "/" + targetName + "/" + resultNames;
 
@@ -177,6 +176,8 @@ void MCMAdapter::compileNetwork(
         return;
     }
 
+    _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
+
     if (config.mcmGenerateBlob()) {
         //-----------------------------------------------------------------------
         // Note: There are different passes in different Compilation Descriptors
@@ -189,7 +190,6 @@ void MCMAdapter::compileNetwork(
             // 'Trying to set arguments for a non-existent pass' error
             // so we use try catch
             try {
-                _logger->info("Path for results: %s (%s)", resultsFullName, std::strerror(errno));
                 compDesc.setPassArg("GenerateBlobKmb", "output", resultsFullName + ".blob");
                 isBlobFileSet = true;
             } catch (...) {
@@ -205,11 +205,6 @@ void MCMAdapter::compileNetwork(
     }
 
     compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
-
-    // TODO: remove this when configs will be changed
-    if (compDesc.hasAttr("serialize")) {
-        compDesc.remove("serialize", "GenerateBlobKmb");
-    }
 
     IE_ASSERT(unit->initialize());
 
@@ -233,20 +228,35 @@ void MCMAdapter::compileNetwork(
         rename("final_model.dot", (resultsFullName + ".dot").c_str());
     }
 
-    auto memBlob = unit->getBlob();
-    if (nullptr != memBlob) {
+    if (config.mcmGenerateBlob()) {
         InferenceEngine::InputsDataMap inputInfo;
         network.getInputsInfo(inputInfo);
 
         InferenceEngine::OutputsDataMap outputInfo;
         network.getOutputsInfo(outputInfo);
 
-        blob = serializeMetaData(memBlob->data(), inputInfo, outputInfo);
-        if (blob.empty()) {
-            VPU_THROW_EXCEPTION << "Serialized blob data is empty!";
+        auto memBlob = unit->getBlob();
+        std::vector<char> binaryData;
+        if (memBlob == nullptr) {
+            std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
+            if (blobFile) {
+                std::ostringstream blobContentStream;
+                blobContentStream << blobFile.rdbuf();
+                const std::string& blobContentString = blobContentStream.str();
+                binaryData = serializeMetaData(blobContentString.c_str(), inputInfo, outputInfo);
+            } else {
+                VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob"
+                                    << ". It was not created by mcmCompiler!";
+            }
+        } else {
+            binaryData = serializeMetaData(memBlob->data(), inputInfo, outputInfo);
         }
-    } else {
-        VPU_THROW_EXCEPTION << "Can't get blob data!";
+        std::copy(binaryData.begin(), binaryData.end(), std::back_inserter(blob));
+
+        if (blob.empty()) {
+            VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob"
+                                << " created by mcmCompiler is empty!";
+        }
     }
 }
 
