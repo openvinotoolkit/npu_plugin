@@ -1887,6 +1887,8 @@ namespace mv
                         stream = streamShape["H"];
                     else if(streamShape["C"] > 1)
                         stream = streamShape["C"];
+                    else if(streamShape["B"] > 1) //batch splits input, won't nested with anything
+                        stream = streamShape["B"];
 
                     inputTime = stream* (DMA_LATENCY + (((double)inputSize/stream) / DMA_BANDWIDTH) );
                 }
@@ -1895,7 +1897,6 @@ namespace mv
                 if(spilling)
                 {
                     //Each stream is written to DDR. Output activation tensor might be streamed over H or K
-                    //TODO consider batch, nested streaming
                     size_t outputSize;
                     if(opType != "Output")
                         outputSize = op.getOutputTensor(0)->computeTotalSize();
@@ -1904,10 +1905,14 @@ namespace mv
 
                     unsigned stream = 1;
 
-                    if(streamShape["H"] > 1)
+                    if(streamShape["H"] > 1 && streamShape["K"] > 1) // Nested streaming!
+                        stream = streamShape["H"] * streamShape["K"];
+                    else if(streamShape["H"] > 1)
                         stream = streamShape["H"];
                     else if(streamShape["K"] > 1)
                         stream = streamShape["K"];
+                    else if(streamShape["B"] > 1)
+                        stream = streamShape["B"];
                     
                     outputTime = stream*(DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH));
                 }
@@ -1926,6 +1931,8 @@ namespace mv
                         stream = streamShape["H"];
                     else if(streamShape["C"] > 1)
                         stream = streamShape["C"];
+                    else if(streamShape["B"] > 1) //batch splits input, won't nested with anything
+                        stream = streamShape["B"];
 
                    return (DMA_LATENCY + (((double)inputSize/stream) / DMA_BANDWIDTH) );
                 }
@@ -1965,14 +1972,17 @@ namespace mv
                 if(spilling && op.getOpType() != "Output")
                 {
                     //Each stream is written to DDR. Output activation tensor might be streamed over H or K
-                    //TODO consider batch, nested streaming
                     auto outputSize = op.getOutputTensor(0)->computeTotalSize();
                     unsigned stream = 1;
 
-                    if(streamShape["H"] > 1)
+                    if(streamShape["H"] > 1 && streamShape["K"] > 1) // Nested streaming!
+                        stream = streamShape["H"] * streamShape["K"];
+                    else if(streamShape["H"] > 1)
                         stream = streamShape["H"];
                     else if(streamShape["K"] > 1)
                         stream = streamShape["K"];
+                    else if(streamShape["B"] > 1)
+                        stream = streamShape["B"];
                     
                     return (DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH));
                 }
@@ -2080,6 +2090,10 @@ namespace mv
                 if((stream["B"] * stream["C"] * stream["H"]) > 1)
                     return false;
 
+                // No sense making nested streaming any worse than it is
+                if(stream["H"] > 1 && stream["K"] > 1)
+                    return false;
+
                 size_t input, output, weights;
                 std::tie(input, output, weights) = memorySize(op,
                                                                 clustering,
@@ -2131,9 +2145,14 @@ namespace mv
                 if(childOp.getOpType() != "Conv") // Need something to prefetch, i.e. weights!
                     return false;    
                 
+                // Note: No sense prefetching weights if we are nested streaming
+                auto childStreams =  child["streaming"].get<mv::Shape>();
+                if(childStreams["H"] > 1 && childStreams["K"] > 1)
+                    return false;
+
                 //Prefetch is possible if the previous op leaves enough CMX open to fit a slice of the childs weights
                 size_t childWeight = alignedWeightsSize(childOp.getInputTensor(1), 
-                                                        child["streaming"].get<mv::Shape>(), 
+                                                        childStreams, 
                                                         child["clustering"].get<std::string>());
 
                 size_t parentInput, parentOutput, parentWeight;
