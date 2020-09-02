@@ -54,6 +54,10 @@ namespace mv
             int ddrBandwidth=128;
             int sysClock=500;
             double sysClockHz=sysClock*1000000;
+            double DMA_LATENCY = 36 / sysClockHz; // in c -> s
+            double DMA_BANDWIDTH = 25769803776; // gb/s - > b/s
+            double LATENCY_CMX = 5 / sysClockHz; // in c -> s
+            double BANDWIDTH_CMX = (double)(1.5 * 1099511627776); // tb/s -> b/s
             bool globalEnableStreaming=true;
             bool globalEnablePipelining = true;
             bool globalEnableActivationSparsity=true;
@@ -1847,9 +1851,6 @@ namespace mv
             {
                 auto opType = op.getOpType();
 
-                double DMA_LATENCY = 36 / sysClockHz; // in c -> s
-                double DMA_BANDWIDTH = 25769803776; // gb/s - > b/s
-
                 //Each layer calculates the cost to move it's weights (if they exist), and it's output tensor
                 double weightsTime = 0;
                 double outputTime = 0;
@@ -1913,6 +1914,70 @@ namespace mv
                 return (inputTime + weightsTime + outputTime) * 1000000; //return in us
             }
 
+            double averageInputDmaTime(Op& op,StrategySet& strategySet, bool parentSpilling = false)
+            {
+                auto streamShape = strategySet["streaming"].get<mv::Shape>();
+                // If parent tensor stays in CMX, no further cost. Otherwise, calculate bring the input tensor back into CMX
+                if(parentSpilling)
+                {
+                    auto inputSize = op.getInputTensor(0)->computeTotalSize();
+                    unsigned stream = 1;
+                    if(streamShape["H"] > 1)
+                        stream = streamShape["H"];
+                    else if(streamShape["C"] > 1)
+                        stream = streamShape["C"];
+
+                   return (DMA_LATENCY + (((double)inputSize/stream) / DMA_BANDWIDTH) );
+                }
+
+                return 0;
+            }
+
+            double averageWeightsDmaTime(Op& op,StrategySet& strategySet)
+            {
+                auto streamShape = strategySet["streaming"].get<mv::Shape>();
+                // Each DMA cost is modelled as latency + size*transfer_rate
+                if(op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                {
+                    auto weightsSize = op.getInputTensor(1)->computeTotalSize(); // approx for now
+                    unsigned stream = 1;
+
+                    if(op.getOpType() == "Conv")
+                    {
+                        stream = streamShape["K"];
+                    }
+                    else // Depthwise
+                    {
+                        stream = streamShape["C"];
+                    }
+
+                    return (DMA_LATENCY + (((double)weightsSize/stream) / DMA_BANDWIDTH));
+                }
+
+                return 0;
+            }
+
+            double averageOutputDmaTime(Op& op,StrategySet& strategySet)
+            {
+                auto streamShape = strategySet["streaming"].get<mv::Shape>();
+                auto spilling = strategySet["spilling"].get<bool>();
+                // If output tensor stays in CMX, no further dma cost. Otherwise, calculate cost to spill to DDR
+                if(spilling && op.getOpType() != "Output")
+                {
+                    //Each stream is written to DDR. Output activation tensor might be streamed over H or K
+                    //TODO consider batch, nested streaming
+                    auto outputSize = op.getOutputTensor(0)->computeTotalSize();
+                    unsigned stream = 1;
+
+                    if(streamShape["H"] > 1)
+                        stream = streamShape["H"];
+                    else if(streamShape["K"] > 1)
+                        stream = streamShape["K"];
+                    
+                    return (DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH));
+                }
+            }
+
             double computeTime(Op& op,StrategySet& strategySet)
             {
                 auto opType = op.getOpType();
@@ -1920,8 +1985,6 @@ namespace mv
                 if( !op.isHardwarizable() || software)
                     return 0;
 
-                double LATENCY_CMX = 5 / sysClockHz; // in c -> s
-                double BANDWIDTH_CMX = (double)(1.5 * 1099511627776); // tb/s -> b/s
                 double OPS = 7.168 * 1099511627776; //tops -> o/s
                 if(op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                     OPS = 1.792 * 1099511627776;
