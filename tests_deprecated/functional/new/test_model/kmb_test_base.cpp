@@ -1280,6 +1280,66 @@ void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
 
+// FIXME this whole class might be an overkill
+// consider re-using PersonAttrRecNetworkTest as is
+void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
+                                   const TestImageDesc& myVariable,
+                                   float tolerance) {
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      registerSingleImage(myVariable, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const std::vector<std::string> COLOURS = {
+        /* class: 0 */ "white",
+        /* class: 1 */ "grey",
+        /* class: 2 */ "yellow",
+        /* class: 3 */ "red",
+        /* class: 4 */ "green",
+        /* class: 5 */ "blue",
+        /* class: 6 */ "black",
+    };
+
+    const std::vector<std::string> VEHICLES = {
+        /* class: 0 */ "car",
+        /* class: 1 */ "van",
+        /* class: 2 */ "truck",
+        /* class: 3 */ "bus",
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+      ASSERT_EQ(actualBlobs.size(), refBlobs.size());
+      // FIXME 'color' and 'type' names might be specific to vehicle_attributes_recognition_barrier_0042
+      // find a way to make it more generic when necessary
+      auto actualColours = parseOutput(toFP32(actualBlobs.find("color")->second));
+      auto actualTypes = parseOutput(toFP32(actualBlobs.find("type")->second));
+      auto topColourIdx = actualColours.at(0).first;
+      auto topTypeIdx = actualTypes.at(0).first;
+      auto topColourName = COLOURS.at(topColourIdx);
+      auto topTypeName = VEHICLES.at(topTypeIdx);
+      std::cout << "Actual output: " << topColourName << " " << topTypeName << std::endl;
+
+      auto refColours = parseOutput(toFP32(refBlobs.find("color")->second));
+      auto refTypes = parseOutput(toFP32(refBlobs.find("type")->second));
+      auto refColourIdx = refColours.at(0).first;
+      auto refTypeIdx = refTypes.at(0).first;
+      auto refColourName = COLOURS.at(refColourIdx);
+      auto refTypeName = VEHICLES.at(refTypeIdx);
+      std::cout << "Reference output: " << refColourName << " " << refTypeName << std::endl;
+
+      for (const auto& actualBlob : actualBlobs) {
+          auto ref_it = refBlobs.find(actualBlob.first);
+          ASSERT_TRUE(ref_it != refBlobs.end());
+          std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+      }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RFCNNetworkAdapter ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
