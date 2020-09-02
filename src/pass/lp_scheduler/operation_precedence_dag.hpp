@@ -1333,6 +1333,8 @@ class Operation_Dag {
 
     }
 
+  public:
+
     // Removes the op from the DAG and removes all incoming and outgoing edges
     void remove_op_from_dag(operation_t op) {
       // STEP-0: Find from op_set_ //
@@ -1401,6 +1403,7 @@ class Operation_Dag {
       ops_.erase(op_itr);
       op_name_table_.erase(op->getName().c_str());
     }
+  private:
 
     void clear_resource_model() { resource_utility_map_.clear(); }
 

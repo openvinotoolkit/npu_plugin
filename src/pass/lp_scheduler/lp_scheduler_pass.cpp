@@ -205,6 +205,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
 
     for (mv::Data::OpListIterator oitr : ops_to_remove) {
+      input_dag.remove_op_from_dag(&(*oitr));
       cm.removeOp(oitr);
     }
   }
