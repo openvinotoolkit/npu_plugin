@@ -256,9 +256,10 @@ class Pipeline_Chains {
           continue;
         }
 
+        auto prev_dpu_itr = curr_dpu_itr;
         operation_t pseudo_tail = chain_head, curr_pseudo_op;
         for (++curr_dpu_itr, ++curr_weights_itr; curr_dpu_itr!=dpu_chain.end();
-             ++curr_dpu_itr, ++curr_weights_itr) {
+             ++curr_dpu_itr, ++curr_weights_itr, ++prev_dpu_itr) {
           mv::Data::TensorIterator tail_output_tensor_itr =
               (om.getOp(pseudo_tail->getName()))->getOutputTensor(0UL);
 
@@ -271,13 +272,23 @@ class Pipeline_Chains {
           mv::Data::OpListIterator curr_pseudo_op_itr =
               om.getSourceOp(curr_pseudo_op_tensor_itr);
 
-          // add pseudo data flows between curr_pseudo_op and all the reads of
-          // curr_dpu_itr //
-          const op_list_t& reads_of_this_dpu = *curr_weights_itr;
-          for (operation_t weight_read : reads_of_this_dpu) {
-            mv::Data::OpListIterator weight_read_itr =
-                om.getOp(weight_read->getName());
-            omodel_.defineFlow(curr_pseudo_op_tensor_itr, weight_read_itr, 0UL);
+          bool is_activation_too_big = false;
+          /*
+            ((om.getOp((*prev_dpu_itr)->getName()))->getOutputTensor(0UL))
+                 ->getClusterSize() > 100000UL;
+           */
+
+          if (!is_activation_too_big) {
+            omodel_.defineFlow(curr_pseudo_op_tensor_itr,
+              om.getOp((*prev_dpu_itr)->getName()), 0UL);
+            // add pseudo data flows between curr_pseudo_op and all the reads of
+            // curr_dpu_itr //
+            const op_list_t& reads_of_this_dpu = *curr_weights_itr;
+            for (operation_t weight_read : reads_of_this_dpu) {
+              mv::Data::OpListIterator weight_read_itr =
+                  om.getOp(weight_read->getName());
+              omodel_.defineFlow(curr_pseudo_op_tensor_itr, weight_read_itr, 0UL);
+            }
           }
 
           pseudo_tail = &(*curr_pseudo_op_itr);
