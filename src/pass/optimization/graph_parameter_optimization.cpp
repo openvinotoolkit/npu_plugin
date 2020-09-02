@@ -1990,7 +1990,7 @@ namespace mv
                 
                 double compTime = ((totalToCompute * baseKernelCost) / OPS);
 
-                return  (readIn + readOut + (totalStreams * compTime)) * 1000000; //return in us
+                return  (totalStreams * (readIn + readOut + compTime)) * 1000000; //return in us
             }
 
             bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling)
