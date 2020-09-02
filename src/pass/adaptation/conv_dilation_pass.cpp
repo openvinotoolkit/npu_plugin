@@ -71,7 +71,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
                                         (c * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
                                         ((srcShape[mv::KERNEL_HEIGHT] - 1 - i) * srcShape[mv::KERNEL_WIDTH]) +
                                         (srcShape[mv::KERNEL_WIDTH] - 1 - j);
-                    
+
                     sliceWeightVector[dstIdx] = weightsValue[srcIdx];
                 }
             }
@@ -112,7 +112,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
                 emptyQuantParams,
                 name);
     }
-                
+
     auto subConvOp = om.getSourceOp(subConv);
     subConvOp->set<bool>("DeconvSubConv", true);
     subConvOp->set<unsigned>("originalDilationFactor", stride);
@@ -133,7 +133,7 @@ mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIte
     {
         subConvOp->set<std::vector<std::string>>("postOpTypes",
                                     opIt->get<std::vector<std::string>>("postOpTypes"));
-    }               
+    }
 
     return subConv;
 }
@@ -412,7 +412,7 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         mv::Data::TensorIterator concatIt;
         std::vector<mv::Data::TensorIterator> subConvsPerColumn;
         std::vector<mv::Data::TensorIterator> firstLevelConcats;
-       
+
         for (size_t i = 0; i < strideFactor; i++)
         {
             for (size_t j = 0; j < strideFactor; j++)
@@ -433,12 +433,12 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
         om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
 
-        if (nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
+        if (nextOp->getOpType() == "Output" || nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
         {
             auto dataUint8 = om.uPATaskQuantize({concatIt}, mv::DType("UInt8"), quantParams);
             if (concatIt->hasAttr("splitStrategy"))
                 dataUint8->set<std::string>("splitStrategy", concatIt->get<std::string>("splitStrategy"));
-                        
+
             auto quantizeOp = om.getSourceOp(dataUint8);
             quantizeOp->set<unsigned>("opId", opId);
 
