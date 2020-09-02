@@ -136,8 +136,7 @@ add_subdirectory(contrib/flatbuffers)
 #############################################################################################
 ### Main build
 #############################################################################################
-SET(CMAKE_CXX_FLAGS -pthread)
- 
+
 if (MSVC)
     add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
 else()

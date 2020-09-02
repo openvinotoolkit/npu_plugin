@@ -9,7 +9,6 @@
 #include "limits"
 #include <atomic>
 #include <functional>
-#include <thread>
 
 namespace mv {
 namespace graphOptimizer  {
@@ -130,7 +129,6 @@ public:
     {
     }
 
-    void cal_cost(GraphLevel& lastLevel, GraphLevel& latestLevel, function<double(Op&,Op&,StrategySet&,StrategySet&)> cost, size_t start, size_t end, vector<double>& result);
     void addNewLevel(Op& op,shared_ptr<vector<StrategySet>> newLevel,function<double(Op&,Op&,StrategySet&,StrategySet&)> cost);
     void solve();
     void fuseMeta(shared_ptr<MetaGraph> childGraph);

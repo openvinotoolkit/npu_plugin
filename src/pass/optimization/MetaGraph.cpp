@@ -121,20 +121,6 @@ bool MetaGraph::costNodeIteratorComp::operator()(const OptimizationGraph::node_l
     return (x < y) ;
 }
 
-void MetaGraph::cal_cost(GraphLevel& lastLevel, GraphLevel& latestLevel, function<double(Op&,Op&,StrategySet&,StrategySet&)> cost, size_t start, size_t end, vector<double>& result)
-{
-	  for(auto i= start; i<end; ++i)
-	  {
-
-		  const auto oldNode = lastLevel.level[i];
-		  for(auto j=0; j<latestLevel.level.size(); ++j)
-		  {
-	          const auto newNode = latestLevel.level[j];
-			  result[(i*latestLevel.level.size()) + j] = cost(*lastLevel.op,*latestLevel.op, *oldNode, *newNode);
-		  }
-	  }
-}
-
 void MetaGraph::addNewLevel(Op& op,
                             shared_ptr<vector<StrategySet>> newLevel,
                             function<double(Op&,Op&,StrategySet&,StrategySet&)> cost)
@@ -177,59 +163,18 @@ void MetaGraph::addNewLevel(Op& op,
             latestLevel.level.push_back(internalGraph_.node_insert(newSet[strategyCtr]));
         }
 
-        //no of threads
-        const size_t num_threads = std::thread::hardware_concurrency();
-        vector<thread> threads;
-        threads.reserve(num_threads);
-        vector<double> cost_cal((lastLevel.level.size()) * (latestLevel.level.size()));
-        auto M = lastLevel.level.size();
-        auto t_idx=0;
-
-        //parallel execution for cal_cost
-        //create threads
-        if((M/num_threads)>= 1)
-        {
-            for(t_idx=0; t_idx<num_threads; ++t_idx)
+        for(const auto oldNode : lastLevel.level){
+            for(const auto newNode : latestLevel.level)
             {
-              threads.push_back(thread(&MetaGraph::cal_cost, this, std::ref(lastLevel), std::ref(latestLevel), std::ref(cost), t_idx*(M/num_threads), ((t_idx+1)*(M/num_threads)), std::ref(cost_cal)));
+                double edgeCost = cost(*lastLevel.op,*latestLevel.op, *oldNode, *newNode);
+                if (edgeCost == numeric_limits<double>::infinity())
+                    continue;
+
+                auto newEdge = internalGraph_.edge_insert(oldNode,newNode,MetaEdge(edgeCost));
+
+                edgeCostMap.insert(pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
             }
-            // Wait for jobs to finish
-            for (std::thread &t : threads)
-            {
-              if (t.joinable()) {
-                  t.join();
-             }
-          }
         }
-        auto remaining = M % num_threads;
-        size_t begin_loop = (t_idx)*(M/num_threads);
-        for(auto idx=0; idx<remaining; ++idx)
-        {
-            threads.push_back(thread(&MetaGraph::cal_cost, this, std::ref(lastLevel), std::ref(latestLevel), std::ref(cost), begin_loop, begin_loop+1, std::ref(cost_cal)));
-            ++begin_loop;
-        }
-        // Wait for jobs to finish
-        for (std::thread &t : threads) {
-		  if (t.joinable()) {
-			t.join();
-         }
-        }
-
-        for(size_t i=0; i<lastLevel.level.size(); i++)
-        {
-   	       const auto oldNode = lastLevel.level[i];
-           for(size_t j=0; j<latestLevel.level.size(); j++)
-           {
-   	          const auto newNode = latestLevel.level[j];
-	          double edgeCost = cost_cal[i*latestLevel.level.size() + j];
-              if (edgeCost == numeric_limits<double>::infinity())
-                  continue;
-
-              auto newEdge = internalGraph_.edge_insert(oldNode,newNode,MetaEdge(edgeCost));
-              edgeCostMap.insert(pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
-           }
-        }
-
         lastLevelIdx_ = levels.size() - 1;
     }
 }
