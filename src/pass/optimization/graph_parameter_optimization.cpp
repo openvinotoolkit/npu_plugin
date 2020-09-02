@@ -1606,13 +1606,17 @@ namespace mv
                     }
                 }
 
-                // If we can pipeline, consider this speedup
-                // else if we can prefetch, consider this speedup
-                // else consider serialized read + compute + write
-                auto compTime1 = computeTime(parentOp,parent);
-                auto compTime2 = computeTime(childOp,child);
-                auto dmaTime1 = dmaTime(parentOp, parent);
-                auto dmaTime2 = dmaTime(childOp, child, parentSpilling);
+                //Note: these are full cost, across all streams, used in serial computation
+                //Also used to calculate sparsity overhead vs. speedup in child
+                auto pFullComp = computeTime(parentOp,parent);
+                auto cFullComp = computeTime(childOp,child);
+                auto pFullDma = dmaTime(parentOp, parent);
+                auto cFullDma = dmaTime(childOp, child, parentSpilling);
+
+                //Note: these are cost per stream, used when pipelining or prefetching
+                auto cInDma = averageInputDmaTime(childOp, child, parentSpilling);
+                auto cWeightDma = averageWeightsDmaTime(childOp, child);
+                auto cOutDma = averageOutputDmaTime(childOp, child);
 
                 double sparsityCost = 0;
 
@@ -1622,25 +1626,53 @@ namespace mv
                 auto sparsityOverhead = childOp.getInputTensor(0)->isFloatingPointType() ?
                     0.0625 : 0.125;
                 if (!parentOutputSparsity && childInputSparsity)
-                    sparsityCost = compTime2 * sparsityOverhead;
+                    sparsityCost = cFullComp * sparsityOverhead;
 
                 //TODO capture sparse speedup potential here if childInputSparsity && parentOutputSparsity both true
                 // but probably only enable when activation sparsity is requested from CD. Otherwise, discourage?
                 if(childInputSparsity && !requiresActivationSparsity(childOp, childClustering))
-                    sparsityCost = sparsityCost + (compTime2 * 0.05); // penalize not needed sparsity
+                    sparsityCost = sparsityCost + (cFullComp * 0.01); // penalize not needed sparsity
 
-                if(isPipeliningPossible(childOp, child, parent["spilling"].get<bool>()))
+                auto pipelineable = isPipeliningPossible(childOp, child, parent["spilling"].get<bool>());
+                auto prefetchable = isPrefetchPossible(parentOp, childOp, parent, child);
+
+                if(pipelineable && prefetchable)
                 {
-                    // If we can pipeline, we are max(dma,compute)
-                    return compTime1 + dmaTime1 + std::max(compTime2, dmaTime2) + sparsityCost;
+                    //TODO for now, we only pipeline over K. reenable over H!
+                    unsigned streams = childStreamShape["K"];
+
+                    auto cStreamComp = ((double) cFullComp / streams);
+                    // In this case the pipeline overlap does not include read of first weights, because that
+                    // is overlapped with the prefetch
+                    auto pipelineOverlap =  ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
+                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
+
+                    return pFullDma + prefetchOverlap + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + sparsityCost;
                 }
-                else if(isPrefetchPossible(parentOp, childOp, parent, child))
+                else if(pipelineable)
                 {
-                    return std::max(compTime1,dmaTime2) + dmaTime1 + compTime2 + sparsityCost;
+                    //TODO for now, we only pipeline over K. reenable over H!
+                    unsigned streams = childStreamShape["K"];
+                    
+                    // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
+                    auto cStreamComp = ((double) cFullComp / streams);
+                    auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
+                    return pFullDma + pFullComp + (streams*cInDma) + pipelineOverlap + (streams*cOutDma) + sparsityCost;
+                }
+                else if(prefetchable)
+                {
+                    unsigned streams = childStreamShape["K"];// we only prefetch weights
+
+                    // If we can prefetch, overlap first stream over child weights with parent compute
+                    // To be prefetchable, parent doesn't spill so pOutDma=0, cInDma=0, cWeightDma > 0
+                    auto prefetchOverlap = std::max(pFullComp, cWeightDma);
+                    auto remainderChildDma = ((streams - 1) * cWeightDma) + (streams*(cInDma + cOutDma));
+                    return pFullDma + prefetchOverlap + remainderChildDma + cFullComp  + sparsityCost;
                 }
                 else
                 {
-                    return compTime1 + dmaTime1 + compTime2 + dmaTime2 + sparsityCost;
+                    //Fully serialized dma and compute between and internally in this layer
+                    return pFullDma + pFullComp + cFullDma + cFullComp + sparsityCost;
                 }
         }
 
@@ -1934,7 +1966,7 @@ namespace mv
                     else if(streamShape["B"] > 1) //batch splits input, won't nested with anything
                         stream = streamShape["B"];
 
-                   return (DMA_LATENCY + (((double)inputSize/stream) / DMA_BANDWIDTH) );
+                   return (DMA_LATENCY + (((double)inputSize/stream) / DMA_BANDWIDTH) ) * 1000000; //return in us;
                 }
 
                 return 0;
@@ -1958,7 +1990,7 @@ namespace mv
                         stream = streamShape["C"];
                     }
 
-                    return (DMA_LATENCY + (((double)weightsSize/stream) / DMA_BANDWIDTH));
+                    return (DMA_LATENCY + (((double)weightsSize/stream) / DMA_BANDWIDTH)) * 1000000; //return in us;
                 }
 
                 return 0;
@@ -1969,10 +2001,15 @@ namespace mv
                 auto streamShape = strategySet["streaming"].get<mv::Shape>();
                 auto spilling = strategySet["spilling"].get<bool>();
                 // If output tensor stays in CMX, no further dma cost. Otherwise, calculate cost to spill to DDR
-                if(spilling && op.getOpType() != "Output")
+                if(spilling)
                 {
                     //Each stream is written to DDR. Output activation tensor might be streamed over H or K
-                    auto outputSize = op.getOutputTensor(0)->computeTotalSize();
+                    size_t outputSize;
+                    if(op.getOpType() != "Output")
+                        outputSize = op.getOutputTensor(0)->computeTotalSize();
+                    else
+                        outputSize = op.getInputTensor(0)->computeTotalSize();
+
                     unsigned stream = 1;
 
                     if(streamShape["H"] > 1 && streamShape["K"] > 1) // Nested streaming!
@@ -1984,8 +2021,9 @@ namespace mv
                     else if(streamShape["B"] > 1)
                         stream = streamShape["B"];
                     
-                    return (DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH));
+                    return (DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH)) * 1000000; //return in us;
                 }
+                return 0;
             }
 
             double computeTime(Op& op,StrategySet& strategySet)
