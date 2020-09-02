@@ -26,6 +26,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -64,6 +65,73 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     flattenAsReshapeFcn(pass, model);
     replaceConcatOfPopulatedTensorsFcn(pass, model);
     reorgYoloAsConvConcatFcn(pass, model);
+    insertPermuteBeforeDetFcn(pass, model);
+}
+
+void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto detectionOps = om.getOps("DetectionOutput");
+
+    for (auto& opIt : detectionOps)
+    {
+        auto confData = opIt->getInputTensor(1);
+        auto parent = om.getSourceOp(confData);
+
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
+
+        auto sourceFlowStart = parent.leftmostOutput();
+
+        for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+            flowsToRemove.push_back(sinkFlow);
+        }
+
+        for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
+        {
+            om.undefineFlow(flowsToRemove[flowIdx]);
+        }
+
+        double inf = std::numeric_limits<double>::infinity();
+        uint64_t numClasses = opIt->get<int64_t>("num_classes");
+        auto totalSize = confData->getShape().totalSize();
+        mv::Shape newShape({numClasses, totalSize / numClasses, 1, 1});
+        mv::Data::TensorIterator reshapeBeforePermuteData = om.reshape(confData, newShape, mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeBeforePermute");
+
+        std::string newOrder = "NCWH";
+        mv::Data::TensorIterator transposedData = om.permute(reshapeBeforePermuteData, mv::Order(newOrder), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "new_permute");
+
+        mv::Data::TensorIterator reshapeAfterPermuteData = om.reshape(transposedData, confData->getShape(), mv::DType("Default"), {{0}, {1}, {-inf}, {inf}}, "reshapeAfterPermute");
+
+        for(unsigned op = 0 ; op < opsToLink.size(); ++op)
+        {
+            opsToLink[op]->setInputTensor(reshapeAfterPermuteData, inputSlots[op], false);
+            om.defineFlow(reshapeAfterPermuteData, opsToLink[op], inputSlots[op]);
+        }
+
+        auto reshapeBeforeOp = om.getSourceOp(reshapeBeforePermuteData);
+        auto permuteOp = om.getSourceOp(transposedData);
+        auto reshapeAfterOp = om.getSourceOp(reshapeAfterPermuteData);
+        if(parent->hasAttr("opId"))
+        {
+            unsigned currentOpId = parent->get<unsigned>("opId");
+            reshapeBeforeOp->set<unsigned>("opId", currentOpId);
+            permuteOp->set<unsigned>("opId", currentOpId);
+            reshapeAfterOp->set<unsigned>("opId", currentOpId);
+        }
+        auto outputMemoryLocation = parent->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+        reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+        reshapeAfterPermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
 }
 
 void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
@@ -470,7 +538,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 mv::DType("Float64"),
-                                mv::Order(mv::Order::getRowMajorID(4)), neutralWeightsQuantParams);
+                                mv::Order(mv::Order::getColMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
@@ -480,7 +548,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)),
+                                mv::Order(mv::Order::getColMajorID(4)),
                                 weightsQuantParams);
         }
 
@@ -631,7 +699,7 @@ std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
             factors.second++;
 
 
-        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) || 
+        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) ||
                 (factors.first * factors.second > (kernelSize + factors.second/2) ) )
         {
             // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
@@ -655,7 +723,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
+                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
                                                  std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
@@ -674,7 +742,6 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
     // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw,
     // but using original kernel for scale improves observed accuracy
-    double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
@@ -688,7 +755,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
         //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
         weights = om.constant(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                mv::DType("Float64"), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float64"), mv::Order(mv::Order::getColMajorID(4)), emptyWeightsQuantParams);
     }
     else
     {
@@ -697,7 +764,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
         // quantization params for the weights parameter of the depthwise convolution.
         weights = om.constantInt(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+                                sourceTensor->getDType(), mv::Order(mv::Order::getColMajorID(4)), weightsQuantParams);
     }
     // Create depthwise conv
     mv::Data::TensorIterator depthwise_conv;
@@ -988,11 +1055,13 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
+        double firstRescale = 1.0 / (newKernel[0] * newKernel[1]);
+        double secondRescale = static_cast<double>((newKernel[0] * newKernel[1])) / (kSize[0] * kSize[1]);
         mv::Data::TensorIterator op0;
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
-                                            name + "_DepthwiseConv0",
-                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
+                                         name + "_DepthwiseConv0",
+                                         firstRescale, newKernel, padding, producers_quantized.first);
         else if (opIt->getOpType()== "MaxPool")
         {
             op0 = om.maxPool(sourceTensor,
@@ -1045,8 +1114,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         mv::Data::TensorIterator op1;
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
-                                            name + "_DepthwiseConv1",
-                                            kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
+                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0}, producers_quantized.second);
         else if (input_op0->getOpType() == "MaxPool")
         {
             op1 = om.maxPool(op0,
