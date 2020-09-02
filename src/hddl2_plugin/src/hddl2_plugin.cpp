@@ -34,6 +34,7 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
+#include "file_reader.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
@@ -43,6 +44,8 @@ using namespace vpu::HDDL2Plugin;
 
 Engine::Engine() {
     _pluginName = DEVICE_NAME;  // "HDDL2"
+    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
@@ -105,8 +108,8 @@ IExecutableNetwork::Ptr Engine::ImportNetwork(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(modelFileName, parsedConfigCopy);
-    return InferenceEngine::make_executable_network(executableNetwork);
+    std::ifstream blobStream(modelFileName, std::ios::binary);
+    return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
@@ -115,7 +118,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
@@ -124,7 +127,7 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     parsedConfigCopy.update(config);
 
     const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, context);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {

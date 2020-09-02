@@ -370,7 +370,8 @@ TEST_F(
     ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 
-    const auto actualData = inferDataPtr->getOutputBlob(outputName)->getData();
+    //TODO send roiIndex (second parameter)
+    const auto actualData = inferDataPtr->getOutputData(outputName);
     const size_t actualSize = actualData.size();
     EXPECT_EQ(actualSize, sizeToAllocate);
 
@@ -397,7 +398,8 @@ TEST_F(HddlUnite_BlobDescr_LocalMemory_Output, DISABLED_CreatedOutputBlobDesc_Wi
     ASSERT_NO_THROW(inferDataPtr->createBlob(outputName, blobDesc, isInput));
     ASSERT_NO_THROW(callInferenceOnBlobs());
 
-    const auto actualData = inferDataPtr->getOutputBlob(outputName)->getData();
+    //TODO send roiIndex (second parameter)
+    const auto actualData = inferDataPtr->getOutputData(outputName);
     const size_t actualSize = actualData.size();
     EXPECT_EQ(actualSize, sizeToAllocate);
 

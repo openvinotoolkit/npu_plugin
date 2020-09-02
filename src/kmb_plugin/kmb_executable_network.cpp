@@ -18,6 +18,7 @@
 // Can get compile error, if the order of the headers will be changed.
 
 #include <algorithm>
+#include <memory>
 #include <utility>
 
 #include <ie_metric_helpers.hpp>
@@ -31,6 +32,7 @@
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 
 #include <vpux_compiler.hpp>
+#include <vpux.hpp>
 
 #include "kmb_remote_context.h"
 #include "file_reader.h"
@@ -55,25 +57,26 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     }
 }
 
+std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
+
 void ExecutableNetwork::LoadBlob() {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadBlob");
-    static int loadBlobCounter = 1;
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
-    const auto& remoteCtx = _remoteContext->as<KmbRemoteContext>();
-    _executor = std::make_shared<KmbExecutor>(
-        _networkDescription, remoteCtx->getAllocator(), remoteCtx->getDeviceId(), _config);
+    const auto& deviceId = ::utils::extractIdFromDeviceName(_device->getName());
+    _executor = std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), deviceId, _config);
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
     _netName = _networkDescription->getName();
 }
 
-ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const ie::RemoteContext::Ptr& ctx)
-    : _config(config), _remoteContext(ctx), _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)) {}
+ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+    : _config(config), _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)), _device(device) {}
 
-ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config, const RemoteContext::Ptr& ctx)
-    : ExecutableNetwork(config, ctx) {
+ExecutableNetwork::ExecutableNetwork(
+    ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+    : ExecutableNetwork(config, device) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
     _netName = network.getName();
@@ -119,20 +122,23 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
         _networkDescription = _compiler->compile(*actualNetwork, _config);
     }
-
-    if (_config.loadNetworkAfterCompilation()) {
+    if (_device) {
         LoadBlob();
         ConfigureExecutor(_netName);
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config, const RemoteContext::Ptr& ctx)
-    : ExecutableNetwork(config, ctx) {
+ExecutableNetwork::ExecutableNetwork(
+    std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+    : ExecutableNetwork(config, device) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
+
     _networkDescription = _compiler->parse(strm, _config);
-    LoadBlob();
-    ConfigureExecutor("ExecutableNetwork");
+    if (_device) {
+        LoadBlob();
+        ConfigureExecutor("ExecutableNetwork");
+    }
 }
 
 void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc*) const {

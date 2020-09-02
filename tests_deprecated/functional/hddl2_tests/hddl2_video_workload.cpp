@@ -87,7 +87,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
-    InferenceEngine::Blob::Ptr inputRefBlob;
+    IE::Blob::Ptr inputRefBlob;
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputTensor));
 
     // ----- Allocate memory with HddlUnite on device
@@ -95,7 +95,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -114,7 +114,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     // ---- Create remote blob by using already exists fd
@@ -138,7 +138,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    InferenceEngine::Blob::Ptr outputRefBlob;
+    IE::Blob::Ptr outputRefBlob;
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, outputBlob->getTensorDesc()));
 
     // --- Compare with expected output
@@ -158,7 +158,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& inputTensor = PrecompiledResNet_Helper::resnet50_tensors.inputTensor;
-    InferenceEngine::Blob::Ptr inputRefBlob;
+    IE::Blob::Ptr inputRefBlob;
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, inputTensor));
 
     // ----- Allocate memory with HddlUnite on device
@@ -166,7 +166,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -185,13 +185,13 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     // ---- Create remote blob by using already exists fd
     IE::ROI roi {0, 10, 10, 100, 100};
     IE::ParamMap blobParamMap = {
-        {IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}, {IE::HDDL2_PARAM_KEY(ROI), roi}};
+        {IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
 
     auto inputsInfo = executableNetwork.GetInputsInfo();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -199,9 +199,11 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(), blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
+    IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
+    ASSERT_NE(nullptr, remoteROIBlobPtr);
 
     // ---- Set remote blob as input for infer request
-    inferRequest.SetBlob(inputName, remoteBlobPtr);
+    inferRequest.SetBlob(inputName, remoteROIBlobPtr);
 
     // ---- Run the request synchronously
     ASSERT_ANY_THROW(inferRequest.Infer());  //  expected 'preprocess only support NV12 format'
@@ -231,9 +233,9 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& nv12FrameTensor =
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 77976}, InferenceEngine::Layout::NCHW);
+        IE::TensorDesc(IE::Precision::U8, {1, 1, 1, 77976}, IE::Layout::NCHW);
 
-    InferenceEngine::Blob::Ptr inputRefBlob;
+    IE::Blob::Ptr inputRefBlob;
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
@@ -241,7 +243,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -263,7 +265,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, config);
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     // ---- Create remote blob by using already exists fd and specify color format of it
@@ -294,7 +296,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    InferenceEngine::Blob::Ptr outputRefBlob;
+    IE::Blob::Ptr outputRefBlob;
     auto referenceBlobTensor = outputBlob->getTensorDesc();
 
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, referenceBlobTensor));
@@ -315,9 +317,9 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& nv12FrameTensor =
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 77976}, InferenceEngine::Layout::NCHW);
+        IE::TensorDesc(IE::Precision::U8, {1, 1, 1, 77976}, IE::Layout::NCHW);
 
-    InferenceEngine::Blob::Ptr inputRefBlob;
+    IE::Blob::Ptr inputRefBlob;
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
@@ -325,7 +327,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -347,14 +349,14 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr, config);
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     IE::ROI roi {0, 2, 2, 221, 221};
 
     // ---- Create remote blob by using already exists fd and specify color format of it
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
-        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}, {IE::HDDL2_PARAM_KEY(ROI), roi}};
+        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
 
     // Specify input
     auto inputsInfo = executableNetwork.GetInputsInfo();
@@ -363,6 +365,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, 228, 228}, IE::Layout::NCHW);
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
+    IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
+    ASSERT_NE(nullptr, remoteROIBlobPtr);    
 
     // Since it 228x228 image on 224x224 network, resize preprocessing also required
     IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
@@ -380,7 +384,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    InferenceEngine::Blob::Ptr outputRefBlob;
+    IE::Blob::Ptr outputRefBlob;
     auto refTensorDesc = outputBlob->getTensorDesc();
 
     ASSERT_NO_THROW(outputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refOutputPath, refTensorDesc));

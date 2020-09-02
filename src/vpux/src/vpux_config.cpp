@@ -15,24 +15,23 @@ void vpux::VPUXConfigBase::parse(const std::map<std::string, std::string>& confi
     }
 }
 
+vpux::VPUXConfigBase::VPUXConfigBase(): _options(vpu::ParsedConfigBase::getCompileOptions()) {}
+
+void vpux::VPUXConfigBase::expandSupportedOptions(const std::unordered_set<std::string>& options) {
+    _options.insert(options.begin(), options.end());
+}
+
+const std::unordered_set<std::string>& vpux::VPUXConfigBase::getCompileOptions() const { return _options; }
+
+vpux::VPUXConfig::VPUXConfig() {
+    _options = merge(vpux::VPUXConfigBase::getCompileOptions(), {
+                                                                    VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
+                                                                });
+}
+
 void vpux::VPUXConfig::parseFrom(const vpux::VPUXConfig& other) { parse(other.getConfig()); }
 
 void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
     vpux::VPUXConfigBase::parse(config);
     setOption(_useNGraphParser, switches, config, VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER));
-}
-
-void vpux::VPUXConfig::update(const std::map<std::string, std::string>& config, vpu::ConfigMode) { parse(config); }
-
-const std::unordered_set<std::string>& vpux::VPUXConfigBase::getCompileOptions() const {
-    return vpu::ParsedConfigBase::getCompileOptions();
-}
-
-const std::unordered_set<std::string>& vpux::VPUXConfig::getCompileOptions() const {
-    static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfigBase::getCompileOptions(), {
-                                                             VPU_COMPILER_CONFIG_KEY(USE_NGRAPH_PARSER),
-                                                         });
-
-    return options;
 }

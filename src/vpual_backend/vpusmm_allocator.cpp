@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "kmb_allocator.h"
+#include "vpusmm_allocator.hpp"
 
 #include <iostream>
 #include <memory>
@@ -27,7 +27,7 @@
 
 #include "ie_macro.hpp"
 
-using namespace vpu::KmbPlugin;
+namespace vpux {
 
 #if defined(__arm__) || defined(__aarch64__)
 static size_t alignMemorySize(const size_t& size) {
@@ -42,17 +42,17 @@ static size_t alignMemorySize(const size_t& size) {
 }
 #endif
 
-KmbAllocator::KmbAllocator(const int& deviceId): _deviceId(deviceId) {}
+VpusmmAllocator::VpusmmAllocator(const int& deviceId): _deviceId(deviceId) {}
 
-void* KmbAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
+void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     if (_allocatedMemory.find(handle) == _allocatedMemory.end()) return nullptr;
 
     return handle;
 }
 
-void KmbAllocator::unlock(void* handle) noexcept { UNUSED(handle); }  // cpplint mark this line as false positive
+void VpusmmAllocator::unlock(void* handle) noexcept { UNUSED(handle); }  // cpplint mark this line as false positive
 
-unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
+unsigned long VpusmmAllocator::getPhysicalAddress(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return vpurm_ptr_to_vpu(handle, _deviceId);
 #else
@@ -61,7 +61,7 @@ unsigned long KmbAllocator::getPhysicalAddress(void* handle) noexcept {
 #endif
 }
 
-bool KmbAllocator::isValidPtr(void* ptr) noexcept {
+bool VpusmmAllocator::isValidPtr(void* ptr) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     return ptr != nullptr && vpurm_ptr_to_vpu(ptr, _deviceId) != 0;
 #else
@@ -70,7 +70,7 @@ bool KmbAllocator::isValidPtr(void* ptr) noexcept {
 #endif
 }
 
-void* KmbAllocator::wrapRemoteMemoryHandle(
+void* VpusmmAllocator::wrapRemoteMemoryHandle(
     const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
@@ -95,7 +95,7 @@ void* KmbAllocator::wrapRemoteMemoryHandle(
 #endif
 }
 
-void* KmbAllocator::wrapRemoteMemoryOffset(
+void* VpusmmAllocator::wrapRemoteMemoryOffset(
     const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
@@ -126,7 +126,7 @@ void* KmbAllocator::wrapRemoteMemoryOffset(
 #endif
 }
 
-void* KmbAllocator::alloc(size_t size) noexcept {
+void* VpusmmAllocator::alloc(size_t size) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     size_t realSize = alignMemorySize(size);
 
@@ -153,7 +153,7 @@ void* KmbAllocator::alloc(size_t size) noexcept {
 #endif
 }
 
-bool KmbAllocator::free(void* handle) noexcept {
+bool VpusmmAllocator::free(void* handle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto memoryIt = _allocatedMemory.find(handle);
     if (memoryIt == _allocatedMemory.end()) {
@@ -179,7 +179,7 @@ bool KmbAllocator::free(void* handle) noexcept {
 #endif
 }
 
-KmbAllocator::~KmbAllocator() {
+VpusmmAllocator::~VpusmmAllocator() {
     if (!_allocatedMemory.empty()) {
         std::size_t allocatedChunksCount = 0;
         std::size_t amount = 0;
@@ -196,3 +196,5 @@ KmbAllocator::~KmbAllocator() {
         }
     }
 }
+
+}  // namespace vpux

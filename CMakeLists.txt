@@ -34,9 +34,9 @@ list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
 #
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
-include(features)
-include(compile_options)
-include(dependencies)
+include(cmake/features.cmake)
+include(cmake/compile_options.cmake)
+include(cmake/dependencies.cmake)
 
 if(UNIX)
     ie_add_compiler_flags(-Wno-undef)
@@ -62,6 +62,7 @@ endif()
 
 add_subdirectory(thirdparty)
 
+add_subdirectory(src/vpual_backend)
 add_subdirectory(src/vpux)
 # TODO: Frontend mcm lib should be built only if mcm compiler enabled, but now we have some
 #   dependencies, like mcm_config

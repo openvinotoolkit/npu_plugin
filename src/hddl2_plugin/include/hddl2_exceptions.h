@@ -51,8 +51,8 @@ namespace HDDL2Plugin {
                 "Please make sure you are using HDDL2RemoteContext.")
 
 ///  Infer request
-#define NO_EXECUTOR_FOR_INFERENCE             \
-    std::string("Can't create infer request!" \
+#define NO_EXECUTOR_FOR_INFERENCE               \
+    std::string("Can't create infer request!\n" \
                 "Please make sure that the device is available. Only exports can be made.")
 
 }  //  namespace HDDL2Plugin

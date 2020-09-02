@@ -28,6 +28,7 @@
 #include <vector>
 #include <vpu/kmb_plugin_config.hpp>
 
+#include "file_reader.h"
 #include "ie_macro.hpp"
 
 using namespace InferenceEngine;
@@ -64,8 +65,11 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
         transformator.fullTrim();
     }
 
-    return std::make_shared<ExecutableNetwork>(
-        *clonedNetwork, parsedConfigCopy, GetDefaultContext(parsedConfigCopy.deviceId()));
+    const auto& devices = _backend->getDevices();
+    bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
+    const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
+
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, device);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
@@ -87,39 +91,27 @@ void Engine::QueryNetwork(
 
     auto copyNet = ie::CNNNetwork(InferenceEngine::cloneNet(network));
 
-    auto compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
-    auto layerNames = compiler->getSupportedLayers(copyNet);
+    auto layerNames = _compiler->getSupportedLayers(copyNet);
 
     for (auto&& layerName : layerNames) {
         res.supportedLayersMap.insert({layerName, GetName()});
     }
 }
 
-Engine::Engine(): _metrics(), _defaultContextMap({}) {
+Engine::Engine()
+    : _backend(vpux::EngineBackendConfigurator::findBackend()),
+      _metrics(KmbMetrics(_backend->getDevices())),
+      _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
+    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ImportNetwork");
-    std::ifstream blobFile(modelFileName, std::ios::binary);
-
-    if (!blobFile.is_open()) {
-        THROW_IE_EXCEPTION << InferenceEngine::details::as_status << NETWORK_NOT_READ;
-    }
-
-    InferenceEngine::ExportMagic magic = {};
-    blobFile.seekg(0, blobFile.beg);
-    blobFile.read(magic.data(), magic.size());
-    auto exportedWithName = (exportMagic == magic);
-    if (exportedWithName) {
-        std::string tmp;
-        std::getline(blobFile, tmp);
-    } else {
-        blobFile.seekg(0, blobFile.beg);
-    }
-
-    return ImportNetworkImpl(blobFile, config);
+    std::ifstream blobStream(modelFileName, std::ios::binary);
+    return ImportNetworkImpl(utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
@@ -127,9 +119,12 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(
-        networkModel, parsedConfigCopy, GetDefaultContext(parsedConfigCopy.deviceId()));
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    const auto& devices = _backend->getDevices();
+    bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
+    const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device);
+
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(
@@ -153,20 +148,26 @@ InferenceEngine::Parameter Engine::GetMetric(
 }
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
-    return std::make_shared<KmbPlugin::KmbRemoteContext>(map, _parsedConfig);
+    const auto& deviceId = map.at(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID));
+    const auto& device = _backend->getDevices().at(deviceId);
+    return std::make_shared<KmbPlugin::KmbRemoteContext>(map, _parsedConfig, device);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& ctx, const std::map<std::string, std::string>& config) {
     if (std::dynamic_pointer_cast<KmbRemoteContext>(ctx) == nullptr) {
-        THROW_IE_EXCEPTION << "Remote context is not compatible";
+        THROW_IE_EXCEPTION << "remote context is not compatible";
     }
 
     auto parsedConfigCopy = _parsedConfig;
     parsedConfigCopy.update(config);
 
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, ctx);
-    return InferenceEngine::ExecutableNetwork{InferenceEngine::make_executable_network(executableNetwork)};
+    const auto& devices = _backend->getDevices();
+    bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
+    const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
+    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device);
+
+    return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
@@ -176,7 +177,9 @@ RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
         const ParamMap ctxParams = {
             {InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), deviceId},
         };
-        _defaultContextMap[deviceId] = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig);
+
+        const auto& device = _backend->getDevices().at(deviceId);
+        _defaultContextMap[deviceId] = std::make_shared<KmbPlugin::KmbRemoteContext>(ctxParams, _parsedConfig, device);
     }
     return std::dynamic_pointer_cast<RemoteContext>(_defaultContextMap.at(deviceId));
 }

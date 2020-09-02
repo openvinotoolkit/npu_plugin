@@ -152,6 +152,33 @@ void* VPUSMMAllocator::importDMA(const int& fileDesc) {
 #endif
 }
 
+bool VPUSMMAllocator::free(void* handle) {
+    bool isFound = false;
+#if defined(__arm__) || defined(__aarch64__)
+    std::size_t pos = 0;
+    for (const std::tuple<int, void*, size_t>& chunk : _memChunks) {
+        int fileDesc = std::get<0>(chunk);
+        void* virtAddr = std::get<1>(chunk);
+        if (handle == virtAddr) {
+            size_t allocatedSize = std::get<2>(chunk);
+            vpusmm_unimport_dmabuf(fileDesc);
+            if (virtAddr != nullptr) {
+                munmap(virtAddr, allocatedSize);
+            }
+            close(fileDesc);
+            isFound = true;
+            break;
+        }
+        pos++;
+    }
+    if (isFound) {
+        _memChunks.erase(_memChunks.begin() + pos);
+    }
+#endif
+    UNUSED(handle);
+    return isFound;
+}
+
 VPUSMMAllocator::~VPUSMMAllocator() {
 #if defined(__arm__) || defined(__aarch64__)
     for (const std::tuple<int, void*, size_t>& chunk : _memChunks) {

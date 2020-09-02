@@ -59,14 +59,17 @@ if(ARM OR AARCH64 OR WIN32)
             ${SCHEMA_INCLUDE_PATH})
 endif()
 
+target_include_directories(${TARGET_NAME}
+    SYSTEM PRIVATE
+        $<TARGET_PROPERTY:IE::inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
+        $<TARGET_PROPERTY:IE::ngraph_reference,INTERFACE_INCLUDE_DIRECTORIES>)
+
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
         IE::inference_engine_transformations
-        IE::inference_engine_lp_transformations
         vpux
         IE::pugixml
-        vpux
         IE::ngraph_reference
         kmb_utils
         IE::vpu_common_lib)

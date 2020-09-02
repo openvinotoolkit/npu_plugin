@@ -29,37 +29,17 @@ static std::map<std::string, int> deviceIdMapping = {
     {"VPU-3", 3},
 };
 
-KmbContextParams::KmbContextParams(const InferenceEngine::ParamMap& params)
-    : _paramMap(params), _deviceId(-1), _deviceIdStr("") {
-    if (_paramMap.empty()) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Param map for context is empty.";
-    }
+using namespace vpu::KmbPlugin;
 
-    auto deviceIdIter = _paramMap.find(InferenceEngine::KMB_PARAM_KEY(DEVICE_ID));
-    if (deviceIdIter == _paramMap.end()) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Param map does not contain device ID.";
-    }
-    _deviceIdStr = deviceIdIter->second.as<std::string>();
-
-    auto devMappingIter = deviceIdMapping.find(_deviceIdStr);
-    if (devMappingIter == deviceIdMapping.end()) {
-        THROW_IE_EXCEPTION << "KmbBlobParams::KmbContextParams: Device ID " << _deviceIdStr << " is invalid.";
-    }
-    _deviceId = devMappingIter->second;
-}
-
-InferenceEngine::ParamMap KmbContextParams::getParamMap() const { return _paramMap; }
-
-int KmbContextParams::getDeviceId() const { return _deviceId; }
-
-std::string KmbContextParams::getDeviceIdStr() const { return _deviceIdStr; }
-
-KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& ctxParams, const KmbConfig& config)
+KmbRemoteContext::KmbRemoteContext(
+    const InferenceEngine::ParamMap& params, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
     : _config(config),
-      _contextParams(ctxParams),
+      _params(params),
       _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
-      _deviceId(_contextParams.getDeviceId()) {
-    _allocatorPtr = std::make_shared<KmbAllocator>(_deviceId);
+      _device(device) {
+    if (_device == nullptr) {
+        THROW_IE_EXCEPTION << "Cannot define a remote context with a device";
+    }
 }
 
 InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
@@ -71,7 +51,8 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
         return nullptr;
     }
     try {
-        return std::make_shared<KmbRemoteBlob>(tensorDesc, shared_from_this(), params, _config);
+        return std::make_shared<KmbRemoteBlob>(
+            tensorDesc, shared_from_this(), params, _config, _device->getAllocator());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory fd is correct.\nError: %s\n",
@@ -80,12 +61,6 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
     }
 }
 
-std::string KmbRemoteContext::getDeviceName() const noexcept { return "KMB." + _contextParams.getDeviceIdStr(); }
+std::string KmbRemoteContext::getDeviceName() const noexcept { return "KMB." + _device->getName(); }
 
-KmbAllocator::Ptr KmbRemoteContext::getAllocator() { return _allocatorPtr; }
-
-InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return _contextParams.getParamMap(); }
-
-int KmbRemoteContext::getDeviceId() const noexcept { return _deviceId; }
-
-KmbContextParams KmbRemoteContext::getContextParams() const { return _contextParams; }
+InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return _params; }

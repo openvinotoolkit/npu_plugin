@@ -18,30 +18,27 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME vpux)
-
-set(FRONTEND_VPUX_INCLUDE_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "FRONTEND_VPUX_INCLUDE_DIR")
+set(TARGET_NAME vpual_backend)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 
-add_library(${TARGET_NAME} STATIC ${SOURCES})
+add_library(${TARGET_NAME} SHARED ${SOURCES})
+target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-target_include_directories(${TARGET_NAME} PUBLIC include
-                                          # FIXME: should be here?
-                                          PRIVATE ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+target_include_directories(${TARGET_NAME}
+        PUBLIC
+            ./
+            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/)
 
-target_link_libraries(${TARGET_NAME} PRIVATE kmb_utils)
-
-if(UNIX)
-    target_compile_options(${TARGET_NAME}
+target_link_libraries(${TARGET_NAME}
         PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+            ${VPUAL_NN_LIBRARY}
+            ${VPUSMM_LIBRARY}
+            IE::inference_engine
+            vpux
+            kmb_utils)
+
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()
-

@@ -23,18 +23,37 @@
 #include <vpu/vpu_compiler_config.hpp>
 
 #include "functional_test_utils/plugin_cache.hpp"
+#include "ie_macro.hpp"
+
 
 using namespace InferenceEngine;
 
 void kmbLayersTests_nightly::NetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params,
     int weights_size, int biases_size, InferenceEngine::TBlob<uint8_t>::Ptr weights,
     InferenceEngine::Precision outputPrecision, InferenceEngine::Precision inputPrecision) {
+#if defined(__arm__) || defined(__aarch64__)
+    UNUSED(layer_type);
+    UNUSED(params);
+    UNUSED(weights_size);
+    UNUSED(biases_size);
+    UNUSED(weights);
+    UNUSED(outputPrecision);
+    UNUSED(inputPrecision);
+    SKIP();
+#else
     ASSERT_NO_FATAL_FAILURE(
         doNetworkInit(layer_type, params, weights_size, biases_size, weights, outputPrecision, inputPrecision););
+#endif
 }
 
 void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::Precision outputPrecision,
     InferenceEngine::Precision inputPrecision, bool) {
+#if defined(__arm__) || defined(__aarch64__)
+    UNUSED(network);
+    UNUSED(outputPrecision);
+    UNUSED(inputPrecision);
+    SKIP();
+#else
     _inputsInfo = network.getInputsInfo();
     for (const auto& in : _inputsInfo) {
         in.second->setPrecision(inputPrecision);
@@ -49,6 +68,7 @@ void kmbLayersTests_nightly::setup(const CNNNetwork& network, InferenceEngine::P
     std::map<std::string, std::string> config;
     setCommonConfig(config);
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
+#endif
 }
 
 void kmbLayersTests_nightly::doNetworkInit(const std::string& layer_type, std::map<std::string, std::string>* params,
@@ -78,7 +98,6 @@ std::string KmbPerLayerTest::getTestResultFilename() const {
 
 void kmbLayersTests_nightly::setCommonConfig(std::map<std::string, std::string>& config) {
     config = this->config;
-    config["VPU_KMB_LOAD_NETWORK_AFTER_COMPILATION"] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(ELTWISE_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
     config[VPU_COMPILER_CONFIG_KEY(CONCAT_SCALES_ALIGNMENT)] = CONFIG_VALUE(YES);
 }
