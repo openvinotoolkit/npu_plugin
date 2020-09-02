@@ -73,8 +73,8 @@ private:
     std::string _mcmCompilationDesciptorPath = "mcm_config/compilation";
     std::string _mcmCompilationDesciptor = "release_kmb";
 
-    bool _mcmGenerateBlob = false;
-    bool _mcmGenerateJSON = false;
+    bool _mcmGenerateBlob = true;
+    bool _mcmGenerateJSON = true;
     bool _mcmGenerateDOT = false;
 
     bool _mcmParseOnly = false;
