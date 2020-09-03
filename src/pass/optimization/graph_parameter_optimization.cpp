@@ -2189,6 +2189,9 @@ namespace mv
 
             bool isPrefetchPossible(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
+                if(!globalEnablePipelining)
+                    return false;
+                    
                 //Note: No sense in prefetching weights if we just have to wait for activations
                 if(parent["spilling"].get<bool>())
                     return false;
