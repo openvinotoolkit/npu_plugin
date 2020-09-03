@@ -55,16 +55,6 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
-    if (auto nGraphFunc = clonedNetwork->getFunction()) {
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-    }
-
     auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
         // valid for CNNNetworkImpl only, while there's no API in ICNNNetwork to change network
@@ -81,17 +71,6 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     parsedConfigCopy.update(config);
 
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
-
-    if (clonedNetwork->getFunction()) {
-        auto nGraphFunc = clonedNetwork->getFunction();
-        // Disable shape inference (WA for generic operations)
-        ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
-
-        // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
-        ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
-        ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
-        clonedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, *clonedNetwork);
-    }
 
     auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
     if (implNetwork) {
