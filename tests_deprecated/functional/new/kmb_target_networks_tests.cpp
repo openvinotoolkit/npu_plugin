@@ -1004,3 +1004,39 @@ TEST_F(AgeGenderNetworkTest, precommit_age_gender_retail_0013) {
         TestImageDesc("62x62/face62.bmp", ImageFormat::RGB),
         0.1f);
 }
+
+// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
+// [Track number: S#31241]
+TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0234) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml"),
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
+        0.1f);
+}
+
+// C++ exception with description "Cannot convert layer "GatherIE_6126" due to unsupported layer type "Gather"
+// [Track number: S#31241]
+TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0238) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+	
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml"),
+        TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
+        0.1f);
+}
+
+// [Track number: D#3604]
+TEST_F(KmbSSDNetworkTest, ssdlite_mobilenet_v2) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/ssdlite_mobilenet_v2/ssdlite_mobilenet_v2.xml")
+            .setUserInputPrecision("image_tensor", Precision::U8),
+        TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
+        0.3f,
+        0.1f, 0.3f);
+}

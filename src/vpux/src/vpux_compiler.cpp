@@ -31,6 +31,8 @@ public:
         return _impl->getSupportedLayers(network);
     }
 
+    std::unordered_set<std::string> getSupportedOptions() override { return _impl->getSupportedOptions(); };
+
 private:
     using ICompilerPtr = InferenceEngine::details::SOPointer<vpux::ICompiler>;
     ICompilerPtr _impl;
@@ -65,7 +67,11 @@ std::shared_ptr<vpux::ICompiler> vpux::ICompiler::create(CompilerType t) {
     auto root = InferenceEngine::getIELibraryPath();
     switch (t) {
     case vpux::CompilerType::MCMCompiler: {
+#ifdef __unix__
         std::string lib_name = "/libfrontend_mcm.so";
+#else
+        std::string lib_name = "/frontend_mcm.dll";
+#endif
         return std::make_shared<Compiler>(root + lib_name);
     }
     default:

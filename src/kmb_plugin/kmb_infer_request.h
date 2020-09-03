@@ -41,6 +41,9 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbConfig _config;
     const std::string _netUniqueId;
     const int _deviceId;
+    // the buffer is used when non-shareable memory passed for preprocessing
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _prepprocBuffer;
+    Logger::Ptr _logger;
 
 public:
     using Ptr = std::shared_ptr<KmbInferRequest>;
@@ -66,10 +69,6 @@ protected:
         std::map<std::string, InferenceEngine::PreProcessDataPtr>& preprocData,
         InferenceEngine::InputsDataMap& networkInputs, InferenceEngine::ColorFormat out_format, unsigned int numShaves,
         unsigned int lpi);
-    void checkConfigsAndExecPreprocessing(InferenceEngine::BlobMap& inputs, bool useSipp);
-
-private:
-    Logger::Ptr _logger;
 };
 
 }  // namespace KmbPlugin

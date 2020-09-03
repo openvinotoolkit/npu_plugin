@@ -23,6 +23,7 @@ addIeTargetTest(
         "helpers"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
         "${FRONTEND_VPUX_INCLUDE_DIR}"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
     LINK_LIBRARIES
         IE::IESharedTests
         HDDL2Plugin_test_static

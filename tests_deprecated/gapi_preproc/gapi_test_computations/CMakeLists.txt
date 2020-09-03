@@ -9,7 +9,9 @@ add_library(gapi_test_computations SHARED ${SRC} ${HDR})
 
 target_include_directories(gapi_test_computations
     SYSTEM PRIVATE
-        ${GAPI_SIPP_INCLUDES}
+        ${GAPI_SIPP_INCLUDES})
+
+target_include_directories(gapi_test_computations
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR})
 

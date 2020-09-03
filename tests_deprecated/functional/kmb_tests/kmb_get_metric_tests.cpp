@@ -38,6 +38,7 @@ TEST_F(GetMetricTest, getAvailableDevices) {
 #endif
     if (runningOnARM) {
         ASSERT_FALSE(kmbDeviceIds.empty());
+        // FIXME: 4 for THB
         ASSERT_EQ(kmbDeviceIds.size(), 1);
         ASSERT_NE(kmbDeviceIds.begin()->find("VPU"), std::string::npos);
 

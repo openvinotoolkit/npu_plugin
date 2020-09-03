@@ -482,4 +482,14 @@ std::size_t getByteSize(const ie::TensorDesc& desc) {
     return byteSize;
 }
 
+// TODO copied from vpual_device.cpp
+int extractIdFromDeviceName(const std::string& name) {
+    const std::size_t expectedSize = 5;
+    if (name.size() != expectedSize) {
+        THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+    }
+
+    return name[expectedSize - 1] - '0';
+}
+
 }  // namespace utils

@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include <ie_compound_blob.h>
 
+#include <allocators.hpp>
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
 #include <ie_preprocess.hpp>
@@ -16,7 +17,6 @@
 #include <thread>
 
 #include "gapi_test_computations.hpp"
-#include "kmb_allocator.h"
 
 #ifndef UNUSED
 #define UNUSED(var) (void)var
@@ -136,13 +136,12 @@ void own_NV12toRGB(const cv::Mat& inY, const cv::Mat& inUV, cv::Mat& out) {
 }
 
 class AllocHelper {
-    const int defaultDeviceId = 0;
-    vpu::KmbPlugin::KmbAllocator m_alloc{defaultDeviceId};
+    vpu::KmbPlugin::utils::VPUSMMAllocator m_alloc;
     std::vector<std::shared_ptr<void>> m_buffs;
 
 public:
     void* alloc(size_t size) {
-        void* ptr = m_alloc.alloc(size);
+        void* ptr = m_alloc.allocate(size);
         m_buffs.push_back(std::shared_ptr<void>(ptr, [&](void* p) {
             m_alloc.free(p);
         }));

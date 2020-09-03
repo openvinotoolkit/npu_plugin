@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "ie_remote_context.hpp"
+#include "ie_utils.hpp"
 #include "kmb_async_infer_request.h"
 #include "kmb_config.h"
 #include "kmb_executor.h"
@@ -42,10 +43,12 @@ class ExecutableNetwork final : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
-    explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
+    explicit ExecutableNetwork(
+        ie::ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(
+        std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
 
-    ~ExecutableNetwork() = default;
+    virtual ~ExecutableNetwork() = default;
 
     void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
     void SetConfig(const std::map<std::string, ie::Parameter>& config, ie::ResponseDesc* resp) override;
@@ -53,23 +56,21 @@ public:
 
     ie::InferRequestInternal::Ptr CreateInferRequestImpl(
         ie::InputsDataMap networkInputs, ie::OutputsDataMap networkOutputs) override {
-        // TODO: it would be better to use some interface for context
-        // instead of a concrete KmbRemoteContext class
-        const auto& kmbContext = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext);
-        if (kmbContext == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
+        if (_device == nullptr) {
+            THROW_IE_EXCEPTION << "Can not create an infer request because there are no devices";
         }
+        const auto& deviceId = ::utils::extractIdFromDeviceName(_device->getName());
         return std::make_shared<KmbInferRequest>(networkInputs, networkOutputs, _stagesMetaData, _config, _executor,
-            kmbContext->getAllocator(), _netName, kmbContext->getDeviceId());
+            _device->getAllocator(), _netName, deviceId);
     }
 
     void CreateInferRequest(ie::IInferRequest::Ptr& asyncRequest) override {
-        const auto& kmbContext = std::dynamic_pointer_cast<KmbRemoteContext>(_remoteContext);
-        if (kmbContext == nullptr) {
-            THROW_IE_EXCEPTION << "Cannot cast context to KmbRemoteContext.";
+        if (_device == nullptr) {
+            THROW_IE_EXCEPTION << "Can not create an infer request because there are no devices";
         }
+        const auto& deviceId = ::utils::extractIdFromDeviceName(_device->getName());
         auto syncRequestImpl = std::make_shared<KmbInferRequest>(_networkInputs, _networkOutputs, _stagesMetaData,
-            _config, _executor, kmbContext->getAllocator(), _netName, kmbContext->getDeviceId());
+            _config, _executor, _device->getAllocator(), _netName, deviceId);
 
         syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());
         auto taskExecutorGetResult = getNextTaskExecutor();
@@ -103,7 +104,7 @@ public:
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
 private:
-    explicit ExecutableNetwork(const KmbConfig& config, const ie::RemoteContext::Ptr& ctx);
+    explicit ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
 
     void ConfigureExecutor(const std::string& networkName);
     void LoadBlob();
@@ -121,7 +122,6 @@ private:
     std::queue<std::string> _taskExecutorGetResultIds;
 
     std::string _netName;
-    ie::RemoteContext::Ptr _remoteContext = nullptr;
 
     // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
     // due _compiler is opened as plugin and _networkDescription is created by _compiler
@@ -129,7 +129,13 @@ private:
     // [Track number: S#37571]
     vpux::ICompiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr _networkDescription = nullptr;
-    KmbExecutor::Ptr _executor;
+
+    std::shared_ptr<vpux::Device> _device = nullptr;
+    // FIXME: executor contains a pointer for allocator which comes from dll.
+    // executor should be destroyed before _device
+    KmbExecutor::Ptr _executor = nullptr;
+
+    static std::atomic<int> loadBlobCounter;
 };
 
 }  // namespace KmbPlugin

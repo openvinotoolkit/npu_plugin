@@ -30,13 +30,15 @@
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
 #include "kmb_config.h"
 #include "kmb_remote_context.h"
+#include <vpux_compiler.hpp>
 
+#include <vpux.hpp>
 // clang-format on
 
 namespace vpu {
 namespace KmbPlugin {
 
-class Engine : public InferenceEngine::InferencePluginInternal {
+class Engine final : public InferenceEngine::InferencePluginInternal {
 public:
     Engine();
 
@@ -62,14 +64,18 @@ public:
         const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& options) const override;
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
-    RemoteContext::Ptr GetDefaultContext(const std::string& deviceId = "VPU-0");
 
 private:
+    RemoteContext::Ptr GetDefaultContext(const std::string& deviceId = "VPU-0");
+
     KmbConfig _parsedConfig;
+    std::mutex _contextCreateMutex;
+
+    std::shared_ptr<vpux::EngineBackend> _backend;
     KmbMetrics _metrics;
     // map to cover the case when networks use different device IDs
     std::map<std::string, KmbRemoteContext::Ptr> _defaultContextMap;
-    std::mutex _contextCreateMutex;
+    vpux::ICompiler::Ptr _compiler;
 };
 
 }  // namespace KmbPlugin

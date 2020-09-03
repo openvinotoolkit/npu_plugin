@@ -26,13 +26,13 @@
 #include <ie_macro.hpp>
 #include <ie_utils.hpp>
 #include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 #include <vpu/utils/extra.hpp>
 #include <vpu/utils/ie_helpers.hpp>
 #include <vpu/utils/logger.hpp>
 
-#include "kmb_allocator.h"
 #include "kmb_config.h"
 
 using namespace vpu::KmbPlugin;
@@ -46,8 +46,8 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 
 // FIXME this is a wrong way to pass device ID to executors
 // it breaks encapsulation. executor shouldn't care what device id is
-KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const KmbAllocator::Ptr& allocator,
-    const int deviceId, const KmbConfig& config)
+KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+    const std::shared_ptr<vpux::Allocator>& allocator, const int deviceId, const KmbConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
       _config(config),
@@ -150,7 +150,7 @@ namespace {
  * 5. Track allocated chunks by virtual addresses to free them properly
  */
 static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const unsigned int threadCount,
-    const std::shared_ptr<KmbAllocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    const std::shared_ptr<vpux::Allocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
     if (threadCount > 1) {
         logger->warning("scratchHelper: trying to set scratch buffer to %u threads.", threadCount);
     }
@@ -372,8 +372,8 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
 #endif
 }
 
-static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
-    const Blob::Ptr& blob, const Layout& srcLayout, const Layout& dstLayout, const KmbAllocator::Ptr& allocator) {
+static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(const Blob::Ptr& blob, const Layout& srcLayout,
+    const Layout& dstLayout, const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     if (blob->getTensorDesc().getDims()[1] != 3) {
         THROW_IE_EXCEPTION << "reallocateBlobToLayoutIgnoringOriginalLayout works only with channels == 3";
     }
@@ -392,7 +392,7 @@ static Blob::Ptr reallocateBlobToLayoutIgnoringOriginalLayout(
 }
 
 static Blob::Ptr reallocateBlobToLayout(
-    const Blob::Ptr& blob, const Layout& layout, const KmbAllocator::Ptr& allocator) {
+    const Blob::Ptr& blob, const Layout& layout, const std::shared_ptr<InferenceEngine::IAllocator>& allocator) {
     TensorDesc dstTensorDesc = {blob->getTensorDesc().getPrecision(), blob->getTensorDesc().getDims(), layout};
     Blob::Ptr kmbBlob = make_blob_with_precision(dstTensorDesc, allocator);
     kmbBlob->allocate();
