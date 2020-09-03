@@ -95,7 +95,7 @@ private:
 
     std::string _mcmCompilationPassBanList = "";
 
-    bool _useScaleFuseInput = false;
+    bool _useScaleFuseInput = true;
 };
 
 }  //  namespace vpu

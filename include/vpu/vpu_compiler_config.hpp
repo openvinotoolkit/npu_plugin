@@ -114,7 +114,7 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
 
 /**
  * @brief [Only for vpu compiler]
- * Type: "YES/NO", default is "NO".
+ * Type: "YES/NO", default is "YES".
  * Enable or disable fusing scaleshift
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(USE_SCALE_FUSE_INPUT);
