@@ -352,6 +352,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
     auto deconvOps = om.getOps("Deconv");
     for (auto& opIt : deconvOps)
     {
+        if (opIt->get<bool>("is_depthwise"))
+            continue;
         auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
         auto deconvKernel = opIt->getInputTensor(1);
         auto deconvKernelOp = om.getSourceOp(deconvKernel);
