@@ -27,6 +27,7 @@ void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::Computati
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -66,6 +67,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceConcatOfPopulatedTensorsFcn(pass, model);
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
+    replacePermuteAsReshape(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
@@ -131,6 +133,75 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         reshapeAfterPermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+    auto permuteOps = om.getOps("Permute");
+
+    for (auto& opIt : permuteOps)
+    {
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+
+        std::vector<size_t> inputRealShape, outputRealShape;
+        for (int i = 0; i < 4; i++)
+        {
+            if(inputShape[i] != 1)
+            {
+                inputRealShape.push_back(inputShape[i]);
+            }
+            if(outputShape[i] != 1)
+            {
+                outputRealShape.push_back(outputShape[i]);
+            }
+        }
+
+        if(inputRealShape.size() == outputRealShape.size())
+        {
+            bool match = true;
+            for(int i = 0; i < inputRealShape.size(); i++)
+            {
+                match &= (inputRealShape[i] == outputRealShape[i]);
+            }
+
+            if(match)
+            {
+                // do permute when 2 dimensions' size equal.
+                std::set<size_t> noRepeatShape(inputRealShape.begin(), inputRealShape.end());
+                match &= (noRepeatShape.size()==inputRealShape.size());
+                // do permute when next step is reshape
+                mv::DataModel dm(model);
+                auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+                if (nextOp->getOpType() == "Reshape") {
+                    match = false;
+                }
+            }
+            if(match)
+            {
+                auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                auto sourceTensor = opIt->getInputTensor(0);
+                auto parentOpIt = om.getSourceOp(sourceTensor);
+                auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+                auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+                auto reshape = om.reshape(sourceTensor, outputShape, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
+                auto reshapeOp = om.getSourceOp(reshape);
+
+                if(opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    reshapeOp->set<unsigned>("opId", currentOpId);
+                }
+
+                linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
+                reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
+        }
     }
 }
 
@@ -547,7 +618,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
+                                mv::DType("UInt8"),
                                 mv::Order(mv::Order::getColMajorID(4)),
                                 weightsQuantParams);
         }
@@ -1416,6 +1487,33 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
             continue;
+        // if stride vertical equals 1 and input horizontal equals kernel horizontal size, no need to split.
+        // but replace strides (s_w,1) with (s_w,s_w) s_w>=2 when height=1
+        // e.g kernel=[8, 1], stride = [8, 1], input = [4000, 1], stride replaced with [8, 8]
+        // avoid cutting in too many workloads and obtaining a bad performance
+        if (stride[mv::STRIDE_VERTICAL] == 1)
+        {
+            bool verticalMatch = false;
+            auto inputTensorShape = opIt->getInputTensor(0)->getShape();
+            if (opIt->getOpType() == "DepthwiseConv")
+            {
+                auto kSize = opIt->getInputTensor(1)->getShape();
+                if (kSize[mv::IO_HEIGHT_DIMENSION] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
+                    verticalMatch = true;
+            }
+            else if (opIt->getOpType() == "AveragePool" || opIt->getOpType() == "MaxPool")
+            {
+                auto kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+                if (kSize[mv::IO_HEIGHT_DIMENSION] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
+                    verticalMatch = true;
+            }
+            if (verticalMatch)  // operate only one time on vertical.
+            {
+                stride[mv::STRIDE_VERTICAL] = stride[mv::STRIDE_HORIZONTAL];
+                opIt->set("stride", stride);
+                continue;
+            }
+        }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
         //stride supported not slicing, stride not supported slicing with slices dimensions of stride
