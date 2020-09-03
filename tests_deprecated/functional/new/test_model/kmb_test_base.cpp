@@ -1293,7 +1293,7 @@ void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
 // consider re-using PersonAttrRecNetworkTest as is
 void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
                                    const TestImageDesc& myVariable,
-                                   float tolerance) {
+                                   const float tolerance) {
     const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
       IE_ASSERT(inputs.size() == 1);
       registerSingleImage(myVariable, inputs.begin()->first, inputs.begin()->second->getTensorDesc());

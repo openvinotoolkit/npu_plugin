@@ -511,7 +511,7 @@ public:
     void runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& vehicle_image,
-        float tolerance);
+        const float tolerance);
 };
 
 //
