@@ -44,6 +44,7 @@ const std::unordered_set<std::string>& MCMConfig::getCompileOptions() const {
                                                          VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE),
                                                          VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS),
                                                          VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST),
+                                                         VPU_COMPILER_CONFIG_KEY(USE_SCALE_FUSE_INPUT),
                                                      });
 
     return options;
@@ -82,4 +83,6 @@ void MCMConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_customLayers, config, VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS));
 
     setOption(_mcmCompilationPassBanList, config, VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST));
+
+    setOption(_useScaleFuseInput, switches, config, VPU_COMPILER_CONFIG_KEY(USE_SCALE_FUSE_INPUT));
 }

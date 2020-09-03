@@ -207,6 +207,7 @@ void MCMAdapter::compileNetwork(
     }
 
     compDesc.setPassArg("GlobalConfigParams", "verbose", getMcmLogLevel(config.mcmLogLevel()));
+    compDesc.setPassArg("GlobalConfigParams", "ScaleFuseInput", config.useScaleFuseInput());
 
     if (!config.mcmCompilationPassBanList().empty()) {
         std::stringstream banList{config.mcmCompilationPassBanList()};

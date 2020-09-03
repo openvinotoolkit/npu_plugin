@@ -112,5 +112,12 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Enable or disable fusing scaleshift
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(USE_SCALE_FUSE_INPUT);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
