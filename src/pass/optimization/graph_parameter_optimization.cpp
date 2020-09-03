@@ -439,8 +439,7 @@ namespace mv
                 {
                     //size_t alignedSplittedOutputChannels = ceil(alignedStreamedOutputChannels/totalClusters)
                     size_t alignedSplittedOutputChannels = div(alignedStreamedOutputChannels,totalClusters);
-                    //if(alignedSplittedOutputChannels < 64)//WA for AclNet 
-                        alignedSplittedOutputChannels = mv::round_up(alignedSplittedOutputChannels, 16);
+                    alignedSplittedOutputChannels = mv::round_up(alignedSplittedOutputChannels, 16);
 
                     return (alignedFullInputChannels * alignedSplittedOutputChannels *
                             tensorToSize->getShape()[KERNEL_WIDTH] * tensorToSize->getShape()[KERNEL_HEIGHT])
