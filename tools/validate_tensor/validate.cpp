@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <vector>
 #include <ios>
+#include <string>
 
 /**
  * Required environmental variables
@@ -32,7 +33,7 @@ const int8_t FAIL_ERROR      = 9;  // Error occured during run, check log
 
 // files used
 const std::string FILE_CONVERTED_IMAGE  = "converted_image.dat";
-const std::string FILE_CPU_OUTPUT       = "output_cpu.bin";
+const std::string FILE_CPU_OUTPUT       = "output_cpu0.bin";
 const std::string FILE_CPU_INPUT        = "input_cpu.bin";
 const std::string FILE_CPU_INPUT_FP16   = "input_cpu_fp16.bin";
 const std::string FILE_CPU_INPUT_NCHW_RGB   = "input_cpu_nchw_rgb.bin";
@@ -323,12 +324,10 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
     for (std::string fDelete : filesDelete)
         remove((binFolder + fDelete).c_str());
 
-    do
-    {   //delete any previous blobs (different names each time)
-        std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
-        std::cout << "Removing: " << fullBlobPath << std::endl;
-        remove(fullBlobPath.c_str());
-    } while (blobPath != "");
+    //delete any previous blobs (different names each time)
+    std::string fullBlobPath = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_BLOB_NAME;
+    std::cout << "Removing: " << fullBlobPath << std::endl;
+    remove(fullBlobPath.c_str());
 
     // check if we have 2 input xml models (CPU/KMB)
     std::vector<std::string> pathXMLvector;
@@ -357,6 +356,9 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     if (FLAGS_r)
         commandline += (" -r ");
+
+    if (! FLAGS_ip.empty() )
+        commandline += (" -ip " + FLAGS_ip);
 
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
@@ -434,6 +436,13 @@ int runKmbInference(std::string evmIP, std::string blobPath)
     // copy the required files to InferenceManagerDemo folder
     std::string inputCPU = std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + FILE_CPU_INPUT;
     std::string inputDest = std::getenv("VPUIP_HOME") + std::string("/") + testRuntime + std::string("/input-0.bin");
+    if ((!FLAGS_ip.empty()) && (FLAGS_ip != "U8")){
+        // hardcoded for AclNet.
+        // if the input precision is set and not 'U8', a U8 precision input SHOULD be prepared manually.
+        inputCPU = FLAGS_i.replace(FLAGS_i.find(".bin"), 4, "-FQU8.bin");
+        if (!checkFilesExist({inputCPU}))
+            return FAIL_GENERAL;
+    }
     if (!copyFile(inputCPU, inputDest))
         return FAIL_GENERAL;
 
@@ -510,136 +519,145 @@ int convertBlobToJson(std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-int validate(std::string blobPath, std::string expectedPath, std::string actualPath, bool icNet=false)
+bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std::vector<std::string>& actualResultsProcessed, bool icNet=false)
 {
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
+    std::vector<bool> allResults;
 
-    MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
-
-    uint_fast16_t typesize = 1;
-    if (dtype == MVCNN::DType::DType_U8)
-        typesize = 1;
-    else if (dtype == MVCNN::DType::DType_FP16)
-        typesize = 2;
-    else
+    for (auto outIndex=0; outIndex<graphFile.header->net_output.size(); ++outIndex)
     {
-        std::cout << "Typesize of output layer is unsupported: " << dtype << std::endl;
-        return FAIL_ERROR;
-    }
+        MVCNN::DType dtype = graphFile.header->net_output[outIndex]->data_dtype;
 
-    // Read the InferenceManagerDemo output file into a vector
-    std::cout << "Reading in actual results... ";
-    std::ifstream file(actualPath, std::ios::in | std::ios::binary);
-    file.seekg(0, std::ios::end);
-    auto totalActual = file.tellg() / typesize;
-    file.seekg(0, std::ios::beg);
-
-    float allowedDeviation = 1.0;
-    bool fp = false;
-
-    std::vector<float> outputFP32;
-    if (dtype == MVCNN::DType::DType_U8)
-    {
-        int qZero = graphFile.header->net_output[0]->quant_zero[0];
-        double qScale = graphFile.header->net_output[0]->quant_scale[0]; // was quant_real_scale[0];
-        int qShift = graphFile.header->net_output[0]->quant_shift[0];
-        std::cout << "Querying quantization values... " << std::endl;
-        std::cout << "  Datatype: " << dtype << std::endl;
-        std::cout << "  quant_zero: " << qZero << std::endl;
-        std::cout << "  quant_scale: " << qScale << std::endl;
-        std::cout << "  quant_shift: " << qShift << std::endl;
-
-        allowedDeviation = ( FLAGS_t * 2.56) * qScale; // Consider the tolerance a % of int range
-        allowedDeviation = allowedDeviation / 2.0; // Consider half the range above or below of a given result
-        if(allowedDeviation < qScale/2.0) allowedDeviation = qScale/2.0; // No better int can be found for this value
-
-        // read size of output tensor
-        int tSize = 1;
-        for (uint32_t x = 0; x < graphFile.header->net_output[0]->dimensions.size(); ++x)
-            tSize *= graphFile.header->net_output[0]->dimensions[x];
-        std::cout << "  Output size: " << tSize << std::endl;
-
-        std::vector<uint8_t> outputVector(totalActual);
-        file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * sizeof(uint8_t));
-        std::cout << totalActual << " elements" << std::endl;
-
-        // de-quantize
-        for (size_t i = 0; i < outputVector.size(); ++i)
+        uint_fast16_t typesize = 1;
+        if (dtype == MVCNN::DType::DType_U8)
+            typesize = 1;
+        else if (dtype == MVCNN::DType::DType_FP16)
+            typesize = 2;
+        else
         {
-            // De-quantize formula (1): real_value  = Scale * ( quantized_value - zero_point)
-            float val = qScale * (outputVector[i] - qZero);
-
-            // De-quantize formula (2): bitshift left by qShift then multiply by scale
-            // float val = static_cast<float>(outputVector[i] << (qShift)) / static_cast<float>(qScale);
-            outputFP32.push_back(val);
+            std::cout << "Typesize of output layer is unsupported: " << dtype << std::endl;
+            return FAIL_ERROR;
         }
-    }
-    else if (dtype == MVCNN::DType::DType_FP16)
-    {
-        std::vector<u_int16_t> outputVector(totalActual);
-        file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
-        std::cout << totalActual << " elements" << std::endl;
-        float min = mv::fp16_to_fp32(outputVector[0]);
-        float max = mv::fp16_to_fp32(outputVector[0]);
-        for (size_t i = 0; i < outputVector.size(); ++i)
+
+        // Read the InferenceManagerDemo output file into a vector
+        std::cout << "Reading in actual results... ";
+        std::ifstream file(actualResultsProcessed[outIndex], std::ios::in | std::ios::binary);
+        file.seekg(0, std::ios::end);
+        auto totalActual = file.tellg() / typesize;
+        file.seekg(0, std::ios::beg);
+
+        float allowedDeviation = 1.0;
+        bool fp = false;
+
+        std::vector<float> outputFP32;
+        if (dtype == MVCNN::DType::DType_U8)
         {
-            float val = mv::fp16_to_fp32(outputVector[i]);
-            // float val = static_cast<uint16_t>(outputVector[i]);
-            outputFP32.push_back(val);
-            if(val > max) max = val;
-            if(val < min) min = val;
+            int qZero = graphFile.header->net_output[outIndex]->quant_zero[0];
+            double qScale = graphFile.header->net_output[outIndex]->quant_scale[0]; // was quant_real_scale[0];
+            int qShift = graphFile.header->net_output[outIndex]->quant_shift[0];
+            std::cout << "Querying quantization values... " << std::endl;
+            std::cout << "  Datatype: " << dtype << std::endl;
+            std::cout << "  quant_zero: " << qZero << std::endl;
+            std::cout << "  quant_scale: " << qScale << std::endl;
+            std::cout << "  quant_shift: " << qShift << std::endl;
+
+            allowedDeviation = ( FLAGS_t * 2.56) * qScale; // Consider the tolerance a % of int range
+            allowedDeviation = allowedDeviation / 2.0; // Consider half the range above or below of a given result
+            if(allowedDeviation < qScale/2.0) allowedDeviation = qScale/2.0; // No better int can be found for this value
+
+            // read size of output tensor
+            int tSize = 1;
+            for (uint32_t x = 0; x < graphFile.header->net_output[outIndex]->dimensions.size(); ++x)
+                tSize *= graphFile.header->net_output[outIndex]->dimensions[x];
+            std::cout << "  Output size: " << tSize << std::endl;
+
+            std::vector<uint8_t> outputVector(totalActual);
+            file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * sizeof(uint8_t));
+            std::cout << totalActual << " elements" << std::endl;
+
+            // de-quantize
+            for (size_t i = 0; i < outputVector.size(); ++i)
+            {
+                // De-quantize formula (1): real_value  = Scale * ( quantized_value - zero_point)
+                float val = qScale * (outputVector[i] - qZero);
+
+                // De-quantize formula (2): bitshift left by qShift then multiply by scale
+                // float val = static_cast<float>(outputVector[i] << (qShift)) / static_cast<float>(qScale);
+                outputFP32.push_back(val);
+            }
         }
-        float range = max - min;
-        allowedDeviation = 1.0 * (FLAGS_t * range/100);
-        allowedDeviation = allowedDeviation / 2; // Consider half the range above or below of a given result
-        fp = true;
-    }
-    writeToFile(outputFP32, "./output-kmb-dequantized.bin");
+        else if (dtype == MVCNN::DType::DType_FP16)
+        {
+            std::vector<u_int16_t> outputVector(totalActual);
+            file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
+            std::cout << totalActual << " elements" << std::endl;
+            float min = mv::fp16_to_fp32(outputVector[0]);
+            float max = mv::fp16_to_fp32(outputVector[0]);
+            for (size_t i = 0; i < outputVector.size(); ++i)
+            {
+                float val = mv::fp16_to_fp32(outputVector[i]);
+                // float val = static_cast<uint16_t>(outputVector[i]);
+                outputFP32.push_back(val);
+                if(val > max) max = val;
+                if(val < min) min = val;
+            }
+            float range = max - min;
+            allowedDeviation = 1.0 * (FLAGS_t * range/100);
+            allowedDeviation = allowedDeviation / 2; // Consider half the range above or below of a given result
+            fp = true;
+        }
+        writeToFile(outputFP32, "./output-kmb-dequantized.bin");
 
-    bool pass = false;
-    std::cout << "Reading in expected results... ";
-    std::ifstream infile(expectedPath, std::ios::binary);
-    infile.seekg(0, infile.end);
-    
-    if (!icNet) 
-    {   // expected results are float32 for all networks (except ICNet)
-        auto totalExpected = infile.tellg() / sizeof(float);
-        std::cout << totalExpected << " elements" << std::endl;
-        infile.seekg(0, infile.beg);
-
-        std::vector<float> expectedFP32(totalExpected);
-        infile.read(reinterpret_cast<char*>(&expectedFP32[0]), totalExpected*sizeof(float));
-
-        // compare
-        pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
-    }
-    else
-    {   // Segmentation network comparison - ICnet CPU results are int32
-        auto totalExpected = infile.tellg() / sizeof(int32_t);
-        std::cout << totalExpected << " elements" << std::endl;
-        infile.seekg(0, infile.beg);
-
-        std::vector<int32_t> expectedInt32(totalExpected);
-        infile.read(reinterpret_cast<char*>(&expectedInt32[0]), totalExpected*sizeof(int32_t));
+        bool pass = false;
+        std::cout << "Reading in expected results... ";
+        std::ifstream infile(expectedPaths[outIndex], std::ios::binary);
+        infile.seekg(0, infile.end);
         
-        // convert VPU results to int for comparison
-        std::vector<int32_t> actualInt32(outputFP32.size());
-        std::transform(outputFP32.begin(), outputFP32.end(), actualInt32.begin(), 
-                [](const float &arg) { return static_cast<int>(arg); });
+        if (!icNet) 
+        {   // expected results are float32 for all networks (except ICNet)
+            auto totalExpected = infile.tellg() / sizeof(float);
+            std::cout << totalExpected << " elements" << std::endl;
+            infile.seekg(0, infile.beg);
 
-        // compare
-        float meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
-        float meanIntersectionOverUnionTolerance = 0.5f;
-        std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: >" << meanIntersectionOverUnionTolerance << ")" << std::endl;
-        if (meanIntersectionOverUnionTolerance < meanIoU)
-            pass = true;
+            std::vector<float> expectedFP32(totalExpected);
+            infile.read(reinterpret_cast<char*>(&expectedFP32[0]), totalExpected*sizeof(float));
+
+            // compare
+            pass = compare(outputFP32, expectedFP32, FLAGS_t, allowedDeviation, fp);
+        }
+        else
+        {   // Segmentation network comparison - ICnet CPU results are int32
+            auto totalExpected = infile.tellg() / sizeof(int32_t);
+            std::cout << totalExpected << " elements" << std::endl;
+            infile.seekg(0, infile.beg);
+
+            std::vector<int32_t> expectedInt32(totalExpected);
+            infile.read(reinterpret_cast<char*>(&expectedInt32[0]), totalExpected*sizeof(int32_t));
+            
+            // convert VPU results to int for comparison
+            std::vector<int32_t> actualInt32(outputFP32.size());
+            std::transform(outputFP32.begin(), outputFP32.end(), actualInt32.begin(), 
+                    [](const float &arg) { return static_cast<int>(arg); });
+
+            // compare
+            float meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
+            float meanIntersectionOverUnionTolerance = 0.5f;
+            std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: >" << meanIntersectionOverUnionTolerance << ")" << std::endl;
+            if (meanIntersectionOverUnionTolerance < meanIoU)
+                pass = true;
+        }
+        std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
+
+        allResults.emplace_back(pass);
     }
-    std::cout << "Accuracy Validation status: " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
-    if (pass)
-        return RESULT_SUCCESS;
-    else
-        return FAIL_VALIDATION;
+
+    // gen overall result
+    bool overallResult = true;
+    for (bool eachResult: allResults)
+        overallResult = overallResult && eachResult;
+
+    return overallResult;
 }
 
 int copyImage(std::string imagePath, std::string blobPath)
@@ -741,7 +759,7 @@ int copyImage(std::string imagePath, std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-int postProcessActualResults(std::string resultsPath, std::string blobPath)
+int postProcessActualResults(std::vector<std::string>& actualResults, std::string blobPath, std::vector<std::string>& actualResultsProcessed)
 {
     // Clean old file
     std::cout << "Deleting old output... " << std::endl;
@@ -752,44 +770,50 @@ int postProcessActualResults(std::string resultsPath, std::string blobPath)
     generateGraphFile(blobPath, graphFile);
 
     std::cout << "Post Processing results... " << std::endl;
-    MVCNN::DType dtype = graphFile.header->net_output[0]->data_dtype;
-    std::cout << "Datatype: " << MVCNN::EnumNameDType(dtype) << std::endl;
-    std::vector<int> outputShape;
-    for (uint32_t x=0; x<graphFile.header->net_output[0]->dimensions.size(); ++x)
-        outputShape.push_back( graphFile.header->net_output[0]->dimensions[x] );
-    std::cout << "Output Shape: " << outputShape[0] << "," << outputShape[1] << "," << outputShape[2] << "," << outputShape[3] << std::endl;
-
-    std::cout << "Querying Z/Ch Major output... " << std::endl;
-    std::vector<int> outputStrides;
-    for (uint32_t x=0; x<graphFile.header->net_output[0]->strides.size(); ++x)
-        outputStrides.push_back( graphFile.header->net_output[0]->strides[x] );
-    std::cout << "Output Strides: " << outputStrides[0] << "," << outputStrides[1] << "," << outputStrides[2] << "," << outputStrides[3] << std::endl;
-
-    std::string sZMajor("");
-    if (! ((outputShape[1] < 16) && (outputShape[2] == outputStrides[3]) ))
-        sZMajor = " --zmajor";
-
-    // call python script for numpy reshape/transpose
-    std::string dtypeStr = "U8";
-    if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
-    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME") +
-        std::string("/python/tools/post_process.py --file ") + resultsPath + " --dtype " + dtypeStr + " --shape " +
-        std::to_string(outputShape[0]) + "," + std::to_string(outputShape[1]) + "," + std::to_string(outputShape[2]) + "," + std::to_string(outputShape[3]) + sZMajor;
-    std::cout << commandline << std::endl;
-    int result = std::system(commandline.c_str());
-
-    if (result > 0)
+    for (auto i=0; i<graphFile.header->net_output.size(); ++i)
     {
-        std::cout << "Error occured converting image using python script";
-        return FAIL_ERROR;
-    }
-    if (!checkFilesExist({outputFile}))
-         return FAIL_ERROR;
+        MVCNN::DType dtype = graphFile.header->net_output[i]->data_dtype;
+        std::cout << "Datatype: " << MVCNN::EnumNameDType(dtype) << std::endl;
+        std::vector<int> outputShape;
+        for (uint32_t x=0; x<graphFile.header->net_output[i]->dimensions.size(); ++x)
+            outputShape.push_back( graphFile.header->net_output[i]->dimensions[x] );
+        std::cout << "Output Shape: " << outputShape[0] << "," << outputShape[1] << "," << outputShape[2] << "," << outputShape[3] << std::endl;
 
+        std::cout << "Querying Z/Ch Major output... " << std::endl;
+        std::vector<int> outputStrides;
+        for (uint32_t x=0; x<graphFile.header->net_output[i]->strides.size(); ++x)
+            outputStrides.push_back( graphFile.header->net_output[i]->strides[x] );
+        std::cout << "Output Strides: " << outputStrides[0] << "," << outputStrides[1] << "," << outputStrides[2] << "," << outputStrides[3] << std::endl;
+
+        std::string sZMajor("");
+        if (! ((outputShape[1] < 16) && (outputShape[2] == outputStrides[3]) ))
+            sZMajor = " --zmajor";
+
+        // call python script for numpy reshape/transpose
+        std::string dtypeStr = "U8";
+        if (dtype == MVCNN::DType::DType_FP16) dtypeStr = "FP16";
+        std::string outputFile="./output_transposed" + std::to_string(i) + ".dat";
+        std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME") +
+            std::string("/python/tools/post_process.py --file ") + actualResults[i] + " --dtype " + dtypeStr + " --shape " +
+            std::to_string(outputShape[0]) + "," + std::to_string(outputShape[1]) + "," + std::to_string(outputShape[2]) + "," + std::to_string(outputShape[3]) + sZMajor + 
+            " --output " + outputFile;
+        std::cout << commandline << std::endl;
+        int result = std::system(commandline.c_str());
+        if (result > 0)
+        {
+            std::cout << "Error occured converting image using python script";
+            return FAIL_ERROR;
+        }
+        if (!checkFilesExist({outputFile}))
+            return FAIL_ERROR;
+        
+        // add post-processed file for validation later
+        actualResultsProcessed.emplace_back(outputFile);
+    }
     return RESULT_SUCCESS;
 }
 
-int checkInference(std::string actualResults, std::string imagePath, std::string networkType = "classification")
+bool checkInference(std::string actualResults, std::string expectedResults, std::string imagePath, std::string networkType = "classification")
 {
     if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") == std::string("true"))
     {
@@ -797,12 +821,11 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
         return RESULT_SUCCESS;
     }
 
-    // convert blob to json
     std::cout << "Checking inference results ..." << std::endl;
 
-    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults;
+    std::string commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/output_class_reader.py ") + actualResults + " " + expectedResults;
     if (networkType == "yolo") 
-        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath;
+        commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/yolo_bbox.py ") + imagePath + " " + actualResults + " " + expectedResults;
     else if (networkType == "ssd") 
         commandline = std::string("python3 ") + std::getenv("MCM_HOME")  + std::string("/python/tools/ssd_bbox.py ") + imagePath;
 
@@ -840,10 +863,7 @@ int checkInference(std::string actualResults, std::string imagePath, std::string
     // compare
     bool pass = (actualInferenceResults[0] == expectedInferenceResults[0]);
     std::cout << std::endl << "Inference Validation status (top 1): " << ((pass) ? "\033[1;32mPass" : "\033[1;31mFail") << "\033[0m" << std::endl << std::endl;
-    if (pass)
-        return RESULT_SUCCESS;
-    else
-        return FAIL_VALIDATION;
+    return pass;
 }
 
 int main(int argc, char *argv[])
@@ -861,7 +881,7 @@ int main(int argc, char *argv[])
     }
 
     if (!ParseAndCheckCommandLine(argc, argv))
-        return FAIL_ERROR;
+        return FAIL_ERROR; 
 
     std::string networkType="classification";
     if (FLAGS_m.find("yolo") != std::string::npos)
@@ -871,28 +891,43 @@ int main(int argc, char *argv[])
     else if (FLAGS_m.find("icnet") != std::string::npos)
         networkType="icnet";
 
+    std::vector<std::string> actualResults;
+    std::vector<std::string> actualResultsProcessed;
+    std::vector<std::string> expectedPaths;
+
     if (FLAGS_mode == "validate")
     {
+        MVCNN::GraphFileT graphFile;
+        generateGraphFile(FLAGS_b, graphFile);
+        int32_t countOutputs = graphFile.header->net_output.size();
+
         //bypass all and just run the validation function
-        convertBlobToJson(FLAGS_b);
-        std::string actualPathProcessed = "./output_transposed.dat";
-        postProcessActualResults(FLAGS_a, FLAGS_b);
-        validate(FLAGS_b, FLAGS_e, actualPathProcessed, (networkType=="icnet"));
+        for (auto count=0; count<countOutputs; ++count)
+        {   // output-0.bin -> output-1.bin
+            std::string outFile = FLAGS_a.substr(0, FLAGS_a.length()-5) + std::to_string(count) + ".bin";
+            actualResults.emplace_back(outFile);
+
+            // output_cpu
+            std::string expectedFile = FLAGS_e.substr(0, FLAGS_e.length()-5) + std::to_string(count) + ".bin";
+            expectedPaths.emplace_back(expectedFile);
+        }
+        postProcessActualResults(actualResults, FLAGS_b, actualResultsProcessed);
+        validate(FLAGS_b, expectedPaths, actualResultsProcessed, (networkType=="icnet"));
 
         if (networkType!="icnet")
-            checkInference(FLAGS_a, FLAGS_i, networkType);
+        {
+            for (auto idx=0; idx<countOutputs; ++idx)
+                checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
+        }
         return(0);
     }
 
     // Normal operation
     int result = 0;
 
-    std::string blobPath("");
+    std::string blobPath("/home/aleckey/git/icv/dldt/bin/intel64/Debug/mcm.blob");
     result = runEmulator(FLAGS_m, FLAGS_i, blobPath);
     if ( result > 0 ) return result;
-
-    result = convertBlobToJson(blobPath);
-    // if ( result > 0 ) return result;
 
     if (! FLAGS_i.empty())
     {
@@ -909,22 +944,41 @@ int main(int argc, char *argv[])
     result = runKmbInference(FLAGS_k, blobPath);
     if ( result > 0 ) return result;
 
-    std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu.bin");
+    MVCNN::GraphFileT graphFile;
+    generateGraphFile(blobPath, graphFile);
+    int32_t countOutputs = graphFile.header->net_output.size();
+    std::string expectedPath = std::getenv("DLDT_HOME") + std::string("/bin/intel64/Debug/output_cpu0.bin");
     std::string actualPath = std::getenv("VPUIP_HOME") + std::string("/") + getEnvVarDefault("TEST_RUNTIME", TEST_RUNTIME) + std::string("/output-0.bin");
-    std::string actualPathProcessed = "./output_transposed.dat";
+
+    for (auto count=0; count<countOutputs; ++count)
+    {   
+        std::string outFile = actualPath.substr(0, actualPath.length()-5) + std::to_string(count) + ".bin";
+        actualResults.emplace_back(outFile);
+
+        // output_cpu
+        std::string expectedFile = expectedPath.substr(0, expectedPath.length()-5) + std::to_string(count) + ".bin";
+        expectedPaths.emplace_back(expectedFile);
+    }
 
     bool testPass=false;
     if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") != std::string("true"))
     {
-        result = postProcessActualResults(actualPath, blobPath);
+        result = postProcessActualResults(actualResults, blobPath, actualResultsProcessed);
         if ( result > 0 ) return result;
 
-        testPass=validate(blobPath, expectedPath, actualPathProcessed, (networkType=="icnet"));
+        testPass=validate(blobPath, expectedPaths, actualResultsProcessed, (networkType=="icnet"));
     }
 
     // master test is if top 1's match - not for ICnet, it uses result of validate()
     if (networkType!="icnet")
-        testPass = checkInference(actualPath, FLAGS_i, networkType);
+    {
+        testPass = true;
+        for (auto idx=0; idx<countOutputs; ++idx) {
+            bool thisResult = checkInference(actualResults[idx], expectedPaths[idx], FLAGS_i, networkType);
+            testPass = testPass && thisResult;
+        }
+    }
 
-    return testPass;
+    if(testPass) return RESULT_SUCCESS;
+    else return FAIL_VALIDATION;
 }
