@@ -50,7 +50,7 @@ KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkIn
       _stagesMetaData(blobMetaData),
       _config(kmbConfig),
       _netUniqueId(netName),
-      _prepprocBuffer(nullptr,
+      _preprocBuffer(nullptr,
           [this](uint8_t* buffer) {
               _allocator->free(buffer);
           }),
@@ -144,19 +144,19 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
             if (!utils::isBlobAllocatedByAllocator(origYBlob, _allocator) ||
                 !utils::isBlobAllocatedByAllocator(origUVBlob, _allocator)) {
                 _logger->warning("NV12 Blob located in memory not managed by plugin. Need to re-allocate the blob.");
-                _prepprocBuffer.reset(
+                _preprocBuffer.reset(
                     reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
                 auto memoryHolderYPlane = as<MemoryBlob>(origYBlob)->rmap();
-                ie_memcpy(_prepprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
+                ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
                     origYBlob->byteSize());
-                kmbYBlob = ie::make_shared_blob<uint8_t>(origYBlob->getTensorDesc(), _prepprocBuffer.get());
+                kmbYBlob = ie::make_shared_blob<uint8_t>(origYBlob->getTensorDesc(), _preprocBuffer.get());
 
                 auto memoryHolderUVPlane = as<MemoryBlob>(origUVBlob)->rmap();
-                ie_memcpy(_prepprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
+                ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
                     memoryHolderUVPlane.as<uint8_t*>(), origUVBlob->byteSize());
                 kmbUVBlob = ie::make_shared_blob<uint8_t>(
-                    origUVBlob->getTensorDesc(), _prepprocBuffer.get() + origYBlob->byteSize());
+                    origUVBlob->getTensorDesc(), _preprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =
