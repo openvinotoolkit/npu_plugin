@@ -325,7 +325,7 @@ namespace mv
 
                                     //Function to prune strategies that will have only infinite edges in or out (or both), improves performance
                                     auto strategyCheck = validateStrategy(op,s);
-                                    std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
+                                    // std::cout << op.getName() << " : " << clustering.toString() << " : " << streamShape.toString() << " : S " << spilling.toString() << " : I " << inputSparsity.toString() << " : O " << outputSparsity.toString() << " = " << failure_causes[strategyCheck]<< std::endl;
                                     if(strategyCheck != FailCause::Pass)
                                         continue;
 
@@ -1641,8 +1641,6 @@ namespace mv
                     auto streams = parentStreamShape["K"];
                     if(streams > 1 && parentClustering == "SplitOverK")
                         finalLayerStreamingBoost = streams * ((pFullDma + pFullComp) * 0.1); // streaming over more K is better
-                    std::cout << parentClustering << " : " << parentStreamShape.toString() << std::endl;
-                    std::cout << "  Decreasing cost by " << finalLayerStreamingBoost << std::endl;
                 }
 
                 double heuristics = sparsityCost - finalLayerStreamingBoost;
