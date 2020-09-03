@@ -64,7 +64,7 @@ const std::string KmbTestBase::DEVICE_NAME = []() -> std::string {
         return var;
     }
 
-    return "KMB";
+    return "VPUX";
 }();
 
 const std::string KmbTestBase::REF_DEVICE_NAME = []() -> std::string {
