@@ -45,10 +45,7 @@ static const char mode_message[] = "Optional. Runs all, but can just run validat
 /// @brief message for color order
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
 
-/// @brief message for layout
-static const char layout_message[] = "Optional. NCHW, NHWC or NC ";
-
-/// @brief message for layout
+/// @brief message for precision
 static const char precision_message[] = "Optional. U8, FP32 or FP16 ";
 
 /// @brief Define flag for showing help message <br>
@@ -90,10 +87,6 @@ DEFINE_string(mode, "all", mode_message);
 /// @brief Define parameter for color <br>
 /// It is an optional parameter
 DEFINE_bool(r, false, rgb_message);
-
-/// @brief Define input layout <br>
-/// It is an optional parameter
-DEFINE_string(il, "", layout_message);
 
 /// @brief Define input precision <br>
 /// It is an optional parameter
