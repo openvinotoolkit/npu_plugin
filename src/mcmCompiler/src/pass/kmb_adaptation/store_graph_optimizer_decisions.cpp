@@ -3,6 +3,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/op_model.hpp"
 #include <regex>
 
@@ -427,31 +428,46 @@ void validateDilationSubConvolutions(const mv::pass::PassEntry&,
     mv::OpModel om(model);
     auto convs = om.getOps("Conv");
     auto globalParams = model.getGlobalConfigParams();
-    std::map<std::string, std::set<std::vector<mv::Element>>> subdilationsStrategies;
+    std::map<std::string, std::vector<mv::Element>> subdilationsStrategies;
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     for (auto layerNameStrategy : strategyList)
     {
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-        std::set<std::vector<mv::Element>> setOfStrategies;
+
         for (auto conv : convs)
         {
             bool isDilatedConv = conv->hasAttr("DilatedSubConv") && conv->get<bool>("DilatedSubConv");
             if (isDilatedConv && nodeName == conv->getName())
             {
                 auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
-                setOfStrategies.insert(streaming_strategy);
-                subdilationsStrategies.insert(std::make_pair(conv->get<std::string>("parentOp"),
-                                                             setOfStrategies));
+                auto parentOp = conv->get<std::string>("parentOp");
+                if (subdilationsStrategies.find(parentOp) != subdilationsStrategies.end())
+                {
+                    std::vector<mv::Element> existingStrategy = subdilationsStrategies[parentOp];
+                    for (std::size_t i=0; i < existingStrategy.size(); i++)
+                    {
+                        auto axis = existingStrategy[i].attrsKeys()[0];
+                        auto numSplits = existingStrategy[i].get<int>(axis);
+
+                        for (std::size_t j=0; j < streaming_strategy.size(); j++)
+                        {
+                            auto axis_new = streaming_strategy[j].attrsKeys()[0];
+                            auto numSplits_new = streaming_strategy[j].get<int>(axis_new);
+                            if (axis == axis_new)
+                            {
+                                if (numSplits != numSplits_new)
+                                    throw mv::RuntimeError("", conv->getName() + ": subdilated convs have different streaming strategies!");
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    subdilationsStrategies.insert(std::make_pair(conv->get<std::string>("parentOp"),
+                                                             streaming_strategy));
+                }
             }
-        }
-        auto it = subdilationsStrategies.begin();
-        while (it != subdilationsStrategies.end())
-        {
-            auto setOfDilationStrategies = it->second;
-            //NOTE: Subdilation convolutions should have same strategy,
-            //if not disable the optimization of streaming with same weigths
-            assert (setOfDilationStrategies.size() == 1);
-            it++;
         }
     }
 }
