@@ -109,10 +109,10 @@ public:
     virtual ~MockAllocator() = default;
 
     void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t& /*size*/, void* /*memHandle*/) noexcept override {
+        const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept override {
         return nullptr;
     }
-    void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t& /*size*/,
+    void* wrapRemoteMemoryOffset(const KmbRemoteMemoryFD& /*remoteMemoryFd*/, const size_t /*size*/,
         const KmbOffsetParam& /*memOffset*/) noexcept override {
         return nullptr;
     }

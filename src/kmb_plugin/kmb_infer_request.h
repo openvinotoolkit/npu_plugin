@@ -41,7 +41,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     KmbConfig _config;
     const std::string _netUniqueId;
     // the buffer is used when non-shareable memory passed for preprocessing
-    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _prepprocBuffer;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
     Logger::Ptr _logger;
 
 public:
