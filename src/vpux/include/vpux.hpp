@@ -43,16 +43,16 @@ class IEngineBackend : public InferenceEngine::details::IRelease {
 public:
     virtual const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const = 0;
 
-    virtual void Release() noexcept override { delete this; }
+    void Release() noexcept override { delete this; }
 };
 
 class Allocator : public InferenceEngine::IAllocator {
 public:
     // TODO: need update methods to remove Kmb from parameters
     virtual void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept = 0;
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
     virtual void* wrapRemoteMemoryOffset(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept = 0;
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept = 0;
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
@@ -70,7 +70,7 @@ public:
 
     virtual std::string getName() const = 0;
 
-    virtual void Release() noexcept override { delete this; }
+    void Release() noexcept override { delete this; }
 };
 
 class Device final {

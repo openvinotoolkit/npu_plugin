@@ -52,8 +52,8 @@ using namespace InferenceEngine;
 // #define RUN_SKIPPED_TESTS
 
 #ifdef RUN_SKIPPED_TESTS
-#   define SKIP_ON(_device_, _reason_)
-#   define SKIP_INFER_ON(_device_, _reason_)
+#   define SKIP_INFER_ON(...)
+#   define SKIP_ON(...)
 #else
 
 #   define SKIP_ON1(_device0_, _reason_)                                        \
@@ -107,9 +107,10 @@ using namespace InferenceEngine;
 #endif
 
 #define GET_MACRO(_1,_2,_3, _4, NAME,...) NAME
+#ifndef RUN_SKIPPED_TESTS
 #define SKIP_INFER_ON(...) GET_MACRO(__VA_ARGS__, SKIP_INFER_ON3, SKIP_INFER_ON2, SKIP_INFER_ON1)(__VA_ARGS__)
-
 #define SKIP_ON(...) GET_MACRO(__VA_ARGS__, SKIP_ON3, SKIP_ON2, SKIP_ON1)(__VA_ARGS__)
+#endif
 
 //
 // Kmb test parameters accessors
@@ -185,11 +186,11 @@ protected:
     void compareWithReference(
             const BlobMap& actualOutputs,
             const BlobMap& refOutputs,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
+            const float tolerance, const CompareMethod method = CompareMethod::Absolute);
 
     void compareOutputs(
             const Blob::Ptr& refOutput, const Blob::Ptr& actualOutput,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
+            const float tolerance, const CompareMethod method = CompareMethod::Absolute);
 
     void checkWithOutputsInfo(const BlobMap& actualOutputs, const std::vector<DataPtr>& outputsInfo);
 
@@ -224,7 +225,7 @@ class KmbLayerTestBase : public KmbTestBase {
 public:
     void runTest(
             const NetworkBuilder& builder,
-            float tolerance, CompareMethod method = CompareMethod::Absolute);
+            const float tolerance, const CompareMethod method = CompareMethod::Absolute);
 
 protected:
     ExecutableNetwork getExecNetwork(
@@ -380,7 +381,7 @@ public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
-            size_t topK, float probTolerance);
+            const size_t topK, const float probTolerance);
 
 protected:
     static std::vector<std::pair<int, float>> parseOutput(const Blob::Ptr& blob);
@@ -395,22 +396,28 @@ public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
-            float confThresh,
-            float boxTolerance, float probTolerance);
+            const float confThresh,
+            const float boxTolerance,
+            const float probTolerance);
 
     void runTest(
             const TestNetworkDesc& netDesc,
-            float confThresh,
-            float boxTolerance, float probTolerance);
+            const float confThresh,
+            const float boxTolerance,
+            const float probTolerance);
 
 protected:
     static std::vector<utils::BoundingBox> parseOutput(
             const Blob::Ptr& blob,
-            size_t imgWidth, size_t imgHeight,
-            float confThresh);
+            const size_t imgWidth,
+            const size_t imgHeight,
+            const float confThresh);
 
     void checkBBoxOutputs(std::vector<utils::BoundingBox> &actual, std::vector<utils::BoundingBox> &ref,
-            int imgWidth, int imgHeight, float boxTolerance, float probTolerance);
+            const int imgWidth,
+            const int imgHeight,
+            const float boxTolerance,
+            const float probTolerance);
 };
 
 class KmbRFCNNetworkTest : public KmbDetectionNetworkTest {
@@ -436,9 +443,10 @@ public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
-            float confThresh,
-            float boxTolerance, float probTolerance,
-            bool isTiny);
+            const float confThresh,
+            const float boxTolerance,
+            const float probTolerance,
+            const bool isTiny);
 };
 
 class KmbSSDNetworkTest : public KmbDetectionNetworkTest {
@@ -446,8 +454,9 @@ public:
     void runTest(
             const TestNetworkDesc& netDesc,
             const TestImageDesc& image,
-            float confThresh,
-            float boxTolerance, float probTolerance);
+            const float confThresh,
+            const float boxTolerance,
+            const float probTolerance);
 };
 
 using KmbYoloV1NetworkTest = KmbYoloV2NetworkTest;
@@ -485,7 +494,7 @@ public:
     void runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& face_image,
-        float tolerance);
+        const float tolerance);
 };
 
 class PersonAttrRecNetworkTest : public KmbNetworkTestBase {
@@ -493,7 +502,16 @@ public:
     void runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& person_image,
-        float tolerance);
+        const float tolerance);
+};
+
+// inherit parseOutput from KmbClassifyNetworkTest
+class VehicleAttrRecNetworkTest : public KmbClassifyNetworkTest {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& vehicle_image,
+        const float tolerance);
 };
 
 //

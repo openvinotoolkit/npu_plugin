@@ -27,12 +27,12 @@ namespace vpux {
 class VpusmmAllocator : public Allocator {
 public:
     using Ptr = std::shared_ptr<VpusmmAllocator>;
-    VpusmmAllocator(const int& deviceId);
+    VpusmmAllocator(const int deviceId);
     void* lock(void* handle, InferenceEngine::LockOp) noexcept override;
 
     void unlock(void* handle) noexcept override;
 
-    virtual void* alloc(size_t size) noexcept;
+    virtual void* alloc(const size_t size) noexcept;
 
     virtual bool free(void* handle) noexcept;
 
@@ -45,9 +45,9 @@ public:
     virtual ~VpusmmAllocator();
 
     void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept override;
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
     void* wrapRemoteMemoryOffset(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept override;
+        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept override;
 
 protected:
     struct MemoryDescriptor {
