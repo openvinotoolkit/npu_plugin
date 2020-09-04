@@ -78,4 +78,5 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_forceNCHWToNHWC, switches, config, VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC));
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
+    setOption(_useCoreNN, switches, config, VPU_KMB_CONFIG_KEY(USE_CORE_NN));
 }
