@@ -72,7 +72,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 outputOp->get<mv::DmaDirection>("direction") == mv::NNCMX2DDR)
                 continue;
 
-            while(outputOp->isImplicit())
+            while(outputOp->isImplicit() && outputOp->getOpType() != "ImplicitConcat")
             {
                 outputOp = outputOp.leftmostOutput().sink();
             }
