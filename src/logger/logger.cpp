@@ -19,7 +19,11 @@ std::string mv::Logger::getTime_() const
     char buffer[18];
     time(&rawTime);
     timeInfo = localtime(&rawTime);
-    strftime(buffer, 18, "%T %D", timeInfo);
+    if (timeInfo != nullptr) {
+        strftime(buffer, 18, "%T %D", timeInfo);
+    } else {
+        buffer[0] = '\0';
+    }
     return std::string(buffer);
 }
 

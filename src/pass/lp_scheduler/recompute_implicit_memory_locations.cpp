@@ -163,10 +163,11 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
   if (passDesc.hasAttr("output")) {
     std::string output_file = passDesc.get<std::string>("output");
     FILE *fptr = fopen(output_file.c_str(), "w");
-    if(fptr == nullptr) {
-      throw Recompute_Memory_Locations::exception_t("Can't open file " + output_file);
+    if (fptr != nullptr) {
+      computer.dump(fptr);
+      fclose(fptr);
+    } else {
+      throw mv::RuntimeError("LpScheduler", "Can't write to the file " + output_file);
     }
-    computer.dump(fptr);
-    fclose(fptr);
   }
 }
