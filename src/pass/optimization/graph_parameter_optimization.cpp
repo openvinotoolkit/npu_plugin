@@ -1154,14 +1154,17 @@ namespace mv
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
                 //Unet non-DepthwiseDeConv subConv, avoiding splits < # of clusters, to avoid indeterministic outputs on back to back runs
-                if(op.getOpType() == "Conv" && op.hasAttr("DeconvSubConv"))
+                if(op.getOpType() == "Conv" && op.hasAttr("DeconvSubConv") && clustering == "SplitOverK")
                 {
                     auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto numberOfStreamSplits = streamShape["H"];
                     if ((originalH % streamShape["H"]) != 0)
                     {
-                        auto deConvSubConvSliceH = ceil((double)originalH / (double)( streamShape["H"]));
-                        auto lastSliceHeight = originalH - deConvSubConvSliceH*(streamShape["H"] -1);
-                        if (lastSliceHeight < totalClusters)
+                        auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
+                        int newOutputSize = newOutputSizes.front();
+                        int remainderOutputSize = newOutputSizes.back();
+
+                        if (remainderOutputSize < 4)
                         {
                             return FailCause::DeConvSubConvSOKHeight;
                         }
