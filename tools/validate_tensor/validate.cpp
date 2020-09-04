@@ -146,6 +146,23 @@ static float calculateMeanIntersectionOverUnion(const std::vector<int32_t>& vpuO
     return meanIoU;
 }
 
+static std::vector<int32_t> transScoreToLabel(const std::vector<float> &scores) {
+    std::vector<int32_t> labels;
+    for (size_t h = 0; h < 368; h++)
+        for (size_t w = 0; w < 480; w++) {
+            int32_t label = 0;
+            float max = 0;
+            for (size_t c = 0; c < 12; c++) {
+                if (scores[c*368*480 + h*480 + w] >= max) {
+                    max = scores[c*368*480 + h*480 + w];
+                    label = c;
+                }
+            }
+            labels.push_back(label);
+        }
+    return labels;
+}
+
 void generateGraphFile(std::string pathBlob, MVCNN::GraphFileT& graphFile)
 {
     std::ifstream infile;
@@ -519,7 +536,7 @@ int convertBlobToJson(std::string blobPath)
     return RESULT_SUCCESS;
 }
 
-bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std::vector<std::string>& actualResultsProcessed, bool icNet=false)
+bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std::vector<std::string>& actualResultsProcessed, std::string networkType)
 {
     MVCNN::GraphFileT graphFile;
     generateGraphFile(blobPath, graphFile);
@@ -614,7 +631,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         std::ifstream infile(expectedPaths[outIndex], std::ios::binary);
         infile.seekg(0, infile.end);
         
-        if (!icNet) 
+        if (networkType != "icnet" && networkType != "unet")
         {   // expected results are float32 for all networks (except ICNet)
             auto totalExpected = infile.tellg() / sizeof(float);
             std::cout << totalExpected << " elements" << std::endl;
@@ -628,20 +645,42 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         }
         else
         {   // Segmentation network comparison - ICnet CPU results are int32
-            auto totalExpected = infile.tellg() / sizeof(int32_t);
-            std::cout << totalExpected << " elements" << std::endl;
-            infile.seekg(0, infile.beg);
+            // Segmentation network comparison - Unet CPU results are float32
+            float meanIoU;
+            if (networkType == "icnet")
+            {
+                auto totalExpected = infile.tellg() / sizeof(int32_t);
+                std::cout << totalExpected << " elements" << std::endl;
+                infile.seekg(0, infile.beg);
 
-            std::vector<int32_t> expectedInt32(totalExpected);
-            infile.read(reinterpret_cast<char*>(&expectedInt32[0]), totalExpected*sizeof(int32_t));
-            
-            // convert VPU results to int for comparison
-            std::vector<int32_t> actualInt32(outputFP32.size());
-            std::transform(outputFP32.begin(), outputFP32.end(), actualInt32.begin(), 
-                    [](const float &arg) { return static_cast<int>(arg); });
+                std::vector<int32_t> expectedInt32(totalExpected);
+                infile.read(reinterpret_cast<char*>(&expectedInt32[0]), totalExpected*sizeof(int32_t));
 
-            // compare
-            float meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
+                // convert VPU results to int for comparison
+                std::vector<int32_t> actualInt32(outputFP32.size());
+                std::transform(outputFP32.begin(), outputFP32.end(), actualInt32.begin(),
+                        [](const float &arg) { return static_cast<int>(arg); });
+
+                // compare
+                meanIoU = calculateMeanIntersectionOverUnion(actualInt32, expectedInt32);
+            }
+            if (networkType == "unet")
+            {
+                auto totalExpected = infile.tellg() / sizeof(float);
+                std::cout << totalExpected << " elements" << std::endl;
+                infile.seekg(0, infile.beg);
+                std::vector<float> expected(totalExpected);
+                infile.read(reinterpret_cast<char *>(&expected[0]), totalExpected * sizeof(float));
+
+                // convert CPU and VPU results to int for comparison
+                std::vector<int32_t> expectedUnet(totalExpected);
+                expectedUnet = transScoreToLabel(expected);
+                std::vector<int32_t> actualOutputUnet(totalActual);
+                actualOutputUnet = transScoreToLabel(outputFP32);
+                meanIoU = calculateMeanIntersectionOverUnion(actualOutputUnet, expectedUnet);
+                std::cout << "The network type is unet " << std::endl;
+            }
+
             float meanIntersectionOverUnionTolerance = 0.5f;
             std::cout << std::endl << "meanIoU: " << meanIoU << " " << "(Tolerance: >" << meanIntersectionOverUnionTolerance << ")" << std::endl;
             if (meanIntersectionOverUnionTolerance < meanIoU)
@@ -890,6 +929,8 @@ int main(int argc, char *argv[])
         networkType="ssd";
     else if (FLAGS_m.find("icnet") != std::string::npos)
         networkType="icnet";
+    else if (FLAGS_m.find("unet") != std::string::npos)
+        networkType="unet";
 
     std::vector<std::string> actualResults;
     std::vector<std::string> actualResultsProcessed;
@@ -912,7 +953,7 @@ int main(int argc, char *argv[])
             expectedPaths.emplace_back(expectedFile);
         }
         postProcessActualResults(actualResults, FLAGS_b, actualResultsProcessed);
-        validate(FLAGS_b, expectedPaths, actualResultsProcessed, (networkType=="icnet"));
+        validate(FLAGS_b, expectedPaths, actualResultsProcessed, networkType);
 
         if (networkType!="icnet")
         {
@@ -966,11 +1007,11 @@ int main(int argc, char *argv[])
         result = postProcessActualResults(actualResults, blobPath, actualResultsProcessed);
         if ( result > 0 ) return result;
 
-        testPass=validate(blobPath, expectedPaths, actualResultsProcessed, (networkType=="icnet"));
+        testPass=validate(blobPath, expectedPaths, actualResultsProcessed, networkType);
     }
 
     // master test is if top 1's match - not for ICnet, it uses result of validate()
-    if (networkType!="icnet")
+    if (networkType != "icnet" && networkType != "unet")
     {
         testPass = true;
         for (auto idx=0; idx<countOutputs; ++idx) {
