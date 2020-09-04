@@ -632,7 +632,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC)
             // [Track number: D#3634]
-            .setCompileConfig({{"VPU_COMPILER_USE_SCALE_FUSE_INPUT", CONFIG_VALUE(NO)}}),
+            .setCompileConfig({{"VPU_COMPILER_SCALE_FUSE_INPUT", CONFIG_VALUE(NO)}}),
             TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);

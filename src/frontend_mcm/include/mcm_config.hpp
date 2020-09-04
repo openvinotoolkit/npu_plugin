@@ -61,7 +61,7 @@ public:
 
     const std::string& mcmCompilationPassBanList() const { return _mcmCompilationPassBanList; }
 
-    bool useScaleFuseInput() const { return _useScaleFuseInput; }
+    bool scaleFuseInput() const { return _scaleFuseInput; }
 
     const std::unordered_set<std::string>& getCompileOptions() const override;
 
@@ -95,7 +95,7 @@ private:
 
     std::string _mcmCompilationPassBanList = "";
 
-    bool _useScaleFuseInput = true;
+    bool _scaleFuseInput = true;
 };
 
 }  //  namespace vpu
