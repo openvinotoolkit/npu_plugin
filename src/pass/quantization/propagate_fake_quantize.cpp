@@ -487,10 +487,7 @@ void quantizeIO(mv::ComputationModel& model) {
         auto input = inputs.at(idx);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
-        auto params = input->get<mv::QuantizationParams>("quantParams");
-
-        // mv::QuantizationParams inputQuantParams = initial_quant_params();
-        mv::QuantizationParams inputQuantParams = params;
+        mv::QuantizationParams inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }
