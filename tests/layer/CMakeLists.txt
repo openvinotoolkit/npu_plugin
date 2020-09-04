@@ -229,4 +229,7 @@ else()
     add_executable(multiple_conv_eltwise_mc_fp multiple_conv_eltwise_mc_fp/multiple_conv_eltwise_mc_fp.cpp)
     target_link_libraries(multiple_conv_eltwise_mc_fp cm)
 
+    add_executable(deconv_fp16 deconv_fp16/deconv_fp16.cpp)
+    target_link_libraries(deconv_fp16 cm)
+
 endif(MSVC)
