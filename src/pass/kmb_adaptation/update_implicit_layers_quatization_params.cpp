@@ -186,17 +186,20 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
         }
 
-        else if (opType == "Output")
+        else if (opType == "Output" && om.getSourceOp(opIt->getInputTensor(0))->isImplicit())
         {
             auto output = om.getOutput();
             auto implicitOps = findOutputNodeParentImplicitOps(om, output);
-            for(auto const& implicitOp:implicitOps)
+            if(implicitOps.size())
             {
-                for( size_t input = 0; input < implicitOp->inputSlots(); input++)
-                    implicitOp->getInputTensor(input)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                for(auto const& implicitOp:implicitOps)
+                {
+                    for( size_t input = 0; input < implicitOp->inputSlots(); input++)
+                        implicitOp->getInputTensor(input)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
             
-                for( size_t output = 0; output < implicitOp->outputSlots(); output++)
-                    implicitOp->getOutputTensor(output)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                    for( size_t output = 0; output < implicitOp->outputSlots(); output++)
+                        implicitOp->getOutputTensor(output)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                }
             }
         }
     }
