@@ -30,7 +30,8 @@ mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_("Float16")
+globalDType_("Float16"),
+hdeDef_({0,0,0,0,false})
 {
 
     if (!filePath.empty())

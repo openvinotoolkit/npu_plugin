@@ -521,8 +521,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI declaration for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
-
+    
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
@@ -530,6 +529,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
+    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
     std::string output;
 
     auto copyOps = opPtr->getCopyOperations();

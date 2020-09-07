@@ -93,7 +93,8 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 // auto sinkOps = findSinkLayers(dm, opIt->getInputTensor(0));
                 std::vector<mv::Data::OpListIterator> sinkOps;
                 auto outputFlow = parentOp.leftmostOutput();
-                std::size_t copyId, dpuId = 0;
+                std::size_t copyId = 0;
+                std::size_t dpuId = 0;
                 std::unordered_map<std::string, std::vector<mv::Data::FlowSiblingIterator>> tasks_flows;
                 while (outputFlow != om.flowEnd())
                 {
