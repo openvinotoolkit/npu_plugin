@@ -88,6 +88,7 @@ namespace mv
                 SpiltOverHWithStreamOverK,
                 SparsityKSegmented,
                 SparsitySpilling,
+                DeConvSubConvSOKHeight,
                 Unknown
             };
 
@@ -112,6 +113,7 @@ namespace mv
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
+                {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -701,7 +703,6 @@ namespace mv
                     if(splits < 1)
                         return 1;
                 }
-
                 return splits + 1; // consider one extra H stream, just in case
             }
 
@@ -1152,6 +1153,23 @@ namespace mv
                 if (op.getOpType() == "Conv" && clustering == "SplitOverH" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
+                //Unet non-DepthwiseDeConv subConv, avoiding splits < # of clusters, to avoid indeterministic outputs on back to back runs
+                if(op.getOpType() == "Conv" && op.hasAttr("DeconvSubConv") && clustering == "SplitOverK")
+                {
+                    auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto numberOfStreamSplits = streamShape["H"];
+                    if ((originalH % streamShape["H"]) != 0)
+                    {
+                        auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
+                        int newOutputSize = newOutputSizes.front();
+                        int remainderOutputSize = newOutputSizes.back();
+
+                        if (remainderOutputSize < 4)
+                        {
+                            return FailCause::DeConvSubConvSOKHeight;
+                        }
+                    }
+                }
 
                 return FailCause::Pass; //good strategy
             }

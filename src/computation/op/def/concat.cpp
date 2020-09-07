@@ -70,16 +70,29 @@ namespace mv
             auto numericAxisToConcat = mv::Shape::getAxis(axisToConcat);
 
             std::vector<std::size_t> inputShape0(inputs[0]->getShape());
-
+            bool dtypeIsMixed = false;
+            auto dtypeFirstInput = inputs[0]->getDType();
             for (std::size_t i = 1; i < inputs.size(); ++i)
             {
                 auto inputShape = inputs[i]->getShape();
                 inputShape0[numericAxisToConcat] += inputShape[numericAxisToConcat];
+                if (inputs[i]->getDType() != dtypeFirstInput)
+                    dtypeIsMixed = true;
             }
 
             auto dTypeToUse = args.at("dType").get<mv::DType>();
             if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
+            {
+                if (!dtypeIsMixed) //all have the same dtype
+                {
+                    dTypeToUse = inputs[0]->getDType();
+                }
+                else
+                {
+                    dTypeToUse = mv::DType("UInt8");
+                }
+            }
+
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
                 outputs.push_back(mv::Tensor(":0", mv::Shape(inputShape0), dTypeToUse, inputs[0]->getOrder()));
             else

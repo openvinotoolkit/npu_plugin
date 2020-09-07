@@ -26,6 +26,7 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
@@ -55,6 +56,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
+    replaceExpReduceSumMultipyFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
@@ -1522,5 +1524,83 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                                                     stride[mv::STRIDE_HORIZONTAL],
                                                     stride[mv::STRIDE_VERTICAL],
                                                     nextOp);
+    }
+}
+
+bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto opIt = it;
+
+    for (auto& layer : pattern) {
+        if (opIt->getOpType() != layer) {
+            return false;
+        }
+
+        lastIt = opIt;
+        opIt = om.getSourceOp(opIt->getInputTensor(0));
+    }
+    
+    return true;
+}
+
+void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    const std::vector<std::string> pattern = {"Reciprocal", "Reshape", "Scale", "AveragePool", "Reshape", "Exp"};
+    auto ops = om.getOps("Eltwise");
+
+    for (auto& opIt : ops)
+    {
+        if (!opIt) {
+            continue;
+        }
+
+        if (opIt->get<std::string>("eltwiseType") == "Multiply")
+        {
+            auto itLeft = om.getSourceOp(opIt->getInputTensor(0));
+            auto itRight = om.getSourceOp(opIt->getInputTensor(1));
+            mv::Data::OpListIterator scaleIt, dataIt, lastOp;
+
+            if (itLeft->getOpType() == "Reciprocal" && matchPattern(pattern, itLeft, lastOp, model))
+            {
+                scaleIt = itLeft;
+                dataIt = itRight;
+            }
+            else if (itRight->getOpType() == "Reciprocal" && matchPattern(pattern, itRight, lastOp, model))
+            {
+                scaleIt = itRight;
+                dataIt = itLeft;
+            }
+            else {
+                return;
+            }
+
+            if (dataIt->getName() == lastOp->getName())
+            {
+                for (size_t i = 0; i < pattern.size() - 2; ++i) {
+                    auto parentOpIt = om.getSourceOp( scaleIt->getInputTensor(0));
+                    auto sourceTensor = parentOpIt->getOutputTensor(0);
+                    scaleIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, scaleIt);
+                }
+
+                om.removeOp(scaleIt);
+                opIt = linkNewOperationsRemove(dataIt, dataIt->getOutputTensor(0), om, opIt);
+
+                auto scoreMap = opIt->getInputTensor(0);
+                auto sm = om.softmax(scoreMap, "C", mv::DType("Default"), {{}, {}, {}, {}});
+
+                if(opIt->hasAttr("opId")) {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    sm->set<unsigned>("opId", currentOpId);
+                    om.getSourceOp(sm)->set<unsigned>("opId", currentOpId);
+                }
+
+                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);  
+            }
+        }
     }
 }
