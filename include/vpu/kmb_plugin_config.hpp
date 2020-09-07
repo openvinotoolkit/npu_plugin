@@ -83,5 +83,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(LOAD_NETWORK_AFTER_COMPILATION);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: "YES", "NO", default is "NO"
+ * This option allows to use CoreNN plug-in for inference
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(USE_CORE_NN);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

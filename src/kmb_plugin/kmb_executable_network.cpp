@@ -28,6 +28,8 @@
 #include <cnn_network_ngraph_impl.hpp>
 #include "ngraph_mcm_frontend/frontend.hpp"
 #include "file_reader.h"
+#include "kmb_nn_core_executor.h"
+#include "kmb_nn_flic_executor.h"
 
 // clang-format on
 
@@ -74,7 +76,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
     _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
 
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config);
+    if (_config.useCoreNN()) {
+        _executor = std::make_shared<KmbNNCoreExecutor>(_config);
+    } else {
+        _executor = std::make_shared<KmbNNFlicExecutor>(_config);
+    }
 
     if (_config.useNGraphParser()) {
         if (const auto cnnNGraphNet = dynamic_cast<ie::details::CNNNetworkNGraphImpl*>(&network)) {
@@ -125,7 +131,11 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config): _config(config) {
     IE_PROFILING_AUTO_SCOPE(ExecutableNetwork);
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
-    _executor = std::make_shared<KmbExecutor>(_config);
+    if (_config.useCoreNN()) {
+        _executor = std::make_shared<KmbNNCoreExecutor>(_config);
+    } else {
+        _executor = std::make_shared<KmbNNFlicExecutor>(_config);
+    }
 
     const size_t graphSize = utils::getFileSize(strm);
     _graphBlob.resize(graphSize);

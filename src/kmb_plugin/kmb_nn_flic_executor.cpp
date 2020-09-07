@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include "kmb_executor.h"
+#include "kmb_nn_flic_executor.h"
 
 #include <fcntl.h>
 #include <ie_common.h>
@@ -50,9 +50,9 @@ using namespace std;
 const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 #endif
 
-KmbExecutor::KmbExecutor(const KmbConfig& config)
+KmbNNFlicExecutor::KmbNNFlicExecutor(const KmbConfig& config)
     : _config(config),
-      _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
+      _logger(std::make_shared<Logger>("KmbNNFlicExecutor", config.logLevel(), consoleOutput())),
       _inferenceVirtAddr(nullptr) {
     if (!_config.useKmbExecutor()) {
         return;
@@ -67,7 +67,7 @@ KmbExecutor::KmbExecutor(const KmbConfig& config)
 #endif
 }
 
-void KmbExecutor::initVpualObjects() {
+void KmbNNFlicExecutor::initVpualObjects() {
 #if defined(__arm__) || defined(__aarch64__)
     IE_PROFILING_AUTO_SCOPE(initVpualObjects);
     if (!RgnAlloc) {
@@ -226,7 +226,7 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
 }  // namespace
 #endif
 
-void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const InputsDataMap& networkInputs,
+void KmbNNFlicExecutor::allocateGraph(const std::vector<char>& graphFileContent, const InputsDataMap& networkInputs,
     const OutputsDataMap& networkOutputs, bool newFormat) {
     if (!_config.useKmbExecutor()) {
         return;
@@ -239,7 +239,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     int nThreads = _config.throughputStreams();
     int nShaves = 16;
 
-    _logger->info("KmbExecutor::allocateGraph begins");
+    _logger->info("KmbNNFlicExecutor::allocateGraph begins");
 
     BHandle->graphid = graphId_main++;
     BHandle->graphBuff = 0x00000000;
@@ -252,7 +252,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
     blob_file = getKmbAllocator()->alloc(BHandle->graphLen);
 
     if (!blob_file) {
-        _logger->error("KmbExecutor::allocateGraph: Error getting CMA for graph");
+        _logger->error("KmbNNFlicExecutor::allocateGraph: Error getting CMA for graph");
         THROW_IE_EXCEPTION << "allocateGraph: allocation failed for graph";
     }
 
@@ -375,11 +375,11 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 
     rgnAllocatorBuffer = getKmbAllocator()->alloc(POOL_SIZE);
     if (!rgnAllocatorBuffer) {
-        _logger->error("KmbExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
+        _logger->error("KmbNNFlicExecutor::allocateGraph: Cannot allocate buffer for RgnAlloc");
         THROW_IE_EXCEPTION << "allocateGraph: allocation failed for region allocator";
     }
     RgnAlloc->Create(getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer), POOL_SIZE);
-    _logger->info("KmbExecutor::allocateGraph: Created RgnAlloc");
+    _logger->info("KmbNNFlicExecutor::allocateGraph: Created RgnAlloc");
 
     const unsigned int shavel2CacheLineSize = 64;
     unsigned int outputTensorSize = ROUND_UP(sumSizeTensorDescOut.totalSize, shavel2CacheLineSize);
@@ -438,7 +438,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent, const
 #endif
 }
 
-void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
+void KmbNNFlicExecutor::queueInference(void* input_data, size_t input_bytes) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -459,7 +459,7 @@ void KmbExecutor::queueInference(void* input_data, size_t input_bytes) {
 #endif
 }
 
-void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
+void KmbNNFlicExecutor::getResult(void* result_data, unsigned int result_bytes) {
     if (!_config.useKmbExecutor()) {
         return;
     }
@@ -480,19 +480,19 @@ void KmbExecutor::getResult(void* result_data, unsigned int result_bytes) {
     uint32_t offset = pAddr - getKmbAllocator()->getPhysicalAddress(rgnAllocatorBuffer);
     unsigned char* data = static_cast<unsigned char*>(rgnAllocatorBuffer) + offset;
 
-    _logger->info("KmbExecutor::getResult memcpy started @%d", offset);
+    _logger->info("KmbNNFlicExecutor::getResult memcpy started @%d", offset);
     IE_ASSERT(result_bytes >= len);
     // FIXME output->Pull gives only the length of the first tensor
     // result_bytes size has to be used here in order to copy data from subsequent tensors
     std::memcpy(result_data, data, result_bytes);
-    _logger->info("KmbExecutor::getResult memcpy finished");
+    _logger->info("KmbNNFlicExecutor::getResult memcpy finished");
 #else
     UNUSED(result_data);
     UNUSED(result_bytes);
 #endif
 }
 
-void KmbExecutor::deallocateGraph() {
+void KmbNNFlicExecutor::deallocateGraph() {
     if (!_config.useKmbExecutor()) {
         return;
     }

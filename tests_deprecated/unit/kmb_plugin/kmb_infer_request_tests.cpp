@@ -21,6 +21,7 @@
 #include "creators/creator_blob_nv12.h"
 #include "kmb_allocator.h"
 #include "kmb_infer_request.h"
+#include "kmb_nn_flic_executor.h"
 #include "kmb_private_config.hpp"
 
 using namespace ::testing;
@@ -49,9 +50,9 @@ protected:
     }
 };
 
-class MockExecutor : public KmbExecutor {
+class MockExecutor : public KmbNNFlicExecutor {
 public:
-    MockExecutor(const KmbConfig& config): KmbExecutor(config) {}
+    MockExecutor(const KmbConfig& config): KmbNNFlicExecutor(config) {}
 
     MOCK_METHOD0(deallocateGraph, void());
     MOCK_METHOD4(

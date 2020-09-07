@@ -16,27 +16,14 @@
 
 #pragma once
 
+#include <kmb_config.h>
+
 #include <ie_icnn_network.hpp>
 #include <iomanip>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
-
-#if defined(__arm__) || defined(__aarch64__)
-#include <GraphManagerPlg.h>
-#include <MemAllocator.h>
-#include <NNFlicPlg.h>
-#include <PlgInferenceInput.h>
-#include <PlgInferenceOutput.h>
-#include <PlgStreamResult.h>
-#include <PlgTensorSource.h>
-#include <Pool.h>
-#include <cma_allocation_helper.h>
-#include <mvMacros.h>
-#endif
-
-#include <kmb_config.h>
 
 #include "kmb_allocator.h"
 
@@ -47,55 +34,23 @@ class KmbExecutor {
 public:
     using Ptr = std::shared_ptr<KmbExecutor>;
 
-    explicit KmbExecutor(const KmbConfig& config);
     virtual ~KmbExecutor() = default;
 
     virtual void allocateGraph(const std::vector<char>& graphFileContent, const ie::InputsDataMap& networkInputs,
-        const ie::OutputsDataMap& networkOutputs, bool newFormat);
+        const ie::OutputsDataMap& networkOutputs, bool newFormat) = 0;
 
-    virtual void deallocateGraph();
+    virtual void deallocateGraph() = 0;
 
-    virtual void queueInference(void* input_data, size_t input_bytes);
+    virtual void queueInference(void* input_data, size_t input_bytes) = 0;
 
-    virtual void getResult(void* result_data, unsigned int result_bytes);
+    virtual void getResult(void* result_data, unsigned int result_bytes) = 0;
 
     virtual const InferenceEngine::InputsDataMap& getRuntimeInputs() const { return _runtimeInputs; }
     virtual const InferenceEngine::OutputsDataMap& getRuntimeOutputs() const { return _runtimeOutputs; }
 
-    const KmbConfig& _config;
-
-private:
-    Logger::Ptr _logger;
-#if defined(__arm__) || defined(__aarch64__)
-    std::shared_ptr<GraphManagerPlg> gg;
-    std::shared_ptr<PlgTensorSource> plgTensorInput_;
-    std::shared_ptr<PlgStreamResult> plgTensorOutput_;
-    std::shared_ptr<PlgInferenceInput> plgInferenceInput_;
-    std::shared_ptr<PlgInferenceOutput> plgInferenceOutput_;
-    std::shared_ptr<RgnAllocator> RgnAlloc;
-    std::shared_ptr<HeapAllocator> HeapAlloc;
-
-    std::shared_ptr<NNFlicPlg> nnPl;
-
-    void* blob_file = nullptr;
-    void* rgnAllocatorBuffer = nullptr;
-    std::shared_ptr<BlobHandle_t> BHandle;
-
-    std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
-    std::shared_ptr<PlgPool<InferenceMsg>> plgPoolInferenceMsg;
-
-    std::shared_ptr<Pipeline> pipe;
-#endif
+protected:
     InferenceEngine::InputsDataMap _runtimeInputs;
     InferenceEngine::OutputsDataMap _runtimeOutputs;
-
-    std::shared_ptr<KmbAllocator> allocator;
-    void initVpualObjects();
-
-    const int xlinkChannel = 0;
-
-    uint32_t* _inferenceVirtAddr;
-    std::vector<void*> _scratchBuffers;
 };
 
 }  // namespace KmbPlugin
