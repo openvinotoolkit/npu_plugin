@@ -70,6 +70,11 @@ std::vector<int8_t> createBitPattern(uint16_t kernelW, uint16_t kernelH, uint16_
     return bitpattern;
 }
 
+std::size_t predictSubTensorShape(std::size_t heightShape, unsigned int numClusters)
+{
+    return ceil(heightShape/numClusters);
+}
+
 // The sparsity maps relative to populated tensors have to be generated BEFORE the dma passes.
 // As they have to be DMAed into CMX.
 static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
@@ -78,6 +83,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     mv::OpModel om(model);
     mv::DataModel dm(model);
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned int numClusters = (unsigned int)globalParams->get<int>("Number_of_Clusters");
 
     for(auto dpuTask = om.opBegin(); dpuTask != om.opEnd(); ++dpuTask)
     {
@@ -216,8 +223,30 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                 for (size_t tidx = 0; tidx < activationTensors.size(); tidx++)
                 {
                     auto inputTensor  = activationTensors[tidx];
+
+                    size_t w = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION], h = 0,
+                            c = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
+
+                    if (dpuTask->get<std::string>("splitStrategy") == "SplitOverK" ||
+                            dpuTask->get<std::string>("splitStrategy") == "Clustering")
+                    {
+                        h = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
+                    }
+                    //NOTE: SoH, HKSwitch
+                    else
+                    {
+                        h = predictSubTensorShape(inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION], numClusters);
+                    }
+                    // Sparse map has to be contiguously alligned at 16 bytes for first (N - 1) clusters
+                   // For the A0 bug impacting SOH & kernel > 1 compiler generated activation sparsity is the workaround
+                   // For activations where the height is not divisible by 4 for example 149x149x32, then we need to adjust
+                   // The size of the sparsity map so that is alligned at 16 bytes for first (N - 1) clusters
+
+                    while ((w*h*c)%128 != 0)
+                       w+=1;
+
                     //every element of sparsity map describes 8 elements of normal tensor
-                    auto mapShape = mv::Shape({{inputTensor->getShape()[mv::IO_WIDTH_DIMENSION]},
+                    auto mapShape = mv::Shape({w,
                                             {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
                                             {inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION]/8},
                                             {1}});
