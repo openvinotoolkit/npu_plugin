@@ -1023,7 +1023,7 @@ std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
         const float xmax = ptr[i * ELEM_COUNT + 5];
         const float ymax = ptr[i * ELEM_COUNT + 6];
 
-        utils::BoundingBox bb (class_id, imgWidth * xmin, imgWidth * xmax, imgHeight * ymin, imgHeight * ymax, conf);
+        utils::BoundingBox bb (class_id, imgWidth * xmin, imgHeight * ymin, imgWidth * xmax, imgHeight * ymax, conf);
 
         out.push_back(bb);
     }
