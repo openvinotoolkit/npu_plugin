@@ -35,7 +35,7 @@ void LocateCMXConcateableOps(const mv::pass::PassEntry&,
   const std::string output_file = passDesc.get<std::string>("output");
   FILE *fptr = fopen(output_file.c_str(), "w");
   if (!fptr) {
-    throw std::string("[ERROR]: unable to open file for writing\n");
+    throw mv::RuntimeError("LpScheduler", "Unable to open file for writing: " + output_file);
   }
 
   for (auto itr=concats.begin(); itr!=concats.end(); ++itr) {

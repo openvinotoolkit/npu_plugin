@@ -74,7 +74,8 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     bool status = ddr_address_generator.generate_tensor_addresses(begin, end,
         lp_sched_ddr_address_dump_filename, add_ddr_control_edges);
     if (!status) {
-      throw std::string("[DDR_Address_Generation]: insufficient DDR space");
+      throw mv::RuntimeError("LpScheduler",
+          "[DDR_Address_Generation]: insufficient DDR space");
     }
   }
 
@@ -165,7 +166,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       fflush(stderr);
       if (fptr)
         fclose(fptr);
-      throw "Exceeding ops ";
+      throw mv::RuntimeError("LpScheduler", "Exceeding ops");
     }
   }
 

@@ -42,7 +42,7 @@ namespace mv
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> toReturn;
 
         if(!isDAG(g))
-            throw "Trying to execute lexicographical topologicalSort on a graph that is not a DAG";
+            throw RuntimeError("Algorithm", "Trying to execute lexicographical topologicalSort on a graph that is not a DAG");
 
         std::set<typename graph<T_node, T_edge>::node_list_iterator, T_nodeItComp> unmarkedNodes;
         for(auto node = g.node_begin(); node != g.node_end(); ++node)

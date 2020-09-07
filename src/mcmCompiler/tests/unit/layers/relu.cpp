@@ -94,7 +94,7 @@ TEST_P(layers_relu, dump_blob)
             }
             break;
         default:
-            throw "unknown function";
+            ASSERT_TRUE(false);
     }
 
     auto layerOp = om.getSourceOp(layer);

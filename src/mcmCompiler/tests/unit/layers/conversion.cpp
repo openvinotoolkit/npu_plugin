@@ -65,7 +65,7 @@ TEST_P(layers_conversion, dump_blob)
             layer = om.reorder("", input, order_new);
             break;
         default:
-            throw "unknown function";
+            ASSERT_TRUE(false);
     }
 
     auto layerOp = om.getSourceOp(layer);

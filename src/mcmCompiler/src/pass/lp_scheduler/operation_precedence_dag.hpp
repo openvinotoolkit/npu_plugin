@@ -1056,7 +1056,7 @@ class Operation_Dag {
         //TODO(vamsikku): investigate on why short cirucuiting failures are
         //commented out.
         //if (!short_circuited) {
-        //  throw std::string("[ImplicitOp-Short-Circuting]: failed");
+        //  throw RuntimeError("LpScheduler", "[ImplicitOp-Short-Circuting]: failed");
         //}
       }
       return true;
