@@ -40,6 +40,9 @@ static const char plugin_message[] = "Optional. Enables messages from a plugin";
 /// @brief message for color order
 static const char rgb_message[] = "Optional. Use input image in RGB format. Default is BGR.";
 
+/// @brief message for input precision
+static const char input_precision_message[] = "Optional. U8, FP32 or FP16 ";
+
 /// @brief Define flag for showing help message <br>
 DEFINE_bool(h, false, help_message);
 
@@ -71,6 +74,10 @@ DEFINE_bool(p_msg, false, plugin_message);
 /// @brief Define parameter for color <br>
 /// It is an optional parameter
 DEFINE_bool(r, false, rgb_message);
+
+/// @brief Define input precision <br>
+/// It is an optional parameter
+DEFINE_string(ip, "", input_precision_message);
 
 /**
 * @brief This function show a help message
