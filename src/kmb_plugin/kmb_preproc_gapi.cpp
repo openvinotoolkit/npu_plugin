@@ -151,40 +151,6 @@ cv::gapi::own::Mat bind_to_blob(const Blob::Ptr& blob) {
     }
 }
 
-cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
-    // This is a special case for M2I & NV12.
-    // FIXME: M2I has a single input only!
-    // Even for NV12. It means the whole NV12 buffer
-    // is passed in as a plain continious memory region.
-    // What we need to validate here is that the uv data pointer
-    // really comes right after the y data ends:
-    const auto& y_blob  = blob->y();
-    const auto& uv_blob = blob->uv();
-    auto input_y   = bind_to_blob(y_blob);
-    auto input_uv  = bind_to_blob(uv_blob);
-    if (input_y.data == nullptr) {
-        THROW_IE_EXCEPTION << "input_y.data is nullptr";
-    }
-    if (input_uv.data == nullptr) {
-        THROW_IE_EXCEPTION << "input_uv.data is nullptr";
-    }
-    if (input_uv.data != input_y.data + input_y.rows*input_y.step) {
-        THROW_IE_EXCEPTION << "Input NV12 memory is not continious";
-    }
-
-    // Extract the memory description based on Y plane only
-    const auto& ie_desc     = y_blob->getTensorDesc();
-    IE_ASSERT(ie_desc.getPrecision() == Precision::U8);
-    const auto& ie_desc_blk = ie_desc.getBlockingDesc();
-    const auto     desc     = G::decompose(y_blob);
-    IE_ASSERT(desc.d.H  % 2 == 0);
-    const auto stride       = desc.s.H*blob->element_size();
-    const auto size         = cv::gapi::own::Size(desc.d.W, (desc.d.H/2)*3);
-
-    IE_ASSERT(ie_desc_blk.getOffsetPadding() == 0);
-    return {size.height, size.width, CV_8UC1, input_y.data, stride};
-}
-
 cv::gapi::own::Size getFullImageSize(const Blob::Ptr& blob) {
     const auto desc = blob->getTensorDesc();
     IE_ASSERT(desc.getLayout() == Layout::NHWC);
@@ -257,13 +223,18 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     auto inNV12Blob = as<NV12Blob>(inBlob);
     IE_ASSERT(inNV12Blob != nullptr);
 
-    auto input  = bind_to_blob(inNV12Blob);
-    auto output = bind_to_blob(outBlob);
+    const auto& y_blob = inNV12Blob->y();
+    const auto& uv_blob = inNV12Blob->uv();
+
+    auto input_y  = bind_to_blob(y_blob);
+    auto input_uv = bind_to_blob(uv_blob);
+    auto output   = bind_to_blob(outBlob);
 
     // FIXME: add batch??
 
     if (!_comp) {
-        cv::GMat in;
+        cv::GMat in_y;
+        cv::GMat in_uv;
         cv::GMat  out_i; // in the case of interleaved output
         cv::GMatP out_p; // in the case of planar output
 
@@ -279,16 +250,16 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         if (outBlob->getTensorDesc().getLayout() == NCHW) {
             // planar output case
             out_sz.height /= 3; // see details in bind_to_blob()
-            out_p = cv::gapi::M2Ip(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_p)));
+            out_p = cv::gapi::M2Ip(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_p)));
         } else {
             // interleaved output case
-            out_i = cv::gapi::M2Ii(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_i)));
+            out_i = cv::gapi::M2Ii(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_i)));
         }
         IE_ASSERT(_comp != nullptr);
     }
-    _comp->apply(cv::gin(input), cv::gout(output),
+    _comp->apply(cv::gin(input_y, input_uv), cv::gout(output),
                  cv::compile_args(cv::gapi::preproc::m2i::kernels()));
 }
 
