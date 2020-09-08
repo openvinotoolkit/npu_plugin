@@ -177,7 +177,7 @@ mv::QuantizationParams findOutputQuantParams(mv::ComputationModel& model, mv::Da
     auto idx = 0;
     auto current_ops = findSinkLayers(dm, op->getOutputTensor(0));
 
-    while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output") {
+    while(current_ops.size() == 1 && current_ops[0]->getOpType() != "FakeQuantize" && current_ops[0]->getOpType() != "Output" && current_ops[0]->getOpType() != "Deconv") {
         idx = (current_ops[0]->getOpType() == "TopK") ? 1 : 0;
         current_ops = findSinkLayers(dm, current_ops[0]->getOutputTensor(idx));
         assert(current_ops[0]->getOutputTensor().size() < 2);
@@ -487,7 +487,7 @@ void quantizeIO(mv::ComputationModel& model) {
         auto input = inputs.at(idx);
         auto current_ops = findSinkLayers(dm, input->getOutputTensor(0));
 
-        mv::QuantizationParams inputQuantParams = initial_quant_params();
+        mv::QuantizationParams inputQuantParams = input->get<mv::QuantizationParams>("quantParams");
         if(current_ops.size() == 1 && current_ops[0]->getOpType() == "FakeQuantize") {
             inputQuantParams = extractQuantParams(current_ops[0], input->getOpType() != "Constant");
         }

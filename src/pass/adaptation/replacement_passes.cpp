@@ -26,7 +26,9 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
 void replacePoolReshapePatternFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -54,6 +56,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
 {
     fullyConnectedAsConv2DFcn(pass, model);
     replacePoolReshapePatternFcn(pass, model);
+    replaceExpReduceSumMultipyFcn(pass, model);
     replaceLargeKernelsFcn(pass, model);
     replaceLargeStridesFcn(pass, model);
     replaceAsymmetricStridesFcn(pass, model);
@@ -66,6 +69,7 @@ void replacementOpsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
     replaceConcatOfPopulatedTensorsFcn(pass, model);
     reorgYoloAsConvConcatFcn(pass, model);
     insertPermuteBeforeDetFcn(pass, model);
+    replacePermuteAsReshape(pass, model);
 }
 
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel& model)
@@ -131,6 +135,75 @@ void insertPermuteBeforeDetFcn(const mv::pass::PassEntry&, mv::ComputationModel&
         reshapeBeforePermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         transposedData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
         reshapeAfterPermuteData->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+    }
+}
+
+void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+    auto permuteOps = om.getOps("Permute");
+
+    for (auto& opIt : permuteOps)
+    {
+        auto inputShape = opIt->getInputTensor(0)->getShape();
+        auto outputShape = opIt->getOutputTensor(0)->getShape();
+
+        std::vector<size_t> inputRealShape, outputRealShape;
+        for (int i = 0; i < 4; i++)
+        {
+            if(inputShape[i] != 1)
+            {
+                inputRealShape.push_back(inputShape[i]);
+            }
+            if(outputShape[i] != 1)
+            {
+                outputRealShape.push_back(outputShape[i]);
+            }
+        }
+
+        if(inputRealShape.size() == outputRealShape.size())
+        {
+            bool match = true;
+            for(int i = 0; i < inputRealShape.size(); i++)
+            {
+                match &= (inputRealShape[i] == outputRealShape[i]);
+            }
+
+            if(match)
+            {
+                // do permute when 2 dimensions' size equal.
+                std::set<size_t> noRepeatShape(inputRealShape.begin(), inputRealShape.end());
+                match &= (noRepeatShape.size()==inputRealShape.size());
+                // do permute when next step is reshape
+                mv::DataModel dm(model);
+                auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
+                if (nextOp->getOpType() == "Reshape") {
+                    match = false;
+                }
+            }
+            if(match)
+            {
+                auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
+                auto sourceTensor = opIt->getInputTensor(0);
+                auto parentOpIt = om.getSourceOp(sourceTensor);
+                auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
+                auto outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
+                auto reshape = om.reshape(sourceTensor, outputShape, outputTensorType, outputTensorQuantizationParams,  opIt->getName() + "_reshape");
+                auto reshapeOp = om.getSourceOp(reshape);
+
+                if(opIt->hasAttr("opId"))
+                {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    reshapeOp->set<unsigned>("opId", currentOpId);
+                }
+
+                linkNewOperationsReplacement(parentOpIt, reshape, om, opIt);
+                reshape->set<mv::Tensor::MemoryLocation>("Location", outputMemoryLocation);
+            }
+        }
     }
 }
 
@@ -538,7 +611,7 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             weights = om.constant(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
                                 mv::DType("Float64"),
-                                mv::Order(mv::Order::getRowMajorID(4)), neutralWeightsQuantParams);
+                                mv::Order(mv::Order::getColMajorID(4)), neutralWeightsQuantParams);
         }
         else
         {
@@ -547,8 +620,8 @@ void averageAsDepthWiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             // quantization params for the weights parameter of the depthwise convolution.
             weights = om.constantInt(weightsData,
                                 {kSize[0], kSize[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(),
-                                mv::Order(mv::Order::getRowMajorID(4)),
+                                mv::DType("UInt8"),
+                                mv::Order(mv::Order::getColMajorID(4)),
                                 weightsQuantParams);
         }
 
@@ -699,7 +772,7 @@ std::pair<unsigned short, unsigned short> getFactors(unsigned short kernelSize)
             factors.second++;
 
 
-        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) || 
+        if ( (factors.first * factors.second > (kernelSize + factors.first/2) ) ||
                 (factors.first * factors.second > (kernelSize + factors.second/2) ) )
         {
             // Use the factors for kernel size + 1,  an even number as we added 1 to a prime number, first number greater than the prime number
@@ -723,7 +796,7 @@ unsigned short getPad(std::pair<unsigned short, unsigned short> factors, size_t 
 }
 
 mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
-                                                 std::string name, unsigned short originalKernel, std::array<unsigned short, 2> newKernel,
+                                                 std::string name, double scaleValue, std::array<unsigned short, 2> newKernel,
                                                  std::array<unsigned short, 4> padding, bool quantRequired)
 {
     auto inputShape = sourceTensor->getShape();
@@ -742,7 +815,6 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
     // Both depthwise will take 1/original_kernel_size as a scale (if was 1 dw would be kernel^2)
     // Note: For non-prime kernels, could take scale of each exactly replacing ap/dw,
     // but using original kernel for scale improves observed accuracy
-    double scaleValue = 1/double(originalKernel);
     std::vector<double> scale(1, scaleValue);
     mv::QuantizationParams weightsQuantParams(zp, scale, min, max);
     mv::QuantizationParams emptyWeightsQuantParams = {{},{},{},{}};
@@ -756,7 +828,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
         //NOTE: For FP, weights quant params not used - put divisor in weights directly instead of scale
         weights = om.constant(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                mv::DType("Float64"), mv::Order(mv::Order::getRowMajorID(4)), emptyWeightsQuantParams);
+                                mv::DType("Float64"), mv::Order(mv::Order::getColMajorID(4)), emptyWeightsQuantParams);
     }
     else
     {
@@ -765,7 +837,7 @@ mv::Data::TensorIterator createPartialDepthwise(mv::OpModel om, mv::Data::OpList
         // quantization params for the weights parameter of the depthwise convolution.
         weights = om.constantInt(weightsData,
                                 {newKernel[0], newKernel[1], inputShape[mv::IO_CHANNEL_DIMENSION], channel_multiplier},
-                                sourceTensor->getDType(), mv::Order(mv::Order::getRowMajorID(4)), weightsQuantParams);
+                                sourceTensor->getDType(), mv::Order(mv::Order::getColMajorID(4)), weightsQuantParams);
     }
     // Create depthwise conv
     mv::Data::TensorIterator depthwise_conv;
@@ -1056,11 +1128,13 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             newKernel_1[mv::KERNEL_HEIGHT - largeDim] = factors.second;
             padding[mv::PADDING_RIGHT] = padding[mv::PADDING_BOT] = (newKernel[largeDim] * newKernel_1[largeDim] > kSize[largeDim]) ? 1 : 0;
         }
+        double firstRescale = 1.0 / (newKernel[0] * newKernel[1]);
+        double secondRescale = static_cast<double>((newKernel[0] * newKernel[1])) / (kSize[0] * kSize[1]);
         mv::Data::TensorIterator op0;
         if (opIt->getOpType() == "AveragePool")
             op0 = createPartialDepthwise(om, opIt, sourceTensor,
-                                            name + "_DepthwiseConv0",
-                                            kSize[largeDim], newKernel, padding, producers_quantized.first);
+                                         name + "_DepthwiseConv0",
+                                         firstRescale, newKernel, padding, producers_quantized.first);
         else if (opIt->getOpType()== "MaxPool")
         {
             op0 = om.maxPool(sourceTensor,
@@ -1113,8 +1187,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         mv::Data::TensorIterator op1;
         if (input_op0->getOpType() == "DepthwiseConv" || input_op0->getOpType() == "AveragePool" )
             op1 = createPartialDepthwise(om, input_op0, op0,
-                                            name + "_DepthwiseConv1",
-                                            kSize[mv::KERNEL_HEIGHT - largeDim], newKernel_1, {0,0,0,0}, producers_quantized.second);
+                                         name + "_DepthwiseConv1", secondRescale, newKernel_1, {0,0,0,0}, producers_quantized.second);
         else if (input_op0->getOpType() == "MaxPool")
         {
             op1 = om.maxPool(op0,
@@ -1416,6 +1489,33 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
         std::array<unsigned short, 2> stride = opIt->get<std::array<unsigned short, 2>>("stride");
         if( stride[mv::STRIDE_HORIZONTAL] == stride[mv::STRIDE_VERTICAL] ) // symmetric
             continue;
+        // if stride vertical equals 1 and input horizontal equals kernel horizontal size, no need to split.
+        // but replace strides (s_w,1) with (s_w,s_w) s_w>=2 when height=1
+        // e.g kernel=[8, 1], stride = [8, 1], input = [4000, 1], stride replaced with [8, 8]
+        // avoid cutting in too many workloads and obtaining a bad performance
+        if (stride[mv::STRIDE_VERTICAL] == 1)
+        {
+            bool verticalMatch = false;
+            auto inputTensorShape = opIt->getInputTensor(0)->getShape();
+            if (opIt->getOpType() == "DepthwiseConv")
+            {
+                auto kSize = opIt->getInputTensor(1)->getShape();
+                if (kSize[mv::IO_HEIGHT_DIMENSION] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
+                    verticalMatch = true;
+            }
+            else if (opIt->getOpType() == "AveragePool" || opIt->getOpType() == "MaxPool")
+            {
+                auto kSize = opIt->get<std::array<unsigned short, 2>>("kSize");
+                if (kSize[mv::IO_HEIGHT_DIMENSION] == inputTensorShape[mv::IO_HEIGHT_DIMENSION])
+                    verticalMatch = true;
+            }
+            if (verticalMatch)  // operate only one time on vertical.
+            {
+                stride[mv::STRIDE_VERTICAL] = stride[mv::STRIDE_HORIZONTAL];
+                opIt->set("stride", stride);
+                continue;
+            }
+        }
         pass.log(mv::Logger::MessageType::Debug, "stride hor=" + std::to_string(stride[mv::STRIDE_HORIZONTAL])+ " , stride vert=" + std::to_string(stride[mv::STRIDE_VERTICAL]));
         auto nextOp = mv::findSinkLayers(dm, opIt->getOutputTensor(mv::IO_TENSOR_OUTPUT))[0];
         //stride supported not slicing, stride not supported slicing with slices dimensions of stride
@@ -1424,5 +1524,83 @@ void replaceAsymmetricStridesFcn(const mv::pass::PassEntry& pass, mv::Computatio
                                                     stride[mv::STRIDE_HORIZONTAL],
                                                     stride[mv::STRIDE_VERTICAL],
                                                     nextOp);
+    }
+}
+
+bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListIterator it, mv::Data::OpListIterator& lastIt, mv::ComputationModel& model) {
+    mv::OpModel om(model);
+    auto opIt = it;
+
+    for (auto& layer : pattern) {
+        if (opIt->getOpType() != layer) {
+            return false;
+        }
+
+        lastIt = opIt;
+        opIt = om.getSourceOp(opIt->getInputTensor(0));
+    }
+    
+    return true;
+}
+
+void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    using namespace mv;
+
+    OpModel om(model);
+
+    const std::vector<std::string> pattern = {"Reciprocal", "Reshape", "Scale", "AveragePool", "Reshape", "Exp"};
+    auto ops = om.getOps("Eltwise");
+
+    for (auto& opIt : ops)
+    {
+        if (!opIt) {
+            continue;
+        }
+
+        if (opIt->get<std::string>("eltwiseType") == "Multiply")
+        {
+            auto itLeft = om.getSourceOp(opIt->getInputTensor(0));
+            auto itRight = om.getSourceOp(opIt->getInputTensor(1));
+            mv::Data::OpListIterator scaleIt, dataIt, lastOp;
+
+            if (itLeft->getOpType() == "Reciprocal" && matchPattern(pattern, itLeft, lastOp, model))
+            {
+                scaleIt = itLeft;
+                dataIt = itRight;
+            }
+            else if (itRight->getOpType() == "Reciprocal" && matchPattern(pattern, itRight, lastOp, model))
+            {
+                scaleIt = itRight;
+                dataIt = itLeft;
+            }
+            else {
+                return;
+            }
+
+            if (dataIt->getName() == lastOp->getName())
+            {
+                for (size_t i = 0; i < pattern.size() - 2; ++i) {
+                    auto parentOpIt = om.getSourceOp( scaleIt->getInputTensor(0));
+                    auto sourceTensor = parentOpIt->getOutputTensor(0);
+                    scaleIt = linkNewOperationsRemove(parentOpIt, sourceTensor, om, scaleIt);
+                }
+
+                om.removeOp(scaleIt);
+                opIt = linkNewOperationsRemove(dataIt, dataIt->getOutputTensor(0), om, opIt);
+
+                auto scoreMap = opIt->getInputTensor(0);
+                auto sm = om.softmax(scoreMap, "C", mv::DType("Default"), {{}, {}, {}, {}});
+
+                if(opIt->hasAttr("opId")) {
+                    unsigned currentOpId = opIt->get<unsigned>("opId");
+                    sm->set<unsigned>("opId", currentOpId);
+                    om.getSourceOp(sm)->set<unsigned>("opId", currentOpId);
+                }
+
+                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);  
+            }
+        }
     }
 }
