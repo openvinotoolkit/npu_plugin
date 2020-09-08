@@ -619,7 +619,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           std::reverse(tensorStrides.begin(), tensorStrides.end());
 
           if(numericStrides[4] != tensorStrides[4]){
-              byte_index = index * (numericStrides[4]/tensorStrides[4]);
+              byte_index = index * (double(numericStrides[4])/double(tensorStrides[4]));
           }
         }
 
@@ -662,7 +662,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
               std::reverse(tensorStrides.begin(), tensorStrides.end());
 
               if(numericStrides[4] != tensorStrides[4]){
-                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
+                  byte_index = index * (double(numericStrides[4])/double(tensorStrides[4]));
               }
               net_address += byte_index;
           }
