@@ -25,11 +25,13 @@
 #include <fstream>
 #include <generic_ie.hpp>
 #include <memory>
+#include <ngraph/pass/manager.hpp>
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
+#include <transformations/convert_quantize_dequantize.hpp>
 #include <vector>
 #include <vpux_compiler.hpp>
 
@@ -78,6 +80,9 @@ ExecutableNetwork::ExecutableNetwork(
 
         if (network.getFunction()) {
             auto nGraphFunc = network.getFunction();
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+            manager.run_passes(nGraphFunc);
             // Disable shape inference (WA for generic operations)
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 
