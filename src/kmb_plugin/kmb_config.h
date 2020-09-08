@@ -49,6 +49,7 @@ public:
 
     bool useM2I() const { return _useM2I; }
     std::string deviceId() const { return _deviceId; }
+    int preFetchSize() const { return _preFetchSize; }
 
 public:
     void parse(const std::map<std::string, std::string>& config) override;
@@ -86,6 +87,7 @@ private:
     // NB.: Currently applies to the detection use-case only
     bool _useM2I = false;
     std::string _deviceId = "VPU-0";
+    int _preFetchSize = 0;
 };
 
 }  // namespace KmbPlugin

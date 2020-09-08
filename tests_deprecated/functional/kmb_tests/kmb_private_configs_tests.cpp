@@ -305,3 +305,27 @@ TEST_P(KmbConfigTestsWithParams, PERF_COUNT) {
 const static std::vector<std::string> perfCountModes = {CONFIG_VALUE(YES), CONFIG_VALUE(NO)};
 
 INSTANTIATE_TEST_CASE_P(perfCount, KmbConfigTestsWithParams, ::testing::ValuesIn(perfCountModes));
+
+using KmbPrefetchBufferTest = KmbConfigTestsWithParams;
+
+TEST_P(KmbPrefetchBufferTest, PREFETCH_BUFFER_SIZE) {
+#if !defined(__arm__) && !defined(__aarch64__)
+    SKIP();
+#endif
+    std::string modelFilePath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
+
+    Core ie;
+    InferenceEngine::ExecutableNetwork network;
+    const std::string prefetchBufferSize = GetParam();
+    network = ie.ImportNetwork(modelFilePath, deviceName, {{"VPU_KMB_PREFETCH_BUFFER_SIZE", prefetchBufferSize}});
+
+    InferenceEngine::InferRequest request;
+    request = network.CreateInferRequest();
+
+    // jsut check that inference does not hang up
+    ASSERT_NO_THROW(request.Infer());
+}
+
+const static std::vector<std::string> preFetchBufferSizes = {"0", "4096", "65536"};
+
+INSTANTIATE_TEST_CASE_P(PREFETCH_BUFFER_SIZE, KmbPrefetchBufferTest, ::testing::ValuesIn(preFetchBufferSizes));

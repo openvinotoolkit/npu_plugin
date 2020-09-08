@@ -64,5 +64,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 0.
+ * This option allows to set prefetch buffer size in bytes
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(PREFETCH_BUFFER_SIZE);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

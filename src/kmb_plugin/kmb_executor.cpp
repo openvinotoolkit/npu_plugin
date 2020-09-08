@@ -64,6 +64,10 @@ KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription
           [this](uint32_t* buffer) {
               _allocator->free(buffer);
           }),
+      _preFetchBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _allocator->free(buffer);
+          }),
       _deviceId(deviceId) {
     if (!_config.useKmbExecutor()) {
         return;
@@ -182,6 +186,24 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
     nnFlicPtr->SetScratchBuffer(physAddrVec);
     return virtAddrVec;
 }
+
+static uint8_t* setPrefetchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const uint32_t preFetchSize,
+    const std::shared_ptr<vpux::Allocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    uint8_t* preFetchVirtAddr = nullptr;
+    if (preFetchSize > 0) {
+        preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
+        if (preFetchVirtAddr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
+        }
+        unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
+        uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
+        nnFlicPtr->SetPrefetchBuffer(reinterpret_cast<void*>(preFetchAddrLower32Bits), preFetchSize);
+    } else {
+        logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
+    }
+
+    return preFetchVirtAddr;
+}
 }  // namespace
 #endif
 
@@ -259,6 +281,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     nnPl->Create(BHandle.get());
 
     _scratchBuffers = setScratchHelper(nnPl, nThreads, _allocator, _logger);
+    _preFetchBuffer.reset(setPrefetchHelper(nnPl, _config.preFetchSize(), _allocator, _logger));
 
     _logger->info("NN Plugin Create finished...");
 
