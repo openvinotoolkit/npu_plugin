@@ -58,7 +58,7 @@ std::vector<mv::Data::OpListIterator> findOutputNodeParentImplicitOps(mv::Comput
         parentOp = om.getSourceOp(parentOp->getInputTensor(0));
        
     }
-    implicitOps.pop_back();
+    implicitOps.pop_back(); 
     return implicitOps;
 }
 
@@ -186,13 +186,14 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
         }
 
+        // If the last operation is streamed and the concat is in DDR and followed by implicit Ops
+        // Then you should do a DMA directly from NNCMX to Programamble Output
         else if (opType == "Output" && om.getSourceOp(opIt->getInputTensor(0))->isImplicit())
         {
-            auto output = om.getOutput();
-            auto implicitOps = findOutputNodeParentImplicitOps(om, output);
-            if(implicitOps.size())
+            auto outputNodeParentImplicitOps = findOutputNodeParentImplicitOps(om, opIt);
+            if(outputNodeParentImplicitOps.size())
             {
-                for(auto const& implicitOp:implicitOps)
+                for(auto const& implicitOp : outputNodeParentImplicitOps)
                 {
                     for( size_t input = 0; input < implicitOp->inputSlots(); input++)
                         implicitOp->getInputTensor(input)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
