@@ -227,13 +227,14 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     size_t w = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION], h = 0,
                             c = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-                    if (dpuTask->get<std::string>("splitStrategy") == "SplitOverK" ||
-                            dpuTask->get<std::string>("splitStrategy") == "Clustering")
+                    if (std::find(weightSegmentableStrategies.begin(), weightSegmentableStrategies.end(), dpuTask->get<std::string>("splitStrategy"))
+                            != weightSegmentableStrategies.end())
                     {
                         h = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
                     }
                     //NOTE: SoH, HKSwitch
-                    else
+                    else if (std::find(activationSegmentableStrategies.begin(), activationSegmentableStrategies.end(), dpuTask->get<std::string>("splitStrategy"))
+                             != activationSegmentableStrategies.end())
                     {
                         h = predictSubTensorShape(inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION], numClusters);
                     }
