@@ -46,6 +46,22 @@ void updateImplicitLayersQuantizationParamsFcn(const mv::pass::PassEntry& , mv::
     }
 }
 
+std::vector<mv::Data::OpListIterator> findOutputNodeParentImplicitOps(mv::ComputationModel& model, const mv::Data::OpListIterator &op)
+{
+    mv::OpModel om(model);
+    std::vector<mv::Data::OpListIterator> implicitOps;
+    auto parentOp = om.getSourceOp(op->getInputTensor(0));
+    
+    while(parentOp->isImplicit())
+    {
+        implicitOps.push_back(parentOp); 
+        parentOp = om.getSourceOp(parentOp->getInputTensor(0));
+       
+    }
+    implicitOps.pop_back(); 
+    return implicitOps;
+}
+
 void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -171,5 +187,23 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
         }
 
+        // If the last operation is streamed and the concat is in DDR and followed by implicit Ops
+        // Then you should do a DMA directly from NNCMX to Programamble Output
+        else if (opType == "Output" && om.getSourceOp(opIt->getInputTensor(0))->isImplicit())
+        {
+            auto outputNodeParentImplicitOps = findOutputNodeParentImplicitOps(om, opIt);
+            if(outputNodeParentImplicitOps.size())
+            {
+                for(auto const& implicitOp : outputNodeParentImplicitOps)
+                {
+                    for( size_t input = 0; input < implicitOp->inputSlots(); input++)
+                        implicitOp->getInputTensor(input)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+            
+                    for( size_t output = 0; output < implicitOp->outputSlots(); output++)
+                        implicitOp->getOutputTensor(output)->set<mv::Tensor::MemoryLocation>("Location", mv::Tensor::MemoryLocation::OUTPUT);
+                }
+            }
+        }
     }
 }
+

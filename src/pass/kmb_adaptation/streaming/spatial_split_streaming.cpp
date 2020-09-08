@@ -128,6 +128,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     // Weights K || C (depthwise ops) stream, need only overwrite shape and bias
     auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
+    bool mixedToFloat = false;
+    
+    if(op->hasAttr("mixedToFloat"))
+        mixedToFloat = op->get<bool>("mixedToFloat");
 
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
@@ -415,6 +419,8 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
+    if(mixedToFloat)
+        om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
     if(isDilatedConv && !kernelOp->hasAttr("dilationConvKernelSliced"))
