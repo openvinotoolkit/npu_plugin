@@ -44,7 +44,7 @@ namespace IE = InferenceEngine;
 ExecutableNetwork::ExecutableNetwork(const vpu::HDDL2Config& config)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
-      _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)) {}
+      _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)) {}
 
 //------------------------------------------------------------------------------
 //      Load network

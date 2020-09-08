@@ -52,7 +52,8 @@ protected:
     }
 };
 
-class MockNetworkDescription : public vpux::NetworkDescription {
+constexpr int defaultDeviceId = 0;
+class MockNetworkDescription : public vpux::INetworkDescription {
     const vpux::DataMap& getInputsInfo() const override { return inputs; }
 
     const vpux::DataMap& getOutputsInfo() const override { return outputs; }

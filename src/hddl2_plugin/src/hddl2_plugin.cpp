@@ -44,7 +44,7 @@ using namespace vpu::HDDL2Plugin;
 
 Engine::Engine() {
     _pluginName = DEVICE_NAME;  // "HDDL2"
-    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 

@@ -23,11 +23,6 @@ using namespace vpux::HDDL2;
 
 class Executor_UnitTests: public ::testing::Test {
 public:
-    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
-    // due _compiler is opened as plugin and _networkDescription is created by _compiler
-    // Need to design more accurate solution to avoid missunderstanding in future
-    // [Track number: S#37571]
-    vpux::NetworkDescription_Helper networkDescriptionHelper;
     vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
 
 protected:
@@ -35,6 +30,7 @@ protected:
 };
 
 void Executor_UnitTests::SetUp() {
+    vpux::NetworkDescription_Helper networkDescriptionHelper;
     networkDescPtr = networkDescriptionHelper.getNetworkDesc();
 }
 

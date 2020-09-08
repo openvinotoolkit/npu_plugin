@@ -30,7 +30,6 @@ class Graph_Common_UnitTests : public ::testing::Test, public ::testing::WithPar
 public:
     void SetUp() override;
 
-    vpux::ICompiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr networkPtr = nullptr;
     struct PrintToStringParamName {
         std::string operator()(testing::TestParamInfo<typeOfGraph> const& info) const;
@@ -38,14 +37,14 @@ public:
 };
 
 void Graph_Common_UnitTests::SetUp() {
-    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    auto compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
     if (GetParam() == fromImportedGraph) {
         const std::string modelToImport = PrecompiledResNet_Helper::resnet50.graphPath;
-        ASSERT_NO_THROW(networkPtr = _compiler->parse(modelToImport));
+        ASSERT_NO_THROW(networkPtr = compiler->parse(modelToImport));
     } else {
         ModelPooling_Helper modelPoolingHelper;
         CNNNetwork network = modelPoolingHelper.getNetwork();
-        ASSERT_NO_THROW(networkPtr = _compiler->compile(network));
+        ASSERT_NO_THROW(networkPtr = compiler->compile(network));
     }
 }
 
