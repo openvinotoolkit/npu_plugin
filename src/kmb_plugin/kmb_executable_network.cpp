@@ -72,7 +72,7 @@ void ExecutableNetwork::LoadBlob() {
 }
 
 ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
-    : _config(config), _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)), _device(device) {}
+    : _config(config), _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)), _device(device) {}
 
 ExecutableNetwork::ExecutableNetwork(
     ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)

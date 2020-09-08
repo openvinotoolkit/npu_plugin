@@ -122,11 +122,7 @@ private:
 
     std::string _netName;
 
-    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
-    // due _compiler is opened as plugin and _networkDescription is created by _compiler
-    // Need to design more accurate solution to avoid missunderstanding in future
-    // [Track number: S#37571]
-    vpux::ICompiler::Ptr _compiler = nullptr;
+    vpux::Compiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr _networkDescription = nullptr;
 
     std::shared_ptr<vpux::Device> _device = nullptr;
