@@ -486,7 +486,19 @@ std::size_t getByteSize(const ie::TensorDesc& desc) {
 int extractIdFromDeviceName(const std::string& name) {
     const std::size_t expectedSize = 5;
     if (name.size() != expectedSize) {
-        THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+        if (name == "VPU-32") {
+            int deviceId = 0;
+            int multiplier = 1;
+            // digitPos < 2 because number 32 has only 2 digits
+            for (size_t digitPos = 0; digitPos < 2; digitPos++) {
+                int digit = (name[name.size() - digitPos - 1] - '0');
+                deviceId += digit * multiplier;
+                multiplier *= 10;
+            }
+            return deviceId;
+        } else {
+            THROW_IE_EXCEPTION << "Unexpected device name: " << name;
+        }
     }
 
     return name[expectedSize - 1] - '0';

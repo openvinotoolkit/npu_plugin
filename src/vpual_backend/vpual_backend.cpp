@@ -94,6 +94,8 @@ const std::map<std::string, std::shared_ptr<IDevice>> VpualEngineBackend::create
         devices.insert({id, std::make_shared<VpualDevice>(id)});
         _logger->info("Device %s found.", id);
     }
+    // FIXME this is very wrong. find another way to pass CSRAM allocator
+    devices.insert({vpux::CSRAM_DEVICE_ID, std::make_shared<VpualDevice>(vpux::CSRAM_SLICE_ID)});
 
     return devices;
 }

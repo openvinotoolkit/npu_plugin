@@ -50,7 +50,8 @@ public:
 
     virtual ~KmbExecutor();
     KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-        const std::shared_ptr<vpux::Allocator>& allocator, const int deviceId, const KmbConfig& config);
+        const std::shared_ptr<vpux::Allocator>& allocator, const std::shared_ptr<vpux::Allocator>& CSRAMAllocator,
+        const int deviceId, const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
@@ -65,6 +66,7 @@ public:
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
     std::shared_ptr<vpux::Allocator> _allocator;
+    std::shared_ptr<vpux::Allocator> _CSRAMAllocator;
     const KmbConfig& _config;
     Logger::Ptr _logger;
 

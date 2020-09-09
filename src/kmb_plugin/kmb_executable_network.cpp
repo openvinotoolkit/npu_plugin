@@ -64,19 +64,28 @@ void ExecutableNetwork::LoadBlob() {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
     const auto& deviceId = ::utils::extractIdFromDeviceName(_device->getName());
-    _executor = std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), deviceId, _config);
+    std::shared_ptr<vpux::Allocator> CSRAMAllocator = nullptr;
+    if (_CSRAMDevice != nullptr) {
+        CSRAMAllocator = _CSRAMDevice->getAllocator();
+    }
+    _executor =
+        std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), CSRAMAllocator, deviceId, _config);
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
     _netName = _networkDescription->getName();
 }
 
-ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
-    : _config(config), _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)), _device(device) {}
+ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device,
+    const std::shared_ptr<vpux::Device>& CSRAMdevice)
+    : _config(config),
+      _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)),
+      _device(device),
+      _CSRAMDevice(CSRAMdevice) {}
 
-ExecutableNetwork::ExecutableNetwork(
-    ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
-    : ExecutableNetwork(config, device) {
+ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& config,
+    const std::shared_ptr<vpux::Device>& device, const std::shared_ptr<vpux::Device>& CSRAMdevice)
+    : ExecutableNetwork(config, device, CSRAMdevice) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
     _netName = network.getName();
@@ -128,9 +137,9 @@ ExecutableNetwork::ExecutableNetwork(
     }
 }
 
-ExecutableNetwork::ExecutableNetwork(
-    std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
-    : ExecutableNetwork(config, device) {
+ExecutableNetwork::ExecutableNetwork(std::istream& strm, const KmbConfig& config,
+    const std::shared_ptr<vpux::Device>& device, const std::shared_ptr<vpux::Device>& CSRAMDevice)
+    : ExecutableNetwork(config, device, CSRAMDevice) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
