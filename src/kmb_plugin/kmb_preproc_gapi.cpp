@@ -808,7 +808,7 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
 #ifdef ENABLE_M2I
 void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
-                 ColorFormat in_fmt, ColorFormat out_fmt, const int) {
+                 ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
     // NB.: Still follow the same constraints as with SIPP
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
@@ -827,7 +827,8 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     // FIXME: add batch??
 
     if (!_comp) {
-        cv::GMat in;
+        cv::GMat in_y;
+        cv::GMat in_uv;
         cv::GMat  out_i; // in the case of interleaved output
         cv::GMatP out_p; // in the case of planar output
 
@@ -843,17 +844,20 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         if (outBlob->getTensorDesc().getLayout() == NCHW) {
             // planar output case
             out_sz.height /= 3; // see details in bind_to_blob()
-            out_p = cv::gapi::M2Ip(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_p)));
+            out_p = cv::gapi::M2Ip(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_p)));
         } else {
             // interleaved output case
-            out_i = cv::gapi::M2Ii(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_i)));
+            out_i = cv::gapi::M2Ii(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_i)));
         }
         IE_ASSERT(_comp != nullptr);
     }
+
+    // FIXME kmb-plugin API provides signed integer, g-api wants unsigned
+    const cv::GSliceID M2IsliceId = deviceId;
     _comp->apply(cv::gin(input), cv::gout(output),
-                 cv::compile_args(cv::gapi::preproc::m2i::kernels()));
+                 cv::compile_args(cv::gapi::preproc::m2i::kernels(), M2IsliceId));
 }
 #endif
 
