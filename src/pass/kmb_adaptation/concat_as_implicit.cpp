@@ -8,6 +8,7 @@
 #include "include/mcm/pass/pass_utils.hpp"
 
 static void concatAsImplicitFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void decideConcatLocationFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -17,6 +18,14 @@ namespace mv
             .setFunc(concatAsImplicitFcn)
             .setDescription(
                 "Replaces all concats with implicits concats");
+
+        MV_REGISTER_PASS(DecideConcatLocation)
+            .setFunc(decideConcatLocationFcn)
+            .setDescription(
+                "The idea of this pass is the following: the g.o logic currently does not handle explicit concat cases\
+                 for splitting/spilling strategies, but there are some concats that MUST not be executed in cmx later from\
+                 the scheduler cause of incompatible split strategies, let's mark them(TODO: handle these cases in g.o.\
+                 by using and the cmx concat g.o. branch...)");
     }
 }
 
@@ -67,5 +76,55 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         if(avoidCmxConcatenation)
             om.getSourceOp(implicitConcat)->set<bool>("avoid_cmx_concat", avoidCmxConcatenation);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
+    }
+}
+
+void decideConcatLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+
+    auto concats = om.getOps("Concat");
+
+    std::vector<std::pair<std::string, std::string>>incompatibleStrategiesWithOutSpilling =
+    {
+        {"SplitOverHOverlapped", "Clustering"},
+        {"SplitOverHOverlapped", "SplitOverK"},
+        {"SplitOverH", "Clustering"},
+        {"SplitOverH", "SplitOverK"},
+        {"SplitOverK", "SplitOverH"},
+        {"SplitOverK", "HKSwitch"},
+        {"HKSwitch", "SplitOverH"},
+        {"HKSwitch", "HKSwitch"}
+    };
+
+
+    for(auto& concat: concats)
+    {
+
+        std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, concat->getOutputTensor()[0]);
+        //NOTE: last operation is concat
+        if (sinkOperators.empty())
+            continue;
+        for (auto& inputTensor : concat->getInputTensor())
+        {
+            auto inputOperation = om.getSourceOp(inputTensor);
+            for (auto& sinkOperator : sinkOperators)
+            {
+                if (inputOperation->hasAttr("splitStrategy") && sinkOperator->hasAttr("splitStrategy"))
+                {
+                    std::pair<std::string, std::string> possibleCombination(inputOperation->get<std::string>("splitStrategy"),
+                                                                            sinkOperator->get<std::string>("splitStrategy"));
+                     if (std::find(incompatibleStrategiesWithOutSpilling.begin(), incompatibleStrategiesWithOutSpilling.end(),
+                                   possibleCombination) != incompatibleStrategiesWithOutSpilling.end())
+                    {
+                        concat->set<bool>("avoid_cmx_concat", true);
+                        continue;
+                    }
+                }
+            }
+        }
     }
 }
