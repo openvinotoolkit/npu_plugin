@@ -49,10 +49,6 @@ namespace mv
             MemoryLocation(const std::string& location, bool forced);
             MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
-//            MemoryLocation(MemoryLocation& location) = delete;
-            void operator=(const MemoryLocation& location) = delete;
-            void operator=(MemoryLocation& location) = delete;
-
             bool operator==(const Location other) { return (location_ == other); }
             bool operator==(std::string& other);
             bool operator==(const MemoryLocation& other) { return (location_ == other.location_);}
@@ -93,7 +89,6 @@ namespace mv
                 return "MemoryLocation";
             }
         };
-
 
     private:
         Shape shape_;
