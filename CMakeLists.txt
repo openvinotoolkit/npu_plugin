@@ -48,10 +48,6 @@ if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
 
-if(ENABLE_M2I)
-    add_definitions(-DENABLE_M2I)
-endif()
-
 if (ARM OR AARCH64)
     if (NOT vpualHost_DIR)
         set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)

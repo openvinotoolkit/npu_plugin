@@ -63,14 +63,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(PLATFORM);
  */
 DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
 
-#ifdef ENABLE_M2I
 /**
  * @brief [Only for kmbPlugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
  */
 DECLARE_VPU_KMB_CONFIG_KEY(USE_M2I);
-#endif
 
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

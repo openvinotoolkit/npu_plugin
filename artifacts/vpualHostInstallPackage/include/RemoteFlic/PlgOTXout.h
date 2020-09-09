@@ -41,7 +41,7 @@ class PlgOTXout : public PluginStub
     SReceiver<vpuot::OutObjectsPtr> in;
 
     /** Constructor. */
-    PlgOTXout(uint32_t device_id) : PluginStub("PlgOTXout", device_id),
+    PlgOTXout(uint32_t device_id = 0) : PluginStub("PlgOTXout", device_id),
                     channelID(XLINK_INVALID_CHANNEL_ID)
                     {};
 

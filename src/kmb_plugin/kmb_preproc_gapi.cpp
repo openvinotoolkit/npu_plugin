@@ -10,9 +10,7 @@
 
 #include <memory>
 #include <opencv2/gapi.hpp>
-#ifdef ENABLE_M2I
 #include <opencv2/gapi_m2i/preproc.hpp>
-#endif
 #include <opencv2/gapi_sipp/sippinitinfo.hpp>
 #include <utility>
 #include <vector>
@@ -98,7 +96,6 @@ public:
             const int deviceId) override;
 };
 
-#ifdef ENABLE_M2I
 class PrivM2I final: public PreprocEngine::Priv {
     std::unique_ptr<cv::GComputation> _comp = nullptr;
 
@@ -108,7 +105,6 @@ public:
             ColorFormat in_fmt, ColorFormat out_fmt,
             const int deviceId) override;
 };
-#endif
 
 namespace {
 namespace G {
@@ -215,7 +211,6 @@ std::vector<cv::gapi::own::Mat> bind_to_blob(const Blob::Ptr& blob) {
     return result;
 }
 
-#ifdef ENABLE_M2I
 cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     // This is a special case for M2I & NV12.
     // FIXME: M2I has a single input only!
@@ -249,7 +244,6 @@ cv::gapi::own::Mat bind_to_blob(const NV12Blob::Ptr& blob) {
     IE_ASSERT(ie_desc_blk.getOffsetPadding() == 0);
     return {size.height, size.width, CV_8UC1, input_y.data, stride};
 }
-#endif
 
 // validate input/output ColorFormat-related parameters
 void validateColorFormats(const G::Desc &in_desc,
@@ -805,10 +799,9 @@ void PrivSIPP::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     }
 }
 
-#ifdef ENABLE_M2I
 void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
                  const ResizeAlgorithm& algorithm,
-                 ColorFormat in_fmt, ColorFormat out_fmt, const int) {
+                 ColorFormat in_fmt, ColorFormat out_fmt, const int deviceId) {
     // NB.: Still follow the same constraints as with SIPP
     IE_ASSERT(algorithm == RESIZE_BILINEAR);
     IE_ASSERT(in_fmt == NV12);
@@ -827,7 +820,8 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
     // FIXME: add batch??
 
     if (!_comp) {
-        cv::GMat in;
+        cv::GMat in_y;
+        cv::GMat in_uv;
         cv::GMat  out_i; // in the case of interleaved output
         cv::GMatP out_p; // in the case of planar output
 
@@ -843,29 +837,29 @@ void PrivM2I::go(const Blob::Ptr &inBlob, Blob::Ptr &outBlob,
         if (outBlob->getTensorDesc().getLayout() == NCHW) {
             // planar output case
             out_sz.height /= 3; // see details in bind_to_blob()
-            out_p = cv::gapi::M2Ip(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_p)));
+            out_p = cv::gapi::M2Ip(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_p)));
         } else {
             // interleaved output case
-            out_i = cv::gapi::M2Ii(in, csc_code, out_sz);
-            _comp.reset(new cv::GComputation(GIn(in), cv::GOut(out_i)));
+            out_i = cv::gapi::M2Ii(in_y, in_uv, csc_code, out_sz);
+            _comp.reset(new cv::GComputation(GIn(in_y, in_uv), cv::GOut(out_i)));
         }
         IE_ASSERT(_comp != nullptr);
     }
+
+    // FIXME kmb-plugin API provides signed integer, g-api wants unsigned
+    const cv::GSliceID M2IsliceId = deviceId;
     _comp->apply(cv::gin(input), cv::gout(output),
-                 cv::compile_args(cv::gapi::preproc::m2i::kernels()));
+                 cv::compile_args(cv::gapi::preproc::m2i::kernels(), M2IsliceId));
 }
-#endif
 
 PreprocEngine::PreprocEngine(unsigned int shaveFirst, unsigned int shaveLast,
                              unsigned int lpi, Path ppPath) {
     IE_ASSERT(ppPath == Path::SIPP || ppPath == Path::M2I);
     if (ppPath == Path::SIPP) {
         _priv.reset(new PrivSIPP(shaveFirst, shaveLast, lpi));
-#ifdef ENABLE_M2I
     } else if (ppPath == Path::M2I) {
         _priv.reset(new PrivM2I());
-#endif
     } else {
         THROW_IE_EXCEPTION << "Error: unsupported preprocessing path with code "
                            << std::to_string(static_cast<int>(ppPath));
