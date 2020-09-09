@@ -19,7 +19,7 @@
 #include <precision_utils.h>
 #include <blob_factory.hpp>
 #include <blob_transform.hpp>
-#include <single_layer_common.hpp>
+#include <functional_test_utils/blob_utils.hpp>
 
 #include <vpu/utils/checked_cast.hpp>
 
@@ -82,12 +82,12 @@ void fillUniform_(const Blob::Ptr& blob, std::default_random_engine& rd, T min, 
         break;
     }
     case Precision::U8: {
-        std::uniform_int_distribution<uint8_t> dist(vpu::checked_cast<uint8_t>(min), vpu::checked_cast<uint8_t>(max));
+        std::uniform_int_distribution<int32_t> dist(vpu::checked_cast<uint8_t>(min), vpu::checked_cast<uint8_t>(max));
         fill_<uint8_t>(blob, rd, dist);
         break;
     }
     case Precision::I8: {
-        std::uniform_int_distribution<int8_t> dist(vpu::checked_cast<int8_t>(min), vpu::checked_cast<int8_t>(max));
+        std::uniform_int_distribution<int32_t> dist(vpu::checked_cast<int8_t>(min), vpu::checked_cast<int8_t>(max));
         fill_<int8_t>(blob, rd, dist);
         break;
     }
@@ -169,20 +169,30 @@ Blob::Ptr genBlobNormal(const TensorDesc& desc, std::default_random_engine& rd, 
 }
 
 void compareBlobs(const Blob::Ptr& actual, const Blob::Ptr& expected, float tolerance, CompareMethod method) {
-    const auto actualFP32 = toFP32(actual);
-    const auto expectedFP32 = toFP32(expected);
+    const auto actualFP32 = toFP32(toDefLayout(actual));
+    const auto expectedFP32 = toFP32(toDefLayout(expected));
 
+    auto actualMem = actualFP32->cbuffer();
+    auto expectedMem = expectedFP32->cbuffer();
+
+    FuncTestUtils::CompareType compareType;
     switch (method) {
     case CompareMethod::Absolute:
-        CompareCommonAbsolute(actualFP32, expectedFP32, tolerance);
+        compareType = FuncTestUtils::ABS;
         break;
     case CompareMethod::Relative:
-        CompareCommonRelative(actualFP32, expectedFP32, tolerance);
+        compareType = FuncTestUtils::REL;
         break;
     case CompareMethod::Combined:
-        CompareCommonCombined(actualFP32, expectedFP32, tolerance);
+        compareType = FuncTestUtils::ABS_AND_REL;
         break;
     }
+
+    FuncTestUtils::compareRawBuffers(
+        actualMem.as<const float*>(), expectedMem.as<const float*>(),
+        actualFP32->size(), expectedFP32->size(),
+        compareType,
+        tolerance, tolerance);
 }
 
 ngraph::element::Type precisionToType(const Precision& precision) {

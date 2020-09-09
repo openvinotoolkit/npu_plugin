@@ -18,8 +18,8 @@
 #include <vpu_layers_tests.hpp>
 #include <gtest/gtest.h>
 #include <file_reader.h>
-#include <test_model/kmb_test_utils.hpp>
 #include <regression_tests.hpp>
+#include <ie_utils.hpp>
 
 using namespace KmbRegressionTarget;
 
