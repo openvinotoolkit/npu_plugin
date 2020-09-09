@@ -227,8 +227,8 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                     size_t w = inputTensor->getShape()[mv::IO_WIDTH_DIMENSION], h = 0,
                             c = inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-                    if (std::find(weightSegmentableStrategies.begin(), weightSegmentableStrategies.end(), dpuTask->get<std::string>("splitStrategy"))
-                            != weightSegmentableStrategies.end())
+                    if (std::find(activationRepetitionStrategies.begin(), activationRepetitionStrategies.end(), dpuTask->get<std::string>("splitStrategy"))
+                            != activationRepetitionStrategies.end())
                     {
                         h = inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
                     }
