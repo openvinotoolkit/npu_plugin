@@ -21,22 +21,30 @@ endif()
 set(TARGET_NAME vpual_backend)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_library(${TARGET_NAME} SHARED ${SOURCES})
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+add_library(${TARGET_NAME} MODULE ${SOURCES})
+
+enable_warnings_as_errors(${TARGET_NAME})
+
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
 target_include_directories(${TARGET_NAME}
-        PUBLIC
-            ./
-            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/)
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
 
+link_system_libraries(${TARGET_NAME}
+    PRIVATE
+        ${VPUAL_NN_LIBRARY}
+        ${VPUSMM_LIBRARY}
+        IE::inference_engine)
 target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            ${VPUAL_NN_LIBRARY}
-            ${VPUSMM_LIBRARY}
-            IE::inference_engine
-            vpux
-            kmb_utils)
+    PRIVATE
+        vpux
+        kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

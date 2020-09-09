@@ -1,5 +1,4 @@
 #
-
 # Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
@@ -19,127 +18,106 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME "HDDL2Plugin")
-set(HDDL2_DEVICE_NAME HDDL2)
-
-if(UNIX)
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww34)
-    set(ARCH_FORMAT ".tgz")
-else()
-    set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww34_Windows)
-    set(ARCH_FORMAT ".zip")
-endif()
-
-set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
-
-include(dependency_solver)
-
-if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
-    set(IE_PATH_TO_DEPS "$ENV{THIRDPARTY_SERVER_PATH}")
-elseif(DEFINED THIRDPARTY_SERVER_PATH)
-    set(IE_PATH_TO_DEPS "${THIRDPARTY_SERVER_PATH}")
-else()
-    message(WARNING "Hddl unite is not found.")
-endif()
-
-if(DEFINED IE_PATH_TO_DEPS)
-    reset_deps_cache(HDDL_UNITE)
-
-    RESOLVE_DEPENDENCY(HDDL_UNITE
-            ARCHIVE_LIN "hddl_unite/hddl_unite_${HDDLUNITE_ARCHIVE_VERSION}${ARCH_FORMAT}"
-            ENVIRONMENT "HDDL_UNITE"
-            TARGET_PATH "${TEMP}/hddl_unite")
-
-    unset(IE_PATH_TO_DEPS)
-endif()
-
-find_library(HDDL_UNITE_LIBRARY
-        NAMES  HddlUnite
-        HINTS "${HDDL_UNITE}/lib"
-        NO_DEFAULT_PATH)
-
-if (WIN32)
-    add_library(HddlUnite STATIC IMPORTED GLOBAL)
-else()
-    add_library(HddlUnite SHARED IMPORTED GLOBAL)
-endif()
-
-set_target_properties(HddlUnite PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${TEMP}/hddl_unite/include"
-        IMPORTED_LOCATION ${HDDL_UNITE_LIBRARY}
-        IMPORTED_NO_SONAME TRUE)
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-ie_add_plugin(NAME ${TARGET_NAME}
-              SOURCES ${SOURCES}
-              VERSION_DEFINES_FOR src/hddl2_plugin.cpp
-              DEVICE_NAME ${HDDL2_DEVICE_NAME})
+list(FILTER SOURCES EXCLUDE REGEX "hddl2_plugin.cpp")
 
-if (UNIX)
-    set(EXTRA_COMPILE_OPTIONS -Wall -Wextra -Werror)
-endif(UNIX)
+set(HDDL2_PLUGIN_TARGET "HDDL2Plugin" CACHE INTERNAL "")
+set(HDDL2_PLUGIN_OBJS_TARGET "${HDDL2_PLUGIN_TARGET}_objs" CACHE INTERNAL "")
+set(HDDL2_PLUGIN_STATIC_TARGET "${HDDL2_PLUGIN_TARGET}_static" CACHE INTERNAL "")
+set(HDDL2_PLUGIN_ENGINE_SOURCE_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/hddl2_plugin.cpp" CACHE INTERNAL "")
 
-target_compile_options(${TARGET_NAME} PRIVATE ${EXTRA_COMPILE_OPTIONS})
+#
+# Object library
+#
 
-target_compile_definitions(${TARGET_NAME} PRIVATE -DDEVICE_NAME="${HDDL2_DEVICE_NAME}")
+add_library(${HDDL2_PLUGIN_OBJS_TARGET} OBJECT ${SOURCES})
 
-ie_register_plugins(MAIN_TARGET ${TARGET_NAME}
-                    POSSIBLE_PLUGINS ${TARGET_NAME})
+enable_warnings_as_errors(${HDDL2_PLUGIN_OBJS_TARGET})
 
-set(HDDL_UNITE_OUT_DIR "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}")
-
-target_include_directories(${TARGET_NAME}
+target_compile_definitions(${HDDL2_PLUGIN_OBJS_TARGET}
     PRIVATE
-        "${FRONTEND_VPUX_INCLUDE_DIR}"
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+target_include_directories(${HDDL2_PLUGIN_OBJS_TARGET}
+    PUBLIC
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu"
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
-        "${IE_MAIN_SOURCE_DIR}/include"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2")
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite")
 
-target_link_libraries(${TARGET_NAME}
-    PRIVATE
+link_system_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
+    PUBLIC
         IE::inference_engine
-        HddlUnite
+        IE::inference_engine_plugin_api
         IE::vpu_common_lib
+        HddlUnite)
+target_link_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
+    PUBLIC
         kmb_utils
         vpux)
 
-log_rpath(HDDL_UNITE "${HDDL_UNITE_LIBRARY}")
-
-if (ENABLE_TESTS)
-    add_library(${TARGET_NAME}_test_static STATIC ${SOURCES})
-
-    target_compile_options(${TARGET_NAME}_test_static PRIVATE ${EXTRA_COMPILE_OPTIONS})
-
-    target_compile_definitions(${TARGET_NAME}_test_static PRIVATE -DDEVICE_NAME="${HDDL2_DEVICE_NAME}")
-
-    target_include_directories(${TARGET_NAME}_test_static
-        PUBLIC
-            "${CMAKE_CURRENT_SOURCE_DIR}/include"
-            "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite"
-            "${IE_MAIN_SOURCE_DIR}/include"
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
-        PRIVATE
-            "${FRONTEND_VPUX_INCLUDE_DIR}")
-
-    target_link_libraries(${TARGET_NAME}_test_static
-        PUBLIC
-            IE::inference_engine
-            IE::vpu_common_lib
-            IE::inference_engine_plugin_api
-        PRIVATE
-            HddlUnite
-            kmb_utils
-            vpux)
-
-    if(ENABLE_CLANG_FORMAT)
-        add_clang_format_target(clang_format_${TARGET_NAME}_test_static FOR_TARGETS ${TARGET_NAME}_test_static ALL)
-        add_dependencies(${TARGET_NAME}_test_static clang_format_${TARGET_NAME}_test_static)
-    endif()
-endif()
+add_cpplint_target(${HDDL2_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET})
 
 if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
-    add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
+    add_clang_format_target(clang_format_${HDDL2_PLUGIN_TARGET} FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET} ALL)
+    add_dependencies(${HDDL2_PLUGIN_OBJS_TARGET} clang_format_${HDDL2_PLUGIN_TARGET})
 endif()
+
+#
+# Plugin library
+#
+
+set(TARGET_NAME ${HDDL2_PLUGIN_TARGET})
+ie_add_plugin(NAME ${HDDL2_PLUGIN_TARGET}
+    DEVICE_NAME ${HDDL2_DEVICE_NAME}
+    SOURCES
+        $<TARGET_OBJECTS:${HDDL2_PLUGIN_OBJS_TARGET}>
+        ${HDDL2_PLUGIN_ENGINE_SOURCE_FILE}
+    VERSION_DEFINES_FOR ${HDDL2_PLUGIN_ENGINE_SOURCE_FILE})
+
+target_compile_definitions(${HDDL2_PLUGIN_TARGET}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        "DEVICE_NAME=\"${HDDL2_DEVICE_NAME}\"")
+
+target_link_libraries(${HDDL2_PLUGIN_TARGET}
+    PRIVATE
+        ${HDDL2_PLUGIN_OBJS_TARGET})
+
+install(TARGETS ${HDDL2_PLUGIN_TARGET}
+    RUNTIME DESTINATION ${IE_CPACK_RUNTIME_PATH} COMPONENT ${HDDL2_DEVICE_NAME}
+    ARCHIVE DESTINATION ${IE_CPACK_ARCHIVE_PATH} COMPONENT ${HDDL2_DEVICE_NAME}
+    LIBRARY DESTINATION ${IE_CPACK_LIBRARY_PATH} COMPONENT ${HDDL2_DEVICE_NAME})
+
+#
+# Static library
+#
+
+add_library(${HDDL2_PLUGIN_STATIC_TARGET} STATIC
+    $<TARGET_OBJECTS:${HDDL2_PLUGIN_OBJS_TARGET}>
+    ${HDDL2_PLUGIN_ENGINE_SOURCE_FILE})
+
+target_compile_definitions(${HDDL2_PLUGIN_STATIC_TARGET}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN
+        "DEVICE_NAME=\"${HDDL2_DEVICE_NAME}\"")
+
+target_include_directories(${HDDL2_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        $<TARGET_PROPERTY:${HDDL2_PLUGIN_OBJS_TARGET},INTERFACE_INCLUDE_DIRECTORIES>)
+
+link_system_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        IE::inference_engine
+        IE::inference_engine_plugin_api
+        IE::vpu_common_lib
+    PRIVATE
+        HddlUnite)
+target_link_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
+    PUBLIC
+        kmb_utils
+    PRIVATE
+        vpux)

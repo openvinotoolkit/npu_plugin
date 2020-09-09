@@ -22,11 +22,10 @@ addIeTargetTest(
     INCLUDES
         "helpers"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
-        "${FRONTEND_VPUX_INCLUDE_DIR}"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
     LINK_LIBRARIES
         IE::IESharedTests
-        HDDL2Plugin_test_static
+        ${HDDL2_PLUGIN_STATIC_TARGET}
         HddlUnite
         ${XLINK_LIB}
         IE::gtest
@@ -36,10 +35,4 @@ addIeTargetTest(
         kmbTestData
 )
 
-if (UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})

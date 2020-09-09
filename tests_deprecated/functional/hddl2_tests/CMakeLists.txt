@@ -16,9 +16,7 @@
 
 set(TARGET_NAME "HDDL2FunctionalTests")
 
-file(GLOB_RECURSE HDDL2_TESTS_SOURCES
-        "*.cpp"
-        )
+file(GLOB_RECURSE HDDL2_TESTS_SOURCES "*.cpp")
 
 addIeTargetTest(
     NAME ${TARGET_NAME}
@@ -31,7 +29,7 @@ addIeTargetTest(
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
     LINK_LIBRARIES
         IE::IESharedTests
-        HDDL2Plugin
+        ${HDDL2_PLUGIN_STATIC_TARGET}
         IE::vpu_common_lib
         HddlUnite
         ${XLINK_LIB}
@@ -41,12 +39,4 @@ addIeTargetTest(
         kmbTestData
 )
 
-add_dependencies(${TARGET_NAME} HDDL2Plugin_test_static)
-
-if (UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Wextra
-            -Werror)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})

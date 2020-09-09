@@ -16,26 +16,11 @@
 
 set(IE_MAIN_KMB_PLUGIN_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_subdirectory(unit/kmb_plugin)
 add_subdirectory(models_helpers)
 
+add_subdirectory(unit/kmb_plugin)
+
 if(ENABLE_HDDL2_TESTS)
-    if (UNIX)
-        find_library(XLINK_LIBRARY
-                NAMES  XLink
-                HINTS "${TEMP}/hddl_unite/thirdparty/XLink/lib"
-                NO_DEFAULT_PATH)
-
-        add_library(XLink SHARED IMPORTED GLOBAL)
-
-        set_target_properties(XLink PROPERTIES
-                IMPORTED_LOCATION ${XLINK_LIBRARY}
-                IMPORTED_NO_SONAME TRUE)
-
-        set(XLINK_LIB XLink CACHE INTERNAL "")
-    else()
-        set(XLINK_LIB "" CACHE INTERNAL "")
-    endif()
     add_subdirectory(unit/hddl2_tests)
 endif()
 
@@ -47,6 +32,6 @@ if (ENABLE_BEH_TESTS)
     add_subdirectory(behavior)
 endif()
 
-if (ARM OR AARCH64)
+if(AARCH64)
     add_subdirectory(gapi_preproc)
 endif()

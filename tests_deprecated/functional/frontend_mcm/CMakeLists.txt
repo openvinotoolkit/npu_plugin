@@ -34,10 +34,4 @@ addIeTargetTest(
             VPU
 )
 
-if (UNIX)
-    target_compile_options(${TARGET_NAME}
-            PRIVATE
-            -Wall
-            -Wextra
-            -Werror)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})

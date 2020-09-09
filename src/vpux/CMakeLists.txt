@@ -20,28 +20,25 @@ endif()
 
 set(TARGET_NAME vpux)
 
-set(FRONTEND_VPUX_INCLUDE_DIR
-    ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "FRONTEND_VPUX_INCLUDE_DIR")
-
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-target_include_directories(${TARGET_NAME} PUBLIC include
-                                          # FIXME: should be here?
-                                          PRIVATE ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include)
+enable_warnings_as_errors(${TARGET_NAME})
 
-target_link_libraries(${TARGET_NAME} PRIVATE kmb_utils)
+target_include_directories(${TARGET_NAME}
+    PUBLIC
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE
+        # FIXME: should be here?
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
 
-if(UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        kmb_utils)
+
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
     add_dependencies(${TARGET_NAME} clang_format_${TARGET_NAME})
 endif()
-

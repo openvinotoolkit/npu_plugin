@@ -22,7 +22,6 @@ addIeTargetTest(
     INCLUDES
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${FRONTEND_VPUX_INCLUDE_DIR}"
     LINK_LIBRARIES
         IE::IESharedTests
         IE::vpu_common_lib
@@ -32,19 +31,13 @@ addIeTargetTest(
         IE::gmock
         IE::gtest_main
         kmb_utils
-        kmbPlugin_test_static
+        ${KMB_PLUGIN_STATIC_TARGET}
         vpux
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
 )
 
-if (UNIX)
-    target_compile_options(${TARGET_NAME}
-            PRIVATE
-                -Wall
-                -Werror
-            -Wextra)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

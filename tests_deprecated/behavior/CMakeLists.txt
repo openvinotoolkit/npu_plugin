@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set (TARGET_NAME KmbBehaviorTests)
+set(TARGET_NAME KmbBehaviorTests)
 
 addIeTargetTest(
         NAME ${TARGET_NAME}
@@ -21,10 +21,4 @@ addIeTargetTest(
             KMB
 )
 
-if (UNIX)
-    target_compile_options(${TARGET_NAME}
-            PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})

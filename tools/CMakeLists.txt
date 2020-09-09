@@ -13,7 +13,7 @@
 # limitations under the License.
 
 # TODO: It is disabled for Windows due dependency on Boost.fs
-if (UNIX)
+if(UNIX)
     add_subdirectory(model-comparator)
 endif()
 
