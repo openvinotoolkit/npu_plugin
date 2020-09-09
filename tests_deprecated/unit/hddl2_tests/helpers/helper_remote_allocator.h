@@ -23,13 +23,12 @@ namespace HDDL2Plugin {
 
 using memoryHandle = void*;
 
-//------------------------------------------------------------------------------
-//      class Allocator_Helper
+
 //------------------------------------------------------------------------------
 class Allocator_Helper {
 public:
-    using WorkloadContextPtr = HddlUnite::WorkloadContext::Ptr;
     using Ptr = std::shared_ptr<Allocator_Helper>;
+    using WorkloadContextPtr = HddlUnite::WorkloadContext::Ptr;
 
     explicit Allocator_Helper(WorkloadContextPtr& workloadContextPtr);
     virtual ~Allocator_Helper() = default;
@@ -50,8 +49,6 @@ inline Allocator_Helper::Allocator_Helper(WorkloadContextPtr& workloadContextPtr
 }
 
 //------------------------------------------------------------------------------
-//      class Allocator_WrappedRemoteMemory_Helper
-//------------------------------------------------------------------------------
 /**
  * @brief Allocate remote memory via HddlUnite and wrap it on createMemory call
  */
@@ -62,6 +59,8 @@ public:
 
     memoryHandle createMemory(const size_t& size) override;
     std::string getRemoteMemory(const size_t &size) override;
+
+    const size_t defaultSizeToAllocate = 1024 * 1024 * 4;
 
 private:
     RemoteMemory_Helper _remoteMemoryHelper;
@@ -77,7 +76,7 @@ inline Allocator_WrappedRemoteMemory_Helper::
 Allocator_WrappedRemoteMemory_Helper(WorkloadContextPtr& workloadContextPtr)
                                         : Allocator_Helper(workloadContextPtr) {
     WorkloadID workloadId = workloadContextPtr->getWorkloadContextID();
-    _memoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, EMULATOR_MAX_ALLOC_SIZE);
+    _memoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, defaultSizeToAllocate);
 }
 
 inline std::string Allocator_WrappedRemoteMemory_Helper::getRemoteMemory(const size_t &size) {
