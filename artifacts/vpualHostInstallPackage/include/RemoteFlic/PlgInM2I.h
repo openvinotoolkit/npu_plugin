@@ -19,6 +19,10 @@
 #define XLINK_INVALID_CHANNEL_ID (0)
 #endif
 
+#ifndef DEFAULT_M2I_DESC_QSZ
+ #define DEFAULT_M2I_DESC_IN_QSZ 4
+#endif
+
 /**
  * M2I Input FLIC Plugin Stub Class.
  * This object creates the real plugin on the device and links to it with an
@@ -31,13 +35,10 @@ class PlgInM2I : public PluginStub
 
   public:
     /** Output message (this is a source plugin). */
-    MReceiver<ImgFrameIspPtr> inBuf;
-    MReceiver<ImgFrameIspPtr> outBuf;
-
     MSender<vpum2i::M2IObj> out;
 
     /** Constructor. */
-    PlgInM2I(uint32_t device_id) : PluginStub("PlgInM2I", device_id), out{device_id} {};
+    PlgInM2I(uint32_t device_id = 0) : PluginStub("PlgInM2I", device_id), out{device_id} {};
                  //channelID(XLINK_INVALID_CHANNEL_ID)
 
     /** Destructor. */
@@ -46,10 +47,10 @@ class PlgInM2I : public PluginStub
     /**
      * Plugin Create method.
      *
-     * @param maxSz maximum size of the XLink Stream.
+     * @param maxDesc maximum number of descriptors to be queued
      * @param chanId_unused not used anymore.
      */
-    int Create(uint32_t maxSz);
+    int Create(uint32_t maxDesc = DEFAULT_M2I_DESC_IN_QSZ);
 
     /**
      * Plugin Delete method.
@@ -68,8 +69,7 @@ class PlgInM2I : public PluginStub
      * @param spec - frame spec of the frame to send.
      * @retval int - Status of the write (0 is success).
      */
-    int Push(const vpum2i::InDesc* header) const;
-    int PushROIs(const vpum2i::CvRect* inROIs) const;
+    int Push(const vpum2i::M2IDesc* header) const;
 };
 
 #endif // __PLG_IN_M2I_H__
