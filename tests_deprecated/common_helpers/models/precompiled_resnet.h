@@ -23,6 +23,7 @@ struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
     std::string nv12Input, nv12Output;
     std::string nv12_1080Input, nv12_1080Output;
+    std::string modelPath;
 };
 
 struct modelTensors {
@@ -31,24 +32,19 @@ struct modelTensors {
 
 namespace PrecompiledResNet_Helper {
     const std::string resnet_50_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+    const std::string resnet_50_IR_folder = ModelsPath() + "/KMB_models/INT8/public/ResNet-50/";
 
     // Actual version, fp16 output
-    static const modelBlobInfo resnet50 =
-            {
-                    "resnet-50", resnet_50_folder + "resnet-50.blob", resnet_50_folder + "input.bin", resnet_50_folder + "output.bin",
-                    resnet_50_folder + "input-228x228-nv12.bin", resnet_50_folder + "output-228x228-nv12.bin",
-                    "input-cat-1080x1080-nv12.bin", "output-cat-1080x1080-nv12.bin"
-            };
-
-    static const modelTensors resnet50_tensors =
-            {
-                    InferenceEngine::TensorDesc(InferenceEngine::Precision::U8,
-                                                 {1, 3, 224, 224},
-                                                 InferenceEngine::Layout::NCHW),
-
-                    InferenceEngine::TensorDesc(InferenceEngine::Precision::FP16,
-                                                 {1, 1000, 1, 1},
-                                                 InferenceEngine::Layout::NCHW)
+    static const modelBlobInfo resnet50 = {
+                "resnet-50",
+                resnet_50_folder + "resnet-50.blob",
+                resnet_50_folder + "input.bin",
+                resnet_50_folder + "output.bin",
+                resnet_50_folder + "input-228x228-nv12.bin",
+                resnet_50_folder + "output-228x228-nv12.bin",
+                "input-cat-1080x1080-nv12.bin",
+                "output-cat-1080x1080-nv12.bin",
+                resnet_50_IR_folder + "resnet50_uint8_int8_weights_pertensor.xml"
             };
 };
 

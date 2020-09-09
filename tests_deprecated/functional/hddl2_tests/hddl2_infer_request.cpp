@@ -333,42 +333,27 @@ TEST_F(InferenceWithCheckLayout, precommit_CheckInputsLayoutAfterTwoInferences) 
 }
 
 //------------------------------------------------------------------------------
-struct CheckPortsNetworkTestParams final {
-    IE::Layout _inputLayout;
-    IE::Layout _blobInputLayout;
-    bool _importNetwork;
-
-    CheckPortsNetworkTestParams& inputLayout(const IE::Layout& input_layout) {
-        this->_inputLayout = input_layout;
-        return *this;
-    }
-
-    CheckPortsNetworkTestParams& blobInputLayout(const IE::Layout& blob_input_layout) {
-        this->_blobInputLayout = blob_input_layout;
-        return *this;
-    }
-
-    CheckPortsNetworkTestParams& importNetwork(const bool& import_network) {
-        this->_importNetwork = import_network;
-        return *this;
-    }
+const static std::vector<IE::Layout> inputLayoutVariants = {
+    IE::Layout::NCHW,
+    IE::Layout::NHWC
 };
-std::ostream& operator<<(std::ostream& os, const CheckPortsNetworkTestParams& p) {
-    vpu::formatPrint(os, "[inputLayout:%v, blobInputLayout:%v, importNetwork:%v]", p._inputLayout, p._blobInputLayout,
-        p._importNetwork);
-    return os;
-}
 
+const static std::vector<IE::Layout> blobInputLayoutVariants = {
+    IE::Layout::NCHW,
+    IE::Layout::NHWC
+};
+
+//------------------------------------------------------------------------------
 class InferenceCheckPortsNetwork :
     public CoreAPI_Tests,
-    public testing::WithParamInterface<CheckPortsNetworkTestParams> {
+    public testing::WithParamInterface<std::tuple<IE::Layout, IE::Layout, bool>> {
 public:
     std::string modelPath;
     std::string inputPath;
     const size_t inputWidth = 227;
     const size_t inputHeight = 227;
-    const size_t numberOfTopClassesToCompare = 3;
-    const bool orderedClasses = true;
+    const size_t numberOfTopClassesToCompare = 4;
+    const bool orderedClasses = false;
     const IE::Precision inputPrecision = IE::Precision::U8;
 
 protected:
@@ -382,7 +367,12 @@ void InferenceCheckPortsNetwork::SetUp() {
 }
 
 TEST_P(InferenceCheckPortsNetwork, common) {
-    const auto& p = GetParam();
+    const auto& testParam = GetParam();
+    const auto inputLayout = std::get<0>(testParam);
+    const auto blobInputLayout = std::get<1>(testParam);
+    const auto importNetwork = std::get<2>(testParam);
+    std::cout << "Parameters: input layout = " << inputLayout << " blob input layout = " << blobInputLayout <<
+        " importNetwork = " << importNetwork << std::endl;
 
     // --- CNN Network and inputs
     std::cout << "Reading network..." << std::endl;
@@ -390,11 +380,11 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     IE::InputsDataMap input_info = network.getInputsInfo();
     for (auto& item : input_info) {
         auto input_data = item.second;
-        input_data->setLayout(p._inputLayout);
+        input_data->setLayout(inputLayout);
         input_data->setPrecision(inputPrecision);
     }
 
-    if (p._importNetwork) {
+    if (importNetwork) {
         const std::string exportName = "tmpfile";
         IE::ExecutableNetwork exportExecutableNetwork;
         std::cout << "Loading network..." << std::endl;
@@ -414,7 +404,7 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     // --- Input Blob
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     IE::Blob::Ptr inputBlob;
-    ASSERT_NO_THROW(inputBlob = loadImage(inputPath, inputWidth, inputHeight, p._blobInputLayout, false));
+    ASSERT_NO_THROW(inputBlob = loadImage(inputPath, inputWidth, inputHeight, blobInputLayout, false));
     ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
 
     // --- Infer
@@ -425,9 +415,9 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     IE::Blob::Ptr outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refInputBlob = toLayout(inputBlob, p._inputLayout);
+    IE::Blob::Ptr refInputBlob = toLayout(inputBlob, inputLayout);
     IE::Blob::Ptr refOutputBlob;
-    ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReference(network, refInputBlob));
+    ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReference(modelPath, refInputBlob));
     if (orderedClasses) {
         ASSERT_NO_THROW(
             Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
@@ -437,25 +427,5 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     }
 }
 
-const std::vector<CheckPortsNetworkTestParams> checkPortsNetworkParams {
-    CheckPortsNetworkTestParams()
-        .inputLayout(IE::Layout::NCHW)
-        .blobInputLayout(IE::Layout::NCHW)
-        .importNetwork(false),
-
-    CheckPortsNetworkTestParams()
-        .inputLayout(IE::Layout::NCHW)
-        .blobInputLayout(IE::Layout::NHWC)
-        .importNetwork(false),
-
-    CheckPortsNetworkTestParams()
-        .inputLayout(IE::Layout::NCHW)
-        .blobInputLayout(IE::Layout::NCHW)
-        .importNetwork(true),
-
-    CheckPortsNetworkTestParams()
-        .inputLayout(IE::Layout::NCHW)
-        .blobInputLayout(IE::Layout::NHWC)
-        .importNetwork(true)};
-
- INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::ValuesIn(checkPortsNetworkParams), testing::PrintToStringParamName());
+ INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::Combine(testing::ValuesIn(inputLayoutVariants),
+    testing::ValuesIn(blobInputLayoutVariants), testing::Bool()));

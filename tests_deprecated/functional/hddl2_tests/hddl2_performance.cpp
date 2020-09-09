@@ -115,12 +115,12 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
 
     std::filebuf blobFile;
     if (!blobFile.open(modelPath, std::ios::in | std::ios::binary)) {
-        blobFile.close();
         THROW_IE_EXCEPTION << "Could not open file: " << modelPath;
     }
     std::istream graphBlob(&blobFile);
 
     IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, contextPtr);
+    blobFile.close();
 
     // ---- Create infer request
     InferenceEngine::InferRequest inferRequest;

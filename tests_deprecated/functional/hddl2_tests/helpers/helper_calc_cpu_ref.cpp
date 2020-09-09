@@ -16,16 +16,31 @@
 
 #include "helper_calc_cpu_ref.h"
 
+#include <ie_utils.hpp>
 #include <blob_factory.hpp>
 
-IE::Blob::Ptr ReferenceHelper::CalcCpuReference(IE::CNNNetwork& network, const IE::Blob::Ptr& input_blob) {
+IE::Blob::Ptr ReferenceHelper::CalcCpuReference(const std::string &model_path, const IE::Blob::Ptr& input_blob,
+    const IE::PreProcessInfo* preprocInfo) {
     std::cout << "Calculating reference on CPU..." << std::endl;
+
     IE::Core ie;
+    auto network = ie.ReadNetwork(model_path);
+
+    IE::InputsDataMap input_info = network.getInputsInfo();
+    for (auto& item : input_info) {
+        auto input_data = item.second;
+        input_data->setPrecision(IE::Precision::U8);
+    }
+
     IE::ExecutableNetwork executableNetwork = ie.LoadNetwork(network, "CPU");
     IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    inferRequest.SetBlob(inputBlobName, input_blob);
+    if (preprocInfo != nullptr) {
+        inferRequest.SetBlob(inputBlobName, input_blob, *preprocInfo);
+    } else {
+        inferRequest.SetBlob(inputBlobName, input_blob);
+    }
 
     auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
     IE::Blob::Ptr output_blob;

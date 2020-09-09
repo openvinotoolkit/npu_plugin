@@ -112,7 +112,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
 
     const std::string resultMessage(resultData);
 
-    ASSERT_EQ(resultData, message);
+    ASSERT_EQ(resultMessage, message);
 }
 
 TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
@@ -131,7 +131,7 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 
     const std::string resultMessage(resultData);
 
-    ASSERT_EQ(resultData, message);
+    ASSERT_EQ(resultMessage, message);
 }
 
 // [Track number: S#28523]
