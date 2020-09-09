@@ -45,9 +45,7 @@ KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>
         CONFIG_KEY(DEVICE_ID),
         CONFIG_KEY(LOG_LEVEL),
         KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-#ifdef ENABLE_M2I
         VPU_KMB_CONFIG_KEY(USE_M2I),
-#endif
     };
 
     for (const auto& elem : devices) {
