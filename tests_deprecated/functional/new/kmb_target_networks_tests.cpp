@@ -621,7 +621,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nchw
             TestNetworkDesc("KMB_models/INT8/icv/face-detection-retail-0004/caffe/FP16-INT8/face-detection-retail-0004-ww22.xml")
             .setUserInputPrecision("input", Precision::U8)
             .setUserInputLayout("input", Layout::NHWC),
-            TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg.jpg", ImageFormat::RGB),
+            TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
@@ -633,7 +633,7 @@ TEST_F(KmbDetectionNetworkTest, face_detection_retail_caffe_IRV10_fp16_int8_nhwc
             .setUserInputLayout("input", Layout::NHWC)
             // [Track number: D#3634]
             .setCompileConfig({{"VPU_COMPILER_SCALE_FUSE_INPUT", CONFIG_VALUE(NO)}}),
-            TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg.jpg", ImageFormat::RGB),
+            TestImageDesc("300x300/0_Parade_marchingband_1_1004.jpg", ImageFormat::RGB),
             0.3f,
             1.f, 0.3f);
 }
