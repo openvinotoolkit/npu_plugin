@@ -1080,6 +1080,8 @@ class Dynamic_Spill_Node_Inserter {
 
         // CASE-2: Handle a spilled read and write op in the schedule.//
         typename spilled_op_map_t::iterator itr = spilled_op_map_.find(sop.op_);
+        if (itr == spilled_op_map_.end())
+          throw RuntimeError("LpScheduler", "Subtree not found.");
         spilled_subtree_t &subtree = itr->second;
         bool is_original_spilled_op_redundant = !(subtree.spilled_write_op_);
 
