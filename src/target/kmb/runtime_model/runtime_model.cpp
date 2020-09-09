@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <unordered_set>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -847,7 +848,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     return toReturn;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression, bool csramCacheable)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
@@ -889,6 +890,8 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         toBuild->underlying_type = MVCNN::DType::DType_U8;
         t.set<bool>("Compression", false);
     }
+
+    toBuild->csram_cacheable = csramCacheable;
 
     return toBuild;
 }
@@ -3150,6 +3153,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
+    std::unordered_set<Tensor *> csramCacheable;
     std::vector<Tensor *> toSort;
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -3179,11 +3183,32 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                 toSort.push_back(&(*tIt));
 
         }
+        else if (opType == "DMATask")
+        {
+            // Add inputs to NNDMA operations to the cacheable tensor set.
+            // NNDMA tasks are DMATasks whose direction does not involve UPA.
+            //
+            // N.B. This loop will add all tensors that are inputs to NNDMA operations to the cacheable set,
+            // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
+            // accessed for tensors that we're actually adding to the output.
+            auto direction = opIterator->get<mv::DmaDirection>("direction");
+            if (direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
+                direction != mv::DmaDirectionEnum::UPACMX2NNCMX &&
+                direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
+                direction != mv::DmaDirectionEnum::UPACMX2DDR)
+            {
+                for (auto& tensor : opIterator->getInputTensor())
+                {
+                    csramCacheable.insert(&*tensor);
+                }
+            }
+        }
     }
+
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression));
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression, csramCacheable.count(tIt) != 0));
     }
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
