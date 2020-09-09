@@ -8,7 +8,7 @@
 //cause of the BASE_PTR is 9 bits, -4 for the 16 alignment according to zoran
 static const std::size_t SHIFT_FOR_STORAGE_ELEMENT = 5;
 static const std::vector<std::string> activationSegmentableStrategies = {"SplitOverH", "HKSwitch"};
-static const std::vector<std::string> weightSegmentableStrategies = {"SplitOverK", "Clustering"};
+static const std::vector<std::string> activationRepetitionStrategies = {"SplitOverK", "Clustering"};
 
 namespace mv
 {
