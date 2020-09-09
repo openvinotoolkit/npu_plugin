@@ -1087,3 +1087,16 @@ TEST_F(VehicleAttrRecNetworkTest, vehicle_attributes_recognition_barrier_0042) {
         TestImageDesc("500x500/test.bmp", ImageFormat::BGR),
         0.25f);
 }
+
+// C++ exception with description "Op:L0067_AddBackward1 - OpError: Invalid input inputs (0) -
+// All the inputs of eltwise ops have to share the same size
+// or the other inputs must have size 1 and be populated
+// [Track number: D#3627]
+TEST_F(KmbSegmentationNetworkTest, road_segmentation_adas_0001) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+	
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/road_segmentation_adas_0001/road-segmentation-adas-0001.xml"),
+        TestImageDesc("512x896/road-segmentation-adas-0001.png", ImageFormat::BGR),
+        0.3f);
+}
