@@ -2,37 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#ifdef __unix__
-#include <elf.h>
-#else
-#include <cstdint>
-__pragma(pack(push, 1))
-struct Elf32_Ehdr {
-    uint8_t  offs1[28];
-    uint32_t e_phoff;        // Program header offset
-    uint32_t e_shoff;        // Section header offset
-    uint8_t  offs2[12];
-    uint16_t e_shnum;        // Number of sections
-    uint16_t e_shstrndx;     // String table index
-};
-
-struct Elf32_Shdr {
-    uint32_t sh_name;        // Section name index
-    uint32_t sh_type;
-    uint32_t sh_flags;
-    uint32_t sh_addr;        // Section virtual address
-    uint32_t sh_offset;      // Section file offset
-    uint32_t sh_size;
-    uint32_t sh_link;
-    uint32_t sh_info;
-    uint32_t sh_addralign;   // Section alignment
-    uint32_t sh_entsize;
-};
-__pragma(pack(pop))
-#endif
-
 #include <xml_parse_utils.h>
-
 #include <custom_layer/ShaveElfMetadataParser.hpp>
 #include <custom_layer/custom_kernel.hpp>
 #include <caseless.hpp>
@@ -41,19 +11,86 @@ __pragma(pack(pop))
 
 namespace vpu {
 
-static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
+VPU_PACKED(Elf32Shdr {
+    uint32_t shName;
+    uint32_t pad0[3];
+    uint32_t shOffset;
+    uint32_t shSize;
+    uint32_t pad1[4];
+};)
+
+VPU_PACKED(Elf32Ehdr {
+    uint32_t pad0[7];
+    uint32_t ePhoff;
+    uint32_t eShoff;
+    uint32_t pad1[3];
+    uint16_t eShnum;
+    uint16_t eShstrndx;
+};)
+
+VPU_PACKED(Elf32Section {
+    uint32_t shName;
+    uint32_t shType;
+    uint32_t shFlags;
+    uint32_t shAddr;
+    uint32_t shOffset;
+    uint32_t shSize;
+    uint32_t shLink;
+    uint32_t shInfo;
+    uint32_t shAddralign;
+    uint32_t shEntsize;
+};)
+
+VPU_PACKED(Elf32Phdr {
+    uint32_t pType;       // Identifies program segment type
+    uint32_t pOffset;     // Segment file offset
+    uint32_t pVaddr;      // Segment virtual address
+    uint32_t pPaddr;      // Segment physical address
+    uint32_t pFilesz;     // Segment size in file
+    uint32_t pMemsz;      // Segment size in memory
+    uint32_t pFlags;      // Flags position from ELF standard spec
+    uint32_t pAlign;      // Segment alignment, file & memory
+};)
+
+VPU_PACKED(Elf32Sym {
+    uint32_t stName;
+    uint32_t stValue;
+    uint32_t stSize;
+    uint8_t  stInfo;
+    uint8_t  stOther;
+    uint16_t stShndx;
+};)
+
+VPU_PACKED(KernelHdr {
+    uint32_t address;       // Kernel address
+    uint32_t flags;         // Should be 0 for now
+    uint32_t sectionSize;   // Section size, offset to the next kernel
+    uint32_t argOffset;     // offset to arguments
+    uint32_t stackSize;     // Size of the stack required for kernel
+    uint32_t stackSizeWI;     // Size of the stack required for kernel per WI
+};)
+
+VPU_PACKED(KernelArgHdr {
+    uint32_t stringOffset;
+    uint32_t addressSpace;
+    uint32_t typeOffset;
+    uint32_t size;
+    uint32_t laneSize;
+};)
+
+static const Elf32Shdr *get_elf_section_with_name(const uint8_t *elf_data, const char* section_name) {
     IE_ASSERT(elf_data);
     IE_ASSERT(section_name);
 
-    const Elf32_Ehdr *ehdr = reinterpret_cast<const Elf32_Ehdr *>(elf_data);
-    IE_ASSERT(0 != ehdr->e_shoff);
-    IE_ASSERT(0 != ehdr->e_phoff);
+    const auto *ehdr = reinterpret_cast<const Elf32Ehdr *>(elf_data);
+    IE_ASSERT(0 != ehdr->eShoff);
+    IE_ASSERT(0 != ehdr->ePhoff);
 
     // Pointer to the first section header
-    const Elf32_Shdr *shdr = reinterpret_cast<const Elf32_Shdr *>(elf_data + ehdr->e_shoff);
+    const Elf32Shdr *shdr = reinterpret_cast<const Elf32Shdr *>(elf_data + ehdr->eShoff);
 
     // Pointer to section header string table header
-    const Elf32_Shdr *strShdr = &shdr[ehdr->e_shstrndx];
+    const Elf32Shdr *strShdr = &shdr[ehdr->eShstrndx];
 
     // We couldn't find sections for the symbol string names and for the symbols
     // entries
@@ -63,11 +100,11 @@ static const Elf32_Shdr *get_elf_section_with_name(const uint8_t *elf_data, cons
 
     // The string at index 0, which corresponds to the first byte, is a null
     // character
-    const char *firstStr = reinterpret_cast<const char *>(elf_data + strShdr->sh_offset);
+    const char *firstStr = reinterpret_cast<const char *>(elf_data + strShdr->shOffset);
 
     // Find the section with the custom SHAVEComputeAorta data
-    for (decltype(ehdr->e_shnum) i = 0; i < ehdr->e_shnum; i++) {
-        const char *currentSectionName = firstStr + shdr[i].sh_name;
+    for (uint16_t i = 0; i < ehdr->eShnum; i++) {
+        const char *currentSectionName = firstStr + shdr[i].shName;
 
         if (0 == strcmp(currentSectionName, section_name)) {
             return shdr + i;
@@ -118,17 +155,17 @@ CustomKernel::CustomKernel(const pugi::xml_node& kernel, std::string configDir):
     const auto kernelEntryName = XMLParseUtils::GetStrAttr(kernel, "entry");
 
     const auto elf = _kernelBinary.data();
-    const Elf32_Shdr *neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
+    const Elf32Shdr *neoMetadataShdr = get_elf_section_with_name(elf, ".neo_metadata");
     VPU_THROW_UNLESS(neoMetadataShdr, "Error while parsing custom layer elf: Couldn't find .neo_metadata section");
 
-    const uint8_t *neoMetadata = elf + neoMetadataShdr->sh_offset;
-    const size_t neoMetadataSize = neoMetadataShdr->sh_size;
+    const uint8_t *neoMetadata = elf + neoMetadataShdr->shOffset;
+    const size_t neoMetadataSize = neoMetadataShdr->shSize;
 
-    const Elf32_Shdr *neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
+    const Elf32Shdr *neoMetadataStrShdr = get_elf_section_with_name(elf, ".neo_metadata.str");
     VPU_THROW_UNLESS(neoMetadataStrShdr,"Error while parsing custom layer elf: Couldn't find .neo_metadata.str section");
 
-    const char *neoMetadataStr = reinterpret_cast<const char *>(elf + neoMetadataStrShdr->sh_offset);
-    const size_t neoMetadataStrSize = neoMetadataStrShdr->sh_size;
+    const char *neoMetadataStr = reinterpret_cast<const char *>(elf + neoMetadataStrShdr->shOffset);
+    const size_t neoMetadataStrSize = neoMetadataStrShdr->shSize;
 
     const auto parser = md_parser_t{neoMetadata, neoMetadataSize, neoMetadataStr, neoMetadataStrSize};
     _kernelId = parser.get_kernel_id(kernelEntryName);
