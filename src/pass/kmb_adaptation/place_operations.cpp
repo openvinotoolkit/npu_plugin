@@ -19,7 +19,7 @@ namespace mv
         MV_REGISTER_PASS(PlaceNeutralMaxPoolBefore)
         .setFunc(placeNeutralMaxPoolBefore)
         .setDescription(
-            "This pass handles a specific case in yoloV3, when an interpolate goes into a concat."
+            "This pass handles a specific case in yoloV3/Unet/Deblur, when an UPA Op goes into a concat."
         );
 
         MV_REGISTER_PASS(PlacementOfOps)
@@ -34,32 +34,50 @@ void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel&
 {
     mv::OpModel om(model);
     mv::DataModel dm(model);
-    auto resampleOps = om.getOps("Resample");
+    auto concats = om.getOps("Concat");
 
-    for (auto& resample : resampleOps)
+    for (auto& concatOp : concats)
     {
-        auto outputTensor = resample->getOutputTensor(0);
-        auto nextOp = mv::findSinkLayers(dm, outputTensor)[0];
-        if (nextOp->getOpType() == "Concat")
+        auto numInputs = concatOp->getInputTensor().size();
+        unsigned short numUPAOps = 0;
+
+        for (size_t i = 0; i < numInputs; i++)
         {
-            auto inputFlow = nextOp.leftmostInput();
-            auto neutralMaxPool = om.maxPool(outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false,
-                mv::DType("UInt8"), outputTensor->get<mv::QuantizationParams>("quantParams"), nextOp->getName() + "MaxPool");
-            auto maxPoolOp = om.getSourceOp(neutralMaxPool);
-            maxPoolOp->set<unsigned>("opId", resample->get<unsigned>("opId"));
-            while(inputFlow != om.flowEnd())
+            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
+            if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
+                numUPAOps++;
+        }
+        if (numUPAOps == 0 || numUPAOps == numInputs) //no mixed upa + dpu
+            continue;
+
+        for (size_t i = 0; i < numInputs; i++)
+        {
+            auto sourceOp = om.getSourceOp(concatOp->getInputTensor(i));
+            if (sourceOp->isUPA() || sourceOp->getOpType() == "UPATask")
             {
-                auto tensor = inputFlow->getTensor();
-                if (tensor->getName() == outputTensor->getName())
+                auto inputFlow = concatOp.leftmostInput();
+                auto outputTensor = sourceOp->getOutputTensor(0);
+                auto neutralMaxPool = om.maxPool(outputTensor, {1,1}, {1,1}, {0, 0, 0, 0}, false,
+                    mv::DType("UInt8"), outputTensor->get<mv::QuantizationParams>("quantParams"), concatOp->getName() + "MaxPool");
+                auto maxPoolOp = om.getSourceOp(neutralMaxPool);
+                maxPoolOp->set<unsigned>("opId", sourceOp->get<unsigned>("opId"));
+                while(inputFlow != om.flowEnd())
                 {
-                    auto slot = inputFlow->get<size_t>("sinkInput");
-                    om.undefineFlow(inputFlow);
-                    nextOp->setInputTensor(neutralMaxPool, slot, false);
-                    om.defineFlow(neutralMaxPool, nextOp, slot);
+                    auto tensor = inputFlow->getTensor();
+                    if (tensor->getName() == outputTensor->getName())
+                    {
+                        auto slot = inputFlow->get<size_t>("sinkInput");
+                        om.undefineFlow(inputFlow);
+                        concatOp->setInputTensor(neutralMaxPool, slot, false);
+                        om.defineFlow(neutralMaxPool, concatOp, slot);
+                        break;
+                    }
+                    ++inputFlow;
                 }
             }
         }
     }
+
 }
 
 void placeEltwiseDequantize(mv::OpModel om, mv::Data::OpListIterator task)
