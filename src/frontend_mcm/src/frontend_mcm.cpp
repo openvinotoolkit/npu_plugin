@@ -920,6 +920,7 @@ void FrontEndMcm::parseOutputData() {
         // S#34832
         auto mvOutput = _modelMcm.output(
             lastLayerOut->getMcmNode(), outputType, {{}, {}, {}, {}}, true, outputInfo.first + "REMOVE_ME");
+
         _output = std::make_shared<McmNodeObject>(mvOutput, lastLayerOut->desc());
         _nodes.push_back(_output);
     }
