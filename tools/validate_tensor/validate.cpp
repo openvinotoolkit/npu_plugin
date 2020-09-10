@@ -412,6 +412,7 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
         commandline += " -il NCHW";
 
     commandline += " -ip U8";
+    commandline += " -op FP32";
 
     std::cout << commandline << std::endl;
     std::system(commandline.c_str());
