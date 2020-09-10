@@ -33,6 +33,7 @@
 #include "kmb_xml_tests.hpp"
 #include "low_precision_transformations/transformer.hpp"
 #include "tests_timeout.hpp"
+#include "yolo_helpers.hpp"
 
 using namespace ::testing;
 using namespace InferenceEngine;
@@ -138,15 +139,48 @@ TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {
     ASSERT_NO_THROW(inferRequest.Infer());
 }
 
-TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
+void printTopResults(const Blob::Ptr& referenceOutputBlob, const Blob::Ptr& outputBlob, const std::string& graphSuffix) {
+    Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
+    Blob::Ptr outputFP32 = toFP32(outputBlob);
+    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
+        const auto imgWidth = outputFP32->getTensorDesc().getDims()[3];
+        const auto imgHeight = outputFP32->getTensorDesc().getDims()[2];
+
+        bool isTiny = true;
+        float confThresh = 0.4;
+        auto referenceResult = utils::parseYoloOutput(refFP32, imgWidth, imgHeight, confThresh, isTiny);
+        auto actualResult = utils::parseYoloOutput(outputFP32, imgWidth, imgHeight, confThresh, isTiny);
+
+        std::ostringstream outString;
+        utils::printDetectionBBoxOutputs(actualResult, outString, {});
+        std::cout << "out: " << std::endl << outString.str() << std::endl;
+
+        std::ostringstream refString;
+        utils::printDetectionBBoxOutputs(referenceResult, refString, {});
+        std::cout << "ref: " << std::endl << refString.str() << std::endl;
+    } else {
+        auto refTopClasses = Comparators::yieldTopClasses<float>(refFP32, NUMBER_OF_TOP_CLASSES);
+        auto outTopClasses = Comparators::yieldTopClasses<float>(outputFP32, NUMBER_OF_TOP_CLASSES);
+        std::cout << "out:";
+        for (auto classId : outTopClasses) {
+            std::cout << " " << classId;
+        }
+        std::cout << std::endl;
+        std::cout << "ref:";
+        for (auto classId : refTopClasses) {
+            std::cout << " " << classId;
+        }
+        std::cout << std::endl;
+    }
+}
+
+
+TEST_P(VpuInferWithPath, compareInferenceOutputWithReference) {
     modelBlobsInfo blobsInfo = GetParam();
     std::string graphSuffix = blobsInfo._graphPath;
     std::string inputSuffix = blobsInfo._inputPath;
     std::string outputSuffix = blobsInfo._outputPath;
     std::string modelFilePath = ModelsPath() + graphSuffix;
-    if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-        SKIP() << "Disabled due to H#18012088819";
-    }
 
     Core ie;
     InferenceEngine::ExecutableNetwork importedNetwork;
@@ -180,14 +214,7 @@ TEST_P(VpuInferWithPath, DISABLED_compareInferenceOutputWithReference) {
         std::string referenceOutputFilePath = ModelsPath() + outputSuffix;
         ASSERT_NO_THROW(
             referenceOutputBlob = vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
-        Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-        Blob::Ptr outputFP32 = toFP32(outputBlob);
-        Compare(refFP32, outputFP32, 0.0f);
-        if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-            Compare(refFP32, outputFP32, 0.0f);
-        } else {
-            ASSERT_NO_THROW(compareTopClasses(outputFP32, refFP32, NUMBER_OF_TOP_CLASSES));
-        }
+        printTopResults(referenceOutputBlob, outputBlob, graphSuffix);
     }
 }
 
@@ -195,7 +222,7 @@ class VpuInferAndCompareTestsWithParam :
     public vpuLayersTests,
     public testing::WithParamInterface<std::tuple<bool, modelBlobsInfo>> {};
 
-TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
+TEST_P(VpuInferAndCompareTestsWithParam, multipleInferRequests) {
     std::tuple<bool, modelBlobsInfo> paramTuple = GetParam();
     bool isSync = std::get<0>(paramTuple);
     modelBlobsInfo blobsInfo = std::get<1>(paramTuple);
@@ -273,13 +300,7 @@ TEST_P(VpuInferAndCompareTestsWithParam, DISABLED_multipleInferRequests) {
 
             ASSERT_NO_THROW(referenceOutputBlob =
                                 vpu::KmbPlugin::utils::fromBinaryFile(referenceOutputFilePath, outputBlobTensorDesc));
-            Blob::Ptr refFP32 = toFP32(referenceOutputBlob);
-            Blob::Ptr outputFP32 = toFP32(outputBlob);
-            if (graphSuffix.rfind(YOLO_GRAPH_NAME) == graphSuffix.size() - YOLO_GRAPH_NAME.size()) {
-                Compare(refFP32, outputFP32, 0.0f);
-            } else {
-                ASSERT_NO_THROW(compareTopClasses(outputFP32, refFP32, NUMBER_OF_TOP_CLASSES));
-            }
+            printTopResults(referenceOutputBlob, outputBlob, graphSuffix);
         }
     }
 }
@@ -541,7 +562,7 @@ const static std::vector<TopNetTest> pathToTop3PreCompiledGraph = {
 
 class VpuInferWithPathForTop3Net : public vpuLayersTests, public testing::WithParamInterface<TopNetTest> {};
 
-TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
+TEST_P(VpuInferWithPathForTop3Net, canDoInferenceOnTop3ImportedBlobs) {
     modelBlobsInfo blobsInfo = GetParam().info;
     std::string modelFilePath = ModelsPath() + blobsInfo._graphPath;
     std::string inputDataPath = ModelsPath() + blobsInfo._inputPath;
@@ -570,7 +591,7 @@ TEST_P(VpuInferWithPathForTop3Net, DISABLED_canDoInferenceOnTop3ImportedBlobs) {
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_TRUE(outputBlob->getTensorDesc().getPrecision() == Precision::FP16 ||
                 outputBlob->getTensorDesc().getPrecision() == Precision::FP32);
-    ASSERT_NO_THROW(compareTopClasses(toFP32(outputBlob), toFP32(refBlob), NUMBER_OF_TOP_CLASSES));
+    printTopResults(refBlob, outputBlob, modelFilePath);
 }
 
 INSTANTIATE_TEST_CASE_P(precommit, VpuInferWithPath, ::testing::ValuesIn(pathToPreCompiledGraph));

@@ -691,13 +691,26 @@ TEST_F(KmbDetectionNetworkTest, precommit_person_vehicle_bike_detection_crossroa
 // Bad accuracy
 // [Track number: S#37372]
 TEST_F(KmbDetectionNetworkTest, precommit_vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad accuracy");
     runTest(
             TestNetworkDesc("KMB_models/INT8/icv/vehicle-license-plate-detection-barrier-0106/vehicle_license_plate_detection_barrier_0106_tf_dense_int8_IRv10_from_fp32.xml")
                     .setUserInputPrecision("input", Precision::U8),
             TestImageDesc("736x416/dss_val_05.png", ImageFormat::BGR),
             0.3f,
             0.1f, 0.3f);
+}
+
+// FIXME change adapter to Yolo V3 when available
+// [Track number: H#1801262299]
+TEST_F(KmbYoloV2NetworkTest, person_vehicle_bike_detection_crossroad_yolov3_1020) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "output strides are set to represent NHWC");
+    runTest(
+            TestNetworkDesc("KMB_models/INT8/icv/"
+                    "person-vehicle-bike-detection-crossroad-yolov3-1020/"
+                    "person-vehicle-bike-detection-crossroad-yolov3-1020.xml")
+                    .setUserInputPrecision("input", Precision::U8),
+            TestImageDesc("500x500/car_fcn8.bmp", ImageFormat::RGB),
+            0.6, 0.4, 0.4, false);
 }
 
 // C++ exception with description "PriorBoxClustered layer is not supported by kmbPlugin
@@ -1022,7 +1035,7 @@ TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0234) {
 TEST_F(PersonAttrRecNetworkTest, person_attributes_recognition_crossroad_0238) {
     SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-	
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml"),
         TestImageDesc("vpu/person-attributes-recognition-crossroad.jpg", ImageFormat::BGR),
@@ -1039,4 +1052,14 @@ TEST_F(KmbSSDNetworkTest, ssdlite_mobilenet_v2) {
         TestImageDesc("300x300/dog.bmp", ImageFormat::BGR),
         0.3f,
         0.1f, 0.3f);
+}
+
+TEST_F(VehicleAttrRecNetworkTest, vehicle_attributes_recognition_barrier_0042) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/"
+                        "vehicle-attributes-recognition-barrier-0042/"
+                        "vehicle-attributes-recognition-barrier-0042.xml")
+            .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("500x500/test.bmp", ImageFormat::BGR),
+        0.25f);
 }
