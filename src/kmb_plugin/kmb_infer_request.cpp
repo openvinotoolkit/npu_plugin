@@ -148,8 +148,9 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                     reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
                 auto memoryBlobY = as<MemoryBlob>(origYBlob);
+                auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderYPlane = memoryBlobY->rmap();
-                ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
+                ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>() + y_offset_pad,
                     origYBlob->byteSize());
                 // explicitly ignore blocking descriptor
                 // memory has already been cropped properly
@@ -159,9 +160,10 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = as<MemoryBlob>(origUVBlob);
+                auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderUVPlane = memoryBlobUV->rmap();
                 ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
-                    memoryHolderUVPlane.as<uint8_t*>(), origUVBlob->byteSize());
+                    memoryHolderUVPlane.as<uint8_t*>() + uv_offset_pad, origUVBlob->byteSize());
                 InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
                     origUVBlob->getTensorDesc().getDims(), origUVBlob->getTensorDesc().getLayout()};
                 kmbUVBlob =
