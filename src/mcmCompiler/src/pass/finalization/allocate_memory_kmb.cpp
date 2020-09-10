@@ -530,7 +530,6 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
                     std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
 
-
                     // This code assumes all tensors are of equal size. TODO: Assertions
                     auto lhs = running_concat_offset_LHS[i];
                     auto rhs = running_concat_offset_RHS[i];
@@ -539,11 +538,19 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     rhs_padding.at(axis) = rhs;
 
                     auto source_optype = om.getSourceOp(inputTensor)->getOpType();
+
                     auto propagate_to_slaves = (!(source_optype == "Concat" || source_optype == "ImplicitConcat"));
 
                     auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                     inputBuffer, outputBuffer,
                                                     lhs_padding, rhs_padding, propagate_to_slaves);
+//                    //NOTE: all the addresses between the relationships of input/output buffers are RELATIVE, e.g
+//                    //think of a 3 level concat after concat with the master buffer of having size of 10
+//                    //let's suppose that on index 5 we have a second concat and inside this concat there is one more
+//                    //with index 3. The final relative index of the inputBuffer to the masterBuffer is 8=5+3
+//                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
+                    auto inp = dm.getTensor(inputBuffer->getData()->getName());
+                    inp->set<std::size_t>("leftIndex", lhs_padding.at(axis));
                 }
             }
             else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
