@@ -25,19 +25,19 @@
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
 #include "helper_remote_context.h"
+#include "skip_conditions.h"
+#include "hddl2_metrics.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Declaration
 //------------------------------------------------------------------------------
 class HDDL2_RemoteContext_UnitTests : public ::testing::Test {
 public:
     void SetUp() override;
 
     InferenceEngine::ParamMap params;
-    WorkloadContext_Helper workloadContextHelper;
+    WorkloadContext_Helper::Ptr workloadContextHelperPtr;
     const vpu::HDDL2Config config = vpu::HDDL2Config();
 };
 
@@ -45,18 +45,23 @@ public:
 //      class HDDL2_RemoteContext_UnitTests Implementation
 //------------------------------------------------------------------------------
 void HDDL2_RemoteContext_UnitTests::SetUp() {
-    WorkloadID id = workloadContextHelper.getWorkloadId();
-    params = RemoteContext_Helper::wrapWorkloadIdToMap(id);
+    if (HDDL2Metrics::isServiceAvailable()) {
+        workloadContextHelperPtr = std::make_shared<WorkloadContext_Helper>();
+        WorkloadID id = workloadContextHelperPtr->getWorkloadId();
+        params = RemoteContext_Helper::wrapWorkloadIdToMap(id);
+    }
 }
 
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteContext_UnitTests Initiations - constructor
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromCorrectId_NoThrow) {
+    SKIP_IF_NO_DEVICE();
     ASSERT_NO_THROW(HDDL2RemoteContext context(params, config));
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoThrow) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr firstContext = nullptr;
     HDDL2RemoteContext::Ptr secondContext = nullptr;
 
@@ -65,6 +70,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoThrow) {
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr firstContext = nullptr;
     HDDL2RemoteContext::Ptr secondContext = nullptr;
 
@@ -76,19 +82,22 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_TwiceSameId_NoNull) {
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromEmptyPararams_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap emptyParams = {};
 
     ASSERT_ANY_THROW(HDDL2RemoteContext context(emptyParams, config));
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromIncorrectPararams_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap badParams = {{"Bad key", "Bad value"}};
     ASSERT_ANY_THROW(HDDL2RemoteContext context(badParams, config));
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     const int badWorkloadId = UINT32_MAX;
-    EXPECT_FALSE(workloadContextHelper.isValidWorkloadContext(badWorkloadId));
+    EXPECT_FALSE(workloadContextHelperPtr->isValidWorkloadContext(badWorkloadId));
 
     InferenceEngine::ParamMap notExistsParams = RemoteContext_Helper::wrapWorkloadIdToMap(badWorkloadId);
 
@@ -99,17 +108,19 @@ TEST_F(HDDL2_RemoteContext_UnitTests, constructor_fromNotExistsContext_ThrowExce
 //      class HDDL2_RemoteContext_UnitTests Initiations - destructor
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered) {
-    auto workloadId = workloadContextHelper.getWorkloadId();
+    SKIP_IF_NO_DEVICE();
+    auto workloadId = workloadContextHelperPtr->getWorkloadId();
     auto params = RemoteContext_Helper::wrapWorkloadIdToMap(workloadId);
 
     ASSERT_NO_THROW({ HDDL2RemoteContext context(params, config); });
-    ASSERT_TRUE(workloadContextHelper.isValidWorkloadContext(workloadId));
+    ASSERT_TRUE(workloadContextHelperPtr->isValidWorkloadContext(workloadId));
 }
 
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteContext_UnitTests Initiations - getDeviceName
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnEmulatorName) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     ASSERT_EQ(DeviceName::getNameInPlugin(), context->getDeviceName());
@@ -119,6 +130,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnEmulatorName) {
 //      class HDDL2_RemoteContext_UnitTests Initiations - getParams
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
@@ -130,6 +142,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsWorkloadId) {
 }
 
 TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsSameWorkloadId) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
     const std::string workloadContextKey = IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID);
 
@@ -137,12 +150,10 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getParams_containsSameWorkloadId) {
     auto iter = params.find(workloadContextKey);
     const uint64_t workloadId = iter->second.as<uint64_t>();
 
-    const uint64_t correctWorkloadId = workloadContextHelper.getWorkloadId();
+    const uint64_t correctWorkloadId = workloadContextHelperPtr->getWorkloadId();
     ASSERT_EQ(correctWorkloadId, workloadId);
 }
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_CreateBlob_UnitTests
 //------------------------------------------------------------------------------
 class HDDL2_RemoteContext_CreateBlob_UnitTests : public HDDL2_RemoteContext_UnitTests {
 public:
@@ -151,6 +162,7 @@ public:
 
     InferenceEngine::ParamMap blobParams;
     InferenceEngine::TensorDesc tensorDesc;
+    const size_t sizeToAllocate = 1024 * 1024 * 4;
 
 protected:
     TensorDescription_Helper _tensorDescriptionHelper;
@@ -159,18 +171,19 @@ protected:
 
 void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
     HDDL2_RemoteContext_UnitTests::SetUp();
-    tensorDesc = _tensorDescriptionHelper.tensorDesc;
-    RemoteMemoryFd remoteMemoryFd =
-        _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelper.getWorkloadId(), EMULATOR_MAX_ALLOC_SIZE);
-    blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(remoteMemoryFd);
+    if (HDDL2Metrics::isServiceAvailable()) {
+        tensorDesc = _tensorDescriptionHelper.tensorDesc;
+        RemoteMemoryFd remoteMemoryFd =
+                _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
+        blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(remoteMemoryFd);
+    }
 }
 
 void HDDL2_RemoteContext_CreateBlob_UnitTests::TearDown() { _remoteMemoryHelper.destroyRemoteMemory(); }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_CreateBlob_UnitTests Initiations
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_WithParams_ReturnNotNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
@@ -178,6 +191,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_WithParams_ReturnNot
 }
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_NoParams_ReturnNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
     InferenceEngine::ParamMap emptyBlobParams = {};
 
@@ -187,6 +201,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_NoParams_ReturnNull)
 }
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_ReturnNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
     InferenceEngine::ParamMap invalidBlobParams = {{"Invalid key", "Invalid value"}};
 
@@ -197,6 +212,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_InvalidParams_Return
 
 // TODO Provide more information to user that this way should not be used (How?)
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_ReturnNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext context(params, config);
 
     auto blob = context.CreateBlob(tensorDesc, blobParams);
@@ -204,6 +220,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreatBlob_NotFromPointer_Return
 }
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_IsRemoteBlob) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
@@ -211,6 +228,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_IsRemoteBlob
 }
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);
@@ -219,6 +237,7 @@ TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, CreateBlob_Default_CanAllocate)
 }
 
 TEST_F(HDDL2_RemoteContext_CreateBlob_UnitTests, DISABLED_CreateBlob_Default_LockedMemoryNotNull) {
+    SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
     auto blob = context->CreateBlob(tensorDesc, blobParams);

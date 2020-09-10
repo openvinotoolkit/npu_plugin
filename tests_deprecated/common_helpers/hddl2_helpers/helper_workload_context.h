@@ -21,6 +21,8 @@
 //------------------------------------------------------------------------------
 class WorkloadContext_Helper {
 public:
+    using Ptr = std::shared_ptr<WorkloadContext_Helper>;
+
     WorkloadContext_Helper();
     ~WorkloadContext_Helper();
 

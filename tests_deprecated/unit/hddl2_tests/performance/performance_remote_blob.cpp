@@ -25,6 +25,7 @@
 #include "hddl2_helpers/helper_tensor_description.h"
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
+#include "skip_conditions.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
@@ -49,31 +50,38 @@ public:
 protected:
     RemoteMemoryFd _remoteMemoryFd = 0;
     TensorDescription_Helper _tensorDescriptionHelper;
-    RemoteContext_Helper _remoteContextHelper;
-    RemoteMemory_Helper _remoteMemoryHelper;
+    RemoteContext_Helper::Ptr _remoteContextHelperPtr;
+    RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr;
 };
 
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_PerformanceTests Implementation
 //------------------------------------------------------------------------------
 void HDDL2_RemoteBlob_PerformanceTests::SetUp() {
-    tensorDesc = _tensorDescriptionHelper.tensorDesc;
-    tensorSize = _tensorDescriptionHelper.tensorSize;
+    if (HDDL2Metrics::isServiceAvailable()) {
+        _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
+        _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
+        tensorDesc = _tensorDescriptionHelper.tensorDesc;
+        tensorSize = _tensorDescriptionHelper.tensorSize;
 
-    remoteContextPtr = _remoteContextHelper.remoteContextPtr;
-    WorkloadID workloadId = _remoteContextHelper.getWorkloadId();
-    _remoteMemoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, tensorSize);
+        remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
+        WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
+        _remoteMemoryFd = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
 
-    blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+        blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+    }
 }
 
-void HDDL2_RemoteBlob_PerformanceTests::setRemoteMemory(const std::string& data) { _remoteMemoryHelper.setRemoteMemory(data); }
+void HDDL2_RemoteBlob_PerformanceTests::setRemoteMemory(const std::string &data) {
+    _remoteMemoryHelperPtr->setRemoteMemory(data);
+}
 
 //------------------------------------------------------------------------------
 //      class HDDL2_RemoteBlob_PerformanceTests - check performance
 //------------------------------------------------------------------------------
 // TODO create separate target for performance tests
 TEST_F(HDDL2_RemoteBlob_PerformanceTests, createRemoteBlobPerformance) {
+    SKIP_IF_NO_DEVICE();
     const size_t BLOBS_COUNT = 1000000;
     auto start_time = std::chrono::steady_clock::now();
     for (size_t cur_blob = 0; cur_blob < BLOBS_COUNT; ++cur_blob) {
@@ -87,6 +95,7 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createRemoteBlobPerformance) {
 }
 
 TEST_F(HDDL2_RemoteBlob_PerformanceTests, createROIBlobPerformance) {
+    SKIP_IF_NO_DEVICE();
     IE::ROI roi {0, 2, 2, 221, 221};
     const size_t BLOBS_COUNT = 1000000;
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);

@@ -20,17 +20,16 @@
 #include "RemoteMemory.h"
 #include "ie_layouts.h"
 
-//------------------------------------------------------------------------------
-//      class RemoteMemory_Helper
+
 //------------------------------------------------------------------------------
 #include <ie_algorithm.hpp>
 
 using RemoteMemoryFd = uint64_t ;
-// Emulator limit 4MB
-constexpr size_t EMULATOR_MAX_ALLOC_SIZE = static_cast<size_t>(0x1u << 22u);
 
 class RemoteMemory_Helper {
 public:
+    using Ptr = std::shared_ptr<RemoteMemory_Helper>;
+
     RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id, const size_t& size);
     RemoteMemoryFd allocateRemoteMemory(const WorkloadID &id,
             const InferenceEngine::TensorDesc& tensorDesc);
@@ -48,8 +47,6 @@ private:
 
 };
 
-//------------------------------------------------------------------------------
-//      class RemoteMemory_Helper Implementation
 //------------------------------------------------------------------------------
 inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
@@ -90,13 +87,14 @@ inline void RemoteMemory_Helper::destroyRemoteMemory() {
 }
 
 inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
-    char tempBuffer[EMULATOR_MAX_ALLOC_SIZE] = {};
-    auto retCode = _memory->syncFromDevice(tempBuffer, size);
+    std::vector<char> tempBuffer;
+    tempBuffer.resize(size);
+    auto retCode = _memory->syncFromDevice(tempBuffer.data(), size);
     if (retCode != HDDL_OK) {
         printf("[ERROR] Failed to sync memory from device!\n");
         return "";
     }
-    return std::string(tempBuffer);
+    return std::string(tempBuffer.begin(), tempBuffer.end());
 }
 
 inline bool RemoteMemory_Helper::isRemoteTheSame(const std::string &dataToCompare) {
