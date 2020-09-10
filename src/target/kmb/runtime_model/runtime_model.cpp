@@ -327,18 +327,22 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-//        auto leading_offset = strides[0];
-        std::size_t leading_offset = strides[0];
-        auto temporaryBuffer = tensorBufferIt;
-        //NOTE: See allocate_memory_kmb.cpp line 552
-        if (t->hasAttr("leftIndex"))
-            leading_offset = t->get<std::size_t>("leftIndex");
-
-        while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+        std::size_t leading_offset = 0;
+        if(*tensorAllocatorName == "VPU_CMX_NN")
+            leading_offset = strides[0];
+        else
         {
-            temporaryBuffer = temporaryBuffer->getMaster();
-            if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
-                leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex");
+            auto temporaryBuffer = tensorBufferIt;
+            //NOTE: See allocate_memory_kmb.cpp line 552
+            if (t->hasAttr("leftIndex"))
+                leading_offset = t->get<std::size_t>("leftIndex");
+
+            while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+            {
+                temporaryBuffer = temporaryBuffer->getMaster();
+                if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
+                    leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex");
+            }
         }
 
         toBuild->locale_index = std::vector<unsigned int>(1,0);
