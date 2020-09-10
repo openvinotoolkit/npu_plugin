@@ -218,6 +218,16 @@ class Operation_Dag {
 
     typedef std::unordered_map<operation_t, cmx_concat_subgraph_t>
         cmx_concat_subgraphs_t;
+    struct pseudo_edge_t {
+      pseudo_edge_t(operation_t src, operation_t sink)
+        : src_(src), sink_(sink) {}
+      bool operator<(const pseudo_edge_t& o) const {
+        return (src_ == o.src_) ? (sink_ < o.sink_) : (src_ < o.src_);
+      }
+      operation_t src_;
+      operation_t sink_;
+    }; // struct pseudo_edge_t //
+    typedef std::set<pseudo_edge_t> pseudo_edge_set_t;
     // use the operation name as the hash key to reduce any non-determinism with
     // the virtual address //
     struct operation_hash_t {
@@ -319,7 +329,8 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() {
+          "ImplicitInputSlice", "ImplicitJoin"} ),
+      cmx_concat_subgraphs_(), pseudo_edge_set_() {
         init_from_model(model);
     }
 
@@ -331,7 +342,8 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() { }
+          "ImplicitInputSlice", "ImplicitJoin"} ),
+        cmx_concat_subgraphs_(), pseudo_edge_set_() { }
 
     void reset(model_t& model) { init_from_model(model); }
 
@@ -339,6 +351,25 @@ class Operation_Dag {
           operation_t op) const {
       auto itr = cmx_concat_subgraphs_.find(op);
       return (itr == cmx_concat_subgraphs_.end()) ? NULL : &(itr->second);
+    }
+
+    //TODO(vamsikku): please make mv::DataModel const correct we cannot even
+    //scan through the edges in a read only fashion.
+    void add_pseudo_edges_from_model(mv::OpModel& om) {
+      mv::DataModel dm(om);
+      pseudo_edge_set_.clear();
+      for (auto eitr=dm.flowBegin(); eitr!=dm.flowEnd(); ++eitr) {
+        if (eitr->hasAttr("pseudo_data_flow")) {
+          pseudo_edge_set_.insert(
+              pseudo_edge_t( &(*(eitr.source())), &(*(eitr.sink())) )
+          );
+        }
+      }
+    }
+
+    bool is_pseudo_edge(operation_t src, operation_t sink) const {
+      return (pseudo_edge_set_.find( pseudo_edge_t(src, sink) ) 
+            != pseudo_edge_set_.end() );
     }
 
     template<typename ControlEdgeContainer>
@@ -659,11 +690,16 @@ class Operation_Dag {
           dag.op_has_zero_in_degree(op);
     }
 
+    static bool is_pseudo_input_edge(const dag_t& dag, const operation_t& src,
+        const operation_t& sink) { return dag.is_pseudo_edge(src, sink); }
+
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
-      bool ret_value = dag.is_dma_op(op) &&
+      if (op->hasAttr("pipeline_flow_control")) { return false;}
+      else if (op->hasAttr("pipeline_data_start")) { return true;}
+
+      bool ret_value = (dag.is_dma_op(op) &&
           !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
-           ( dag.op_has_zero_in_degree(op) ||
-             dag.op_has_input_as_only_parent(op) );
+            dag.op_has_unit_out_degree(op));
       printf("op=%s is_data_operation=%s\n",
           (op->getName()).c_str(), ret_value ? "YES" : "NO");
       return ret_value;
@@ -1009,9 +1045,9 @@ class Operation_Dag {
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited = short_circuit_implicit_op(*oitr);
-//        if (!short_circuited) {
-//          throw std::string("[ImplicitOp-Short-Circuting]: failed");
-//        }
+        if (!short_circuited) {
+          throw std::string("[ImplicitOp-Short-Circuting]: failed");
+        }
       }
       return true;
     }
@@ -1331,6 +1367,8 @@ class Operation_Dag {
 
       update_resource_utility_for_aligned_dma_ops(model);
 
+      // add pseudo edges //
+      add_pseudo_edges_from_model(model);
     }
 
   public:
@@ -1473,6 +1511,88 @@ class Operation_Dag {
       return true;
     }
 
+    void drop_all_pseudo_edges() {
+      for (pseudo_edge_t edge : pseudo_edge_set_) {
+        remove_directed_edge(edge.src_, edge.sink_);
+      }
+      pseudo_edge_set_.clear();
+    }
+
+    void drop_all_pseudo_edges_in_model(mv::OpModel& om) {
+      mv::DataModel dm(om);
+      std::list<mv::Data::FlowListIterator> edges_to_drop;
+      for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
+            ++eitr) {
+        if (eitr->hasAttr("pseudo_data_flow")) {
+          edges_to_drop.push_back(eitr);
+        }
+      }
+
+      for (mv::Data::FlowListIterator eitr : edges_to_drop) {
+        om.undefineFlow(eitr);
+      }
+    }
+
+    bool remove_directed_edge(operation_t source_op, operation_t sink_op) {
+      master_op_iterator_t itr_source = ops_.find(source_op);
+      master_op_iterator_t itr_sink = ops_.find(sink_op);
+
+      if ((itr_source == ops_.end()) || (itr_sink == ops_.end())) {
+        return false;
+      }
+
+      // remove sink_op from adj_list of source_op //
+      op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
+      typename op_ref_list_t::iterator child_remove_iterator,
+               parent_remove_iterator; 
+      {
+        adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
+        if (adj_itr == adj_map_.end()) { return false; }
+
+        op_ref_list_t& child_list = adj_itr->second;
+        for (op_ref_list_t::iterator child=child_list.begin();
+              child!=child_list.end(); ++child) {
+          if (*child == &(*itr_sink)) {
+            child_list_ptr = &child_list;
+            child_remove_iterator = child;
+            break;
+          }
+        }
+      }
+
+      // remove source_op from rev_adj_list of sink_op //
+      {
+        adjacency_map_t::iterator adj_rev_itr = adj_map_rev_.find(sink_op);
+
+        if (adj_rev_itr == adj_map_rev_.end()) { return false; }
+
+        op_ref_list_t& parent_list = adj_rev_itr->second;
+        for (op_ref_list_t::iterator parent=parent_list.begin();
+              parent!=parent_list.end(); ++parent) {
+          if (*parent == &(*itr_source)) { 
+            parent_remove_iterator = parent;
+            parent_list_ptr = &parent_list;
+          }
+        }
+      }
+
+      bool ret_value = false;
+      if (child_list_ptr && parent_list_ptr) {
+        child_list_ptr->erase(child_remove_iterator);
+        parent_list_ptr->erase(parent_remove_iterator);
+
+        // update the indegree of sink_op //
+        in_degree_map_t::iterator in_degree_itr = in_degree_map_.find(sink_op);
+
+        assert(in_degree_itr != in_degree_map_.end());
+        assert(in_degree_itr->second >= 1UL);
+
+        in_degree_itr->second--;
+        ret_value = true;
+      }
+      return ret_value;
+    }
+
 
     bool add_directed_edge_from_input(operation_t sink_op) {
       operation_t source_op = get_input_op();
@@ -1568,6 +1688,7 @@ class Operation_Dag {
     operation_t input_op_;
     std::unordered_set<std::string> implicit_op_types_;
     cmx_concat_subgraphs_t cmx_concat_subgraphs_;
+    pseudo_edge_set_t pseudo_edge_set_;
 }; // class Operation_Dag //
 
 

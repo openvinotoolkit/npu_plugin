@@ -48,6 +48,11 @@ struct scheduler_traits {
   static const_operation_iterator_t incoming_operations_end(const dag_t&,
         const operation_t&);
 
+  // Given an edge a->b checks if a is a pseudo input to b. If a is a pseudo
+  // input b then producer consumer relations does not hold. //
+  static bool is_pseudo_input_edge(const dag_t&,
+        const operation_t& a, const operation_t& b);
+
   //////////////////////////////////////////////////////////////////////////////
 
   //////////////////////////////////////////////////////////////////////////////
@@ -1588,6 +1593,7 @@ class Feasible_Memory_Schedule_Generator {
       // input.
       for (; itr != itr_end; ++itr) {
         const operation_t& pop = *itr;
+        if (traits::is_pseudo_input_edge(*input_ptr_, pop, op)) { continue; }
         typename op_output_table_t::const_iterator out_itr =
             op_output_table_.find(pop);
 
@@ -1847,7 +1853,13 @@ class Feasible_Memory_Schedule_Generator {
       const_operation_iterator_t citr_end =
           traits::outgoing_operations_end(*input_ptr_, op);
       size_t outstanding_consumers = 0UL;
-      for (; citr != citr_end; ++citr, ++outstanding_consumers) {}
+      for (; citr != citr_end; ++citr) {
+        operation_t consumer_op = *citr;
+        if (traits::is_pseudo_input_edge(*input_ptr_, op, consumer_op)) {
+          continue;
+        }
+        ++outstanding_consumers;
+      }
 
       op_output_table_.insert( std::make_pair(op,
             op_output_info_t(operation_output_e::ACTIVE,
@@ -1989,6 +2001,7 @@ class Feasible_Memory_Schedule_Generator {
 
       for (; pitr != pitr_end; ++pitr) {
         const operation_t& pop = *pitr;
+        if (traits::is_pseudo_input_edge(*input_ptr_, pop, op)) { continue; }
 
         typename op_output_table_t::iterator itr = op_output_table_.find(pop);
 
