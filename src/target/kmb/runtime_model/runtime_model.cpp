@@ -327,7 +327,20 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     else
     {
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0];
+//        auto leading_offset = strides[0];
+        std::size_t leading_offset = strides[0];
+        auto temporaryBuffer = tensorBufferIt;
+        //NOTE: See allocate_memory_kmb.cpp line 552
+        if (t->hasAttr("leftIndex"))
+            leading_offset = t->get<std::size_t>("leftIndex");
+
+        while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+        {
+            temporaryBuffer = temporaryBuffer->getMaster();
+            if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
+                leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex");
+        }
+
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
@@ -335,10 +348,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index = t->getAddress();
         else
         {
-            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution() 
+            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution()
             // are calculated from the smallest address of the input tenor to the ImplicitUnion operation
             // Here we have to ensure that the data_index of this tensor is the same smallest address otherwise the SEPs
-            // offsets will point to the wrong location 
+            // offsets will point to the wrong location
             auto parentOp = om.getSourceOp(t);
             if(parentOp->getOpType() == "ImplicitJoin")
             {
@@ -1306,8 +1319,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
             dmaToDma, toReturn, inputTensor, outputTensor, port);
-        // If the input tensor for a DMA task is sparse then we also need to 
-        // create DMA tasks which transfer Storage Element (SE) Table and 
+        // If the input tensor for a DMA task is sparse then we also need to
+        // create DMA tasks which transfer Storage Element (SE) Table and
         // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
@@ -1330,7 +1343,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
                   outputSparsityMap, port);
-                
+
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
                   outputStorageElementTable, port);
