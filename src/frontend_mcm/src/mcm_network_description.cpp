@@ -120,9 +120,14 @@ vpux::DataMap MCMNetworkDescription::matchElementsByLexicographicalOrder(
     _logger->debug("MCMNetworkDescription::matchElementsByLexicographicalOrder started.");
     vpux::DataMap updatedMap;
 
+    if (names.empty()) {
+        // FIXME fail more gracefully
+        THROW_IE_EXCEPTION << "matchElementsByLexicographicalOrder meta-data does not contain names.";
+    }
+
     std::size_t curMatchPos = 0;
     for (const auto& data : actualDeviceData) {
-        auto name = names[curMatchPos];
+        auto name = names.at(curMatchPos);
         const auto dataCorrectedName = data.second;
         dataCorrectedName->setName(name);
         updatedMap.insert({name, dataCorrectedName});
