@@ -57,16 +57,11 @@ void setModel(mv::CompilationUnit& unit)
     om.output(conv3);
 
     // Load target descriptor for the selected target to the compilation unit
-    //std::string targetDescPath = std::getenv("MCM_HOME") + std::string("/config/target/ma2480.json");
-    //unit.loadTargetDescriptor(mv::Target::ma2480);
-
-    // Load target descriptor for the selected target to the compilation unit
-    if (!unit.loadTargetDescriptor(mv::Target::ma2480))
+    if (!unit.loadTargetDescriptor(mv::Target::ma2490))
     	exit(1);
 
     // Define the manadatory arguments for passes using compilation descriptor obtained from the compilation unit
     // Output DOT - file name (base)
-    unit.loadCompilationDescriptor(mv::Target::ma2480);
     mv::CompilationDescriptor &compDesc = unit.compilationDescriptor();
     compDesc.setPassArg("GenerateBlob", "enableFileOutput", false);
     compDesc.setPassArg("GenerateBlob", "enableRAMOutput", false);

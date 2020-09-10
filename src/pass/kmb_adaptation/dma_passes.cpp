@@ -63,7 +63,7 @@ void AddDPUTasksWeightsDMATasksFcn(const mv::pass::PassEntry&, mv::ComputationMo
             if(!isTensorInNNCMX(inputTensor))
             {
                 auto flows = inputTensor->get<std::set<std::string>>("flows");
-                mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
+                mv::Data::TensorIterator inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::DDR2NNCMX, 0, mv::createDMATaskDDR2NNCMXName(inputOp->getName()));
                 if (opIt->hasAttr("slicedInput3DDMA") &&
                      opIt->get<bool>("slicedInput3DDMA") && !inputTensor->isPopulated())
                 {
@@ -129,9 +129,9 @@ void AddUPATasksExtraInputsDMATasksFcn(const mv::pass::PassEntry&, mv::Computati
 
                 mv::Data::TensorIterator inputTensorDma;
                 if(isTensorInNNCMX(inputTensor))
-                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::NNCMX2DDR, mv::createDMATaskNNCMX2DDRName(inputOp->getName()));
+                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::NNCMX2DDR, 0, mv::createDMATaskNNCMX2DDRName(inputOp->getName()));
                 else if (isTensorInUPACMX(inputTensor))
-                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::UPACMX2DDR, mv::createDMATaskUPACMX2DDRName(inputOp->getName()));
+                    inputTensorDma = om.dMATask(inputTensor, mv::DmaDirectionEnum::UPACMX2DDR, 0, mv::createDMATaskUPACMX2DDRName(inputOp->getName()));
                 auto inputTensorDmaOp = om.getSourceOp(inputTensorDma);
                 inputTensorDmaOp->set<unsigned>("opId", opId);
 
