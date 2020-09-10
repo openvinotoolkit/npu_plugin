@@ -28,7 +28,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
             .setUserInputPrecision("input", Precision::FP16)
             .setUserOutputPrecision("output", Precision::FP16),
         "224x224/cat3.bmp",
-        3, 1e-5f);
+        3, 0.05);
 }
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
