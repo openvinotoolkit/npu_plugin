@@ -147,16 +147,31 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 _preprocBuffer.reset(
                     reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
-                auto memoryHolderYPlane = as<MemoryBlob>(origYBlob)->rmap();
+                auto memoryBlobY = as<MemoryBlob>(origYBlob);
+                auto memoryHolderYPlane = memoryBlobY->rmap();
                 ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
                     origYBlob->byteSize());
                 kmbYBlob = ie::make_shared_blob<uint8_t>(origYBlob->getTensorDesc(), _preprocBuffer.get());
 
-                auto memoryHolderUVPlane = as<MemoryBlob>(origUVBlob)->rmap();
+                auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                auto y_offset = memoryBlobY->element_size() * y_offset_pad;
+                if (y_offset >= origYBlob->byteSize()) {
+                    _logger->warning(
+                        "Y plane offset %u is greater than the byte size %u", y_offset, origYBlob->byteSize());
+                }
+
+                auto memoryBlobUV = as<MemoryBlob>(origUVBlob);
+                auto memoryHolderUVPlane = memoryBlobUV->rmap();
                 ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
                     memoryHolderUVPlane.as<uint8_t*>(), origUVBlob->byteSize());
                 kmbUVBlob = ie::make_shared_blob<uint8_t>(
                     origUVBlob->getTensorDesc(), _preprocBuffer.get() + origYBlob->byteSize());
+                auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
+                auto uv_offset = memoryBlobUV->element_size() * uv_offset_pad;
+                if (uv_offset >= origUVBlob->byteSize()) {
+                    _logger->warning(
+                        "UV plane offset %u is greater than the byte size %u", uv_offset, origUVBlob->byteSize());
+                }
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =

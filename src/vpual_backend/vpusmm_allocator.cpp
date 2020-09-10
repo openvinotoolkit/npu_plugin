@@ -45,7 +45,8 @@ static size_t alignMemorySize(const size_t size) {
 VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {}
 
 void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
-    if (_allocatedMemory.find(handle) == _allocatedMemory.end()) return nullptr;
+    // isValidPtr check required when handle is allocated by external app via vpurm
+    if (_allocatedMemory.find(handle) == _allocatedMemory.end() && !isValidPtr(handle)) return nullptr;
 
     return handle;
 }
