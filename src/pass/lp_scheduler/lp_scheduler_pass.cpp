@@ -180,8 +180,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       rend = upper_bound;
     }
 
+    mv::lp_scheduler::op_type_e scheduled_op_enum;
     if (op->getOpType() != "PseudoOp") {
-      mv::lp_scheduler::op_type_e scheduled_op_enum;
       if (scheduled_op_type == "ORIGINAL") {
         scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
       } else if (scheduled_op_type == "SPILLED_READ") {
@@ -208,6 +208,12 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       input_dag.remove_op_from_dag(&(*oitr));
       cm.removeOp(oitr);
     }
+  }
+
+  // drop all pseudo edges from input_dag and model //
+  {
+    input_dag.drop_all_pseudo_edges_in_model(cm);
+    input_dag.drop_all_pseudo_edges();
   }
 
   { 
@@ -403,6 +409,26 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
+  }
+
+  { 
+    // chain pipelining control edges //
+    mv::OpModel om(model);
+    std::list<control_edge_t> chain_pipeline_control_edges;
+    const std::string chain_pipeline_control_edge_attribute =
+      mv::scheduler::Pipeline_Chains::pipeline_chain_control_edge_attribute();
+    for (auto opItr=om.opBegin(); opItr!=om.opEnd(); ++opItr) {
+      if (opItr->hasAttr(chain_pipeline_control_edge_attribute)) {
+        auto src_node_itr =
+          om.getOp(opItr->get(chain_pipeline_control_edge_attribute));
+        operation_t src_node = &(*src_node_itr);
+        operation_t sink_node = &(*opItr);
+        chain_pipeline_control_edges.push_back(
+              control_edge_t(src_node, sink_node));
+      }
+    }
+    control_edges.add_control_edges(model, chain_pipeline_control_edges.begin(),
+        chain_pipeline_control_edges.end());
   }
   ////////////////////// Control Edge Generation ///////////////////////////////
 

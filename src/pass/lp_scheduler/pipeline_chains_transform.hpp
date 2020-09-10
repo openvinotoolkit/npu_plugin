@@ -27,10 +27,16 @@ class Pipeline_Chains {
         fprintf(fptr, "\n===========================\n");
         auto read_itr = weight_reads_.begin();
 
+        size_t prev_read_size = 0UL;
+        size_t prev_output_size = 0UL;
         for (operation_t dpu_op : dpu_chain_) {
           fprintf(fptr, "%s : ", (dpu_op->getName()).c_str());
+          size_t total_read_size = 0UL;
           for (operation_t read_op : *read_itr) {
             fprintf(fptr, " %s ", (read_op->getName()).c_str());
+            total_read_size +=
+              ((const_cast<mv::Op *>(read_op))->getOutputTensor(0UL))->
+                getClusterSize();
           }
           fprintf(fptr, "\n");
           ++read_itr;
@@ -58,6 +64,10 @@ class Pipeline_Chains {
 
 
     Pipeline_Chains(mv::OpModel& omodel) : omodel_(omodel) {}
+
+    static const std::string pipeline_chain_control_edge_attribute() {
+      return "pipeline_chain_control_edge";
+    }
 
     template<typename T>
     bool is_weight_read(T op) const {
@@ -201,7 +211,7 @@ class Pipeline_Chains {
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model(ControlEdgeOutput output,
+    void transform_op_model_old(ControlEdgeOutput output,
         SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
@@ -219,6 +229,7 @@ class Pipeline_Chains {
 
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
+        if (dpu_chain.size() <= 3UL) { continue; }
 
         chain_subgraph.print(fptr);
         /*
@@ -248,12 +259,36 @@ class Pipeline_Chains {
         auto curr_dpu_itr = dpu_chain.begin();
         auto curr_weights_itr = weight_reads.begin();
 
-        auto pprev_dpu_itr = curr_dpu_itr;
         operation_t chain_head = get_non_weight_input(*curr_dpu_itr);
+
+        if (chain_head->getOpType() == "DMATask") {
+          auto chain_head_itr = om.getOp(chain_head->getName());
+          chain_head = NULL;
+          for (auto pitr=chain_head_itr.leftmostParent(); pitr!=om.opEnd();
+                ++pitr) {
+            if (pitr->getOpType() != "DMATask") {
+              chain_head = &(*pitr);
+              break;
+            }
+          }
+        }
+
         if (!chain_head) {
           fprintf(fptr, "chain_head invalid for %s\n",
               (*curr_dpu_itr)->getName());
           continue;
+        }
+
+        {
+          const op_list_t& curr_weight_reads = (*curr_weights_itr);
+          for (operation_t weight_read : curr_weight_reads) {
+            mv::Data::OpListIterator weight_read_itr =
+                om.getOp(weight_read->getName());
+            weight_read_itr->set<bool>("pipeline_data_start", true);
+            auto chain_head_itr = om.getOp(chain_head->getName());
+            //om.defineFlow(chain_head_itr->getOutputTensor(0UL), 
+             //     weight_read_itr, 0UL);
+          }
         }
 
         auto prev_dpu_itr = curr_dpu_itr;
@@ -279,6 +314,26 @@ class Pipeline_Chains {
            */
 
           if (!is_activation_too_big) {
+            auto net_dpu_itr = prev_dpu_itr;
+
+            if (net_dpu_itr != dpu_chain.begin()) {
+              --net_dpu_itr;
+            }
+
+            {
+              auto prev_weights_itr = curr_weights_itr;
+              if (prev_weights_itr != weight_reads.begin()) {
+                  --prev_weights_itr;
+                const op_list_t& prev_weight_reads = (*prev_weights_itr);
+                for (operation_t weight_read : prev_weight_reads) {
+                  mv::Data::OpListIterator weight_read_itr =
+                      om.getOp(weight_read->getName());
+                  om.defineFlow(weight_read_itr->getOutputTensor(0UL),
+                      curr_pseudo_op_itr, 0UL);
+                }
+              }
+            }
+
             omodel_.defineFlow(curr_pseudo_op_tensor_itr,
               om.getOp((*prev_dpu_itr)->getName()), 0UL);
             // add pseudo data flows between curr_pseudo_op and all the reads of
@@ -287,7 +342,11 @@ class Pipeline_Chains {
             for (operation_t weight_read : reads_of_this_dpu) {
               mv::Data::OpListIterator weight_read_itr =
                   om.getOp(weight_read->getName());
-              omodel_.defineFlow(curr_pseudo_op_tensor_itr, weight_read_itr, 0UL);
+              omodel_.defineFlow(curr_pseudo_op_tensor_itr, weight_read_itr,
+                    0UL);
+              weight_read_itr->set<std::string>(
+                  pipeline_chain_control_edge_attribute(),
+                  (*net_dpu_itr)->getName());
             }
           }
 
@@ -298,7 +357,7 @@ class Pipeline_Chains {
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
-    void transform_op_model_old(ControlEdgeOutput output,
+    void transform_op_model(ControlEdgeOutput output,
         SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
@@ -323,10 +382,20 @@ class Pipeline_Chains {
 
         auto curr_itr = weight_reads.begin();
         auto pprev_itr = curr_itr;
+       
 
+        const op_list_t & weight_reads_start_list = weight_reads.front();
+        operation_t first_weight_read = weight_reads_start_list.front();
+        mv::Data::OpListIterator first_weight_read_itr =
+            om.getOp(first_weight_read->getName());
+        first_weight_read_itr->set<bool>("pipeline_data_start", true);
+
+
+#if 0
         if (curr_itr == weight_reads.end()) { continue; }
         ++curr_itr;
         ++curr_dpu_itr;
+#endif
 
         if (curr_itr == weight_reads.end()) { continue; }
         ++curr_itr;
@@ -341,26 +410,30 @@ class Pipeline_Chains {
           if (!pprev_read_list.empty()) {
             operation_t pprev_read_op = pprev_read_list.front();
             mv::Data::OpListIterator src_itr =
-                omodel_.getOp((*pprev_dpu_itr)->getName());
-                //omodel_.getOp(pprev_read_op->getName());
+                omodel_.getOp(pprev_read_op->getName());
+            mv::Data::OpListIterator src_dpu_itr = om.opEnd();
+
+            bool define_dpu_flow = false;
             {
-              auto net_dpu_itr = pprev_dpu_itr; // 1 level //
+              auto net_dpu_itr = pprev_dpu_itr; 
 
               if (net_dpu_itr != dpu_chain.begin()) { // 2 levels //
                 --net_dpu_itr;
-                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
+                src_dpu_itr = omodel_.getOp((*net_dpu_itr)->getName());
+                define_dpu_flow = true;
               }
 
+#if 0
               if (net_dpu_itr != dpu_chain.begin()) { // 3 levels //
                 --net_dpu_itr;
                 src_itr = omodel_.getOp((*net_dpu_itr)->getName());
               }
+
               if (net_dpu_itr != dpu_chain.begin()) { // 4 levels //
                 --net_dpu_itr;
                 src_itr = omodel_.getOp((*net_dpu_itr)->getName());
               }
 
-#if 0
               if (net_dpu_itr != dpu_chain.begin()) { // 5 levels //
                 --net_dpu_itr;
                 src_itr = omodel_.getOp((*net_dpu_itr)->getName());
@@ -373,9 +446,22 @@ class Pipeline_Chains {
               mv::Data::OpListIterator sink_itr =
                   omodel_.getOp(curr_read_op->getName());
 
+              sink_itr->set<bool>("pipeline_flow_control", true);
               mv::Data::TensorIterator src_tensor_itr
                   = src_itr->getOutputTensor(0UL);
-              omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
+
+              {
+                mv::Data::FlowListIterator flow_itr =
+                    omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
+                flow_itr->set<bool>("pseudo_data_flow", true);
+              }
+
+              if (define_dpu_flow)
+              {
+                mv::Data::FlowListIterator flow_itr =
+                    omodel_.defineFlow(src_dpu_itr, 0UL, sink_itr, 0UL);
+                flow_itr->set<bool>("pseudo_data_flow", true);
+              }
 
               //output = control_edge_t(src_itr, sink_itr);
             }

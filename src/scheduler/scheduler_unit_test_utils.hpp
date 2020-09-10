@@ -304,6 +304,10 @@ class Operation_Dag {
     static const_operation_iterator_t incoming_operations_begin(const dag_t& g,
         const operation_t& op) { return g.begin_in(op); }
 
+    static bool is_pseudo_input_edge(const dag_t& g, const operation_t& src,
+        const operation_t& sink) { return false; }
+
+
     static const_operation_iterator_t incoming_operations_end(const dag_t& g,
         const operation_t& op) { return g.end(op); }
 
