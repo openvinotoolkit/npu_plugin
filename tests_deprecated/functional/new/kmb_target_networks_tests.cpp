@@ -22,14 +22,11 @@
 // ResNet50 FP16 IRv10
 //
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
-    // [Track number: D#3222]
-    SKIP_ON("KMB", "HDDL2", "VPUX", "MemoryAllocator:VPU_DDR_Heap - ArgumentError");
     runTest(
         TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
-            .setUserInputPrecision("input", Precision::FP16)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+            .setUserInputPrecision("input", Precision::FP16)
+            .setUserOutputPrecision("output", Precision::FP16),
         "224x224/cat3.bmp",
         3, 1e-5f);
 }
