@@ -151,27 +151,21 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 auto memoryHolderYPlane = memoryBlobY->rmap();
                 ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>(),
                     origYBlob->byteSize());
-                kmbYBlob = ie::make_shared_blob<uint8_t>(origYBlob->getTensorDesc(), _preprocBuffer.get());
-
-                auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
-                auto y_offset = memoryBlobY->element_size() * y_offset_pad;
-                if (y_offset >= origYBlob->byteSize()) {
-                    _logger->warning(
-                        "Y plane offset %u is greater than the byte size %u", y_offset, origYBlob->byteSize());
-                }
+                // explicitly ignore blocking descriptor
+                // memory has already been cropped properly
+                // just copy precision, dimensions and layout
+                InferenceEngine::TensorDesc croppedYTensorDesc = {origYBlob->getTensorDesc().getPrecision(),
+                    origYBlob->getTensorDesc().getDims(), origYBlob->getTensorDesc().getLayout()};
+                kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = as<MemoryBlob>(origUVBlob);
                 auto memoryHolderUVPlane = memoryBlobUV->rmap();
                 ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
                     memoryHolderUVPlane.as<uint8_t*>(), origUVBlob->byteSize());
-                kmbUVBlob = ie::make_shared_blob<uint8_t>(
-                    origUVBlob->getTensorDesc(), _preprocBuffer.get() + origYBlob->byteSize());
-                auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
-                auto uv_offset = memoryBlobUV->element_size() * uv_offset_pad;
-                if (uv_offset >= origUVBlob->byteSize()) {
-                    _logger->warning(
-                        "UV plane offset %u is greater than the byte size %u", uv_offset, origUVBlob->byteSize());
-                }
+                InferenceEngine::TensorDesc croppedUVTensorDesc = {origUVBlob->getTensorDesc().getPrecision(),
+                    origUVBlob->getTensorDesc().getDims(), origUVBlob->getTensorDesc().getLayout()};
+                kmbUVBlob =
+                    ie::make_shared_blob<uint8_t>(croppedUVTensorDesc, _preprocBuffer.get() + origYBlob->byteSize());
             }
 
             InferenceEngine::Blob::Ptr nv12Blob =
