@@ -406,7 +406,6 @@ void populateActivationStorageElementMap(
         }
     };
 
-    const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
     auto dispFunctor = displacementFunctors.find(op->get<std::string>("taskOp"));
     if (dispFunctor == displacementFunctors.cend())
         throw mv::RuntimeError(model, op->getName() +
@@ -421,8 +420,8 @@ void populateActivationStorageElementMap(
         auto storageElementTable = op->getInputTensor(tidx);
         std::vector<int64_t> table_offsets(storageElementTable->getShape().totalSize(), 0);
 
-        if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
-            op->get<std::string>("splitStrategy")) == segmentableStrategies.cend()) {
+        if (std::find(activationSegmentableStrategies.cbegin(), activationSegmentableStrategies.cend(),
+            op->get<std::string>("splitStrategy")) == activationSegmentableStrategies.cend()) {
                 auto disp = dispFunctor->second(op, inputTensorIdx, clusterSolversFunctors[0], 0);
                 for (size_t i = 0; i < table_offsets.size(); ++i)
                     table_offsets[i] =
