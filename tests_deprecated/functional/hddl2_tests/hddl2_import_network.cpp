@@ -30,7 +30,7 @@ namespace IE = InferenceEngine;
 class ImportNetwork_Tests : public CoreAPI_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50;
-    InferenceEngine::ParamMap params;
+    IE::ParamMap params;
 
 protected:
     void SetUp() override;
@@ -73,7 +73,7 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
     }
     std::istream tmp_stream(&blobFile);
 
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+    IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
     blobFile.close();
@@ -90,9 +90,9 @@ TEST_F(ImportNetwork_Tests, canParseInputAndOutput) {
     const IE::SizeVector expected_output_dims = {1, 1000};
     const IE::Layout expected_output_layout = IE::Layout::NC;
 
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
 
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;

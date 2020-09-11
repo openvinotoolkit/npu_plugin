@@ -19,13 +19,10 @@
 #include <ie_utils.hpp>
 #include <blob_factory.hpp>
 
-IE::Blob::Ptr ReferenceHelper::CalcCpuReference(const std::string &model_path, const IE::Blob::Ptr& input_blob,
-    const IE::PreProcessInfo* preprocInfo) {
-    std::cout << "Calculating reference on CPU..." << std::endl;
-
+namespace {
+IE::BlobMap CalcCpuReferenceCommon(IE::CNNNetwork& network, const IE::Blob::Ptr& input_blob,
+    const IE::PreProcessInfo* preproc_info) {
     IE::Core ie;
-    auto network = ie.ReadNetwork(model_path);
-
     IE::InputsDataMap input_info = network.getInputsInfo();
     for (auto& item : input_info) {
         auto input_data = item.second;
@@ -36,20 +33,55 @@ IE::Blob::Ptr ReferenceHelper::CalcCpuReference(const std::string &model_path, c
     IE::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;
-    if (preprocInfo != nullptr) {
-        inferRequest.SetBlob(inputBlobName, input_blob, *preprocInfo);
+    if (preproc_info != nullptr) {
+        inferRequest.SetBlob(inputBlobName, input_blob, *preproc_info);
     } else {
         inferRequest.SetBlob(inputBlobName, input_blob);
     }
 
-    auto outputBlobName = executableNetwork.GetOutputsInfo().begin()->first;
-    IE::Blob::Ptr output_blob;
-    output_blob = make_blob_with_precision(executableNetwork.GetOutputsInfo().begin()->second->getTensorDesc());
-    output_blob->allocate();
-    inferRequest.SetBlob(outputBlobName, output_blob);
+    IE::ConstOutputsDataMap output_info = executableNetwork.GetOutputsInfo();
+    for (const auto& output : output_info) {
+        const auto outputBlobName = output.first;
+        auto output_blob = make_blob_with_precision(output.second->getTensorDesc());
+        output_blob->allocate();
+        inferRequest.SetBlob(outputBlobName, output_blob);
+    }
 
     inferRequest.Infer();
-    output_blob = inferRequest.GetBlob(outputBlobName);
 
-    return output_blob;
+    IE::BlobMap outputBlobs;
+    for (const auto& output : output_info) {
+        const auto outputBlobName = output.first;
+        auto output_blob = inferRequest.GetBlob(outputBlobName);
+        outputBlobs[outputBlobName] = output_blob;
+    }
+
+    return outputBlobs;
+}
+}
+
+IE::Blob::Ptr ReferenceHelper::CalcCpuReferenceSingleOutput(const std::string &model_path, const IE::Blob::Ptr& input_blob,
+    const IE::PreProcessInfo* preproc_info) {
+    std::cout << "Calculating reference on CPU (single output)..." << std::endl;
+
+    IE::Core ie;
+    auto network = ie.ReadNetwork(model_path);
+
+    IE::OutputsDataMap outputs_info = network.getOutputsInfo();
+    const size_t NUM_OUTPUTS = 1;
+    if (outputs_info.size() != NUM_OUTPUTS) {
+        THROW_IE_EXCEPTION << "Number of outputs isn't equal to 1";
+    }
+
+    return CalcCpuReferenceCommon(network, input_blob, preproc_info).begin()->second;
+}
+
+IE::BlobMap ReferenceHelper::CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,
+    const IE::PreProcessInfo* preproc_info) {
+    std::cout << "Calculating reference on CPU (multiple output)..." << std::endl;
+
+    IE::Core ie;
+    auto network = ie.ReadNetwork(model_path);
+
+    return CalcCpuReferenceCommon(network, input_blob, preproc_info);
 }

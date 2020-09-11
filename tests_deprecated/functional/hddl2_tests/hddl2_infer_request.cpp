@@ -22,6 +22,7 @@
 #include <helper_remote_context.h>
 #include <models/model_mobilenet_v2.h>
 #include <models/model_pooling.h>
+#include <yolo_helpers.hpp>
 
 #include <vpu/utils/ie_helpers.hpp>
 #include <fstream>
@@ -56,7 +57,7 @@ TEST_F(InferRequest_SetBlob, LocalBlob) {
     IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    auto blob = InferenceEngine::make_shared_blob<uint8_t>(inputTensorDesc);
+    auto blob = IE::make_shared_blob<uint8_t>(inputTensorDesc);
     blob->allocate();
 
     ASSERT_NO_THROW(inferRequest.SetBlob(inputName, blob));
@@ -70,7 +71,7 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
     IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     WorkloadID id = workloadContextHelper.getWorkloadId();
-    InferenceEngine::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
+    IE::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
     IE::RemoteContext::Ptr remoteContext = ie.CreateContext(pluginName, contextParams);
     ASSERT_NE(remoteContext, nullptr);
 
@@ -121,7 +122,7 @@ TEST_F(InferRequest_GetBlob, GetOutputAfterInference) {
     ASSERT_NO_THROW(inferRequest.Infer());
 
     std::string outputName = executableNetworkPtr->GetOutputsInfo().begin()->first;
-    InferenceEngine::Blob::Ptr outputBlob;
+    IE::Blob::Ptr outputBlob;
     ASSERT_NO_THROW(outputBlob = inferRequest.GetBlob(outputName));
 }
 
@@ -131,7 +132,7 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
     IE::InputInfo::CPtr inputInfoPtr = executableNetworkPtr->GetInputsInfo().begin()->second;
 
     WorkloadID id = workloadContextHelper.getWorkloadId();
-    InferenceEngine::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
+    IE::ParamMap contextParams = Remote_Context_Helper::wrapWorkloadIdToMap(id);
     IE::RemoteContext::Ptr remoteContext = ie.CreateContext(pluginName, contextParams);
     ASSERT_NE(remoteContext, nullptr);
 
@@ -264,7 +265,7 @@ void InferenceWithPerfCount::SetUp() {
 
 TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
 
     ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName, _config)));
@@ -417,7 +418,7 @@ TEST_P(InferenceCheckPortsNetwork, common) {
     // --- Reference Blob
     IE::Blob::Ptr refInputBlob = toLayout(inputBlob, inputLayout);
     IE::Blob::Ptr refOutputBlob;
-    ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReference(modelPath, refInputBlob));
+    ASSERT_NO_THROW(refOutputBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, refInputBlob));
     if (orderedClasses) {
         ASSERT_NO_THROW(
             Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refOutputBlob), numberOfTopClassesToCompare));
@@ -429,3 +430,80 @@ TEST_P(InferenceCheckPortsNetwork, common) {
 
  INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsNetwork, testing::Combine(testing::ValuesIn(inputLayoutVariants),
     testing::ValuesIn(blobInputLayoutVariants), testing::Bool()));
+
+//------------------------------------------------------------------------------
+class InferenceCheckPortsYoloV3Network :
+    public CoreAPI_Tests,
+    public testing::WithParamInterface<IE::Layout> {
+public:
+    std::string graphPath;
+    std::string modelPath;
+    std::string inputPath;
+
+    const size_t inputWidth = 416;
+    const size_t inputHeight = 416;
+    const int yolov3_classes = 80;
+    const int yolov3_coords = 4;
+    const int yolov3_num = 3;
+    const std::vector<float> yolov3_anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0,
+        61.0, 62.0, 45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
+    const float yolov3_threshold = 0.6;
+    const float boxTolerance = 0.4;
+    const float probTolerance = 0.4;
+
+protected:
+    void SetUp() override;
+};
+
+void InferenceCheckPortsYoloV3Network::SetUp() {
+    graphPath =
+        ModelsPath() + "/KMB_models/BLOBS/yolo-v3/yolo_v3_tf_dense_int8_IRv10.blob";
+    modelPath =
+        ModelsPath() + "/KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml";
+    inputPath = "person.bmp";
+}
+
+TEST_P(InferenceCheckPortsYoloV3Network, common) {
+    const auto blobInputLayout = GetParam();
+    std::cout << "Parameters: blob input layout = " << blobInputLayout <<std::endl;
+
+    std::cout << "Importing network..." << std::endl;
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork> (ie.ImportNetwork(graphPath, pluginName)));
+
+    // --- Infer request
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
+
+    // --- Input Blob
+    auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::Blob::Ptr inputBlob;
+    ASSERT_NO_THROW(inputBlob = loadImage(inputPath, inputWidth, inputHeight, blobInputLayout, false));
+    ASSERT_NO_THROW(inferRequest.SetBlob(inputBlobName, inputBlob));
+
+    // --- Infer
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    // --- Get result
+    IE::BlobMap outputBlobs;
+    IE::ConstOutputsDataMap output_info = executableNetworkPtr->GetOutputsInfo();
+    for (const auto& output : output_info) {
+        const auto outputBlobName = output.first;
+        auto outputBlob = inferRequest.GetBlob(outputBlobName);
+        outputBlobs[outputBlobName] = outputBlob;
+    }
+
+    // --- Reference Blob
+    IE::Blob::Ptr refInputBlob = inferRequest.GetBlob(inputBlobName);
+    IE::BlobMap refOutputBlobs;
+    ASSERT_NO_THROW(refOutputBlobs = ReferenceHelper::CalcCpuReferenceMultipleOutput(modelPath, refInputBlob));
+
+    // --- Parsing and comparing results
+    const IE::Layout yolov3_layout = outputBlobs.begin()->second->getTensorDesc().getLayout();
+    const IE::Layout ref_yolov3_layout = refOutputBlobs.begin()->second->getTensorDesc().getLayout();
+    auto YoloV3Output = utils::parseYoloV3Output(outputBlobs, inputWidth, inputHeight, yolov3_classes,
+        yolov3_coords, yolov3_num, yolov3_anchors, yolov3_threshold, yolov3_layout);
+    auto refYoloV3Output = utils::parseYoloV3Output(refOutputBlobs, inputWidth, inputHeight, yolov3_classes,
+        yolov3_coords, yolov3_num, yolov3_anchors, yolov3_threshold, ref_yolov3_layout);
+    IE_Core_Helper::checkBBoxOutputs(YoloV3Output, refYoloV3Output, inputWidth, inputHeight, boxTolerance, probTolerance);
+}
+
+ INSTANTIATE_TEST_CASE_P(CheckPorts, InferenceCheckPortsYoloV3Network, testing::ValuesIn(blobInputLayoutVariants));

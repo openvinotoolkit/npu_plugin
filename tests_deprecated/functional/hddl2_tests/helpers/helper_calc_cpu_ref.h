@@ -21,6 +21,8 @@
 namespace IE = InferenceEngine;
 
 namespace ReferenceHelper {
-    IE::Blob::Ptr CalcCpuReference(const std::string &model_path, const IE::Blob::Ptr& input_blob,
-        const IE::PreProcessInfo* preprocInfo = nullptr);
+    IE::Blob::Ptr CalcCpuReferenceSingleOutput(const std::string &model_path, const IE::Blob::Ptr& input_blob,
+        const IE::PreProcessInfo* preproc_info = nullptr);
+    IE::BlobMap CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,
+        const IE::PreProcessInfo* preproc_info = nullptr);
 }

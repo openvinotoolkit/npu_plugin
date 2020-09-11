@@ -17,6 +17,7 @@
 #pragma once
 
 #include "ie_core.hpp"
+#include <yolo_helpers.hpp>
 
 class IE_Core_Helper {
 public:
@@ -30,4 +31,6 @@ public:
     // TODO Duplicate of kmb_test_base.cpp function
     static InferenceEngine::Blob::Ptr loadImage(const std::string &imageName, const size_t width, const size_t height,
                                                 const InferenceEngine::Layout targetImageLayout, const bool isBGR);
+    static void checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput, std::vector<utils::BoundingBox> &refOutput,
+        const int imgWidth, const int imgHeight, const float boxTolerance, const float probTolerance);
 };

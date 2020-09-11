@@ -46,10 +46,10 @@ public:
 protected:
     void SetUp() override;
 
-    std::vector<InferenceEngine::InferRequest> createRequests(const int& numberOfRequests);
+    std::vector<IE::InferRequest> createRequests(const int& numberOfRequests);
 
     static void loadCatImageToBlobForRequests(
-        const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests);
+        const std::string& blobName, std::vector<IE::InferRequest>& requests);
 };
 
 void AsyncInferRequest_Tests::SetUp() {
@@ -58,10 +58,10 @@ void AsyncInferRequest_Tests::SetUp() {
     executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(graphPath, pluginName));
 }
 
-std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createRequests(const int& numberOfRequests) {
-    std::vector<InferenceEngine::InferRequest> requests;
+std::vector<IE::InferRequest> AsyncInferRequest_Tests::createRequests(const int& numberOfRequests) {
+    std::vector<IE::InferRequest> requests;
     for (int requestCount = 0; requestCount < numberOfRequests; requestCount++) {
-        InferenceEngine::InferRequest inferRequest;
+        IE::InferRequest inferRequest;
         inferRequest = executableNetworkPtr->CreateInferRequest();
         requests.push_back(inferRequest);
     }
@@ -69,7 +69,7 @@ std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createReques
 }
 
 void AsyncInferRequest_Tests::loadCatImageToBlobForRequests(
-    const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests) {
+    const std::string& blobName, std::vector<IE::InferRequest>& requests) {
     for (auto currentRequest : requests) {
         IE::Blob::Ptr blobPtr;
         auto inputBlob = loadCatImage();
@@ -87,13 +87,13 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
     Time end_sync;
     {
         // --- Create requests
-        std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Sync execution
         start_sync = Now();
-        for (InferenceEngine::InferRequest& currentRequest : requests) {
+        for (IE::InferRequest& currentRequest : requests) {
             ASSERT_NO_THROW(currentRequest.Infer());
         }
         end_sync = Now();
@@ -103,7 +103,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
     Time end_async;
     {
         // --- Create requests
-        std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
@@ -117,7 +117,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
         start_async = Now();
         // --- Asynchronous execution
-        for (InferenceEngine::InferRequest& currentRequest : requests) {
+        for (IE::InferRequest& currentRequest : requests) {
             currentRequest.SetCompletionCallback(onComplete);
             currentRequest.StartAsync();
         }
@@ -147,7 +147,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
 TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     // --- Create requests
-    std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+    std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     loadCatImageToBlobForRequests(inputBlobName, requests);
 
@@ -160,7 +160,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     };
 
     // --- Asynchronous execution
-    for (InferenceEngine::InferRequest& currentRequest : requests) {
+    for (IE::InferRequest& currentRequest : requests) {
         currentRequest.SetCompletionCallback(onComplete);
         ASSERT_NO_THROW(currentRequest.StartAsync());
     }
@@ -179,7 +179,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
 
     // --- Reference Blob
     IE::Blob::Ptr inputBlob = requests.at(0).GetBlob(inputBlobName);
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
 
     // --- Compare output with reference
     auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
@@ -227,7 +227,7 @@ void AsyncInferRequest_DifferentInput::SetUp() {
 //------------------------------------------------------------------------------
 TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPreprocAndPreproc) {
     // --- Create requests
-    std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+    std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     IE::Blob::Ptr refRgbBlob = nullptr;
     IE::Blob::Ptr refNV12Blob = nullptr;
@@ -248,14 +248,14 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
             requests.at(i).SetBlob(inputBlobName, nv12InputBlob, preprocInfo);
 
             if (refNV12Blob == nullptr) {
-                refNV12Blob = ReferenceHelper::CalcCpuReference(modelPath, nv12InputBlob, &preprocInfo);
+                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
             }
         } else {
             auto inputBlob = loadCatImage();
             ASSERT_NO_THROW(requests.at(i).SetBlob(inputBlobName, inputBlob));
 
             if (refRgbBlob == nullptr) {
-                refRgbBlob = ReferenceHelper::CalcCpuReference(modelPath, inputBlob);
+                refRgbBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
             }
         }
     }
@@ -269,7 +269,7 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
     };
 
     // --- Asynchronous execution
-    for (InferenceEngine::InferRequest& currentRequest : requests) {
+    for (IE::InferRequest& currentRequest : requests) {
         currentRequest.SetCompletionCallback(onComplete);
         ASSERT_NO_THROW(currentRequest.StartAsync());
     }

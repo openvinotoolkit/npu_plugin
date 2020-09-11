@@ -37,7 +37,7 @@ static void checkData(const IE::DataPtr& desc) {
 
 //------------------------------------------------------------------------------
 HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
-    const HDDL2RemoteContext::CPtr& remoteContext, const IE::ColorFormat& colorFormat)
+    const HDDL2RemoteContext::CPtr& remoteContext, const IE::ColorFormat& colorFormat, const size_t numOutputs)
     : _haveRemoteContext(remoteContext != nullptr),
       _needUnitePreProcessing(needUnitePreProcessing),
       _graphColorFormat(colorFormat) {
@@ -50,7 +50,9 @@ HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
         }
     }
 
-    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext);
+    // TODO Use maxRoiNum
+    const size_t maxRoiNum = 1;
+    _inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, _workloadContext, maxRoiNum, numOutputs);
 
     if (_inferDataPtr.get() == nullptr) {
         THROW_IE_EXCEPTION << "Failed to create Unite inferData";
@@ -95,10 +97,12 @@ void HddlUniteInferData::prepareUniteInput(const IE::Blob::CPtr& blob, const IE:
 }
 
 void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
-    std::call_once(_onceFlagOutputAllocations, [&] {
-        checkData(desc);
+    checkData(desc);
+    const auto name = desc->getName();
 
-        const std::string name = desc->getName();
+    auto findIt = std::find(_onceFlagOutputAllocations.begin(), _onceFlagOutputAllocations.end(), name);
+    if (findIt == _onceFlagOutputAllocations.end()) {
+        _onceFlagOutputAllocations.push_back(name);
 
         BlobDescriptor::Ptr blobDescriptorPtr;
         if (_haveRemoteContext) {
@@ -111,11 +115,10 @@ void HddlUniteInferData::prepareUniteOutput(const IE::DataPtr& desc) {
         _inferDataPtr->createBlob(name, blobDescriptorPtr->createUniteBlobDesc(isInput, _graphColorFormat), isInput);
 
         _outputs[name] = blobDescriptorPtr;
-    });
+    }
 }
 
 std::string HddlUniteInferData::getOutputData(const std::string& outputName) {
-    waitInferDone();
     // TODO send roiIndex (second parameter)
     auto outputData = _inferDataPtr->getOutputData(outputName);
     if (outputData.empty()) {

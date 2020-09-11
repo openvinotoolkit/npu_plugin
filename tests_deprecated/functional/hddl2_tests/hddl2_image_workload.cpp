@@ -76,7 +76,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
@@ -109,7 +109,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
 
     ASSERT_TRUE(outputBlob->byteSize() == refBlob->byteSize());
     ASSERT_NO_THROW(
@@ -137,10 +137,10 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     IE::Core ie;
 
     // ---- Import or load network
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     // ---- Load NV12 Image and create blob from it
@@ -167,7 +167,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, nv12InputBlob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
 
     ASSERT_NO_THROW(
         Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));

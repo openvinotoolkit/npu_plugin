@@ -42,7 +42,8 @@ public:
 
     explicit HddlUniteInferData(const bool& needPreProcessing = false,
         const HDDL2RemoteContext::CPtr& remoteContext = nullptr,
-        const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR);
+        const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR,
+        const size_t numOutputs = 1);
 
     // TODO Now similar to prepareUniteOutput, make one for all?
     void prepareUniteInput(const InferenceEngine::Blob::CPtr& blob, const InferenceEngine::DataPtr& desc);
@@ -72,7 +73,8 @@ private:
 
     // TODO [Workaround] Avoid allocation buffer each time
     std::once_flag _onceFlagInputAllocations;
-    std::once_flag _onceFlagOutputAllocations;
+
+    std::vector<std::string> _onceFlagOutputAllocations;
 
     HddlUnite::Inference::InferData::ProfileData _profileData = {};
     InferenceEngine::ColorFormat _graphColorFormat = InferenceEngine::ColorFormat::BGR;
