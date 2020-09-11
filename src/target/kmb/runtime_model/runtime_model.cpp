@@ -332,13 +332,14 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto temporaryBuffer = tensorBufferIt;
         //NOTE: See allocate_memory_kmb.cpp line 552
         if (t->hasAttr("leftIndex"))
-            leading_offset = t->get<std::size_t>("leftIndex");
+            leading_offset = t->get<std::size_t>("leftIndex") * toBuild->strides[0];
 
         while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
         {
             temporaryBuffer = temporaryBuffer->getMaster();
             if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
-                leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex");
+                leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
+                        toBuild->strides[0];
         }
 
         toBuild->locale_index = std::vector<unsigned int>(1,0);
