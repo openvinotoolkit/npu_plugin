@@ -82,35 +82,6 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
     }
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemory(const WorkloadID& id, const size_t& size) noexcept {
-    std::lock_guard<std::mutex> lock(memStorageMutex);
-
-    if (!isValidAllocateSize(size)) {
-        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
-        return nullptr;
-    }
-
-    if (!isValidWorkloadID(id)) {
-        _logger->warning("%s: Incorrect memory fd!\n", __FUNCTION__);
-        return nullptr;
-    }
-
-    try {
-        // Use already allocated memory
-        HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, id, size);
-
-        HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        _memoryStorage.emplace(static_cast<void*>(remoteMemoryPtr.get()), memoryContainer);
-
-        _logger->info("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
-        return static_cast<void*>(remoteMemoryPtr.get());
-    } catch (const std::exception& ex) {
-        _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
-        return nullptr;
-    }
-}
-
 void* HDDL2RemoteAllocator::wrapRemoteMemory(
     const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);

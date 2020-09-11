@@ -89,8 +89,11 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createRemoteBlobPerformance) {
     }
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-
+#ifdef __unix__
     const double MAX_SPENT_TIME = 1.0;
+#else
+    const double MAX_SPENT_TIME = 2.0;
+#endif
     ASSERT_LE(elapsed_seconds.count(), MAX_SPENT_TIME);
 }
 
@@ -105,7 +108,10 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createROIBlobPerformance) {
     }
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-
+#ifdef __unix__
     const double MAX_SPENT_TIME = 0.5;
+#else
+    const double MAX_SPENT_TIME = 1.0;
+#endif
     ASSERT_LE(elapsed_seconds.count(), MAX_SPENT_TIME);
 }

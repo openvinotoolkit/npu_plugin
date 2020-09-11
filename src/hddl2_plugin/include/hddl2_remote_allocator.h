@@ -78,7 +78,6 @@ public:
      * @return Allocated remote memory
      */
     void* wrapRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept;
-    void* wrapRemoteMemory(const WorkloadID& id, const size_t& size) noexcept;
 
     /**
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter

@@ -60,38 +60,13 @@ TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
 }
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
-// TODO FAIL - HddlUnite problem
-TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectWorkloadID_ReturnNull) {
-    SKIP_IF_NO_DEVICE();
-    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-    const int incorrectWorkloadID = INT32_MAX;
 
-    auto remoteMem = allocatorPtr->wrapRemoteMemory(incorrectWorkloadID, correctSize);
-    ASSERT_EQ(remoteMem, nullptr);
-
-    allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-
-    remoteMem = allocatorPtr->wrapRemoteMemory(nullptr, correctSize);
-    ASSERT_EQ(remoteMem, nullptr);
-}
-
-TEST_F(RemoteAllocator_WrapMemory, NegativeWorkloadID_ReturnNull) {
-    SKIP_IF_NO_DEVICE();
-    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
-    const int negativeWorkloadID = -1;
-
-    auto remoteMem = allocatorPtr->wrapRemoteMemory(negativeWorkloadID, correctSize);
-    ASSERT_EQ(remoteMem, nullptr);
-}
-
-TEST_F(RemoteAllocator_WrapMemory, Allow4KFramWrapping) {
+TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMem_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
-    const size_t frame4K = 3840 * 2160 * 3;
-
-    auto handle = allocatorPtr->wrapRemoteMemory(workloadContextPtr->getWorkloadContextID(), frame4K);
-    ASSERT_NE(handle, nullptr);
+    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr, correctSize);
+    ASSERT_EQ(remoteMem, nullptr);
 }
 
 //------------------------------------------------------------------------------
