@@ -1,153 +1,38 @@
-cmake_minimum_required(VERSION 3.10.0)
-
 project(mcmComplier VERSION 1.0.0)
 
-option(MCM_COMPILER_BUILD_PYTHON "Build Python wrappers" ON)
-option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
-option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
-option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
-option(MCM_COMPILER_FORCE_BUILD_LEMON "Force build lemon library" OFF)
-
-if (NOT MCM_COMPILER_IS_SUBPROJECT)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
-endif()
-set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
-
-set(CMAKE_VERBOSE_MAKEFILE OFF) # for debugging
-
-add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
-
-set(META_DIR_PATH "${PROJECT_BINARY_DIR}/meta")
-include_directories(${META_DIR_PATH})
-
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake-modules")
 
 #############################################################################################
 ### Setup
 #############################################################################################
 
-if (NOT CMAKE_BUILD_TYPE)
-    # Due to the current development pace, Debug is default build type
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-endif()
-message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+set(META_DIR_PATH "${CMAKE_CURRENT_SOURCE_DIR}/meta")
 
-add_compile_options(-std=c++11 --no-gnu-unique)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# Replace compiler flags
+foreach(flag IN ITEMS "-Werror" "-fvisibility=hidden" "-fvisibility-inlines-hidden")
+    string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+    string(REPLACE ${flag} "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+endforeach()
 
-set(PROFILER FALSE CACHE BOOL "Enable integrated profiler")
-set(LOG TRUE CACHE BOOL "Enable logger")
-set(PROFILE_PHASE TRUE CACHE BOOL "Enable profiling at compilation phases level")
-set(PROFILE_BASE TRUE CACHE BOOL "Enable profiling at base components level")
-set(PROFILE_PASS TRUE CACHE BOOL "Enable profiling at compilation passes level")
-set(PROFILE_COMP TRUE CACHE BOOL "Enable profiling at ops composition level")
-set(PROFILE_ALGO TRUE CACHE BOOL "Enable profiling at internal algorithms level")
-set(PROFILE_BULD TRUE CACHE BOOL "Enable profiling at building blocks level")
-set(PROFILE_MATH TRUE CACHE BOOL "Enable profiling at tensor math operations level")
+# TODO: get rid of this define.
+add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
+add_definitions(-DMV_LOG_ENABLED)
 
-if (${LOG})
-    add_definitions(-DMV_LOG_ENABLED)
-endif()
-
-if (${PROFILER})
-    if (${UNIX})
-        add_definitions(-DMV_PROFILER_ENABLED)
-        include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
-        add_subdirectory(contrib/easy_profiler)
-
-        if (${PROFILE_PHASE})
-            add_definitions(-DMV_PROFILE_PHASE_ENABLED)
-        endif()
-
-        if (${PROFILE_BASE})
-            add_definitions(-DMV_PROFILE_BASE_ENABLED)
-        endif()
-
-        if (${PROFILE_PASS})
-            add_definitions(-DMV_PROFILE_PASS_ENABLED)
-        endif()
-
-        if (${PROFILE_COMP})
-            add_definitions(-DMV_PROFILE_COMP_ENABLED)
-        endif()
-
-        if (${PROFILE_ALGO})
-            add_definitions(-DMV_PROFILE_ALGO_ENABLED)
-        endif()
-
-        if (${PROFILE_BULD})
-            add_definitions(-DMV_PROFILE_BULD_ENABLED)
-        endif()
-
-        if (${PROFILE_MATH})
-            add_definitions(-DMV_PROFILE_MATH_ENABLED)
-        endif()
-    else()
-        message("Ignoring PROFILER=ON flag, profiling only available for Linux/UNIX")
-    endif()
-endif()
-
-#############################################################################################
-### Test Coverage - off by default. Pass param CODE_COVERAGE=ON
-### > cmake -DCODE_COVERAGE=ON -DCMAKE_BUILD_TYPE=Debug ..
-#############################################################################################
-
-include(cmake-modules/code-coverage.cmake)
-add_code_coverage()
-
-# sanitizer options
-option(ENABLE_SANITIZER "enable checking memory errors via AddressSanitizer" OFF)
-# TODO: it makes sense to print all important options on generation stage
-message(STATUS "ENABLE_SANITIZER: " ${ENABLE_SANITIZER})
-
-option(ENABLE_THREAD_SANITIZER "enable checking data races via ThreadSanitizer" OFF)
-message(STATUS "ENABLE_THREAD_SANITIZER: " ${ENABLE_THREAD_SANITIZER})
-
-include(sanitizer)
-
-#############################################################################################
-### Find packages - uses Find*.cmake files in /cmake-modules dir
-#############################################################################################
-
-find_package(LEMON QUIET)
-if(LEMON_FOUND AND NOT MCM_COMPILER_FORCE_BUILD_LEMON)
-    message(STATUS "Found LEMON installed on target system : ${LEMON_LIBRARY}")
-
-    add_library(lemon UNKNOWN IMPORTED)
-    set_target_properties(lemon PROPERTIES
-        IMPORTED_LOCATION "${LEMON_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${LEMON_INCLUDE_DIR}")
+if(MSVC)
+    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
 else()
-    message(STATUS "LEMON library is not installed on target system, build it from the sources...")
-    add_subdirectory(contrib/lemon)
+    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "-fstack-protector-all")
 
-    target_include_directories(lemon PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon
-        ${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon)
+    # TODO: check if we really need this.
+    add_compile_options(--no-gnu-unique)
 endif()
 
-set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-if(CMAKE_CROSSCOMPILING)
-    set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
-endif()
-add_subdirectory(contrib/flatbuffers)
+set(CMAKE_C_VISIBILITY_PRESET default)
+set(CMAKE_CXX_VISIBILITY_PRESET default)
 
 #############################################################################################
 ### Main build
 #############################################################################################
-
-if (MSVC)
-    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
-else()
-    # add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "-fstack-protector-all")
-endif()
-
-include_directories(${PROJECT_SOURCE_DIR})
-include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include)
-include_directories(${PROJECT_SOURCE_DIR}/include/huffman_encoding)
 
 set(base
     "${PROJECT_SOURCE_DIR}/src/base/exception/argument_error.cpp"
@@ -380,123 +265,36 @@ set(syscalls
    "${PROJECT_SOURCE_DIR}/src/pass/syscalls/convert_flatbuffer.cpp"
 )
 
-if(CMAKE_CROSSCOMPILING)
-    find_file(MCM_COMPILER_EXPORT_FILE mcmCompilerExecutables.cmake DOC "Path to the export file from a native build")
-
-    if(MCM_COMPILER_EXPORT_FILE)
-        message(STATUS "Cross-compiling, using executables from native build : ${MCM_COMPILER_EXPORT_FILE}")
-        include(${MCM_COMPILER_EXPORT_FILE})
-    endif()
-endif()
-
 add_subdirectory(meta)
-add_subdirectory(schema)
 
-if(NOT CMAKE_CROSSCOMPILING)
-    # Export the generator targets to a file, so it can be imported (see above) by another build.
-    export(TARGETS flatc gen_composition_api FILE ${CMAKE_BINARY_DIR}/mcmCompilerExecutables.cmake)
+add_library(mcmCompiler SHARED
+    ${base} ${model} ${logger} ${pass} ${compiler} ${syscalls}
+    "${META_DIR_PATH}/src/compositional_model.cpp"
+    "${META_DIR_PATH}/src/op_model.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
+)
+
+if(TARGET mcmCompilerGenCompAPI)
+    add_dependencies(mcmCompiler mcmCompilerGenCompAPI)
+endif()
+if(TARGET mcmCompilerGenSchema)
+    add_dependencies(mcmCompiler mcmCompilerGenSchema)
 endif()
 
-if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:metamodel>)
-    add_library(model OBJECT ${model})
+target_include_directories(mcmCompiler
+    PUBLIC
+        ${PROJECT_SOURCE_DIR}
+        "${PROJECT_SOURCE_DIR}/include"
+        ${META_DIR_PATH}
+        "${META_DIR_PATH}/include"
+    PRIVATE
+        "${PROJECT_SOURCE_DIR}/src"
+        "${PROJECT_SOURCE_DIR}/src/pass"
+        "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
+)
 
-    add_dependencies(cm generate-comp-api)
-    add_dependencies(cm generate-graphfile-headers)
-    add_dependencies(model generate-comp-api)
-
-    target_link_libraries(cm PUBLIC metamodel)
-else()
-    add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-    add_library(model SHARED ${model})
-
-    if(TARGET generate-comp-api)
-        add_dependencies(cm generate-comp-api)
-        add_dependencies(model generate-comp-api)
-    endif()
-    if(TARGET generate-graphfile-headers)
-        add_dependencies(cm generate-graphfile-headers)
-    endif()
-
-    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
-    target_link_libraries(model PRIVATE lemon)
-
-    # setup warnings as errors
-    target_compile_options(cm PRIVATE -Wall -Wextra)
-    target_compile_options(model PRIVATE -Wall -Wextra)
-
-    if(NOT CMAKE_CROSSCOMPILING)
-        if(MCM_COMPILER_BUILD_PYTHON)
-            add_subdirectory(python/api)
-        endif()
-        if(MCM_COMPILER_BUILD_TESTS)
-            add_subdirectory(contrib/googletest)
-        endif()
-    endif()
-endif()
-
-add_subdirectory(src/scheduler)
-add_subdirectory(src/pass/lp_scheduler)
-add_dependencies(cm lp_scheduler lp_scheduler_pass)
-
-set(CM_INCLUDE_DIRECTORIES ${PROJECT_SOURCE_DIR}/include
-                           ${PROJECT_SOURCE_DIR}
-                           ${PROJECT_SOURCE_DIR}/contrib/flatbuffers/include
-                           ${META_DIR_PATH})
-
-target_include_directories(cm
-        PUBLIC
-            "$<BUILD_INTERFACE:${CM_INCLUDE_DIRECTORIES}>"
-            "$<INSTALL_INTERFACE:.>"
-        PRIVATE
-            ${PROJECT_SOURCE_DIR}/src/pass
-            ${PROJECT_SOURCE_DIR}/src/)
-
-if (${PROFILER} AND ${UNIX})
-    target_link_libraries(cm easy_profiler)
-endif()
-
-if(NOT CMAKE_CROSSCOMPILING)
-    # add_subdirectory(tools) # testing without
-    if(MCM_COMPILER_BUILD_EXAMPLES)
-        add_subdirectory(examples)
-    endif()
-    if(MCM_COMPILER_BUILD_TESTS)
-        add_subdirectory(tests)
-    endif()
-    if(MCM_COMPILER_BUILD_TOOLS)
-        add_subdirectory(tools)
-    endif()
-endif()
-
-install(TARGETS cm model
-        EXPORT mcmCompilerTargets
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION lib
-        INCLUDES DESTINATION "include")
-
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/config
-        DESTINATION "."
-        PATTERN ".gitignore" EXCLUDE)
-
-install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
-        DESTINATION "include")
-
-install(DIRECTORY ${META_DIR_PATH}/include
-                  ${META_DIR_PATH}/schema
-        DESTINATION "include/mcm/meta")
-
-install(EXPORT mcmCompilerTargets DESTINATION "share/cmake/mcmCompiler")
-
-include(CMakePackageConfigHelpers)
-
-configure_package_config_file(
-        "${CMAKE_CURRENT_LIST_DIR}/cmake/mcmCompilerConfig.cmake.in"
-        "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
-        INSTALL_DESTINATION "share/cmake/mcmCompiler"
-        NO_SET_AND_CHECK_MACRO
-        NO_CHECK_REQUIRED_COMPONENTS_MACRO)
-
-install(FILES "${CMAKE_BINARY_DIR}/mcmCompilerConfig.cmake"
-        DESTINATION "share/cmake/mcmCompiler")
+target_link_libraries(mcmCompiler
+    PUBLIC
+        flatbuffers
+        lemon
+)

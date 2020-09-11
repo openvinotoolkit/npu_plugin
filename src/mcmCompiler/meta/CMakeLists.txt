@@ -1,68 +1,90 @@
-if(CMAKE_CROSSCOMPILING AND NOT TARGET gen_composition_api)
-    # Old behavior.
-    message(STATUS "Cross-compiling, assumes meta/ files already generated...")
-    add_library(metamodel SHARED
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    )
-    target_link_libraries(metamodel model)
-    return()
-endif()
+#
+# mcmCompilerGenCompAPI
+#
 
-# Only build the generator if not crosscompiling.
 if(NOT CMAKE_CROSSCOMPILING)
-    message(STATUS "Native build, compile generator...")
-    add_executable(gen_composition_api gen_composition_api.cpp ${base} ${logger})
+    add_executable(mcmCompilerCompAPIGenApp gen_composition_api.cpp ${base} ${logger})
+
+    target_include_directories(mcmCompilerCompAPIGenApp
+        PRIVATE
+            ${PROJECT_SOURCE_DIR}
+            "${PROJECT_SOURCE_DIR}/include"
+            "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
+    )
+
+    file(MAKE_DIRECTORY "${META_DIR_PATH}/include/mcm" "${META_DIR_PATH}/src")
+
+    add_custom_command(
+        OUTPUT
+            "${META_DIR_PATH}/include/mcm/compositional_model.hpp"
+            "${META_DIR_PATH}/include/mcm/op_model.hpp"
+            "${META_DIR_PATH}/src/compositional_model.cpp"
+            "${META_DIR_PATH}/src/op_model.cpp"
+        COMMAND
+            mcmCompilerCompAPIGenApp "${META_DIR_PATH}"
+        DEPENDS
+            mcmCompilerCompAPIGenApp
+        COMMENT
+            "Generate compositional API"
+        VERBATIM
+    )
+
+    add_custom_target(mcmCompilerGenCompAPI
+        DEPENDS
+            "${META_DIR_PATH}/include/mcm/compositional_model.hpp"
+            "${META_DIR_PATH}/include/mcm/op_model.hpp"
+            "${META_DIR_PATH}/src/compositional_model.cpp"
+            "${META_DIR_PATH}/src/op_model.cpp"
+        COMMENT
+            "Generate compositional API"
+    )
 endif()
 
-file(MAKE_DIRECTORY ${META_DIR_PATH}/include/mcm ${META_DIR_PATH}/src)
+#
+# mcmCompilerGenSchema
+#
 
-add_custom_command(
-    OUTPUT
-        ${META_DIR_PATH}/include/mcm/compositional_model.hpp
-        ${META_DIR_PATH}/include/mcm/op_model.hpp
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    COMMAND
-        gen_composition_api ${META_DIR_PATH}
-    DEPENDS
-        gen_composition_api
-    COMMENT
-        "Generate compositional API"
-    VERBATIM
-)
+if(NOT CMAKE_CROSSCOMPILING AND DEFINED MCM_GRAPH_SCHEMA_TAG)
+    include(FetchContent)
 
-add_custom_target(generate-comp-api
-    DEPENDS
-        ${META_DIR_PATH}/include/mcm/compositional_model.hpp
-        ${META_DIR_PATH}/include/mcm/op_model.hpp
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    COMMENT
-        "Generate compositional API"
-)
+    FetchContent_Declare(schema
+         GIT_REPOSITORY "git@github.com:movidius/graphFile-schema.git"
+         GIT_TAG ${MCM_GRAPH_SCHEMA_TAG})
 
-if (MSVC)
-    add_library(metamodel OBJECT
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-        $<TARGET_OBJECTS:model>
-    )
-else()
-    add_library(metamodel SHARED
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    )
+    FetchContent_GetProperties(schema)
 
-    target_link_libraries(metamodel model)
-    if(${PROFILER})
-        target_link_libraries(metamodel easy_profiler)
+    if(NOT schema_POPULATED)
+        FetchContent_Populate(schema)
+
+        file(MAKE_DIRECTORY "${META_DIR_PATH}/include/schema")
+
+        file(GLOB fbs_input_files "${schema_SOURCE_DIR}/src/schema/*.fbs")
+
+        set(fbs_output_files)
+        foreach(fbs_file IN LISTS fbs_input_files)
+            get_filename_component(file_name_we "${fbs_file}" NAME_WE)
+            set(output_file "${META_DIR_PATH}/include/schema/graphfile/${file_name_we}_generated.h")
+            list(APPEND fbs_output_files ${output_file})
+        endforeach()
+
+        add_custom_command(
+            OUTPUT
+                ${fbs_output_files}
+            COMMAND
+                flatc -o "${META_DIR_PATH}/include/schema/graphfile" --cpp --gen-object-api --force-empty ${fbs_input_files}
+            DEPENDS
+                ${fbs_input_files}
+                flatc
+            COMMENT
+                "[flatc] Generate graphfile headers"
+            VERBATIM
+        )
+
+        add_custom_target(mcmCompilerGenSchema
+            DEPENDS
+                ${fbs_output_files}
+            COMMENT
+                "[flatc] Generate graphfile headers"
+        )
     endif()
 endif()
-
-install(TARGETS metamodel
-        EXPORT mcmCompilerTargets
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib
-        RUNTIME DESTINATION lib
-        INCLUDES DESTINATION "include")
