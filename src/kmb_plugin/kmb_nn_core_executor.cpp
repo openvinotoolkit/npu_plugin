@@ -54,7 +54,7 @@ const uint32_t PIPELINE_DEPTH = 4;
 KmbNNCoreExecutor::KmbNNCoreExecutor(const KmbConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("KmbNNCoreExecutor", config.logLevel(), consoleOutput())),
-      _outputBuffer(nullptr, [this](uint8_t* buffer) {
+      _outputBuffer(nullptr, [](uint8_t* buffer) {
           getKmbAllocator()->free(buffer);
       }) {
     if (!_config.useKmbExecutor()) {

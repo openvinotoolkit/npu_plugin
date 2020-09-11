@@ -109,6 +109,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
                 {"Const",              &FrontEndMcm::parseConst},
+                {"Exp",                &FrontEndMcm::parseExp},
         };
 
 mv::DType convert_data_type(const ie::Precision& iePrecision) {
@@ -1523,33 +1524,47 @@ void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     auto powerLayer = std::dynamic_pointer_cast<ie::PowerLayer>(layer);
     IE_ASSERT(powerLayer != nullptr);
 
-    if (powerLayer->power != 1) {
-        VPU_THROW_EXCEPTION << "Layer " << powerLayer->name << " supports only power = 1";
+    if ((powerLayer->power != 1) && (powerLayer->power != -1)) {
+        VPU_THROW_EXCEPTION << "Layer " << powerLayer->name << " supports only power = 1 or -1";
     }
 
-    auto input = inputs[0];
+    if (powerLayer->power == -1) {
+        logParsingStartHelper(_logger, layer, inputs);
 
-    size_t dimC, stub;
-    parseDims(input->desc(), stub, dimC, stub, stub);
+        auto layerOutput = layer->outData[0];
+        IE_ASSERT(layerOutput != nullptr);
 
-    double powerScale = powerLayer->scale;
-    std::vector<double> scaleData;
-    scaleData.resize(dimC, powerScale);
+        auto reciprocal_result =
+            _modelMcm.reciprocal(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams(), layer->name);
 
-    ie::Blob::Ptr biases;
-    if (powerLayer->offset != 0) {
-        SizeVector dims({dimC});
-        const TensorDesc biasTensor = TensorDesc(InferenceEngine::Precision::FP32, dims, ie::C);
+        bindOutput(reciprocal_result, layer->outData[0]);
 
-        biases = make_blob_with_precision(biasTensor);
-        biases->allocate();
-        float* raw = biases->buffer().as<float*>();
-        for (size_t i = 0; i < dimC; i++) {
-            raw[i] = powerLayer->offset;
+        _logger->debug(FINISH_PARSING_STR, reciprocal_result->getName());
+    } else {
+        auto input = inputs[0];
+
+        size_t dimC, stub;
+        parseDims(input->desc(), stub, dimC, stub, stub);
+
+        double powerScale = powerLayer->scale;
+        std::vector<double> scaleData;
+        scaleData.resize(dimC, powerScale);
+
+        ie::Blob::Ptr biases;
+        if (powerLayer->offset != 0) {
+            SizeVector dims({dimC});
+            const TensorDesc biasTensor = TensorDesc(InferenceEngine::Precision::FP32, dims, ie::C);
+
+            biases = make_blob_with_precision(biasTensor);
+            biases->allocate();
+            float* raw = biases->buffer().as<float*>();
+            for (size_t i = 0; i < dimC; i++) {
+                raw[i] = powerLayer->offset;
+            }
         }
-    }
 
-    parseScaleImpl(layer, inputs, scaleData, biases);
+        parseScaleImpl(layer, inputs, scaleData, biases);
+    }
 }
 
 void FrontEndMcm::parseDetectionOutput(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
@@ -1629,8 +1644,8 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
     IE_ASSERT(deconvLayer != nullptr);
 
     logParsingStartHelper(_logger, layer, {input});
-    int kernelSizeX = deconvLayer->_kernel_x;
-    int kernelSizeY = deconvLayer->_kernel_y;
+    size_t kernelSizeX = deconvLayer->_kernel_x;
+    size_t kernelSizeY = deconvLayer->_kernel_y;
 
     int kernelStrideX = deconvLayer->_stride_x;
     int kernelStrideY = deconvLayer->_stride_y;
@@ -1686,18 +1701,50 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
             static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), true, convolutionDataType,
             initialQuantParams(), deconvLayer->name);
     } else {
-        VPU_THROW_EXCEPTION << "Non depthwise Deconvolution layer is not supported by kmbPlugin";
+        auto weights = layer->blobs["weights"];
+        auto weightsData = packBlobToVector<double>(weights, weights->size());
+
+        mv::Shape mcmShape = {
+            static_cast<uint64_t>(kernelSizeY), static_cast<uint64_t>(kernelSizeX), inputGroupSize, outputGroupSize};
+
+        std::vector<double> weightsDataReorder(weightsData.size());
+
+        for (size_t k = 0; k < outputGroupSize; k++)
+            for (size_t c = 0; c < inputGroupSize; c++)
+                for (size_t h = 0; h < kernelSizeY; h++)
+                    for (size_t w = 0; w < kernelSizeX; w++) {
+                        size_t src_idx = c * outputGroupSize * kernelSizeY * kernelSizeX +
+                                         k * kernelSizeY * kernelSizeX + h * kernelSizeX + w;
+                        size_t dst_idx = k * inputGroupSize * kernelSizeY * kernelSizeX +
+                                         c * kernelSizeY * kernelSizeX + h * kernelSizeX + w;
+                        weightsDataReorder[dst_idx] = weightsData[src_idx];
+                    }
+
+        auto mvWeightsValues = _modelMcm.constant(
+            weightsDataReorder, mcmShape, convert_data_type(Precision(Precision::ePrecision::FP32)), mv::Order("NCHW"));
+
+        mvDeconv = _modelMcm.deconv(input->getMcmNode(), mvWeightsValues,
+            {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
+            {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight), static_cast<uint16_t>(padTop),
+                static_cast<uint16_t>(padBottom)},
+            static_cast<unsigned>(dilationX), static_cast<unsigned>(groupSize), false, convolutionDataType,
+            initialQuantParams(), deconvLayer->name);
     }
 
     //  Need quantize bias, this logic provide by MCM team, need check
-    if (inputs.size() == 3) {
+    if (layer->blobs.count("biases")) {
+        auto biases = layer->blobs["biases"];
+        auto biasData = packBlobToVector<double>(biases, biases->size());
+        mv::Shape mcmShape = {biasData.size()};
+
+        auto mvBiases = _modelMcm.constant(biasData, mcmShape,
+            convert_data_type(Precision(Precision::ePrecision::FP32)), mv::Order::getColMajorID(mcmShape.ndims()));
+
         mvDeconvOnly = mvDeconv;
-        auto mvBiases = inputs[2]->getMcmNode();
         mvDeconv = _modelMcm.bias(
             mvDeconvOnly, mvBiases, mv::DType("Default"), initialQuantParams(), deconvLayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", deconvLayer->type, deconvLayer->name,
             mvDeconv->getName());
-        std::cout << "mcm deconv bias done" << std::endl;
     }
     bindOutput(mvDeconv, layerOutput);
 
@@ -2057,6 +2104,19 @@ void FrontEndMcm::parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     UNUSED(inputs);
     UNUSED(layer);
     VPU_THROW_EXCEPTION << "Split layer is not supported by kmbPlugin";
+}
+
+void FrontEndMcm::parseExp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    logParsingStartHelper(_logger, layer, inputs);
+
+    auto layerOutput = layer->outData[0];
+    IE_ASSERT(layerOutput != nullptr);
+
+    auto exp_result = _modelMcm.exp(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams(), layer->name);
+
+    bindOutput(exp_result, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, exp_result->getName());
 }
 
 }  // namespace vpu
