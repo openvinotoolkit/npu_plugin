@@ -550,7 +550,21 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
 //                    //with index 3. The final relative index of the inputBuffer to the masterBuffer is 8=5+3
 //                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
                     auto inp = dm.getTensor(inputBuffer->getData()->getName());
-                    inp->set<std::size_t>("leftIndex", lhs_padding.at(axis));
+                    auto out = dm.getTensor(outputBuffer->getData()->getName());
+                    std::size_t left_index = 0;
+                    //NOTE: CONCAT OVER C
+                    if(inp->getShape()[mv::IO_CHANNEL_DIMENSION] != out->getShape()[mv::IO_CHANNEL_DIMENSION])
+                        if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_HEIGHT_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis);
+                    //NOTE: CONCAT OVER H
+                    if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
+                        if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                    inp->set<std::size_t>("leftIndex", left_index);
                 }
             }
             else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
