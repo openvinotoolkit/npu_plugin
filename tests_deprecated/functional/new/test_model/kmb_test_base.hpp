@@ -434,6 +434,14 @@ public:
             const float meanIntersectionOverUnionTolerance);
 };
 
+class UnetNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& image,
+        const float meanIntersectionOverUnionTolerance);
+};
+
 //
 // CustomNetworkTest
 //

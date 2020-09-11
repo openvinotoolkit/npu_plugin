@@ -846,6 +846,26 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
+TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NCHW),
+        TestImageDesc("480x360/0016E5_07959.png", false),
+        0.3f);  // mean intersection over union tolerance
+}
+
+TEST_F(UnetNetworkTest, unet_camvid_ava_0001_NCHW_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW)
+            .setUserOutputLayout("output", Layout::NCHW),
+        TestImageDesc("480x360/0016E5_07959.png", false),
+        0.3f);  // mean intersection over union tolerance
+}
+
 TEST_F(GazeEstimationNetworkTest, DISABLED_gaze_estimation_adas_0002) {
     const auto left_eye_input_name = "left_eye_image";
     const auto right_eye_input_name = "right_eye_image";

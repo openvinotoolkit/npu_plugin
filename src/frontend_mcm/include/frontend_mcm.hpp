@@ -142,6 +142,7 @@ public:
     void parseSplit(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseFakeQuantize(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
     void parseConst(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
+    void parseExp(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs);
 
     //
     // Utility
