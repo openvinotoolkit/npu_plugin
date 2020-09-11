@@ -14,80 +14,88 @@
 # stated in the License.
 #
 
-# Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
-set(CMAKE_POLICY_DEFAULT_CMP0063 NEW)
-
-# Set PROJECT_VERSION* variables by project command only.
-set(CMAKE_POLICY_DEFAULT_CMP0048 NEW)
+#
+# Project properties
+#
 
 cmake_minimum_required(VERSION 3.13.0 FATAL_ERROR)
 
+# Honor <LANG>_VISIBILITY_PRESET for all target types (including static libraries).
+cmake_policy(SET CMP0063 NEW)
+
+# Set PROJECT_VERSION* variables by project command only.
+cmake_policy(SET CMP0048 NEW)
+
 project(InferenceEngineKMBPlugin)
+
+#
+# Build properties
+#
+
+set(VPUX_DEVICE_NAME    "VPUX")
+set(KMB_DEVICE_NAME     "KMB")
+set(HDDL2_DEVICE_NAME   "HDDL2")
 
 set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
 
-list(APPEND CMAKE_MODULE_PATH "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/cmake")
-
-#
-# Build rules
-#
 find_package(InferenceEngineDeveloperPackage REQUIRED)
 
 include(cmake/features.cmake)
 include(cmake/compile_options.cmake)
 include(cmake/dependencies.cmake)
 
-if(UNIX)
-    ie_add_compiler_flags(-Wno-undef)
+if(ENABLE_TESTS)
+    enable_testing()
 endif()
 
 print_enabled_kmb_features()
+
+#
+# Build configuration
+#
+
+if(UNIX)
+    ie_add_compiler_flags(-Wno-undef)
+endif()
 
 if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_options()
 endif()
 
-if (ARM OR AARCH64)
-    if (NOT vpualHost_DIR)
-        set(vpualHost_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost)
-    endif()
-    find_package(vpualHost REQUIRED CONFIG PATHS ${vpualHost_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
-    set(VPUSMM_LIBRARY vpusmm)
+#
+# Sub-directories
+#
+
+ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
+if(ENABLE_HDDL2)
+    ie_cpack_add_component(${HDDL2_DEVICE_NAME} REQUIRED)
 endif()
+ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
 
 add_subdirectory(thirdparty)
-
-add_subdirectory(src/vpual_backend)
-add_subdirectory(src/vpux)
-# TODO: Frontend mcm lib should be built only if mcm compiler enabled, but now we have some
-#   dependencies, like mcm_config
-add_subdirectory(src/frontend_mcm)
-
-if(UNIX)
-    add_subdirectory(src)
-endif()
-
-add_subdirectory(src/kmb_plugin)
-
-if (ENABLE_HDDL2)
-    add_subdirectory(src/hddl2_plugin)
-endif()
-
-# It should be called after all plugins to enable registration.
-add_subdirectory(src/utils)
+add_subdirectory(src)
 
 if(ENABLE_TESTS)
-    enable_testing()
     add_subdirectory(tests)
     add_subdirectory(tests_deprecated)
 endif()
-
-add_subdirectory(tools)
 
 if(ENABLE_KMB_SAMPLES)
     add_subdirectory(samples)
 endif()
 
-# install
-ie_cpack(kmb)
+add_subdirectory(tools)
+
+#
+# CPack
+#
+
+set(ALL_COMPONENTS)
+list(APPEND ALL_COMPONENTS ${KMB_DEVICE_NAME})
+if(ENABLE_HDDL2)
+    list(APPEND ALL_COMPONENTS ${HDDL2_DEVICE_NAME})
+endif()
+list(APPEND ALL_COMPONENTS ${VPUX_DEVICE_NAME})
+
+ie_cpack(${ALL_COMPONENTS})

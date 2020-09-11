@@ -30,4 +30,3 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     gflags
     kmb_utils
 )
-

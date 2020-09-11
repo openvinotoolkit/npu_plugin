@@ -1,5 +1,5 @@
 #
-# Copyright 2019 Intel Corporation.
+# Copyright 2019-2020 Intel Corporation.
 #
 # This software and the related documents are Intel copyrighted materials,
 # and your use of them is governed by the express license under which they
@@ -21,44 +21,29 @@ endif()
 set(TARGET_NAME "kmb_utils")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
-
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
-    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
-endif()
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})
 
-target_include_directories(${TARGET_NAME}
-        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(${TARGET_NAME}
-        PRIVATE ${VPUSMM_LIBRARY}
-        PUBLIC IE::inference_engine_lp_transformations IE::vpu_common_lib)
-
-if(UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-endif()
+enable_warnings_as_errors(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
-
+target_include_directories(${TARGET_NAME}
+    SYSTEM PUBLIC
+        $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
 target_include_directories(${TARGET_NAME}
     SYSTEM PRIVATE
         ${MCM_COMPILER_INCLUDES})
 
-# TODO: choose better MAIN_TARGET?
-ie_register_plugins(
-    MAIN_TARGET
-        kmb_utils
-    POSSIBLE_PLUGINS
-        vpuPlugin kmbPlugin HDDL2Plugin)
+link_system_libraries(${TARGET_NAME}
+    PRIVATE
+        ${VPUSMM_LIBRARY}
+    PUBLIC
+        IE::inference_engine_lp_transformations
+        IE::vpu_common_lib)
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)
