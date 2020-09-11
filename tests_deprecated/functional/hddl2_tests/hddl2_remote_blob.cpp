@@ -31,9 +31,9 @@ public:
     void TearDown() override;
 
     using RemoteMemoryFd = uint64_t;
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = nullptr;
+    IE::RemoteContext::Ptr remoteContextPtr = nullptr;
 
-    InferenceEngine::TensorDesc tensorDesc;
+    IE::TensorDesc tensorDesc;
     RemoteMemoryFd memoryFd = 0;
 
     RemoteMemory_Helper remoteMemoryHelper;

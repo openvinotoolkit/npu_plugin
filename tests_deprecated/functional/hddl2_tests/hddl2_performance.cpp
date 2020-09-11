@@ -94,9 +94,9 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     // ---- Load frame to remote memory (emulate VAAPI result)
     // ----- Load binary input
     const auto& nv12FrameTensor =
-        InferenceEngine::TensorDesc(InferenceEngine::Precision::U8, {1, 1, 1, 1749600}, InferenceEngine::Layout::NCHW);
+        IE::TensorDesc(IE::Precision::U8, {1, 1, 1, 1749600}, IE::Layout::NCHW);
 
-    InferenceEngine::Blob::Ptr inputRefBlob;
+    IE::Blob::Ptr inputRefBlob;
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
@@ -104,7 +104,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
-    InferenceEngine::Core ie;
+    IE::Core ie;
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -123,7 +123,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     blobFile.close();
 
     // ---- Create infer request
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     Time start_sync;

@@ -142,7 +142,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputRefBlob);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputRefBlob);
 
     // --- Compare with expected output
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
@@ -296,7 +296,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputNV12Blob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
         toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
@@ -381,7 +381,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
     auto outputBlob = inferRequest.GetBlob(outputBlobName);
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReference(modelPath, inputNV12Blob, &preprocInfo);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputNV12Blob, &preprocInfo);
 
     ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(
         toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));

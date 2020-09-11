@@ -36,6 +36,10 @@ struct BoundingBox final {
 std::vector<BoundingBox> parseYoloOutput(
     const InferenceEngine::Blob::Ptr& blob, size_t imgWidth, size_t imgHeight, float confThresh, bool isTiny);
 
+std::vector<BoundingBox> parseYoloV3Output(const InferenceEngine::BlobMap& blobs, size_t imgWidth, size_t imgHeight,
+    int classes, int coords, int num, const std::vector<float>& anchors, float confThresh,
+    InferenceEngine::Layout layout);
+
 std::vector<BoundingBox> parseSSDOutput(
     const InferenceEngine::Blob::Ptr& blob, size_t imgWidth, size_t imgHeight, float confThresh);
 
