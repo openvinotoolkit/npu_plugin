@@ -29,8 +29,6 @@ bool static isValidRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteM
     return remoteMemory->getDmaBufFd() != INT32_MAX;
 }
 
-bool static isValidWorkloadID(const WorkloadID& id) { return id != UINT64_MAX; }
-
 static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     switch (lockOp) {
     case InferenceEngine::LOCK_FOR_READ:

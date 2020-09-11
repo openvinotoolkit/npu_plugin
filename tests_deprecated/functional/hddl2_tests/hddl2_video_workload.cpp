@@ -185,7 +185,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     // ---- Create remote blob by using already exists remote memory
     IE::ROI roi {0, 10, 10, 100, 100};
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}, {IE::HDDL2_PARAM_KEY(ROI), roi}};
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
 
     auto inputsInfo = executableNetwork.GetInputsInfo();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -348,7 +348,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
 
     // ---- Create remote blob by using already exists remote memory and specify color format of it
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory},
-        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}, {IE::HDDL2_PARAM_KEY(ROI), roi}};
+        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
 
     // Specify input
     auto inputsInfo = executableNetwork.GetInputsInfo();
