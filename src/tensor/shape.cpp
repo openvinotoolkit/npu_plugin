@@ -97,7 +97,7 @@ const std::size_t& mv::Shape::operator[](int ndim) const
 {
 
     if (ndim >= static_cast<int>(dims_.size()) || static_cast<int>(dims_.size()) + ndim < 0)
-        throw ArgumentError(*this, "S index subscript", std::to_string(ndim),
+        throw ArgumentError(*this, "index subscript", std::to_string(ndim),
             "Exceeds the dimensionality " + std::to_string(ndims()));
 
     if (ndim < 0)

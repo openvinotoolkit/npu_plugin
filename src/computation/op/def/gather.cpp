@@ -4,20 +4,64 @@ namespace mv
 {
     namespace op_gather
     {
+        namespace {
+            enum ShapeDesc {
+                shape0D,
+                shape1D,
+                shape2D,
+                shape3D,
+                shape4D,
+                shapeOverflow
+            };
+            ShapeDesc incrementShapeDesc(ShapeDesc sh) {
+                switch(sh) {
+                    case shape0D: return shape1D;
+                    case shape1D: return shape2D;
+                    case shape2D: return shape3D;
+                    case shape3D: return shape4D;
+                }
+                return shapeOverflow;
+            }
+
+            ShapeDesc getShapeDesc(const Shape& sh) {
+                ShapeDesc outShapeDesc = shape0D;
+                for(size_t i = 0; i < sh.ndims(); ++i) {
+                    if((outShapeDesc == shape0D && sh[i] > 0) || (outShapeDesc > shape0D && sh[i] > 1)) {
+                        outShapeDesc = incrementShapeDesc(outShapeDesc);
+                    }
+                }
+                return outShapeDesc;
+            }
+        }
 
         static std::function<std::pair<bool, std::size_t>(const std::vector<Data::TensorIterator>&,
             const std::map<std::string, Attribute>&, std::string&)> inputCheckFcn =
             [](const std::vector<Data::TensorIterator>& inputs, const std::map<std::string, Attribute>& args,
             std::string& errMsg) -> std::pair<bool, std::size_t>
         {
+            // check inputs count
+            if(inputs.size() != 2) {
+                errMsg = "Invalid inputs count" + std::to_string(inputs.size());
+                return {false, 1};
+            }
+
+            // check axis
             auto input = inputs[0];
             auto inputShape = input->getShape();
 
             auto axis  = args.at("axis").get<unsigned>();
-
-            if (axis >= inputShape.ndims()) {
-                errMsg = "Invalid axis number - has to be less than number of dimensions - 1"
+            if (axis < 0 || axis >= inputShape.ndims()) {
+                errMsg = "Invalid axis number - has to be more then 0 and less than number of dimensions - 1"
                     + std::to_string(axis);
+                return {false, 1};
+            }
+
+            // check indices
+            auto indices = inputs[1];
+            auto indicesShape = indices->getShape();
+
+            if(getShapeDesc(indicesShape) != shape1D) {
+                errMsg = "Indices shape more then 1D is not supported yet";
                 return {false, 1};
             }
 
@@ -34,16 +78,27 @@ namespace mv
 
             mv::Order order(inputs[0]->getOrder());
 
-            auto axis  = args.at("axis").get<unsigned>();
+            auto axis = 3 - args.at("axis").get<unsigned>();
 
-            // calculate output shape from input shape and params
             auto inputShape = inputs[0]->getShape();
-            auto ndims = inputShape.ndims();
+            auto indicesShape = inputs[1]->getShape();
+
+            // construct output dims
+            std::vector<size_t> outputDims;
+            for (int i = 0; i < axis; i++) {
+                outputDims.push_back(inputShape[i]);
+            }
+
+            outputDims.push_back(indicesShape.totalSize());
+
+            for (int i = axis + 1; i < inputShape.ndims(); i++) {
+                outputDims.push_back(inputShape[i]);
+            }
 
             if (args.at("quantParams").get<mv::QuantizationParams>().isEmpty())
-                outputs.push_back(mv::Tensor(":0",  {1, 1, 1, 1}, dTypeToUse, order));
+                outputs.push_back(mv::Tensor(":0", Shape(outputDims), dTypeToUse, order));
             else
-                outputs.push_back(mv::Tensor(":0",  {1, 1, 1, 1}, dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
+                outputs.push_back(mv::Tensor(":0", Shape(outputDims), dTypeToUse, order, args.at("quantParams").get<mv::QuantizationParams>()));
         };
     }
 

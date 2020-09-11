@@ -330,6 +330,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
+
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = t->getAddress();
@@ -2922,8 +2923,6 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel 
     auto output = opIt->getOutputTensor(0);
     auto toBuild = new MVCNN::UPALayerTaskT();
 
-    //toBuild->maxShaves = ;
-
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_GatherParams;
 
     auto softLayerParamsValue = new MVCNN::GatherParamsT();
@@ -2932,10 +2931,6 @@ MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel 
 
     softLayerParamsValue->axis = opIt->get<unsigned>("axis");
 
-//    toBuild->softLayerParams.value = softLayerParamsValue;
-//    toBuild->input_data = buildTensorReferenceT(cm, compilationDescriptor, input0);
-//    toBuild->
-//    toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, output);
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
