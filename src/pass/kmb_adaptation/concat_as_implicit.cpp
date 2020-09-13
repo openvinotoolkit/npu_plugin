@@ -48,6 +48,7 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         unsigned pipelineId;
         bool cmxConcatenation = false;
         bool avoidCmxConcatenation = false;
+        bool mixedToFloat = false;
         if(concat->hasAttr("splitStrategy"))
             splitStrategy = concat->get<std::string>("splitStrategy");
         if(concat->hasAttr("quantParams"))
@@ -61,6 +62,9 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             cmxConcatenation = concat->get<bool>("cmxConcatenation");
         if(concat->hasAttr("avoid_cmx_concat"))
             avoidCmxConcatenation = concat->get<bool>("avoid_cmx_concat");
+        if(concat->hasAttr("mixedToFloat"))
+            mixedToFloat = concat->get<bool>("mixedToFloat");
+
         auto outputLocation = concat->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
         auto opId = concat->get<unsigned>("opId");
         auto outputFlows = mv::getOutputDataFlow(om, concat);
@@ -76,6 +80,11 @@ void concatAsImplicitFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
         if(avoidCmxConcatenation)
             om.getSourceOp(implicitConcat)->set<bool>("avoid_cmx_concat", avoidCmxConcatenation);
         mv::setOutputDataFlow(om, implicitConcat, outputFlows);
+        if(mixedToFloat)
+        {
+            implicitConcat->set<mv::DType>("dType",  mv::DType("Float16"));
+            om.getSourceOp(implicitConcat)->set<bool>("mixedToFloat", mixedToFloat);
+        }
     }
 }
 

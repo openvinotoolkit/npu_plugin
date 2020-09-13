@@ -128,6 +128,10 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     // Weights K || C (depthwise ops) stream, need only overwrite shape and bias
     auto attrsToCopy = op->getAttrs({"shape", "bias"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
+    bool mixedToFloat = false;
+    
+    if(op->hasAttr("mixedToFloat"))
+        mixedToFloat = op->get<bool>("mixedToFloat");
 
     std::vector<mv::Data::TensorIterator> slices(number_of_splits);
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
@@ -265,7 +269,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
             if (split != number_of_splits - 1)
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
 
-            if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
+            if ((op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv")) || (op->hasAttr("DeconvSubConv") && op->get<bool>("DeconvSubConv")))
             {
                 om.getSourceOp(newTensor)->set<unsigned>("streamKId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionK",
@@ -423,6 +427,9 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     }
     if(avoidCmxConcat)
         om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
+        
+    if(mixedToFloat)
+        om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
     concat->set<mv::Tensor::MemoryLocation>("Location",outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
     if(isDilatedConv && !kernelOp->hasAttr("dilationConvKernelSliced"))
@@ -548,7 +555,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
             }
-            if (op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv"))
+            if ((op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv")) || (op->hasAttr("DeconvSubConv") && op->get<bool>("DeconvSubConv")))
             {
                 om.getSourceOp(newTensor)->set<unsigned>("streamHId", split);
                 om.getSourceOp(newTensor)->set<std::size_t>("symmetrical_first_dimensionH"
@@ -893,7 +900,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
         if (!om.checkOp(nodeName))
         {
-            pass.log(mv::Logger::MessageType::Debug, nodeName + " is not present in model, skipping streaming");
+            pass.log(mv::Logger::MessageType::Info, nodeName + " is not present in model, skipping streaming");
             continue;
         }
         auto opIt =  om.getOp(nodeName);
