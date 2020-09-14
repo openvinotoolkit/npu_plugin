@@ -4,6 +4,8 @@ namespace mv
 {
     namespace op_gather
     {
+        // Only 4D tensors is supported right now, so axis value should be in range [0,3]
+        #define MAX_AXIS_VALUE 3
         namespace {
             enum ShapeDesc {
                 shape0D,
@@ -50,8 +52,8 @@ namespace mv
             auto inputShape = input->getShape();
 
             auto axis  = args.at("axis").get<unsigned>();
-            if (axis < 0 || axis >= inputShape.ndims()) {
-                errMsg = "Invalid axis number - has to be more then 0 and less than number of dimensions - 1"
+            if (axis >= inputShape.ndims()) {
+                errMsg = "Invalid axis number - has to be more than 0 and less than number of dimensions - 1"
                     + std::to_string(axis);
                 return {false, 1};
             }
@@ -78,7 +80,7 @@ namespace mv
 
             mv::Order order(inputs[0]->getOrder());
 
-            auto axis = 3 - args.at("axis").get<unsigned>();
+            auto axis = MAX_AXIS_VALUE - args.at("axis").get<unsigned>();
 
             auto inputShape = inputs[0]->getShape();
             auto indicesShape = inputs[1]->getShape();
@@ -103,8 +105,6 @@ namespace mv
     }
 
     namespace op {
-
-        // Gather layer do something
 
         MV_REGISTER_OP(Gather)
         .setInputs({"data", "indices"})
