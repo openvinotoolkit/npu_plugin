@@ -67,6 +67,8 @@ public:
 
     const std::unordered_set<std::string>& getCompileOptions() const override;
 
+    bool allowNCHWLayoutForMcmModelInput() const { return _allowNCHWLayoutForMcmModelInput; }
+
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -100,6 +102,8 @@ private:
     bool _scaleFuseInput = true;
 
     bool _referenceMode = false;
+
+    bool _allowNCHWLayoutForMcmModelInput = false;
 };
 
 }  //  namespace vpu

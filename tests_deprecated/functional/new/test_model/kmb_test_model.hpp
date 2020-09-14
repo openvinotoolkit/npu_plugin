@@ -81,6 +81,7 @@ public:
 
     TestNetwork& useCustomLayers(bool enable = true) {
         _compileConfig[VPU_COMPILER_CONFIG_KEY(CUSTOM_LAYERS)] = enable ? _customLayerXmlDefault : "";
+        allowNCHWLayoutForMcmModelInput(true);
         return *this;
     }
 
@@ -93,6 +94,13 @@ public:
         configValue.pop_back();
 
         _compileConfig[VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST)] = std::move(configValue);
+        return *this;
+    }
+
+    TestNetwork& allowNCHWLayoutForMcmModelInput(bool value = true) {
+        _compileConfig[VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT)] =
+            value ? InferenceEngine::PluginConfigParams::YES
+                  : InferenceEngine::PluginConfigParams::NO;
         return *this;
     }
 

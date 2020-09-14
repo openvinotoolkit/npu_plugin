@@ -816,8 +816,15 @@ void FrontEndMcm::parseInputData() {
 
         bool networkInput = true;
 
-        auto mvInput = _modelMcm.input(inputShape, precisionToDType(inputPrecision),
-            layoutToOrder(InferenceEngine::Layout::NHWC), initialQuantParams(), networkInput, netInput->name());
+        const auto mcmInputOrder = [&] {
+            if (inputLayout == NCHW && _config.allowNCHWLayoutForMcmModelInput()) {
+                return layoutToOrder(Layout::NCHW);
+            }
+            return layoutToOrder(Layout::NHWC);
+        }();
+
+        auto mvInput = _modelMcm.input(inputShape, precisionToDType(inputPrecision), mcmInputOrder,
+            initialQuantParams(), networkInput, netInput->name());
         bindOutput(mvInput, ieData);
         _logger->debug("Network input '%s'(orig: '%s') parsed to mcmModel", mvInput->getName(), netInput->name());
     }

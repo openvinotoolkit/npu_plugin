@@ -119,5 +119,12 @@ DECLARE_VPU_COMPILER_CONFIG_KEY(COMPILATION_PASS_BAN_LIST);
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(SCALE_FUSE_INPUT);
 
+/**
+ * @brief [Only for vpu compiler]
+ * Type: "YES/NO", default is "NO".
+ * Allow NCHW layout to be set as MCM Model input layout
+ */
+DECLARE_VPU_COMPILER_CONFIG_KEY(ALLOW_NCHW_MCM_INPUT);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
