@@ -47,9 +47,11 @@ const uint32_t POOL_SIZE = 30 * 1024 * 1024;
 // FIXME this is a wrong way to pass device ID to executors
 // it breaks encapsulation. executor shouldn't care what device id is
 KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-    const std::shared_ptr<vpux::Allocator>& allocator, const int deviceId, const KmbConfig& config)
+    const std::shared_ptr<vpux::Allocator>& allocator, const std::shared_ptr<vpux::Allocator>& CSRAMAllocator,
+    const int deviceId, const KmbConfig& config)
     : _networkDescription(networkDescription),
       _allocator(allocator),
+      _CSRAMAllocator(CSRAMAllocator),
       _config(config),
       _logger(std::make_shared<Logger>("KmbExecutor", config.logLevel(), consoleOutput())),
       _inputBuffer(nullptr,
@@ -63,6 +65,10 @@ KmbExecutor::KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription
       _inferenceId(nullptr,
           [this](uint32_t* buffer) {
               _allocator->free(buffer);
+          }),
+      _preFetchBuffer(nullptr,
+          [this](uint8_t* buffer) {
+              _CSRAMAllocator->free(buffer);
           }),
       _deviceId(deviceId) {
     if (!_config.useKmbExecutor()) {
@@ -182,6 +188,24 @@ static std::vector<void*> setScratchHelper(const std::shared_ptr<NNFlicPlg>& nnF
     nnFlicPtr->SetScratchBuffer(physAddrVec);
     return virtAddrVec;
 }
+
+static uint8_t* setPrefetchHelper(const std::shared_ptr<NNFlicPlg>& nnFlicPtr, const uint32_t preFetchSize,
+    const std::shared_ptr<vpux::Allocator>& allocatorPtr, const std::shared_ptr<vpu::Logger>& logger) {
+    uint8_t* preFetchVirtAddr = nullptr;
+    if (preFetchSize > 0) {
+        preFetchVirtAddr = reinterpret_cast<uint8_t*>(allocatorPtr->alloc(preFetchSize));
+        if (preFetchVirtAddr == nullptr) {
+            THROW_IE_EXCEPTION << "prefetchHelper: failed to allocate " << preFetchSize << " bytes of memory";
+        }
+        unsigned long preFetchPhysAddr = allocatorPtr->getPhysicalAddress(preFetchVirtAddr);
+        uint32_t preFetchAddrLower32Bits = preFetchPhysAddr & 0xffffffff;
+        nnFlicPtr->SetPrefetchBuffer(preFetchAddrLower32Bits, preFetchSize);
+    } else {
+        logger->info("prefetchHelper: trying to set prefeth buffer with zero size. Skip.");
+    }
+
+    return preFetchVirtAddr;
+}
 }  // namespace
 #endif
 
@@ -259,6 +283,7 @@ void KmbExecutor::allocateGraph(const std::vector<char>& graphFileContent) {
     nnPl->Create(BHandle.get());
 
     _scratchBuffers = setScratchHelper(nnPl, nThreads, _allocator, _logger);
+    _preFetchBuffer.reset(setPrefetchHelper(nnPl, _config.preFetchSize(), _CSRAMAllocator, _logger));
 
     _logger->info("NN Plugin Create finished...");
 

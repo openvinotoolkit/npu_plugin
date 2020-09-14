@@ -68,8 +68,10 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
     const auto& devices = _backend->getDevices();
     bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
     const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
+    bool foundCSRAM = devices.find(vpux::CSRAM_DEVICE_ID) != devices.end();
+    const std::shared_ptr<vpux::Device> CSRAMdev = foundCSRAM ? devices.at(vpux::CSRAM_DEVICE_ID) : nullptr;
 
-    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, device);
+    return std::make_shared<ExecutableNetwork>(*clonedNetwork, parsedConfigCopy, device, CSRAMdev);
 }
 
 void Engine::SetConfig(const std::map<std::string, std::string>& config) {
@@ -122,7 +124,10 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     const auto& devices = _backend->getDevices();
     bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
     const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device);
+    bool foundCSRAM = devices.find(vpux::CSRAM_DEVICE_ID) != devices.end();
+    const std::shared_ptr<vpux::Device> CSRAMdev = foundCSRAM ? devices.at(vpux::CSRAM_DEVICE_ID) : nullptr;
+    const auto executableNetwork =
+        std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device, CSRAMdev);
 
     return InferenceEngine::make_executable_network(executableNetwork);
 }
@@ -165,7 +170,10 @@ InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     const auto& devices = _backend->getDevices();
     bool isDeviceExist = devices.find(parsedConfigCopy.deviceId()) != devices.end();
     const std::shared_ptr<vpux::Device> device = isDeviceExist ? devices.at(parsedConfigCopy.deviceId()) : nullptr;
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device);
+    bool foundCSRAM = devices.find(vpux::CSRAM_DEVICE_ID) != devices.end();
+    const std::shared_ptr<vpux::Device> CSRAMdev = foundCSRAM ? devices.at(vpux::CSRAM_DEVICE_ID) : nullptr;
+    const auto executableNetwork =
+        std::make_shared<ExecutableNetwork>(networkModel, parsedConfigCopy, device, CSRAMdev);
 
     return InferenceEngine::make_executable_network(executableNetwork);
 }

@@ -50,7 +50,8 @@ public:
 
     virtual ~KmbExecutor();
     KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-        const std::shared_ptr<vpux::Allocator>& allocator, const int deviceId, const KmbConfig& config);
+        const std::shared_ptr<vpux::Allocator>& allocator, const std::shared_ptr<vpux::Allocator>& CSRAMAllocator,
+        const int deviceId, const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
     void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
@@ -65,6 +66,7 @@ public:
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
     std::shared_ptr<vpux::Allocator> _allocator;
+    std::shared_ptr<vpux::Allocator> _CSRAMAllocator;
     const KmbConfig& _config;
     Logger::Ptr _logger;
 
@@ -106,6 +108,7 @@ private:
     // _inferenceId is used to satisfy VPUAL API which requires to pass some id for each inference
     // there are no contraints on a value passed, so we pass id=1 each inference
     std::unique_ptr<uint32_t, std::function<void(uint32_t*)>> _inferenceId;
+    std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preFetchBuffer;
     const int _deviceId;
 };
 

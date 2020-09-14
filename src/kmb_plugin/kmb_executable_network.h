@@ -43,10 +43,10 @@ class ExecutableNetwork final : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(
-        ie::ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
-    explicit ExecutableNetwork(
-        std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(ie::ICNNNetwork& network, const KmbConfig& config,
+        const std::shared_ptr<vpux::Device>& device, const std::shared_ptr<vpux::Device>& CSRAMDevice);
+    explicit ExecutableNetwork(std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device,
+        const std::shared_ptr<vpux::Device>& CSRAMDevice);
 
     virtual ~ExecutableNetwork() = default;
 
@@ -104,7 +104,8 @@ public:
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
 private:
-    explicit ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device,
+        const std::shared_ptr<vpux::Device>& CSRAMDevice);
 
     void ConfigureExecutor(const std::string& networkName);
     void LoadBlob();
@@ -131,6 +132,7 @@ private:
     vpux::NetworkDescription::Ptr _networkDescription = nullptr;
 
     std::shared_ptr<vpux::Device> _device = nullptr;
+    std::shared_ptr<vpux::Device> _CSRAMDevice = nullptr;
     // FIXME: executor contains a pointer for allocator which comes from dll.
     // executor should be destroyed before _device
     KmbExecutor::Ptr _executor = nullptr;

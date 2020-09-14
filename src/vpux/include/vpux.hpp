@@ -58,6 +58,8 @@ public:
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
 };
 
+static const std::string CSRAM_DEVICE_ID = "CSRAM";
+
 class Executor;
 
 class IDevice : public InferenceEngine::details::IRelease {
