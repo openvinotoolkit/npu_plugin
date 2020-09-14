@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_model.hpp"
 #include "ngraph_mcm_frontend/mcm_attrs.hpp"
@@ -834,5 +833,4 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     return false;
 }
 
-#endif
 // clang-format on

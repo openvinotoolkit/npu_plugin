@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/merge_result_convert.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
@@ -63,5 +62,4 @@ MergeResultConvert::MergeResultConvert() {
     add_matcher(m, rewrite, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-#endif
 // clang-format on

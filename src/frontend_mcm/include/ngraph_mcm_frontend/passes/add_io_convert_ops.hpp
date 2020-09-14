@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ie_icnn_network.hpp>
 #include <ngraph/pass/pass.hpp>
@@ -40,5 +39,4 @@ private:
     ie::OutputsDataMap _outputsInfo;
 };
 
-#endif
 // clang-format on

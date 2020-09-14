@@ -29,7 +29,6 @@ typedef std::tuple<tensor_test_params, std::string, std::string, std::string, pa
     pooling_test_params;
 typedef kmbLayerTestBaseWithParam<pooling_test_params> kmbLayersTestsPoolingParams;
 
-#ifdef ENABLE_MCM_COMPILER
 // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault
 // [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingAfterConvolution) {
@@ -364,5 +363,3 @@ std::vector<PoolingTestParams> int_pooling_params = {
 };
 
 INSTANTIATE_TEST_CASE_P(PerLayer, PoolingTest, ::testing::ValuesIn(int_pooling_params));
-
-#endif

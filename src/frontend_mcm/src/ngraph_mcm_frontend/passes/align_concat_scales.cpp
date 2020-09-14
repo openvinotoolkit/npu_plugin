@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/align_concat_scales.hpp"
 
@@ -156,5 +155,4 @@ bool AlignConcatScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     return false;
 }
 
-#endif
 // clang-format on

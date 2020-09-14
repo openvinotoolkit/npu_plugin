@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
 #include "ngraph_mcm_frontend/mcm_attrs.hpp"
@@ -99,5 +98,4 @@ bool AddIOConvertOps::run_on_function(std::shared_ptr<ngraph::Function> func) {
     return modified;
 }
 
-#endif
 // clang-format on

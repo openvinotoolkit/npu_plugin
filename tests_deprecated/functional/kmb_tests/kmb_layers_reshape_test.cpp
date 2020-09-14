@@ -23,7 +23,6 @@ using namespace InferenceEngine;
 typedef std::tuple<tensor_test_params, tensor_test_params> reshape_test_params;
 typedef kmbLayerTestBaseWithParam<reshape_test_params> kmbLayersTestsReshapeParams;
 
-#ifdef ENABLE_MCM_COMPILER
 // [Track number: S#27227]
 TEST_P(kmbLayersTestsReshapeParams, DISABLED_TestsReshape) {
     auto param = GetParam();
@@ -54,4 +53,3 @@ static const reshape_test_params paramsTable[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReshapeParams, ::testing::ValuesIn(paramsTable));
-#endif

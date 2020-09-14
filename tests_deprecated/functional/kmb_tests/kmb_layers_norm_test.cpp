@@ -23,7 +23,6 @@ using namespace InferenceEngine;
 typedef std::tuple<tensor_test_params, float, float, size_t, std::string> norm_test_params;
 typedef kmbLayerTestBaseWithParam<norm_test_params> kmbLayersTestsNormParams;
 
-#ifdef ENABLE_MCM_COMPILER
 // [Track number: S#27222]
 TEST_P(kmbLayersTestsNormParams, DISABLED_TestsNorm) {
     auto param = GetParam();
@@ -63,4 +62,3 @@ static const norm_test_params paramsTable[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsNormParams, ::testing::ValuesIn(paramsTable));
-#endif

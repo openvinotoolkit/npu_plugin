@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/op/op.hpp>
 #include <memory>
@@ -54,5 +53,4 @@ private:
     OperationType _operation;
 };
 
-#endif // ENABLE_MCM_COMPILER
 // clang-format on

@@ -162,8 +162,6 @@ TEST_P(ConvolutionFP16Test, fp16_convolution_only) {
 INSTANTIATE_TEST_CASE_P(DISABLED_fp16_per_layer_compilation_fail, ConvolutionFP16Test,
     ::testing::ValuesIn(convolution_only_fp16), ConvolutionFP16Test::getTestCaseName);
 
-#ifdef ENABLE_MCM_COMPILER
-
 static void fillConvolutionIR(std::string& model, const convolution_test_params& params) {
     auto input_dims = params.input_dim;
     auto conv_params = params.conv_params;
@@ -812,5 +810,3 @@ std::vector<convolution_and_pooling_test_params> conv_and_pool_params = {
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, ConvolutionAndPoolingTest, ::testing::ValuesIn(conv_and_pool_params));
-
-#endif

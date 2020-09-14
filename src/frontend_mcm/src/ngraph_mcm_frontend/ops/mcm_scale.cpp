@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/ops/mcm_scale.hpp"
 
@@ -37,5 +36,4 @@ std::shared_ptr<ngraph::Node> McmScale::clone_with_new_inputs(const ngraph::Outp
     return std::make_shared<McmScale>(new_args.at(0), new_args.at(1), _type);
 }
 
-#endif //  ENABLE_MCM_COMPILER
 // clang-format on

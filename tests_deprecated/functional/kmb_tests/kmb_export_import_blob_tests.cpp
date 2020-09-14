@@ -28,7 +28,6 @@ using namespace details;
 
 enum class FileIOResult { FileNotOpened = -1, FilesWithDifferentSize = -2, FilesHaveEqualSize = 1 };
 
-#ifdef ENABLE_MCM_COMPILER
 size_t getFileSize(const std::string& fileName) {
     std::ifstream file(fileName.c_str(), std::ifstream::in | std::ifstream::binary);
 
@@ -136,5 +135,3 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestExportImportBlob_ReLU) {
 
     ExportImportBlobToFromFile(deviceName, network, config, "ReLU");
 }
-
-#endif

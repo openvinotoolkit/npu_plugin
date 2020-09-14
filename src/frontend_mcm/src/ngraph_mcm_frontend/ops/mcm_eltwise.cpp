@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include <memory>
@@ -40,5 +39,4 @@ std::shared_ptr<ngraph::Node> McmEltwise::clone_with_new_inputs(const ngraph::Ou
     return std::make_shared<McmEltwise>(new_args.at(0), new_args.at(1), _operation, _type);
 }
 
-#endif // ENABLE_MCM_COMPILER
 // clang-format on

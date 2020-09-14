@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/op/op.hpp>
 #include <memory>
@@ -48,5 +47,4 @@ private:
     ngraph::Shape _output_shape = {};
 };
 
-#endif
 // clang-format on

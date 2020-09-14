@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/pass/graph_rewrite.hpp>
 
@@ -26,5 +25,4 @@ public:
     QuantizeConstants();
 };
 
-#endif
 // clang-format on

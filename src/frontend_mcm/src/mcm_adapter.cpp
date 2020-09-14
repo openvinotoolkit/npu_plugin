@@ -16,10 +16,6 @@
 
 #include "mcm_adapter.hpp"
 
-#include "frontend_mcm.hpp"
-
-#ifdef ENABLE_MCM_COMPILER
-
 #include <file_utils.h>
 #include <net_pass.h>
 #include <sys/stat.h>
@@ -28,10 +24,11 @@
 #include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
 
+#include "frontend_mcm.hpp"
 #include "include/mcm/compiler/compilation_unit.hpp"
-#endif
 
 #if defined(_WIN32)
+#include <direct.h>
 #define mkdir(dir, mode) _mkdir(dir)
 #endif
 
@@ -43,8 +40,6 @@
 
 using namespace InferenceEngine;
 using namespace vpu;
-
-#ifdef ENABLE_MCM_COMPILER
 
 static std::string getMcmLogLevel(LogLevel lvl) {
     switch (lvl) {
@@ -296,25 +291,7 @@ std::set<std::string> MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwor
     return frontEnd->checkSupportedLayers(network);
 }
 
-bool vpu::MCMAdapter::isMCMCompilerAvailable() {
-    std::shared_ptr<mv::CompilationUnit> tmpCompiler = std::make_shared<mv::CompilationUnit>("testModel");
-    return tmpCompiler != nullptr;
-}
-
-#else
-
-void vpu::MCMAdapter::compileNetwork(
-    InferenceEngine::ICNNNetwork& /*network*/, const MCMConfig& /*config*/, std::vector<char>& /*blob*/) {
-    THROW_IE_EXCEPTION << "Compiler is disabled";
-}
-
-std::set<std::string> vpu::MCMAdapter::getSupportedLayers(InferenceEngine::ICNNNetwork&, const MCMConfig&) {
-    THROW_IE_EXCEPTION << "Compiler is disabled";
-}
-
-bool vpu::MCMAdapter::isMCMCompilerAvailable() { return false; }
-
-#endif  // ENABLE_MCM_COMPILER
+bool vpu::MCMAdapter::isMCMCompilerAvailable() { return true; }
 
 std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::MCMAdapter::deserializeMetaData(
     const std::vector<char>& outBlob, const MCMConfig& config) {

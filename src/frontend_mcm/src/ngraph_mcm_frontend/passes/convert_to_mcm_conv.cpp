@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/convert_to_mcm_conv.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
@@ -47,5 +46,4 @@ bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
     return false;
 }
 
-#endif
 // clang-format on

@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/quantize_conv_biases.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_bias.hpp"
@@ -112,5 +111,4 @@ QuantizeConvBiases::QuantizeConvBiases() {
     add_matcher(m, rewrite, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-#endif
 // clang-format on

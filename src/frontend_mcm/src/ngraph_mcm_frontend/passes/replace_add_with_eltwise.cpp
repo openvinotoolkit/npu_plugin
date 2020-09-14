@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/replace_add_with_eltwise.hpp"
 
@@ -39,5 +38,5 @@ bool ReplaceAddWithMcmEltwise::run_on_node(std::shared_ptr<ngraph::Node> node)
     }
     return false;
 }
-#endif  // ENABLE_MCM_COMPILER
+
 // clang-format on

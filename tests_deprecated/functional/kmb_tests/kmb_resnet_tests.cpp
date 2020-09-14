@@ -47,8 +47,6 @@ Blob::Ptr dequantize(const Blob::Ptr& blobIn, float scale, uint8_t shift) {
     return blobOut;
 }
 
-#ifdef ENABLE_MCM_COMPILER
-
 // [Track number: S#27240]
 TEST_P(ResnetTest, DISABLED_resnetAccuracy) {
 #if !defined(__arm__) && !defined(__aarch64__)
@@ -143,5 +141,3 @@ static const std::vector<resnet_params> resnetTestParamsFail = {
 INSTANTIATE_TEST_CASE_P(resnetAccuracyTests, ResnetTest, ::testing::ValuesIn(resnetTestParams));
 // [Track number: S#27240]
 INSTANTIATE_TEST_CASE_P(DISABLED_resnetAccuracyTestsFail, ResnetTest, ::testing::ValuesIn(resnetTestParamsFail));
-
-#endif

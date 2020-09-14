@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/shape.hpp>
 #include <ngraph/node.hpp>
@@ -58,5 +57,4 @@ std::vector<int64_t> quantizeData(
 
 std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::Node> node);
 
-#endif
 // clang-format on

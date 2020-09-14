@@ -16,25 +16,6 @@
 
 // clang-format off
 
-#ifndef ENABLE_MCM_COMPILER
-
-#include "ngraph_mcm_frontend/frontend.hpp"
-#include <memory>
-#include <string>
-#include <vector>
-#include <chrono>
-
-std::vector<char> compileNGraph(
-        const std::shared_ptr<ngraph::Function>&,
-        const std::string&,
-        const ie::InputsDataMap&,
-        const ie::OutputsDataMap&,
-        const vpu::MCMConfig&) {
-    THROW_IE_EXCEPTION << "Network compilation is disabled";
-}
-
-#else
-
 #include "ngraph_mcm_frontend/frontend.hpp"
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include "ngraph_mcm_frontend/passes/add_io_convert_ops.hpp"
@@ -188,7 +169,5 @@ std::vector<char> compileNGraph(
 
     return serializeMetaData(blob->data(), inputsInfo, outputsInfo);
 }
-
-#endif
 
 // clang-format on

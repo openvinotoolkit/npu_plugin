@@ -25,8 +25,6 @@
 InferenceEngine::Layout orderVectorToLayout(const std::vector<uint32_t>& tensorOrder);
 InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype);
 
-#ifdef ENABLE_MCM_COMPILER
-
 #include <mcm/tensor/dtype/dtype.hpp>
 #include <mcm/tensor/order/order.hpp>
 #include <mcm/tensor/shape.hpp>
@@ -36,5 +34,3 @@ MVCNN::DType precisionToMvcnnDType(const InferenceEngine::Precision& tensorPreci
 mv::DType precisionToDType(const InferenceEngine::Precision& iePrecision);
 mv::Order layoutToOrder(const InferenceEngine::Layout& ieLayout);
 mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims);
-
-#endif

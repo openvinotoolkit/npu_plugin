@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/align_eltwise_scales.hpp"
 
@@ -184,5 +183,4 @@ bool AlignEltwiseScales::run_on_node(std::shared_ptr<ngraph::Node> node)
     return false;
 }
 
-#endif
 // clang-format on

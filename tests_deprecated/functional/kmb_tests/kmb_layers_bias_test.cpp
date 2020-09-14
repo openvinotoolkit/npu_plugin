@@ -22,8 +22,6 @@ using namespace InferenceEngine;
 
 class kmbLayersTestsBias_nightly : public kmbLayersTests_nightly, public testing::WithParamInterface<SizeVector> {};
 
-#ifdef ENABLE_MCM_COMPILER
-
 // [Track number: S#27224]
 TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias) {
     auto dim = GetParam();
@@ -44,5 +42,3 @@ TEST_P(kmbLayersTestsBias_nightly, DISABLED_TestsBias) {
 static std::vector<SizeVector> s_biasDims = {{{1, 32, 10, 10}}, {{1, 8, 4, 4}}};
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsBias_nightly, ::testing::ValuesIn(s_biasDims));
-
-#endif

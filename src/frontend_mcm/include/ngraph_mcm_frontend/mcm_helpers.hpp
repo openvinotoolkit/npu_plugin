@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <vpu/utils/logger.hpp>
 #include <ngraph/shape.hpp>
@@ -56,5 +55,4 @@ struct NodeOutputHash final {
 
 using NodeOutputToMcmMap = std::unordered_map<ngraph::Output<ngraph::Node>, mv::Data::TensorIterator, NodeOutputHash>;
 
-#endif
 // clang-format on

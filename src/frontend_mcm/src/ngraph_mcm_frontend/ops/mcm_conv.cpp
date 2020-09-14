@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/ops/mcm_conv.hpp"
 #include <memory>
@@ -48,5 +47,4 @@ std::shared_ptr<ngraph::Node> McmConv::clone_with_new_inputs(const ngraph::Outpu
         m_dilations, m_group, _type);
 }
 
-#endif
 // clang-format on

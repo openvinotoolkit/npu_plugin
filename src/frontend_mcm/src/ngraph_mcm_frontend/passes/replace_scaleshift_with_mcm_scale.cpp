@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/replace_scaleshift_with_mcm_scale.hpp"
 
@@ -97,5 +96,4 @@ bool ReplaceScaleShiftWithMcmScale::run_on_node(std::shared_ptr<ngraph::Node> no
     return false;
 }
 
-#endif  // ENABLE_MCM_COMPILER
 // clang-format on
