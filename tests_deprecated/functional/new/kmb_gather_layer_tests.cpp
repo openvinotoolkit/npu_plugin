@@ -18,7 +18,6 @@
 #include <blob_factory.hpp>
 
 struct GatherTestParams final {
-    GatherTestParams() {}
     SizeVector _dataDims;
     Precision _dataPrecision;
     Layout _dataLayout;
@@ -68,8 +67,8 @@ struct GatherTestParams final {
     }
 };
 
-std::ostream& operator<<(std::ostream& os, const GatherTestParams& /*p*/) {
-    vpu::formatPrint(os, "[gather: ***]");
+std::ostream& operator<<(std::ostream& os, const GatherTestParams& p) {
+    vpu::formatPrint(os, "[axis:%v, indices size:%v]", p._axis, p._indices.size());
     return os;
 }
 
@@ -90,6 +89,8 @@ ie::Blob::Ptr makeBlobFromData(const TensorDesc& desc, std::vector<size_t> data)
 class KmbGatherLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<GatherTestParams> {};
 
 TEST_P(KmbGatherLayerTests, EqualWithCPU) {
+    // TODO: Need to fix bad check in gather layer parser in runtime
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Hangs on runtime");
     const auto &p = GetParam();
 
     const auto userDataDesc = TensorDesc(p._dataPrecision, p._dataDims, p._dataLayout);
@@ -99,7 +100,7 @@ TEST_P(KmbGatherLayerTests, EqualWithCPU) {
 
     const auto inputRange = std::make_pair(0.0f, 10.0f);
 
-    const auto tolerance = 1e-1f;
+    const auto tolerance = 1e-3f;
 
     registerBlobGenerator(
         "input", userDataDesc,

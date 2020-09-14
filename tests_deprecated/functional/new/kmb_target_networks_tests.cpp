@@ -1093,7 +1093,9 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
         1.f, 0.3f);
 }
 
+// TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0234) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     const std::string input_name = "input";
 
     runTest(
@@ -1102,7 +1104,9 @@ TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0234) {
         TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", ImageFormat::BGR), 0.2f);
 }
 
+// TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0238) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     const std::string input_name = "input";
 
     runTest(

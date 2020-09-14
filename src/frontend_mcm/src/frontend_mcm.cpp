@@ -1487,7 +1487,7 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         for (size_t i = 0; i < layer->outData.size(); i++) {
             auto out = layer->outData[i];
             for (const auto& consumer : getInputTo(out)) {
-                auto initialLayer = consumer.second;
+                const auto& initialLayer = consumer.second;
                 if (initialLayer->type == "Gather") {
                     mcmShape = mv::Shape::augment_major(mcmShape, 4);
                 }
