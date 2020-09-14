@@ -682,7 +682,6 @@ void FrontEndMcm::alignZeroPointsOnWeights(ie::CNNNetwork& network) {
             if (!needAlignZeroPoints(quantizationParams.outputLowValues, quantizationParams.outputHighValues, levels)) {
                 continue;
             }
-
             double sumOfZeroPoints = 0;
 
             for (size_t i = 0; i < numberOfQuantParams; i++) {
@@ -1186,8 +1185,6 @@ void FrontEndMcm::parseScaleImpl(
 
     auto input = inputs[0];
 
-    std::vector<double> quantizeScale;
-
     mv::Shape weightsShape = {weights.size()};
     auto mvWeights = _modelMcm.constant(
         weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
@@ -1372,6 +1369,7 @@ void FrontEndMcm::parseReshape(const ie::CNNLayerPtr& layer, const McmNodeVector
     // TODO: Tests on parsing/compilation of different cases of reshape should be added: Jira: CVS-20409
     // McmCompiler accept only input in WHCN format
     mv::Shape newShape(getWHCN(layerOutput->getTensorDesc()).getDims());
+
     auto mvReshape =
         _modelMcm.reshape(inputs[0]->getMcmNode(), newShape, mv::DType("Default"), initialQuantParams(), layer->name);
 
@@ -1709,7 +1707,6 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
             mvDeconvOnly, mvBiases, mv::DType("Default"), initialQuantParams(), deconvLayer->name + ":bias");
         _logger->debug("'%s' layer '%s': Bias part (%s) added to mcmModel", deconvLayer->type, deconvLayer->name,
             mvDeconv->getName());
-        std::cout << "mcm deconv bias done" << std::endl;
     }
     bindOutput(mvDeconv, layerOutput);
 

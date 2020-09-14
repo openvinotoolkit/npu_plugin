@@ -58,73 +58,36 @@ bool ReplaceScaleShiftWithMcmScale::run_on_node(std::shared_ptr<ngraph::Node> no
 {
     if (const auto ieScale = std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node))
     {
-        const auto ieScaleOutputs = ieScale->output(0).get_target_inputs();
-        IE_ASSERT(1 == ieScaleOutputs.size());
-        const auto outputNode = ieScaleOutputs.begin()->get_node();
-        const auto fq =  dynamic_cast<ngraph::op::FakeQuantize*>(outputNode);
-        IE_ASSERT(nullptr != fq);
-
-        const auto inputLow = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(1).get_node_shared_ptr());
-        const auto inputHigh = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(2).get_node_shared_ptr());
-        const auto outputLow = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(3).get_node_shared_ptr());
-        const auto outputHigh = std::dynamic_pointer_cast<ngraph::op::Constant>(fq->input_value(4).get_node_shared_ptr());
-        IE_ASSERT(inputLow != nullptr && inputHigh != nullptr && outputLow != nullptr && outputHigh != nullptr);
-        IE_ASSERT(inputLow->get_shape() == inputHigh->get_shape());
-        IE_ASSERT(outputLow->get_shape() == outputHigh->get_shape());
-
-        const auto levels = fq->get_levels();
-        const auto inputLowData = inputLow->cast_vector<double>();
-        const auto inputHighData = inputHigh->cast_vector<double>();
-        const auto outputLowData = outputLow->cast_vector<double>();
-        const auto outputHighData = outputHigh->cast_vector<double>();
-
         const auto scales = std::dynamic_pointer_cast<ngraph::op::Constant>(ieScale->input_value(1).get_node_shared_ptr());
-        IE_ASSERT(ngraph::element::f32 == scales->get_element_type());
+        if (!scales)
+            return false;
         const auto scalesData = scales->cast_vector<double>();
-        std::vector<uint8_t> quantScalesData(scalesData.size(), 1);
         const auto reshapedScales = std::make_shared<ngraph::op::Constant>(
-            ngraph::element::u8, // scales->get_element_type(),
+            scales->get_element_type(),
             ngraph::Shape({scales->get_shape().at(1)}),
-            quantScalesData); // scalesData);
+            scalesData);
         reshapedScales->set_friendly_name(scales->get_friendly_name());
         ngraph::replace_node(scales, reshapedScales);
-        const double inf = std::numeric_limits<double>::infinity();
-        const auto newScalesQuantParam = mv::QuantizationParams({0}, scalesData, {-inf}, {inf}); //makeQuantParams({0}, scalesData);
-        McmOpAttrs::setQuantParams(newScalesQuantParam, reshapedScales);
 
         const auto shifts = std::dynamic_pointer_cast<ngraph::op::Constant>(ieScale->input_value(2).get_node_shared_ptr());
-        IE_ASSERT(ngraph::element::f32 == shifts->get_element_type());
+        if (!shifts)
+            return false;
 
         const auto shiftsData = shifts->cast_vector<double>();
-        std::vector<int32_t> quantizedBiasData(shiftsData.size(), 0);
-
         IE_ASSERT(shiftsData.size() == scalesData.size());
-        for (size_t i = 0; i < shiftsData.size(); i++) {
-            quantizedBiasData[i] = std::round(shiftsData[i] / scalesData[i]);
-        }
 
         const auto reshapedShifts = std::make_shared<ngraph::op::Constant>(
-            ngraph::element::i32, // scales->get_element_type(),
+            shifts->get_element_type(),
             ngraph::Shape({shifts->get_shape().at(1)}),
-            quantizedBiasData); //shiftsData);
+            shiftsData);
         reshapedShifts->set_friendly_name(shifts->get_friendly_name());
         ngraph::replace_node(shifts, reshapedShifts);
 
-        const std::vector<int64_t> zp(scalesData.size(), 0);
-        const auto newBiasQuantParam =  mv::QuantizationParams({0}, scalesData, {0.0}, {1.0});
-        McmOpAttrs::setQuantParams(newBiasQuantParam, reshapedShifts);
-
-        // const auto mcmScalesQuantParam = mv::QuantizationParams({128},{0.0197619},{-2.52952},{2.50976}); // TODO Compute
-        const auto mcmScalesQuantParam = calcQuantParams(outputLowData.front(), outputHighData.front(), levels);
-        const auto mcmBiasQuantParam = mcmScalesQuantParam;
-
         const auto mcmScale = std::make_shared<McmScale>(
             ieScale->input_value(0), reshapedScales, ieScale->get_output_element_type(0));
-       McmOpAttrs::setQuantParams(mcmScalesQuantParam, mcmScale);
 
         const auto mcmBias = std::make_shared<McmBias>(
             mcmScale, reshapedShifts, mcmScale->get_output_element_type(0));
-       McmOpAttrs::setQuantParams(mcmBiasQuantParam, mcmBias);
 
         ngraph::replace_node(ieScale, mcmBias);
 

@@ -33,6 +33,8 @@ bool ConvertToMcmConv::run_on_node(std::shared_ptr<ngraph::Node> node) {
             conv->get_dilations(), conv->get_group(),
             conv->get_output_element_type(0));
 
+        mcmConv->set_friendly_name(conv->get_friendly_name());
+
         if (conv->get_input_size() == 2) {
             ngraph::replace_node(conv, mcmConv);
         } else {

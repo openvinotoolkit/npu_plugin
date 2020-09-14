@@ -443,7 +443,6 @@ TEST_F(KmbYoloV2NetworkTest, precommit_yolo_v2_ava_0001_tf_dense_int8_IRv10_from
 }
 
 TEST_F(KmbYoloV2NetworkTest, yolo_v2_ava_0001_tf_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/yolo-v2-ava-0001/yolo_v2_ava_0001_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -473,7 +472,6 @@ TEST_P(KmbClassifyNetworkTestWithSpecificLayout, precommit_resnet_50_pytorch_den
 INSTANTIATE_TEST_CASE_P(precommit, KmbClassifyNetworkTestWithSpecificLayout, ::testing::ValuesIn(specificLayout));
 
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet_50_pytorch_dense_int8_IRv10.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -481,7 +479,7 @@ TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_int8_IRv10_ngra
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
-        3, 0.7f);
+        1, 0.7f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_mobilenet_v2_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
@@ -517,7 +515,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
 }
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -525,7 +522,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.3f);
+        1, 0.05f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_fp32) {
@@ -540,7 +537,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_f
 
 
 TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_ngraph) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -548,7 +544,7 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v3_tf_dense_int8_IRv10_ngraph) {
             .setUserOutputPrecision("output", Precision::FP32)
             .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
         TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-        1, 0.05f);
+        1, 0.1f);
 }
 
 TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32) {
@@ -565,8 +561,6 @@ TEST_F(KmbClassifyNetworkTest, precommit_squeezenet1_1_pytorch_caffe2_dense_int8
 // C++ exception with description "propagateParameters ERROR: inputs of the Eltwise/Concat do not have the same QuantParams"
 // [Track number: S#31766]
 TEST_F(KmbClassifyNetworkTest, squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_ngraph) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "bad results");
-
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1/squeezenet1_1_pytorch_caffe2_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
