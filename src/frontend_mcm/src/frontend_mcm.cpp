@@ -1398,6 +1398,15 @@ void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
     auto mvConcat =
         _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), initialQuantParams(), concatLayer->name);
+
+    // MCM compiler compiles wrong blob when concat layer is the last layer in the network
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    if (getInputTo(concatLayer->outData[0]).empty()) {
+        mvConcat = _modelMcm.maxPool(mvConcat, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("Default"),
+            initialQuantParams(), concatLayer->name + "_maxpool");
+    }
+    // end of workaround
+
     bindOutput(mvConcat, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvConcat->getName());
