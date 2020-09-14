@@ -16,22 +16,38 @@
 
 #pragma once
 
-#include <ie_api.h>
+#include <cpp/ie_cnn_network.h>
+#include <ie_core.hpp>
 
 #include <sstream>
-#include <test_model_path.hpp>
 
 namespace ModelLoader_Helper {
 
-static InferenceEngine::CNNNetwork LoadModel(const std::string& modelName) {
+inline std::string getTestModelsBasePath() {
+    if (const auto envVar = std::getenv("MODELS_PATH")) {
+        return envVar;
+    }
+
+#ifdef MODELS_PATH
+    return MODELS_PATH;
+#else
+    return {};
+#endif
+}
+
+inline std::string getTestModelsPath() {
+    return getTestModelsBasePath() + "/src/models";
+}
+
+inline InferenceEngine::CNNNetwork LoadModel(const std::string& modelName) {
     std::ostringstream modelFile;
     modelFile << "/" << modelName << ".xml";
 
     std::ostringstream weightsFile;
     weightsFile << "/" << modelName << ".bin";
 
-    std::string modelFilePath = ModelsPath() + modelFile.str();
-    std::string weightsFilePath = ModelsPath() + weightsFile.str();
+    std::string modelFilePath = getTestModelsPath() + modelFile.str();
+    std::string weightsFilePath = getTestModelsPath() + weightsFile.str();
 
     InferenceEngine::Core ie;
     return ie.ReadNetwork(modelFilePath, weightsFilePath);

@@ -17,7 +17,7 @@
 #pragma once
 
 #include <cpp/ie_cnn_network.h>
-#include "test_model_path.hpp"
+#include "model_loader.h"
 
 struct modelBlobInfo {
     std::string graphName, graphPath, inputPath, outputPath;
@@ -31,8 +31,8 @@ struct modelTensors {
 };
 
 namespace PrecompiledResNet_Helper {
-    const std::string resnet_50_folder = ModelsPath() + "/KMB_models/BLOBS/resnet-50/";
-    const std::string resnet_50_IR_folder = ModelsPath() + "/KMB_models/INT8/public/ResNet-50/";
+    const std::string resnet_50_folder = ModelLoader_Helper::getTestModelsPath() + "/KMB_models/BLOBS/resnet-50/";
+    const std::string resnet_50_IR_folder = ModelLoader_Helper::getTestModelsPath() + "/KMB_models/INT8/public/ResNet-50/";
 
     // Actual version, fp16 output
     static const modelBlobInfo resnet50 = {

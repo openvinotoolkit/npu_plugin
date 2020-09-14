@@ -18,8 +18,6 @@ set(IE_MAIN_KMB_PLUGIN_TEST_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(models_helpers)
 
-add_subdirectory(unit/kmb_plugin)
-
 if(ENABLE_HDDL2_TESTS)
     add_subdirectory(unit/hddl2_tests)
 endif()
