@@ -1099,7 +1099,7 @@ TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0234) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
             .setUserInputPrecision(input_name, Precision::U8),
-        TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", false), 0.2f);
+        TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", ImageFormat::BGR), 0.2f);
 }
 
 TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0238) {
@@ -1108,5 +1108,5 @@ TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0238) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
             .setUserInputPrecision(input_name, Precision::U8),
-        TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", false), 0.2f);
+        TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", ImageFormat::BGR), 0.2f);
 }
