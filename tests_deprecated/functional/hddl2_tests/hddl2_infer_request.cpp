@@ -244,7 +244,7 @@ static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfi
         std::string name = it->first;
         IE::InferenceEngineProfileInfo info = it->second;
         if (info.status == IE::InferenceEngineProfileInfo::EXECUTED) {
-            printf("HDDL2 time: '%s' is %f ms.\n", name.c_str(), info.realTime_uSec / 1000.f);
+            std::cout << "HDDL2 time: '" << name.c_str() << "' is " << info.realTime_uSec / 1000.f << " ms." << std::endl;
         }
     }
 }

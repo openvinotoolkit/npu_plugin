@@ -111,7 +111,7 @@ Allocator_CreatedRemoteMemory_Helper(WorkloadContextPtr& workloadContextPtr) :
 
 inline std::string Allocator_CreatedRemoteMemory_Helper::getRemoteMemory(const size_t &size) {
     UNUSED(size);
-    printf("Not possible to get remote memory if InferenceEngine is owner\n");
+    std::cerr << "Not possible to get remote memory if InferenceEngine is owner" << std::endl;
     return "";
 }
 

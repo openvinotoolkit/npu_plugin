@@ -62,7 +62,7 @@ static HddlUnite::SMM::RemoteMemory::Ptr getRemoteMemoryDesc(const IE::Blob::CPt
         HDDL2RemoteBlob::CPtr remoteBlobPtr = std::dynamic_pointer_cast<const HDDL2RemoteBlob>(blob);
         remoteMemory = remoteBlobPtr->getRemoteMemory();
     } catch (const std::exception& ex) {
-        printf("Failed to get memory from remote blob! %s\n", ex.what());
+        std::cerr << "Failed to get memory from remote blob: " << ex.what() << std::endl;
     }
     return remoteMemory;
 }

@@ -59,13 +59,13 @@ inline HddlUnite::SMM::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemo
 inline HddlUnite::SMM::RemoteMemory::Ptr
 RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &size) {
     if (_remoteMemory != nullptr) {
-        printf("Memory already allocated!\n");
+        std::cerr << "Memory already allocated!" << std::endl;
         return 0;
     }
 
     HddlUnite::WorkloadContext::Ptr context = HddlUnite::queryWorkloadContext(id);
     if (context == nullptr) {
-        printf("Incorrect workload id!\n");
+        std::cerr << "Incorrect workload id!" << std::endl;
         return 0;
     }
 
@@ -86,7 +86,7 @@ inline std::string RemoteMemory_Helper::getRemoteMemory(const size_t &size) {
     tempBuffer.resize(size);
     auto retCode = _remoteMemory->syncFromDevice(tempBuffer.data(), size);
     if (retCode != HDDL_OK) {
-        printf("[ERROR] Failed to sync memory from device!\n");
+        std::cerr << "[ERROR] Failed to sync memory from device!" << std::endl;
         return "";
     }
     return std::string(tempBuffer.begin(), tempBuffer.end());
