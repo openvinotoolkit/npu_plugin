@@ -88,6 +88,7 @@ namespace mv
                 DilatedSOH,
                 DWLargeStrideReplacementSOK,
                 SpiltOverHWithStreamOverK,
+                SpiltOverHWithStreamOverHInCMX,
                 SparsityKSegmented,
                 SparsitySpilling,
                 PipelineNotPossible,
@@ -114,6 +115,7 @@ namespace mv
                 {FailCause::DilatedSOH, "DilatedSOH"},
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
+                {FailCause::SpiltOverHWithStreamOverHInCMX, "SpiltOverHWithStreamOverHInCMX"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::PipelineNotPossible, "PipelinedNotPossible"},
@@ -400,14 +402,17 @@ namespace mv
 
                 // Every output slice must have at least one line to compute
                 unsigned upperBoundH = outputHeight;
-                if(clustering.toString() == "SplitOverH") 
+                if(clustering.get<std::string>() == "SplitOverH")
+                {
                     upperBoundH = upperBoundH/totalClusters;
+                }
 
                 // Start searching for min stream at naive requirement for splits to fit, rather than 1
                 for(unsigned splits = ceil((double)activationsSize/availableMemory); splits <= upperBoundH; splits++)
                 {
                     Shape updatedStreams({1,splits,1,streams["K"],streams["B"]});
                     auto memFitCheck = memorySize(op,clustering,iSparsity,oSparsity,wSparsity,updatedStreams,fSparsity,spilling,parentSpilling);
+
                     if( pipelined && //TODO inputCMX here too
                         (2*std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
                         validateHStream(op, clustering, splits) )
@@ -943,6 +948,12 @@ namespace mv
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
+
+                //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
+                //and we concatenate on cmx the data are going to have a strange format...so nothing can be done later, so spill...
+                if (clustering == "SplitOverH" &&
+                    (streamShape["H"] > 1) && !spilling)
+                    return FailCause::SpiltOverHWithStreamOverHInCMX;
 
                 return FailCause::Pass; //good strategy
             }
