@@ -44,7 +44,7 @@ namespace mv
         struct BufferOrderComparator
         {
 
-            bool operator()(const std::shared_ptr<MemoryBuffer> &lhs, const std::shared_ptr<MemoryBuffer> &rhs)
+            bool operator()(const std::shared_ptr<MemoryBuffer> &lhs, const std::shared_ptr<MemoryBuffer> &rhs) const
             {
                 return lhs->id < rhs->id;
             }

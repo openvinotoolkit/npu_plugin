@@ -162,7 +162,7 @@ class ImplicitConcat_Connected_Component {
 
     operation_t implicit_concat_root(const operation_t& op) const {
       auto itr = union_find_array_.find(op);
-      if (itr == union_find_array_.end()) { 
+      if (itr == union_find_array_.end()) {
         dump_exception("[ImplicitConcatRoot]\n");
         throw "[ImplicitConcatRoot] missing operation: " + op->getName();
       }
@@ -179,7 +179,7 @@ class ImplicitConcat_Connected_Component {
       }
       return itr->second;
     }
-    
+
   private:
 
     void build() {
@@ -246,15 +246,15 @@ class ImplicitConcat_Connected_Component {
           if (dag_.is_output_op(cop)) { continue; }
 
           bool is_read_or_upa =
-            (dag_.is_dma_op_moving_data_from_ddr_to_cmx(cop) || 
+            (dag_.is_dma_op_moving_data_from_ddr_to_cmx(cop) ||
               dag_.is_upa_op(cop));
 
           if (!(is_implicit_concat(cop) || is_read_or_upa) ) {
             FILE *fptr = fopen("non_reads.txt", "a");
 
-            for (const_operation_iterator_t kitr=dag_.begin_nodes(op); 
+            for (const_operation_iterator_t kitr=dag_.begin_nodes(op);
                 kitr != dag_.end_nodes(op); ++kitr) {
-              fprintf(fptr, "%s -> %s\n", op->getName().c_str(), 
+              fprintf(fptr, "%s -> %s\n", op->getName().c_str(),
                   (*kitr)->getName().c_str());
             }
             fclose(fptr);
@@ -271,7 +271,7 @@ class ImplicitConcat_Connected_Component {
       }
     }
 
-   
+
     operation_t implicit_concat_parent(const operation_t& op) const {
       for (const_operation_iterator_t citr=dag_.begin_nodes(op);
             citr!=dag_.end_nodes(op); ++citr) {
@@ -383,7 +383,7 @@ class Control_Edge_Set {
   private:
 
 
-    template<typename dag_t> 
+    template<typename dag_t>
     void add_control_edges_between_writes_and_reads(const dag_t& dag,
         mv::ComputationModel& model) {
 
@@ -465,7 +465,7 @@ class Control_Edge_Set {
 
       // STEP-2: for each control edge generated (u, v) do the following
       //  (a) call add_control_edge(u, v)
-      //  (b) let t_u and t_v be the schedule times of u and v then 
+      //  (b) let t_u and t_v be the schedule times of u and v then
       //      for all the nodes X = { w | (u, w) \in E and t_u <= t_w < t_v }
       //      call add_control_edge(x, v) , x \in X.
 
@@ -498,7 +498,7 @@ class Control_Edge_Set {
           itr = original_schedule.find(child_op);
           schedule_time_t child_time = (itr->second).schedule_time_;
 
-          if ( !( (child_time > source_time) && 
+          if ( !( (child_time > source_time) &&
                   (child_time < sink_time) ) ) { continue; }
           if (input_dag.is_implicit_op(child_op) ||
               input_dag.is_output_op(sink_op)) { continue; }
@@ -557,12 +557,12 @@ class Control_Edge_Set {
             // real op.
             for (auto oitr=prev_scheduled_real_ops.begin();
                   oitr!=prev_scheduled_real_ops.end(); ++oitr ) {
-              if (!add_temporal_edges_only_for_output || 
+              if (!add_temporal_edges_only_for_output ||
                     ((curr_op.op_)->getOpType() == "Output")) {
                 add_control_edge(oitr->op_, curr_op.op_, model);
                 ++total_temporal_control_edges;
               }
-            } 
+            }
           }
         }
       }
@@ -682,8 +682,8 @@ class Control_Edge_Set {
       }
     }
 
-   
-    // This case works if the structure of concats is a Tree// 
+
+    // This case works if the structure of concats is a Tree//
     template<typename OpDag>
     void add_control_edges_for_implicit_concats_tree(const OpDag& dag,
         mv::ComputationModel& model) {
@@ -712,7 +712,7 @@ class Control_Edge_Set {
 
           // this list also includes slave reads //
           for (auto citr=master_children.begin(); citr!=master_children.end();
-                ++citr) { 
+                ++citr) {
             add_control_edge(parent_op, *citr, model);
           }
         }
@@ -743,7 +743,7 @@ class Control_Edge_Set {
         operation_t op = *itr;
         if (!(op->getOpType() == "ImplicitConcat")) { continue; }
 
-        in_out_adjacency_list_t &in_out_adj_list = concat_sub_graph[op]; 
+        in_out_adjacency_list_t &in_out_adj_list = concat_sub_graph[op];
 
         for (typename dag_t::const_operation_iterator_t
             pitr=dag.begin_parent_nodes(op); pitr != dag.end_parent_nodes(op);
@@ -761,7 +761,7 @@ class Control_Edge_Set {
         }
       }
 
-      //STEP-1: eliminate all the implicit concats from the subgraph but 
+      //STEP-1: eliminate all the implicit concats from the subgraph but
       //still retaining the dependencies.
       for (concat_sub_graph_t::iterator nitr=concat_sub_graph.begin();
             nitr != concat_sub_graph.end(); ++nitr) {
@@ -792,7 +792,7 @@ class Control_Edge_Set {
             (concat_sub_graph[sink]).in_coming_.insert(src);
             (concat_sub_graph[src]).out_going_.insert(sink);
 
-            if (!(src->getOpType() == "ImplicitConcat") && 
+            if (!(src->getOpType() == "ImplicitConcat") &&
                   !(sink->getOpType() == "ImplicitConcat")) {
               add_control_edge(src, sink, model);
             }
@@ -812,7 +812,7 @@ class Control_Edge_Set {
         operation_t op = *itr;
         if (!dag.is_dpu_op(op)) { continue; }
 
-        for (typename dag_t::const_operation_iterator_t 
+        for (typename dag_t::const_operation_iterator_t
               citr=dag.begin_nodes(op); citr!=dag.end_nodes(op); ++citr) {
           operation_t cop = *citr;
           if (dag.is_dma_op_moving_data_from_cmx_to_ddr(cop)) {
@@ -822,7 +822,7 @@ class Control_Edge_Set {
       }
     }
 
-    // Since the DMATasks which copy data from CMX2DDR does not use any 
+    // Since the DMATasks which copy data from CMX2DDR does not use any
     // resource the control edges will be missing. So we detect this case
     // and add control edges.
     template<typename OpDag>
@@ -897,7 +897,7 @@ class Dynamic_Spill_Node_Inserter {
 
     struct implicit_sub_structure_t {
       implicit_sub_structure_t(operation_t head=NULL, operation_t tail=NULL)
-        : head_(head), tail_(tail) {} 
+        : head_(head), tail_(tail) {}
 
       bool is_valid() const { return (head_!=NULL) && (tail_!=NULL); }
       bool operator<(const implicit_sub_structure_t& o) const {
@@ -920,8 +920,8 @@ class Dynamic_Spill_Node_Inserter {
         : read_op_(), consumer_list_(), implicit_sub_structure_(substr) {}
 
       spilled_read_subtree_t(const spilled_read_subtree_t& o)
-        : read_op_(o.read_op_), consumer_list_(o.consumer_list_), 
-          effective_children_(o.effective_children_), 
+        : read_op_(o.read_op_), consumer_list_(o.consumer_list_),
+          effective_children_(o.effective_children_),
           effective_child_map_(o.effective_child_map_) {}
 
       spilled_read_subtree_t& operator=(const spilled_read_subtree_t& o) {
@@ -1137,7 +1137,7 @@ class Dynamic_Spill_Node_Inserter {
           printfInfo("LpSchedulerPass", "[spilled_op=%s]\n",
               (itr->first)->getName().c_str());
           (itr->second).print();
-        } 
+        }
         printfInfo("LpSchedulerPass", "========================\n");
       }
     }
@@ -1294,15 +1294,15 @@ class Dynamic_Spill_Node_Inserter {
 
       while (subtree_itr!=read_subtrees.end()) {
         // We have an unrefined spill read structure //
-        // 
+        //
         // Refinement Procedure:
-        // 
+        //
         // STEP-1.1: filter the in direct children out leaving only the indirect
         //           children. Note that short-circuiting of implicit ops can
         //           create indirect children.
         //
         // STEP-1.2: om.pathSplit(spill_op_itr, I.begin(), I.end())
-        // 
+        //
         // STEP-1.3: determine additional reads based on divergence in the paths
         //           since the structure is a tree there is exactly one path
         //           between spilled_op and op in I //
@@ -1322,7 +1322,7 @@ class Dynamic_Spill_Node_Inserter {
           }
         } // foreach children //
 
-       
+
         // NOTE: the current subtree subtree_itr is now updated and has only
         // direct children //
         std::list< mv::Data::OpListIterator  > indirect_children;
@@ -1340,7 +1340,7 @@ class Dynamic_Spill_Node_Inserter {
 
           // STEP-1.3 : we have to create a new read for each unique path from
           // the spilled op to one of these children. The purpose of this loop
-          // is to determine these unique paths. 
+          // is to determine these unique paths.
           //
           //
           // NOTE: since the structure is a tree there is exactly one path from
@@ -1363,7 +1363,7 @@ class Dynamic_Spill_Node_Inserter {
             operation_t tail = &(*(*implicit_path.rbegin()));
 
             implicit_sub_structure_t key(head, tail);
-            unique_paths[ key ].push_back(child); 
+            unique_paths[ key ].push_back(child);
             atleast_one_subtree_refined = true;
           }
 
@@ -1371,7 +1371,7 @@ class Dynamic_Spill_Node_Inserter {
           spilled_read_subtrees_iterator_t
               next_unrefined_subtree_itr = subtree_itr;
           ++next_unrefined_subtree_itr;
-         
+
           // We insert all the refined subtrees before the next unrefined
           // subtree in the list of subtrees corresponding to spill.
           for (auto uniq_path_itr=unique_paths.begin();
@@ -1418,16 +1418,16 @@ class Dynamic_Spill_Node_Inserter {
 
       for (;subtree_itr!=read_subtrees.end(); ++subtree_itr) {
         // We have an unrefined spill read structure //
-        // 
+        //
         // Refinement Procedure:
-        // 
+        //
         // STEP-1.1: filter the in direct children out leaving only the indirect
         //           children. Note that short-circuiting of implicit ops can
         //           create indirect children.
         //
         // STEP-1.2: om.pathSplit(spill_op_itr, I.begin(), I.end())
-        // 
-        // STEP-1.3: for each indirect child determine effective child of the 
+        //
+        // STEP-1.3: for each indirect child determine effective child of the
         //           spilled op.
         spilled_read_subtree_t &curr_subtree = *subtree_itr;
         op_list_t& orig_child_list = curr_subtree.consumer_list_;
@@ -1490,14 +1490,14 @@ class Dynamic_Spill_Node_Inserter {
       // and has implicit_sub_structure.
       //
       // Incoming OpModel:
-      // 
+      //
       //   spilled_op---+-------+
       //                |       |
       //                |       v
       //                |      _spilledWrite(DMA WRITE)
-      //                |          
-      //                v 
-      //           head(implicit) 
+      //                |
+      //                v
+      //           head(implicit)
       //                |
       //                |
       //   ..complex path of implict ops..
@@ -1518,8 +1518,8 @@ class Dynamic_Spill_Node_Inserter {
       //                v
       //              _spilledWrite (DMA WRITE)
       //                |\
-      //                v 
-      //           head(implicit) 
+      //                v
+      //           head(implicit)
       //                |
       //                |
       //   ..complex path of implict ops..
@@ -1536,7 +1536,7 @@ class Dynamic_Spill_Node_Inserter {
       //           c1    c2  c3
       // STEP-1: get the sinkInput index of head
       // STEP-2: remove the data flow between spilled_op and head.
-      // STEP-3: create a data flow between _spilledWrite and head 
+      // STEP-3: create a data flow between _spilledWrite and head
       // STEP-4: create a lookup table for sinkInput index of c1,c2...cn by
       //         looking at the flows between tail and {c1, c2.... }
       // STEP-5: clear all the flows between tail and {c1, c2, ... }
@@ -1596,7 +1596,7 @@ class Dynamic_Spill_Node_Inserter {
         throw std::string("[ImplicitSubstructure] unable to locate dataflows"
               " forall childrent");
       }
-      
+
       for (auto flow : data_flows_to_erase) om.undefineFlow(flow);
       // STEP-1,2,4,5 are combined above //
 
@@ -1660,17 +1660,17 @@ class Dynamic_Spill_Node_Inserter {
       mv::Data::OpListIterator read_op_itr =
           om.getSourceOp(spill_read_tensor_itr);
       read_op_itr->setInputTensor(spill_write_tensor_itr, 0UL, false);
-      
+
       // save the read op into the structure//
       spilled_read_subtree_itr->read_op_ = &(*read_op_itr);
-    
+
       // Use effective children instead of original children:
       const effective_children_t &children =
           spilled_read_subtree_itr->effective_children_;
 
       // Erase all flows from spilled_op to effective children //
       //////////////////////////////////////////////////////////////////////////
-      // STEP-3: erase all outgoing flows from the spilled op and direct 
+      // STEP-3: erase all outgoing flows from the spilled op and direct
       // children in spill sub tree
       {
         mv::Data::OpListIterator spilled_op_itr =
@@ -1895,7 +1895,7 @@ class Dynamic_Spill_Node_Inserter {
         spill_read_tensor_itr = om.dMATask(
             spilled_op_input_tensor_itr, read_dma_direction, 0, dma_op_name);
         if(spill_read_tensor_itr->isSparse())
-          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false) 
+          spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false)
         Data::OpListIterator read_op_itr =
             om.getSourceOp(spill_read_tensor_itr);
         read_op_itr->setInputTensor(spilled_op_input_tensor_itr, 0UL, false);
@@ -2258,7 +2258,7 @@ class DDR_Address_Generator {
     template<typename ScheduleIterator>
     bool generate_tensor_addresses(
         ScheduleIterator sched_begin, ScheduleIterator sched_end,
-        const char *file_name=NULL) { 
+        const char *file_name=NULL) {
       return generate_tensor_addresses(sched_begin, sched_end, file_name, false);
     }
 
@@ -2388,7 +2388,7 @@ class DDR_Address_Generator {
 }; // class DDR_Address_Generator //
 
 
-
+#ifndef WIN32
 
 // Simple Schedule Record Encoding Format: <op_name, size_t>
 template<typename OpDAG>
@@ -2559,6 +2559,8 @@ struct Schedule_Reader_Writer {
     }
 
 }; // struct Schedule_Reader_Writer //
+
+#endif  // WIN32
 
 // Repack input DMAs (zero-indegree) for the scheduled compute ops to improve
 // the CMX utility:

@@ -19,7 +19,7 @@ add_definitions(-DPROJECT_DIR=\"${PROJECT_SOURCE_DIR}\")
 add_definitions(-DMV_LOG_ENABLED)
 
 if(MSVC)
-    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
+    add_compile_options("/GS" "/wd4146")
 else()
     add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "-fstack-protector-all")
 
@@ -280,6 +280,10 @@ add_library(mcmCompiler SHARED
     "${META_DIR_PATH}/src/op_model.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/lp_scheduler_pass.cpp"
 )
+
+if(MSVC)
+    set_target_properties(mcmCompiler PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif()
 
 if(TARGET mcmCompilerGenCompAPI)
     add_dependencies(mcmCompiler mcmCompilerGenCompAPI)

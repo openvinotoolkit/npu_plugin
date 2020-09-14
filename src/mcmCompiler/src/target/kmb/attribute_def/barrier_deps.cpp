@@ -30,7 +30,7 @@ namespace mv
 
     static Attribute fromJSON(const json::Value&)
     {
-        
+        return {};
     }
 
     static std::string toString(const Attribute& a)

@@ -53,7 +53,7 @@ public:
     uint32_t huffmanCodecCompressArray(unsigned char *inputData,
                                        int inputDataLength,
                                        unsigned char *outputData,
-                                       [[maybe_unused]] int outputDataLength)
+                                       int /*outputDataLength*/)
     {
         return this->huffmanCodecCompressArray((uint32_t &)inputDataLength, inputData, outputData);
     }
@@ -61,7 +61,7 @@ public:
     uint32_t huffmanCodecDecompressArray(unsigned char *inputData,
                                          int inputDataLength,
                                          unsigned char *outputData,
-                                         [[maybe_unused]] int outputDataLength)
+                                         int /*outputDataLength*/)
     {
         return this->huffmanCodecDecompressArray((uint32_t &)inputDataLength, inputData, outputData);
     }

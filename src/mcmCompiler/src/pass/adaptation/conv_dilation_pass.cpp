@@ -525,7 +525,10 @@ void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationMode
 
                 om.removeOp(nonDilatedKernelOp);
                 om.defineFlow(dilatedKernelOp, opIt, 1);
-                opIt->set<std::array<unsigned short, 2>>("kSize", {dilatedKernelShape[KERNEL_WIDTH], dilatedKernelShape[KERNEL_HEIGHT]} );
+                opIt->set<std::array<unsigned short, 2>>("kSize", {
+                    static_cast<unsigned short>(dilatedKernelShape[KERNEL_WIDTH]),
+                    static_cast<unsigned short>(dilatedKernelShape[KERNEL_HEIGHT])
+                } );
                 opIt->setInputTensor(dilatedKernelOp, 1, false);
                 opIt->set<unsigned>("dilationFactor", 1);
                 auto DilatedKernelOpFetched = opIt.rightmostParent();

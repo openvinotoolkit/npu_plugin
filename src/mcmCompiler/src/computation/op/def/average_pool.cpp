@@ -48,8 +48,8 @@ namespace mv
             auto stride = args.at("stride").get<std::array<unsigned short, 2>>();
             auto kSize = args.at("kSize").get<std::array<unsigned short, 2>>();
 
-            auto W = Tiling::inferOutputSize(inputShape[IO_WIDTH_DIMENSION], padding[0], padding[1], kSize[0], stride[0]);
-            auto H = Tiling::inferOutputSize(inputShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], kSize[1], stride[1]);
+            size_t W = Tiling::inferOutputSize(inputShape[IO_WIDTH_DIMENSION], padding[0], padding[1], kSize[0], stride[0]);
+            size_t H = Tiling::inferOutputSize(inputShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], kSize[1], stride[1]);
             auto C = inputShape[IO_CHANNEL_DIMENSION];
             auto N = inputShape[IO_BATCH_DIMENSION];
 

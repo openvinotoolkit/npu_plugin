@@ -115,7 +115,7 @@ void updateImplicitLayersLocationParamsFcn(const mv::pass::PassEntry& , mv::Comp
                 while (outputFlow != om.flowEnd())
                 {
                     if (outputFlow.sink()->getOpType() == "Copy"
-                        and outputFlow.sink()->getName() == opIt->getName()) // In case of parallel branches, just this guy
+                        && outputFlow.sink()->getName() == opIt->getName()) // In case of parallel branches, just this guy
                     {
                         copyId = outputFlow->get<std::size_t>("sinkInput");
                         tasks_flows["Copy"].push_back(outputFlow);

@@ -339,10 +339,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index = t->getAddress();
         else
         {
-            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution() 
+            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution()
             // are calculated from the smallest address of the input tenor to the ImplicitUnion operation
             // Here we have to ensure that the data_index of this tensor is the same smallest address otherwise the SEPs
-            // offsets will point to the wrong location 
+            // offsets will point to the wrong location
             auto parentOp = om.getSourceOp(t);
             if(parentOp->getOpType() == "ImplicitJoin")
             {
@@ -837,7 +837,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 }
 
 template <typename T>
-std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtype)
 {
     unsigned dataSize = origData.size();
     unsigned origDataSize = dtype.getSizeInBits();
@@ -845,7 +845,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     unsigned nElementToPack = 64 / origDataSize;
     unsigned finalLength = mv::ceil_division(dataSize , nElementToPack);
 
-    std::vector<long unsigned int> toReturn(finalLength, 0);
+    std::vector<uint64_t> toReturn(finalLength, 0);
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
@@ -1253,7 +1253,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             if (sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
             {
                 auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
-                if (parentDirection == mv::NNCMX2DDR and direction == mv::DDR2NNCMX)
+                if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
                 {
                     dmaToDma = true;
                 }
@@ -1266,7 +1266,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
                 if (parentOp->getOpType() == "DMATask")
                 {
                     auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
-                    if (parentDirection == mv::NNCMX2DDR and direction == mv::DDR2NNCMX)
+                    if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
                         dmaToDma = true;
                 }
                 else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
@@ -1341,8 +1341,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
             dmaToDma, toReturn, inputTensor, outputTensor, port);
-        // If the input tensor for a DMA task is sparse then we also need to 
-        // create DMA tasks which transfer Storage Element (SE) Table and 
+        // If the input tensor for a DMA task is sparse then we also need to
+        // create DMA tasks which transfer Storage Element (SE) Table and
         // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
@@ -1365,7 +1365,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
                   outputSparsityMap, port);
-                
+
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
                   outputStorageElementTable, port);

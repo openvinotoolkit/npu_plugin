@@ -189,7 +189,7 @@ void storeTensorPlacementFcn(const mv::pass::PassEntry& pass,
                 }
             }
 
-            if((not found) and (not tensorIt->hasAttr("Location")))
+            if((!found) && (!tensorIt->hasAttr("Location")))
             {
                 tensorIt->set<mv::Tensor::MemoryLocation>("Location",mv::Tensor::MemoryLocation::DEFAULT);
                 pass.log(mv::Logger::MessageType::Debug,"tensor " + tensorIt->getName() + "not found. setting to DEFAULT");

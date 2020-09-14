@@ -17,7 +17,7 @@ namespace mv
 
     static Attribute fromJSON(const json::Value& v)
     {
-        
+        return {};
     }
 
     static std::string toString(const Attribute& a)

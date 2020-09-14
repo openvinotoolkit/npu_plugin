@@ -68,7 +68,7 @@ void Huffman::constructHeap(const vector<Symbol> &data, int bpb)
     {
         nodes.emplace_back(data[i].symbol, data[i].occurrences, i, -1, -1);
     }
-    for (HuffmanTuple_t &it : nodes) 
+    for (HuffmanTuple_t &it : nodes)
     {
         heap.push(it);
     }
@@ -86,16 +86,16 @@ unsigned short int reverseBits_short(unsigned short int num)
 {
     unsigned short int  NO_OF_BITS = sizeof(num) * 8;
     unsigned short int reverse_num = 0, i, temp;
- 
+
     for (i = 0; i < NO_OF_BITS; i++)
     {
         temp = (num & (1 << i));
         if(temp)
             reverse_num |= (1 << ((NO_OF_BITS - 1) - i));
     }
-  
+
     return reverse_num;
-} 
+}
 
 HuffmanResult_t Huffman::encode(const Symbol *data, int len, int bpb, bool bypass)
 {
@@ -160,7 +160,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
             sumOfBits = 32;                     // total bits = 32 bit METADATA (no data required)
             sumOfBitsOptimal = sumOfBits;
 
-            // @@ dccormac -- edited "METADATA" for RLE mode 
+            // @@ dccormac -- edited "METADATA" for RLE mode
             // bit  [0]     BYPASS flag
             // bit  [1]     RLE flag
             // bits [13:2]  Num of symbol repetition == Data size -1 in bytes
@@ -192,7 +192,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
             {
                 Log(5, "encode: A node: %s, index %0d B node: %s, index %0d", a.getFullSymbol().c_str(), a.index, b.getFullSymbol().c_str(), b.index);
                 if(a.leftSon == -1) {
-                    leavesOccurrences += a.occurrences;      
+                    leavesOccurrences += a.occurrences;
                     Log(5, "leavesOccurrences %d ",leavesOccurrences);
                     Log(5, "a.occurrences %d ",a.occurrences);
                 }
@@ -215,7 +215,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
     generateEncodedSymbols();
 
     //----------------------------------------------------------------------------------------------------------------------------
-    // below is where the inbuf details are added 
+    // below is where the inbuf details are added
     //----------------------------------------------------------------------------------------------------------------------------
     // each input buffer size is calculated in terms of number of symbols per buffer.
 
@@ -223,12 +223,12 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
     inbuf_size.resize(13);  // number of input buffers (pipes)
     int temp =0;
 
-    DS_B = originalSize /  SIZE_OF_SYMBOL; 
+    DS_B = originalSize /  SIZE_OF_SYMBOL;
     Log(3, "encode: originalSize in BYTES: %d ", DS_B);
 
-    // distribute the symbols across the pipe 
+    // distribute the symbols across the pipe
     // for 4kB blocks
-    if(DS_B == 4096) {     
+    if(DS_B == 4096) {
         for (int j=0; j<12; j++) {
             inbuf_size[j] = 316;
         }
@@ -243,7 +243,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
         }
     }
     //   1664 = 128 per pipe (the min number of symbols there can be in a pipe)
-    else if (DS_B < 1664) {              
+    else if (DS_B < 1664) {
         int num_pipes = DS_B / 128;
         int symbols_per_pipe = DS_B / num_pipes;
         for (int i=0; i<num_pipes-1; i++) {
@@ -266,13 +266,13 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
 
     Log(5, "encode: inbuf_size.size() %lu \n", inbuf_size.size());
     for (size_t i = 0; i < inbuf_size.size(); i++) {
-        Log(5, " inbuf size_%lu size = %d", i, inbuf_size[i]); 
+        Log(5, " inbuf size_%lu size = %d", i, inbuf_size[i]);
     }
 
     //----------------------------------------------------------------------------------------------------------------------------
 
     mode = 1; // Huffman or Bypass mode bepending on compression size
- 
+
     sumOfBits += 432; // Huffman metadata + data size in bits (not including padding required at the end of each pipe, calculated the writing stage)
 
     // Overhead for partial encoding only
@@ -292,7 +292,7 @@ HuffmanResult_t Huffman::encode(const vector<Symbol> &data, int bpb, bool bypass
     Log(3, "encode: originalSize: %lld ", originalSize);
     Log(3, "encode: encoded data Size  (excluding pipe '0' padding) %d ", dataSize);
     Log(5, "encode: Max level of tree: %d", maxLevel);
-                       // total size, compressed size, entropy size 
+                       // total size, compressed size, entropy size
     return HuffmanResult_t(originalSize, sumOfBits, sumOfBitsOptimal);
 }
 
@@ -423,15 +423,15 @@ static int writeToBuffer(const char *encodedValues, int len, vector<char> *outpu
     uint32_t lviInitialLength;
     uint32_t lviDeltaLength;
     stringstream rptStream;
-    
+
     lviInitialLength = outputBuffer->size();
     lviDeltaLength   = static_cast<uint32_t>(len);
-    
+
     rptStream << "writeToBuffer: outputBuffer.size(): " << outputBuffer->size() << " bytes; adding " << lviDeltaLength << " bytes" << endl;
     Report (3, rptStream);
-    
+
     // do a resize here
-    
+
     for ( int i = 0; i < len; i++ )
     {
         outputBuffer->push_back(encodedValues[i]);
@@ -461,9 +461,9 @@ int Huffman::writeEncodedDataToFile( const void *data,
 {
     huffmanOutputDataRouting_t lvtHuffmanOutputDataRouting;
     vector<char> *dummyDataBuffer = NULL;
-    
+
     lvtHuffmanOutputDataRouting = WRITE_TO_FILE;
-    
+
     return writeEncodedData( data,
                              length,
                              filename,
@@ -507,7 +507,7 @@ int Huffman::writeEncodedData( const void *data,
         // bits [31:22] Padded with zeros
 
         encodedValues.addInt(headerBits, 32);  // number of bits to be inserted for Metadata
-        
+
         if (!statsOnly) {
             int status = 0;
             if ( outputDataRouting == WRITE_TO_FILE )
@@ -529,15 +529,15 @@ int Huffman::writeEncodedData( const void *data,
     //---------------------------------------------------------------------------------------------------------------------
     // Compression is used, HUFFMAN mode
     //---------------------------------------------------------------------------------------------------------------------
-    // Write METADATA and symbols to file 
+    // Write METADATA and symbols to file
 //    if(mode == 1) {
     else {
         // ------------------------------------------------------------------------------------------------------------------
-        // generating details for INPUT BUFF sizes 0 - 12 
+        // generating details for INPUT BUFF sizes 0 - 12
         // calculating the number of bit per pipe (including start bits but NOT including any padding)
         unsigned char *byte = (unsigned char *) data;
         int count = 0;
-        int byte_count = 0;   
+        int byte_count = 0;
         buff_bit_count.resize(13);
 
         // Keep trying to solve the buffer distribution until all pipes are valid
@@ -553,7 +553,7 @@ int Huffman::writeEncodedData( const void *data,
                 int start_next_window_flipped = 0;
                 for (int k=0; k < inbuf_size[j]; k ++) {
                     HuffmanCoded_t coded = getSymbolCode(byte[byte_count]);
-                    //Start New Check 
+                    //Start New Check
                     if (num_syms_in_window == 0) {
                         for(int init=0;init<4;init++) {
                             flipped[init] = 0;
@@ -571,7 +571,7 @@ int Huffman::writeEncodedData( const void *data,
                             // No Check here since the first symbol alone cannot exceed 24 or be equal to 24.
                             for(int flj=0;flj < 2; flj++) {
                                 int sumj = flj ? (1+SIZE_OF_SYMBOL) : origNumofBits[1];
-                                if ( (sumi + sumj == 24) || (sumi + sumj == 25) ){ 
+                                if ( (sumi + sumj == 24) || (sumi + sumj == 25) ){
                                     // Continue and check if flipping the second symbol to non-encoded helps.
                                     continue ;
                                 } else if (sumi + sumj > 25) {
@@ -587,7 +587,7 @@ int Huffman::writeEncodedData( const void *data,
                                 }
                                 for(int flk=0;flk < 2; flk++) {
                                     int sumk = flk ? (1+SIZE_OF_SYMBOL) : origNumofBits[2];
-                                    if ( (sumi + sumj + sumk  == 24) || (sumi + sumj + sumk  == 25) ) { 
+                                    if ( (sumi + sumj + sumk  == 24) || (sumi + sumj + sumk  == 25) ) {
                                         // Continue and check if flipping the third symbol to non-encoded helps.
                                         continue ;
                                     } else  if (sumi + sumj + sumk  > 25) {
@@ -602,7 +602,7 @@ int Huffman::writeEncodedData( const void *data,
                                         }
                                         goto found_solution;
                                     } else {
-                                        // Sum of first 3 is less than 24, check if the 4 would cross the 
+                                        // Sum of first 3 is less than 24, check if the 4 would cross the
                                         // 24 bit boundary. If no, the max sym should be 4.
                                         flipped[0] = fli;
                                         flipped[1] = flj;
@@ -622,13 +622,13 @@ int Huffman::writeEncodedData( const void *data,
                         assert(0);
 found_solution: ;
                     }
-                                
+
 
                     //if(k != inbuf_size[j]-1 || ((j != inbuf_size.size() - 1) && inbuf_size[j+1] != 0))
                     //{// this means we should have one extra lookahead byte/symbol available
                         //assert((byte_count + 1) < length);// let's double-check to be sure
 
-                        if (flipped[num_syms_in_window] && 1) 
+                        if (flipped[num_syms_in_window] && 1)
                         {
                             coded.nrOfBits = 0;
                         }
@@ -687,21 +687,21 @@ found_solution: ;
                         inbuf_size[j] = k - 1;
                         goto buffer_dist_loop_end;
                     }
-    
+
                     byte_count++;
                     count ++;                               // add 1 for start bit
                     if(coded.nrOfBits != 0) {               // symbol was encoded
                         count = count + coded.nrOfBits;     // add to num of bits used to encode the symbol
                         Log(5, "writeEncodedData: Symbol Encoded ");
-                        Log(5, "count = %d  J = %d   k = %d ", count, j, k); 
+                        Log(5, "count = %d  J = %d   k = %d ", count, j, k);
                     }
                     else {
                         count = count + SIZE_OF_SYMBOL;     // add 8 bit (SIZE_OF_SYMBOL)
-                        Log(5, "count = %d  J = %d   k = %d ", count, j, k); 
+                        Log(5, "count = %d  J = %d   k = %d ", count, j, k);
                     }
                 }
                 buff_bit_count[j] = count;
-                Log(5, "writeEncodedData: count = %d j = %d  buff_bit_count[%d] = %d ", count, j, j, buff_bit_count[j]); 
+                Log(5, "writeEncodedData: count = %d j = %d  buff_bit_count[%d] = %d ", count, j, j, buff_bit_count[j]);
                 Log(5, "writeEncodedData: bit count %d ", byte_count);
                 Log(5, "writeEncodedData: originalSize %lld ", originalSize);
             }
@@ -711,7 +711,7 @@ buffer_dist_loop_end: ;
 
         Log(5, "writeEncodedData: byte count %d ", byte_count);
         Log(5, "writeEncodedData: originalSize %lld ", originalSize);
-//        assert(byte_count == originalSize / SIZE_OF_SYMBOL); // origional size in bits/8 (bytes), byte_count = total no of Symbols 
+//        assert(byte_count == originalSize / SIZE_OF_SYMBOL); // origional size in bits/8 (bytes), byte_count = total no of Symbols
         assert(length == originalSize / SIZE_OF_SYMBOL);     // length passed from main
 
         // ------------------------------------------------------------------------------------------------------------------
@@ -736,9 +736,9 @@ buffer_dist_loop_end: ;
 
         //---------------------------------------------------------------------------------------------------------------------
         //---------------------------------------------------------------------------------------------------------------------
-        // BYPASS MODE: Entered If HUFFMAN compression is worse than origional 
+        // BYPASS MODE: Entered If HUFFMAN compression is worse than origional
         // or bypass mode selected
-        // or compressed data size (including padding) is 50% or less then the original data size 
+        // or compressed data size (including padding) is 50% or less then the original data size
         if (((t_encoded_data_size + 432) > (originalSize + 16)) | bypass | buffer_dist_failed) {
             if (bypass) {
                 rptStream << "writeEncodedData: BYPASS MODE selected on command line" << endl;
@@ -771,16 +771,16 @@ buffer_dist_loop_end: ;
                 ++dataSize;
             }
             Log(5, "writeEncodedData: data size %x ", dataSize);
-            sumOfBits = originalSize + 16;  // 16 bits for matadata 
+            sumOfBits = originalSize + 16;  // 16 bits for matadata
             if (sumOfBits % 16) {
                 sumOfBits += 16 -  (sumOfBits % 16);
             }
-            Log(5, "writeEncodedData: sumOfBits size %llx ", sumOfBits);    
+            Log(5, "writeEncodedData: sumOfBits size %llx ", sumOfBits);
 
             headerBits = ((dataSize-1) << 2) | 0x0001;
             Log(3, "writeEncodedData: BYPASS headerBits 16 bit value: 0x%x  \n        bit [0] bypass mode: 0x%x  \n        bit [1] RLE mode: 0x%x \n        bits [13:2] size of data: 0x%x \n        bits [15:14] padded 0x%x \n", headerBits, headerBits & 0x0001, (headerBits & 0x0002) >> 1, (headerBits & 0x3FFC) >> 2, (headerBits & 0xC0000) >> 14);
 
-            // Just write 16-bit of metadata + copy all original symbols 
+            // Just write 16-bit of metadata + copy all original symbols
             unsigned char *Bytes = (unsigned char*) data;
             int mask = ((1 << SIZE_OF_SYMBOL) - 1);     // create a MASH for the non encoded symbols (= FF as SIZE_OF_SYMBOL == 8)
             encodedValues.addInt(headerBits, 16);  // number of bits to be inserted for Metadata
@@ -842,22 +842,22 @@ buffer_dist_loop_end: ;
         // bits [393:382] input buffer size 10
         // bits [405:394] input buffer size 11
         // bits [417:406] input buffer size 12
-        
+
 
         // ------------------------------------------------------------------------------------------------------------------
-        // Add Mode the length in bit 
+        // Add Mode the length in bit
         encodedValues.addInt(0, 2);  // 0x0 2 bits indicating Huffman mode
         Log(3, "   2 bits for mode indicating Huffman ");
 
         // ------------------------------------------------------------------------------------------------------------------
-        // Add data size 
+        // Add data size
         t_encoded_data_size = (t_encoded_data_size / SIZE_OF_SYMBOL) -1;
         Log(3, "writeEncodedData: HUFFMAN Total encoded data size including '0' padding (excluding metadata) = %d ", t_encoded_data_size);
-        encodedValues.addInt(t_encoded_data_size, 12);  
+        encodedValues.addInt(t_encoded_data_size, 12);
 
         // ------------------------------------------------------------------------------------------------------------------
         // Add SKIP TABLE (leaf count at each level
-        for (int i = 1; i < 16; i++)  // 15 = max encoding symbol length 
+        for (int i = 1; i < 16; i++)  // 15 = max encoding symbol length
         {
             Log(5, "writeEncodedData: HUFFMAN skip table i = %d  ", i);
             Log(5, "maxLevel = %d ", maxLevel);
@@ -872,8 +872,8 @@ buffer_dist_loop_end: ;
         }
 
         // ------------------------------------------------------------------------------------------------------------------
-        // Add original symbols being encoded  
-        for (size_t i = 0; i < 16; i++)                    
+        // Add original symbols being encoded
+        for (size_t i = 0; i < 16; i++)
         {
             if (i < symAddr.size()) {
                 encodedValues.addInt(encSymLengths[symAddr[i]].second[0], 8);
@@ -887,7 +887,7 @@ buffer_dist_loop_end: ;
 
         // ------------------------------------------------------------------------------------------------------------------
         // Add input buffers values (including start bits but NOT including any padding)
-        for (size_t i = 0; i < inbuf_size.size(); i++)                    
+        for (size_t i = 0; i < inbuf_size.size(); i++)
         {
             encodedValues.addInt(buff_bit_count[i], 12);
             Log(3, "   in_buff_size_%lu: %d", i, buff_bit_count[i]);
@@ -899,7 +899,7 @@ buffer_dist_loop_end: ;
              Log(4, "   14 bits of padding ");
 
         // ------------------------------------------------------------------------------------------------------------------
-        // add encoded and non-encoded symbols & add the required padding at the end of each pipe 
+        // add encoded and non-encoded symbols & add the required padding at the end of each pipe
         unsigned char *Bytes = (unsigned char*) data;
         int mask = ((1 << SIZE_OF_SYMBOL) - 1);     // create a MASH for the non encoded symbols (= FF as SIZE_OF_SYMBOL == 8)
 
@@ -914,9 +914,9 @@ buffer_dist_loop_end: ;
             int window_number_in_pipe = 0;
             for (int k=0; k < inbuf_size[j]; k ++) {                        // loop inside the size of each tile (each symbol)
                 HuffmanCoded_t code = getSymbolCode(Bytes[byte_o]);
-                //Start New Check 
+                //Start New Check
                 if (num_syms_in_window == 0) {
-                // At the start of the 25 bit window, initialized all the flipped status of the 4 
+                // At the start of the 25 bit window, initialized all the flipped status of the 4
                 // possible symbols to 0. Indicating that we are leaving the symbol as is and not deciding to
                 // leave it unencoded.
                     for(int init=0;init<4;init++) {
@@ -935,12 +935,12 @@ buffer_dist_loop_end: ;
                         // No Check here since the first symbol alone cannot exceed 24 or be equal to 24.
                         for(int flj=0;flj < 2; flj++) {
                             int sumj = flj ? (1+SIZE_OF_SYMBOL) : origNumofBits[1];
-                            if ( (sumi + sumj == 24) || (sumi + sumj == 25) ) { 
+                            if ( (sumi + sumj == 24) || (sumi + sumj == 25) ) {
                                 // Continue and check if flipping the second symbol to non-encoded helps.
                                 // Note this is done for both 24 and 25, since the actual window is 25 in RTL.
                                 continue;
-                                // When we decide to fix the problem and after the flip, the number of symbols exceed  
-                                // 24, then in the next 24bit window, we should start with the status of the first 
+                                // When we decide to fix the problem and after the flip, the number of symbols exceed
+                                // 24, then in the next 24bit window, we should start with the status of the first
                                 // symbol to flipped. Checked in the next condition.
                             } else if (sumi + sumj > 25) {
                                 flipped[0] = fli;
@@ -954,11 +954,11 @@ buffer_dist_loop_end: ;
                             }
                             for(int flk=0;flk < 2; flk++) {
                                 int sumk = flk ? (1+SIZE_OF_SYMBOL) : origNumofBits[2];
-                                if ( (sumi + sumj + sumk  == 24) || (sumi + sumj + sumk  == 25) ) { 
+                                if ( (sumi + sumj + sumk  == 24) || (sumi + sumj + sumk  == 25) ) {
                                     // Continue and check if flipping the third symbol to non-encoded helps.
                                     continue;
-                                    // When we decide to fix the problem and after the flip, the number of symbols exceed the 
-                                    // 25, then in the next 24bit window, we should start with the status of the first 
+                                    // When we decide to fix the problem and after the flip, the number of symbols exceed the
+                                    // 25, then in the next 24bit window, we should start with the status of the first
                                     // symbol to flipped.
                                 } else  if (sumi + sumj + sumk  > 25) {
                                     flipped[0] = fli;
@@ -972,7 +972,7 @@ buffer_dist_loop_end: ;
                                     goto found_solution_again;
                                 } else {
                                     // < 24
-                                    // Sum of first 3 is less than 24, check if the 4th would cross the 
+                                    // Sum of first 3 is less than 24, check if the 4th would cross the
                                     // 24 bit boundary. If no, the max sym should be 4.
                                     flipped[0] = fli;
                                     flipped[1] = flj;
@@ -992,12 +992,12 @@ buffer_dist_loop_end: ;
                     assert(0);
 found_solution_again: ;
                 }
-                            
+
 
                 //if(k != inbuf_size[j]-1 || ((j != inbuf_size.size() - 1) && inbuf_size[j+1] != 0))
                 //{// this means we should have one extra lookahead byte/symbol available
                     //assert((byte_count + 1) < length);// let's double-check to be sure
-                    if (flipped[num_syms_in_window] && 1) 
+                    if (flipped[num_syms_in_window] && 1)
                     {
                         code.nrOfBits = 0;
                     }
@@ -1042,9 +1042,9 @@ found_solution_again: ;
             }
         }
         Log(2, "\nwriteEncodedData: Total size of encoded data to be written = %d \n", encodedValues.length);  // all encoded data (including padding) + Metadata
-//        assert(encodedValues.length == sumOfBits);      // TODO update check // check the data size is correct 
+//        assert(encodedValues.length == sumOfBits);      // TODO update check // check the data size is correct
     }
-    
+
     if (!statsOnly) {
         int status = 0;
         if ( outputDataRouting == WRITE_TO_FILE )
@@ -1088,7 +1088,7 @@ unsigned char Huffman::decodeSymbol(string huffman, const vector<int> &symbolTab
     }
 
     rptStream << "decodeSymbol: ERROR - Symbol " << huffman << " not found in symbol table" << endl;
-    
+
     Error(0, rptStream);
     // Log(0, rptStream.str().c_str());
     return '\0';
@@ -1170,12 +1170,12 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     FILE            *fin;
     FILE            *fout;
     BitData          encodedValues;
-    vector<uint8_t> *outputDataVector;
+    vector<uint8_t>  outputDataVector;
     uint32_t         outputDataLength;
     stringstream     rptStream;
     uint32_t         lviBlockNumber;
     size_t           odvSizePrev;
-        
+
     Log(5, "readEncodedData: start");
 
     int d_read;
@@ -1183,7 +1183,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     if ( inputDataRouting == READ_FROM_FILE )
     {
         fin = fopen(srcFile.c_str(), "rb");
-        
+
         if (!fin) {
             throw Exception(
                 PrintToString(
@@ -1196,12 +1196,12 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         assert (inputDataBuffer != NULL);
         assert (inputBufferLength>0);
     }
-    
-    
+
+
     if ( outputDataRouting == WRITE_TO_FILE )
     {
         fout = fopen(dstFile.c_str(), "wb");
-        
+
         if (!fout) {
             throw Exception(
                 PrintToString(
@@ -1211,16 +1211,14 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     else
     {
         fout             = NULL;
-        outputDataVector = new vector<uint8_t>;
-        outputDataVector->clear();
     }
 
     outputDataLength = 0;
     odvSizePrev = 0;
     lviBlockNumber = 0;
-    
+
     uint_least32_t bytes_read = 0;
-    
+
     while ( ( ( inputDataRouting == READ_FROM_FILE )   && ( !feof(fin) ) ) ||
             ( ( inputDataRouting == READ_FROM_BUFFER ) && ( bytes_read < inputBufferLength ) ) )
     {
@@ -1243,14 +1241,14 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         else
         {
             d_read = inputDataBuffer[bytes_read++];
-            Log(2, "readEncodedData: Block = %0d Mode = %x ODV size = %0ld (delta %0ld, d_read 0x%0x, bytes_read %0d)", lviBlockNumber, (d_read & 0x03), outputDataVector->size(), ( outputDataVector->size() - odvSizePrev ), (d_read&0xFFFF), bytes_read);
-            odvSizePrev = outputDataVector->size();
+            Log(2, "readEncodedData: Block = %0d Mode = %x ODV size = %0ld (delta %0ld, d_read 0x%0x, bytes_read %0d)", lviBlockNumber, (d_read & 0x03), outputDataVector.size(), ( outputDataVector.size() - odvSizePrev ), (d_read&0xFFFF), bytes_read);
+            odvSizePrev = outputDataVector.size();
         }
 
         //---------------------------------------------------------------------------------------------------------------------
-        // BYPASS mode 
+        // BYPASS mode
         //---------------------------------------------------------------------------------------------------------------------
-        if (d_read & 0x01) { 
+        if (d_read & 0x01) {
             rptStream << "readEncodedData: block " << lviBlockNumber << " being decoded in Bypass mode" << endl;
             Report(1, rptStream);
             Log(1, "readEncodedData: Bypass mode");
@@ -1288,7 +1286,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                 }
                 else
                 {
-                    outputDataVector->push_back(by_data);
+                    outputDataVector.push_back(by_data);
                 }
             }
             // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
@@ -1304,7 +1302,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                     d_read = inputDataBuffer[bytes_read++];
                 }
             }
-                        
+
             Log(2, "readEncodedData: finished block %0d with bytes_read %0d", lviBlockNumber, bytes_read );
             lviBlockNumber++;
             continue;
@@ -1334,7 +1332,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             }
             localDataSize |= (d_read & 0x3F) << 6;
             Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", localDataSize, localDataSize);
-            
+
             // Read symbol from metadata. Last 2 bits of first byte, first 6 bits from following
             symbol = (d_read >> 6) & 0x03;
             if ( inputDataRouting == READ_FROM_FILE )
@@ -1349,14 +1347,14 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             Log(5, "readEncodedData: RLE symbol = 0x%02X ", (int)symbol & 0xFF);
 
             bytes.insert(bytes.begin(), localDataSize+1, symbol);
-            
+
             if ( outputDataRouting == WRITE_TO_FILE )
             {
                 fwrite(bytes.data(), bytes.size(), 1, fout);
             }
             else
             {
-                outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
+                outputDataVector.insert(outputDataVector.end(), bytes.cbegin(), bytes.cend());
             }
 
             if ( RLE_BLOCKS_PADDED_TO_32_BYTES )
@@ -1381,9 +1379,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                 bytes_read = bytes_read + 1;
                 Log(5, "Bytes read: %0d. Current word: %0d Start word: %0d", bytes_read, bytes_read/32, start_word);
             }
-            
+
             Log(2, "readEncodedData: finished block %0d with bytes_read %0d", lviBlockNumber, bytes_read );
-            
+
             lviBlockNumber++;
             continue;
         }
@@ -1417,7 +1415,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         rptStream << "readEncodedData: block " << lviBlockNumber << " being decoded in HUFFMAN mode" << endl;
         Report (1, rptStream);
 
-        Log(1, "readEncodedData: HUFFMAN mode\n"); 
+        Log(1, "readEncodedData: HUFFMAN mode\n");
         Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", localDataSize, localDataSize);
 
         // Read in leaf table. Last 2 bits of first byte, first 6 bits of following
@@ -1515,14 +1513,14 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             encodedValues.bits.clear();
             encodedValues.length = bufferSizes[pipe];
             encodedValues.bits.resize(bufferSizeB);
-            
+
             if ( inputDataRouting == READ_FROM_FILE )
             {
                 assert(bytes_read += fread(encodedValues.bits.data(), 1, bufferSizeB, fin) == bufferSizeB);
             }
             else
             {
-                
+
                 for ( uint32_t i = bytes_read; i < ( bytes_read + bufferSizeB ); i++ )
                 {
                     encodedValues.bits[i-bytes_read] = (inputDataBuffer[i]);
@@ -1576,7 +1574,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         }
         else
         {
-            outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
+            outputDataVector.insert(outputDataVector.end(), bytes.cbegin(), bytes.cend());
         }
 
         // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
@@ -1596,21 +1594,20 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         Log(2, "readEncodedData: finished block %0d with bytes_read %0d", lviBlockNumber, bytes_read );
         lviBlockNumber++;
     }
-    
+
     if ( outputDataRouting == WRITE_TO_BUFFER )
     {
-        outputDataLength = outputDataVector->size();
-        
-        if ( !outputDataVector->empty() )
+        outputDataLength = outputDataVector.size();
+
+        if ( !outputDataVector.empty() )
         {
-            move(outputDataVector->begin(), outputDataVector->end(), outputDataBuffer);
-            delete outputDataVector;
+            move(outputDataVector.begin(), outputDataVector.end(), outputDataBuffer);
         }
         else
         {
-            rptStream << "readEncodedData: failed (outputDataVector->size(): " << outputDataVector->size() << ")" << endl;
+            rptStream << "readEncodedData: failed (outputDataVector->size(): " << outputDataVector.size() << ")" << endl;
             Error (0, rptStream);
-        }   
+        }
     }
     else
     {

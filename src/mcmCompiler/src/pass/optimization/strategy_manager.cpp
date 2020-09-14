@@ -258,9 +258,9 @@ std::vector<mv::Element> StrategyManager::convertClusteringStrategyToElement(Cri
     {
         std::string nodeName = s.get<std::string>("name_filter");
         std::string strategyName = s.get<std::string>("strategy");
-        if ((strategyName=="SplitOverH") or
-            (strategyName=="SplitOverK") or
-            (strategyName=="SplitOverHOverlapped") or
+        if ((strategyName=="SplitOverH") ||
+            (strategyName=="SplitOverK") ||
+            (strategyName=="SplitOverHOverlapped") ||
             (strategyName=="HKSwitch"))
         {
             hasClusterSpec.push_back(nodeName);
@@ -298,7 +298,7 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(Criti
 
         std::string DDRLocation = "DDR";
         std::string CMXLocation = "CMX";
-        
+
         //todo::don't search the whole model for this
         auto op = model_.getOp(opName);
         if(op->getOpType() == "Output")
@@ -309,7 +309,7 @@ std::vector<mv::Element> StrategyManager::convertLocationStrategyToElement(Criti
         else
             copyLElement.set("mem_location",CMXLocation);
         copyLElement.set("name_filter", opName);
-    
+
         locationStrategyList.push_back(copyLElement);
     }
 
@@ -437,10 +437,10 @@ void StrategyManager::initLayerStrategySets()
     {
         const auto& opType = opIt->getOpType();
         //todo:: have a generic trait marker for "Constant" operations at opDef ( among other generic traits todo's)
-        if ((opType != "Constant") and
-            (opType != "ConstantInt") and
-            (opType != "ConstantDataElement") and
-            (opType != "WeightsTable") and
+        if ((opType != "Constant") &&
+            (opType != "ConstantInt") &&
+            (opType != "ConstantDataElement") &&
+            (opType != "WeightsTable") &&
             (opType != "SparsityMap"))
         {
             auto nodeStrategies = make_shared<vector<StrategySet>>(0);
@@ -487,10 +487,10 @@ int StrategyManager::countInputLayers(mv::Data::OpListIterator op){
     for(auto inputOp = op.leftmostParent(); inputOp != model_.opEnd(); ++inputOp)
     {
         auto inputType = inputOp->getOpType();
-        if ((inputType == "Constant") or
-        (inputType == "ConstantInt") or
-        (inputType == "ConstantDataElement") or
-        (inputType == "WeightsTable") or
+        if ((inputType == "Constant") ||
+        (inputType == "ConstantInt") ||
+        (inputType == "ConstantDataElement") ||
+        (inputType == "WeightsTable") ||
         (inputType == "SparsityMap"))
             continue;
         inputs++;
@@ -513,7 +513,7 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
 
     for(auto node : topologicalModel_){
         if(node == opBegin) { // TODO more efficient way to jump to correct place
-            atStart = true; 
+            atStart = true;
             followingBranches = node.outputsSize() - 1;
             continue;
         }
@@ -522,12 +522,12 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
 
         auto opType = node->getOpType();
         // Skip weights/constants nodes (have already been added to convs/software layers at this point)
-        if ((opType == "Constant") or
-            (opType == "ConstantInt") or
-            (opType == "ConstantDataElement") or
-            (opType == "WeightsTable") or
-            (opType == "SparsityMap") or
-            (opType == "Input") or
+        if ((opType == "Constant") ||
+            (opType == "ConstantInt") ||
+            (opType == "ConstantDataElement") ||
+            (opType == "WeightsTable") ||
+            (opType == "SparsityMap") ||
+            (opType == "Input") ||
             (opType == "Output") )
             continue;
 
@@ -536,13 +536,13 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
         int output = node.childrenSize();
 
         // This node can't be a pivot if it has just 1 input and output, skip it
-        if(input == 1 and output == 1)
+        if(input == 1 && output == 1)
             continue;
 
         preceedingBranches = followingBranches;
         followingBranches += (output - input);
 
-        // Note: To capture the case of pivot being the end of one parallel section, and 
+        // Note: To capture the case of pivot being the end of one parallel section, and
         // the start of the next. First we test considering just input (did parallel end here)
         if((preceedingBranches - input) < 0)
         {
@@ -554,7 +554,7 @@ mv::Data::OpListIterator StrategyManager::LCA(mv::Data::OpListIterator opBegin, 
 
 // Note: A non-exclusive node is one which we pass through when following different parallel paths,
 // but is not also the lowest common child (lcsa) of those parallel paths
-std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::Data::OpListIterator opBegin, 
+std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::Data::OpListIterator opBegin,
                                                                                 mv::Data::OpListIterator opEnd)
 {
     std::vector<mv::Data::OpListIterator> nonExclusiveNodes;
@@ -589,7 +589,7 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
                 }
             }
             // TODO more efficient way than comparing strings?
-            if((nodesSeen.find(it->getName()) != nodesSeen.end()) and
+            if((nodesSeen.find(it->getName()) != nodesSeen.end()) &&
                 countInputLayers(it) != 1)
                 {
                     if(nodesAdded.find(it->getName()) == nodesAdded.end())
@@ -611,7 +611,7 @@ std::vector<mv::Data::OpListIterator> StrategyManager::getNonExclusiveNodes(mv::
 
 // Special handling for non-exclusive branches. These have dependencies that we can't represent yet.
 // 1. For each non-exclusive node, remove all but one input branch (poss immprovement, branch ending in dpu task if exists)
-// 2. Reconnect directly to the LCSA. All nodes affected (non-exclusive node, it's input node, and the lcsa) 
+// 2. Reconnect directly to the LCSA. All nodes affected (non-exclusive node, it's input node, and the lcsa)
 //    are forced to have clustering strategy in GO.
 // 3. After solving graph these will need to be reconnected to the correct nodes before the pass ends
 //    So remember the flows added/removed appropriately
@@ -630,10 +630,10 @@ void StrategyManager::handleNonExclusiveSubgraphs(std::vector<mv::Data::OpListIt
         std::vector<mv::Data::OpListIterator> opsToLink;
         for(; input != model_.opEnd(); ++input ){
             auto inputType = input->getOpType();
-            if ((inputType == "Constant") or
-            (inputType == "ConstantInt") or
-            (inputType == "ConstantDataElement") or
-            (inputType == "WeightsTable") or
+            if ((inputType == "Constant") ||
+            (inputType == "ConstantInt") ||
+            (inputType == "ConstantDataElement") ||
+            (inputType == "WeightsTable") ||
             (inputType == "SparsityMap"))
                 continue;
             input->set<bool>("forceClustering", true);
@@ -677,7 +677,7 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
         if(travelingChildren.size() == 1)
         {
             mv::Data::OpDFSIterator it(travelingChildren[0]);
-            for( ;(it.childrenSize() == 1) and (it != opEnd); ++it );
+            for( ;(it.childrenSize() == 1) && (it != opEnd); ++it );
 
             sGraphs->push_back( SubGraph(travelingNode,it,{travelingChildren[0]}));
 
@@ -714,7 +714,7 @@ shared_ptr<vector<StrategyManager::SubGraph>> StrategyManager::extractSubgraphs(
                     handleNonExclusiveSubgraphs(nonExclusiveNodes, lcsa);
                 }
             }
-        
+
             for(auto child = travelingNode.leftmostChild(); child != model_.opEnd(); ++child)
                 sGraphs->push_back( SubGraph(travelingNode,lcsa,{child}));
 
