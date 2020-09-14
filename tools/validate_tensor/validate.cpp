@@ -857,7 +857,7 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
     if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") == std::string("true"))
     {
         // InferencePerformanceCheck has no results to report
-        return RESULT_SUCCESS;
+        return true;
     }
 
     std::cout << "Checking inference results ..." << std::endl;
