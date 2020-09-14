@@ -951,6 +951,11 @@ namespace mv
 
                 //NOTE: This is not a HACK!!! if an operation is assigned with streamOverH + SplitOverH
                 //and we concatenate on cmx the data are going to have a strange format...so nothing can be done later, so spill...
+                /*For example, let's think a convolution with splitOverH and streams = 2, the tensor will be splitted to
+                 * 8 tiles, where every single tile is going to be assigned to a cluster with the round robin logic.
+                 * That means that cluster 0, will have tiles0,4. Cluster1 will have tiles1,5 and so on...
+                 * The way the data are splitted between clusters and the order of the tiles, do not allow us to concatenate
+                 * in the initial order inside CMX*/
                 if (clustering == "SplitOverH" &&
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
