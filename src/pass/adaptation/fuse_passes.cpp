@@ -124,7 +124,7 @@ void fuseBiasFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, st
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
     if (parentOpIt->getOpType() == "Conv" ||
         parentOpIt->getOpType() == "FullyConnected" ||
-        parentOpIt->getOpType() == "DepthwiseConv")
+        parentOpIt->getOpType() == "DepthwiseConv" || parentOpIt->getOpType() == "Deconv")
     {
         auto bias = *opIt->getInputTensor(1);
         auto biasOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");

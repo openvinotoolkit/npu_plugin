@@ -179,7 +179,7 @@ namespace mv
 
         }
 
-        for(auto mapIt = previous.find(sink); mapIt->first != source; mapIt = previous.find(mapIt->second))
+        for(auto mapIt = previous.find(sink); mapIt != previous.end() && mapIt->first != source; mapIt = previous.find(mapIt->second))
            toReturn.push_back(mapIt->first);
 
         toReturn.push_back(source);
@@ -197,6 +197,10 @@ namespace mv
         
         std::vector<typename graph<T_node, T_edge>::node_list_iterator> buildList = dijkstra_nodes<T_node, T_edge, T_nodeItComp, T_edgeItComp>(g, source, sink, edgeCosts);
         std::vector<typename graph<T_node, T_edge>::edge_list_iterator> toReturn;
+
+        // Handle inf edge removal case
+        if (buildList.size() < 2)
+            return toReturn;
 
         unsigned n = buildList.size();
         for(unsigned i = 0; i < n - 1; ++i)
