@@ -241,7 +241,18 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .privateConfig({{"VPU_KMB_FORCE_NCHW_TO_NHWC", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(5)};
+        .nClasses(5),
+    PrivateConfigTestParams()
+        .testDescription("USE_CORE_NN")
+        .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
+        .inputPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/input.bin")
+        .referencePath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/output.bin")
+        .preProc(false)
+        .checkSIPP(false)
+        .privateConfig({{"VPU_KMB_USE_CORE_NN", CONFIG_VALUE(YES)}})
+        .inputWidth(224)
+        .inputHeight(224)
+        .nClasses(2)};
 
 INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
 
