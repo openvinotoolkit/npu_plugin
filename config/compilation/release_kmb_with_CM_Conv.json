@@ -286,7 +286,8 @@
                 "html": true
             },
             {
-              "name" : "ChainPipeliningTransform"
+              "name" : "ChainPipeliningTransform",
+              "select_stages" : 2
             },
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",

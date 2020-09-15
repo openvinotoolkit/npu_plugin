@@ -204,10 +204,11 @@ class Pipeline_Chains {
       }
     }
 
-    void transform_op_model(FILE *fptr=stdout) {
+    void transform_op_model(FILE *fptr=stdout, size_t select_stages=0UL) {
       std::list<control_edge_t> control_edges;
       std::list<chain_subgraph_t> subgraphs;
-      transform_op_model(std::back_inserter(control_edges), subgraphs, fptr);
+      transform_op_model(std::back_inserter(control_edges), subgraphs,
+          select_stages, fptr);
     }
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
@@ -358,7 +359,8 @@ class Pipeline_Chains {
 
     template<typename ControlEdgeOutput, typename SubGraphContainer>
     void transform_op_model(ControlEdgeOutput output,
-        SubGraphContainer& chain_subgraphs, FILE *fptr=stdout) {
+        SubGraphContainer& chain_subgraphs, size_t select_stages=0UL,
+        FILE *fptr=stdout) {
 
       static_assert( std::is_same<chain_subgraph_t,
             typename SubGraphContainer::value_type>::value,
@@ -376,94 +378,50 @@ class Pipeline_Chains {
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
 
         chain_subgraph.print(fptr);
-
         auto curr_dpu_itr = dpu_chain.begin();
+        auto curr_itr = weight_reads.begin();
+
+
         auto pprev_dpu_itr = curr_dpu_itr;
 
-        auto curr_itr = weight_reads.begin();
         auto pprev_itr = curr_itr;
-       
-
+      
         const op_list_t & weight_reads_start_list = weight_reads.front();
-        operation_t first_weight_read = weight_reads_start_list.front();
-        mv::Data::OpListIterator first_weight_read_itr =
-            om.getOp(first_weight_read->getName());
-        first_weight_read_itr->set<bool>("pipeline_data_start", true);
 
-
-#if 0
-        if (curr_itr == weight_reads.end()) { continue; }
-        ++curr_itr;
-        ++curr_dpu_itr;
-#endif
 
         if (curr_itr == weight_reads.end()) { continue; }
         ++curr_itr;
         ++curr_dpu_itr;
 
-        while (curr_itr != weight_reads.end()) {
-          // add control edge between first read of pprev and all reads of
-          // curr //
+        if (curr_itr == weight_reads.end()) { continue; }
+        ++curr_itr;
+        ++curr_dpu_itr;
+
+        while (curr_dpu_itr != dpu_chain.end()) {
           const op_list_t & curr_read_list = *curr_itr;
           const op_list_t & pprev_read_list = *pprev_itr;
+          if (!pprev_read_list.empty())
+          {
 
-          if (!pprev_read_list.empty()) {
-            operation_t pprev_read_op = pprev_read_list.front();
-            mv::Data::OpListIterator src_itr =
-                omodel_.getOp(pprev_read_op->getName());
-            mv::Data::OpListIterator src_dpu_itr = om.opEnd();
-
-            bool define_dpu_flow = false;
-            {
-              auto net_dpu_itr = pprev_dpu_itr; 
-
-              if (net_dpu_itr != dpu_chain.begin()) { // 2 levels //
-                --net_dpu_itr;
-                src_dpu_itr = omodel_.getOp((*net_dpu_itr)->getName());
-                define_dpu_flow = true;
-              }
-
-#if 0
-              if (net_dpu_itr != dpu_chain.begin()) { // 3 levels //
-                --net_dpu_itr;
-                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
-              }
-
-              if (net_dpu_itr != dpu_chain.begin()) { // 4 levels //
-                --net_dpu_itr;
-                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
-              }
-
-              if (net_dpu_itr != dpu_chain.begin()) { // 5 levels //
-                --net_dpu_itr;
-                src_itr = omodel_.getOp((*net_dpu_itr)->getName());
-              }
-#endif
+            auto net_dpu_itr = pprev_dpu_itr;
+            for (size_t sl=0; (sl<select_stages) &&
+                  (net_dpu_itr != dpu_chain.begin()); ++sl) {
+              --net_dpu_itr;
             }
-                
+            mv::Data::OpListIterator src_itr =
+                omodel_.getOp((*net_dpu_itr)->getName());
 
             for (operation_t curr_read_op : curr_read_list ){
               mv::Data::OpListIterator sink_itr =
                   omodel_.getOp(curr_read_op->getName());
-
               sink_itr->set<bool>("pipeline_flow_control", true);
               mv::Data::TensorIterator src_tensor_itr
                   = src_itr->getOutputTensor(0UL);
-
               {
                 mv::Data::FlowListIterator flow_itr =
                     omodel_.defineFlow(src_tensor_itr, sink_itr, 0UL);
                 flow_itr->set<bool>("pseudo_data_flow", true);
               }
-
-              if (define_dpu_flow)
-              {
-                mv::Data::FlowListIterator flow_itr =
-                    omodel_.defineFlow(src_dpu_itr, 0UL, sink_itr, 0UL);
-                flow_itr->set<bool>("pseudo_data_flow", true);
-              }
-
-              //output = control_edge_t(src_itr, sink_itr);
             }
           }
 
@@ -473,6 +431,8 @@ class Pipeline_Chains {
           ++pprev_dpu_itr;
         }
       }
+
+
     }
 
 
