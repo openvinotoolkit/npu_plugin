@@ -29,7 +29,6 @@ addIeTargetTest(
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
     LINK_LIBRARIES
         IE::IESharedTests
-        ${HDDL2_PLUGIN_STATIC_TARGET}
         IE::vpu_common_lib
         HddlUnite
         ${XLINK_LIB}
@@ -37,6 +36,8 @@ addIeTargetTest(
         frontend_mcm
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
+    LABELS
+        VPUX
 )
-
+add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET})
 enable_warnings_as_errors(${TARGET_NAME})

@@ -81,7 +81,7 @@ std::string HDDL2RemoteContext::getDeviceName() const noexcept {
     if (_workloadContext == nullptr) {
         return "";
     }
-    return "HDDL2." + _workloadContext->getDevice()->getName();
+    return "VPUX." + _workloadContext->getDevice()->getName();
 }
 
 IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }

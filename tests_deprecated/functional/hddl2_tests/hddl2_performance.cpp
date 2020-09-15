@@ -108,7 +108,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
     const std::string& modelPath = graphPath;
