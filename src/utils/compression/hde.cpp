@@ -10,6 +10,10 @@ Hde::Hde(uint32_t bitPerSymbol, uint32_t maxNumberEncodedSymbols, uint32_t verbo
 
 std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Tensor& t)
 {
+    if(data.empty()) {
+        throw mv::ArgumentError("hde", "hdeCompress", "0", "Empty data vector");
+    }
+
     std::pair<std::vector<int64_t>, uint32_t> toReturn;
     std::vector<uint8_t> uncompressedData(data.begin(),data.end());
     uint32_t uncompressedDataSize = uncompressedData.size();
@@ -39,6 +43,10 @@ std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>&
 
 std::pair<std::vector<int64_t>, uint32_t> Hde::hdeCompress(std::vector<int64_t>& data, mv::Data::TensorIterator& t)
 {
+    if(data.empty()) {
+        throw mv::ArgumentError("hde", "hdeCompress", "0", "Empty data vector");
+    }
+
     std::pair<std::vector<int64_t>, uint32_t> toReturn;
     std::vector<uint8_t> uncompressedData(data.begin(),data.end());
     uint32_t uncompressedDataSize = uncompressedData.size();
