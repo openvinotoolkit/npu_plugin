@@ -1095,22 +1095,26 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
 
 // TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0234) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0234.xml")
-            .setUserInputPrecision(input_name, Precision::U8),
+                .setUserInputPrecision("input", Precision::U8)
+                .setUserInputLayout("input", Layout::NHWC)
+                .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", ImageFormat::BGR), 0.2f);
 }
 
 // TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrNetworkTest, person_attribute_recognitnion_crossroad_0238) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
 
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/person-attributes-recognition-crossroad/person-attributes-recognition-crossroad-0238.xml")
-            .setUserInputPrecision(input_name, Precision::U8),
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("app_folder/miniskirt, mini/Miniskirt1.bmp", ImageFormat::BGR), 0.2f);
 }
