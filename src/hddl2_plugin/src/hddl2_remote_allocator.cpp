@@ -100,8 +100,8 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(
 
     try {
         // Use already allocated memory
-        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::RemoteMemory>(*_contextPtr, remoteMemory->getDmaBufFd(), size);
+        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr = std::make_shared<HddlUnite::RemoteMemory>(
+            *_contextPtr, remoteMemory->getMemoryDesc(), remoteMemory->getDmaBufFd());
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
