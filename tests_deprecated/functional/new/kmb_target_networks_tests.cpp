@@ -1110,3 +1110,13 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
         0.3f,
         1.f, 0.3f);
 }
+
+TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
+	    .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("60x60/head-pose-estimation-adas-0001.png", ImageFormat::BGR),
+        0.1f);
+}
