@@ -403,6 +403,9 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                         opsToLink[op]->setInputTensor(alignedTensor, inputSlots[op], false);
                         opsToLink[op]->set<bool>("alignment", true);
                         om.defineFlow(alignedTensor, opsToLink[op], inputSlots[op]);
+                        // If Copy follows Align, cascade aligned output shape
+                        if(opsToLink[op]->getOpType() == "Copy")
+                            opsToLink[op]->getOutputTensor(0)->setShape(alignedTensor->getShape());
                     }
                 }
             }
