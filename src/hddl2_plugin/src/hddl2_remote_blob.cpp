@@ -54,7 +54,7 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
                               "information";
     }
     try {
-        _remoteMemory = remote_memory_iter->second.as<HddlUnite::SMM::RemoteMemory::Ptr>();
+        _remoteMemory = remote_memory_iter->second.as<HddlUnite::RemoteMemory::Ptr>();
     } catch (...) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Remote memory param have incorrect type information";
     }

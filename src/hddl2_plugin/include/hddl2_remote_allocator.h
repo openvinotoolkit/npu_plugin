@@ -33,13 +33,13 @@ namespace HDDL2Plugin {
 
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
-    explicit HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory);
+    explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
 
     InferenceEngine::LockOp lockOp;
     bool isLocked = false;
 
     std::vector<uint8_t> localMemory;
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ public:
      * @brief Wrap already allocated on device memory
      * @return Allocated remote memory
      */
-    void* wrapRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept;
+    void* wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept;
 
     /**
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter

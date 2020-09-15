@@ -25,7 +25,7 @@ constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
 
 bool static isValidAllocateSize(size_t size) noexcept { return !(size <= 0 || size > MAX_ALLOC_SIZE); }
 
-bool static isValidRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory) {
+bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
     return remoteMemory->getDmaBufFd() != INT32_MAX;
 }
 
@@ -40,7 +40,7 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     }
 }
 
-HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory)
+HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory)
     : remoteMemory(remoteMemory) {}
 
 HDDL2RemoteAllocator::HDDL2RemoteAllocator(
@@ -62,7 +62,7 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
     }
 
     try {
-        HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr = HddlUnite::SMM::allocate(*_contextPtr, size);
+        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr = HddlUnite::allocate(*_contextPtr, size);
         if (remoteMemoryPtr == nullptr) {
             THROW_IE_EXCEPTION << "Failed to allocate memory";
         }
@@ -81,7 +81,7 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
 }
 
 void* HDDL2RemoteAllocator::wrapRemoteMemory(
-    const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept {
+    const HddlUnite::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
     if (!remoteMemory) {
@@ -100,8 +100,8 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(
 
     try {
         // Use already allocated memory
-        HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, remoteMemory->getDmaBufFd(), size);
+        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr =
+            std::make_shared<HddlUnite::RemoteMemory>(*_contextPtr, remoteMemory->getDmaBufFd(), size);
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());

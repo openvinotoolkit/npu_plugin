@@ -64,7 +64,7 @@ public:
 
 private:
     RemoteMemory_Helper _remoteMemoryHelper;
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
 };
 
 

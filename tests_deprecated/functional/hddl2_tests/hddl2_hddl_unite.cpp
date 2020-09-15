@@ -216,7 +216,7 @@ public:
     std::string simpleInputData;
 
     HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
 
     RemoteMemory_Helper remoteMemoryHelper;
 
