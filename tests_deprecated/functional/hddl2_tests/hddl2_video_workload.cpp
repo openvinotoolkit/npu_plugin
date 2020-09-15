@@ -106,7 +106,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
     std::filebuf blobFile;
@@ -171,7 +171,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
     std::filebuf blobFile;
@@ -179,7 +179,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
         THROW_IE_EXCEPTION << "Could not open file: " << graphPath;
     }
     std::istream graphBlob(&blobFile);
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, "VPUX");
     blobFile.close();
 
     // ---- Create infer request
@@ -254,7 +254,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
     std::filebuf blobFile;
@@ -335,7 +335,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
-    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("HDDL2", paramMap);
+    IE::RemoteContext::Ptr contextPtr = ie.CreateContext("VPUX", paramMap);
 
     // ---- Import network providing context as input to bind to context
     std::filebuf blobFile;

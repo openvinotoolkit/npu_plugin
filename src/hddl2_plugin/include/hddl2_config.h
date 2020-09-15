@@ -42,7 +42,7 @@ protected:
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
 
 private:
-    std::string _platform = "HDDL2";
+    std::string _platform = "VPUX";
     LogLevel _logLevel = LogLevel::Warning;
     std::string _device_id;
     bool _performance_counting = false;
