@@ -514,3 +514,5 @@ Modify string:
 [VPU Wiki PCIe XLink driver]: https://wiki.ith.intel.com/pages/viewpage.action?pageId=1503496133#HowtosetupPCIeforHDDLUnite-InstallPCIeXLinkdriver
 [BKC Configuration]: https://wiki.ith.intel.com/display/VPUWIKI/HDDL2#HDDL2-Configuration
 [Yocto SDK]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin/blob/master/README.md#yocto-sdk
+[G-API-VPU project]: https://gitlab-icv.inn.intel.com/G-API/g-api-vpu.git 
+[G-API-VPU project mantainers]: Budnikov, Dmitry <Dmitry.Budnikov@intel.com>; Garnov, Ruslan <Ruslan.Garnov@intel.com>; Matveev, Dmitry <dmitry.matveev@intel.com>
