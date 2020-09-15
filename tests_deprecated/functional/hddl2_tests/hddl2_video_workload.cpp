@@ -122,9 +122,10 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     // ---- Create remote blob by using already exists remote memory
     IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
 
-    auto inputInfo = executableNetwork.GetInputsInfo().begin();
-    const std::string inputName = inputInfo->first;
-    IE::InputInfo::CPtr inputInfoPtr = inputInfo->second;
+    // Using value instead of iterator due to a bug in the MSVS 2019 compiler
+    auto inputInfo = *executableNetwork.GetInputsInfo().begin();
+    const std::string inputName = inputInfo.first;
+    IE::InputInfo::CPtr inputInfoPtr = inputInfo.second;
 
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(), blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
