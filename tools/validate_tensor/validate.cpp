@@ -482,19 +482,26 @@ int runKmbInference(std::string evmIP, std::string blobPath)
 
     // add to runtimeOptions
     long int buffer_max_size=blobfile_size_mb + 1;
-    runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
+    std::string cleanMake = "";
     if(blobfile_size_mb >= 100L)
     {
+        cleanMake = " clean ";
+        runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=") + std::to_string(buffer_max_size);
         //TODO: Deprecated config key to remove after fully transitionning to
         // runtime versions >= NN_Runtime_v2.46.0
         runtimeOptions += std::string(" CONFIG_NN_ALIGN_WEIGHT_BUFFERS=n");
         runtimeOptions += std::string(" CONFIG_NN_WEIGHT_BUFFER_ALIGNMENT=1");
     }
+    else
+    {   // default buffer size to 100mb
+        runtimeOptions += std::string(" CONFIG_BLOB_BUFFER_MAX_SIZE_MB=100");
+    }
+    
 
     // execute the blob
     std::cout << std::endl << std::string("====== Execute blob ======") << std::endl;
     std::string commandline = std::string("cd ") + std::getenv("VPUIP_HOME") + "/" + testRuntime + " && " +
-        "make run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
+        "make " + cleanMake + "run CONFIG_FILE=" + runtimeConfig + " srvIP=" + evmIP + " srvPort=" + movisimPort + " " + runtimeOptions;
     std::cout << commandline << std::endl;
     int returnVal = std::system(commandline.c_str());
     if (returnVal != 0)
@@ -857,7 +864,7 @@ bool checkInference(std::string actualResults, std::string expectedResults, std:
     if(getEnvVarDefault("INFERENCE_PERFORMANCE_CHECK", "") == std::string("true"))
     {
         // InferencePerformanceCheck has no results to report
-        return RESULT_SUCCESS;
+        return true;
     }
 
     std::cout << "Checking inference results ..." << std::endl;
