@@ -47,6 +47,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                   VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
                                                   VPU_KMB_CONFIG_KEY(USE_SIPP),
                                                   VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                  VPU_KMB_CONFIG_KEY(USE_CORE_NN),
                                               });
 
     return options;
