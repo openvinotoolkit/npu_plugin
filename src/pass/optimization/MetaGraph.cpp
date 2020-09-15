@@ -167,6 +167,9 @@ void MetaGraph::addNewLevel(Op& op,
             for(const auto newNode : latestLevel.level)
             {
                 double edgeCost = cost(*lastLevel.op,*latestLevel.op, *oldNode, *newNode);
+                if (edgeCost == numeric_limits<double>::infinity())
+                    continue;
+
                 auto newEdge = internalGraph_.edge_insert(oldNode,newNode,MetaEdge(edgeCost));
 
                 edgeCostMap.insert(pair<OptimizationGraph::edge_list_iterator, double>(newEdge, edgeCost));
@@ -366,6 +369,17 @@ void MetaGraph::solve()
                                         startNode,
                                         endNode,
                                         edgeCostMap);
+
+            // Handle inf edge removal case
+            if (criticalEdges.size() < 1)
+            {
+                // If failed dijkstra because of a missing inf edge, force a criticalPath of inf cost
+                StrategySetPair newPair(&(*startNode), &(*endNode));
+                auto criticalNodes = std::make_shared<CriticalPathNodes>();
+                CriticalPath newPath(criticalNodes, std::numeric_limits<double>::infinity());
+                criticalPaths_[newPair] = newPath;
+                continue;
+            }
 
             auto criticalNodes = make_shared<CriticalPathNodes>(criticalEdges.size()-1);
             double cost = 0;

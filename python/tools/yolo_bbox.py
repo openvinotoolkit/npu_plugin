@@ -146,16 +146,21 @@ def parse_output(output, image_path, actual, display_image=False):
 
 
 def main():
-    output = np.fromfile(os.getenv("VPUIP_HOME") + "/application/demo/InferenceManagerDemo/output-0.bin", dtype=np.float16, count=13*13*125)
-    ref = np.fromfile(os.getenv("DLDT_HOME") + "/bin/intel64/Debug/output_cpu.bin", dtype=np.float32, count=13*13*125)
+    image = sys.argv[1]
+    output = np.fromfile(sys.argv[2], dtype=np.float16, count=13*13*125)
+    ref = np.fromfile(sys.argv[3], dtype=np.float32 , count=13*13*125)
     
+    print (sys.argv[1])
+    print (sys.argv[2])
+    print (sys.argv[3])
+
     if ref is not None:
         print("Expected Output:")
-        parse_output(ref.astype(np.float32), sys.argv[1], actual=False)
+        parse_output(ref.astype(np.float32), image, actual=False)
     
     if output is not None:
         print("Actual Output:")
-        parse_output(output.astype(np.float32), sys.argv[1], actual=True) # len(sys.argv) > 2) # pass arg to display image
+        parse_output(output.astype(np.float32), image, actual=True) # len(sys.argv) > 2) # pass arg to display image
 
 if __name__=='__main__':
     main()

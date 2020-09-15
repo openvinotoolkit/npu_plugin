@@ -747,7 +747,7 @@ namespace mv {
     struct SplitVariant
     {
         SplitFactors factors;
-        double cost_estimate;
+        double cost_estimate = 0.0;
     };
 
     static SplitVariant getBestSplitSymmetric(unsigned W, unsigned H, unsigned N,
@@ -837,8 +837,8 @@ namespace mv {
 
     struct SplitVariantNonSymmetric : public SplitVariant
     {
-        unsigned xss, yss;
-        char mode;
+        unsigned xss=0, yss=0;
+        char mode='\0';
     };
 
     static SplitVariantNonSymmetric getBestSplitNonSymmetric(unsigned W, unsigned H, unsigned N,
