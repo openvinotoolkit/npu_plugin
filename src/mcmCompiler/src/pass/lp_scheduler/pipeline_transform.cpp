@@ -52,10 +52,16 @@ void ChainPipeliningTransform(const mv::pass::PassEntry&,
 
   pipeline_chains_t pipeliner(om);
 
+  size_t pipeline_stages = 0UL;
+
+  if (passDesc.hasAttr("select_stages")) {
+    pipeline_stages = (size_t) passDesc.get<int>("select_stages");
+  }
+
   mv::GenerateDotFromModel(om, "OpModel",
         "before_pipeline_chain_transform.dot");
   FILE *pipeline_report_fptr = fopen("chain_pipeline_report.txt", "w");
-  pipeliner.transform_op_model(pipeline_report_fptr);
+  pipeliner.transform_op_model(pipeline_report_fptr, pipeline_stages);
   fclose(pipeline_report_fptr);
   mv::GenerateDotFromModel(om, "OpModel","after_pipeline_chain_transform.dot");
 }
