@@ -77,7 +77,7 @@ public:
      * @brief Wrap already allocated on device memory
      * @return Allocated remote memory
      */
-    void* wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept;
+    void* wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept;
 
     /**
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter

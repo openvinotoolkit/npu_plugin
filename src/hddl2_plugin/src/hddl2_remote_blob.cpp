@@ -96,7 +96,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemory, this->size());
+    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemory);
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }

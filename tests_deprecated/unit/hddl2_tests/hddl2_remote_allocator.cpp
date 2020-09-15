@@ -65,7 +65,7 @@ TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMem_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
-    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr, correctSize);
+    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr);
     ASSERT_EQ(remoteMem, nullptr);
 }
 
