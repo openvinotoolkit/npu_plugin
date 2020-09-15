@@ -89,6 +89,7 @@ namespace mv
                 DWLargeStrideReplacementSOK,
                 SpiltOverHWithStreamOverK,
                 SpiltOverHWithStreamOverHInCMX,
+                SpiltOverHWithStreamOverHInYOLOV3,
                 SparsityKSegmented,
                 SparsitySpilling,
                 PipelineNotPossible,
@@ -116,6 +117,7 @@ namespace mv
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::SpiltOverHWithStreamOverHInCMX, "SpiltOverHWithStreamOverHInCMX"},
+                {FailCause::SpiltOverHWithStreamOverHInYOLOV3, "SpiltOverHWithStreamOverHInYOLOV3"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::PipelineNotPossible, "PipelinedNotPossible"},
@@ -959,6 +961,11 @@ namespace mv
                 if (clustering == "SplitOverH" &&
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
+
+                //NOTE: Temporary change for handling the yolov3 failing case
+                if (clustering == "SplitOverH" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 416 &&
+                    streamShape["H"] > 1)
+                    return FailCause::SpiltOverHWithStreamOverHInYOLOV3;
 
                 return FailCause::Pass; //good strategy
             }
