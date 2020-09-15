@@ -41,15 +41,9 @@ endif()
 target_include_directories(${TARGET_NAME}
     PUBLIC
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include")
-
-# TODO: remove when compiler works on ARM and Windows
-if(AARCH64 OR WIN32)
-    target_include_directories(${TARGET_NAME}
-        SYSTEM PRIVATE
-            ${FLATBUFFERS_INCLUDE_PATH}
-            ${SCHEMA_INCLUDE_PATH})
-endif()
+        "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    PRIVATE
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/meta/include")
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
@@ -57,21 +51,27 @@ link_system_libraries(${TARGET_NAME}
         IE::inference_engine_transformations
         IE::pugixml
         IE::ngraph_reference
-        IE::vpu_common_lib)
+        IE::vpu_common_lib
+        flatbuffers)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux
         kmb_utils)
 
-# TODO: move to the targer_link_libraries above when compiler works on ARM
-# TODO remove NOT WIN32 when we have compiler for Windows
+# TODO: do this unconditionally, when compiler will be tested on AARCH64 and WIN32
 if(X86_64 AND NOT WIN32)
     link_system_libraries(${TARGET_NAME}
         PRIVATE
-            MCM::cm)
+            mcmCompiler)
 
-   # FIXME: remove define once we hide all logic for compiler in a separate library
+   # TODO: remove define once we hide all logic for compiler in a separate library
    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MCM_COMPILER)
+
+    add_custom_target(mcm_compiler_copy ALL
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
+        COMMENT "[MCM Compiler] Copy config files")
 endif()
 
 if(ENABLE_CLANG_FORMAT)

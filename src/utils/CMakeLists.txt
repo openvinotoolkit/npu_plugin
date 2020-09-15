@@ -34,9 +34,6 @@ target_include_directories(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     SYSTEM PUBLIC
         $<TARGET_PROPERTY:IE::inference_engine_plugin_api,INTERFACE_INCLUDE_DIRECTORIES>)
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        ${MCM_COMPILER_INCLUDES})
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE

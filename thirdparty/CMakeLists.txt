@@ -17,6 +17,32 @@
 file(MAKE_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu")
 
 #
+# flatbuffers
+#
+
+set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(FLATBUFFERS_INSTALL OFF CACHE BOOL "" FORCE)
+if(CMAKE_CROSSCOMPILING)
+    set(FLATBUFFERS_BUILD_FLATC OFF CACHE BOOL "" FORCE)
+else()
+    set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
+endif()
+add_subdirectory(flatbuffers)
+
+#
+# Lemon
+#
+
+if(X86_64 AND NOT WIN32)
+    add_subdirectory(lemon)
+
+    target_include_directories(lemon
+        PUBLIC
+            ${CMAKE_CURRENT_SOURCE_DIR}/lemon
+            ${CMAKE_CURRENT_BINARY_DIR}/lemon)
+endif()
+
+#
 # vpual
 #
 
@@ -85,49 +111,6 @@ else()
     set(GAPI_M2I_LIBRARY "" CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
-
-#
-# mcmCompiler
-#
-
-set(MCM_COMPILER_BASE_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage")
-
-if(LINUX AND X86_64)
-    find_package(mcmCompiler REQUIRED CONFIG NO_DEFAULT_PATH
-        PATHS "${MCM_COMPILER_BASE_DIR}/share/cmake/mcmCompiler"
-        CMAKE_FIND_ROOT_PATH_BOTH)
-
-    set_target_properties(cm PROPERTIES IMPORTED_GLOBAL TRUE)
-    set_target_properties(model PROPERTIES IMPORTED_GLOBAL TRUE)
-    set_target_properties(metamodel PROPERTIES IMPORTED_GLOBAL TRUE)
-
-    # TODO: should be done in compiler CMake files
-    get_target_property(MCM_INCLUDE_DIR cm INTERFACE_INCLUDE_DIRECTORIES)
-    target_include_directories(cm
-        INTERFACE
-            ${MCM_INCLUDE_DIR}
-            "${MCM_INCLUDE_DIR}/mcm/meta"
-            "${MCM_INCLUDE_DIR}/mcm/meta/include")
-
-    add_library(MCM::cm ALIAS cm)
-
-    add_custom_target(mcm_compiler_copy ALL
-        COMMAND ${CMAKE_COMMAND} -E copy
-            $<TARGET_PROPERTY:cm,LOCATION>
-            $<TARGET_PROPERTY:model,LOCATION>
-            $<TARGET_PROPERTY:metamodel,LOCATION>
-            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${MCM_COMPILER_BASE_DIR}/config"
-            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config"
-            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
-        COMMENT "[MCM Compiler] Copy lib and config files")
-endif()
-
-set(FLATBUFFERS_INCLUDE_PATH "${MCM_COMPILER_BASE_DIR}/include" CACHE INTERNAL "")
-set(SCHEMA_INCLUDE_PATH "${MCM_COMPILER_BASE_DIR}/include/mcm/meta" CACHE INTERNAL "")
 
 #
 # Firmware
