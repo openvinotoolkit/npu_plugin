@@ -31,6 +31,9 @@ public:
     HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id, const size_t& size);
     HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id,
             const InferenceEngine::TensorDesc& tensorDesc);
+
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const HddlUnite::WorkloadContext& workloadContext, const size_t size);
+
     void destroyRemoteMemory();
 
     std::string getRemoteMemory(const size_t &size);
@@ -48,6 +51,11 @@ private:
 inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
 }
+
+inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(
+    const HddlUnite::WorkloadContext& workloadContext, const size_t size) {
+        return std::make_shared<HddlUnite::RemoteMemory> (workloadContext, HddlUnite::RemoteMemoryDesc(size, 1, size, 1));
+    }
 
 inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
                                                                 const InferenceEngine::TensorDesc& tensorDesc) {
@@ -69,9 +77,7 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
         return 0;
     }
 
-
-    HddlUnite::RemoteMemoryDesc remoteMemoryDesc(size, 1, size, 1);
-    _remoteMemory = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
+    _remoteMemory = allocateRemoteMemory(*context, size);
     if (_remoteMemory == nullptr) {
         return 0;
     }

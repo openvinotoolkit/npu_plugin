@@ -34,6 +34,8 @@ namespace IE = InferenceEngine;
 class HDDL2_HddlUnite_Tests : public ::testing::Test {
 public:
     WorkloadContext_Helper workloadContextHelper;
+
+    RemoteMemory_Helper remoteMemoryHelper;
 };
 
 //------------------------------------------------------------------------------
@@ -50,7 +52,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSameSize_NoException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t size = 100;
 
-    RemoteMemory::Ptr remoteMemoryPtr = allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
     ASSERT_NO_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size));
 }
@@ -61,7 +63,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
     const size_t size = 100;
     const size_t smallerSizeToWrap = 10;
 
-    RemoteMemory::Ptr remoteMemoryPtr = allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
     ASSERT_NO_THROW(
         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), smallerSizeToWrap));
@@ -73,7 +75,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
     const size_t size = 100;
     const size_t biggerSizeToWrap = size * 10;
 
-    RemoteMemory::Ptr remoteMemoryPtr = allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
     ASSERT_ANY_THROW(
         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), biggerSizeToWrap));
@@ -103,7 +105,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
 
     const size_t size = 100;
 
-    RemoteMemory::Ptr remoteMemoryPtr = allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
@@ -121,7 +123,7 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 
     const size_t size = 100;
 
-    RemoteMemory::Ptr remoteMemoryPtr = allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
     // Wrapped memory
@@ -217,8 +219,6 @@ public:
 
     HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
     HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
-
-    RemoteMemory_Helper remoteMemoryHelper;
 
 protected:
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;
