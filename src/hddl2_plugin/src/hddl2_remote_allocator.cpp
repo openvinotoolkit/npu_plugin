@@ -218,7 +218,7 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
     memory->isLocked = true;
     memory->lockOp = lockOp;
 
-    const size_t dmaBufSize = memory->remoteMemory->getBufSize();
+    const size_t dmaBufSize = memory->remoteMemory->getMemoryDesc().getDataSize();
     memory->localMemory.resize(dmaBufSize);
 
     if (dmaBufSize != memory->localMemory.size()) {
