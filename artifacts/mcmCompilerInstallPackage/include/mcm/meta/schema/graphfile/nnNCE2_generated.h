@@ -217,15 +217,21 @@ enum MPE_Mode {
   MPE_Mode_VECTOR = 0,
   MPE_Mode_MATRIX = 1,
   MPE_Mode_VECTOR_FP16 = 2,
+  MPE_Mode_CUBOID_16x16 = 3,
+  MPE_Mode_CUBOID_8x16 = 4,
+  MPE_Mode_CUBOID_4x16 = 5,
   MPE_Mode_MIN = MPE_Mode_VECTOR,
-  MPE_Mode_MAX = MPE_Mode_VECTOR_FP16
+  MPE_Mode_MAX = MPE_Mode_CUBOID_4x16
 };
 
-inline const MPE_Mode (&EnumValuesMPE_Mode())[3] {
+inline const MPE_Mode (&EnumValuesMPE_Mode())[6] {
   static const MPE_Mode values[] = {
     MPE_Mode_VECTOR,
     MPE_Mode_MATRIX,
-    MPE_Mode_VECTOR_FP16
+    MPE_Mode_VECTOR_FP16,
+    MPE_Mode_CUBOID_16x16,
+    MPE_Mode_CUBOID_8x16,
+    MPE_Mode_CUBOID_4x16
   };
   return values;
 }
@@ -235,13 +241,16 @@ inline const char * const *EnumNamesMPE_Mode() {
     "VECTOR",
     "MATRIX",
     "VECTOR_FP16",
+    "CUBOID_16x16",
+    "CUBOID_8x16",
+    "CUBOID_4x16",
     nullptr
   };
   return names;
 }
 
 inline const char *EnumNameMPE_Mode(MPE_Mode e) {
-  if (e < MPE_Mode_VECTOR || e > MPE_Mode_VECTOR_FP16) return "";
+  if (e < MPE_Mode_VECTOR || e > MPE_Mode_CUBOID_4x16) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMPE_Mode()[index];
 }

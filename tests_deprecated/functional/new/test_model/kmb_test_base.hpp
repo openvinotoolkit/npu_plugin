@@ -39,6 +39,7 @@
 #include "kmb_test_convert_def.hpp"
 #include "kmb_test_reshape_def.hpp"
 #include "kmb_test_permute_def.hpp"
+#include "kmb_test_gather_def.hpp"
 
 #include <vpu/kmb_plugin_config.hpp>
 
@@ -517,3 +518,22 @@ public:
 private:
     std::default_random_engine rd;
 };
+
+#define ATTRIBUTES_COUNT 7
+class PersonAttrNetworkTest : public KmbNetworkTestBase {
+public:
+    struct PersonAttributes {
+        float attrs[ATTRIBUTES_COUNT];
+    };
+
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            float tolerance);
+    friend std::ostream& operator<<(std::ostream& stream, const PersonAttributes& p);
+protected:
+    static PersonAttributes parseOutput(const Blob::Ptr& blob);
+    static void comparePersonsAttributes(const PersonAttributes& p1, const PersonAttributes& p2, float tolerance);
+};
+
+

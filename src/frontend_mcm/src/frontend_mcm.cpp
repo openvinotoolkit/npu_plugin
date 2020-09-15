@@ -107,6 +107,7 @@ typedef void (FrontEndMcm::*parser_t)(const ie::CNNLayerPtr& layer, const McmNod
                 {"TopK",               &FrontEndMcm::parseTopK},
                 {"FakeQuantize",       &FrontEndMcm::parseFakeQuantize},
                 {"Const",              &FrontEndMcm::parseConst},
+                {"Gather",             &FrontEndMcm::parseGather}
         };
 
 // clang-format on
@@ -1398,6 +1399,15 @@ void FrontEndMcm::parseConcat(const ie::CNNLayerPtr& layer, const McmNodeVector&
 
     auto mvConcat =
         _modelMcm.concat(concatInputs, mcmAxis, mv::DType("Default"), initialQuantParams(), concatLayer->name);
+
+    // MCM compiler compiles wrong blob when concat layer is the last layer in the network
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    if (getInputTo(concatLayer->outData[0]).empty()) {
+        mvConcat = _modelMcm.maxPool(mvConcat, {1, 1}, {1, 1}, {0, 0, 0, 0}, true, mv::DType("Default"),
+            initialQuantParams(), concatLayer->name + "_maxpool");
+    }
+    // end of workaround
+
     bindOutput(mvConcat, layer->outData[0]);
 
     _logger->debug(FINISH_PARSING_STR, mvConcat->getName());
@@ -1471,6 +1481,21 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
         mcmShape = mv::Shape::augment_major(mcmShape, 4);
     }
 
+    // MCM compiler can't work with constant blob with dims {1}
+    // TODO: remove this workaround when this case will be handled on mcm compiler side
+    if (mcmShape.ndims() == 1) {
+        for (size_t i = 0; i < layer->outData.size(); i++) {
+            auto out = layer->outData[i];
+            for (const auto& consumer : getInputTo(out)) {
+                const auto& initialLayer = consumer.second;
+                if (initialLayer->type == "Gather") {
+                    mcmShape = mv::Shape::augment_major(mcmShape, 4);
+                }
+            }
+        }
+    }
+    // end of workaround
+
     if (isInteger(blobPrecision)) {
         std::vector<int64_t> constData = packBlobToVector<int64_t>(constBlob, constBlob->size());
         auto constMCM =
@@ -1488,6 +1513,18 @@ void FrontEndMcm::parseConst(const InferenceEngine::CNNLayerPtr& layer, const Mc
                 mv::Order::getColMajorID(mcmShape.ndims()), initialQuantParams(), layer->name);
         bindOutput(constMCM, layer->outData[0]);
     }
+}
+
+void FrontEndMcm::parseGather(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 2);
+    logParsingStartHelper(_logger, layer, inputs);
+    auto axis = layer->GetParamAsUInt("axis", 1u);
+
+    auto mvGather = _modelMcm.gather(inputs[0]->getMcmNode(), inputs[1]->getMcmNode(), axis, mv::DType("Float16"),
+        initialQuantParams(), layer->name);
+
+    bindOutput(mvGather, layer->outData[0]);
+    _logger->debug(FINISH_PARSING_STR, mvGather->getName());
 }
 
 void FrontEndMcm::parseFakeQuantize(const InferenceEngine::CNNLayerPtr& layer, const vpu::McmNodeVector& inputs) {
