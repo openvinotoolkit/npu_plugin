@@ -2148,6 +2148,12 @@ namespace mv
                 auto weightsSparsity = strategy["weightsSparsity"].get<bool>();
                 auto spilling = strategy["spilling"].get<bool>();
 
+                //Note: it is possible to change this to an && condition, but it alters the pipeline staging
+                //For simplicity we first do a 2 stage pipeline of weights read and compute, assuming
+                //input and output activations are in / will stay in cmx
+                if(spilling || parentSpilling)
+                    return false;
+
                 if(clustering == "SplitOverH" || clustering == "HKSwitch")
                     return false;
                 
@@ -2158,6 +2164,12 @@ namespace mv
 
                 // No sense making nested streaming any worse than it is
                 if(stream["H"] > 1 && stream["K"] > 1)
+                    return false;
+
+                //Note: avoid pipelining small weights. Need to be more than 1/5 memory
+                // heuristic, not an exact science as to why 1/5 seems to be working well
+                //or else perfromance is killed...
+                if(op.getInputTensor(1)->computeTotalSize() < (clusterMemory * 0.2))
                     return false;
 
                 size_t input, output, weights;
