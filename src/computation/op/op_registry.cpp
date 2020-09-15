@@ -526,8 +526,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI declaration for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
-
+    
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
@@ -535,6 +534,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
+    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
     std::string output;
 
     auto copyOps = opPtr->getCopyOperations();
@@ -1158,3 +1158,5 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/implicit_input.cpp"
 #include    "src/computation/op/def/tile.cpp"
 #include    "src/computation/op/def/ctcdecoder.cpp"
+#include    "src/computation/op/def/exp.cpp"
+#include    "src/computation/op/def/reciprocal.cpp"
