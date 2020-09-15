@@ -51,18 +51,18 @@ public:
     const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
     const size_t numberOfTopClassesToCompare = 4;
 
-    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(
+    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
     void SetUp() override;
     void TearDown() override;
-    HddlUnite::RemoteMemory::Ptr _remoteFrame = nullptr;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
-HddlUnite::RemoteMemory::Ptr VideoWorkload_Tests::allocateRemoteMemory(
+HddlUnite::SMM::RemoteMemory::Ptr VideoWorkload_Tests::allocateRemoteMemory(
     const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
-    _remoteFrame = HddlUnite::allocate(*context, dataSize);
+    _remoteFrame = HddlUnite::SMM::allocate(*context, dataSize);
 
     if (_remoteFrame == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate remote memory.";

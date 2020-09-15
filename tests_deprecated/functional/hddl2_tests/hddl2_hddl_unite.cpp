@@ -41,10 +41,10 @@ public:
 //------------------------------------------------------------------------------
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectWorkloadID_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t incorrectWorkloadID = INT32_MAX;
+    const size_t size = 1;
 
-    ASSERT_ANY_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectWorkloadID, 1));
+    ASSERT_ANY_THROW(remoteMemoryHelper.allocateRemoteMemory(incorrectWorkloadID, size));
 }
 
 // [Track number: S#28523]
@@ -54,38 +54,39 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSameSize_NoException) {
 
     RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
-    ASSERT_NO_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size));
+    ASSERT_NO_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getMemoryDesc(), remoteMemoryPtr->getDmaBufFd()));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-    const size_t smallerSizeToWrap = 10;
+// // [Track number: S#28523]
+// TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
+//     auto workloadContext = workloadContextHelper.getWorkloadContext();
+//     const size_t size = 100;
+//     const size_t smallerSizeToWrap = 10;
 
-    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
+//     RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
-    ASSERT_NO_THROW(
-        RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), smallerSizeToWrap));
-}
+//     ASSERT_NO_THROW(
+//         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), smallerSizeToWrap));
+// }
 
-// TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-    const size_t biggerSizeToWrap = size * 10;
+// // TODO FAIL - HddlUnite problem
+// TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
+//     auto workloadContext = workloadContextHelper.getWorkloadContext();
+//     const size_t size = 100;
+//     const size_t biggerSizeToWrap = size * 10;
 
-    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
+//     RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
-    ASSERT_ANY_THROW(
-        RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), biggerSizeToWrap));
-}
+//     ASSERT_ANY_THROW(
+//         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), biggerSizeToWrap));
+// }
 
 // TODO FAIL - HdllUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeWorkloadID_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
+    const size_t incorrectWorkloadID = -1;
+    const size_t size = 1;
 
-    ASSERT_ANY_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, -1, 1));
+    ASSERT_ANY_THROW(remoteMemoryHelper.allocateRemoteMemory(incorrectWorkloadID, size));
 }
 
 //------------------------------------------------------------------------------
@@ -127,7 +128,7 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
     // Wrapped memory
-    RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size);
+    RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getMemoryDesc(), remoteMemoryPtr->getDmaBufFd());
     char resultData[size] = {};
     { wrappedRemoteMemory.syncFromDevice(resultData, size); }
 
