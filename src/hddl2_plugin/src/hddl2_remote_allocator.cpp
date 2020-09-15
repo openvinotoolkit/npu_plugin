@@ -63,7 +63,8 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
 
     try {
         HddlUnite::RemoteMemoryDesc remoteMemoryDesc(size, 1, size, 1);
-        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr = HddlUnite::allocate(*_contextPtr, remoteMemoryDesc);
+        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr =
+            std::make_shared<HddlUnite::RemoteMemory>(*_contextPtr, remoteMemoryDesc);
         if (remoteMemoryPtr == nullptr) {
             THROW_IE_EXCEPTION << "Failed to allocate memory";
         }
