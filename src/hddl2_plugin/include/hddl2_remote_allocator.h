@@ -65,10 +65,8 @@ public:
      */
     void unlock(void* remoteMemoryHandle) noexcept override;
 
-    // TODO alloc function should provide somehow bufFd of created memory, otherwise it's not
-    //  possible to use it in another application.
     /**
-     * @brief Allocate remote memory on device
+     * @brief Allocate remote memory on device (not implemented)
      * @return Handle to allocated memory
      */
     void* alloc(size_t size) noexcept override;

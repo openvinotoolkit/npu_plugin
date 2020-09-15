@@ -54,32 +54,9 @@ HDDL2RemoteAllocator::HDDL2RemoteAllocator(
 }
 
 void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
-    std::lock_guard<std::mutex> lock(memStorageMutex);
-
-    if (!isValidAllocateSize(size)) {
-        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
-        return nullptr;
-    }
-
-    try {
-        HddlUnite::RemoteMemoryDesc remoteMemoryDesc(size, 1, size, 1);
-        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::RemoteMemory>(*_contextPtr, remoteMemoryDesc);
-        if (remoteMemoryPtr == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to allocate memory";
-        }
-
-        HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
-        _memoryStorage.emplace(remMemHandle, memoryContainer);
-        ++_memoryHandleCounter[remMemHandle];
-
-        _logger->info("%s: Allocate memory of %lu size\n", __FUNCTION__, size);
-        return static_cast<void*>(remoteMemoryPtr.get());
-    } catch (const std::exception& ex) {
-        _logger->error("%s: Failed to allocate memory. Error: %s\n", __FUNCTION__, ex.what());
-        return nullptr;
-    }
+    UNUSED(size);
+    _logger->error("%s: not implemented!\n", __FUNCTION__);
+    return nullptr;
 }
 
 void* HDDL2RemoteAllocator::wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept {
@@ -96,16 +73,13 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr&
 
     try {
         // Use already allocated memory
-        HddlUnite::RemoteMemory::Ptr remoteMemoryPtr = std::make_shared<HddlUnite::RemoteMemory>(
-            *_contextPtr, remoteMemory->getMemoryDesc(), remoteMemory->getDmaBufFd());
-
-        HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
+        HDDL2RemoteMemoryContainer memoryContainer(remoteMemory);
+        void* remMemHandle = static_cast<void*>(remoteMemory.get());
         _memoryStorage.emplace(remMemHandle, memoryContainer);
         ++_memoryHandleCounter[remMemHandle];
 
         _logger->info("%s: Wrapped memory of %lu size\n", __FUNCTION__, remoteMemory->getMemoryDesc().getDataSize());
-        return static_cast<void*>(remoteMemoryPtr.get());
+        return static_cast<void*>(remoteMemory.get());
     } catch (const std::exception& ex) {
         _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;

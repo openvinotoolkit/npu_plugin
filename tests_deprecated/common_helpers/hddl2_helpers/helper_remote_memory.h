@@ -69,7 +69,9 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
         return 0;
     }
 
-    _remoteMemory = HddlUnite::allocate(*context, size);
+
+    HddlUnite::RemoteMemoryDesc remoteMemoryDesc(size, 1, size, 1);
+    _remoteMemory = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
     if (_remoteMemory == nullptr) {
         return 0;
     }

@@ -59,7 +59,9 @@ protected:
 
 HddlUnite::RemoteMemory::Ptr Performance_Tests::allocateRemoteMemory(
     const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
-    _remoteFrame = HddlUnite::allocate(*context, dataSize);
+
+    HddlUnite::RemoteMemoryDesc remoteMemoryDesc(dataSize, 1, dataSize, 1);
+    _remoteFrame = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
 
     if (_remoteFrame == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
