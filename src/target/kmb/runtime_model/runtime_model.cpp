@@ -224,6 +224,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
 
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(om, "buildTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
@@ -447,6 +450,10 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     auto tensorAllocatorName = tensorAllocators.begin();
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
+
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(cm, "updateTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, s); // 0 is the only stage for now, but this will probably change in the future
 
@@ -857,7 +864,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
      * These should be comprssed for additional performance
     */
 
-    if(huffmanCompression && t.isAllocatedPerCluster() && t.getDType() != mv::DType("Float16"))
+    if(huffmanCompression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
@@ -1203,6 +1210,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+
+    if(tensorAllocatorName == outputTensor->get<std::set<std::string>>("allocators").end()) {
+        throw mv::ArgumentError(om, "buildNNDMATaskT", "0", "No tensor allocators found");
+    }
+
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
@@ -2258,6 +2270,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
     } else if (mode.compare(std::string("bilinear_deformable")) == 0) {
         softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR_DEFORMABLE;
     } else {
+        delete toBuild;
+        delete softLayerParamsValue;
         throw ArgumentError("buildUPAPSROIPoolingTask", "file:content", "invalid", "Invalid mode for PSROIPooling");
     }
 

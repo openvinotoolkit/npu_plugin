@@ -468,10 +468,25 @@ class CMX_Concatenation {
             subgraph, "ImplicitConcat");
     }
 
+    bool does_this_concat_childs_service_compiler_provided_sparsity(
+      const concat_subgraph_t& subgraph) const {
+      // Eltwise compiler provided sparsity requires address information
+      // to build correctly it's SE tables
+      // see ticket VPUNND-3529 detailing issue and provide proper address
+      // propagation logic in the future
+      for (auto itr=subgraph.dpu_out_.begin(); itr!=subgraph.dpu_out_.end(); ++itr)
+        if((*itr)->hasAttr("activationSparsityCompilerSolving") &&
+          (*itr)->get<bool>("activationSparsityCompilerSolving") &&
+          (*itr)->get<std::string>("taskOp") == "Eltwise")
+          return true;
+      return false;
+    }
+
     bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const{
       return has_no_cmx_concat_flag(subgraph) ||
         does_this_concat_have_any_crops(subgraph) ||
-          is_this_a_complex_concat(subgraph);
+        is_this_a_complex_concat(subgraph) ||
+        does_this_concat_childs_service_compiler_provided_sparsity(subgraph);
     }
 
     bool does_this_concat_have_any_parents_or_children_of_this_op_type(

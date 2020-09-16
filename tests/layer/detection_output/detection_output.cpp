@@ -24,17 +24,17 @@ int main()
     auto input_height = -1;
     auto input_width = -1;
     auto objectness_score = -1;
-    std::vector<uint16_t> clsPredData(183372);
+    std::vector<uint16_t> bboxPredData(34928);
     std::vector<uint16_t> proposalsData(34928*2);
 
-    //Load ClassPreds1 tensor from file
-    std::string ClassPreds1_filename(mv::utils::projectRootPath() + "/tests/layer/detection_output/detection_output.in2");
+    //Load BBoxPreds1 tensor from file
+    std::string BBoxPreds1_filename(mv::utils::projectRootPath() + "/tests/layer/detection_output/detection_output.in2");
     std::ifstream c_file;
-    c_file.open(ClassPreds1_filename, std::fstream::in | std::fstream::binary);
-    c_file.read((char*)(clsPredData.data()), 183372 * sizeof(uint16_t));
-    std::vector<int64_t> clsPredData_converted(183372);
-    for(unsigned i = 0; i < clsPredData.size(); ++i)
-        clsPredData_converted[i] = clsPredData[i];
+    c_file.open(BBoxPreds1_filename, std::fstream::in | std::fstream::binary);
+    c_file.read((char*)(bboxPredData.data()), 34928 * sizeof(uint16_t));
+    std::vector<int64_t> bboxPredData_converted(34928);
+    for(unsigned i = 0; i < bboxPredData.size(); ++i)
+        bboxPredData_converted[i] = bboxPredData[i];
     //Load Proposals1 tensor from file
     std::string Proposals1_filename(mv::utils::projectRootPath() + "/tests/layer/detection_output/detection_output.in3");
     std::ifstream p_file;
@@ -44,8 +44,8 @@ int main()
     for(unsigned i = 0; i < proposalsData.size(); ++i)
         proposalsData_converted[i] = proposalsData[i];
     // Define tensors
-    auto bbox_pred = om.input({34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "bbox_pred0");
-    auto cls_pred = om.constantInt(clsPredData_converted,{183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
+    auto bbox_pred = om.constantInt(bboxPredData_converted, {34928,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "bbox_pred0");
+    auto cls_pred = om.input({183372,1,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "cls_pred0");
     auto proposals = om.constantInt(proposalsData_converted, {34928,2,1,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{},{}}, "proposals");
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;

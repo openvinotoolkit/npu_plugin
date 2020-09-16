@@ -2952,9 +2952,9 @@ class Repack_Input_DMA_Tasks {
     const data_op_selector_t &data_op_selector_;
     original_schedule_info_t original_schedule_info_;
     repack_time_slots_t repack_time_slots_;
-    size_t total_data_ops_;
-    size_t repacked_data_ops_;
-    double average_repack_level_;
+    size_t total_data_ops_ = 0UL;
+    size_t repacked_data_ops_ = 0UL;
+    double average_repack_level_ = 0.0;
 }; // class Repack_Input_DMA_Tasks //
 
 

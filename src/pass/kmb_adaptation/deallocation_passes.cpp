@@ -314,6 +314,10 @@ void addDeallocationTasksFcn(const mv::pass::PassEntry& pass, mv::ComputationMod
             for(; chosenOp != sortedOps.rend(); ++chosenOp)
                 if(std::find(sinkOperations.begin(), sinkOperations.end(), om.switchContext(*chosenOp)) != sinkOperations.end())
                     break;
+
+            if(chosenOp == sortedOps.rend()) {
+                throw mv::RuntimeError(om, "Sink operation not found");
+            }
             insertDeallocationControlFlows(om, deallocateInputOp, *chosenOp);
         }
     }
