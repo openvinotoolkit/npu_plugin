@@ -1587,9 +1587,6 @@ namespace mv
 
                 if( childOpType == "Conv")
                 {
-                    auto weightsShape = childOp.getInputTensor(1)->getShape();
-                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
-
                     if( !isChildChanMajor &&
                         childClustering == "SplitOverH" &&
                         childInputSparsity &&

@@ -23,6 +23,7 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -34,12 +35,15 @@ namespace mv
             "Computing Splitting across clusters"
         );
 
-
         MV_REGISTER_PASS(EnsureSplitStrategiesForSpilling)
             .setFunc(ensureSplitStrategiesForSpilling)
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
 
+        MV_REGISTER_PASS(RecomputeTensorMultiClusterAttributesCauseOfSpilling)
+            .setFunc(recomputeTensorMultiClusterAttributesCauseOfSpillingFcn)
+            .setDescription(
+               "Ensures Split Strategies attributes are assigned correctly after scheduler spillings ");
     }
 }
 
@@ -649,6 +653,40 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+    return;
+
+}
+
+
+// Pass role: In case that the scheduler inserts spilling reads/writes we might meet a case where the input of the dpu task will be out of
+// subtensors, splitStrategies etc. So we need to recompute them. Cost for changing the strategies!!
+void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    mv::OpModel om(model);
+
+    auto globalParams = model.getGlobalConfigParams();
+    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
+
+    if (numClusters > 1)
+    {
+        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+        {
+            std::string opType = opIt->getOpType();
+            if (opType == "DPUTask")
+            {
+                for (auto inputTensor : opIt->getInputTensor())
+                {
+                    if (!inputTensor->hasAttr("splitStrategy"))
+                    {
+                        inputTensor->set<std::string>("splitStrategy", om.getSourceOp(inputTensor)->get<std::string>("splitStrategy"));
+                        subTensorsGen(model, {inputTensor}, numClusters, pass);
                     }
                 }
             }
