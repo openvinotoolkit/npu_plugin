@@ -947,6 +947,14 @@ namespace mv
                         && !spilling)
                     return FailCause::DilatedSOH;
 
+                //Note: This is a temporary workaround for ICnet. In general, we are able to stream over H
+                //for dilated sub convolutions. Root cause unidentified.
+                if (op.getOpType() == "Conv"  && 
+                    op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv") &&
+                    op.hasAttr("originalShape") && op.get<mv::Shape>("originalShape")[mv::IO_HEIGHT_DIMENSION] == 23 &&
+                    streamShape["H"] > 1)
+                    return FailCause::DilatedSOH;
+
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
