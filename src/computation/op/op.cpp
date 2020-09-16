@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op.hpp"
+#include "include/mcm//op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name,
@@ -389,4 +390,22 @@ bool mv::Op::hasPWLActivation() const
 bool mv::Op::hasFloatPrecision() const
 {
     return hasAttr("floatPrecision") && get<bool>("floatPrecision");
+}
+
+bool mv::Op::supportsCMConv()
+{
+    OpModel om(getModel_());
+
+    auto is_Conv_op = (getOpType() == "Conv");
+    auto is_Conv_task = (getOpType() == "DPUTask" and hasAttr("taskOp") and get<std::string>("taskOp") == "Conv");
+
+    if((is_Conv_op or is_Conv_task) and getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+    {
+        auto parent = om.getSourceOp(getInputTensor(0));
+        if ((parent->getOpType() == "Input") || (parent->getOpType() == "ImplicitInput"))
+            return true;
+    }
+
+    return false;
+
 }
