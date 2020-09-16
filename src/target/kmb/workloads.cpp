@@ -682,6 +682,9 @@ namespace mv {
         double best_efficiency = 0;
         PaddingVariant best_variant = {};
 
+        if (mode_list.empty())
+            throw RuntimeError("Workloads", "Mode list empty");
+            
         for (auto mode : mode_list)
         {
             WorkloadShape padded;
