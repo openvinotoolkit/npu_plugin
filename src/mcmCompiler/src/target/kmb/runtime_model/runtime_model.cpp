@@ -1133,7 +1133,8 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
         tmp->dst->locale_index = locale_index;
 
     // Passing -1 as subtensor index, will have us get the full tensor
-    checkUnstridedDMA(src, -1, tmp);
+    if (!checkUnstridedDMA(src, -1, tmp))
+        continue;
 
     // Check if the HDE engine compressed the weights
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
