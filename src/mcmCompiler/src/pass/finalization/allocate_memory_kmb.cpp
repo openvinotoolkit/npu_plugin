@@ -564,6 +564,16 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                             left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
                         else if (inp->getOrder() == mv::Order("NCHW"))
                             left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                    //NOTE: CONCAT OVER W
+                    if(inp->getShape()[mv::IO_WIDTH_DIMENSION] != out->getShape()[mv::IO_WIDTH_DIMENSION])
+                        if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis) *  inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis);
+                    //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
+                    if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
+                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
+                                                            * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
                     inp->set<std::size_t>("leftIndex", left_index);
                 }
             }
