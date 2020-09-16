@@ -232,4 +232,10 @@ else()
     add_executable(deconv_fp16 deconv_fp16/deconv_fp16.cpp)
     target_link_libraries(deconv_fp16 cm)
 
+    add_executable(net_test_resnet50_fp16 net_test_resnet50_fp16/test.cpp net_test_resnet50_fp16/resnet50_fp16.cpp)
+    target_link_libraries(net_test_resnet50_fp16 cm)
+
+    add_executable(net_test_mobilenetv2_fp16 net_test_mobilenetv2_fp16/test.cpp net_test_mobilenetv2_fp16/mobilenetv2_fp16.cpp)
+    target_link_libraries(net_test_mobilenetv2_fp16 cm)
+
 endif(MSVC)
