@@ -571,7 +571,7 @@ mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIter
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const DmaDirection& direction, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const DmaDirection& direction, const uint8_t& port, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -580,7 +580,8 @@ mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const D
             data
         },
         {
-            { "direction", direction }
+            { "direction", direction }, 
+            { "port", port }
         },
         name
     
