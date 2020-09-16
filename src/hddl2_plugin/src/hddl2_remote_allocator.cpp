@@ -24,7 +24,9 @@ using namespace vpu::HDDL2Plugin;
 constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
 
 bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
-    return remoteMemory->getDmaBufFd() != INT32_MAX;
+    // Using local namespace because INVALID_DMABUFFD is macro (-1) and HddlUnite::(-1) is incorrect
+    using namespace HddlUnite;
+    return remoteMemory->getDmaBufFd() != INVALID_DMABUFFD;
 }
 
 static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
