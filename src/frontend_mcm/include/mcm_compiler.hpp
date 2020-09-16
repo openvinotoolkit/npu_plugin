@@ -24,19 +24,19 @@
 
 class MCMCompiler final : public vpux::ICompiler {
 public:
-    std::shared_ptr<vpux::NetworkDescription> compile(
+    std::shared_ptr<vpux::INetworkDescription> compile(
         InferenceEngine::ICNNNetwork& network, const vpux::VPUXConfig& config) override;
 
-    std::shared_ptr<vpux::NetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
+    std::shared_ptr<vpux::INetworkDescription> compile(const std::shared_ptr<ngraph::Function>& func,
         const std::string& netName, const InferenceEngine::InputsDataMap& inputsInfo,
         const InferenceEngine::OutputsDataMap& outputsInfo, const vpux::VPUXConfig& config) override;
 
-    std::shared_ptr<vpux::NetworkDescription> parse(
+    std::shared_ptr<vpux::INetworkDescription> parse(
         const std::vector<char>& network, const vpux::VPUXConfig& config, const std::string& graphName = "") override;
 
     std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) override;
     std::unordered_set<std::string> getSupportedOptions() override;
 
 private:
-    vpu::MCMConfig _config;
+    const vpu::MCMConfig _config = {};
 };

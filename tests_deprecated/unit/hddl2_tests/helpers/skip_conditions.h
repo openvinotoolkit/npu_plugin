@@ -13,16 +13,12 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+#include <common_test_utils/gtest/googletest/include/gtest/gtest.h>
+#include "hddl2_metrics.h"
 
-#pragma once
-
-#include "ie_core.hpp"
-
-namespace IE = InferenceEngine;
-
-namespace ReferenceHelper {
-    IE::Blob::Ptr CalcCpuReferenceSingleOutput(const std::string &model_path, const IE::Blob::Ptr& input_blob,
-        const IE::PreProcessInfo* preproc_info = nullptr);
-    IE::BlobMap CalcCpuReferenceMultipleOutput(const std::string& model_path, const IE::Blob::Ptr& input_blob,
-        const IE::PreProcessInfo* preproc_info = nullptr);
-}
+#   define SKIP_IF_NO_DEVICE()                                              \
+    do {                                                                    \
+        if (!vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable()) {        \
+            SKIP() << "Skip test due to absence of HDDL2 device";           \
+        }                                                                   \
+    } while (false)

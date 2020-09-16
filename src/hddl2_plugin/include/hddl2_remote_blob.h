@@ -31,8 +31,6 @@ namespace vpu {
 namespace HDDL2Plugin {
 
 //------------------------------------------------------------------------------
-//      class HDDL2BlobParams
-//------------------------------------------------------------------------------
 class HDDL2BlobParams {
 public:
     explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);

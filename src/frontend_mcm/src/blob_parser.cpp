@@ -75,17 +75,24 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
 
     InferenceEngine::TensorDesc ieDesc(dataPrecision, dataDims, dataLayout);
 
-    auto eraseSubStr = [](std::string& str, std::string strToRemove) {
+    auto eraseSubStr = [](std::string& str, std::string strToRemove, bool removeAllAfterSubstr = false) {
         std::size_t pos = str.find(strToRemove);
         if (pos != std::string::npos) {
-            str.erase(pos, strToRemove.size());
+            if (removeAllAfterSubstr) {
+                str.erase(pos);
+            } else {
+                str.erase(pos, strToRemove.size());
+            }
         }
     };
 
     std::string name = tensor->name;
+    // FIXME: For some reason, the compiler adds Precision prefix for all its outputs
+    // remove once it fixed
+    eraseSubStr(name, "Precision");
     // FIXME: frontend_mcm adds REMOVE_ME postfix to make output name unique
-    // remove once the compiler able to handle output which name equals to one of network operations
-    eraseSubStr(name, "REMOVE_ME");
+    // remove once the compiler able to handle output which name equal to one of network operations
+    eraseSubStr(name, "REMOVE_ME", true);
     InferenceEngine::Data ieData(name, ieDesc);
 
     return ieData;

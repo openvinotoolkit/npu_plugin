@@ -2,18 +2,19 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+set(TARGET gapi_preproc_tests)
+
 find_package(OpenCV QUIET COMPONENTS core imgproc)
 if(NOT OpenCV_FOUND)
-    message(WARNING "No suitable OpenCV version detected, " ${TARGET_NAME} " skipped")
+    message(WARNING "No suitable OpenCV version detected, ${TARGET} skipped")
     return()
 endif()
+
+add_subdirectory(gapi_test_computations)
 
 file(GLOB SOURCES *.cpp)
 file(GLOB HEADERS *.hpp common/*.hpp cpu/*.hpp)
 
-add_subdirectory(gapi_test_computations)
-
-set(TARGET gapi_preproc_tests)
 add_executable(${TARGET} ${SOURCES} ${HEADERS})
 
 if (UNIX)
@@ -25,11 +26,9 @@ if (UNIX)
 endif()
 
 target_link_libraries(${TARGET}
-        PRIVATE
+    PRIVATE
         gapi_test_computations
-        kmbPlugin_test_static
-        kmb_utils
-        IE::inference_engine_plugin_api
+        ${KMB_PLUGIN_STATIC_TARGET}
         IE::gtest IE::gtest_main
         opencv_core opencv_imgproc)
 

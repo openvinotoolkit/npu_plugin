@@ -14,19 +14,37 @@
 # stated in the License.
 #
 
-set(VPU_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-add_custom_target(vpu_dir ALL
-    COMMAND "${CMAKE_COMMAND}" -E make_directory ${VPU_OUT_DIR}/vpu)
-if(ARM OR AARCH64)
+file(MAKE_DIRECTORY "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu")
+
+#
+# vpual
+#
+
+if(AARCH64)
+    find_library(VPUSMM_LIBRARY vpusmm ONLY_CMAKE_FIND_ROOT_PATH)
+    add_library(vpusmm UNKNOWN IMPORTED)
+    set_target_properties(vpusmm PROPERTIES
+        IMPORTED_LOCATION ${VPUSMM_LIBRARY})
+
+    find_package(vpualHost REQUIRED CONFIG NO_DEFAULT_PATH
+        PATHS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost"
+        CMAKE_FIND_ROOT_PATH_BOTH)
+
+    set_target_properties(NN PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(VpualDispatcher PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(sipp_custom PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(XLink PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(RemoteFlic PROPERTIES IMPORTED_GLOBAL TRUE)
+
     add_custom_target(vpual_copy_library ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy  $<TARGET_PROPERTY:NN,LOCATION>
-                                                $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
-                                                $<TARGET_PROPERTY:sipp_custom,LOCATION>
-                                                $<TARGET_PROPERTY:XLink,LOCATION>
-                                                $<TARGET_PROPERTY:RemoteFlic,LOCATION>
-	    "${VPU_OUT_DIR}/vpu"
-	    COMMENT "[VPUAL] Copy vpual libraries to build results")
-    add_dependencies(vpual_copy_library vpu_dir)
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_PROPERTY:NN,LOCATION>
+            $<TARGET_PROPERTY:VpualDispatcher,LOCATION>
+            $<TARGET_PROPERTY:sipp_custom,LOCATION>
+            $<TARGET_PROPERTY:XLink,LOCATION>
+            $<TARGET_PROPERTY:RemoteFlic,LOCATION>
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu"
+        COMMENT "[VPUAL] Copy vpual libraries to build results")
 
     add_subdirectory(gapi_sipp/sipp)
     add_subdirectory(gapi_sipp/m2i)
@@ -50,6 +68,8 @@ if(ARM OR AARCH64)
     set(GAPI_M2I_LIBRARY gapi_m2i CACHE INTERNAL "")
     set(GAPI_M2I_INCLUDES $<TARGET_PROPERTY:gapi_m2i,INTERFACE_INCLUDE_DIRECTORIES> CACHE INTERNAL "")
 else()
+    set(VPUSMM_LIBRARY "" CACHE INTERNAL "")
+
     set(VPUAL_XLINK_LIBRARY "" CACHE INTERNAL "")
     set(VPUAL_XLINK_INCLUDES "" CACHE INTERNAL "")
 
@@ -66,74 +86,56 @@ else()
     set(GAPI_M2I_INCLUDES "" CACHE INTERNAL "")
 endif()
 
-if(ENABLE_MCM_FROM_REPO)
-    include(FetchContent)
-    file(READ "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/revisions.txt" revision_file)
-    string(REPLACE " " ";" revision_file ${revision_file})
-    list(GET revision_file 1 revision)
+#
+# mcmCompiler
+#
 
-    FetchContent_Declare(mcmcompiler
-        GIT_REPOSITORY git@github.com:movidius/mcmCompiler.git
-        GIT_TAG ${revision})
+set(MCM_COMPILER_BASE_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage")
 
-    FetchContent_GetProperties(mcmcompiler)
-    if(NOT mcmcompiler_POPULATED)
-        FetchContent_Populate(mcmcompiler)
-        # TODO: remove if compiler starts to respect -Werror
-        foreach(flag "-Werror")
-            string(REPLACE ${flag} "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
-            string(REPLACE ${flag} "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
-        endforeach()
-        set_directory_properties(PROPERTIES EXCLUDE_FROM_ALL YES)
-        add_subdirectory(${mcmcompiler_SOURCE_DIR} ${mcmcompiler_BINARY_DIR})
+if(LINUX AND X86_64)
+    find_package(mcmCompiler REQUIRED CONFIG NO_DEFAULT_PATH
+        PATHS "${MCM_COMPILER_BASE_DIR}/share/cmake/mcmCompiler"
+        CMAKE_FIND_ROOT_PATH_BOTH)
 
-        add_library(MCM::cm ALIAS cm)
+    set_target_properties(cm PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(model PROPERTIES IMPORTED_GLOBAL TRUE)
+    set_target_properties(metamodel PROPERTIES IMPORTED_GLOBAL TRUE)
 
-        set(mcmCompilerDescriptor_DIR "${mcmCompiler_SOURCE_DIR}/config")
-    endif()
-else()
-    set(mcmCompiler_DIR ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/mcmCompilerInstallPackage/share/cmake/mcmCompiler)
-    if(UNIX)
-        find_package(mcmCompiler REQUIRED CONFIG PATHS ${mcmCompiler_DIR} CMAKE_FIND_ROOT_PATH_BOTH)
-        set_target_properties(cm PROPERTIES IMPORTED_GLOBAL TRUE)
+    # TODO: should be done in compiler CMake files
+    get_target_property(MCM_INCLUDE_DIR cm INTERFACE_INCLUDE_DIRECTORIES)
+    target_include_directories(cm
+        INTERFACE
+            ${MCM_INCLUDE_DIR}
+            "${MCM_INCLUDE_DIR}/mcm/meta"
+            "${MCM_INCLUDE_DIR}/mcm/meta/include")
 
-        add_library(MCM::cm ALIAS cm)
-        # TODO: should be done in compiler CMake files
-        get_target_property(MCM_INCLUDE_DIR cm INTERFACE_INCLUDE_DIRECTORIES) 
-        target_include_directories(cm
-            INTERFACE 
-                ${MCM_INCLUDE_DIR}
-                ${MCM_INCLUDE_DIR}/mcm/meta)
+    add_library(MCM::cm ALIAS cm)
 
-    endif()
-    # mcmCompiler_DIR is assumed to be pointing at share/cmake/mcmCompiler
-    set(FLATBUFFERS_INCLUDE_PATH "${mcmCompiler_DIR}/../../../include/" CACHE INTERNAL "")
-    set(SCHEMA_INCLUDE_PATH "${FLATBUFFERS_INCLUDE_PATH}/mcm/meta" CACHE INTERNAL "")
-    set(mcmCompilerDescriptor_DIR "${mcmCompiler_DIR}/../../../config")
+    add_custom_target(mcm_compiler_copy ALL
+        COMMAND ${CMAKE_COMMAND} -E copy
+            $<TARGET_PROPERTY:cm,LOCATION>
+            $<TARGET_PROPERTY:model,LOCATION>
+            $<TARGET_PROPERTY:metamodel,LOCATION>
+            ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${MCM_COMPILER_BASE_DIR}/config"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config"
+            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
+        COMMENT "[MCM Compiler] Copy lib and config files")
 endif()
 
-# TODO: remove if once windows is supported
-if(UNIX)
-    set(COMPILATION_OUT_DIR "$<TARGET_FILE_DIR:kmbPlugin>")
-    add_custom_target(mcm_compiler_copy_libs ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy $<TARGET_PROPERTY:cm,LOCATION>
-                                               $<TARGET_PROPERTY:model,LOCATION>
-                                               $<TARGET_PROPERTY:metamodel,LOCATION>
-                                               ${COMPILATION_OUT_DIR}
-            COMMENT "[MCM Compiler] Copy lib files")
+set(FLATBUFFERS_INCLUDE_PATH "${MCM_COMPILER_BASE_DIR}/include" CACHE INTERNAL "")
+set(SCHEMA_INCLUDE_PATH "${MCM_COMPILER_BASE_DIR}/include/mcm/meta" CACHE INTERNAL "")
 
-    set(mcmCustomCompilerDescriptor_DIR "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/thirdparty/mcm_config")
-    add_custom_target(mcm_compiler_copy_configs ALL
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCompilerDescriptor_DIR}"
-                                                         "${COMPILATION_OUT_DIR}/mcm_config"
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory "${mcmCustomCompilerDescriptor_DIR}"
-                                                         "${COMPILATION_OUT_DIR}/mcm_config"
-            COMMENT "[MCM Compiler] Copy config files for compilation")
-endif()
+#
+# Firmware
+#
 
 # copy firmware to lib folder to have vpu.bin in a package
 add_custom_target(vpu_bin_copy ALL
-        COMMAND "${CMAKE_COMMAND}" -E copy "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
-                                            "${VPU_OUT_DIR}/vpu"
-        COMMENT "[Firmware] Copy vpu.bin")
-add_dependencies(vpu_bin_copy vpu_dir)
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu"
+    COMMENT "[Firmware] Copy vpu.bin")

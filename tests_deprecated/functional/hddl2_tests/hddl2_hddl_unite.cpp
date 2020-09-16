@@ -112,7 +112,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
 
     const std::string resultMessage(resultData);
 
-    ASSERT_EQ(resultData, message);
+    ASSERT_EQ(resultMessage, message);
 }
 
 TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
@@ -131,7 +131,7 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 
     const std::string resultMessage(resultData);
 
-    ASSERT_EQ(resultData, message);
+    ASSERT_EQ(resultMessage, message);
 }
 
 // [Track number: S#28523]
@@ -203,11 +203,12 @@ public:
     void SetUp() override;
     void callInferenceOnBlobs();
 
-    const size_t allocationSize = EMULATOR_MAX_ALLOC_SIZE;
+    const size_t allocationSize = 1024 * 1024 * 4;
     const std::string inputName = "input";
     const std::string outputName = "output";
     const Inference::Precision precision = Inference::Precision::U8;
 
+    // TODO some hardcoded values, get rid of it
     const size_t resNetInputSize = 150528;
     // TODO HACK - Emulator (?) cannot work with not 512 output
     const size_t resNetOutputSize = 512;

@@ -19,25 +19,19 @@ if(ENABLE_LTO)
 endif()
 
 set(TARGET_NAME "frontend_mcm")
-set(IE_FRONTEND_MCM_INCLUDE_DIR
-        ${CMAKE_CURRENT_SOURCE_DIR}/include CACHE INTERNAL "IE_FRONTEND_MCM_INCLUDE_DIR")
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
-
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.8)
-    source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
-endif()
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} SHARED ${SOURCES})
-target_compile_definitions(${TARGET_NAME} PRIVATE IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
 
-if(UNIX)
-    target_compile_options(${TARGET_NAME}
-        PRIVATE
-            -Wall
-            -Werror
-            -Wextra)
-else()
+enable_warnings_as_errors(${TARGET_NAME})
+
+target_compile_definitions(${TARGET_NAME}
+    PRIVATE
+        IMPLEMENT_INFERENCE_ENGINE_PLUGIN)
+
+if(MSVC)
     target_compile_options(${TARGET_NAME}
         PRIVATE
             /wd4146     # unary minus operator applied to unsigned type, result still unsigned
@@ -45,41 +39,37 @@ else()
 endif()
 
 target_include_directories(${TARGET_NAME}
-    PRIVATE
-        ${FRONTEND_VPUX_INCLUDE_DIR}
     PUBLIC
-        ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
-        "include")
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include")
 
 # TODO: remove when compiler works on ARM and Windows
-if(ARM OR AARCH64 OR WIN32)
+if(AARCH64 OR WIN32)
     target_include_directories(${TARGET_NAME}
-        PRIVATE 
+        SYSTEM PRIVATE
             ${FLATBUFFERS_INCLUDE_PATH}
             ${SCHEMA_INCLUDE_PATH})
 endif()
 
-target_include_directories(${TARGET_NAME}
-    SYSTEM PRIVATE
-        $<TARGET_PROPERTY:IE::inference_engine_transformations,INTERFACE_INCLUDE_DIRECTORIES>
-        $<TARGET_PROPERTY:IE::ngraph_reference,INTERFACE_INCLUDE_DIRECTORIES>)
-
-target_link_libraries(${TARGET_NAME}
+link_system_libraries(${TARGET_NAME}
     PRIVATE
         IE::inference_engine
         IE::inference_engine_transformations
-        vpux
         IE::pugixml
         IE::ngraph_reference
-        kmb_utils
         IE::vpu_common_lib)
+target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        vpux
+        kmb_utils)
 
 # TODO: move to the targer_link_libraries above when compiler works on ARM
 # TODO remove NOT WIN32 when we have compiler for Windows
-if((X86 OR X86_64) AND NOT WIN32)
-    target_link_libraries(${TARGET_NAME}
+if(X86_64 AND NOT WIN32)
+    link_system_libraries(${TARGET_NAME}
         PRIVATE
             MCM::cm)
+
    # FIXME: remove define once we hide all logic for compiler in a separate library
    target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MCM_COMPILER)
 endif()

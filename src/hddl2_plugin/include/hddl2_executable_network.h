@@ -56,11 +56,7 @@ private:
     const HDDL2Config _config;
     const Logger::Ptr _logger;
 
-    // FIXME: Please take a note that _networkDescription should be destructed before _compiler,
-    // due _compiler is opened as plugin and _networkDescription is created by _compiler
-    // Need to design more accurate solution to avoid missunderstanding in future
-    // [Track number: S#37571]
-    vpux::ICompiler::Ptr _compiler = nullptr;
+    vpux::Compiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr _networkPtr = nullptr;
     vpux::Executor::Ptr _executorPtr;
 };

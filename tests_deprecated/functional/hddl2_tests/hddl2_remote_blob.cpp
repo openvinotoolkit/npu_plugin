@@ -31,13 +31,13 @@ public:
     void TearDown() override;
 
     using RemoteMemoryFd = uint64_t;
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = nullptr;
+    IE::RemoteContext::Ptr remoteContextPtr = nullptr;
 
-    InferenceEngine::TensorDesc tensorDesc;
+    IE::TensorDesc tensorDesc;
     RemoteMemoryFd memoryFd = 0;
 
     RemoteMemory_Helper remoteMemoryHelper;
-
+    const size_t memoryToAllocate = 1024 * 1024 * 4;
 private:
     Remote_Context_Helper _remoteContextHelper;
     TensorDescription_Helper _tensorDescriptionHelper;
@@ -47,7 +47,7 @@ void HDDL2_Remote_Blob_Tests::SetUp() {
     remoteContextPtr = _remoteContextHelper.remoteContextPtr;
     tensorDesc = _tensorDescriptionHelper.tensorDesc;
 
-    memoryFd = remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), EMULATOR_MAX_ALLOC_SIZE);
+    memoryFd = remoteMemoryHelper.allocateRemoteMemory(_remoteContextHelper.getWorkloadId(), memoryToAllocate);
 }
 
 void HDDL2_Remote_Blob_Tests::TearDown() {

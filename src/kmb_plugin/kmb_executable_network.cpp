@@ -30,6 +30,8 @@
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
+#include <transformations/convert_quantize_dequantize.hpp>
+#include <ngraph/pass/manager.hpp>
 
 #include <vpux_compiler.hpp>
 #include <vpux.hpp>
@@ -79,7 +81,7 @@ void ExecutableNetwork::LoadBlob() {
 ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device,
     const std::shared_ptr<vpux::Device>& CSRAMdevice)
     : _config(config),
-      _compiler(vpux::ICompiler::create(vpux::CompilerType::MCMCompiler)),
+      _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)),
       _device(device),
       _CSRAMDevice(CSRAMdevice) {}
 
@@ -106,6 +108,7 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
             _networkDescription = _compiler->compile(func, network.getName(), inputsInfo, outputsInfo, _config);
         } else {
             _logger->warning("Failed to read NGraph network");
+            throw std::runtime_error("Failed to read NGraph network");
         }
     } else {
         _logger->info("NGraph parser disabled");
@@ -118,6 +121,9 @@ ExecutableNetwork::ExecutableNetwork(ICNNNetwork& network, const KmbConfig& conf
 
         if (network.getFunction()) {
             auto nGraphFunc = network.getFunction();
+            ngraph::pass::Manager manager;
+            manager.register_pass<ngraph::pass::ConvertQuantizeDequantize>();
+            manager.run_passes(nGraphFunc);
             // Disable shape inference (WA for generic operations)
             ::ngraph::op::GenericIE::DisableReshape noReshape(nGraphFunc);
 

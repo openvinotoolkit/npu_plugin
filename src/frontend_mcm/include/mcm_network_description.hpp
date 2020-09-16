@@ -23,7 +23,7 @@
 namespace vpu {
 namespace MCMAdapter {
 
-class MCMNetworkDescription final : public vpux::NetworkDescription {
+class MCMNetworkDescription final : public vpux::INetworkDescription {
 public:
     // TODO extract network name from blob
     MCMNetworkDescription(

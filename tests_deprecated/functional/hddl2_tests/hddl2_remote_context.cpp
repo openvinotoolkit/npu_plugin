@@ -29,7 +29,7 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
     WorkloadID workloadId = WorkloadContext_Helper::createAndRegisterWorkloadContext();
 
     // Store id param_map
-    InferenceEngine::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
+    IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
 
     IE::RemoteContext::Ptr remoteContextPtr;
     // Create context from ParamMap
@@ -44,7 +44,7 @@ TEST_F(HDDL2_Remote_Context_Tests, CanCreateContextFromParams) {
 class HDDL2_Remote_Context_Manipulation_Tests : public HDDL2_Remote_Context_Tests {
 public:
     void SetUp() override;
-    InferenceEngine::ParamMap params;
+    IE::ParamMap params;
 
 private:
     WorkloadContext_Helper workloadContextHelper;
@@ -56,7 +56,7 @@ void HDDL2_Remote_Context_Manipulation_Tests::SetUp() {
 }
 
 TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetDeviceName) {
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+    IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     std::string deviceName;
     ASSERT_NO_THROW(deviceName = remoteContextPtr->getDeviceName());
@@ -64,7 +64,7 @@ TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetDeviceName) {
 }
 
 TEST_F(HDDL2_Remote_Context_Manipulation_Tests, GetDeviceNameReturnCorrectFormat) {
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+    IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     const std::string deviceName = remoteContextPtr->getDeviceName();
 
@@ -72,9 +72,9 @@ TEST_F(HDDL2_Remote_Context_Manipulation_Tests, GetDeviceNameReturnCorrectFormat
 }
 
 TEST_F(HDDL2_Remote_Context_Manipulation_Tests, CanGetParams) {
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+    IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
-    InferenceEngine::ParamMap paramMap;
+    IE::ParamMap paramMap;
     ASSERT_NO_THROW(paramMap = remoteContextPtr->getParams());
     ASSERT_FALSE(paramMap.empty());
 }

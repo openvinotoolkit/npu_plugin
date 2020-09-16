@@ -30,7 +30,7 @@ namespace IE = InferenceEngine;
 class ImportNetwork_Tests : public CoreAPI_Tests {
 public:
     modelBlobInfo blobInfo = PrecompiledResNet_Helper::resnet50;
-    InferenceEngine::ParamMap params;
+    IE::ParamMap params;
 
 protected:
     void SetUp() override;
@@ -49,13 +49,11 @@ TEST_F(ImportNetwork_Tests, CanFindPlugin) {
 }
 
 TEST_F(ImportNetwork_Tests, CanCreateExecutableNetwork) {
-    std::map<std::string, std::string> config = {};
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName));
 }
 
 TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithConfig) {
     std::map<std::string, std::string> config = {};
-
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(blobInfo.graphPath, pluginName, config));
 }
 
@@ -71,12 +69,11 @@ TEST_F(ImportNetwork_Tests, CanCreateExecutableNetworkWithStream) {
 
     std::filebuf blobFile;
     if (!blobFile.open(blobInfo.graphPath, std::ios::in | std::ios::binary)) {
-        blobFile.close();
         THROW_IE_EXCEPTION << "Could not open file: " << blobInfo.graphPath;
     }
     std::istream tmp_stream(&blobFile);
 
-    InferenceEngine::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
+    IE::RemoteContext::Ptr remoteContextPtr = ie.CreateContext(pluginName, params);
 
     ASSERT_NO_THROW(auto executableNetwork = ie.ImportNetwork(tmp_stream, remoteContextPtr, config));
     blobFile.close();
@@ -86,16 +83,16 @@ TEST_F(ImportNetwork_Tests, canParseInputAndOutput) {
     const std::string expected_input_name = "data";
     const IE::Precision expected_input_precision = IE::Precision::U8;
     const IE::SizeVector expected_input_dims = {1, 3, 224, 224};
-    const IE::Layout expected_input_layout = IE::Layout::NHWC;
+    const IE::Layout expected_input_layout = IE::Layout::NCHW;
 
     const std::string expected_output_name = "prob";
     const IE::Precision expected_output_precision = IE::Precision::FP32;
     const IE::SizeVector expected_output_dims = {1, 1000};
     const IE::Layout expected_output_layout = IE::Layout::NC;
 
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
 
-    InferenceEngine::InferRequest inferRequest;
+    IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
     auto inputBlobName = executableNetwork.GetInputsInfo().begin()->first;

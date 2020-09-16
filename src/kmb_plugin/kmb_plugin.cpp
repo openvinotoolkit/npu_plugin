@@ -105,7 +105,7 @@ Engine::Engine()
       _metrics(KmbMetrics(_backend->getDevices())),
       _defaultContextMap({}) {
     _pluginName = DEVICE_NAME;  //"KMB";
-    _compiler = vpux::ICompiler::create(vpux::CompilerType::MCMCompiler);
+    _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
 

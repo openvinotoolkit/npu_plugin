@@ -49,17 +49,7 @@ if (UNIX)
                 VPU
     )
 
-    add_dependencies(${TARGET_NAME} kmbPlugin)
-    if ((X86 OR X86_64) AND UNIX)
-        add_dependencies(${TARGET_NAME} VPUXPlugin)
-        if(ENABLE_HDDL2)
-            add_dependencies(${TARGET_NAME} HDDL2Plugin)
-        endif()
-    endif()
+    add_dependencies(${TARGET_NAME} ${VPUX_PLUGIN_TARGET})
 
-        target_compile_options(${TARGET_NAME}
-            PRIVATE
-                -Wall
-                -Werror
-                -Wextra)
+    enable_warnings_as_errors(${TARGET_NAME})
 endif()

@@ -14,7 +14,15 @@ namespace {
 const std::vector<InferenceEngine::Precision> netPrecisions = {
     InferenceEngine::Precision::FP32, InferenceEngine::Precision::FP16};
 
-const std::vector<ActivationTypes> activationTypes = {Sigmoid, Tanh, Relu, Exp, Log, Sign, Abs};
+const std::map<ActivationTypes, std::vector<std::vector<float>>> activationTypes = {
+    {Sigmoid, {}},
+    {Tanh,    {}},
+    {Relu,    {}},
+    {Exp,     {}},
+    {Log,     {}},
+    {Sign,    {}},
+    {Abs,      {}}
+};
 
 std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
     {{1, 50}, {}},
@@ -22,9 +30,9 @@ std::map<std::vector<size_t>, std::vector<std::vector<size_t>>> basic = {
 };
 
 const auto basicCases = ::testing::Combine(
-    ::testing::ValuesIn(activationTypes),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(activationTypes)),
     ::testing::ValuesIn(netPrecisions),
-    ::testing::ValuesIn(CommonTestUtils::combineShapes<size_t>(basic)),
+    ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
 INSTANTIATE_TEST_CASE_P(Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
