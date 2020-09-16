@@ -40,7 +40,7 @@ const std::map<std::string, std::shared_ptr<Device>> EngineBackend::createDevice
     return devices;
 }
 
-EngineBackend::EngineBackend(std::string name): _impl(std::move(name)), _devices(std::move(createDeviceMap())) {}
+EngineBackend::EngineBackend(std::string name): _impl(name), _devices(std::move(createDeviceMap())) {}
 
 std::shared_ptr<EngineBackend> EngineBackendConfigurator::findBackend(const InferenceEngine::ParamMap& /*params*/) {
     const auto root = InferenceEngine::getIELibraryPath();

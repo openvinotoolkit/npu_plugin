@@ -27,6 +27,8 @@
 #include "file_reader.h"
 #include "ie_utils.hpp"
 #include "models/precompiled_resnet.h"
+#include <helper_calc_cpu_ref.h>
+#include <tests_common.hpp>
 
 namespace IE = InferenceEngine;
 
@@ -35,35 +37,31 @@ public:
     const int REQUEST_LIMIT = 10;
     const int MAX_WAIT = 60000;
 
-    const int TOP_CLASSES_TO_COMPARE = 1;
+    std::string modelPath;
 
-    std::string refInputPath;
-    std::string refOutputPath;
+    const size_t inputWidth = 224;
+    const size_t inputHeight = 224;
+    const size_t numberOfTopClassesToCompare = 4;
 
 protected:
-    modelBlobInfo _blobInfo = PrecompiledResNet_Helper::resnet50;
-
     void SetUp() override;
 
-    std::vector<InferenceEngine::InferRequest> createRequests(const int& numberOfRequests);
+    std::vector<IE::InferRequest> createRequests(const int& numberOfRequests);
 
     static void loadCatImageToBlobForRequests(
-        const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests);
-
-    IE::Blob::Ptr loadReferenceToBlob(
-        const std::string& pathToReference, const IE::Precision& precision = IE::Precision::FP16);
+        const std::string& blobName, std::vector<IE::InferRequest>& requests);
 };
 
 void AsyncInferRequest_Tests::SetUp() {
-    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(_blobInfo.graphPath, pluginName));
-    refInputPath = _blobInfo.inputPath;
-    refOutputPath = _blobInfo.outputPath;
+    std::string graphPath = PrecompiledResNet_Helper::resnet50.graphPath;
+    modelPath = PrecompiledResNet_Helper::resnet50.modelPath;
+    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(graphPath, pluginName));
 }
 
-std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createRequests(const int& numberOfRequests) {
-    std::vector<InferenceEngine::InferRequest> requests;
+std::vector<IE::InferRequest> AsyncInferRequest_Tests::createRequests(const int& numberOfRequests) {
+    std::vector<IE::InferRequest> requests;
     for (int requestCount = 0; requestCount < numberOfRequests; requestCount++) {
-        InferenceEngine::InferRequest inferRequest;
+        IE::InferRequest inferRequest;
         inferRequest = executableNetworkPtr->CreateInferRequest();
         requests.push_back(inferRequest);
     }
@@ -71,24 +69,12 @@ std::vector<InferenceEngine::InferRequest> AsyncInferRequest_Tests::createReques
 }
 
 void AsyncInferRequest_Tests::loadCatImageToBlobForRequests(
-    const std::string& blobName, std::vector<InferenceEngine::InferRequest>& requests) {
+    const std::string& blobName, std::vector<IE::InferRequest>& requests) {
     for (auto currentRequest : requests) {
         IE::Blob::Ptr blobPtr;
         auto inputBlob = loadCatImage();
         currentRequest.SetBlob(blobName, inputBlob);
     }
-}
-
-IE::Blob::Ptr AsyncInferRequest_Tests::loadReferenceToBlob(
-    const std::string& pathToReference, const IE::Precision& precision) {
-    IE::ConstOutputsDataMap outputInfo = executableNetworkPtr->GetOutputsInfo();
-    if (outputInfo.size() != 1) {
-        THROW_IE_EXCEPTION << "Only one output is supported";
-    }
-    auto outputTensorDesc = outputInfo.begin()->second->getTensorDesc();
-    outputTensorDesc.setPrecision(precision);
-    auto refBlob = vpu::KmbPlugin::utils::fromBinaryFile(pathToReference, outputTensorDesc);
-    return refBlob;
 }
 
 //------------------------------------------------------------------------------
@@ -101,13 +87,13 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
     Time end_sync;
     {
         // --- Create requests
-        std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
         // --- Sync execution
         start_sync = Now();
-        for (InferenceEngine::InferRequest& currentRequest : requests) {
+        for (IE::InferRequest& currentRequest : requests) {
             ASSERT_NO_THROW(currentRequest.Infer());
         }
         end_sync = Now();
@@ -117,7 +103,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
     Time end_async;
     {
         // --- Create requests
-        std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+        std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
         auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
         loadCatImageToBlobForRequests(inputBlobName, requests);
 
@@ -131,7 +117,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
         start_async = Now();
         // --- Asynchronous execution
-        for (InferenceEngine::InferRequest& currentRequest : requests) {
+        for (IE::InferRequest& currentRequest : requests) {
             currentRequest.SetCompletionCallback(onComplete);
             currentRequest.StartAsync();
         }
@@ -161,7 +147,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_asyncIsFasterThenSync) {
 
 TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     // --- Create requests
-    std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+    std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
     loadCatImageToBlobForRequests(inputBlobName, requests);
 
@@ -174,7 +160,7 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     };
 
     // --- Asynchronous execution
-    for (InferenceEngine::InferRequest& currentRequest : requests) {
+    for (IE::InferRequest& currentRequest : requests) {
         currentRequest.SetCompletionCallback(onComplete);
         ASSERT_NO_THROW(currentRequest.StartAsync());
     }
@@ -192,14 +178,15 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
     waitThread.join();
 
     // --- Reference Blob
-    IE::Blob::Ptr refBlob = loadReferenceToBlob(refOutputPath);
+    IE::Blob::Ptr inputBlob = requests.at(0).GetBlob(inputBlobName);
+    IE::Blob::Ptr refBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
 
     // --- Compare output with reference
     auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
     for (auto currentRequest : requests) {
         IE::Blob::Ptr outputBlob;
         ASSERT_NO_THROW(outputBlob = currentRequest.GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), TOP_CLASSES_TO_COMPARE));
+        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
     }
 }
 
@@ -207,26 +194,25 @@ TEST_F(AsyncInferRequest_Tests, precommit_correctResultSameInput) {
 class AsyncInferRequest_DifferentInput : public AsyncInferRequest_Tests {
 public:
     struct Reference {
-        Reference(
-            const std::string& inputReferencePath, const std::string& outputReferencePath, const bool& isNV12 = false)
-            : inputReferencePath(inputReferencePath), outputReferencePath(outputReferencePath), isNV12(isNV12) {};
-        std::string inputReferencePath;
-        std::string outputReferencePath;
+        explicit Reference(const bool _isNV12 = false)
+            : isNV12(_isNV12) {};
         bool isNV12;
     };
 
     std::vector<Reference> references;
+    std::string inputNV12Path;
 
 protected:
     void SetUp() override;
 };
 
 void AsyncInferRequest_DifferentInput::SetUp() {
-    executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.ImportNetwork(_blobInfo.graphPath, pluginName));
+    AsyncInferRequest_Tests::SetUp();
+    inputNV12Path = TestDataHelpers::get_data_path() + "/" + std::to_string(inputWidth) + "x" + std::to_string(inputHeight) + "/cat3.yuv";
     std::vector<Reference> availableReferences;
 
-    availableReferences.emplace_back(Reference(_blobInfo.inputPath, _blobInfo.outputPath));
-    availableReferences.emplace_back(Reference(_blobInfo.nv12Input, _blobInfo.nv12Output, true));
+    availableReferences.emplace_back(Reference(false));
+    availableReferences.emplace_back(Reference(true));
 
     const uint32_t seed = 666;
     static auto randEngine = std::default_random_engine(seed);
@@ -241,28 +227,36 @@ void AsyncInferRequest_DifferentInput::SetUp() {
 //------------------------------------------------------------------------------
 TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPreprocAndPreproc) {
     // --- Create requests
-    std::vector<InferenceEngine::InferRequest> requests = createRequests(REQUEST_LIMIT);
+    std::vector<IE::InferRequest> requests = createRequests(REQUEST_LIMIT);
     auto inputBlobName = executableNetworkPtr->GetInputsInfo().begin()->first;
+    IE::Blob::Ptr refRgbBlob = nullptr;
+    IE::Blob::Ptr refNV12Blob = nullptr;
 
     // --- Load random reference images
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
         if (references.at(i).isNV12) {
             // TODO Fix to follow same approach as hello nv12 classification sample
-            const size_t image_width = 228;
-            const size_t image_height = 228;
-            IE::NV12Blob::Ptr nv12InputBlob =
-                NV12Blob_Creator::createFromFile(references.at(i).inputReferencePath, image_width, image_height);
+            // ----- Load NV12 input
+            IE::NV12Blob::Ptr nv12InputBlob = NV12Blob_Creator::createFromFile(
+                inputNV12Path, inputWidth, inputHeight);
 
-            // Since it 228x228 image on 224x224 network, resize preprocessing also required
+            // Preprocessing
             IE::PreProcessInfo preprocInfo = requests.at(i).GetPreProcess(inputBlobName);
-            preprocInfo.setResizeAlgorithm(IE::RESIZE_BILINEAR);
             preprocInfo.setColorFormat(IE::ColorFormat::NV12);
 
             // ---- Set NV12 blob with preprocessing information
             requests.at(i).SetBlob(inputBlobName, nv12InputBlob, preprocInfo);
+
+            if (refNV12Blob == nullptr) {
+                refNV12Blob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, nv12InputBlob, &preprocInfo);
+            }
         } else {
             auto inputBlob = loadCatImage();
             ASSERT_NO_THROW(requests.at(i).SetBlob(inputBlobName, inputBlob));
+
+            if (refRgbBlob == nullptr) {
+                refRgbBlob = ReferenceHelper::CalcCpuReferenceSingleOutput(modelPath, inputBlob);
+            }
         }
     }
 
@@ -275,7 +269,7 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
     };
 
     // --- Asynchronous execution
-    for (InferenceEngine::InferRequest& currentRequest : requests) {
+    for (IE::InferRequest& currentRequest : requests) {
         currentRequest.SetCompletionCallback(onComplete);
         ASSERT_NO_THROW(currentRequest.StartAsync());
     }
@@ -294,17 +288,11 @@ TEST_F(AsyncInferRequest_DifferentInput, precommit_correctResultShuffled_NoPrepr
 
     // --- Compare output with reference
     auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
+    IE::Blob::Ptr refBlob;
+    IE::Blob::Ptr outputBlob;
     for (int i = 0; i < REQUEST_LIMIT; ++i) {
-        // --- Reference Blob
-        IE::Blob::Ptr refBlob;
-        if (references.at(i).isNV12) {
-            refBlob = loadReferenceToBlob(references.at(i).outputReferencePath, IE::Precision::U8);
-        } else {
-            refBlob = loadReferenceToBlob(references.at(i).outputReferencePath);
-        }
-
-        IE::Blob::Ptr outputBlob;
+        refBlob = references.at(i).isNV12 ? refNV12Blob : refRgbBlob;
         ASSERT_NO_THROW(outputBlob = requests.at(i).GetBlob(outputBlobName));
-        ASSERT_NO_THROW(Comparators::compareTopClasses(toFP32(outputBlob), toFP32(refBlob), TOP_CLASSES_TO_COMPARE));
+        ASSERT_NO_THROW(Comparators::compareTopClassesUnordered(toFP32(outputBlob), toFP32(refBlob), numberOfTopClassesToCompare));
     }
 }

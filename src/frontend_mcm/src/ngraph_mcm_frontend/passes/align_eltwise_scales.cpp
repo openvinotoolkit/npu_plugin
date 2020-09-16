@@ -26,6 +26,8 @@
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_eltwise.hpp"
 
+#include <ngraph_ops/eltwise.hpp>
+
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 
 namespace {
@@ -126,7 +128,8 @@ void setFakeQuantizeScales(
 
 bool AlignEltwiseScales::run_on_node(std::shared_ptr<ngraph::Node> node)
 {
-    if (const auto ieScale = std::dynamic_pointer_cast<McmEltwise>(node)) {
+    if ((std::dynamic_pointer_cast<McmEltwise>(node))
+        || std::dynamic_pointer_cast<ngraph::op::Eltwise>(node) ) {
         auto inputs = getInputsFQ(node);
 
         size_t maxValues = 1;

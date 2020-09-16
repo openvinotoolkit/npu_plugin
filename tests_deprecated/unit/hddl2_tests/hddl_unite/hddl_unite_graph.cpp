@@ -25,16 +25,12 @@ using namespace vpu::HDDL2Plugin;
 
 //------------------------------------------------------------------------------
 class HddlUniteGraph_UnitTests : public ::testing::Test {
-// FIXME: Please take a note that _networkDescription should be destructed before _compiler,
-// due _compiler is opened as plugin and _networkDescription is created by _compiler
-// Need to design more accurate solution to avoid missunderstanding in future
-// [Track number: S#37571]
-protected:
-    vpux::NetworkDescription_Helper _networkDescriptionHelper;
-
 public:
     void SetUp() override;
     vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
+
+protected:
+    vpux::NetworkDescription_Helper _networkDescriptionHelper;
 };
 
 void HddlUniteGraph_UnitTests::SetUp() { networkDescPtr = _networkDescriptionHelper.getNetworkDesc(); }

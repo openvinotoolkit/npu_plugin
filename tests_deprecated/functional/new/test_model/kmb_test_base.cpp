@@ -64,7 +64,7 @@ const std::string KmbTestBase::DEVICE_NAME = []() -> std::string {
         return var;
     }
 
-    return "KMB";
+    return "VPUX";
 }();
 
 const std::string KmbTestBase::REF_DEVICE_NAME = []() -> std::string {
@@ -301,7 +301,7 @@ bool tensorIter(SizeVector& ind, const TensorDesc& desc) {
 
 void KmbTestBase::compareOutputs(
         const Blob::Ptr& refOutput, const Blob::Ptr& actualOutput,
-        float tolerance, CompareMethod method) {
+        const float tolerance, const CompareMethod method) {
     const auto& refDesc = refOutput->getTensorDesc();
     const auto& actualDesc = actualOutput->getTensorDesc();
 
@@ -340,7 +340,7 @@ void KmbTestBase::compareOutputs(
 void KmbTestBase::compareWithReference(
         const BlobMap& actualOutputs,
         const BlobMap& refOutputs,
-        float tolerance, CompareMethod method) {
+        const float tolerance, const CompareMethod method) {
     if (refOutputs.size() == 1) {
         // HACK: It's necessary for back compatibility when blob names were lost after export
         // [Track number: S#35709]
@@ -548,7 +548,7 @@ BlobMap KmbTestBase::getInputs(const ExecutableNetwork& testNet) {
 
 void KmbLayerTestBase::runTest(
         const NetworkBuilder& builder,
-        float tolerance, CompareMethod method) {
+        const float tolerance, const CompareMethod method) {
     if (!RUN_COMPILER || !RUN_REF_CODE) {
         if (DUMP_PATH.empty()) {
             SKIP() << "Compilation and/or REF_CODE were disabled and IE_KMB_TESTS_DUMP_PATH was not provided";
@@ -880,7 +880,7 @@ void KmbNetworkTestBase::registerSingleImage(const TestImageDesc& image, const s
 void KmbClassifyNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
-        size_t topK, float probTolerance) {
+        const size_t topK, const float probTolerance) {
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap&) {
@@ -959,8 +959,8 @@ std::vector<std::pair<int, float>> KmbClassifyNetworkTest::parseOutput(const Blo
 void KmbDetectionNetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
-        float confThresh,
-        float boxTolerance, float probTolerance) {
+        const float confThresh,
+        const float boxTolerance, const float probTolerance) {
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap& inputsDesc) {
@@ -992,8 +992,9 @@ void KmbDetectionNetworkTest::runTest(
 
 std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
         const Blob::Ptr& blob,
-        size_t imgWidth, size_t imgHeight,
-        float confThresh) {
+        const size_t imgWidth,
+        const size_t imgHeight,
+        const float confThresh) {
     constexpr size_t ELEM_COUNT = 7;
 
     const auto count = blob->size() / ELEM_COUNT;
@@ -1022,7 +1023,7 @@ std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
         const float xmax = ptr[i * ELEM_COUNT + 5];
         const float ymax = ptr[i * ELEM_COUNT + 6];
 
-        utils::BoundingBox bb (class_id, imgWidth * xmin, imgWidth * xmax, imgHeight * ymin, imgHeight * ymax, conf);
+        utils::BoundingBox bb (class_id, imgWidth * xmin, imgHeight * ymin, imgWidth * xmax, imgHeight * ymax, conf);
 
         out.push_back(bb);
     }
@@ -1031,7 +1032,11 @@ std::vector<utils::BoundingBox> KmbDetectionNetworkTest::parseOutput(
 }
 
 void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::BoundingBox> &actualOutput,
-        std::vector<utils::BoundingBox> &refOutput, int imgWidth, int imgHeight, float boxTolerance, float probTolerance) {
+        std::vector<utils::BoundingBox> &refOutput,
+        const int imgWidth,
+        const int imgHeight,
+        const float boxTolerance,
+        const float probTolerance) {
     std::cout << "Ref Top:" << std::endl;
     for (size_t i = 0; i < refOutput.size(); ++i) {
         const auto& bb = refOutput[i];
@@ -1111,9 +1116,10 @@ void KmbDetectionNetworkTest::checkBBoxOutputs(std::vector<utils::BoundingBox> &
 void KmbYoloV2NetworkTest::runTest(
         const TestNetworkDesc& netDesc,
         const TestImageDesc& image,
-        float confThresh,
-        float boxTolerance, float probTolerance,
-        bool isTiny) {
+        const float confThresh,
+        const float boxTolerance,
+        const float probTolerance,
+        const bool isTiny) {
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
                            const ConstInputsDataMap& inputsDesc) {
@@ -1142,7 +1148,10 @@ void KmbYoloV2NetworkTest::runTest(
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
-void KmbSSDNetworkTest::runTest(const TestNetworkDesc &netDesc, const TestImageDesc &image, float confThresh, float boxTolerance, float probTolerance)
+void KmbSSDNetworkTest::runTest(const TestNetworkDesc &netDesc, const TestImageDesc &image,
+        const float confThresh,
+        const float boxTolerance,
+        const float probTolerance)
 {
     const auto check = [=](const BlobMap& actualBlobs,
                            const BlobMap& refBlobs,
@@ -1234,7 +1243,7 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
 
 void AgeGenderNetworkTest::runTest(const TestNetworkDesc& netDesc,
                                    const TestImageDesc& face_image,
-                                   float tolerance) {
+                                   const float tolerance) {
     const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
       IE_ASSERT(inputs.size() == 1);
       registerSingleImage(face_image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -1258,7 +1267,7 @@ void AgeGenderNetworkTest::runTest(const TestNetworkDesc& netDesc,
 
 void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
                                    const TestImageDesc& myVariable,
-                                   float tolerance) {
+                                   const float tolerance) {
     const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
       IE_ASSERT(inputs.size() == 1);
       registerSingleImage(myVariable, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -1284,7 +1293,7 @@ void PersonAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
 // consider re-using PersonAttrRecNetworkTest as is
 void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
                                    const TestImageDesc& myVariable,
-                                   float tolerance) {
+                                   const float tolerance) {
     const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
       IE_ASSERT(inputs.size() == 1);
       registerSingleImage(myVariable, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
@@ -1332,6 +1341,31 @@ void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
       for (const auto& actualBlob : actualBlobs) {
           auto ref_it = refBlobs.find(actualBlob.first);
           ASSERT_TRUE(ref_it != refBlobs.end());
+	  std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
+          compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
+      }
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
+}
+
+void HeadPoseEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
+                                            const TestImageDesc& image,
+                                            float tolerance) {
+    const auto init_inputs = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+        IE_ASSERT(actualBlobs.size() == 3u &&
+                  actualBlobs.size() == refBlobs.size());
+
+        for (const auto& actualBlob : actualBlobs) {
+          auto ref_it = refBlobs.find(actualBlob.first);
+          ASSERT_TRUE(ref_it != refBlobs.end());
           std::cout << "=== COMPARE " << actualBlob.first << " WITH REFERENCE" << std::endl;
           compareOutputs(actualBlob.second, ref_it->second, tolerance, CompareMethod::Absolute);
       }
@@ -1339,6 +1373,7 @@ void VehicleAttrRecNetworkTest::runTest(const TestNetworkDesc& netDesc,
 
     KmbNetworkTestBase::runTest(netDesc, init_inputs, check);
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // RFCNNetworkAdapter ////////////////////////////////////////////////////////////////////////////////

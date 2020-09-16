@@ -67,7 +67,7 @@ public:
 private:
     HDDL2Config _parsedConfig;
     HDDL2Metrics _metrics;
-    vpux::ICompiler::Ptr _compiler;
+    vpux::Compiler::Ptr _compiler;
 };
 
 }  //  namespace HDDL2Plugin

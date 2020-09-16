@@ -25,12 +25,11 @@
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
 #include "memory_usage.h"
+#include "skip_conditions.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteBlob_UnitTests Declaration
 //------------------------------------------------------------------------------
 class HDDL2_RemoteBlob_UnitTests : public testing::Test {
 public:
@@ -52,30 +51,33 @@ public:
 protected:
     RemoteMemoryFd _remoteMemoryFd = 0;
     TensorDescription_Helper _tensorDescriptionHelper;
-    RemoteContext_Helper _remoteContextHelper;
-    RemoteMemory_Helper _remoteMemoryHelper;
+    RemoteContext_Helper::Ptr _remoteContextHelperPtr = nullptr;
+    RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr = nullptr;
 };
 
-//------------------------------------------------------------------------------
-//      class HDDL2_RemoteBlob_UnitTests Implementation
-//------------------------------------------------------------------------------
 void HDDL2_RemoteBlob_UnitTests::SetUp() {
-    tensorDesc = _tensorDescriptionHelper.tensorDesc;
-    tensorSize = _tensorDescriptionHelper.tensorSize;
+    if (HDDL2Metrics::isServiceAvailable()) {
+        _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
+        _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
 
-    remoteContextPtr = _remoteContextHelper.remoteContextPtr;
-    WorkloadID workloadId = _remoteContextHelper.getWorkloadId();
-    _remoteMemoryFd = _remoteMemoryHelper.allocateRemoteMemory(workloadId, tensorSize);
+        tensorDesc = _tensorDescriptionHelper.tensorDesc;
+        tensorSize = _tensorDescriptionHelper.tensorSize;
 
-    blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+        remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
+        WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
+        _remoteMemoryFd = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
+
+        blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+    }
 }
 
-void HDDL2_RemoteBlob_UnitTests::setRemoteMemory(const std::string& data) { _remoteMemoryHelper.setRemoteMemory(data); }
+void HDDL2_RemoteBlob_UnitTests::setRemoteMemory(const std::string &data) {
+    _remoteMemoryHelperPtr->setRemoteMemory(data);
+}
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteBlob_UnitTests - check remote memory usage
-//------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, CheckRemoteMemoryUsage) {
+    SKIP_IF_NO_DEVICE();
 #if defined(_WIN32) || defined(__arm__) || defined(__aarch64__)
     SKIP();
 #endif
@@ -101,6 +103,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, CheckRemoteMemoryUsage) {
 //      class HDDL2_RemoteBlob_UnitTests - check createROI
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, parentBlobCorrectAfterDeletingROI) {
+    SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
     size_t bSizeBefore = remoteBlobPtr->byteSize();
@@ -122,6 +125,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, parentBlobCorrectAfterDeletingROI) {
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
+    SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteROIBlobPtr = nullptr;
     uint8_t *bDataBefore = nullptr;
     size_t bSizeBefore = 0;
@@ -148,6 +152,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobCorrectAfterDeletingParent) {
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobIntoBoundsNoThrow) {
+    SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     IE::ROI roi {0, 5, 5, 100, 100};
     IE::RemoteBlob::Ptr remoteROIBlobPtr;
@@ -155,6 +160,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobIntoBoundsNoThrow) {
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
+    SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     IE::ROI roi {0, 2, 2, 1000, 1000};
     IE::RemoteBlob::Ptr remoteROIBlobPtr;
@@ -162,6 +168,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, ROIBlobOutOfBoundsThrow) {
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
+    SKIP_IF_NO_DEVICE();
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContextPtr->CreateBlob(tensorDesc, blobParamMap);
     uint8_t *bDataBefore = remoteBlobPtr->rmap().as<uint8_t*>();
     size_t bSizeBefore = remoteBlobPtr->byteSize();
@@ -201,10 +208,12 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, CascadeROIBlobCorrect) {
 //      class HDDL2_RemoteBlob_UnitTests Constructor - tensor + context + params
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromCorrectContextAndParams_noException) {
+    SKIP_IF_NO_DEVICE();
     ASSERT_NO_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, blobParamMap, config));
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap emptyParams = {};
 
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, emptyParams, config));
@@ -212,18 +221,21 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_FromEmptyParams_ThrowException) {
 
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_constructor_FromNotExistsBufFd_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap notExistsFd = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), notExistsBufFd}};
 
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, notExistsFd, config));
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectPararams_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     InferenceEngine::ParamMap badParams = {{"Bad key", "Bad value"}};
 
     ASSERT_ANY_THROW(HDDL2RemoteBlob blob(tensorDesc, remoteContextPtr, badParams, config));
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectType_ThrowException) {
+    SKIP_IF_NO_DEVICE();
     int incorrectTypeValue = 10;
     InferenceEngine::ParamMap incorrectTypeParams = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), incorrectTypeValue}};
 
@@ -234,12 +246,14 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, constructor_fromIncorrectType_ThrowException)
 //      class HDDL2_RemoteBlob_UnitTests Blob Type checks
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, defaultBlobFromContext_isMemoryBlob_True) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     ASSERT_TRUE(remoteBlobPtr->is<IE::MemoryBlob>());
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, defaultBlobFromContext_isRemoteBlob_True) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     ASSERT_TRUE(remoteBlobPtr->is<IE::RemoteBlob>());
@@ -249,6 +263,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, defaultBlobFromContext_isRemoteBlob_True) {
 //      class HDDL2_RemoteBlob_UnitTests Initiations allocate
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, allocate_Default_Works) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     ASSERT_NO_FATAL_FAILURE(remoteBlobPtr->allocate());
@@ -258,6 +273,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, allocate_Default_Works) {
 //      class HDDL2_RemoteBlob_UnitTests Initiations deallocate
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, deallocate_AllocatedBlob_ReturnTrue) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
     remoteBlobPtr->allocate();
 
@@ -268,6 +284,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, deallocate_AllocatedBlob_ReturnTrue) {
 //      class HDDL2_RemoteBlob_UnitTests Initiations getDeviceName
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, getDeviceName_DeviceAssigned_CorrectName) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     ASSERT_EQ(DeviceName::getNameInPlugin(), remoteBlobPtr->getDeviceName());
@@ -277,6 +294,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getDeviceName_DeviceAssigned_CorrectName) {
 //      class HDDL2_RemoteBlob_UnitTests Initiations getTensorDesc
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, getTensorDesc_AllocatedBlob_ReturnCorrectTensor) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     InferenceEngine::TensorDesc resultTensor = remoteBlobPtr->getTensorDesc();
@@ -289,6 +307,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getTensorDesc_AllocatedBlob_ReturnCorrectTens
 //------------------------------------------------------------------------------
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_NotAllocatedBlob_ReturnNotNullLocked) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     auto lockedMemory = remoteBlobPtr->buffer();
@@ -298,6 +317,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_NotAllocatedBlob_ReturnNotNul
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_AllocatedBlob_ReturnNotNullLocked) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
     remoteBlobPtr->allocate();
 
@@ -308,6 +328,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_AllocatedBlob_ReturnNotNullLo
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_ChangeAllocatedBlob_ShouldStoreNewData) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
     remoteBlobPtr->allocate();
 
@@ -332,6 +353,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_ChangeAllocatedBlob_ShouldSto
 //------------------------------------------------------------------------------
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_cbuffer_NotAllocatedBlob_ReturnNotNullLocked) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     auto lockedMemory = remoteBlobPtr->cbuffer();
@@ -341,6 +363,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_cbuffer_NotAllocatedBlob_ReturnNotNu
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_buffer_AllocatedBlob_CannotBeChanged) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
     remoteBlobPtr->allocate();
 
@@ -481,6 +504,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_ChangeAllocatedBlob_ShouldChan
 
 // TODO FAIL - IE side problem - Not working due to no write lock operation
 TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_OnLocking_WillNotSyncDataFromDevice) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     const std::string data = "Hello HDDL2\n";
@@ -499,6 +523,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, DISABLED_wlock_OnLocking_WillNotSyncDataFromD
 //      class HDDL2_RemoteBlob_UnitTests Initiations getContext
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, getContext_AllocatedBlob_ReturnSameAsOnInit) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     auto contextPtr = remoteBlobPtr->getContext();
@@ -510,6 +535,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getContext_AllocatedBlob_ReturnSameAsOnInit) 
 //      class HDDL2_RemoteBlob_UnitTests Initiations getParams
 //------------------------------------------------------------------------------
 TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_ReturnMapWithParams) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     auto params = remoteBlobPtr->getParams();
@@ -518,6 +544,7 @@ TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_ReturnMapWithP
 }
 
 TEST_F(HDDL2_RemoteBlob_UnitTests, getParams_AllocatedDefaultBlob_SameAsInput) {
+    SKIP_IF_NO_DEVICE();
     remoteBlobPtr = std::make_shared<HDDL2RemoteBlob>(tensorDesc, remoteContextPtr, blobParamMap, config);
 
     auto params = remoteBlobPtr->getParams();

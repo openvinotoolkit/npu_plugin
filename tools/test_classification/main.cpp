@@ -130,7 +130,12 @@ int main(int argc, char *argv[]) {
 
         /** Specifying the precision and layout of input data provided by the user.
          * This should be called before load of the network to the device **/
-        inputInfoItem.second->setPrecision(Precision::U8);
+        if (!FLAGS_ip.empty()) {
+            if (FLAGS_ip == "FP16") inputInfoItem.second->setPrecision(Precision::FP16);
+            else if (FLAGS_ip == "FP32") inputInfoItem.second->setPrecision(Precision::FP32);
+            else inputInfoItem.second->setPrecision(Precision::U8);
+        }
+        else inputInfoItem.second->setPrecision(Precision::U8);
         inputInfoItem.second->setLayout(Layout::NCHW);
 
         Precision inPrecision = inputInfoItem.second->getPrecision();
@@ -164,6 +169,8 @@ int main(int argc, char *argv[]) {
                     throw std::logic_error("Input: " + FLAGS_i + " cannot be read!");
                 file.seekg(0, std::ios::end);
                 size_t total = file.tellg() / sizeof(uint8_t);
+                if (inPrecision == Precision::FP32)
+                    total = file.tellg() / sizeof(float);
                 if (total != totalSize) {
                     // number of entries doesn't match, either not U8 or from different network
                     throw std::logic_error("Input contains " + std::to_string(total) + " entries, " +
@@ -314,7 +321,19 @@ int main(int argc, char *argv[]) {
              }
             // TODO Update to create all 4 options for input
             else if (inPrecision == Precision::FP32) {
-                inputSeq_fp32 = generateSequence<float>(totalSize, "FP32"); // Consider this Z-Major, BGR
+                std::ifstream file(FLAGS_i, std::ios::in | std::ios::binary);
+                if (!file.is_open())
+                    throw std::logic_error("Input: " + FLAGS_i + " cannot be read!");
+                file.seekg(0, std::ios::end);
+                size_t total = file.tellg() / sizeof(float);
+                if (total != totalSize) {
+                    // number of entries doesn't match, either not FP32 or from different network
+                    throw std::logic_error("Input contains " + std::to_string(total) + " entries, " +
+                                           "which doesn't match expected dimensions: " + std::to_string(totalSize));
+                }
+                file.seekg(0, std::ios::beg);
+                inputSeq_fp32.resize(total);
+                file.read(reinterpret_cast<char *>(&inputSeq_fp32[0]), total * sizeof(float));
                 auto data = inputBlob->buffer().as<PrecisionTrait<Precision::FP32>::value_type *>();
                 for (size_t pid = 0; pid < image_size; pid++) {
                     /** Iterate over all channels **/
@@ -395,15 +414,8 @@ int main(int argc, char *argv[]) {
             }
 
             // save the results file for validation
-            if (outputBlob.size() == 1)
-                dumpBlob(outputBlob[i], "./output_cpu.bin");
-            else
-            {
-                if (i == 0)
-                    dumpBlob(outputBlob[i], "./output_cpu.bin");
-                else
-                    dumpBlob(outputBlob[i], "./output_cpu" + std::to_string(i) + ".bin");
-            }
+            if (i == 0) dumpBlob(outputBlob[i], "./output_cpu.bin"); //TODO: remove when validator updated
+            dumpBlob(outputBlob[i], "./output_cpu" + std::to_string(i) + ".bin");
 
             ClassificationResult classificationResult(outputBlob[i], validImageNames,
                                                       batchSize, FLAGS_nt,

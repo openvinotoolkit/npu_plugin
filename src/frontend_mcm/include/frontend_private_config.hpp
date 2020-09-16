@@ -35,5 +35,7 @@ namespace VPUConfigParams {
  */
 DECLARE_VPU_COMPILER_CONFIG_KEY(SERIALIZE_CNN_BEFORE_COMPILE_FILE);
 
+DECLARE_VPU_COMPILER_CONFIG_KEY(REFERENCE_MODE);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine

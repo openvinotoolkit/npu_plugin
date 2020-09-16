@@ -30,7 +30,7 @@
 namespace vpux {
 
 #if defined(__arm__) || defined(__aarch64__)
-static size_t alignMemorySize(const size_t& size) {
+static size_t alignMemorySize(const size_t size) {
     size_t pageSize = getpagesize();
     size_t realSize = size + (size % pageSize ? (pageSize - size % pageSize) : 0);
     // workaround for runtime bug. allocate at least two pages of memory
@@ -42,7 +42,7 @@ static size_t alignMemorySize(const size_t& size) {
 }
 #endif
 
-VpusmmAllocator::VpusmmAllocator(const int& deviceId): _deviceId(deviceId) {}
+VpusmmAllocator::VpusmmAllocator(const int deviceId): _deviceId(deviceId) {}
 
 void* VpusmmAllocator::lock(void* handle, InferenceEngine::LockOp) noexcept {
     // isValidPtr check required when handle is allocated by external app via vpurm
@@ -72,7 +72,7 @@ bool VpusmmAllocator::isValidPtr(void* ptr) noexcept {
 }
 
 void* VpusmmAllocator::wrapRemoteMemoryHandle(
-    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, void* memHandle) noexcept {
+    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_ptr_to_vpu(memHandle, _deviceId);
     if (physAddr == 0) {
@@ -97,7 +97,7 @@ void* VpusmmAllocator::wrapRemoteMemoryHandle(
 }
 
 void* VpusmmAllocator::wrapRemoteMemoryOffset(
-    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t& size, const KmbOffsetParam& memOffset) noexcept {
+    const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept {
 #if defined(__arm__) || defined(__aarch64__)
     auto physAddr = vpurm_import_dmabuf(remoteMemoryFd, VPU_DEFAULT, _deviceId);
     size_t realSize = alignMemorySize(size + memOffset);

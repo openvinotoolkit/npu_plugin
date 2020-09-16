@@ -35,6 +35,7 @@ The KMB plugin accepts the following options:
 | `VPU_KMB_COMPILATION_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for network compilation |
 | `VPU_KMB_TARGET_DESCRIPTOR_PATH`    | string | 'mcm_config/target' | Path to folder with target config files |
 | `VPU_KMB_TARGET_DESCRIPTOR`    | string | 'release_kmb' | Name of config file for target device |
+| `VPU_COMPILER_FUSE_SCALE_INPUT`    | `YES`/`NO` | `YES` | Enable or disable fusing scaleshift |
 
 
 # See Also

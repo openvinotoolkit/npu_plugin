@@ -26,10 +26,9 @@ namespace vpu {
 namespace HDDL2Plugin {
 
 //------------------------------------------------------------------------------
-//      class RemoteContext_Helper
-//------------------------------------------------------------------------------
 class RemoteContext_Helper {
 public:
+    using Ptr = std::shared_ptr<RemoteContext_Helper>;
     RemoteContext_Helper();
     static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
     WorkloadID getWorkloadId() const;
@@ -42,8 +41,6 @@ protected:
     WorkloadContext_Helper _workloadContext;
 };
 
-//------------------------------------------------------------------------------
-//      class RemoteContext_Helper Implementation
 //------------------------------------------------------------------------------
 inline RemoteContext_Helper::RemoteContext_Helper() {
     auto param = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());

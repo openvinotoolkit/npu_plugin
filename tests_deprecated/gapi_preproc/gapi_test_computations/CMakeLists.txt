@@ -18,7 +18,7 @@ target_include_directories(gapi_test_computations
 target_link_libraries(gapi_test_computations
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
-        kmbPlugin_test_static)
+        ${KMB_PLUGIN_STATIC_TARGET})
 
 target_compile_definitions(gapi_test_computations PRIVATE IMPLEMENT_GAPI_COMPUTATION_API)
 

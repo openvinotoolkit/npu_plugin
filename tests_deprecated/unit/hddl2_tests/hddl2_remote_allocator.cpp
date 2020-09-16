@@ -23,6 +23,7 @@
 
 #include "hddl2_helpers/helper_remote_memory.h"
 #include "helpers/helper_remote_allocator.h"
+#include "skip_conditions.h"
 
 using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;
@@ -37,23 +38,31 @@ public:
     const vpu::HDDL2Config config = vpu::HDDL2Config();
 
 protected:
-    WorkloadContext_Helper _workloadContextHelper;
+    WorkloadContext_Helper::Ptr _workloadContextHelperPtr = nullptr;
 };
 
-void RemoteAllocator_UnitTests::SetUp() { workloadContextPtr = _workloadContextHelper.getWorkloadContext(); }
+void RemoteAllocator_UnitTests::SetUp() {
+    if (HDDL2Metrics::isServiceAvailable()) {
+        _workloadContextHelperPtr = std::make_shared<WorkloadContext_Helper>();
+        workloadContextPtr = _workloadContextHelperPtr->getWorkloadContext();
+    }
+}
 
 //------------------------------------------------------------------------------
 TEST_F(RemoteAllocator_UnitTests, constructor_CorrectContext_NoThrow) {
+    SKIP_IF_NO_DEVICE();
     ASSERT_NO_THROW(HDDL2RemoteAllocator allocator(workloadContextPtr, config));
 }
 
 TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
+    SKIP_IF_NO_DEVICE();
     ASSERT_ANY_THROW(HDDL2RemoteAllocator allocator(nullptr, config));
 }
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 // TODO FAIL - HddlUnite problem
 TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectMemoryFD_ReturnNull) {
+    SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
     const int incorrectMemoryFd = INT32_MAX;
 
@@ -62,6 +71,7 @@ TEST_F(RemoteAllocator_WrapMemory, DISABLED_IncorrectMemoryFD_ReturnNull) {
 }
 
 TEST_F(RemoteAllocator_WrapMemory, NegativeMemoryFD_ReturnNull) {
+    SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
     const int negativeMemoryFd = -1;
 
@@ -70,6 +80,7 @@ TEST_F(RemoteAllocator_WrapMemory, NegativeMemoryFD_ReturnNull) {
 }
 
 TEST_F(RemoteAllocator_WrapMemory, Allow4KFramWrapping) {
+    SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
     const size_t frame4K = 3840 * 2160 * 3;
@@ -96,13 +107,15 @@ public:
 
 //------------------------------------------------------------------------------
 void Allocator_Manipulations_UnitTests::SetUp() {
-    RemoteAllocator_UnitTests::SetUp();
+    if (HDDL2Metrics::isServiceAvailable()) {
+        RemoteAllocator_UnitTests::SetUp();
 
-    auto owner = GetParam();
-    if (owner == IERemoteMemoryOwner) {
-        allocatorHelper = std::make_shared<Allocator_CreatedRemoteMemory_Helper>(workloadContextPtr);
-    } else {
-        allocatorHelper = std::make_shared<Allocator_WrappedRemoteMemory_Helper>(workloadContextPtr);
+        auto owner = GetParam();
+        if (owner == IERemoteMemoryOwner) {
+            allocatorHelper = std::make_shared<Allocator_CreatedRemoteMemory_Helper>(workloadContextPtr);
+        } else {
+            allocatorHelper = std::make_shared<Allocator_WrappedRemoteMemory_Helper>(workloadContextPtr);
+        }
     }
 }
 
@@ -125,16 +138,19 @@ std::string Allocator_Manipulations_UnitTests::PrintToStringParamName::operator(
 using RemoteAllocator_CreateMemory = Allocator_Manipulations_UnitTests;
 //------------------------------------------------------------------------------
 TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NoThrow) {
+    SKIP_IF_NO_DEVICE();
     EXPECT_NO_THROW(allocatorHelper->createMemory(correctSize));
 }
 
 TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NotNullHandle) {
+    SKIP_IF_NO_DEVICE();
     void* handle = allocatorHelper->createMemory(correctSize);
 
     EXPECT_NE(handle, nullptr);
 }
 
 TEST_P(RemoteAllocator_CreateMemory, createMemory_OnIncorrectSize_NullHandle) {
+    SKIP_IF_NO_DEVICE();
     // ~ 2 GB
     size_t incorrectSize = INT_MAX;
 
@@ -143,6 +159,7 @@ TEST_P(RemoteAllocator_CreateMemory, createMemory_OnIncorrectSize_NullHandle) {
 }
 
 TEST_P(RemoteAllocator_CreateMemory, createMemory_OnNegativeSize_NullHandle) {
+    SKIP_IF_NO_DEVICE();
     size_t negativeSize = -1;
 
     auto handle = allocatorHelper->createMemory(negativeSize);
@@ -151,6 +168,7 @@ TEST_P(RemoteAllocator_CreateMemory, createMemory_OnNegativeSize_NullHandle) {
 
 //------------------------------------------------------------------------------
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
+    SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -163,6 +181,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_canLockAndUnlockMemory) {
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnNull) {
+    SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -176,6 +195,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_DoubleLock_SecondReturnN
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMemoryWillChange) {
+    SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -196,6 +216,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_unlock_MemoryChanged_RemoteMe
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemoryNotChange) {
+    SKIP_IF_NO_DEVICE();
     auto owner = GetParam();
     if (owner == IERemoteMemoryOwner) {
         SKIP() << "If Inference Engine own remote memory, we can't get remote memory fd";
@@ -217,6 +238,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemor
 
 //------------------------------------------------------------------------------
 TEST_P(Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) {
+    SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -224,6 +246,7 @@ TEST_P(Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) 
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse) {
+    SKIP_IF_NO_DEVICE();
     auto allocator = allocatorHelper->allocatorPtr;
     void* invalidHandle = nullptr;
 
@@ -231,6 +254,7 @@ TEST_P(Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse)
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSecond) {
+    SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -239,6 +263,7 @@ TEST_P(Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSecond) {
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse) {
+    SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
 
@@ -249,6 +274,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_LockedMemory_ReturnFalse
 
 //------------------------------------------------------------------------------
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesNotChanged) {
+    SKIP_IF_NO_DEVICE();
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;
@@ -273,6 +299,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLocalMemory_RemoteDoesN
 }
 
 TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_RemoteDoesNotChanged) {
+    SKIP_IF_NO_DEVICE();
     auto allocator = allocatorHelper->allocatorPtr;
 
     const float testValue = 42.;

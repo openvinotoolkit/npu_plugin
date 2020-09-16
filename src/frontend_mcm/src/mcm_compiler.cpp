@@ -19,7 +19,7 @@
 #include <mcm_network_description.hpp>
 #include <ngraph_mcm_frontend/frontend.hpp>
 
-std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(
+std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(
     InferenceEngine::ICNNNetwork& network, const vpux::VPUXConfig& config) {
     std::vector<char> compiledNetwork;
     auto copy = _config;
@@ -29,7 +29,7 @@ std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy, network.getName());
 }
 
-std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,
+std::shared_ptr<vpux::INetworkDescription> MCMCompiler::compile(const std::shared_ptr<ngraph::Function>& func,
     const std::string& netName, const ie::InputsDataMap& inputsInfo, const ie::OutputsDataMap& outputsInfo,
     const vpux::VPUXConfig& config) {
     auto copy = _config;
@@ -39,7 +39,7 @@ std::shared_ptr<vpux::NetworkDescription> MCMCompiler::compile(const std::shared
     return std::make_shared<vpu::MCMAdapter::MCMNetworkDescription>(compiledNetwork, copy);
 }
 
-std::shared_ptr<vpux::NetworkDescription> MCMCompiler::parse(
+std::shared_ptr<vpux::INetworkDescription> MCMCompiler::parse(
     const std::vector<char>& compiledNetwork, const vpux::VPUXConfig& config, const std::string& graphName) {
     auto copy = _config;
     copy.parseFrom(config);

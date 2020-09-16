@@ -75,7 +75,7 @@ private:
     KmbMetrics _metrics;
     // map to cover the case when networks use different device IDs
     std::map<std::string, KmbRemoteContext::Ptr> _defaultContextMap;
-    vpux::ICompiler::Ptr _compiler;
+    vpux::Compiler::Ptr _compiler;
 };
 
 }  // namespace KmbPlugin
