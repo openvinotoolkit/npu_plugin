@@ -117,6 +117,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/tensor/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/shape.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/tensor.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/tensor_info.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/utils/parser/json_text.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/serializer/file_buffer.cpp"

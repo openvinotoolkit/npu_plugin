@@ -851,7 +851,7 @@ void mv::op::OpRegistry::defineOpOutput(std::string& output, const std::string& 
     output += ");" + eol;
     //
     OpEntry* opPtrInstance = instance().find(opType);
-    if (opPtrInstance->hasTypeTrait("exposed")) 
+    if (opPtrInstance->hasTypeTrait("exposed"))
     {   // Do not add recording code to non-exposed methods
         std::ostringstream opFuncName;
         opFuncName << char(std::tolower(opType[0]));
@@ -948,6 +948,7 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
     incStream << "#include \"include/mcm/computation/model/iterator/data_context.hpp\"" << eol;
     incStream << "#include \"include/mcm/computation/model/iterator/tensor.hpp\"" << eol << eol;
     incStream << "#include \"include/mcm/tensor/quantization_params.hpp\"" << eol << eol;
+    incStream << "#include \"include/mcm/tensor/tensor_info.hpp\"" << eol << eol;
 
     incStream << "namespace mv" << eol << eol;
     incStream << "{" << eol << eol;

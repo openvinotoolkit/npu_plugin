@@ -550,7 +550,7 @@ mv::Data::TensorIterator mv::OpModel::crop(Data::TensorIterator data, const std:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const Order& outOrder, const Shape& outShape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -559,8 +559,7 @@ mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIter
         {
             { "kernelData", kernelData },
             { "paramData", paramData },
-            { "outOrder", outOrder },
-            { "outShape", outShape }, 
+            { "outputsInfo", outputsInfo }, 
             { "dType", dType },
             { "quantParams", quantParams }
         },
@@ -571,7 +570,7 @@ mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIter
     if (recordModel_) { 
 
         const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "custom");
-        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "custom", name, "inputs, kernelData, paramData, outOrder, outShape, dType, quantParams", inputs, kernelData, paramData, outOrder, outShape, dType, quantParams);
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "custom", name, "inputs, kernelData, paramData, outputsInfo, dType, quantParams", inputs, kernelData, paramData, outputsInfo, dType, quantParams);
     }
     return output;
 }
@@ -2551,7 +2550,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskFakeQuantize(const std::vector< Dat
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const Order& outOrder, const Shape& outShape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2561,8 +2560,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::Ten
             { "taskOp", std::string("Custom") },
             { "kernelData", kernelData },
             { "paramData", paramData },
-            { "outOrder", outOrder },
-            { "outShape", outShape }, 
+            { "outputsInfo", outputsInfo }, 
             { "dType", dType },
             { "quantParams", quantParams }
         },
