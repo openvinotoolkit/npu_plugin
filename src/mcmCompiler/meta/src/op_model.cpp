@@ -957,6 +957,32 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator data, 
     return output;
 }
 
+mv::Data::TensorIterator mv::OpModel::gather(Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "Gather",
+        {
+            data,
+            indices
+        },
+        {
+            { "axis", axis }, 
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name
+    
+    
+    );
+    if (recordModel_) { 
+
+        const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "gather");
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "gather", name, "data, indices,axis, dType, quantParams", data, indices,axis, dType, quantParams);
+    }
+    return output;
+}
+
 mv::Data::TensorIterator mv::OpModel::identity(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
@@ -2586,6 +2612,25 @@ mv::Data::TensorIterator mv::OpModel::uPATaskRefConv(const std::vector< Data::Te
             { "padding", padding }, 
             { "dilationFactor", dilationFactor },
             { "group", group },
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name,
+        false,
+        false
+    );
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "UPATask",
+        inputs,
+        {
+            { "taskOp", std::string("Gather") },
+            { "axis", axis }, 
             { "dType", dType },
             { "quantParams", quantParams }
         },

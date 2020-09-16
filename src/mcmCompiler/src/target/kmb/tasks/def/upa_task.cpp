@@ -44,7 +44,7 @@ namespace mv
         .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling", "Quantize", "Reshape",
                            "RegionYolo", "ReorgYolo", "Normalize", "Permute", "Eltwise", "Interp",
                            "DetectionOutput", "Priorbox", "Argmax", "TopK", "Norm", "Resample", "FakeQuantize", 
-                           "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv"})
+                           "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv", "Gather"})
         .setExtraInputs(true);
     }
 
