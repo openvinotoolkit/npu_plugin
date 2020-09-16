@@ -60,6 +60,7 @@ namespace mv
             double BANDWIDTH_CMX = (double)(1.5 * 1099511627776); // tb/s -> b/s
             bool globalEnableStreaming=true;
             bool globalEnablePipelining = true;
+            bool globalEnablePrefetching = true;
             bool globalEnableActivationSparsity=true;
             bool globalForceActivationSparsity=false;
             bool globalEnableWeightsSparsity=false;
@@ -141,6 +142,7 @@ namespace mv
 
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
                 globalEnablePipelining = globalStrategies_["enablePipelining"].get<bool>();
+                globalEnablePrefetching = globalStrategies_["enablePrefetching"].get<bool>();
                 globalForceActivationSparsity = globalStrategies_["forceActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
@@ -2230,7 +2232,7 @@ namespace mv
 
             bool isPrefetchPossible(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
-                if(!globalEnablePipelining)
+                if(!globalEnablePrefetching)
                     return false;
                     
                 //Note: No sense in prefetching weights if we just have to wait for activations
