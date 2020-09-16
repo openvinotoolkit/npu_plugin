@@ -296,7 +296,19 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
                 std::memcpy(IE::as<IE::MemoryBlob>(rightOutputBlobPtr)->wmap().as<uint8_t*>(),
                     IE::as<IE::MemoryBlob>(outputBlobPtr)->rmap().as<uint8_t*>(), outputBlobPtr->byteSize());
             } else {
-                rightOutputBlobPtr = toLayout(outputBlobPtr, blobOutputLayout);
+                // Both of them are not 2D
+                if (outputBlobTensorDesc.getDims().size() == 3) {
+                    // 3D output - icnet
+                    IE::Blob::Ptr tmpBlobPtr = toLayout(
+                        outputBlobPtr, blobOutputLayout == IE::Layout::CHW ? IE::Layout::NCHW : IE::Layout::NHWC);
+                    rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
+                    rightOutputBlobPtr->allocate();
+                    std::memcpy(IE::as<IE::MemoryBlob>(rightOutputBlobPtr)->wmap().as<uint8_t*>(),
+                        IE::as<IE::MemoryBlob>(tmpBlobPtr)->rmap().as<uint8_t*>(), tmpBlobPtr->byteSize());
+                } else {
+                    // 4D to 4D
+                    rightOutputBlobPtr = toLayout(outputBlobPtr, blobOutputLayout);
+                }
             }
             outputs[outputName] = rightOutputBlobPtr;
         }
