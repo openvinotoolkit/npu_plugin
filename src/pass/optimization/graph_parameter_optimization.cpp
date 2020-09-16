@@ -60,6 +60,7 @@ namespace mv
             double BANDWIDTH_CMX = (double)(1.5 * 1099511627776); // tb/s -> b/s
             bool globalEnableStreaming=true;
             bool globalEnablePipelining = true;
+            bool globalEnablePrefetching = true;
             bool globalEnableActivationSparsity=true;
             bool globalForceActivationSparsity=false;
             bool globalEnableWeightsSparsity=false;
@@ -141,6 +142,7 @@ namespace mv
 
                 globalEnableStreaming = globalStrategies_["enableStreaming"].get<bool>();
                 globalEnablePipelining = globalStrategies_["enablePipelining"].get<bool>();
+                globalEnablePrefetching = globalStrategies_["enablePrefetching"].get<bool>();
                 globalForceActivationSparsity = globalStrategies_["forceActivationSparsity"].get<bool>();
                 globalEnableWeightsSparsity = globalStrategies_["enableWeightsSparsity"].get<bool>();
                 globalForceSpilling =  globalStrategies_["forceSpilling"].get<bool>();
@@ -945,6 +947,14 @@ namespace mv
                 if (op.getOpType() == "Conv"  && op.hasAttr("DilatedSubConv")
                         && op.get<bool>("DilatedSubConv")
                         && !spilling)
+                    return FailCause::DilatedSOH;
+
+                //Note: This is a temporary workaround for ICnet. In general, we are able to stream over H
+                //for dilated sub convolutions. Root cause unidentified.
+                if (op.getOpType() == "Conv"  && 
+                    op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv") &&
+                    op.hasAttr("originalShape") && op.get<mv::Shape>("originalShape")[mv::IO_HEIGHT_DIMENSION] == 23 &&
+                    streamShape["H"] > 1)
                     return FailCause::DilatedSOH;
 
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
@@ -2219,7 +2229,7 @@ namespace mv
 
             bool isPrefetchPossible(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child)
             {
-                if(!globalEnablePipelining)
+                if(!globalEnablePrefetching)
                     return false;
                     
                 //Note: No sense in prefetching weights if we just have to wait for activations
