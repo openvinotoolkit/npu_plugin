@@ -3,14 +3,16 @@
 
 #include <cassert>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/iterator/control_context.hpp"
 #include "include/mcm/logger/logger.hpp"
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
-#include "scheduler/feasible_scheduler.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
+#include "pass/lp_scheduler/cmx_concat_transform.hpp"
+#include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
 
@@ -179,10 +181,32 @@ class Operation_Dag {
     typedef model_traits<model_t> mtraits;
     typedef typename mtraits::const_operation_iterator_t op_itr_t;
     typedef typename mtraits::const_child_operation_iterator_t child_op_itr_t;
+    
+    typedef mv::scheduler::CMX_Concatenation cmx_concat_algo_t;
+    typedef typename cmx_concat_algo_t::control_edge_t
+        cmx_concat_control_edge_t;
+    typedef typename cmx_concat_algo_t::concat_subgraph_t cmx_concat_subgraph_t;
+
+    struct cmx_concat_subgraph_hash_t {
+      std::size_t operator() (const cmx_concat_subgraph_t& a) const {
+        return (size_t)(a.representative_dpu_);
+      }
+    }; // struct cmx_concat_subgraph_ordering_t //
+
+    struct cmx_concat_subgraph_equality_t{
+      bool operator() (const cmx_concat_subgraph_t& a,
+            const cmx_concat_subgraph_t& b) const {
+        return (a.representative_dpu_) == (b.representative_dpu_);
+      }
+    }; // struct cmx_concat_subgraph_ordering_t //
+
 
     typedef Operation_Dag dag_t;
     typedef mv::Op const * operation_t; // &(base_node_class::content_) //
     typedef operation_t const * const_op_ptr_t;
+
+    typedef std::unordered_map<operation_t, cmx_concat_subgraph_t>
+        cmx_concat_subgraphs_t;
     // use the operation name as the hash key to reduce any non-determinism with
     // the virtual address //
     struct operation_hash_t {
@@ -284,11 +308,75 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ) {
+          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() {
         init_from_model(model);
     }
 
+    Operation_Dag() : adj_map_(), adj_map_rev_(),
+      op_name_table_(), ops_(), resource_utility_map_(),
+      op_to_iterator_lookup_(), in_degree_map_(), input_op_(),
+      //NOTE: please add all implicit ops to this list -- except ImplicitConcat
+      //All implicit ops are short-circuited during scheduling. ImplicitConcat
+      //is left in place to reduce the edge blowup (quadratic) of dependencies.
+      implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
+          "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
+          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() { }
+
     void reset(model_t& model) { init_from_model(model); }
+
+    cmx_concat_subgraph_t const * does_this_dpu_have_cmx_concat_subgraph(
+          operation_t op) const {
+      auto itr = cmx_concat_subgraphs_.find(op);
+      return (itr == cmx_concat_subgraphs_.end()) ? NULL : &(itr->second);
+    }
+
+    template<typename ControlEdgeContainer>
+    void reset_from_cmx_concat_control_edges(mv::OpModel& omodel,
+          const ControlEdgeContainer cedge_container) {
+      init_from_model(omodel);
+      apply_cmx_concat_control_edges(cedge_container.begin(),
+            cedge_container.end());
+      update_resource_utility_for_cmx_concateable_dpu_ops(
+          cmx_concat_algo_t::cmx_concat_attribute() );
+    }
+
+
+    void enable_cmx_concat_transforms(mv::OpModel& omodel,
+          size_t cmx_size=917504UL) {
+      std::list<cmx_concat_control_edge_t> cmx_control_edges;
+      enable_cmx_concat_transforms(omodel, cmx_control_edges, cmx_size);
+    }
+
+    template<typename CmxConcatControlEdgeContainer>
+    void enable_cmx_concat_transforms(mv::OpModel& omodel,
+          CmxConcatControlEdgeContainer &cmx_concat_control_edges,
+          size_t cmx_size=917504UL,
+          std::string ignore_concat_list="") {
+
+      static_assert(std::is_same<
+          typename CmxConcatControlEdgeContainer::value_type,
+            cmx_concat_control_edge_t>::value,
+              "Invalid Control Edge container");
+
+      // generate control edges for CMX concatenation //
+      cmx_concat_algo_t cmx_concat_algo(omodel, ignore_concat_list);
+
+      std::list<cmx_concat_subgraph_t> cmx_concat_subgraphs;
+      cmx_concat_algo.transform_op_model(
+          std::back_inserter(cmx_concat_control_edges), cmx_concat_subgraphs,
+            cmx_size);
+
+      cmx_concat_subgraphs_.clear();
+      for (auto subg_itr=cmx_concat_subgraphs.begin();
+            subg_itr!=cmx_concat_subgraphs.end(); ++subg_itr) {
+        const cmx_concat_subgraph_t &subgraph = *subg_itr;
+        cmx_concat_subgraphs_.insert(
+            std::make_pair(subgraph.representative_dpu_, subgraph));
+      }
+      
+      // reinit the DAG with fresh op model //
+      reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
+    }
 
     template<typename OpTypeIterator>
     void set_implicit_op_types(OpTypeIterator begin, OpTypeIterator end) {
@@ -1046,6 +1134,30 @@ class Operation_Dag {
       create_resource_utility_table_for_barrier_scheduling(model);
     }
 
+    template<typename ControlEdgeIterator>
+    void apply_cmx_concat_control_edges(ControlEdgeIterator cbegin, 
+        ControlEdgeIterator cend) {
+      while (cbegin != cend) {
+        operation_t src_op = (&(*((*cbegin).source_itr_)));
+        operation_t snk_op = (&(*((*cbegin).sink_itr_)));
+        add_directed_edge(src_op, snk_op);
+        ++cbegin;
+      }
+    }
+
+    void update_resource_utility_for_cmx_concateable_dpu_ops(
+        const std::string& cmx_concat_attribute="cmx_concatable") {
+      for (typename resource_utility_map_t::iterator
+            ritr = resource_utility_map_.begin();
+            ritr != resource_utility_map_.end(); ++ritr) {
+        operation_t op = ritr->first;
+        fflush(stdout);
+        if (is_dpu_op(op) && op->hasAttr(cmx_concat_attribute)) {
+          ritr->second = op->get<size_t>(cmx_concat_attribute);
+        }
+      }
+    }
+
     void init_from_model(mv::OpModel& model) {
       clear_state();
       build_adj_tables(model);
@@ -1058,6 +1170,7 @@ class Operation_Dag {
       for (op_itr_t itr = mtraits::begin_operations(model);
             itr != mtraits::end_operations(model); ++itr) {
         operation_t op = &(*itr);
+        
         if (is_operation_ignored(op, model)) { continue; }
         if (!is_dma_op(op)) { continue; }
         if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
@@ -1294,6 +1407,7 @@ class Operation_Dag {
     in_degree_map_t in_degree_map_;
     operation_t input_op_;
     std::unordered_set<std::string> implicit_op_types_;
+    cmx_concat_subgraphs_t cmx_concat_subgraphs_;
 }; // class Operation_Dag //
 
 

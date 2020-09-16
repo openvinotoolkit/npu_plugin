@@ -189,6 +189,12 @@ namespace mv
             return getDType().isDoubleType();
         }
 
+        // All floating point datatypes
+        // FP16 is underlyingly stored on int64
+        inline bool isFloatingPointType() const {
+            return getDType().isDoubleType() || getDType() == mv::DType("Float16");
+        }
+
         std::vector<DataElement> getData();
         const std::vector<int64_t> getDataPacked();
         int getNumZeroPoints();
@@ -259,6 +265,24 @@ namespace mv
             if (hasAttr("broadcasted"))
                 return get<bool>("broadcasted");
             return true; //by default is true
+        }
+
+        inline bool isAllocatedPerCluster() const
+        {
+            // SOK non-sparse weights are also serialised individually
+            // so that they can be compressed by the HDE
+            return hasAttr("splitStrategy") &&
+                get<std::string>("splitStrategy") == "SplitOverK" &&
+                isPopulatedTensor();
+        }
+
+        inline bool isPopulatedTensor()  const
+        {
+            return !hasAttr("weightTable") &&
+                !hasAttr("sparsityMap") &&
+                !hasAttr("solvedSparsity") &&
+                !hasAttr("dilatedSubConvSM") &&
+                !hasAttr("dilatedSubConvSE");
         }
 
         inline unsigned size() const

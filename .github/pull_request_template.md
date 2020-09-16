@@ -16,9 +16,4 @@
 
 ## CI
 
-(The following CI jobs are required. Please use link below to start each. Replace links below with your actual job. 
-Access is NOT through AGS. Simply create an account on the server. The password is NOT synched with your windows account)
-
-* [ ] [Fast Top 7 Networks](http://mig-ci.jenkins.ti.intel.com/job/Fast_top_7_networks/build)
-* [ ] [Openvino v10 Validation](https://mig-ci-jenkins.ir.intel.com/job/KeemBay/job/openVINO-IRv10/build)
-* [ ] [Software Layer tests](http://mig-ci.jenkins.ti.intel.com/job/Software_Layer_Unit_Tests/build)
+(CI jobs are now triggered automatically when you submit the PR. No manual action is required)

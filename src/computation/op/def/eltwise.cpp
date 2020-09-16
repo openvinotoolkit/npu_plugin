@@ -43,7 +43,7 @@ namespace mv
                 auto inputIShape = inputs[i]->getShape();
                 if ((input0Shape != inputIShape))
                 {
-                    if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated())
+                    if(inputIShape.totalSize() != 1 && !inputs[i]->isPopulated() && eltwiseType != "Multiply")
                     {
                         errMsg = "All the inputs of eltwise ops have to share the same size or the other inputs must have size 1 and be populated";
                         return {false, 0};

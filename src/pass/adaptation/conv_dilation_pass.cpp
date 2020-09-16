@@ -40,6 +40,104 @@ namespace mv
     }
 }
 
+mv::Data::TensorIterator createDeconvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceWeights,
+                                                    std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
+{
+    mv::Data::TensorIterator subConv;
+    bool hasBias = opIt->hasAttr("bias");
+    auto stride = opIt->get<std::array<unsigned short, 2>>("stride")[0];
+
+    auto weightsValue = sourceWeights->getIntData();
+    auto quantParams = om.getSourceOp(sourceWeights)->get<mv::QuantizationParams>("quantParams");
+
+    std::vector<int64_t> sliceWeightVector(newShape.totalSize());
+
+    mv::Shape srcShape = sourceWeights->getShape();
+
+    for (unsigned k = 0; k < newShape[mv::KERNEL_OUTPUT_CHANNELS]; ++k)
+    {
+        for (unsigned c = 0; c < newShape[mv::KERNEL_INPUT_CHANNELS]; ++c)
+        {
+            for (unsigned h = 0; h < newShape[mv::KERNEL_HEIGHT]; ++h)
+            {
+                for (unsigned w = 0; w < newShape[mv::KERNEL_WIDTH]; ++w)
+                {
+                    const size_t dstIdx = (k * newShape[mv::KERNEL_INPUT_CHANNELS] * newShape[mv::KERNEL_WIDTH] * newShape[mv::KERNEL_HEIGHT]) +
+                                        (c * newShape[mv::KERNEL_WIDTH] * newShape[mv::KERNEL_HEIGHT]) +
+                                        (h * newShape[mv::KERNEL_WIDTH]) +
+                                        w;
+
+                    const size_t srcIdx = (k * srcShape[mv::KERNEL_INPUT_CHANNELS] * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
+                                        (c * srcShape[mv::KERNEL_WIDTH] * srcShape[mv::KERNEL_HEIGHT]) +
+                                        ((srcShape[mv::KERNEL_HEIGHT] - 1 - i) * srcShape[mv::KERNEL_WIDTH]) +
+                                        (srcShape[mv::KERNEL_WIDTH] - 1 - j);
+
+                    sliceWeightVector[dstIdx] = weightsValue[srcIdx];
+                }
+            }
+        }
+    }
+
+    auto sliceWeight = om.constantInt(
+                        sliceWeightVector,
+                        newShape,
+                        sourceWeights->get<mv::DType>("dType"),
+                        mv::Order("NCHW"),
+                        quantParams,
+                        opIt->getName() + "_deconvSlice_" + std::to_string(subConvIdx));
+    auto sliceWeightOp = om.getSourceOp(sliceWeight);
+    static const auto inf = std::numeric_limits<double>::infinity();
+    mv::QuantizationParams emptyQuantParams({0}, {1}, {-inf}, {inf});
+
+    if (opIt->get<bool>("is_depthwise") == false)
+    {
+        subConv = om.conv(opIt->getInputTensor(0),
+                sliceWeight,
+                {1, 1},
+                padding,
+                1,
+                opIt->get<unsigned>("group"),
+                mv::DType("Float16"),
+                emptyQuantParams,
+                name);
+    }
+    else
+    {
+        subConv = om.depthwiseConv(opIt->getInputTensor(0),
+                sliceWeight,
+                {1, 1},
+                padding,
+                1,
+                mv::DType("Float16"),
+                emptyQuantParams,
+                name);
+    }
+
+    auto subConvOp = om.getSourceOp(subConv);
+    subConvOp->set<bool>("DeconvSubConv", true);
+    subConvOp->set<unsigned>("originalDilationFactor", stride);
+    subConvOp->set<std::string>("parentOp", opIt->getName());
+    subConvOp->set<unsigned>("subConvIndex", subConvIdx);
+    subConvOp->set<std::vector<std::size_t>>("subConvsCoordinates", {i, j});
+    if(opIt->hasAttr("opId"))
+    {
+        unsigned currentOpId = opIt->get<unsigned>("opId");
+        subConvOp->set<unsigned>("opId", currentOpId);
+        sliceWeightOp->set<unsigned>("opId", currentOpId);
+    }
+    if (hasBias)
+    {
+        om.addAttr(subConvOp, "bias", opIt->get<std::string>("bias"));
+    }
+    if (opIt->hasAttr("postOpTypes"))
+    {
+        subConvOp->set<std::vector<std::string>>("postOpTypes",
+                                    opIt->get<std::vector<std::string>>("postOpTypes"));
+    }
+
+    return subConv;
+}
+
 mv::Data::TensorIterator createDilatedConvSubConv(mv::OpModel om, mv::Data::OpListIterator opIt, mv::Data::TensorIterator sourceTensor,
                                                     std::array<unsigned short, 4> padding, std::string name, mv::Shape newShape, size_t subConvIdx, size_t i, size_t j)
 {
@@ -147,11 +245,11 @@ std::array<unsigned short, 4> calcNewPadding(mv::Data::OpListIterator opIt, size
 
 void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
-
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
     using namespace mv;
 
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto convOps = om.getOps("Conv");
 
     for (auto& opIt : convOps)
@@ -227,6 +325,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 }
                 concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
                                 name + std::to_string(i) + "DDR_WIDTH_join");
+                om.getSourceOp(concatIt)->set<bool>("avoid_cmx_concat", true);
+
                 om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
                 om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
                 om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
@@ -235,6 +335,8 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
                 subConvsPerColumn.clear();
             }
             concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
+            om.getSourceOp(concatIt)->set<bool>("avoid_cmx_concat", true);
+
             om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
             om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
             om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", dilationFactor * dilationFactor);
@@ -246,6 +348,117 @@ void convDilationUsingStorageElementFcn(const mv::pass::PassEntry& pass, mv::Com
         }
     }
 
+    // Current impelmentation only works for the case when stride is equal to kernel size, both X and Y.
+    auto deconvOps = om.getOps("Deconv");
+    for (auto& opIt : deconvOps)
+    {
+        if (opIt->get<bool>("is_depthwise"))
+            continue;
+        auto nextOp = findSinkLayers(dm, opIt->getOutputTensor(0))[0];
+        auto deconvKernel = opIt->getInputTensor(1);
+        auto deconvKernelOp = om.getSourceOp(deconvKernel);
+        auto deconvKernelShape = deconvKernel->getShape();
+        auto inputTensor = opIt->getInputTensor(0);
+        auto outputTensor = opIt->getOutputTensor(0);
+        auto name = opIt->getName();
+
+        std::vector<mv::Data::TensorIterator> subConvs;
+
+        int strideFactor = opIt->get<std::array<unsigned short, 2>>("stride")[0];
+        auto quantParams = opIt->get<mv::QuantizationParams>("quantParams");
+
+        size_t width = deconvKernelShape[mv::IO_WIDTH_DIMENSION];
+        size_t height = deconvKernelShape[mv::IO_HEIGHT_DIMENSION];
+        size_t sliceWidth = std::ceil(((double)width)/strideFactor);
+        size_t sliceHeight = std::ceil(((double)height)/strideFactor);
+
+        // Create sub convs
+        size_t subConvIdx = 0;
+        uint64_t leadingOffset = 0;
+        mv::Shape newShape({sliceWidth, sliceHeight, deconvKernelShape[mv::KERNEL_INPUT_CHANNELS], deconvKernelShape[mv::KERNEL_OUTPUT_CHANNELS]});
+        for (size_t i = 0; i < strideFactor; i++)
+        {
+            mv::Shape subConvShape = newShape;
+            if (height%strideFactor != 0 && i >= (height%strideFactor))
+            {
+                subConvShape[mv::IO_HEIGHT_DIMENSION] = newShape[mv::IO_HEIGHT_DIMENSION] - 1;
+            }
+            for (size_t j = 0; j < strideFactor; j++)
+            {
+                if (width%strideFactor != 0 && j >= (width%strideFactor))
+                {
+                    subConvShape[mv::IO_WIDTH_DIMENSION] = newShape[mv::IO_WIDTH_DIMENSION] - 1;
+                }
+                subConvs.push_back(createDeconvSubConv(om, opIt, deconvKernel, {0,0,0,0},
+                    name + "_DeconvSubConv" + std::to_string(i)+"_"+std::to_string(j),
+                    subConvShape, subConvIdx++, i, j));
+                subConvs[subConvs.size()-1]->set<uint64_t>("leadingOffset", leadingOffset);
+                leadingOffset += subConvs[subConvs.size()-1]->getShape().totalSize();
+            }
+
+        }
+
+        // reconnect children to subgraph
+        std::vector<mv::Data::OpListIterator> opsToLink;
+        std::vector<std::size_t> inputSlots;
+        for (mv::Data::FlowSiblingIterator sinkFlow(opIt.leftmostOutput()); sinkFlow != om.flowEnd(); ++sinkFlow)
+        {
+            opsToLink.push_back(sinkFlow.sink());
+            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+        }
+
+        auto opId = opIt->get<unsigned>("opId");
+        om.removeOp(opIt);
+        om.removeOp(deconvKernelOp);
+
+        mv::Data::TensorIterator concatIt;
+        std::vector<mv::Data::TensorIterator> subConvsPerColumn;
+        std::vector<mv::Data::TensorIterator> firstLevelConcats;
+
+        for (size_t i = 0; i < strideFactor; i++)
+        {
+            for (size_t j = 0; j < strideFactor; j++)
+            {
+                subConvsPerColumn.push_back(subConvs[i*strideFactor + j]);
+            }
+            concatIt = om.implicitConcat(subConvsPerColumn, "W", quantParams,
+                            name + std::to_string(i) + "DDR_WIDTH_join");
+            om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+            om.getSourceOp(concatIt)->set<bool>("dilatedWidthConcat", true);
+            om.getSourceOp(concatIt)->set<size_t>("lineofConcatHeight", i);
+            om.getSourceOp(concatIt)->set<unsigned>("dilationFactor", strideFactor);
+            firstLevelConcats.push_back(concatIt);
+            subConvsPerColumn.clear();
+        }
+        concatIt = om.implicitConcat(firstLevelConcats, "H", quantParams, name + "DDR_HEIGHT_join");
+        om.getSourceOp(concatIt)->set<unsigned>("opId", opId);
+        om.getSourceOp(concatIt)->set<bool>("joinSimulation", true);
+        om.getSourceOp(concatIt)->set<size_t>("dilationSubConvs", strideFactor * strideFactor);
+
+        if (nextOp->getOpType() == "Output" || nextOp->getOutputTensor(0)->getDType() == mv::DType("UInt8"))
+        {
+            auto dataUint8 = om.uPATaskQuantize({concatIt}, mv::DType("UInt8"), quantParams);
+            if (concatIt->hasAttr("splitStrategy"))
+                dataUint8->set<std::string>("splitStrategy", concatIt->get<std::string>("splitStrategy"));
+
+            auto quantizeOp = om.getSourceOp(dataUint8);
+            quantizeOp->set<unsigned>("opId", opId);
+
+            for (unsigned j = 0; j < opsToLink.size(); ++j)
+            {
+                opsToLink[j]->setInputTensor(dataUint8, inputSlots[j], false);
+                om.defineFlow(dataUint8, opsToLink[j], inputSlots[j]);
+            }
+        }
+        else
+        {
+            for (unsigned j = 0; j < opsToLink.size(); ++j)
+            {
+                opsToLink[j]->setInputTensor(concatIt, inputSlots[j], false);
+                om.defineFlow(concatIt, opsToLink[j], inputSlots[j]);
+            }
+        }
+    }
 }
 
 void convDilationUsingWeightsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)

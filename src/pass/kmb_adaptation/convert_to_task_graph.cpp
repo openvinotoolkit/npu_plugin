@@ -724,6 +724,14 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
             }
         }
     }
+
+    // special logic for DetectionOutput Optimization
+    auto upaOps = om.getOps("UPATask");
+    for (auto &opIt : upaOps) {
+        if (opIt->get<std::string>("taskOp") == "DetectionOutput") {
+            opIt->getInputTensor(1)->setOrder(mv::Order("NCHW"));
+        }
+    }
 }
 
 void addPpeTask(mv::Data::OpListIterator &opIt, const std::vector<std::string>& ppeTaskTypes, double leakyAlpha, double leakyReluHack)

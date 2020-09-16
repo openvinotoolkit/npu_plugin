@@ -94,11 +94,11 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const mv::Data::TensorIterator& tensor)
     {
         *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const std::vector<mv::Data::TensorIterator>& tensors)
     {
         *codeOut << "{";
         if (!tensors.empty())
@@ -144,15 +144,20 @@ namespace
         }
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const T& attr)
     {
         *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* /* codeOut */, 
+                std::ostream* /* dataOut */, 
+                const std::string& /* outVarName */, 
+                const std::vector<std::string>& /* paramNames */, 
+                const ParamTuple& /* paramValues */)
     {
+        //This function is empty because it is a recursion end point. Executed when I == std::tuple_size::value.
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
@@ -521,8 +526,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
         throw OpError("OpRegistry", "Attempt of obtaining CompositionAPI declaration for an unregistered op type " + opType);
 
     OpEntry* const opPtr = instance().find(opType);
-    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
-
+    
     if (!opPtr)
         throw MasterError("OpRegistry", "Registered op type " + opType +
             " not found in the op registry");
@@ -530,6 +534,7 @@ std::string mv::op::OpRegistry::getCompositionDeclSig_(const std::string& opType
     if (opPtr->getOutputsCount() > 1)
         throw MasterError("OpRegistry", "Multi-output ops currently unsupported in CompositionAPI generator");
 
+    bool inputVectorTypes = opPtr->hasVectorTypesAsInput();
     std::string output;
 
     auto copyOps = opPtr->getCopyOperations();
@@ -1153,4 +1158,6 @@ void mv::op::OpRegistry::generateCompositionAPI(const std::string& metaDir, cons
 #include    "src/computation/op/def/implicit_input.cpp"
 #include    "src/computation/op/def/tile.cpp"
 #include    "src/computation/op/def/ctcdecoder.cpp"
+#include    "src/computation/op/def/exp.cpp"
+#include    "src/computation/op/def/reciprocal.cpp"
 #include    "src/computation/op/def/gather.cpp"

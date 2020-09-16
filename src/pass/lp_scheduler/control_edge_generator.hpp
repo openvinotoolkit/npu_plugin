@@ -343,6 +343,7 @@ class Memory_Control_Edge_Generator {
         for (; cop_itr != cop_itr_end; ++cop_itr) {
           const operation_t& child_op = *(cop_itr);
           itr = original_schedule.find(child_op);
+          if (itr == original_schedule.end()) { continue; }
           schedule_time_t child_time = (itr->second).schedule_time_;
 
           if ( !( (child_time > source_time) && 

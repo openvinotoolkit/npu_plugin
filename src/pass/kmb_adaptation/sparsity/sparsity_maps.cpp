@@ -32,10 +32,11 @@ namespace mv
         );
 
         MV_REGISTER_PASS(GenerateSparsityMapsEltwise)
-       .setFunc(generateSparsityMapsEltwiseFcn)
-       .setDescription(
-           "Generates sparsity maps for unpopulated tensors involved in eltwise operations."
-       );
+        .setFunc(generateSparsityMapsEltwiseFcn)
+        .setDescription(
+            "Generates sparsity maps for unpopulated tensors involved in eltwise operations."
+        );
+
         MV_REGISTER_PASS(SetSparsityAttrForUnpopulatedTensors)
         .setFunc(setSparsityAttrForUnpopulatedFnc)
         .setDescription(
@@ -121,7 +122,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
 
                 mv::DType dataType = mv::DType("UInt8");
 
-                if (isPooling || isDepthWiseConv)
+                if (isPooling || isDepthWiseConv || isChannelMajorConv)
                 {
                     if (dpuTask->hasAttr("floatPrecision") && dpuTask->get<bool>("floatPrecision"))
                     {
@@ -228,6 +229,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         om.constantInt(unpopulatedSparsityMapData, mapShape,
                                     mv::DType("UInt8"), mv::Order("NHWC"),
                                     quantParams, unpopulatedSparsityMapName);
+                    unpopulatedSparsityMap->set<bool>("solvedSparsity", true);
                     om.getSourceOp(unpopulatedSparsityMap)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     unsigned newInputsSize = dpuTask->addInputTensor(unpopulatedSparsityMap);
                     om.defineFlow(unpopulatedSparsityMap, dpuTask, newInputsSize - 1);
@@ -249,6 +251,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         om.constantInt(storageElementData, storageElementShape,
                                     mv::DType("Int32"), mv::Order("NHWC"),
                                     quantParams, storageElementName);
+                    storageElement->set<bool>("solvedSparsity", true);
                     om.getSourceOp(storageElement)->set<unsigned>("opId", dpuTask->get<unsigned>("opId"));
                     newInputsSize = dpuTask->addInputTensor(storageElement);
                     om.defineFlow(storageElement, dpuTask, newInputsSize - 1);
@@ -262,8 +265,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
             // Here we generate the sparsity maps required for dilated convolution
             // Should the sparsity map be size of the full input tensor or just the "sub conv" input tensor ?
             // I think it should be the full input tensor size ?
-            if ((dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
-                (dpuTask->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") && dpuTask->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")) )
+            if (dpuTask->hasAttr("activationSparsityCompilerSolvingForDilatedConv") && dpuTask->get<bool>("activationSparsityCompilerSolvingForDilatedConv"))
             {
                 auto inputTensorShape = dpuTask->getInputTensor(0)->getShape();
                 //every element of sparsity map describes 8 elements of normal tensor
@@ -312,11 +314,28 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
     }
 }
 
+bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
+{
+    auto isDilatedConvRelated =
+        flow.sink()->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolvingForDilatedConv");
+
+    if((!flow->getTensor()->isPopulated() &&
+        flow.sink()->hasAttr("activationSparsityCompilerSolving") &&
+        flow.sink()->get<bool>("activationSparsityCompilerSolving")) ||
+        isDilatedConvRelated)
+           return true;
+    return false;
+}
+
 bool checkActivationSparsitySourceOpConditions(mv::Data::FlowListIterator flow)
 {
     auto source = flow.source();
-    if(source->getOpType() == "DPUTask" && source->get<std::string>("splitStrategy") != "SplitOverK")
-            return true;
+    if(!compilerSolvesSparsity(flow) &&
+        source->getOpType() == "DPUTask" &&
+        source->hasAttr("outputActivationSparsity") &&
+        source->get<bool>("outputActivationSparsity"))
+        return true;
 
     return false;
 }
@@ -341,41 +360,21 @@ bool checkA0FloatSparsityBug(mv::Data::FlowListIterator flow, std::string refere
     return false;
 }
 
-bool compilerSolvesSparsity(mv::Data::FlowListIterator flow)
-{
-    auto source = flow.source();
-    auto sink = flow.sink();
-    auto tensor = flow->getTensor();
-
-    if(!tensor->isPopulated())
-    {
-        if((sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
-                (source->hasAttr("mixedToFloat") && source->get<bool>("mixedToFloat")) &&
-                (sink->hasAttr("activationSparsityCompilerSolving")
-                 && sink->get<bool>("activationSparsityCompilerSolving")))
-           return true;
-        if((source->hasAttr("floatPrecision") && source->get<bool>("floatPrecision")) &&
-                (sink->hasAttr("floatPrecision") && sink->get<bool>("floatPrecision")) &&
-                (sink->hasAttr("activationSparsityCompilerSolving")
-                 && sink->get<bool>("activationSparsityCompilerSolving")))
-           return true;
-    }
-    return false;
-}
-
-// Result of chat with Alessandro:
-// An activation tensor can be sparse if and only if
-// 1) It is an output of a DPUTask. (ODU populates storage element and sparsity map).
-// 2) It is the input of a ZMajorConv or Eltwise(Only layers that supports IDU)
+// In VPU2 only sparse consumers are ZMajorConv and Eltwise
+// Activation tensor sparsity can be solved:
+// a) either by runtime with proper sparsity generation
+// for ther below cases:
+//      i) It is an output of a DPUTask.
+//          (ODU populates storage element and sparsity map).
+//      ii) Limitation in handling sparisty arise for the parent sparse out op cases:
+//          SplitOverK, StreamOverK, workload KTiling
+// b) or by compiler generated dummy sparse data (all 1's sparse map)
+// in which case we no longer have the restrictions for the runtime generated sparsity
+// (parent task is dpuTask and not K segmentable)
 
 // An activation tensor MUST be sparse if it's:
-// 1) SplitOverH
-// 2) Involved in a ZMajorConvolution with kernel > 1 (HW bug)
-// 3) In KMB-A0 float DPU task means that needs to consume sparse tensors.
-
-// In the future, these two conditions could change. We have to sync with runtime.
-
-// Eltwise, being the hackiest operation ever, potentially can support sparsity input, sharing the IDU with ZMajorConv, but the runtime currently doesn't allow it.
+// 1) SplitOverH ZMajorConvolution with kernel > 1 (A0 HW bug)
+// 2) Float ZMajorConvolution and Eltwise DPU task (A0 HW bug)
 
 static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
@@ -411,12 +410,10 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
         for(auto& flowStr: flows)
         {
             auto flow = dm.getDataFlow(flowStr);
-            if(checkA0SOHSparsityBug(flow, referenceDevice))
-            {
-                tensorNeedsSparsity = true;
-                break;
-            }
-            else if (checkA0FloatSparsityBug(flow, referenceDevice) && !compilerSolvesSparsity(flow))
+            if (flow.sink()->isSparsityConsumer() &&
+                (checkA0SOHSparsityBug(flow, referenceDevice) ||
+                checkA0FloatSparsityBug(flow, referenceDevice)) &&
+                !compilerSolvesSparsity(flow))
             {
                 tensorNeedsSparsity = true;
                 break;
@@ -432,7 +429,7 @@ static void setSparsityAttrForUnpopulatedFnc(const mv::pass::PassEntry&, mv::Com
             if(source->getOpType() != "DPUTask" ||
                source->get<std::string>("splitStrategy") == "SplitOverK" ||
                sink->getOpType() != "DPUTask" ||
-               sink->get<std::string>("taskOp") != "Conv")
+               !sink->isSparsityConsumer())
             {
                 tensorSparsifiable = false;
                 break;
@@ -502,29 +499,23 @@ static void generateSparsityMapsEltwiseFcn(const mv::pass::PassEntry&, mv::Compu
                 auto input0 = opIt->getInputTensor(0);
                 auto input1 = opIt->getInputTensor(1);
 
-                auto flowsInput0 = input0->get<std::set<std::string>>("flows");
-                auto flowsInput1 = input1->get<std::set<std::string>>("flows");
+                // Sparsity evaluation is dependant only on flow source and not on sink
+                // In cases of ops branching and producing sparisty, either input of eltwise
+                // will have the same source for all it's flows
+                auto flow0 = om.getDataFlow(*input0->get<std::set<std::string>>("flows").begin());
+                auto flow1 = om.getDataFlow(*input1->get<std::set<std::string>>("flows").begin());
 
-                if(flowsInput0.size() == 1 && flowsInput1.size() == 1)
+                if(checkActivationSparsitySourceOpConditions(flow0) && checkActivationSparsitySourceOpConditions(flow1))
                 {
-                    auto flowStrInput0 = *flowsInput0.begin();
-                    auto flowStrInput1 = *flowsInput1.begin();
+                    input0->setSparse();
+                    input1->setSparse();
+                    // Note: odu_offset to be set on the input of the eltwise that results in positive number
+                    // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
+                    auto input0_op = om.getSourceOp(input0);
+                    input0_op->set<std::string>("needsODUoffset", input1->getName());
 
-                    auto flow0 = om.getDataFlow(flowStrInput0);
-                    auto flow1 = om.getDataFlow(flowStrInput1);
-
-                    if(checkActivationSparsitySourceOpConditions(flow0) && checkActivationSparsitySourceOpConditions(flow1))
-                    {
-                        input0->setSparse();
-                        input1->setSparse();
-                        // Note: odu_offset to be set on the input of the eltwise that results in positive number
-                        // Store ref to tensor odu_offset will be calculated from, so we can find address at serialization
-                        auto input0_op = om.getSourceOp(input0);
-                        input0_op->set<std::string>("needsODUoffset", input1->getName());
-
-                        auto input1_op = om.getSourceOp(input1);
-                        input1_op->set<std::string>("needsODUoffset", input0->getName());
-                    }
+                    auto input1_op = om.getSourceOp(input1);
+                    input1_op->set<std::string>("needsODUoffset", input0->getName());
                 }
             }
         }

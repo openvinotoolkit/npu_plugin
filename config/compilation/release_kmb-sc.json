@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Info",
+                "verbose": "Error",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
@@ -200,11 +200,11 @@
                             ]
                         },
                         {
-                            "name" : "Add",
+                            "name" : "Eltwise",
                             "strategies": [
                                 {"name" : "streamingStrategies",  "value" : ["StreamOverH"]},
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
-                                {"name" : "inputActivationSparsity",             "value" : false},
+                                {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
                             ]
@@ -288,7 +288,12 @@
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
-              "no_temporal_edges" : true
+              "no_temporal_edges" : true,
+              "enable_cmx_concat" : true
+            },
+            {
+              "name" : "RecomputeImplicitOpMemoryLocations",
+              "output": "mem_locations.txt"
             },
             {
                 "name": "GenerateDot",
@@ -349,8 +354,19 @@
             "RemoveRedundantUpdateBarriers",
             "BuildGraphFileKmb",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
+            {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
+            },
+            {
+                "name": "ConvertFlatbuffer",
+                "input": "output/mcm.blob"
             }
         ]
     },
