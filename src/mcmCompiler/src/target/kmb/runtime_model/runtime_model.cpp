@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <unordered_set>
 
 const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMapping_ =
 {
@@ -223,6 +224,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
 
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(om, "buildTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
@@ -329,7 +333,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
         auto strides = tensorBufferIt->getStrides();
         auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
-
 
         // This part is for concat
         if(t->hasAttr("address"))
@@ -447,6 +450,10 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     auto tensorAllocatorName = tensorAllocators.begin();
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
+
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(cm, "updateTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, s); // 0 is the only stage for now, but this will probably change in the future
 
@@ -640,9 +647,27 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+
         // This part is for concat
         if(t->hasAttr("address"))
             toBuild->data->data_index = subtensor.getAddress();
+        else if (t->hasAttr("cmx_concat_buffer")) {
+          size_t net_address = tensorBufferIt->getOffset();
+          if (subtensor.hasAttr("offset")) {
+              auto offset = subtensor.get<std::vector<std::size_t>>("offset");
+              auto index = t->getOrder().subToInd(t->getShape(), offset);
+              size_t byte_index = index * t->getDType().getSizeInBits() / 8;
+              auto tensorStrides = t->computeNumericStrides();
+              tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
+              std::reverse(tensorStrides.begin(), tensorStrides.end());
+
+              if(numericStrides[4] != tensorStrides[4]){
+                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
+              }
+              net_address += byte_index;
+          }
+          toBuild->data->data_index = net_address;
+        }
         else
             toBuild->data->data_index = tensorBufferIt->getOffset();
 
@@ -830,7 +855,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     return toReturn;
 }
 
-std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression)
+std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(ComputationModel&, mv::Element&, mv::Tensor& t, bool huffmanCompression, bool csramCacheable)
 {
     std::unique_ptr<MVCNN::BinaryDataT> toBuild = std::unique_ptr<MVCNN::BinaryDataT>(new MVCNN::BinaryDataT());
 
@@ -839,7 +864,7 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
      * These should be comprssed for additional performance
     */
 
-    if(huffmanCompression && !t.hasAttr("weightTable") && !t.hasAttr("sparsityMap") && t.getDType() != mv::DType("Float16"))
+    if(huffmanCompression && t.isPopulatedTensor() && t.getDType() != mv::DType("Float16"))
     {
         auto dataPacked = t.getDataPacked();
         auto weightSizeKb = t.computeTotalSize() / 1024;
@@ -888,6 +913,8 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
         toBuild->underlying_type = MVCNN::DType::DType_U8;
         t.set<bool>("Compression", false);
     }
+
+    toBuild->csram_cacheable = csramCacheable;
 
     return toBuild;
 }
@@ -1199,6 +1226,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+
+    if(tensorAllocatorName == outputTensor->get<std::set<std::string>>("allocators").end()) {
+        throw mv::ArgumentError(om, "buildNNDMATaskT", "0", "No tensor allocators found");
+    }
+
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
@@ -1625,9 +1657,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
-            (opIt->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") &&
-            opIt->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
@@ -1646,6 +1676,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantFieldsT(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt, int clusterId)
 {
     std::unique_ptr<MVCNN::NCEInvariantFieldsT> toBuild = std::unique_ptr<MVCNN::NCEInvariantFieldsT>(new MVCNN::NCEInvariantFieldsT());
+
 
     toBuild->dpu_task_type = convertTaskOp(opIt->get<std::string>("taskOp"));
 
@@ -1701,9 +1732,16 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     toBuild->parent_input_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_input_tensor->data->storage_element_index = 999999999999999999;
 
+    if (opIt->hasAttr("cmx_concat_reader")) {
+      toBuild->input_data->strides = toBuild->parent_input_tensor->strides;
+    }
+
     //output
     auto parentOutputTensor = opIt->getOutputTensor(0);
     toBuild->output_data = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor, clusterId);
+
+
+
     if (opIt->hasAttr("multiCast"))
     {
         if (opIt->get<bool>("multiCast"))
@@ -1721,9 +1759,14 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
         }
     }
 
+
     toBuild->parent_output_tensor = buildTensorReferenceT(cm, compilationDescriptor, parentOutputTensor);
     toBuild->parent_output_tensor->data->sparsity_index = 999999999999999999;
     toBuild->parent_output_tensor->data->storage_element_index = 999999999999999999;
+
+    if (opIt->hasAttr("cmx_concat_writer")) {
+      toBuild->output_data->strides = toBuild->parent_output_tensor->strides;
+    }
 
     if (opIt->get<bool>("multiCast"))
     {
@@ -1773,9 +1816,7 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
     if ((opIt->hasAttr("activationSparsityCompilerSolving")
         && opIt->get<bool>("activationSparsityCompilerSolving")) ||
             (opIt->hasAttr("activationSparsityCompilerSolvingForDilatedConv") &&
-             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")) ||
-            (opIt->hasAttr("forcedToHaveActivationSparsityDueToDilatedConv") &&
-            opIt->get<bool>("forcedToHaveActivationSparsityDueToDilatedConv")))
+             opIt->get<bool>("activationSparsityCompilerSolvingForDilatedConv")))
         adaptFakeSparsityIndex(toBuild, opIt);
 
     // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
@@ -2017,9 +2058,22 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNCE2TaskT(Comp
             toBuild->variant = buildNCEVariantFieldsTVector(cm, compilationDescriptor, opIt, i, splitting);
             toBuild->invariant = buildNCEInvariantFieldsT(cm, compilationDescriptor, opIt);
 
+
             auto locale_index = std::vector<unsigned int>(1,i);
             toBuild->invariant->input_data->locale_index = locale_index;
             toBuild->invariant->output_data->locale_index = locale_index;
+
+            if (opIt->hasAttr("cmx_concatable")) {
+              // clustering DPU task set locale = [0, 1, 2, 4] //
+              std::vector<unsigned int> cmx_concat_locale_index;
+              for (unsigned idx = numTask; idx > 0; idx--) {
+                cmx_concat_locale_index.push_back(idx-1);
+              }
+              toBuild->invariant->output_data->locale_index =
+                  cmx_concat_locale_index;
+            }
+
+
             if (opIt->get<std::string>("taskOp") != "MaxPool")
                 toBuild->invariant->weights_data->locale_index = locale_index;
             else if (opIt->get<std::string>("taskOp") == "MaxPool" ||
@@ -2232,6 +2286,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
     } else if (mode.compare(std::string("bilinear_deformable")) == 0) {
         softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR_DEFORMABLE;
     } else {
+        delete toBuild;
+        delete softLayerParamsValue;
         throw ArgumentError("buildUPAPSROIPoolingTask", "file:content", "invalid", "Invalid mode for PSROIPooling");
     }
 
@@ -3202,6 +3258,7 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
 
     // Binary Data
     graphFile_.binary_data = std::vector<std::unique_ptr<MVCNN::BinaryDataT>>();
+    std::unordered_set<Tensor *> csramCacheable;
     std::vector<Tensor *> toSort;
     for(auto opIterator = om.opBegin(); opIterator != om.opEnd(); ++opIterator)
     {
@@ -3224,28 +3281,39 @@ void mv::RuntimeModel::buildGraphFile(ComputationModel& cm, mv::Element& compila
                 else
                     toSort.push_back(&(*tIt));
             }
-            // SOK non-sparse weights are also serialised individually so that they can be compressed by the HDE
-            // Weights have UInt8 dType
-            // Fake Sparsity maps also have UInt8 dType
-            else if(tIt->hasAttr("splitStrategy") && tIt->get<mv::DType>("dType") == mv::DType("UInt8"))
-            {
-                //if(tIt->get<std::string>("splitStrategy") == "SplitOverK")
-                if(tIt->get<std::string>("splitStrategy") == "SplitOverK" && !tIt->hasAttr("weightTable") && !tIt->hasAttr("sparsityMap")
-                    && !tIt->hasAttr("dilatedSubConvSM") && !tIt->hasAttr("dilatedSubConvSE"))
-                    for(std::size_t i = 0; i < numClusters; ++i)
-                        toSort.push_back(&(tIt->getSubTensor(i)));
-                else
-                    toSort.push_back(&(*tIt));
-            }
+            else if(tIt->isAllocatedPerCluster())
+                for(std::size_t i = 0; i < numClusters; ++i)
+                    toSort.push_back(&(tIt->getSubTensor(i)));
             else
                 toSort.push_back(&(*tIt));
 
         }
+        else if (opType == "DMATask")
+        {
+            // Add inputs to NNDMA operations to the cacheable tensor set.
+            // NNDMA tasks are DMATasks whose direction does not involve UPA.
+            //
+            // N.B. This loop will add all tensors that are inputs to NNDMA operations to the cacheable set,
+            // including program inputs and spilled tensors.  This is fine; the cacheable info will only be
+            // accessed for tensors that we're actually adding to the output.
+            auto direction = opIterator->get<mv::DmaDirection>("direction");
+            if (direction != mv::DmaDirectionEnum::NNCMX2UPACMX &&
+                direction != mv::DmaDirectionEnum::UPACMX2NNCMX &&
+                direction != mv::DmaDirectionEnum::DDR2UPACMX   &&
+                direction != mv::DmaDirectionEnum::UPACMX2DDR)
+            {
+                for (auto& tensor : opIterator->getInputTensor())
+                {
+                    csramCacheable.insert(&*tensor);
+                }
+            }
+        }
     }
+
     std::sort(toSort.begin(), toSort.end(), [](mv::Tensor * t1, mv::Tensor * t2){return (t1->get<unsigned>("graphFileIndex") < t2->get<unsigned>("graphFileIndex"));});
     for(auto& tIt : toSort)
     {
-        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression));
+        graphFile_.binary_data.push_back(buildBinaryDataT(cm, compilationDescriptor, *tIt, huffmanCompression, csramCacheable.count(tIt) != 0));
     }
     // TASKS
     graphFile_.task_lists = buildTaskListT(cm, compilationDescriptor);
