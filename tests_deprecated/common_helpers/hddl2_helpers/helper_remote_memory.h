@@ -54,7 +54,8 @@ inline RemoteMemory_Helper::~RemoteMemory_Helper() {
 
 inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(
     const HddlUnite::WorkloadContext& workloadContext, const size_t size) {
-        return std::make_shared<HddlUnite::RemoteMemory> (workloadContext, HddlUnite::RemoteMemoryDesc(size, 1, size, 1));
+        _remoteMemory = std::make_shared<HddlUnite::RemoteMemory> (workloadContext, HddlUnite::RemoteMemoryDesc(size, 1, size, 1));
+        return _remoteMemory;
     }
 
 inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
@@ -77,7 +78,7 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
         return 0;
     }
 
-    _remoteMemory = allocateRemoteMemory(*context, size);
+    allocateRemoteMemory(*context, size);
     if (_remoteMemory == nullptr) {
         return 0;
     }

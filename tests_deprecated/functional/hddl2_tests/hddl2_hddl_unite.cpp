@@ -47,40 +47,6 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectWorkloadID_ThrowException) {
     ASSERT_ANY_THROW(remoteMemoryHelper.allocateRemoteMemory(incorrectWorkloadID, size));
 }
 
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSameSize_NoException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-
-    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
-
-    ASSERT_NO_THROW(RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getMemoryDesc(), remoteMemoryPtr->getDmaBufFd()));
-}
-
-// // [Track number: S#28523]
-// TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
-//     auto workloadContext = workloadContextHelper.getWorkloadContext();
-//     const size_t size = 100;
-//     const size_t smallerSizeToWrap = 10;
-
-//     RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
-
-//     ASSERT_NO_THROW(
-//         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), smallerSizeToWrap));
-// }
-
-// // TODO FAIL - HddlUnite problem
-// TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
-//     auto workloadContext = workloadContextHelper.getWorkloadContext();
-//     const size_t size = 100;
-//     const size_t biggerSizeToWrap = size * 10;
-
-//     RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
-
-//     ASSERT_ANY_THROW(
-//         RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), biggerSizeToWrap));
-// }
-
 // TODO FAIL - HdllUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeWorkloadID_ThrowException) {
     const size_t incorrectWorkloadID = -1;
