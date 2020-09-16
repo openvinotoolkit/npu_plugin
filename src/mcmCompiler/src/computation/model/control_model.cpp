@@ -229,6 +229,55 @@ std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSort()
     return toSort;
 }
 
+std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSortDPUorUPA()
+{
+    std::vector<mv::Control::OpListIterator> toSort;
+    for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
+        if(opIt->hasAttr("schedulingNumber") && (opIt->getOpType() == "DPUTask" || opIt->getOpType() == "UPATask"))
+            toSort.push_back(opIt);
+
+    std::sort(toSort.begin(), toSort.end(), [](mv::Control::OpListIterator a, mv::Control::OpListIterator b){
+        unsigned schedulingNumberA = a->get<unsigned>("schedulingNumber");
+        unsigned schedulingNumberB = b->get<unsigned>("schedulingNumber");
+
+        return schedulingNumberA < schedulingNumberB;
+    });
+
+    return toSort;
+}
+
+std::vector<mv::Control::OpListIterator> mv::ControlModel::schedulingSortDMA()
+{
+    std::vector<mv::Control::OpListIterator> toSort;
+    for(auto opIt = opBegin(); opIt != opEnd(); ++opIt)
+        if(opIt->hasAttr("DMALevel-DPU-schedule-number") && opIt->getOpType() == "DMATask")
+            toSort.push_back(opIt);
+
+    std::sort(toSort.begin(), toSort.end(), [](mv::Control::OpListIterator a, mv::Control::OpListIterator b){
+        unsigned DMALevelA = a->get<unsigned>("DMALevel");
+        unsigned DMALevelB = b->get<unsigned>("DMALevel");
+        unsigned DPUScheduleNumberA = a->get<unsigned>("DPU-schedule-number");
+        unsigned DPUScheduleNumberB = b->get<unsigned>("DPU-schedule-number");
+        unsigned schedulingNumberA = a->get<unsigned>("schedulingNumber");
+        unsigned schedulingNumberB = b->get<unsigned>("schedulingNumber");
+
+        //Sort based on DMA level first
+        if(DMALevelA != DMALevelB) {
+            return DMALevelA < DMALevelB;
+        }
+        //Then sort based on DPU scheduling number if the DMA level is equal
+        if(DPUScheduleNumberA != DPUScheduleNumberB) {
+            return DPUScheduleNumberA < DPUScheduleNumberB;
+        }
+        // If the DMA level and DPU scheduling number are equal then sort on the scheduling number assinged by the scheduler
+        return schedulingNumberA < schedulingNumberB;
+         
+ 
+    });
+
+    return toSort;
+}
+
 struct OpItComparator
 {
     bool operator()(mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator lhs, mv::graph<mv::Op, mv::ControlFlow>::node_list_iterator rhs) const
