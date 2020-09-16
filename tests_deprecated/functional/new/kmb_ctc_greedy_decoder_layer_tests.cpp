@@ -42,13 +42,13 @@ TEST_P(KmbCTCDecoderLayerTests, accuracy) {
     const auto dims = p.dims();
     const auto layout = p.layout();
 
-    const auto userInDesc = TensorDesc(Precision::FP16, dims, layout);
+    const auto userInDesc = TensorDesc(Precision::U8, dims, layout);
     const auto seqIndDesc = TensorDesc(Precision::FP16, {1, 1, dims[2], dims[1]}, Layout::NHWC);
     const auto userOutDesc = TensorDesc(Precision::FP32, {1, 1, 1, dims[1]}, layout);
 
     const auto tolerance = 1e-3f;
 
-    const auto inputRange = std::make_pair(0, dims[3]);
+    const auto inputRange = std::make_pair(0, 4);
 
     registerBlobGenerator("input0", userInDesc, [&](const TensorDesc& desc) {
         return genBlobUniform(desc, rd, inputRange.first, inputRange.second);
