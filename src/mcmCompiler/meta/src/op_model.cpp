@@ -79,11 +79,11 @@ namespace
         return out;
     }
 
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const mv::Data::TensorIterator& tensor)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const mv::Data::TensorIterator& tensor)
     {
         *codeOut << varName(tensor->getName());
     }
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const std::vector<mv::Data::TensorIterator>& tensors)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const std::vector<mv::Data::TensorIterator>& tensors)
     {
         *codeOut << "{";
         if (!tensors.empty())
@@ -129,15 +129,20 @@ namespace
         }
     }
     template <typename T>
-    void printParam(std::ostream* codeOut, std::ostream* dataOut, const std::string& paramName, const T& attr)
+    void printParam(std::ostream* codeOut, std::ostream* /* dataOut */, const std::string& /* paramName */, const T& attr)
     {
         *codeOut << mv::Attribute(attr).toLongString();
     }
 
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I == std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
-    printParams(std::ostream* codeOut, std::ostream* dataOut, const std::string& outVarName, const std::vector<std::string>& paramNames, const ParamTuple& paramValues)
+    printParams(std::ostream* /* codeOut */, 
+                std::ostream* /* dataOut */, 
+                const std::string& /* outVarName */, 
+                const std::vector<std::string>& /* paramNames */, 
+                const ParamTuple& /* paramValues */)
     {
+        //This function is empty because it is a recursion end point. Executed when I == std::tuple_size::value.
     }
     template <std::size_t I = 0, typename ParamTuple>
     typename std::enable_if<I < std::tuple_size<typename std::decay<ParamTuple>::type>::value, void>::type
@@ -571,7 +576,7 @@ mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIter
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const DmaDirection& direction, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const DmaDirection& direction, const uint8_t& port, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -580,7 +585,8 @@ mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const D
             data
         },
         {
-            { "direction", direction }
+            { "direction", direction }, 
+            { "port", port }
         },
         name
     
@@ -878,6 +884,30 @@ mv::Data::TensorIterator mv::OpModel::elu(Data::TensorIterator data, const unsig
     return output;
 }
 
+mv::Data::TensorIterator mv::OpModel::exp(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "Exp",
+        {
+            data
+        },
+        {
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name
+    
+    
+    );
+    if (recordModel_) { 
+
+        const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "exp");
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "exp", name, "data,dType, quantParams", data,dType, quantParams);
+    }
+    return output;
+}
+
 mv::Data::TensorIterator mv::OpModel::fakeQuantize(Data::TensorIterator data, Data::TensorIterator input_min, Data::TensorIterator input_max, Data::TensorIterator output_min, Data::TensorIterator output_max, const unsigned& levels, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
@@ -952,6 +982,32 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator data, 
 
         const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "fullyConnected");
         printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "fullyConnected", name, "data, weights,dType, quantParams", data, weights,dType, quantParams);
+    }
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::gather(Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "Gather",
+        {
+            data,
+            indices
+        },
+        {
+            { "axis", axis }, 
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name
+    
+    
+    );
+    if (recordModel_) { 
+
+        const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "gather");
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "gather", name, "data, indices,axis, dType, quantParams", data, indices,axis, dType, quantParams);
     }
     return output;
 }
@@ -1636,6 +1692,30 @@ mv::Data::TensorIterator mv::OpModel::rOIPooling(const std::vector< Data::Tensor
 
         const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "rOIPooling");
         printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "rOIPooling", name, "inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, dType, quantParams", inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois, dType, quantParams);
+    }
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::reciprocal(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "Reciprocal",
+        {
+            data
+        },
+        {
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name
+    
+    
+    );
+    if (recordModel_) { 
+
+        const auto outputName = output != tensorEnd() ? varName(output->getName()) : (!name.empty() ? name : "reciprocal");
+        printOp(codeOut_, dataOut_, recordWeightsAsText_, outputName, "reciprocal", name, "data,dType, quantParams", data,dType, quantParams);
     }
     return output;
 }
@@ -2585,6 +2665,25 @@ mv::Data::TensorIterator mv::OpModel::uPATaskRefConv(const std::vector< Data::Te
             { "padding", padding }, 
             { "dilationFactor", dilationFactor },
             { "group", group },
+            { "dType", dType },
+            { "quantParams", quantParams }
+        },
+        name,
+        false,
+        false
+    );
+    return output;
+}
+
+mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
+    auto output = defineOp(
+        "UPATask",
+        inputs,
+        {
+            { "taskOp", std::string("Gather") },
+            { "axis", axis }, 
             { "dType", dType },
             { "quantParams", quantParams }
         },

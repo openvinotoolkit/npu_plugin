@@ -1150,6 +1150,41 @@ class Dynamic_Spill_Node_Inserter {
       }
     }
 
+    template<typename ControlEdgeOutput>
+    size_t generate_control_edges_for_spilled_cmx_concat_ops(
+        ControlEdgeOutput output) {
+      typedef typename dag_t::cmx_concat_subgraph_t cmx_concat_subgraph_t;
+      typedef mv::lp_scheduler::Control_Edge control_edge_t;
+
+      size_t control_edge_count = 0UL;
+      for (auto sitr=spilled_op_map_.begin(); sitr!=spilled_op_map_.end();  
+            ++sitr) {
+        cmx_concat_subgraph_t const *subgraph_ptr =
+          input_dag_.does_this_dpu_have_cmx_concat_subgraph(sitr->first);
+        if (subgraph_ptr) {
+          operation_t spilled_op = sitr->first;
+          operation_t spilled_write_op = (sitr->second).spilled_write_op_;
+
+          if (!spilled_write_op) {
+            throw "SpilledWriteOp cannot be NULL";
+          }
+
+          // add control edges from all the dpu_in_.ops() to the write op in 
+          // the spilled subtree //
+          for (auto dpu_itr=(subgraph_ptr->dpu_in_).begin();
+              dpu_itr != (subgraph_ptr->dpu_in_).end(); ++dpu_itr) {
+            operation_t dop = *dpu_itr;
+            control_edge_t cedge(dop, spilled_write_op);
+
+            *output = cedge;
+            ++control_edge_count;
+          }
+
+        }
+      }
+      return control_edge_count;
+    }
+
   private:
 
     bool has_redundant_spilled_write(spilled_op_map_const_iterator_t itr) const
@@ -1580,7 +1615,7 @@ class Dynamic_Spill_Node_Inserter {
       std::string dma_read_op_name = spilled_op->getName() + "-" +
         head->getName() + "_implicitSpilledRead" + std::to_string(read_index++);
       mv::Data::TensorIterator spill_read_tensor_itr =
-          om.dMATask(tail_tensor_itr, read_dma_direction, dma_read_op_name);
+          om.dMATask(tail_tensor_itr, read_dma_direction, 0, dma_read_op_name);
       mv::Data::OpListIterator read_op_itr =
           om.getSourceOp(spill_read_tensor_itr);
       read_op_itr->setInputTensor(tail_tensor_itr, 0UL, false);
@@ -1620,7 +1655,7 @@ class Dynamic_Spill_Node_Inserter {
       std::string dma_read_op_name = spilled_op->getName() + "_spilledRead" +
           std::to_string(read_index++);
       mv::Data::TensorIterator spill_read_tensor_itr =
-          om.dMATask(spill_write_tensor_itr, read_dma_direction,
+          om.dMATask(spill_write_tensor_itr, read_dma_direction, 0,
               dma_read_op_name);
       mv::Data::OpListIterator read_op_itr =
           om.getSourceOp(spill_read_tensor_itr);
@@ -1680,6 +1715,13 @@ class Dynamic_Spill_Node_Inserter {
       mv::OpModel om(model_);
       spilled_read_subtrees_t &read_subtrees = spilled_sub_tree.read_subtrees_;
 
+      //STEP-(minus 0): if the spilled_op should be the concat //
+      typename dag_t::cmx_concat_subgraph_t const *concat_subgraph = NULL;
+      if ( (concat_subgraph =
+              input_dag_.does_this_dpu_have_cmx_concat_subgraph(spilled_op)) ) {
+        spilled_op = const_cast<mv::Op *>(concat_subgraph->concat_root_);
+      }
+
       //STEP-0: refine read subtrees before introducing the spill structure.
       //This will mark the read subtrees into two categories:
       //  a.) subtrees with implicit substructure
@@ -1693,8 +1735,9 @@ class Dynamic_Spill_Node_Inserter {
       mv::DmaDirection write_dma_direction(std::string("NNCMX2DDR"));
       mv::Data::TensorIterator spilled_op_output_tensor_itr =
           spilled_op->getOutputTensor(0UL);
+
       mv::Data::TensorIterator spill_write_tensor_itr = om.dMATask(
-          spilled_op_output_tensor_itr, write_dma_direction, dma_op_name);
+          spilled_op_output_tensor_itr, write_dma_direction, 0, dma_op_name);
       Data::OpListIterator write_op_itr =
           om.getSourceOp(spill_write_tensor_itr);
       write_op_itr->setInputTensor(spilled_op_output_tensor_itr, 0UL, false);
@@ -1850,7 +1893,7 @@ class Dynamic_Spill_Node_Inserter {
         dma_op_name = spilled_op->getName() + "_spilledReadForest" +
             std::to_string(read_index++);
         spill_read_tensor_itr = om.dMATask(
-            spilled_op_input_tensor_itr, read_dma_direction, dma_op_name);
+            spilled_op_input_tensor_itr, read_dma_direction, 0, dma_op_name);
         if(spill_read_tensor_itr->isSparse())
           spill_read_tensor_itr->set<bool>("allocateSparsityMap", false); //TODO(Add a flag to dMATask() which can set allocateSparsityMap to false) 
         Data::OpListIterator read_op_itr =
@@ -2876,9 +2919,9 @@ class Repack_Input_DMA_Tasks {
     const data_op_selector_t &data_op_selector_;
     original_schedule_info_t original_schedule_info_;
     repack_time_slots_t repack_time_slots_;
-    size_t total_data_ops_;
-    size_t repacked_data_ops_;
-    double average_repack_level_;
+    size_t total_data_ops_ = 0UL;
+    size_t repacked_data_ops_ = 0UL;
+    double average_repack_level_ = 0.0;
 }; // class Repack_Input_DMA_Tasks //
 
 

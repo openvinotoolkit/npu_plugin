@@ -116,22 +116,37 @@ void SplittingTensorsAcrossClusters(const mv::pass::PassEntry& pass, mv::Computa
                 }
             }
         }
-        //Also need to generate subtensors for output tensor of input operation, and the input tensor of output operation
-        auto inOutputTensor = om.getInput()->getOutputTensor(0);
-        if((inOutputTensor->get<std::string>("splitStrategy") == "SplitOverH") || (inOutputTensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+
+        //Also need to generate subtensors for output tensor of input operation
+        //  Note: Input can't provide output activation sparsity, so sparse subtensors
+        // shouldn't be needed
+        auto inputOpsMap = om.getOpsOfTypes({"Input", "ImplicitInput"});
+        for (auto inputOps : inputOpsMap)
         {
-            auto inOutputTensorName = inOutputTensor->getName();
-            tensorNames.insert(inOutputTensorName);
+            for (auto op: inputOps.second)
+            {
+                for (auto tensor : op->getOutputTensor()) {
+                    if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
+                        (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+                        tensorNames.insert(tensor->getName());
+                }
+            }
         }
 
-        auto outInputTensor = om.getOutput()->getInputTensor(0);
-        if((outInputTensor->get<std::string>("splitStrategy") == "SplitOverH") || (outInputTensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+        //Also need to generate subtensors for input tensor of output operation
+        //  Note: Output can't take input activation sparsity, so sparse subtensors
+        // shouldn't be needed
+        auto outputOpsMap = om.getOpsOfTypes({"Output", "ImplicitOutput"});
+        for (auto outputOps : outputOpsMap)
         {
-            auto outInputTensorName = outInputTensor->getName();
-            tensorNames.insert(outInputTensorName);
-            //Note: Output can't take input activation sparsity, so this code shouldn't be needed
-            // if(outInputTensor->isPopulated() && outInputTensor->isSparse())
-            //     tensorNames.insert(outInputTensor->getSparsityMap()->getName());
+            for (auto op: outputOps.second)
+            {
+                for (auto tensor : op->getInputTensor()) {
+                    if((tensor->get<std::string>("splitStrategy") == "SplitOverH") ||
+                        (tensor->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
+                        tensorNames.insert(tensor->getName());
+                }
+            }
         }
 
         for (auto specialTensorName : specialTensorNames)
@@ -313,13 +328,14 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);
             std::vector<mv::Workload> subTensors;
 
-            if (tensor->get<std::string>("splitStrategy") == "SplitOverH")
+            const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
+            if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
+                tensor->get<std::string>("splitStrategy")) != segmentableStrategies.cend())
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                 tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
             }
-            else if (tensor->get<std::string>("splitStrategy") == "Clustering" ||
-                     tensor->get<std::string>("splitStrategy") == "SplitOverK")
+            else
             {
                 for (unsigned i = 0; i < nWorkloads; i++)
                 {

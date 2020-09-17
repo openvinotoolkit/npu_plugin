@@ -210,7 +210,8 @@ void generateWorkloadsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel&
                 }
 
                 /*if Deptwise operation and SOH trategy, for A0 bug then add these number of worklaods to workload split pool*/
-                if((opIt->get<std::string>("taskOp") == "DepthwiseConv") && (!nWorkloadsCompilationDescriptor))
+                if(depthWiseSOHA0Workaround &&
+                    !nWorkloadsCompilationDescriptor)
                 {
                     int deptwiseSOHworkloadNumbers[5] = {2, 4, 6, 8, 10};
                     nWorkloadsSplitPool.insert(nWorkloadsSplitPool.end(), deptwiseSOHworkloadNumbers, deptwiseSOHworkloadNumbers+5);

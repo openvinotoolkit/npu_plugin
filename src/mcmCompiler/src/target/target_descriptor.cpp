@@ -5,11 +5,11 @@ std::string mv::TargetDescriptor::toString(Target target)
     switch (target)
     {
 
-        case Target::ma2480:
-            return "ma2480";
-
         case Target::ma2490:
             return "ma2490";
+
+        case Target::ma3100:
+            return "ma3100";
 
         default:
             return "unknown";
@@ -19,18 +19,19 @@ std::string mv::TargetDescriptor::toString(Target target)
 
 mv::Target mv::TargetDescriptor::toTarget(const std::string& str)
 {
-    if (str == "ma2480")
-        return Target::ma2480;
-
     if (str == "ma2490")
         return Target::ma2490;
+
+    if (str == "ma3100")
+        return Target::ma3100;
 
     return Target::Unknown;
 }
 
 mv::TargetDescriptor::TargetDescriptor(const std::string& filePath) :
 target_(Target::Unknown),
-globalDType_("Float16")
+globalDType_("Float16"),
+hdeDef_({0,0,0,0,false})
 {
 
     if (!filePath.empty())
@@ -46,6 +47,7 @@ void mv::TargetDescriptor::reset()
     globalDType_ = DType("Float16");
     ops_.clear();
     memoryDefs_.clear();
+    nceDefs_.clear();
 }
 
 bool mv::TargetDescriptor::load(const std::string& filePath)
