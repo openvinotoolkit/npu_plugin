@@ -8,7 +8,7 @@
 static void computeTensorsQuantParams(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void alignConcatScales(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint);
+static void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint);
 //static void compensateDepthWiseAfter(mv::OpModel om, mv::Data::OpListIterator nextOp, mv::Data::OpListIterator concat);
 //static std::vector<mv::Data::OpListIterator> findNextConcat(mv::DataModel &dataModel, const mv::Data::TensorIterator &tensor);
 
@@ -38,7 +38,7 @@ void postTrainingQuantize(const mv::pass::PassEntry& pass, mv::ComputationModel&
     alignConcatScales(pass, model, td, e0, e1);
 }
 
-void placeReQuantizeDepthwiseBefore(mv::OpModel om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint)
+void placeReQuantizeDepthwiseBefore(mv::OpModel & om, mv::Data::OpListIterator concat, mv::Data::TensorIterator inputTensor, std::size_t index, double &weightScale, double &alignedScale, int64_t &alignedZeroPoint)
 {
     //FIND THE APPROPRIATE FLOW
     auto inputFlow = concat.leftmostInput();

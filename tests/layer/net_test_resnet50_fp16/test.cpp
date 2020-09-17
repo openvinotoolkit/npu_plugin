@@ -8,7 +8,8 @@ int main()
 {
     const std::string binLocation = mv::utils::projectRootPath() +
         "/tests/layer/net_test_resnet50_fp16/";
-    mv::CompilationUnit compilationUnit = buildResnet50_fp16(binLocation);
+    mv::CompilationUnit compilationUnit("resnet50_fp16");
+    buildResnet50_fp16(compilationUnit, binLocation);
     mv::OpModel& opModel = compilationUnit.model();
 
     // Initialize and run the compilation unit.

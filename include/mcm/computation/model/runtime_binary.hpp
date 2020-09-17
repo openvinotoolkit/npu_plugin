@@ -21,7 +21,9 @@ namespace mv
     public:
 
         RuntimeBinary();
+        RuntimeBinary(const RuntimeBinary &) = delete;
         ~RuntimeBinary();
+        const RuntimeBinary operator=(const RuntimeBinary &) = delete;
         int getFileSize();
         int getBufferSize();
         bool getRAMEnabled();

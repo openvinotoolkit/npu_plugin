@@ -47,7 +47,7 @@ namespace mv
 
 mv::Data::OpListIterator operationsReplacement(mv::Data::OpListIterator parentOpIt,
         mv::Data::TensorIterator sourceTensor,
-        mv::OpModel om,
+        mv::OpModel & om,
         mv::Data::OpListIterator opIt)
 {
     //Important: do not change the order of this ops

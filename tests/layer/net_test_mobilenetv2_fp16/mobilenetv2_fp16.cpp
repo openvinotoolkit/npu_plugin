@@ -18,7 +18,7 @@ template <typename T1, typename T2> std::vector<T1> read_weights_from_file(std::
     return return_data;
 }
 
-mv::CompilationUnit buildMobilenetV2_fp16(const std::string& binaryDir)
+void buildMobilenetV2_fp16(mv::CompilationUnit & compilationUnit, const std::string& binaryDir)
 {
     using std::int32_t;
     using std::int64_t;
@@ -26,7 +26,6 @@ mv::CompilationUnit buildMobilenetV2_fp16(const std::string& binaryDir)
 
     double inf = std::numeric_limits<double>::infinity();
 
-    mv::CompilationUnit compilationUnit("mobilenetv2_fp16");
     mv::OpModel& om = compilationUnit.model();
 
     auto input0 = om.input({224,224,3,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.0},{-inf},{inf}}, "input#205");
@@ -548,6 +547,4 @@ mv::CompilationUnit buildMobilenetV2_fp16(const std::string& binaryDir)
     auto bias_c35 = om.bias(conv35, biasWeights35, mv::DType("Float16"), {{0},{1.0},{-inf},{inf}});
 
     om.output(bias_c35);
-
-    return compilationUnit;
 }
