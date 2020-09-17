@@ -237,15 +237,21 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                              != activationSegmentableStrategies.end())
                     {
                         h = predictSubTensorShape(inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION], numClusters);
+
+                        // Sparse map has to be contiguously alligned at 16 bytes for first (N - 1) clusters
+                        // For the A0 bug impacting SOH & kernel > 1 compiler generated activation sparsity is the workaround
+                        // For activations where the height is not divisible by 4 for example 149x149x32, then we need to adjust
+                        // The size of the sparsity map so that is alligned at 16 bytes for first (N - 1) clusters
+                        // In the case of SOH, ZM conv, kernel height > 1, we need to adjust the sm size so each subtensor will be
+                        // aligned to the 16 byte limitaiton
+                        if (dpuTask->get<std::string>("taskOp") == "Conv" &&
+                            dpuTask->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] > 1)
+                        {
+                            while ((w*h*c/8)%128 != 0)
+                                w+=1;
+                        }
                     }
-                    // Sparse map has to be contiguously alligned at 16 bytes for first (N - 1) clusters
-                   // For the A0 bug impacting SOH & kernel > 1 compiler generated activation sparsity is the workaround
-                   // For activations where the height is not divisible by 4 for example 149x149x32, then we need to adjust
-                   // The size of the sparsity map so that is alligned at 16 bytes for first (N - 1) clusters
-
-                    while ((w*h*c)%128 != 0)
-                       w+=1;
-
+                   
                     //every element of sparsity map describes 8 elements of normal tensor
                     auto mapShape = mv::Shape({w,
                                             {inputTensor->getShape()[mv::IO_HEIGHT_DIMENSION]},
