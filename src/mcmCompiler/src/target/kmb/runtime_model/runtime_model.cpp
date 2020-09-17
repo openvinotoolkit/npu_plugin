@@ -1134,7 +1134,7 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
 
     // Passing -1 as subtensor index, will have us get the full tensor
     if (!checkUnstridedDMA(src, -1, tmp))
-        continue;
+        return;
 
     // Check if the HDE engine compressed the weights
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
