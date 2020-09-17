@@ -685,7 +685,15 @@ void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::Pas
                 {
                     if (!inputTensor->hasAttr("splitStrategy"))
                     {
-                        inputTensor->set<std::string>("splitStrategy", om.getSourceOp(inputTensor)->get<std::string>("splitStrategy"));
+                        //NOTE: The correct think to do here is to assign to the input tensor the strategy of the previous
+                        //operation but sometimes the previous operation can be an implicit op or an op with no strategy
+                        //so assign the one of its input tensor...
+                        std::string sstrategy;
+                        if (om.getSourceOp(inputTensor)->hasAttr("splitStrategy"))
+                            sstrategy = om.getSourceOp(inputTensor)->get<std::string>("splitStrategy");
+                        else
+                            sstrategy = om.getSourceOp(inputTensor)->getInputTensor()[0]->get<std::string>("splitStrategy");
+                        inputTensor->set<std::string>("splitStrategy", sstrategy);
                         subTensorsGen(model, {inputTensor}, numClusters, pass);
                     }
                 }
