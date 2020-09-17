@@ -58,7 +58,8 @@ enum xlink_error {
 	X_LINK_DEVICE_NOT_FOUND,			// device specified not found
 	X_LINK_TIMEOUT,						// operation timed out
 	X_LINK_ERROR,						// parameter error
-	X_LINK_CHAN_FULL					// channel has reached fill level
+	X_LINK_CHAN_FULL,					// channel has reached fill level
+	X_LINK_FORCE_READ_COMPLETE			// a read was force completed by channel closure on other side
 };
 
 enum xlink_device_status {

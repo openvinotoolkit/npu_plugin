@@ -117,9 +117,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered)
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Initiations - getDeviceName
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnEmulatorName) {
+TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnCorrectPluginName) {
     SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 

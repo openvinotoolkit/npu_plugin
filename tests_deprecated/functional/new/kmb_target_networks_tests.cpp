@@ -1110,3 +1110,26 @@ TEST_F(KmbDetectionNetworkTest, face_detection_adas_0001) {
         0.3f,
         1.f, 0.3f);
 }
+
+TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/head_pose_estimation_adas_0001/head-pose-estimation-adas-0001.xml")
+	    .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("60x60/head-pose-estimation-adas-0001.png", ImageFormat::BGR),
+        0.1f);
+}
+
+// C++ exception with description "Tile layer is not supported by kmbPlugin
+// [Track number: D#3657]
+TEST_F(KmbClassifyNetworkTest, license_plate_recognition_barrier_0007) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/license-plate-recognition-barrier-0007/license-plate-recognition-barrier-0007.xml")
+	    .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("24x94/000000.bmp", ImageFormat::BGR),
+        7,
+        0.3f);
+}

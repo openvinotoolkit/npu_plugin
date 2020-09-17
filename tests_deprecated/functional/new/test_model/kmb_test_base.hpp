@@ -514,6 +514,14 @@ public:
         const float tolerance);
 };
 
+class HeadPoseEstimationNetworkTest : public KmbNetworkTestBase {
+public:
+    void runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& image,
+        float tolerance);
+};
+
 //
 // SmokeNetworkTest
 //
