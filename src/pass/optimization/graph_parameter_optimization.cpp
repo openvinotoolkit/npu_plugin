@@ -1597,8 +1597,10 @@ namespace mv
 
                 if( childOpType == "Conv")
                 {
+                    auto childWeightsShape = childOp.getInputTensor(1)->getShape();
                     if( !isChildChanMajor &&
                         childClustering == "SplitOverH" &&
+                        childWeightsShape[mv::KERNEL_HEIGHT] > 1 &&
                         childInputSparsity &&
                         parentOutputSparsity ) // only allow for compiler sparsity, disallow for runtime sparsity
                     {
@@ -1608,7 +1610,7 @@ namespace mv
                         // reads will fail due to misalignment
                         // Fake sparsity will provide all 1's sparse map so that probem is solved
                         // from the starts
-                        // TODO: enable this case in G.O. decide later if fake or real sparsity
+                        
                         // Sparse map has to be contiguously alligned at 16 bytes
                         // for first (N - 1) clusters
                         auto outputTensorShape = parentOp.getOutputTensor(0)->getShape();
@@ -1617,7 +1619,12 @@ namespace mv
                         unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
                         unsigned dy = std::ceil(static_cast<double>(H) / totalClusters);
 
-                        if ((W*dy*C)%128 != 0)
+                        // this limitation that sparse map should be 16 bytes aligned in each subtensors, 
+                        // ONLY applies when DPUs are reading data from neighbor clusters
+                        // Each subtensor should be aligned to 16 byte boundaries. For SM we have 1 bit per elem,
+                        // so divide tensor by 8 get size in bytes
+                        // (sparse idu for SOH ZM CONV kernel h > 1)
+                        if( (W*dy*C/8)%128 != 0 )
                         {
                             log(mv::Logger::MessageType::Debug, child["name"].toString()+"_"+child["id"].toString() + " INF caused by incorrect SOH");
                             return INF;
