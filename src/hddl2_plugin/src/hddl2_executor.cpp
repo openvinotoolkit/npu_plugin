@@ -283,10 +283,6 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
                 THROW_IE_EXCEPTION << "Error: output precision conversion from " << deviceOutputPrecision << " to "
                                    << blobOutputPrecision << " is not supported.";
             }
-            IE::Blob::Ptr deviceOutputBlob = make_blob_with_precision(deviceTensorDesc);
-            deviceOutputBlob->allocate();
-            copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
-            outputBlobPtr = toPrecision(deviceOutputBlob, blobOutputPrecision);
         } else {
             if (deviceOutputPrecision == IE::Precision::U8 && blobOutputPrecision == IE::Precision::FP16) {
                 THROW_IE_EXCEPTION << "Error: output precision conversion from " << deviceOutputPrecision << " to "
@@ -295,8 +291,12 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
             if (outputUniteData.size() != outputBlobPtr->byteSize()) {
                 THROW_IE_EXCEPTION << "Output size mismatch between HddlUnite and network expected output";
             }
-            copyDataToBlob(outputBlobPtr, outputUniteData.data(), outputUniteData.size());
         }
+
+        IE::Blob::Ptr deviceOutputBlob = make_blob_with_precision(deviceTensorDesc);
+        deviceOutputBlob->allocate();
+        copyDataToBlob(deviceOutputBlob, outputUniteData.data(), outputUniteData.size());
+        outputBlobPtr = toPrecision(deviceOutputBlob, blobOutputPrecision);
 
         // Currently we have outputBlob with device layout and user precision
         if (blobOutputLayout == deviceOutputLayout) {
