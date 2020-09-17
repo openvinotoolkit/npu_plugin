@@ -56,8 +56,11 @@ mv::Data::OpListIterator findChildDPUTaskOp(mv::ComputationModel& model, mv::Dat
     mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName()); 
     while(childOp->getOpType() != "DPUTask") 
     { 
-        std::cout << "childOp name " << childOp->getName() << std::endl; 
-        childOp = om.getOp(childOp.leftmostChild()->getName()); 
+        childOp = om.getOp(childOp.leftmostChild()->getName());
+        if(childOp->getOpType() == "Output")
+            return om.getOutput();
+        else 
+            childOp = om.getOp(childOp.leftmostChild()->getName());
     } 
     return om.getOp(childOp->getName());
 }
