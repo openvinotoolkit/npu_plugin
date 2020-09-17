@@ -50,7 +50,7 @@ inline bool isEmulator() {
 }
 
 inline std::string getNameInPlugin() {
-    const std::string pluginName = "HDDL2";
+    const std::string pluginName = "VPUX";
     return pluginName + "." + getName();
 }
 }
