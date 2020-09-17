@@ -84,6 +84,21 @@ class Pipeline_Chains {
         (pitr->getOpType() == "ConstantInt");
     }
 
+    template<typename T>
+    size_t get_total_read_weight(T dpu_op) const {
+      mv::Data::OpListIterator oitr = omodel_.getOp(dpu_op->getName());
+      if (oitr->getOpType() != "DPUTask") { return 0UL; }
+
+      size_t return_value = 0UL;
+      for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
+        operation_t pop = &(*pitr);
+        if (is_weight_read(pop)) { 
+          return_value += pitr->getOutputTensor(0UL)->getClusterSize();
+        }
+      }
+      return return_value;
+    }
+
     // If op has multiple inputs this returns NULL //
     template<typename T>
     operation_t get_single_non_weight_input(T dpu_op) const {
@@ -397,19 +412,58 @@ class Pipeline_Chains {
         ++curr_itr;
         ++curr_dpu_itr;
 
+        size_t curr_dpu_index = 2UL;
+        std::unordered_map<operation_t, size_t> stage_memory;
+        std::unordered_set<operation_t> selected_for_pull;
         while (curr_dpu_itr != dpu_chain.end()) {
           const op_list_t & curr_read_list = *curr_itr;
           const op_list_t & pprev_read_list = *pprev_itr;
           if (!pprev_read_list.empty())
           {
 
+            //if ((select_stages + 2UL) < curr_dpu_index) { continue; }
+
             auto net_dpu_itr = pprev_dpu_itr;
             for (size_t sl=0; (sl<select_stages) &&
-                  (net_dpu_itr != dpu_chain.begin()); ++sl) {
-              --net_dpu_itr;
-            }
+                  (net_dpu_itr != dpu_chain.begin()); ++sl) { --net_dpu_itr; }
             mv::Data::OpListIterator src_itr =
                 omodel_.getOp((*net_dpu_itr)->getName());
+
+            size_t demand = 0UL;
+            for (operation_t curr_read_op : curr_read_list ){
+              mv::Data::OpListIterator curr_read_op_itr =
+                  omodel_.getOp(curr_read_op->getName());
+              demand +=
+                  (curr_read_op_itr->getOutputTensor(0UL))->getClusterSize();
+            }
+
+            if (stage_memory.find((*net_dpu_itr)) == stage_memory.end()) {
+              auto net_dpu_op_itr = omodel_.getOp((*net_dpu_itr)->getName());
+              stage_memory[*net_dpu_itr] =
+                (net_dpu_op_itr->getOutputTensor(0UL))->getClusterSize();
+              auto next_dpu_itr = net_dpu_itr;
+              ++next_dpu_itr;
+              if (next_dpu_itr != dpu_chain.end()) {
+                auto next_dpu_op_itr =
+                    omodel_.getOp((*next_dpu_itr)->getName());
+                stage_memory[*net_dpu_itr] +=
+                  (next_dpu_op_itr->getOutputTensor(0UL))->getClusterSize();
+                if (selected_for_pull.find(*next_dpu_itr) ==
+                      selected_for_pull.end()) {
+                  stage_memory[*net_dpu_itr] +=
+                      get_total_read_weight(*next_dpu_itr);
+                }
+              }
+            }
+            //TODO(vamsikku): parameterize this based on CMX availablity //
+            if ( (stage_memory[*net_dpu_itr] + demand) > 700000) {
+              goto MOVE_TO_NEXT_SUBGRAPH;
+            }
+
+            stage_memory[*net_dpu_itr] += demand;
+            {
+              selected_for_pull.insert(*curr_dpu_itr);
+            }
 
             for (operation_t curr_read_op : curr_read_list ){
               mv::Data::OpListIterator sink_itr =
@@ -425,11 +479,23 @@ class Pipeline_Chains {
             }
           }
 
+MOVE_TO_NEXT_SUBGRAPH:
           ++curr_itr;
           ++pprev_itr;
           ++curr_dpu_itr;
           ++pprev_dpu_itr;
+          ++curr_dpu_index;
         }
+
+        printf("\n\n");
+        printf("======================\n");
+        for (auto itr=stage_memory.begin(); itr!=stage_memory.end(); ++itr) {
+          printf("[stage_memory] op=%s demand=%lu\n", 
+              (itr->first->getName()).c_str(), itr->second);
+        }
+        printf("======================\n");
+
+
       }
 
 
