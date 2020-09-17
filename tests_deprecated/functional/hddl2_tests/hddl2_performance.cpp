@@ -33,8 +33,6 @@
 
 namespace IE = InferenceEngine;
 
-using RemoteMemoryFD = uint64_t;
-
 class Performance_Tests : public CoreAPI_Tests {
 public:
     using Time = std::chrono::high_resolution_clock::time_point;
@@ -49,7 +47,7 @@ public:
 
     const size_t numberOfTopClassesToCompare = 3;
 
-    RemoteMemoryFD allocateRemoteMemory(
+    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
@@ -59,7 +57,7 @@ protected:
     HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
-RemoteMemoryFD Performance_Tests::allocateRemoteMemory(
+HddlUnite::SMM::RemoteMemory::Ptr Performance_Tests::allocateRemoteMemory(
     const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
     _remoteFrame = HddlUnite::SMM::allocate(*context, dataSize);
 
@@ -70,7 +68,7 @@ RemoteMemoryFD Performance_Tests::allocateRemoteMemory(
     if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
         THROW_IE_EXCEPTION << "Failed to sync memory to device.";
     }
-    return _remoteFrame->getDmaBufFd();
+    return _remoteFrame;
 }
 
 void Performance_Tests::SetUp() {
@@ -100,7 +98,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
-    RemoteMemoryFD remoteMemoryFd =
+    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory =
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance
@@ -131,11 +129,11 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
 
     start_sync = Now();
     for (int i = 0; i < numberOfIterations; ++i) {
-        IE::ROI roi {0, 2, 2, 1080, 1080};
+        IE::ROI roi {0, 2, 2, 1077, 1077};
 
-        // ---- Create remote blob by using already exists fd and specify color format of it
-        IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
-            {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}, {IE::HDDL2_PARAM_KEY(ROI), roi}};
+        // ---- Create remote blob by using already exists remote memory and specify color format of it
+        IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory},
+            {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
 
         // Specify input
         auto inputsInfo = executableNetwork.GetInputsInfo();
@@ -143,13 +141,14 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
 
         IE::TensorDesc inputTensor = IE::TensorDesc(IE::Precision::U8, {1, 3, 1080, 1080}, IE::Layout::NCHW);
         IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputTensor, blobParamMap);
+        IE::RemoteBlob::Ptr remoteROIBlobPtr = std::static_pointer_cast <IE::RemoteBlob> (remoteBlobPtr->createROI(roi));
 
         // Since it 228x228 image on 224x224 network, resize preprocessing also required
         IE::PreProcessInfo preprocInfo = inferRequest.GetPreProcess(inputName);
         preprocInfo.setResizeAlgorithm(IE::RESIZE_BILINEAR);
         preprocInfo.setColorFormat(IE::ColorFormat::NV12);
         // ---- Set remote NV12 blob with preprocessing information
-        inferRequest.SetBlob(inputName, remoteBlobPtr, preprocInfo);
+        inferRequest.SetBlob(inputName, remoteROIBlobPtr, preprocInfo);
 
         // ---- Run the request synchronously
         inferRequest.Infer();

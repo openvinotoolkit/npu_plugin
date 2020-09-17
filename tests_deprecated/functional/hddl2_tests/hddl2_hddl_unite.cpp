@@ -38,11 +38,11 @@ public:
 
 //------------------------------------------------------------------------------
 // TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectFd_ThrowException) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectWorkloadID_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t incorrectFd = INT32_MAX;
+    const size_t incorrectWorkloadID = INT32_MAX;
 
-    ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectFd, 1));
+    ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectWorkloadID, 1));
 }
 
 // [Track number: S#28523]
@@ -80,7 +80,7 @@ TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
 }
 
 // TODO FAIL - HdllUnite problem
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeFd_ThrowException) {
+TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeWorkloadID_ThrowException) {
     auto workloadContext = workloadContextHelper.getWorkloadContext();
 
     ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, -1, 1));
@@ -216,7 +216,7 @@ public:
     std::string simpleInputData;
 
     HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
-    RemoteMemoryFd remoteMemoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
 
     RemoteMemory_Helper remoteMemoryHelper;
 
@@ -231,7 +231,7 @@ void HddlUnite_BlobDescr::SetUp() {
     inferDataPtr = HddlUnite::Inference::makeInferData(_auxBlob, workloadContext);
 
     WorkloadID workloadId = workloadContext->getWorkloadContextID();
-    remoteMemoryFd = remoteMemoryHelper.allocateRemoteMemory(workloadId, allocationSize);
+    remoteMemory = remoteMemoryHelper.allocateRemoteMemory(workloadId, allocationSize);
 
     _uniteGraphHelper = std::make_shared<HddlUnite_Graph_Helper>(*workloadContext);
 

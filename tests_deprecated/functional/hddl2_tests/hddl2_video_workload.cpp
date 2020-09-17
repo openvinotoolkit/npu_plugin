@@ -39,7 +39,6 @@
 
 namespace IE = InferenceEngine;
 
-using RemoteMemoryFD = uint64_t;
 class VideoWorkload_Tests : public ::testing::Test {
 public:
     WorkloadID workloadId = -1;
@@ -52,7 +51,7 @@ public:
     const size_t nv12Size = inputWidth * inputHeight * 3 / 2;
     const size_t numberOfTopClassesToCompare = 4;
 
-    RemoteMemoryFD allocateRemoteMemory(
+    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
@@ -61,7 +60,7 @@ protected:
     HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
-RemoteMemoryFD VideoWorkload_Tests::allocateRemoteMemory(
+HddlUnite::SMM::RemoteMemory::Ptr VideoWorkload_Tests::allocateRemoteMemory(
     const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
     _remoteFrame = HddlUnite::SMM::allocate(*context, dataSize);
 
@@ -72,7 +71,7 @@ RemoteMemoryFD VideoWorkload_Tests::allocateRemoteMemory(
     if (_remoteFrame->syncToDevice(data, dataSize) != HDDL_OK) {
         THROW_IE_EXCEPTION << "Failed to sync memory to device.";
     }
-    return _remoteFrame->getDmaBufFd();
+    return _remoteFrame;
 }
 
 void VideoWorkload_Tests::SetUp() {
@@ -101,8 +100,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::Blob::Ptr inputRefBlob = IE_Core_Helper::loadCatImage(IE::Layout::NCHW);
 
     // ----- Allocate memory with HddlUnite on device
-    RemoteMemoryFD remoteMemoryFd =
-        allocateRemoteMemory(context, IE::as<IE::MemoryBlob>(inputRefBlob)->rwmap().as<void*>(), inputRefBlob->size());
+    auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -121,12 +119,13 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
-    // ---- Create remote blob by using already exists fd
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    // ---- Create remote blob by using already exists remote memory
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
 
-    auto inputInfo = executableNetwork.GetInputsInfo().begin();
-    const std::string inputName = inputInfo->first;
-    IE::InputInfo::CPtr inputInfoPtr = inputInfo->second;
+    // Using value instead of iterator due to a bug in the MSVS 2019 compiler
+    auto inputInfo = *executableNetwork.GetInputsInfo().begin();
+    const std::string inputName = inputInfo.first;
+    IE::InputInfo::CPtr inputInfoPtr = inputInfo.second;
 
     IE::RemoteBlob::Ptr remoteBlobPtr = contextPtr->CreateBlob(inputInfoPtr->getTensorDesc(), blobParamMap);
     ASSERT_NE(nullptr, remoteBlobPtr);
@@ -166,8 +165,7 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::Blob::Ptr inputRefBlob = IE_Core_Helper::loadCatImage();
 
     // ----- Allocate memory with HddlUnite on device
-    RemoteMemoryFD remoteMemoryFd =
-        allocateRemoteMemory(context, IE::as<IE::MemoryBlob>(inputRefBlob)->rwmap().as<void*>(), inputRefBlob->size());
+    auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -186,10 +184,9 @@ TEST_F(VideoWorkload_WithoutPreprocessing, precommit_SyncInferenceOneRemoteFrame
     IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
-    // ---- Create remote blob by using already exists fd
+    // ---- Create remote blob by using already exists remote memory
     IE::ROI roi {0, 10, 10, 100, 100};
-    IE::ParamMap blobParamMap = {
-        {IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd}};
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
 
     auto inputsInfo = executableNetwork.GetInputsInfo();
     const std::string inputName = executableNetwork.GetInputsInfo().begin()->first;
@@ -249,8 +246,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
         IE::as<IE::MemoryBlob>(inputNV12Blob->uv())->rmap(), inputNV12Blob->uv()->byteSize());
 
     // ----- Allocate memory with HddlUnite on device
-    RemoteMemoryFD remoteMemoryFd =
-        allocateRemoteMemory(context, IE::as<IE::MemoryBlob>(inputRefBlob)->rwmap().as<void*>(), inputRefBlob->size());
+    auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -269,9 +265,9 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrame) {
     IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());
 
-    // ---- Create remote blob by using already exists fd and specify color format of it
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
-        {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
+    // ---- Create remote blob by using already exists remote memory and specify color format of it
+    IE::ParamMap blobParamMap = {
+        {IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}, {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
 
     // Specify input
     auto inputsInfo = executableNetwork.GetInputsInfo();
@@ -330,8 +326,7 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
         IE::as<IE::MemoryBlob>(inputNV12Blob->uv())->rmap(), inputNV12Blob->uv()->byteSize());
 
     // ----- Allocate memory with HddlUnite on device
-    RemoteMemoryFD remoteMemoryFd =
-        allocateRemoteMemory(context, IE::as<IE::MemoryBlob>(inputRefBlob)->rwmap().as<void*>(), inputRefBlob->size());
+    auto remoteMemory = allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Init context map and create context based on it
     IE::ParamMap paramMap = {{IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID), workloadId}};
@@ -352,8 +347,8 @@ TEST_F(VideoWorkload_WithPreprocessing, precommit_onOneRemoteFrameROI) {
 
     IE::ROI roi {0, 2, 2, 221, 221};
 
-    // ---- Create remote blob by using already exists fd and specify color format of it
-    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD), remoteMemoryFd},
+    // ---- Create remote blob by using already exists remote memory and specify color format of it
+    IE::ParamMap blobParamMap = {{IE::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory},
         {IE::HDDL2_PARAM_KEY(COLOR_FORMAT), IE::ColorFormat::NV12}};
 
     // Specify input

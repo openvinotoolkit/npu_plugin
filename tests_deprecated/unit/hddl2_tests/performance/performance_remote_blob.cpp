@@ -48,7 +48,7 @@ public:
     void setRemoteMemory(const std::string& data);
 
 protected:
-    RemoteMemoryFd _remoteMemoryFd = 0;
+    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
     TensorDescription_Helper _tensorDescriptionHelper;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr;
@@ -66,9 +66,9 @@ void HDDL2_RemoteBlob_PerformanceTests::SetUp() {
 
         remoteContextPtr = _remoteContextHelperPtr->remoteContextPtr;
         WorkloadID workloadId = _remoteContextHelperPtr->getWorkloadId();
-        _remoteMemoryFd = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
+        _remoteMemory = _remoteMemoryHelperPtr->allocateRemoteMemory(workloadId, tensorSize);
 
-        blobParamMap = RemoteBlob_Helper::wrapRemoteFdToMap(_remoteMemoryFd);
+        blobParamMap = RemoteBlob_Helper::wrapRemoteMemToMap(_remoteMemory);
     }
 }
 
@@ -89,8 +89,11 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createRemoteBlobPerformance) {
     }
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-
+#ifdef __unix__
     const double MAX_SPENT_TIME = 1.0;
+#else
+    const double MAX_SPENT_TIME = 2.0;
+#endif
     ASSERT_LE(elapsed_seconds.count(), MAX_SPENT_TIME);
 }
 
@@ -105,7 +108,10 @@ TEST_F(HDDL2_RemoteBlob_PerformanceTests, createROIBlobPerformance) {
     }
     auto end_time = std::chrono::steady_clock::now();
     std::chrono::duration<double> elapsed_seconds = end_time - start_time;
-
+#ifdef __unix__
     const double MAX_SPENT_TIME = 0.5;
+#else
+    const double MAX_SPENT_TIME = 1.0;
+#endif
     ASSERT_LE(elapsed_seconds.count(), MAX_SPENT_TIME);
 }

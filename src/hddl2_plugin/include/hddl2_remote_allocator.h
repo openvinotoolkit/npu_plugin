@@ -31,8 +31,6 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-using RemoteMemoryFD = uint64_t;
-
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory);
@@ -77,9 +75,9 @@ public:
 
     /**
      * @brief Wrap already allocated on device memory
-     * @return Handle to allocated memory
+     * @return Allocated remote memory
      */
-    void* wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept;
+    void* wrapRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept;
 
     /**
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter

@@ -53,7 +53,7 @@ namespace HDDL2ContextParams {
     /**
      * @brief HDDLUnite Remote memory file descriptor
      */
-    DECLARE_HDDL2_PARAM_KEY(REMOTE_MEMORY_FD, uint64_t);
+    DECLARE_HDDL2_PARAM_KEY(REMOTE_MEMORY, HddlUnite::SMM::RemoteMemory::Ptr);
 
     /**
      * @brief Color format of remote memory

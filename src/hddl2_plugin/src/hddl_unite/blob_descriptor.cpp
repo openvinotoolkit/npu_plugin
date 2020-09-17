@@ -56,15 +56,15 @@ static void checkDataIsValid(const IE::DataPtr& data) {
     }
 }
 
-static RemoteMemoryFD getFDFromRemoteBlob(const IE::Blob::CPtr& blob) {
-    RemoteMemoryFD memoryFd = 0;
+static HddlUnite::SMM::RemoteMemory::Ptr getRemoteMemoryDesc(const IE::Blob::CPtr& blob) noexcept {
+    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
     try {
         HDDL2RemoteBlob::CPtr remoteBlobPtr = std::dynamic_pointer_cast<const HDDL2RemoteBlob>(blob);
-        memoryFd = remoteBlobPtr->getRemoteMemoryFD();
+        remoteMemory = remoteBlobPtr->getRemoteMemory();
     } catch (const std::exception& ex) {
-        printf("Failed to get memory fd from remote blob! %s\n", ex.what());
+        std::cerr << "Failed to get memory from remote blob: " << ex.what() << std::endl;
     }
-    return memoryFd;
+    return remoteMemory;
 }
 static bool isBlobContainsNV12Data(const IE::Blob::CPtr& blobPtr) {
     if (blobPtr->is<IE::NV12Blob>()) {
@@ -258,7 +258,7 @@ HddlUnite::Inference::NNInputDesc BlobDescriptor::createNNDesc() {
 
 void BlobDescriptor::initUniteBlobDesc(HddlUnite::Inference::BlobDesc& blobDesc) {
     if (_blobPtr->is<HDDL2RemoteBlob>()) {
-        blobDesc.m_fd = getFDFromRemoteBlob(_blobPtr);
+        blobDesc.m_fd = getRemoteMemoryDesc(_blobPtr)->getDmaBufFd();
     } else {
         // TODO Replace with rlock
         blobDesc.m_srcPtr = _blobPtr->cbuffer().as<void*>();

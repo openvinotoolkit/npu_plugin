@@ -47,16 +47,16 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
     }
 
     // Check that it's really contains required params
-    auto remote_memory_fd_iter = params.find(IE::HDDL2_PARAM_KEY(REMOTE_MEMORY_FD));
-    if (remote_memory_fd_iter == params.end()) {
+    auto remote_memory_iter = params.find(IE::HDDL2_PARAM_KEY(REMOTE_MEMORY));
+    if (remote_memory_iter == params.end()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str
                            << "Param map does not contain remote memory file descriptor "
                               "information";
     }
     try {
-        _remoteMemoryFd = remote_memory_fd_iter->second.as<RemoteMemoryFD>();
+        _remoteMemory = remote_memory_iter->second.as<HddlUnite::SMM::RemoteMemory::Ptr>();
     } catch (...) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Remote memory fd param have incorrect type information";
+        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Remote memory param have incorrect type information";
     }
 
     auto color_format_iter = params.find(IE::HDDL2_PARAM_KEY(COLOR_FORMAT));
@@ -82,7 +82,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
       _params(params, config),
       _remoteContextPtr(contextPtr),
       _config(config),
-      _remoteMemoryFd(_params.getRemoteMemoryFD()),
+      _remoteMemory(_params.getRemoteMemory()),
       _colorFormat(_params.getColorFormat()),
       _roiPtr(nullptr),
       _logger(std::make_shared<Logger>("HDDL2RemoteBlob", config.logLevel(), consoleOutput())) {
@@ -96,7 +96,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemoryFd, this->size());
+    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemory, this->size());
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }
@@ -110,7 +110,7 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const Inferenc
       _remoteContextPtr(origBlob._remoteContextPtr),
       _allocatorPtr(origBlob._allocatorPtr),
       _config(origBlob._config),
-      _remoteMemoryFd(origBlob._remoteMemoryFd),
+      _remoteMemory(origBlob._remoteMemory),
       _colorFormat(origBlob._colorFormat),
       _logger(std::make_shared<Logger>("HDDL2RemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
     if (_allocatorPtr == nullptr) {

@@ -25,7 +25,9 @@ constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
 
 bool static isValidAllocateSize(size_t size) noexcept { return !(size <= 0 || size > MAX_ALLOC_SIZE); }
 
-bool static isValidRemoteMemoryFD(const RemoteMemoryFD& remoteMemoryFd) { return remoteMemoryFd != UINT64_MAX; }
+bool static isValidRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory) {
+    return remoteMemory->getDmaBufFd() != INT32_MAX;
+}
 
 static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     switch (lockOp) {
@@ -78,15 +80,20 @@ void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
     }
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemory(
+    const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
+
+    if (!remoteMemory) {
+        return nullptr;
+    }
 
     if (!isValidAllocateSize(size)) {
         _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
         return nullptr;
     }
 
-    if (!isValidRemoteMemoryFD(remoteMemoryFd)) {
+    if (!isValidRemoteMemory(remoteMemory)) {
         _logger->warning("%s: Incorrect memory fd!\n", __FUNCTION__);
         return nullptr;
     }
@@ -94,7 +101,7 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryF
     try {
         // Use already allocated memory
         HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, remoteMemoryFd, size);
+            std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, remoteMemory->getDmaBufFd(), size);
 
         HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
         void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
