@@ -782,8 +782,8 @@ TEST_F(KmbClassifyNetworkTest, precommit_alexnet_caffe_dense_int8_IRv10_from_fp3
             1, 0.05f);
 }
 
-// Compilation time is very long in comparison with other networks
-// [Track number: S#28620]
+// Compilation time is about 10 minutes
+// [Track number: D#3640]
 TEST_F(KmbClassifyNetworkTest, precommit_vgg16_caffe_dense_int8_IRv10_from_fp32) {
     SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
 
@@ -921,12 +921,9 @@ TEST_F(KmbClassifyNetworkTest, resnet_152_caffe_dense_int8_IRv10_fp16_to_int8) {
             1, 0.5f);
 }
 
-// Compilation time is very long - more than 40 minutes.
-// The same situation as for vgg16_caffe_dense_int8_IRv10
-// [Track number: S#28620]
 TEST_F(KmbClassifyNetworkTest, vgg16_caffe_dense_int8_IRv10_fp16_to_int8) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "very long compile time");
-
+    // [Track number: S#39223]
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     runTest(
             TestNetworkDesc("KMB_models/INT8/public/vgg16/vgg16_caffe_dense_int8_IRv10_fp16_to_int8.xml")
                     .setUserInputPrecision("input", Precision::U8)
