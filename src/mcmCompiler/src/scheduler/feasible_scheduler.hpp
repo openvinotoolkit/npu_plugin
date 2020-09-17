@@ -1434,8 +1434,6 @@ class Feasible_Memory_Schedule_Generator {
     template<typename BackInsertIterator>
     void reduce_in_degree_of_adjacent_operations_gen(const operation_t& op,
         BackInsertIterator output) {
-      printf("reduce_in_degree_of_adjacent_operations(%s)\n",
-            traits::operation_name(op));
       // reduce the in-degree of the adjacent operations //
       const_operation_iterator_t citr =
           traits::outgoing_operations_begin(*input_ptr_, op);
@@ -1450,7 +1448,6 @@ class Feasible_Memory_Schedule_Generator {
         assert((deg_itr != op_in_degree_.end()) && (deg_itr->second > 0) );
 
         if (deg_itr->second == 1) {
-          printf("erasing_op(%s)\n", traits::operation_name(pop));
           op_in_degree_.erase(deg_itr);
           output = pop;
         } else {
@@ -1485,26 +1482,6 @@ class Feasible_Memory_Schedule_Generator {
 
         }
       }
-
-      printf("==================================\n");
-      for (auto deg_itr=op_in_degree_.begin(); deg_itr!=op_in_degree_.end();
-          ++deg_itr) {
-        printf("op=%s degree=%lu\n", traits::operation_name(deg_itr->first),
-            deg_itr->second);
-      }
-
-      {
-        const_operation_iterator_t op_begin = traits::operations_begin(in);
-        const_operation_iterator_t op_end = traits::operations_end(in);
-
-        for (;op_begin != op_end; ++op_begin) {
-          operation_t op = *op_begin;
-          if (op_in_degree_.find(op) == op_in_degree_.end()) {
-            printf("op=%s zero_in_degree\n", traits::operation_name(op));
-          }
-        }
-      }
-      printf("===================================\n");
     }
 
     bool is_zero_in_degree_op(const operation_t& op) const {

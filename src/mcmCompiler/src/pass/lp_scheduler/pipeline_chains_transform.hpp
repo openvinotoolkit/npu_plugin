@@ -414,7 +414,6 @@ class Pipeline_Chains {
 
         size_t curr_dpu_index = 2UL;
         std::unordered_map<operation_t, size_t> stage_memory;
-        std::unordered_set<operation_t> selected_for_pull;
         while (curr_dpu_itr != dpu_chain.end()) {
           const op_list_t & curr_read_list = *curr_itr;
           const op_list_t & pprev_read_list = *pprev_itr;
@@ -448,11 +447,6 @@ class Pipeline_Chains {
                     omodel_.getOp((*next_dpu_itr)->getName());
                 stage_memory[*net_dpu_itr] +=
                   (next_dpu_op_itr->getOutputTensor(0UL))->getClusterSize();
-                if (selected_for_pull.find(*next_dpu_itr) ==
-                      selected_for_pull.end()) {
-                  stage_memory[*net_dpu_itr] +=
-                      get_total_read_weight(*next_dpu_itr);
-                }
               }
             }
             //TODO(vamsikku): parameterize this based on CMX availablity //
@@ -461,9 +455,6 @@ class Pipeline_Chains {
             }
 
             stage_memory[*net_dpu_itr] += demand;
-            {
-              selected_for_pull.insert(*curr_dpu_itr);
-            }
 
             for (operation_t curr_read_op : curr_read_list ){
               mv::Data::OpListIterator sink_itr =
@@ -487,6 +478,7 @@ MOVE_TO_NEXT_SUBGRAPH:
           ++curr_dpu_index;
         }
 
+#if 0
         printf("\n\n");
         printf("======================\n");
         for (auto itr=stage_memory.begin(); itr!=stage_memory.end(); ++itr) {
@@ -494,6 +486,7 @@ MOVE_TO_NEXT_SUBGRAPH:
               (itr->first->getName()).c_str(), itr->second);
         }
         printf("======================\n");
+#endif
 
 
       }

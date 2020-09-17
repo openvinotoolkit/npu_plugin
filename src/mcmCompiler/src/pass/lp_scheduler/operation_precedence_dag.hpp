@@ -389,30 +389,6 @@ class Operation_Dag {
       connect_all_non_unit_outdegree_dmas_to_input(omodel);
       update_resource_utility_with_attribute_all_ops(
           pipeline_algo_t::pipeline_resource_attribute() );
-
-      printf("====================\n");
-      printf("SCHEDULE DAG:\n");
-      for (const_operation_iterator_t itr=begin_nodes();
-            itr!=end_nodes(); ++itr) {
-        operation_t curr_op = *itr;
-
-        printf("node=%s\n", (curr_op->getName()).c_str());
-        printf("out_going_edges:\n");
-        for (const_operation_iterator_t citr=begin_nodes(curr_op);
-              citr!=end_nodes(curr_op); ++citr) {
-          operation_t cop = *citr;
-          printf("%s\n", (cop->getName()).c_str());
-        }
-
-        printf("\nin_coming_edges:\n");
-        for (const_operation_iterator_t pitr=begin_parent_nodes(curr_op);
-              pitr!=end_parent_nodes(curr_op); ++pitr){
-          operation_t pop = *pitr;
-          printf("%s\n", (pop->getName()).c_str());
-        }
-        printf("\n");
-      }
-      printf("====================\n");
     }
 
     template<typename ControlEdgeContainer>
@@ -420,32 +396,6 @@ class Operation_Dag {
           const ControlEdgeContainer cedge_container) {
       init_from_model(omodel);
       apply_control_edges(cedge_container.begin(), cedge_container.end());
-
-
-
-      printf("====================\n");
-      printf("SCHEDULE DAG:\n");
-      for (const_operation_iterator_t itr=begin_nodes();
-            itr!=end_nodes(); ++itr) {
-        operation_t curr_op = *itr;
-
-        printf("node=%s\n", (curr_op->getName()).c_str());
-        printf("out_going_edges:\n");
-        for (const_operation_iterator_t citr=begin_nodes(curr_op);
-              citr!=end_nodes(curr_op); ++citr) {
-          operation_t cop = *citr;
-          printf("%s\n", (cop->getName()).c_str());
-        }
-
-        printf("\nin_coming_edges:\n");
-        for (const_operation_iterator_t pitr=begin_parent_nodes(curr_op);
-              pitr!=end_parent_nodes(curr_op); ++pitr){
-          operation_t pop = *pitr;
-          printf("%s\n", (pop->getName()).c_str());
-        }
-        printf("\n");
-      }
-      printf("====================\n");
     }
 
 
@@ -700,8 +650,6 @@ class Operation_Dag {
       bool ret_value = (dag.is_dma_op(op) &&
           !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
             dag.op_has_unit_out_degree(op));
-      printf("op=%s is_data_operation=%s\n",
-          (op->getName()).c_str(), ret_value ? "YES" : "NO");
       return ret_value;
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
@@ -881,8 +829,14 @@ class Operation_Dag {
         const_operation_iterator_t citr_end=end_nodes(curr_op);
         for (; citr != citr_end; ++citr) {
           operation_t child_op = *citr;
-          itr = op_size_table.find(child_op);
+          
+          if (is_pseudo_edge(curr_op, child_op)) {
+            // pseudo edge does not contribute to the resource utility of //
+            // the child op//
+            continue;
+          }
 
+          itr = op_size_table.find(child_op);
           if (itr == op_size_table.end()) {
             // initialize it with its output size //
             itr = op_size_table.insert(
@@ -898,10 +852,6 @@ class Operation_Dag {
       size_t ret_value = 0UL;
       for (op_size_table_t::const_iterator itr=op_size_table.begin();
             itr != op_size_table.end(); ++itr) {
-        if ((itr->first)->getOpType() == "DPUTask") {
-          printf("op=%s cmx_memory=%lu\n", (itr->first)->getName().c_str(),
-                itr->second);
-        }
         if (itr->second >= threshold) {
           output = std::make_pair(itr->first, itr->second);
           ++output;
