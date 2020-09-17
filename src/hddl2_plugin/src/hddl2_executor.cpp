@@ -117,7 +117,20 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
         ie_memcpy(
             inputForInference->buffer(), inputForInference->byteSize(), actualInput->buffer(), actualInput->byteSize());
     } else {
-        inputForInference = toLayout(actualInput, expectedLayout);
+        if (actualInput->getTensorDesc().getDims().size() == 3) {
+            // 3D CHW input
+            auto tensorDims = actualInput->getTensorDesc().getDims();
+            tensorDims.insert(tensorDims.begin(), 1);
+            IE::TensorDesc tensorDesc = {actualInput->getTensorDesc().getPrecision(), tensorDims, IE::Layout::NCHW};
+            IE::Blob::Ptr tmpBlobPtr = make_blob_with_precision(tensorDesc);
+            tmpBlobPtr->allocate();
+            std::memcpy(IE::as<IE::MemoryBlob>(tmpBlobPtr)->wmap().as<uint8_t*>(),
+                IE::as<IE::MemoryBlob>(actualInput)->rmap().as<uint8_t*>(), actualInput->byteSize());
+            inputForInference = toLayout(tmpBlobPtr, expectedLayout);
+        } else {
+            // 4D to 4D input conversion
+            inputForInference = toLayout(actualInput, expectedLayout);
+        }
     }
 
     return inputForInference;
@@ -298,9 +311,8 @@ void HDDL2Executor::pull(InferenceEngine::BlobMap& outputs) {
             } else {
                 // Both of them are not 2D
                 if (outputBlobTensorDesc.getDims().size() == 3) {
-                    // 3D output - icnet
-                    IE::Blob::Ptr tmpBlobPtr = toLayout(
-                        outputBlobPtr, blobOutputLayout == IE::Layout::CHW ? IE::Layout::NCHW : IE::Layout::NHWC);
+                    // 3D CHW output
+                    IE::Blob::Ptr tmpBlobPtr = toLayout(outputBlobPtr, IE::Layout::NCHW);
                     rightOutputBlobPtr = make_blob_with_precision(outputBlobTensorDesc);
                     rightOutputBlobPtr->allocate();
                     std::memcpy(IE::as<IE::MemoryBlob>(rightOutputBlobPtr)->wmap().as<uint8_t*>(),
