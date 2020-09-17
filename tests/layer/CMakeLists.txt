@@ -86,9 +86,6 @@ else()
     add_executable(conv_sparsity_spilling conv_sparsity_spilling/conv_sparsity_spilling.cpp)
     target_link_libraries(conv_sparsity_spilling cm)
 
-    add_executable(conv_pipeline conv_pipeline/conv_pipeline.cpp)
-    target_link_libraries(conv_pipeline cm)
-
     add_executable(conv_relu conv_relu/conv_relu.cpp)
     target_link_libraries(conv_relu cm)
 

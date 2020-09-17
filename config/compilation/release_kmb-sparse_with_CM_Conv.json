@@ -24,8 +24,8 @@
                 "Int32Output": false,
                 "PPEAccuracy": false,
                 "PWLUsage": true,
-                "ReferenceMode": false,
                 "ScaleFuseInput": true,
+                "ReferenceMode": false,
                 "split_strategy" :
                 [
                     {
@@ -155,7 +155,7 @@
                         {"name" : "enableStreaming",   "value" : true       },
                         {"name" : "doubleBuffering",   "value" : false      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
-                        {"name" : "enableWeightsSparsity",    "value" : true },
+                        {"name" : "enableWeightsSparsity",    "value" : true},
                         {"name" : "clusteringStrategy","value" : "Automatic"}
                     ],
                     "layerStrategies" : [
@@ -173,8 +173,8 @@
                             "name" : "DepthwiseConv",
                             "strategies": [
 
-                                {"name" : "streamingStrategies",  "value" : ["StreamOverH","StreamOverC"]},
-                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","Clustering","SplitOverK"]},
+                                {"name" : "streamingStrategies",  "value" : ["StreamOverH", "StreamOverC"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH", "Clustering","SplitOverK"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
                                 {"name" : "weightsSparsity",                      "value" : false}
@@ -247,6 +247,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -278,6 +279,13 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
             {
+                "name": "GenerateDot",
+                "output": "output/dots/input_op_model.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
               "name" : "ChainPipeliningTransform",
               "select_stages" : 2
             },
@@ -285,13 +293,23 @@
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
               "no_temporal_edges" : true,
-              "enable_cmx_concat" : true
+              "enable_cmx_concat" : true 
+            },
+            {
+              "name" : "RecomputeImplicitOpMemoryLocations"
             },
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
             "TransitiveReduction",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/scheduler_control_model.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
@@ -338,6 +356,13 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "BuildGraphFileKmb",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"
