@@ -278,6 +278,20 @@ void setUPATasksMemoryLocationFcn(const mv::pass::PassEntry& , mv::ComputationMo
                     ? mv::Tensor::MemoryLocation::OUTPUT
                     : mv::Tensor::MemoryLocation::DDR;
             opIt->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", newMemoryLocation);
+
+            // Adjust memory location for subsequent implicit operation on the path if the UPATask
+            // output tensor location was modified to OUTPUT.
+            // TODO: For now below loop is a limited implementation and will handle correctly cases with single sink. In case
+            // there are branches implementation should be extended.
+            if (outputOpMemoryLocation == mv::Tensor::MemoryLocation::OUTPUT)
+            {
+                outputOp = opIt.leftmostOutput().sink();
+                while(outputOp->isImplicit())
+                {
+                    outputOp->getOutputTensor(0)->set<mv::Tensor::MemoryLocation>("Location", outputOpMemoryLocation);
+                    outputOp = outputOp.leftmostOutput().sink();
+                }
+            }
         }
         ++opIt;
     }
