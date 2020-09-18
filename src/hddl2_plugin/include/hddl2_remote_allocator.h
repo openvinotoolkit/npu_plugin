@@ -35,7 +35,7 @@ namespace HDDL2Plugin {
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
 
-    InferenceEngine::LockOp lockOp;
+    InferenceEngine::LockOp lockOp = InferenceEngine::LOCK_FOR_WRITE;
     bool isLocked = false;
 
     std::vector<uint8_t> localMemory;
