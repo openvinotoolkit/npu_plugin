@@ -154,9 +154,11 @@ struct BinaryDataT : public flatbuffers::NativeTable {
   DType underlying_type;
   uint64_t length;
   std::vector<uint64_t> data;
+  bool csram_cacheable;
   BinaryDataT()
       : underlying_type(DType_NOT_SET),
-        length(0) {
+        length(0),
+        csram_cacheable(false) {
   }
 };
 
@@ -165,7 +167,8 @@ struct BinaryData FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_UNDERLYING_TYPE = 4,
     VT_LENGTH = 6,
-    VT_DATA = 8
+    VT_DATA = 8,
+    VT_CSRAM_CACHEABLE = 10
   };
   DType underlying_type() const {
     return static_cast<DType>(GetField<int8_t>(VT_UNDERLYING_TYPE, 0));
@@ -176,12 +179,16 @@ struct BinaryData FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<uint64_t> *data() const {
     return GetPointer<const flatbuffers::Vector<uint64_t> *>(VT_DATA);
   }
+  bool csram_cacheable() const {
+    return GetField<uint8_t>(VT_CSRAM_CACHEABLE, 0) != 0;
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            VerifyField<int8_t>(verifier, VT_UNDERLYING_TYPE) &&
            VerifyField<uint64_t>(verifier, VT_LENGTH) &&
            VerifyOffset(verifier, VT_DATA) &&
            verifier.VerifyVector(data()) &&
+           VerifyField<uint8_t>(verifier, VT_CSRAM_CACHEABLE) &&
            verifier.EndTable();
   }
   BinaryDataT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
@@ -201,6 +208,9 @@ struct BinaryDataBuilder {
   void add_data(flatbuffers::Offset<flatbuffers::Vector<uint64_t>> data) {
     fbb_.AddOffset(BinaryData::VT_DATA, data);
   }
+  void add_csram_cacheable(bool csram_cacheable) {
+    fbb_.AddElement<uint8_t>(BinaryData::VT_CSRAM_CACHEABLE, static_cast<uint8_t>(csram_cacheable), 0);
+  }
   explicit BinaryDataBuilder(flatbuffers::FlatBufferBuilder &_fbb)
         : fbb_(_fbb) {
     start_ = fbb_.StartTable();
@@ -217,10 +227,12 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryData(
     flatbuffers::FlatBufferBuilder &_fbb,
     DType underlying_type = DType_NOT_SET,
     uint64_t length = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint64_t>> data = 0) {
+    flatbuffers::Offset<flatbuffers::Vector<uint64_t>> data = 0,
+    bool csram_cacheable = false) {
   BinaryDataBuilder builder_(_fbb);
   builder_.add_length(length);
   builder_.add_data(data);
+  builder_.add_csram_cacheable(csram_cacheable);
   builder_.add_underlying_type(underlying_type);
   return builder_.Finish();
 }
@@ -229,13 +241,15 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryDataDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
     DType underlying_type = DType_NOT_SET,
     uint64_t length = 0,
-    const std::vector<uint64_t> *data = nullptr) {
+    const std::vector<uint64_t> *data = nullptr,
+    bool csram_cacheable = false) {
   auto data__ = data ? _fbb.CreateVector<uint64_t>(*data) : 0;
   return MVCNN::CreateBinaryData(
       _fbb,
       underlying_type,
       length,
-      data__);
+      data__,
+      csram_cacheable);
 }
 
 flatbuffers::Offset<BinaryData> CreateBinaryData(flatbuffers::FlatBufferBuilder &_fbb, const BinaryDataT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
@@ -607,6 +621,7 @@ inline void BinaryData::UnPackTo(BinaryDataT *_o, const flatbuffers::resolver_fu
   { auto _e = underlying_type(); _o->underlying_type = _e; };
   { auto _e = length(); _o->length = _e; };
   { auto _e = data(); if (_e) { _o->data.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->data[_i] = _e->Get(_i); } } };
+  { auto _e = csram_cacheable(); _o->csram_cacheable = _e; };
 }
 
 inline flatbuffers::Offset<BinaryData> BinaryData::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BinaryDataT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -620,11 +635,13 @@ inline flatbuffers::Offset<BinaryData> CreateBinaryData(flatbuffers::FlatBufferB
   auto _underlying_type = _o->underlying_type;
   auto _length = _o->length;
   auto _data = _fbb.CreateVector(_o->data);
+  auto _csram_cacheable = _o->csram_cacheable;
   return MVCNN::CreateBinaryData(
       _fbb,
       _underlying_type,
       _length,
-      _data);
+      _data,
+      _csram_cacheable);
 }
 
 inline IndirectDataReferenceT *IndirectDataReference::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
