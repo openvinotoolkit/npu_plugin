@@ -15,10 +15,10 @@ namespace mv
         return json::Value(w.toString());
     }
 
-    static Attribute fromJSON(const json::Value& v)
+/*    static Attribute fromJSON(const json::Value& v)
     {
-        
     }
+*/
 
     static std::string toString(const Attribute& a)
     {
@@ -35,7 +35,7 @@ namespace mv
     namespace attr {
 	    MV_REGISTER_ATTR(Workloads)
 		.setToJSONFunc(attr_workloads::toJSON)
-		.setFromJSONFunc(attr_workloads::fromJSON)
+		//.setFromJSONFunc(attr_workloads::fromJSON)
 		.setToStringFunc(attr_workloads::toString)
 		.setToLongStringFunc(attr_workloads::toLongString)
 		.setTypeTrait("large");
