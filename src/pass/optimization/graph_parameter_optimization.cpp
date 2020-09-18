@@ -910,6 +910,16 @@ namespace mv
                         return FailCause::SOHheight;
                 }
 
+                // For CM Conv, as after DW, we spill to DDR, SOH gets chosen for DW. For larger input sizes, (416,416) DW when spilled
+                // seems to fail CRC. Without CM Conv enabled, StreamOverH gets chosen, so with CMConv, forcing No SOH for CRC pass
+                // To do: Fix (416,416) DW only CRC fail on master
+                if (op.getOpType() == "DepthwiseConv" && spilling && enableChannelMajorConv)
+                {
+                    if ((op.getInputTensor(0)->getShape()[mv::IO_HEIGHT_DIMENSION] > 302)
+                            && (clustering == "SplitOverH"))
+                        return FailCause::SOHheight;
+                }
+
                 // TODO: future task tackle SE table allocation to
                 // to enable sparse channel segmented ops
                 // Additionally each K tile will HAVE to be a power of 2 (IDU restriction)
