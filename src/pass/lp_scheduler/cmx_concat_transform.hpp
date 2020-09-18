@@ -387,6 +387,29 @@ class CMX_Concatenation {
       return total_sub_graphs;
     }
 
+    template<typename OutputIterator>
+    size_t locate_all_concat_subgraphs(OutputIterator output) {
+      size_t total_sub_graphs = 0UL;
+      for (mv::Data::OpListIterator oitr=omodel_.opBegin();
+            oitr!=omodel_.opEnd(); ++oitr) {
+        if (is_root_concat(oitr)) {
+          concat_subgraph_t subgraph;
+          subgraph.concat_root_ = &(*oitr);
+
+          locate_dpu_in_and_write_tasks(oitr,
+              std::back_inserter(subgraph.dpu_in_),
+              std::back_inserter(subgraph.writes_));
+
+          locate_dpu_out_and_read_tasks(oitr,
+              std::back_inserter(subgraph.dpu_out_),
+              std::back_inserter(subgraph.reads_));
+          *output = subgraph;
+          ++total_sub_graphs;
+        }
+      }
+      return total_sub_graphs;
+    }
+
     template<typename ControlEdgeOutput>
     void transform_op_model(ControlEdgeOutput output,
         size_t cmx_size=917504UL) {

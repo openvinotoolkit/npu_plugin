@@ -349,6 +349,39 @@ class Control_Edge_Set {
 
     }
 
+    template<typename ControlEdgeIterator>
+    void add_control_edges_op_iterator(mv::ComputationModel& model,
+        ControlEdgeIterator cbegin, ControlEdgeIterator cend) {
+
+      mv::OpModel om(model);
+      mv::ControlModel cm(model);
+
+      for (; cbegin != cend; ++cbegin) {
+        typename ControlEdgeIterator::value_type cedge = *cbegin;
+
+        if (cedge.source_itr_ == om.opEnd()) {
+          printf("source_itr = om.opEnd()\n");
+        } else {
+          printf("source_itr = %s\n", (cedge.source_itr_)->getName().c_str());
+        }
+
+        if (cedge.sink_itr_ == om.opEnd()) {
+          printf("sink_itr = om.opEnd()\n");
+        } else {
+          printf("sink_itr = %s\n", (cedge.sink_itr_)->getName().c_str());
+        }
+        fflush(stdout);
+
+        assert( (cedge.source_itr_ != om.opEnd()) &&
+              (cedge.sink_itr_ != om.opEnd()) );
+
+        operation_t source = &(*(cedge.source_itr_));
+        operation_t sink = &(*(cedge.sink_itr_));
+        add_control_edge(source, sink, cm);
+      }
+
+    }
+
     template<typename OpDag, typename ScheduledOpIterator>
     void add_cmx_memory_control_edges(
         const OpDag& dag, mv::ComputationModel& model,
