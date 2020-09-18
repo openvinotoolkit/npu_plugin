@@ -93,7 +93,7 @@ namespace mv
                 SpiltOverHWithStreamOverHInYOLOV3,
                 SparsityKSegmented,
                 SparsitySpilling,
-                PipelineNotPossible,
+                DeConvSubConvSOKHeight,
                 Unknown
             };
 
@@ -121,7 +121,7 @@ namespace mv
                 {FailCause::SpiltOverHWithStreamOverHInYOLOV3, "SpiltOverHWithStreamOverHInYOLOV3"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
-                {FailCause::PipelineNotPossible, "PipelinedNotPossible"},
+                {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -957,6 +957,25 @@ namespace mv
                     streamShape["H"] > 1)
                     return FailCause::DilatedSOH;
 
+                //Note: This is a workaround for Unet, root cause unidentified.
+                //Unet non-DepthwiseDeConv subConv, avoiding splits < # of clusters, to avoid indeterministic outputs on back to back runs
+                if(op.getOpType() == "Conv" && op.hasAttr("DeconvSubConv") && clustering == "SplitOverK")
+                {
+                    auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto numberOfStreamSplits = streamShape["H"];
+                    if ((originalH % numberOfStreamSplits) != 0)
+                    {
+                        auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
+                        int newOutputSize = newOutputSizes.front();
+                        int remainderOutputSize = newOutputSizes.back();
+
+                        if (remainderOutputSize < totalClusters)
+                        {
+                            return FailCause::DeConvSubConvSOKHeight;
+                        }
+                    }
+                }
+
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor &&
                     (streamShape["K"]  * streamShape["H"]) > 1 && spilling)
                     return FailCause::SpiltOverHWithStreamOverK;
@@ -1103,7 +1122,6 @@ namespace mv
 
                 if(clustering == "SplitOverK")
                 {
-                    //size_t alignedSplittedOutputChannels = ceil(alignedStreamedOutputChannels/totalClusters)
                     size_t alignedSplittedOutputChannels = div(alignedStreamedOutputChannels,totalClusters);
                     alignedSplittedOutputChannels = mv::round_up(alignedSplittedOutputChannels, 16);
 
