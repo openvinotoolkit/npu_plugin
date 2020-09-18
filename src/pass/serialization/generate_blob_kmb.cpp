@@ -50,11 +50,11 @@ void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
     }
 }
 
-mv::Data::OpListIterator findChildDPUTaskOp(mv::ComputationModel& model, mv::Data::OpChildIterator& op)
+mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv::Data::OpChildIterator& op)
 {
     mv::OpModel om(model); 
-    mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName()); 
-    while(childOp->getOpType() != "DPUTask") 
+    mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName());
+    while(!((childOp->getOpType() != "DPUTask") || (childOp->getOpType() != "UPATask"))) 
     { 
         childOp = om.getOp(childOp.leftmostChild()->getName());
         if(childOp->getOpType() == "Output")
@@ -81,12 +81,11 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
 
     for(auto& dmaOp: dmas) {
 
-        
             for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son) 
             { 
                 auto task = om.getOp(son->getName()); 
                 if(task->getOpType() != "DPUTask" && (task->getOpType() != "Output" && task->getOpType() != "UPATask"))
-                    task = findChildDPUTaskOp(model, son); 
+                    task = findChildDPUorUPATaskOp(model, son); 
        
                 if(task->hasAttr("schedulingNumber"))
                 {
