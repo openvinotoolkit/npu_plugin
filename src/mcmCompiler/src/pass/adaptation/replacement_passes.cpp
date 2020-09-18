@@ -440,7 +440,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         auto sourceTensor = opIt->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(sourceTensor);
         auto inputShape = sourceTensor->getShape();
-        unsigned stride = opIt->get<unsigned>("stride");
+        unsigned short stride = opIt->get<unsigned>("stride");
         unsigned C = inputShape[2];
         mv::QuantizationParams weightsTensorQuantizationParams = {{0}, {1.}, {}, {}};
         mv::QuantizationParams outputTensorQuantizationParams = {{}, {}, {}, {}};
