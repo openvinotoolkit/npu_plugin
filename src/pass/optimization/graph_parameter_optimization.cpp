@@ -2174,25 +2174,25 @@ namespace mv
                 }
                 else
                 {
-                    throw LogicError(*this,"Invalid operation type " + opType);
+                    throw LogicError(*this, "Invalid operation type " + opType);
                 }
 
-                bool channelAccum =  (opType == "Conv") ? true : false;
-                if(channelAccum)
+                bool channelAccum = (opType == "Conv") ? true : false;
+                if (channelAccum)
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
                 }
 
                 auto totalStreams = 1;
-                for(unsigned i = 0; i < streaming.ndims(); i++)
+                for (unsigned i = 0; i < streaming.ndims(); i++)
                     totalStreams *= streaming[i];
 
                 auto isiDecay = 1.0;
                 if (clustering == "SplitOverK" || clustering == "HKSwitch")
-                    isiDecay = 0.1  *
-                        std::max(1lu, dpuPerCluster - 1) *
-                        std::max(1lu, totalClusters - 1);
+                    isiDecay = 0.1 *
+                        std::max((size_t) 1, dpuPerCluster - 1) *
+                        std::max((size_t) 1, totalClusters - 1);
 
                 //TODO to capture fully, should calculate the cost to bring data to compute from cmx and output back to cmx
                 auto inputSize = inputShape.totalSize();

@@ -1331,9 +1331,9 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
-            auto width = wlItr->MaxX - wlItr->MinX;
-            auto height = wlItr->MaxY - wlItr->MinY;
-            auto channels = wlItr->MaxZ - wlItr->MinZ;
+            unsigned width = wlItr->MaxX - wlItr->MinX;
+            unsigned height = wlItr->MaxY - wlItr->MinY;
+            unsigned channels = wlItr->MaxZ - wlItr->MinZ;
             if (clustering)
             {
                 mv::Shape newShape = {width, height, channels, 1};
