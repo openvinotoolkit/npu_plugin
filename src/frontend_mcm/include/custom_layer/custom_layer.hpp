@@ -7,8 +7,8 @@
 #include <ie_common.h>
 
 #include <caseless.hpp>
-#include <functional>
 #include <custom_layer/custom_kernel.hpp>
+#include <functional>
 #include <map>
 #include <memory>
 #include <pugixml.hpp>
@@ -33,12 +33,12 @@ public:
     std::map<int, ie::Layout> outputs() const { return _outputs; }
 
     static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
-                const std::string& configFile,
-                bool canBeMissed = false);
+        const std::string& configFile, bool canBeMissed = false);
 
     bool meetsWhereRestrictions(const std::map<std::string, std::string>& params) const;
     static bool isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams);
     static InferenceEngine::Layout formatToLayout(const CustomDataFormat& format);
+
 private:
     std::string _configDir;
     std::string _layerName;
