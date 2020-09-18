@@ -9,40 +9,39 @@
 #include <utility>
 #include <vector>
 
-#if defined(__linux__) || defined (__APPLE__)
-# include <dlfcn.h>
+#if defined(__linux__) || defined(__APPLE__)
+#include <dlfcn.h>
 #endif
 
 #ifdef _WIN32
-# include <windows.h>
+#include <windows.h>
 #endif
 
-#include <description_buffer.hpp>
 #include <xml_parse_utils.h>
-#include <caseless.hpp>
 
-#include <vpu/utils/simple_math.hpp>
-#include <vpu/utils/error.hpp>
+#include <caseless.hpp>
 #include <cstring>
+#include <description_buffer.hpp>
+#include <vpu/utils/error.hpp>
+#include <vpu/utils/simple_math.hpp>
 
 namespace vpu {
 
 namespace {
 
-void assertExactlyOneOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
-    for (const auto &name : childs) {
+void assertExactlyOneOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childs) {
+    for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
         VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
-        VPU_THROW_UNLESS(child.next_sibling(name.c_str()).empty(),
-            "Found several definitions of the parameter %s", name);
+        VPU_THROW_UNLESS(
+            child.next_sibling(name.c_str()).empty(), "Found several definitions of the parameter %s", name);
     }
 }
 
-void assertOneOrMoreOccurrence(const pugi::xml_node &node, const SmallVector<std::string>& childs) {
+void assertOneOrMoreOccurrence(const pugi::xml_node& node, const SmallVector<std::string>& childs) {
     for (const auto& name : childs) {
         const auto& child = node.child(name.c_str());
-        VPU_THROW_UNLESS(!child.empty(),
-            "Required parameter %s is not found", name);
+        VPU_THROW_UNLESS(!child.empty(), "Required parameter %s is not found", name);
     }
 }
 
@@ -73,8 +72,7 @@ void assertNoEmptyAttributes(const pugi::xml_node& customLayer) {
 }  // namespace
 
 ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLayer::loadFromFile(
-        const std::string& configFile,
-        bool canBeMissed) {
+    const std::string& configFile, bool canBeMissed) {
     pugi::xml_document xmlDoc;
     pugi::xml_parse_result res = xmlDoc.load_file(configFile.c_str());
 
@@ -83,8 +81,8 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
             // Config file might not exist - like global config, for example.
             return {};
         } else {
-            VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s",
-                configFile, res.description(), res.offset);
+            VPU_THROW_FORMAT("Failed to load custom layer configuration file %s : %s at offset %s", configFile,
+                res.description(), res.offset);
         }
     }
 
@@ -111,12 +109,11 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
     if (dir_split_pos != std::string::npos && (colon_pos != std::string::npos || first_slash_pos == 0)) {
         dir_path = abs_file_name.substr(0, dir_split_pos);
     } else {
-        VPU_THROW_EXCEPTION
-            << "Failed to load custom layer configuration file " << configFile
-            << " : path is not valid";
+        VPU_THROW_EXCEPTION << "Failed to load custom layer configuration file " << configFile
+                            << " : path is not valid";
     }
 
-    auto out = ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> {};
+    auto out = ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>>{};
     for (auto r = xmlDoc.document_element(); r; r = r.next_sibling()) {
         auto layerPtr = std::make_shared<CustomLayer>(dir_path, r);
         out[layerPtr->_layerName].push_back(std::move(layerPtr));
@@ -125,16 +122,14 @@ ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> CustomLaye
     return out;
 }
 
-
 CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLayer): _configDir(std::move(configDir)) {
     const auto cmp = ie::details::CaselessEq<std::string>{};
     const auto nodeName = customLayer.name();
-    VPU_THROW_UNLESS(cmp(nodeName, "CustomLayer"),
-        "Wrong custom layer XML : Node is not CustomLayer, but %s",  nodeName);
+    VPU_THROW_UNLESS(
+        cmp(nodeName, "CustomLayer"), "Wrong custom layer XML : Node is not CustomLayer, but %s", nodeName);
 
     const auto nodeType = XMLParseUtils::GetStrAttr(customLayer, "type");
-    VPU_THROW_UNLESS(cmp(nodeType, "MVCL"),
-        "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
+    VPU_THROW_UNLESS(cmp(nodeType, "MVCL"), "Wrong custom layer XML : Type is not MVCL, but %s", nodeType);
 
     const auto version = XMLParseUtils::GetIntAttr(customLayer, "version");
     VPU_THROW_UNLESS(version == 1, "Wrong custom layer XML : only version 1 is supported");
@@ -166,8 +161,10 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         auto stageOrder = std::map<int, CustomKernel>{};
         for (const auto& kernel : kernelNodes) {
             const auto stageAttr = kernel.attribute("stage");
-            VPU_THROW_UNLESS(stageAttr, "Error while binding %s custom layer: for multi-kernel binding, "
-                "each kernel should be provided with 'stage' attribute.", _layerName);
+            VPU_THROW_UNLESS(stageAttr,
+                "Error while binding %s custom layer: for multi-kernel binding, "
+                "each kernel should be provided with 'stage' attribute.",
+                _layerName);
 
             const auto stageNum = std::stod(stageAttr.value());
             VPU_THROW_UNLESS(stageOrder.find(stageNum) == stageOrder.end(),
@@ -176,8 +173,8 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
             stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
         }
 
-        VPU_THROW_UNLESS(stageOrder.begin()->first == 0,
-            "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
+        VPU_THROW_UNLESS(
+            stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
         VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,
             "Error while binding %s custom layer: Kernels should have stage id from 0 to N.", _layerName);
 
@@ -186,8 +183,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         }
     }
 
-    const auto addPorts = [](std::map<int, ie::Layout>& ports,
-                             const CustomKernel::BindingParameter& newEdge) {
+    const auto addPorts = [](std::map<int, ie::Layout>& ports, const CustomKernel::BindingParameter& newEdge) {
         const auto layerInput = ports.find(newEdge.portIndex);
         const auto newEdgeLayout = formatToLayout(newEdge.format);
         if (layerInput == ports.end()) {
@@ -214,11 +210,15 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
 
 bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams) {
     {
-        auto sizes = SmallVector<std::pair<std::string, std::string>> {
-            { "b", "1" }, { "B", "1" },
-            { "f", "1" }, { "F", "1" },
-            { "y", "1" }, { "Y", "1" },
-            { "x", "1" }, { "X", "1" },
+        auto sizes = SmallVector<std::pair<std::string, std::string>>{
+            {"b", "1"},
+            {"B", "1"},
+            {"f", "1"},
+            {"F", "1"},
+            {"y", "1"},
+            {"Y", "1"},
+            {"x", "1"},
+            {"X", "1"},
         };
 
         std::move(begin(sizes), end(sizes), inserter(layerParams, end(layerParams)));
@@ -238,13 +238,19 @@ bool CustomLayer::isLegalSizeRule(const std::string& rule, std::map<std::string,
 
 InferenceEngine::Layout CustomLayer::formatToLayout(const CustomDataFormat& format) {
     switch (format) {
-    case CustomDataFormat::BFYX: return ie::NCHW;
-    case CustomDataFormat::BYXF: return ie::NHWC;
-    case CustomDataFormat::FYX: return ie::CHW;
-    case CustomDataFormat::BF: return ie::NC;
-    case CustomDataFormat::Any: return ie::ANY;
+    case CustomDataFormat::BFYX:
+        return ie::NCHW;
+    case CustomDataFormat::BYXF:
+        return ie::NHWC;
+    case CustomDataFormat::FYX:
+        return ie::CHW;
+    case CustomDataFormat::BF:
+        return ie::NC;
+    case CustomDataFormat::Any:
+        return ie::ANY;
 
-    case CustomDataFormat::YXF: break;  // Unsupported by IE
+    case CustomDataFormat::YXF:
+        break;  // Unsupported by IE
     }
     return ie::Layout::BLOCKED;
 }
