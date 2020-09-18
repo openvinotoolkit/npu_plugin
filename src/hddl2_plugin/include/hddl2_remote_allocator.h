@@ -31,17 +31,15 @@
 namespace vpu {
 namespace HDDL2Plugin {
 
-using RemoteMemoryFD = uint64_t;
-
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
-    explicit HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory);
+    explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
 
-    InferenceEngine::LockOp lockOp;
+    InferenceEngine::LockOp lockOp = InferenceEngine::LOCK_FOR_WRITE;
     bool isLocked = false;
 
     std::vector<uint8_t> localMemory;
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
 };
 
 //------------------------------------------------------------------------------
@@ -67,19 +65,17 @@ public:
      */
     void unlock(void* remoteMemoryHandle) noexcept override;
 
-    // TODO alloc function should provide somehow bufFd of created memory, otherwise it's not
-    //  possible to use it in another application.
     /**
-     * @brief Allocate remote memory on device
+     * @brief Allocate remote memory on device (not implemented)
      * @return Handle to allocated memory
      */
     void* alloc(size_t size) noexcept override;
 
     /**
      * @brief Wrap already allocated on device memory
-     * @return Handle to allocated memory
+     * @return Allocated remote memory
      */
-    void* wrapRemoteMemory(const RemoteMemoryFD& remoteMemoryFd, const size_t& size) noexcept;
+    void* wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept;
 
     /**
      * @brief Fake copy of already allocated on device memory by incrementing remote memory counter
