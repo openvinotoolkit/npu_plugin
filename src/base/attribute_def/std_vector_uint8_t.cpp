@@ -2,6 +2,7 @@
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
 #include <vector>
+#include <numeric>
 
 namespace mv
 {

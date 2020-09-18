@@ -6,6 +6,7 @@
 #include "include/mcm/target/kmb/interference_graph_ordering_strategy.hpp"
 #include "include/mcm/algorithms/edge_exists.hpp"
 #include <limits.h>
+#include <algorithm>
 
 
 static void tensorGraphColoringFnc(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&passDesc, mv::Element&);

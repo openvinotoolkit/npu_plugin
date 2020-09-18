@@ -82,7 +82,7 @@ mv::PPELayerType& mv::PPELayerType::operator=(const PPELayerTypeEnum& other)
     return *this;
 }
 
-mv::PPELayerType::operator PPELayerTypeEnum() const
+mv::PPELayerType::operator mv::PPELayerTypeEnum() const
 {
     return type_;
 }
