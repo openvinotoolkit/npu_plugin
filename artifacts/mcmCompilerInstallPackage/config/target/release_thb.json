@@ -1,6 +1,6 @@
 {
 
-    "target": "ma2490",
+    "target": "ma3100",
 
     "ops":
     {
@@ -391,6 +391,16 @@
             {
                 "name": "Clusters",
                 "totalNumber": 4
+            },
+
+            {
+                "name": "DMAControllers",
+                "totalNumber": 1
+            },
+
+            {
+                "name": "CSRAM",
+                "totalNumber": 25165824
             }
         ],
         "huffman_decode_engine":
