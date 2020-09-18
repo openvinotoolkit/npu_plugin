@@ -17,7 +17,6 @@ namespace mv
         UPACMX2NNCMX,
         UPACMX2DDR,
         DDR2DDR,
-        CSRAM2NNCMX
     };
 
     struct DmaDirectionEnumHash
