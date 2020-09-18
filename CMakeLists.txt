@@ -6,7 +6,6 @@ option(MCM_COMPILER_BUILD_PYTHON "Build Python wrappers" ON)
 option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
 option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
 option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
-option(MCM_COMPILER_FORCE_BUILD_LEMON "Force build lemon library" OFF)
 
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
@@ -30,7 +29,6 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-
 add_compile_options(-std=c++11 --no-gnu-unique)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -109,23 +107,6 @@ include(sanitizer)
 #############################################################################################
 ### Find packages - uses Find*.cmake files in /cmake-modules dir
 #############################################################################################
-
-find_package(LEMON QUIET)
-if(LEMON_FOUND AND NOT MCM_COMPILER_FORCE_BUILD_LEMON)
-    message(STATUS "Found LEMON installed on target system : ${LEMON_LIBRARY}")
-
-    add_library(lemon UNKNOWN IMPORTED)
-    set_target_properties(lemon PROPERTIES
-        IMPORTED_LOCATION "${LEMON_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${LEMON_INCLUDE_DIR}")
-else()
-    message(STATUS "LEMON library is not installed on target system, build it from the sources...")
-    add_subdirectory(contrib/lemon)
-
-    target_include_directories(lemon PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/contrib/lemon
-        ${CMAKE_CURRENT_BINARY_DIR}/contrib/lemon)
-endif()
 
 set(FLATBUFFERS_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 if(CMAKE_CROSSCOMPILING)
@@ -258,7 +239,6 @@ set(model
     "${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"
 )
 
 set(logger
@@ -334,7 +314,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/mark_trailing_upatasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_output_dtype_update.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
@@ -426,8 +405,7 @@ else()
         add_dependencies(cm generate-graphfile-headers)
     endif()
 
-    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers lemon)
-    target_link_libraries(model PRIVATE lemon)
+    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers)
 
     # setup warnings as errors
     target_compile_options(cm PRIVATE -Wall -Wextra)
