@@ -11,8 +11,11 @@ succeded without errors.
 
 Pre-requisite to run the tests are model packages.
 
-Usage:
-python3 -m pytest  --html=compile.html --models=<path to model packages> --compiler=vpu2_compile test_compile.py
+Test compilation:
+python3 -m pytest  --out ./compiled --models=<path to model packages> --compiler=./bin/compile_tool test_compile.py
+
+Test inference of compiled models:
+python3 -m pytest  --models=./compiled --benchmark_app=./bin/benchmark_app test_infer_compiled.py
 """
 
 import os
@@ -49,7 +52,8 @@ def pytest_addoption(parser):
     """ Define extra options for pytest options
     """
     parser.addoption('--models', default='', help='Models packages')
-    parser.addoption('--compiler', help='Model compiler tool')
+    parser.addoption('--compiler', default='compile_tool', help='Path to model compilation tool')
+    parser.addoption('--benchmark_app', default='benchmark_app', help='Path to benchmark_app tool')
     parser.addoption('--output', help='Output durectory for compiled models')
 
 
