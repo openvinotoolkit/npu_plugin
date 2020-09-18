@@ -129,3 +129,74 @@ void KmbSegmentationNetworkTest::runTest(
 
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
+
+std::vector<std::pair<int, float>> getTopK(std::vector<float> probs, size_t topK) {
+    using ClassProb = std::pair<int, float>;
+    std::vector<ClassProb> sorted_probs;
+    for(size_t i = 0; i < probs.size(); ++i) {
+        sorted_probs.emplace_back(i, probs[i]);
+    }
+
+    std::sort(sorted_probs.begin(), sorted_probs.end(), [](const ClassProb& left, const ClassProb& right) {
+        return left.second > right.second;
+    });
+
+    sorted_probs.resize(std::min(topK, sorted_probs.size()));
+    return sorted_probs;
+
+}
+
+std::vector<long> perPixelLabel(Blob::Ptr blob) {
+    auto blobLock = as<MemoryBlob>(blob)->rmap();
+    auto data = blobLock.as<const float*>();
+
+    auto dims = blob->getTensorDesc().getDims();
+    IE_ASSERT(dims.size() == 4 && dims[0] == 1);
+
+    std::vector<long> labels;
+    for (size_t h = 0; h < dims[2]; ++h) {
+        for (size_t w = 0; w < dims[3]; ++w) {
+            std::vector<float> probs;
+            for (size_t c = 0; c < dims[1]; ++c) {
+                probs.push_back(data[c * dims[2] * dims[3] + h * dims[3] + w]);
+            }
+
+            labels.push_back(getTopK(probs,1).at(0).first);
+        }
+    }
+
+    return labels;
+}
+
+void UnetNetworkTest::runTest(
+    const TestNetworkDesc& netDesc, const TestImageDesc& image, const float meanIntersectionOverUnionTolerance) {
+    const auto check = [=](const BlobMap& actualBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap&) {
+
+      IE_ASSERT(actualBlobs.size() == 1 &&
+                actualBlobs.size() == refBlobs.size());
+      const auto& actualBlob = actualBlobs.begin()->second;
+      const auto& refBlob    = refBlobs.begin()->second;
+
+      std::vector<long> vpuOut = perPixelLabel(toFP32(actualBlob));
+      std::vector<long> cpuOut = perPixelLabel(refBlob);
+
+      ASSERT_EQ(vpuOut.size(), cpuOut.size())
+                      << "vpuOut.size: " << vpuOut.size() << " "
+                      << "cpuOut.size: " << cpuOut.size();
+
+      float meanIoU = calculateMeanIntersectionOverUnion(vpuOut, cpuOut);
+      EXPECT_LE(meanIntersectionOverUnionTolerance, meanIoU)
+                  << "meanIoU: " << meanIoU << " "
+                  << "meanIoUTolerance: " << meanIntersectionOverUnionTolerance;
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+      IE_ASSERT(inputs.size() == 1);
+      auto inputTensorDesc = inputs.begin()->second->getTensorDesc();
+      registerSingleImage(image, inputs.begin()->first, inputTensorDesc);
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
