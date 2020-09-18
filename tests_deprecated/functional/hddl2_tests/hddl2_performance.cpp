@@ -47,19 +47,21 @@ public:
 
     const size_t numberOfTopClassesToCompare = 3;
 
-    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(
         const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize);
 
 protected:
     void SetUp() override;
     void TearDown() override;
 
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteFrame = nullptr;
+    HddlUnite::RemoteMemory::Ptr _remoteFrame = nullptr;
 };
 
-HddlUnite::SMM::RemoteMemory::Ptr Performance_Tests::allocateRemoteMemory(
+HddlUnite::RemoteMemory::Ptr Performance_Tests::allocateRemoteMemory(
     const HddlUnite::WorkloadContext::Ptr& context, const void* data, const size_t& dataSize) {
-    _remoteFrame = HddlUnite::SMM::allocate(*context, dataSize);
+
+    HddlUnite::RemoteMemoryDesc remoteMemoryDesc(dataSize, 1, dataSize, 1);
+    _remoteFrame = std::make_shared<HddlUnite::RemoteMemory>(*context, remoteMemoryDesc);
 
     if (_remoteFrame == nullptr) {
         THROW_IE_EXCEPTION << "Failed to allocate remote memory.";
@@ -98,7 +100,7 @@ TEST_F(Performance_Tests, DISABLED_Resnet50_DPU_Blob_WithPreprocessing) {
     ASSERT_NO_THROW(inputRefBlob = vpu::KmbPlugin::utils::fromBinaryFile(refInputPath, nv12FrameTensor));
 
     // ----- Allocate memory with HddlUnite on device
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory =
+    HddlUnite::RemoteMemory::Ptr remoteMemory =
         allocateRemoteMemory(context, inputRefBlob->buffer().as<void*>(), inputRefBlob->size());
 
     // ---- Load inference engine instance

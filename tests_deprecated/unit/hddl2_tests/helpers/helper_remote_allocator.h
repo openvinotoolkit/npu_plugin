@@ -64,12 +64,13 @@ public:
 
 private:
     RemoteMemory_Helper _remoteMemoryHelper;
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
 };
 
 
 inline memoryHandle Allocator_WrappedRemoteMemory_Helper::createMemory(const size_t &size) {
-    return allocatorPtr->wrapRemoteMemory(_remoteMemory, size);
+    UNUSED(size);
+    return allocatorPtr->wrapRemoteMemory(_remoteMemory);
 }
 
 inline Allocator_WrappedRemoteMemory_Helper::

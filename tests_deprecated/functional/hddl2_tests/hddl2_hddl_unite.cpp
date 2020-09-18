@@ -34,56 +34,25 @@ namespace IE = InferenceEngine;
 class HDDL2_HddlUnite_Tests : public ::testing::Test {
 public:
     WorkloadContext_Helper workloadContextHelper;
+
+    RemoteMemory_Helper remoteMemoryHelper;
 };
 
 //------------------------------------------------------------------------------
 // TODO FAIL - HddlUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapIncorrectWorkloadID_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
     const size_t incorrectWorkloadID = INT32_MAX;
+    const size_t size = 1;
 
-    ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, incorrectWorkloadID, 1));
-}
-
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSameSize_NoException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-
-    SMM::RemoteMemory::Ptr remoteMemoryPtr = SMM::allocate(*workloadContext, size);
-
-    ASSERT_NO_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size));
-}
-
-// [Track number: S#28523]
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapSmallerSize_NoException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-    const size_t smallerSizeToWrap = 10;
-
-    SMM::RemoteMemory::Ptr remoteMemoryPtr = SMM::allocate(*workloadContext, size);
-
-    ASSERT_NO_THROW(
-        SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), smallerSizeToWrap));
-}
-
-// TODO FAIL - HddlUnite problem
-TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapBiggerSize_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
-    const size_t size = 100;
-    const size_t biggerSizeToWrap = size * 10;
-
-    SMM::RemoteMemory::Ptr remoteMemoryPtr = SMM::allocate(*workloadContext, size);
-
-    ASSERT_ANY_THROW(
-        SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), biggerSizeToWrap));
+    ASSERT_ANY_THROW(remoteMemoryHelper.allocateRemoteMemory(incorrectWorkloadID, size));
 }
 
 // TODO FAIL - HdllUnite problem
 TEST_F(HDDL2_HddlUnite_Tests, DISABLED_WrapNegativeWorkloadID_ThrowException) {
-    auto workloadContext = workloadContextHelper.getWorkloadContext();
+    const size_t incorrectWorkloadID = -1;
+    const size_t size = 1;
 
-    ASSERT_ANY_THROW(SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, -1, 1));
+    ASSERT_ANY_THROW(remoteMemoryHelper.allocateRemoteMemory(incorrectWorkloadID, size));
 }
 
 //------------------------------------------------------------------------------
@@ -103,7 +72,7 @@ TEST_F(HDDL2_HddlUnite_Tests, CanCreateAndChangeRemoteMemory) {
 
     const size_t size = 100;
 
-    SMM::RemoteMemory::Ptr remoteMemoryPtr = SMM::allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
 
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
@@ -121,11 +90,11 @@ TEST_F(HDDL2_HddlUnite_Tests, WrappedMemoryWillHaveSameData) {
 
     const size_t size = 100;
 
-    SMM::RemoteMemory::Ptr remoteMemoryPtr = SMM::allocate(*workloadContext, size);
+    RemoteMemory::Ptr remoteMemoryPtr = remoteMemoryHelper.allocateRemoteMemory(*workloadContext, size);
     { remoteMemoryPtr->syncToDevice(message.data(), message.size()); }
 
     // Wrapped memory
-    SMM::RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getDmaBufFd(), size);
+    RemoteMemory wrappedRemoteMemory(*workloadContext, remoteMemoryPtr->getMemoryDesc(), remoteMemoryPtr->getDmaBufFd());
     char resultData[size] = {};
     { wrappedRemoteMemory.syncFromDevice(resultData, size); }
 
@@ -216,9 +185,7 @@ public:
     std::string simpleInputData;
 
     HddlUnite::Inference::InferData::Ptr inferDataPtr = nullptr;
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
-
-    RemoteMemory_Helper remoteMemoryHelper;
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
 
 protected:
     std::vector<HddlUnite::Inference::AuxBlob::Type> _auxBlob;

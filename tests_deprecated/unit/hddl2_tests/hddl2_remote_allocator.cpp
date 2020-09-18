@@ -65,7 +65,7 @@ TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMem_ReturnNull) {
     SKIP_IF_NO_DEVICE();
     auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
 
-    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr, correctSize);
+    auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr);
     ASSERT_EQ(remoteMem, nullptr);
 }
 
@@ -217,7 +217,7 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_lock_BeforeUnlock_RemoteMemor
 }
 
 //------------------------------------------------------------------------------
-TEST_P(Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_CorrectAddressMemory_ReturnTrue) {
     SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;
@@ -225,7 +225,7 @@ TEST_P(Allocator_Manipulations_UnitTests, free_CorrectAddressMemory_ReturnTrue) 
     ASSERT_TRUE(allocator->free(memoryHandle));
 }
 
-TEST_P(Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_InvalidAddressMemory_ReturnFalse) {
     SKIP_IF_NO_DEVICE();
     auto allocator = allocatorHelper->allocatorPtr;
     void* invalidHandle = nullptr;
@@ -233,7 +233,7 @@ TEST_P(Allocator_Manipulations_UnitTests, free_InvalidAddressMemory_ReturnFalse)
     ASSERT_FALSE(allocator->free(invalidHandle));
 }
 
-TEST_P(Allocator_Manipulations_UnitTests, free_DoubleCall_ReturnFalseOnSecond) {
+TEST_P(Allocator_Manipulations_UnitTests, DISABLED_free_DoubleCall_ReturnFalseOnSecond) {
     SKIP_IF_NO_DEVICE();
     auto memoryHandle = allocatorHelper->createMemory(correctSize);
     auto allocator = allocatorHelper->allocatorPtr;

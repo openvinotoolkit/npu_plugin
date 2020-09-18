@@ -23,10 +23,10 @@
 using namespace vpu::HDDL2Plugin;
 constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
 
-bool static isValidAllocateSize(size_t size) noexcept { return !(size <= 0 || size > MAX_ALLOC_SIZE); }
-
-bool static isValidRemoteMemory(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory) {
-    return remoteMemory->getDmaBufFd() != INT32_MAX;
+bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
+    // Using local namespace because INVALID_DMABUFFD is macro (-1) and HddlUnite::(-1) is incorrect
+    using namespace HddlUnite;
+    return remoteMemory->getDmaBufFd() != INVALID_DMABUFFD;
 }
 
 static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
@@ -40,7 +40,7 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
     }
 }
 
-HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory)
+HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory)
     : remoteMemory(remoteMemory) {}
 
 HDDL2RemoteAllocator::HDDL2RemoteAllocator(
@@ -54,42 +54,15 @@ HDDL2RemoteAllocator::HDDL2RemoteAllocator(
 }
 
 void* HDDL2RemoteAllocator::alloc(size_t size) noexcept {
-    std::lock_guard<std::mutex> lock(memStorageMutex);
-
-    if (!isValidAllocateSize(size)) {
-        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
-        return nullptr;
-    }
-
-    try {
-        HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr = HddlUnite::SMM::allocate(*_contextPtr, size);
-        if (remoteMemoryPtr == nullptr) {
-            THROW_IE_EXCEPTION << "Failed to allocate memory";
-        }
-
-        HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
-        _memoryStorage.emplace(remMemHandle, memoryContainer);
-        ++_memoryHandleCounter[remMemHandle];
-
-        _logger->info("%s: Allocate memory of %d size\n", __FUNCTION__, static_cast<int>(size));
-        return static_cast<void*>(remoteMemoryPtr.get());
-    } catch (const std::exception& ex) {
-        _logger->error("%s: Failed to allocate memory. Error: %s\n", __FUNCTION__, ex.what());
-        return nullptr;
-    }
+    UNUSED(size);
+    _logger->error("%s: not implemented!\n", __FUNCTION__);
+    return nullptr;
 }
 
-void* HDDL2RemoteAllocator::wrapRemoteMemory(
-    const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory, const size_t& size) noexcept {
+void* HDDL2RemoteAllocator::wrapRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) noexcept {
     std::lock_guard<std::mutex> lock(memStorageMutex);
 
     if (!remoteMemory) {
-        return nullptr;
-    }
-
-    if (!isValidAllocateSize(size)) {
-        _logger->warning("%s: Incorrect size!\n", __FUNCTION__);
         return nullptr;
     }
 
@@ -100,16 +73,13 @@ void* HDDL2RemoteAllocator::wrapRemoteMemory(
 
     try {
         // Use already allocated memory
-        HddlUnite::SMM::RemoteMemory::Ptr remoteMemoryPtr =
-            std::make_shared<HddlUnite::SMM::RemoteMemory>(*_contextPtr, remoteMemory->getDmaBufFd(), size);
-
-        HDDL2RemoteMemoryContainer memoryContainer(remoteMemoryPtr);
-        void* remMemHandle = static_cast<void*>(remoteMemoryPtr.get());
+        HDDL2RemoteMemoryContainer memoryContainer(remoteMemory);
+        void* remMemHandle = static_cast<void*>(remoteMemory.get());
         _memoryStorage.emplace(remMemHandle, memoryContainer);
         ++_memoryHandleCounter[remMemHandle];
 
-        _logger->info("%s: Wrapped memory of %d size\n", __FUNCTION__, static_cast<int>(size));
-        return static_cast<void*>(remoteMemoryPtr.get());
+        _logger->info("%s: Wrapped memory of %lu size\n", __FUNCTION__, remoteMemory->getMemoryDesc().getDataSize());
+        return static_cast<void*>(remoteMemory.get());
     } catch (const std::exception& ex) {
         _logger->error("%s: Failed to wrap memory. Error: %s\n", __FUNCTION__, ex.what());
         return nullptr;
@@ -218,7 +188,7 @@ void* HDDL2RemoteAllocator::lock(void* remoteMemoryHandle, InferenceEngine::Lock
     memory->isLocked = true;
     memory->lockOp = lockOp;
 
-    const size_t dmaBufSize = memory->remoteMemory->getBufSize();
+    const size_t dmaBufSize = memory->remoteMemory->getMemoryDesc().getDataSize();
     memory->localMemory.resize(dmaBufSize);
 
     if (dmaBufSize != memory->localMemory.size()) {

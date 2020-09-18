@@ -28,9 +28,12 @@ class RemoteMemory_Helper {
 public:
     using Ptr = std::shared_ptr<RemoteMemory_Helper>;
 
-    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id, const size_t& size);
-    HddlUnite::SMM::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id,
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id, const size_t& size);
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const WorkloadID &id,
             const InferenceEngine::TensorDesc& tensorDesc);
+
+    HddlUnite::RemoteMemory::Ptr allocateRemoteMemory(const HddlUnite::WorkloadContext& workloadContext, const size_t size);
+
     void destroyRemoteMemory();
 
     std::string getRemoteMemory(const size_t &size);
@@ -40,7 +43,7 @@ public:
     virtual ~RemoteMemory_Helper();
 
 private:
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
 
 };
 
@@ -49,14 +52,20 @@ inline RemoteMemory_Helper::~RemoteMemory_Helper() {
     destroyRemoteMemory();
 }
 
-inline HddlUnite::SMM::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
+inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(
+    const HddlUnite::WorkloadContext& workloadContext, const size_t size) {
+        _remoteMemory = std::make_shared<HddlUnite::RemoteMemory> (workloadContext, HddlUnite::RemoteMemoryDesc(size, 1, size, 1));
+        return _remoteMemory;
+    }
+
+inline HddlUnite::RemoteMemory::Ptr RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id,
                                                                 const InferenceEngine::TensorDesc& tensorDesc) {
     const size_t size = InferenceEngine::details::product(
             tensorDesc.getDims().begin(), tensorDesc.getDims().end());
     return allocateRemoteMemory(id, size);
 }
 
-inline HddlUnite::SMM::RemoteMemory::Ptr
+inline HddlUnite::RemoteMemory::Ptr
 RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &size) {
     if (_remoteMemory != nullptr) {
         std::cerr << "Memory already allocated!" << std::endl;
@@ -69,7 +78,7 @@ RemoteMemory_Helper::allocateRemoteMemory(const WorkloadID &id, const size_t &si
         return 0;
     }
 
-    _remoteMemory = HddlUnite::SMM::allocate(*context, size);
+    allocateRemoteMemory(*context, size);
     if (_remoteMemory == nullptr) {
         return 0;
     }

@@ -21,7 +21,7 @@
 #include "ie_remote_context.hpp"
 
 namespace RemoteBlob_Helper {
-    static InferenceEngine::ParamMap wrapRemoteMemToMap(const HddlUnite::SMM::RemoteMemory::Ptr& remoteMemory) {
+    static InferenceEngine::ParamMap wrapRemoteMemToMap(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
         return {{InferenceEngine::HDDL2_PARAM_KEY(REMOTE_MEMORY), remoteMemory}};
     }
 }

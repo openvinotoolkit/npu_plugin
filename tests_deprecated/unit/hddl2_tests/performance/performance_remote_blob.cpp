@@ -48,7 +48,7 @@ public:
     void setRemoteMemory(const std::string& data);
 
 protected:
-    HddlUnite::SMM::RemoteMemory::Ptr _remoteMemory = nullptr;
+    HddlUnite::RemoteMemory::Ptr _remoteMemory = nullptr;
     TensorDescription_Helper _tensorDescriptionHelper;
     RemoteContext_Helper::Ptr _remoteContextHelperPtr;
     RemoteMemory_Helper::Ptr _remoteMemoryHelperPtr;

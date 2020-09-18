@@ -56,8 +56,8 @@ static void checkDataIsValid(const IE::DataPtr& data) {
     }
 }
 
-static HddlUnite::SMM::RemoteMemory::Ptr getRemoteMemoryDesc(const IE::Blob::CPtr& blob) noexcept {
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory = nullptr;
+static HddlUnite::RemoteMemory::Ptr getRemoteMemoryDesc(const IE::Blob::CPtr& blob) noexcept {
+    HddlUnite::RemoteMemory::Ptr remoteMemory = nullptr;
     try {
         HDDL2RemoteBlob::CPtr remoteBlobPtr = std::dynamic_pointer_cast<const HDDL2RemoteBlob>(blob);
         remoteMemory = remoteBlobPtr->getRemoteMemory();

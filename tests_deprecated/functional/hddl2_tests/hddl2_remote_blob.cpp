@@ -33,7 +33,7 @@ public:
     IE::RemoteContext::Ptr remoteContextPtr = nullptr;
 
     IE::TensorDesc tensorDesc;
-    HddlUnite::SMM::RemoteMemory::Ptr remoteMemory;
+    HddlUnite::RemoteMemory::Ptr remoteMemory;
 
     RemoteMemory_Helper remoteMemoryHelper;
     const size_t memoryToAllocate = 1024 * 1024 * 4;
