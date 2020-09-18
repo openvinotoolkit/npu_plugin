@@ -2,9 +2,11 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <iostream>
 #include <fstream>
-#include <sys/stat.h>
-#ifdef WIN32
-#   include <direct.h>
+#ifdef _WIN32
+#  include <direct.h>
+#  define mkdir(name, perm) _mkdir(name)
+#else
+#  include <sys/stat.h>
 #endif
 
 
@@ -58,11 +60,8 @@ void mv::utils::validatePath(const std::string& filename)
                 this_dir = path.substr(0, pos);
                 all_dir += this_dir + "/";
                 mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "Making:  " + all_dir);
-#ifdef WIN32
-                _mkdir(all_dir.c_str());
-#else
+
                 mkdir(all_dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-#endif
                 path.erase(0, pos+1);
             }
         }
