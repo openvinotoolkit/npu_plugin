@@ -232,6 +232,7 @@ void fullyConnectedAsConv2DFcn(const mv::pass::PassEntry& pass, mv::ComputationM
             weightsTensorQuantizationParams = opIt->getInputTensor(1)->get<mv::QuantizationParams>("quantParams");
             outputTensorQuantizationParams = opIt->getOutputTensor(0)->get<mv::QuantizationParams>("quantParams");
         }
+
         auto weights = om.constantDataElement(weightsData, {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION],
                                                             opIt->getInputTensor(1)->getShape()[mv::IO_HEIGHT_DIMENSION]}, opIt->getInputTensor(1)->getDType(),
                                               mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
@@ -535,8 +536,13 @@ void scaleAsDepthwiseFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& 
         if (parentOpIt->getOpType() == "Conv")
             continue;
 
+        auto finalDType = opIt->getInputTensor(1)->getDType();
+        if (sourceTensor->getDType() == mv::DType("UInt8")) {
+            finalDType = sourceTensor->getDType();
+        }
+
         auto weights = om.constantDataElement(weightsData, {FULLY_CONNECTED_KERNEL, FULLY_CONNECTED_KERNEL, inputShape[mv::IO_CHANNEL_DIMENSION],
-                                                            1}, opIt->getInputTensor(1)->getDType(),
+                                                            1}, finalDType,
                                               mv::Order::getZMajorID(4), weightsTensorQuantizationParams, opIt->getName() + "_weights");
         auto outputTensorType = opIt->getOutputTensor(0)->get<mv::DType>("dType");
 
