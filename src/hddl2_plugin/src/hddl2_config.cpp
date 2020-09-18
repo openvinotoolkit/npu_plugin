@@ -53,9 +53,6 @@ void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
         {VPU_HDDL2_CONFIG_VALUE(BGR), IE::ColorFormat::BGR}, {VPU_HDDL2_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
 
     setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
-    setOption(_logLevel, logLevels, config, CONFIG_KEY(LOG_LEVEL));
     setOption(_performance_counting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_graph_color_format, colorFormat, config, VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT));
 }
-
-LogLevel HDDL2Config::logLevel() const { return _logLevel; }
