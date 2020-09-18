@@ -30,17 +30,6 @@ endif()
 add_subdirectory(flatbuffers)
 
 #
-# Lemon
-#
-
-add_subdirectory(lemon)
-
-target_include_directories(lemon
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/lemon
-        ${CMAKE_CURRENT_BINARY_DIR}/lemon)
-
-#
 # vpual
 #
 

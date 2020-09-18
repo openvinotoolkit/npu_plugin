@@ -142,7 +142,6 @@ set(model
     "${PROJECT_SOURCE_DIR}/src/computation/op/op.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/memory_allocator.cpp"
     "${PROJECT_SOURCE_DIR}/src/computation/resource/stage.cpp"
-    "${PROJECT_SOURCE_DIR}/src/target/kmb/lemon_graph_scheduler.cpp"
 )
 
 set(logger
@@ -218,7 +217,6 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/mark_trailing_upatasks.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/implicit_output_dtype_update.cpp"
 
-    "${PROJECT_SOURCE_DIR}/src/pass/finalization/max_topological_cut.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/allocate_memory_kmb.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/generate_workloads_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/finalization/tensor_graph_coloring.cpp"
@@ -306,5 +304,4 @@ target_include_directories(mcmCompiler
 target_link_libraries(mcmCompiler
     PUBLIC
         flatbuffers
-        lemon
 )
