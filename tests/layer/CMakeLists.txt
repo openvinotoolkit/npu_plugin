@@ -6,8 +6,6 @@ if (MSVC)
     # TODO - implement
 
 else()
-    # not integerated into CI setup
-    # add_subdirectory(test_runner)
 
     add_executable(avgpool_asymmetric_large_stride avgpool_asymmetric_large_stride/avgpool_asymmetric_large_stride.cpp)
     target_link_libraries(avgpool_asymmetric_large_stride cm)
