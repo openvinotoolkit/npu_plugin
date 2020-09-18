@@ -1130,3 +1130,14 @@ TEST_F(KmbClassifyNetworkTest, license_plate_recognition_barrier_0007) {
         7,
         0.3f);
 }
+
+TEST_F(KmbDetectionNetworkTest, person_detection_retail_0013) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
+
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/person-detection-retail-0013/person-detection-retail-0013.xml")
+	    .setUserInputPrecision("input", Precision::U8),
+        TestImageDesc("544x320/pedestrian.jpg", ImageFormat::BGR),
+        0.3f,
+        0.1f, 0.3f);
+}
