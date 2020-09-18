@@ -340,6 +340,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateDot",
