@@ -984,6 +984,26 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
+TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputLayout("output", Layout::NCHW),
+        TestImageDesc("480x360/0016E5_07959.png", ImageFormat::RGB),
+        0.3f);  // mean intersection over union tolerance
+}
+
+TEST_F(UnetNetworkTest, unet_camvid_ava_0001_NCHW_NCHW) {
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NCHW)
+            .setUserOutputLayout("output", Layout::NCHW),
+        TestImageDesc("480x360/0016E5_07959.png", ImageFormat::RGB),
+        0.3f);  // mean intersection over union tolerance
+}
+
 TEST_F(GazeEstimationNetworkTest, gaze_estimation_adas_0002) {
     const auto left_eye_input_name = "left_eye_image";
     const auto right_eye_input_name = "right_eye_image";
@@ -1085,14 +1105,14 @@ TEST_F(VehicleAttrRecNetworkTest, vehicle_attributes_recognition_barrier_0042) {
 // [Track number: D#3627]
 TEST_F(KmbSegmentationNetworkTest, road_segmentation_adas_0001) {
     SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-	
+
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/road_segmentation_adas_0001/road-segmentation-adas-0001.xml"),
         TestImageDesc("512x896/road-segmentation-adas-0001.png", ImageFormat::BGR),
         0.3f);
 }
 
-// C++ exception with description "Caught exception during unit run: MemoryAllocator:VPU_CMX_NN - ArgumentError: 
+// C++ exception with description "Caught exception during unit run: MemoryAllocator:VPU_CMX_NN - ArgumentError:
 // conv4_3_0_norm_mbox_locNeutral_copy0conv4_3_0_norm_mbox_locNeutral_copyDMAconv5_5/sep/bn/variance/Fused_Add_:0:0:0::paddedShape[2]
 // 192 - Does not match the dimension 184 of the tensor conv4_3_0_norm_mbox_locNeutral:0 already allocated in the given buffer
 // // [Track number: D#3656]
