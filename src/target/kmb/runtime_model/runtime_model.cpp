@@ -885,7 +885,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 }
 
 template <typename T>
-std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtype)
 {
     unsigned dataSize = origData.size();
     unsigned origDataSize = dtype.getSizeInBits();
@@ -893,7 +893,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     unsigned nElementToPack = 64 / origDataSize;
     unsigned finalLength = mv::ceil_division(dataSize , nElementToPack);
 
-    std::vector<long unsigned int> toReturn(finalLength, 0);
+    std::vector<uint64_t> toReturn(finalLength, 0);
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
