@@ -7,6 +7,9 @@ option(MCM_COMPILER_BUILD_TESTS "Build tests" ON)
 option(MCM_COMPILER_BUILD_EXAMPLES "Build examples" ON)
 option(MCM_COMPILER_BUILD_TOOLS "Build tools" ON)
 
+# Default is shared library and DLL on Windows
+option(MCM_COMPILER_BUILD_STATIC_LIBS "Build static library" OFF)
+
 if (NOT MCM_COMPILER_IS_SUBPROJECT)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/lib)
 endif()
@@ -29,7 +32,7 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-add_compile_options(-std=c++11 --no-gnu-unique)
+
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -49,7 +52,7 @@ if (${LOG})
 endif()
 
 if (${PROFILER})
-    if (${UNIX})
+    if (UNIX)
         add_definitions(-DMV_PROFILER_ENABLED)
         include_directories(${PROJECT_SOURCE_DIR}/contrib/easy_profiler/easy_profiler_core/include)
         add_subdirectory(contrib/easy_profiler)
@@ -119,10 +122,9 @@ add_subdirectory(contrib/flatbuffers)
 #############################################################################################
 
 if (MSVC)
-    add_compile_options("/W4" "$<$<CONFIG:RELEASE>:/O2>" "/GS")
-else()
-    # add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" "-pedantic" "$<$<CONFIG:RELEASE>:-O3>" "-fstack-protector-all")
-    add_compile_options("-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor" 
+    add_compile_options("/permissive-" "/EHsc")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    add_compile_options("--no-gnu-unique" "-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor"
                         "-pedantic" "-fstack-protector-all")
 endif()
 
@@ -386,40 +388,39 @@ if(NOT CMAKE_CROSSCOMPILING)
     export(TARGETS flatc gen_composition_api FILE ${CMAKE_BINARY_DIR}/mcmCompilerExecutables.cmake)
 endif()
 
-if (MSVC)
-    add_library(cm OBJECT ${pass} ${compiler} $<TARGET_OBJECTS:metamodel>)
-    add_library(model OBJECT ${model})
+add_library(model STATIC ${model})
 
-    add_dependencies(cm generate-comp-api)
-    add_dependencies(cm generate-graphfile-headers)
-    add_dependencies(model generate-comp-api)
-
-    target_link_libraries(cm PUBLIC metamodel)
+if (MCM_COMPILER_BUILD_STATIC_LIBS)
+    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    target_link_libraries(model PRIVATE cm)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
-    add_library(model SHARED ${model})
+endif()
 
-    if(TARGET generate-comp-api)
-        add_dependencies(cm generate-comp-api)
-        add_dependencies(model generate-comp-api)
+if (MSVC AND NOT MCM_COMPILER_BUILD_STATIC_LIBS)
+    set_target_properties(cm PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    set_target_properties(model PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+    set_target_properties(metamodel PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
+endif()
+
+if(TARGET generate-comp-api)
+    add_dependencies(cm generate-comp-api)
+    add_dependencies(model generate-comp-api)
+endif()
+if(TARGET generate-graphfile-headers)
+    add_dependencies(cm generate-graphfile-headers)
+endif()
+add_dependencies(cm metamodel)
+
+target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers)
+
+if(NOT CMAKE_CROSSCOMPILING)
+    if(MCM_COMPILER_BUILD_PYTHON)
+        add_subdirectory(python/api)
     endif()
-    if(TARGET generate-graphfile-headers)
-        add_dependencies(cm generate-graphfile-headers)
-    endif()
-
-    target_link_libraries(cm PUBLIC model metamodel PRIVATE flatbuffers)
-
-    # setup warnings as errors
-    target_compile_options(cm PRIVATE -Wall -Wextra)
-    target_compile_options(model PRIVATE -Wall -Wextra)
-
-    if(NOT CMAKE_CROSSCOMPILING)
-        if(MCM_COMPILER_BUILD_PYTHON)
-            add_subdirectory(python/api)
-        endif()
-        if(MCM_COMPILER_BUILD_TESTS)
-            add_subdirectory(contrib/googletest)
-        endif()
+    if(MCM_COMPILER_BUILD_TESTS)
+        set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+        add_subdirectory(contrib/googletest)
     endif()
 endif()
 
@@ -440,7 +441,7 @@ target_include_directories(cm
             ${PROJECT_SOURCE_DIR}/src/pass
             ${PROJECT_SOURCE_DIR}/src/)
 
-if (${PROFILER} AND ${UNIX})
+if (${PROFILER} AND UNIX)
     target_link_libraries(cm easy_profiler)
 endif()
 
@@ -456,6 +457,10 @@ if(NOT CMAKE_CROSSCOMPILING)
         add_subdirectory(tools)
     endif()
 endif()
+
+#############################################################################################
+### Installation
+#############################################################################################
 
 install(TARGETS cm model
         EXPORT mcmCompilerTargets
