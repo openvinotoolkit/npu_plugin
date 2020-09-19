@@ -73,7 +73,7 @@ mv::Order::Order(const std::string& value)
     {
 
         if(!OrderRegistry::checkOrder(value))
-            throw OrderError(*this, "Invalid string passed for Order construction " + value);
+            throw OrderError("Order", "Invalid string passed for Order construction " + value);
 
         return Order(OrderRegistry::getContVector(value), value);
     }())
