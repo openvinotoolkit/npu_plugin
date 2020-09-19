@@ -474,8 +474,7 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<string>();
 
-                if(enableChannelMajorConv and opType == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+                if(enableChannelMajorConv and op.supportsCMConv())
                     isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
@@ -852,9 +851,7 @@ namespace mv
             bool requiresWeightsSparsity(Op& op)
             {
                 // If Z-major Conv in Float precision then need to have weights Sparsity
-                bool isCMConv = enableChannelMajorConv and
-                    op.getOpType() == "Conv" and
-                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
                 if(op.getOpType() == "Conv" and
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
@@ -867,9 +864,7 @@ namespace mv
             // In these cases parent output sparsity does matter, but child input sparsity must be true
             bool requiresCompilerActivationSparsity(Op& op)
             {
-                bool isCMConv = enableChannelMajorConv and
-                    op.getOpType() == "Conv" and
-                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
                 if (op.getOpType() == "Conv" and !isCMConv
                         and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
@@ -880,9 +875,7 @@ namespace mv
 
             bool requiresRealActivationSparsity(Op& op, string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
-                bool isCMConv = enableChannelMajorConv and
-                    op.getOpType() == "Conv" and
-                    (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16);
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
                 if (op.isSparsityConsumer() and
                     op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
@@ -911,12 +904,8 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv and
-                  (op.getOpType() == "Conv") and
-                  (op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] % 16))
-                {
+                if(enableChannelMajorConv and op.supportsCMConv())
                     return true;
-                }
 
                 if(op.getOpType() == "MaxPool")
                     return true;
@@ -1037,9 +1026,7 @@ namespace mv
                         return FailCause::MemorySize;
                 }
 
-                auto isChanMajor = enableChannelMajorConv &&
-                    op.getOpType() == "Conv" &&
-                    op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
+                auto isChanMajor = enableChannelMajorConv && op.supportsCMConv();
 
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) && (clustering == "HKSwitch"))
@@ -1198,17 +1185,15 @@ namespace mv
                 auto childClustering = child["clustering"].get<string>();
                 bool spillForCM = false;
 
-                auto isChildChanMajor = childOp.getOpType() == "Conv" && enableChannelMajorConv
-                    && childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
-                auto isParentChanMajor = parentOp.getOpType() == "Conv" && enableChannelMajorConv
-                    && parentOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
+                auto isChildChanMajor = enableChannelMajorConv && childOp.supportsCMConv();
+                auto isParentChanMajor = enableChannelMajorConv && parentOp.supportsCMConv();
                 if (isParentChanMajor || isChildChanMajor)
                    spillForCM = needForceSpillingForCM(parentOp, childOp, parentClustering, childClustering);
 
                 bool parentOutputSparsity = parent["outputSparsity"].get<bool>();
                 bool childInputSparsity = child["inputSparsity"].get<bool>();
 
-                if(!enableChannelMajorConv && parentOp.getOpType() == "Input" && childOp.getOpType() == "Conv" && childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16)
+                if(!enableChannelMajorConv && parentOp.getOpType() == "Input" && childOp.supportsCMConv())
                 {
                     if (parentClustering == "SplitOverHOverlapped")
                     {
@@ -1329,9 +1314,7 @@ namespace mv
                     if (parentClustering == "SplitOverH" and ((childClustering == "Clustering" and childOp.getOpType() !=  "Output") ||
                                                               childClustering == "SplitOverK"))
                     {
-                        if (!(enableChannelMajorConv and ((parentOp.getOpType() == "Conv" and
-                           parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) or (childOp.getOpType() == "Conv" and
-                           childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16))) )
+                        if (!(enableChannelMajorConv and (parentOp.supportsCMConv() or childOp.supportsCMConv())) )
                             {
                                 log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
                                  + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + " INF caused by SOH to SOK/clustering");
@@ -1373,11 +1356,9 @@ namespace mv
 
                 if( childOp.getOpType() == "Conv")
                 {
-                    auto weightsShape = childOp.getInputTensor(1)->getShape();
-                    auto numInChannels = weightsShape[KERNEL_INPUT_CHANNELS];
 
                     //This rule only relevant for channel major convs
-                    if( enableChannelMajorConv and numInChannels % 16)
+                    if( enableChannelMajorConv and childOp.supportsCMConv())
                     {
                         if(childClustering == "SplitOverH" and parentOp.getOpType() == "Input" and not (parentClustering == "SplitOverHOverlapped"))
                         {
@@ -1586,8 +1567,7 @@ namespace mv
                     return false;
 
                 // If CM convolutions are enabled, don't sparsify these
-                if(enableChannelMajorConv and op.getOpType() == "Conv" and
-                   op.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+                if(enableChannelMajorConv and op.supportsCMConv())
                     return false;
 
                 //Size of weights, actual sparsity of tensor determine speedup
