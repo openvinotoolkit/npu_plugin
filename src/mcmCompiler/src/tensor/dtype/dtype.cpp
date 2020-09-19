@@ -16,8 +16,6 @@ dType_(other.dType_)
 
 mv::DType::DType(const std::string& value)
 {
-    if(!mv::DTypeRegistry::checkDType(value))
-        throw DTypeError(*this, "Invalid string passed for DType construction " + value);
     dType_ = value;
 }
 
