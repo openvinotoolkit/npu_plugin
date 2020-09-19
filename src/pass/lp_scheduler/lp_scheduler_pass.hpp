@@ -2871,7 +2871,7 @@ class Repack_Input_DMA_Tasks {
     // Then we cannot repack this task //
     void remove_non_repackable_ops() {
       typename repack_map_t::iterator itr, itr_next;
-
+      itr = repack_map_.begin();
 
       while ( itr != repack_map_.end() ) {
         const repack_info_t& repack_info = itr->second;
