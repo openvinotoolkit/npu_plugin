@@ -404,7 +404,7 @@ bool mv::Op::supportsCMConv()
     if((is_Conv_op or is_Conv_task) and getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
     {
         auto parent = om.getSourceOp(getInputTensor(0));
-        while(parent->isImplicit())
+        while(parent->isImplicit() || parent->isUPA())
         {
             parent = om.getSourceOp(parent->getInputTensor(0));
         }
