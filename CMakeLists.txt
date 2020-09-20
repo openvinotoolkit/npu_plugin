@@ -225,6 +225,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/Huffman.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/huffmanCodec.cpp"
     "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/logging.cpp"
+    "${PROJECT_SOURCE_DIR}/contrib/huffman_encoding/src/ms_vasprintf.cpp"
 )
 
 set(model
