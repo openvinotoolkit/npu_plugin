@@ -41,9 +41,8 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(
-    const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
-        const std::unordered_map<std::string, std::string>& config, const vpu::LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
+    const std::unordered_map<std::string, std::string>& config, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
@@ -66,8 +65,8 @@ HddlUniteGraph::HddlUniteGraph(
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     const int nnThreadNum = 1;
     const int nnShaveNum = 16;
-    statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
-        devices_to_use, nnThreadNum, nnShaveNum, config);
+    statusCode = HddlUnite::Inference::loadGraph(
+        _uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use, nnThreadNum, nnShaveNum, config);
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
