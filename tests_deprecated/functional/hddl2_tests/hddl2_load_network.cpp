@@ -51,6 +51,12 @@ TEST_F(LoadNetwork_Tests, CanSetCSRAMSize) {
     ASSERT_NO_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName, _config));
 }
 
+TEST_F(LoadNetwork_Tests, CannotSetBadConfig) {
+    std::map<std::string, std::string> _config = {{"BAD_KEY", "BAD_VALUE"}};
+
+    ASSERT_ANY_THROW(auto executableNetwork = ie.LoadNetwork(network, pluginName, _config));
+}
+
 //------------------------------------------------------------------------------
 InferenceEngine::ExecutableNetwork::Ptr ExecutableNetwork_Tests::_cacheExecNetwork = nullptr;
 
