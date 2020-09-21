@@ -1,6 +1,32 @@
 #include "include/mcm/tensor/order/order.hpp"
 #include <set>
 
+std::string mv::Order::getRowMajorID(std::size_t dimension)
+{
+    return rowMajorID_.at(dimension);
+}
+
+std::string mv::Order::getColMajorID(std::size_t dimension)
+{
+    return colMajorID_.at(dimension);
+}
+
+std::string mv::Order::getColMajorPlanarID(std::size_t dimension)
+{
+    return colMajorPlanarID_.at(dimension);
+}
+
+std::string mv::Order::getRowMajorPlanarID(std::size_t dimension)
+{
+    return rowMajorPlanarID_.at(dimension);
+}
+
+std::string mv::Order::getZMajorID(std::size_t dimension)
+{
+    return ZMajorID_.at(dimension);
+}
+
+
 const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID_ =
 {
     {1, "W"},

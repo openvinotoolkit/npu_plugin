@@ -28,30 +28,11 @@ namespace mv
 
     public:
 
-        inline static std::string getRowMajorID(std::size_t dimension)
-        {
-            return rowMajorID_.at(dimension);
-        }
-
-        inline static std::string getColMajorID(std::size_t dimension)
-        {
-            return colMajorID_.at(dimension);
-        }
-
-        inline static std::string getColMajorPlanarID(std::size_t dimension)
-        {
-            return colMajorPlanarID_.at(dimension);
-        }
-
-        inline static std::string getRowMajorPlanarID(std::size_t dimension)
-        {
-            return rowMajorPlanarID_.at(dimension);
-        }
-
-        inline static std::string getZMajorID(std::size_t dimension)
-        {
-            return ZMajorID_.at(dimension);
-        }
+        static std::string getRowMajorID(std::size_t dimension);
+        static std::string getColMajorID(std::size_t dimension);
+        static std::string getColMajorPlanarID(std::size_t dimension);
+        static std::string getRowMajorPlanarID(std::size_t dimension);
+        static std::string getZMajorID(std::size_t dimension);
 
         bool isRowMajor();
         bool isColMajor();
