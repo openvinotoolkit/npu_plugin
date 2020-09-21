@@ -28,12 +28,14 @@
 #include <fstream>
 
 #include "comparators.h"
+#include <hddl2/hddl2_plugin_config.hpp>
 #include "hddl2_load_network.h"
 #include "ie_metric_helpers.hpp"
 #include "ie_utils.hpp"
 #include "tests_common.hpp"
 
 namespace IE = InferenceEngine;
+using namespace IE::HDDL2ConfigParams;
 
 class InferRequest_Tests : public ExecutableNetwork_Tests {
 protected:
@@ -267,6 +269,33 @@ TEST_F(InferenceWithPerfCount, precommit_SyncInferenceWithPerfCount) {
     // ---- Load inference engine instance
     IE::Core ie;
     std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)}};
+
+    ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName, _config)));
+    ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
+
+    ASSERT_NO_THROW(inferRequest.Infer());
+
+    auto outputBlobName = executableNetworkPtr->GetOutputsInfo().begin()->first;
+    auto outputBlob = inferRequest.GetBlob(outputBlobName);
+
+    auto perfCounts = inferRequest.GetPerformanceCounts();
+
+    dumpPerformance(perfCounts);
+
+    ASSERT_GT(perfCounts.size(), 0);
+    auto totalTime = perfCounts.find("Total")->second;
+    ASSERT_GT(totalTime.realTime_uSec, 0);
+}
+
+TEST_F(InferenceWithPerfCount, SyncInferenceWithPerfCountAndCSRAM) {
+    // ---- Load inference engine instance
+    IE::Core ie;
+
+    // TODO We need some way to distinguish KMB/TBH cases
+    // TODO Set correct size
+    const uint64_t csram_size = 2 * 1024 * 1024;
+    std::map<std::string, std::string> _config = {{CONFIG_KEY(PERF_COUNT), CONFIG_VALUE(YES)},
+        {VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE), std::to_string(csram_size)}};
 
     ASSERT_NO_THROW(executableNetworkPtr = std::make_shared<IE::ExecutableNetwork>(ie.LoadNetwork(network, pluginName, _config)));
     ASSERT_NO_THROW(inferRequest = executableNetworkPtr->CreateInferRequest());
