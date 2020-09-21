@@ -117,9 +117,7 @@ TEST_F(HDDL2_RemoteContext_UnitTests, destructor_workloadContextNotUnregistered)
 }
 
 //------------------------------------------------------------------------------
-//      class HDDL2_RemoteContext_UnitTests Initiations - getDeviceName
-//------------------------------------------------------------------------------
-TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnEmulatorName) {
+TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnCorrectPluginName) {
     SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
@@ -173,9 +171,9 @@ void HDDL2_RemoteContext_CreateBlob_UnitTests::SetUp() {
     HDDL2_RemoteContext_UnitTests::SetUp();
     if (HDDL2Metrics::isServiceAvailable()) {
         tensorDesc = _tensorDescriptionHelper.tensorDesc;
-        RemoteMemoryFd remoteMemoryFd =
-                _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
-        blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(remoteMemoryFd);
+        auto remoteMemory =
+            _remoteMemoryHelper.allocateRemoteMemory(workloadContextHelperPtr->getWorkloadId(), sizeToAllocate);
+        blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoteMemory);
     }
 }
 

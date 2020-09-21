@@ -33,8 +33,6 @@ public:
     bool performance_counting() const { return _performance_counting; }
     InferenceEngine::ColorFormat getGraphColorFormat() const { return _graph_color_format; }
 
-    // FIXME [Workaround to change default log lvl]
-    LogLevel logLevel() const;
     void parse(const std::map<std::string, std::string>& config) override;
 
 protected:
@@ -42,8 +40,7 @@ protected:
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
 
 private:
-    std::string _platform = "HDDL2";
-    LogLevel _logLevel = LogLevel::Warning;
+    std::string _platform = "VPUX";
     std::string _device_id;
     bool _performance_counting = false;
     InferenceEngine::ColorFormat _graph_color_format = InferenceEngine::ColorFormat::BGR;

@@ -59,7 +59,7 @@ public:
     explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);
 
     /**
-     * @brief CreateBlob provide ability to create RemoteBlob from remote memory fd
+     * @brief CreateBlob provide ability to create RemoteBlob from remote memory
      */
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;

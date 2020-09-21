@@ -90,7 +90,7 @@ TEST_F(ImportNetwork_Tests, canParseInputAndOutput) {
     const IE::SizeVector expected_output_dims = {1, 1000};
     const IE::Layout expected_output_layout = IE::Layout::NC;
 
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(blobInfo.graphPath, "VPUX");
 
     IE::InferRequest inferRequest;
     ASSERT_NO_THROW(inferRequest = executableNetwork.CreateInferRequest());

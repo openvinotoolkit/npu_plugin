@@ -195,7 +195,7 @@ class AsyncInferRequest_DifferentInput : public AsyncInferRequest_Tests {
 public:
     struct Reference {
         explicit Reference(const bool _isNV12 = false)
-            : isNV12(_isNV12) {};
+            : isNV12(_isNV12) {}
         bool isNV12;
     };
 
