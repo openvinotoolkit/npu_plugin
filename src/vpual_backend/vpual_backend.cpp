@@ -43,7 +43,12 @@ std::shared_ptr<xlink_handle> getHandleById(const uint32_t& devId) {
 bool isDeviceFree(const std::shared_ptr<xlink_handle>& devHandle) {
     uint32_t devStatus = XLINK_DEV_ERROR;
     xlink_error getStatusResult = xlink_get_device_status(devHandle.get(), &devStatus);
-    return (getStatusResult == X_LINK_SUCCESS && devStatus == XLINK_DEV_OFF);
+    // FIXME this is a hack for detect + classify use case
+    // for some reason two instances of IE Core is created (one for each network)
+    // both networks run on the same device
+    // the first instance of plug-in seizes the device, so the second instance receives device busy
+    // [Track number: H#18012987025]
+    return getStatusResult == X_LINK_SUCCESS;
 }
 
 std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
