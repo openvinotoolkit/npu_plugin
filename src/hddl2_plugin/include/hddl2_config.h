@@ -32,6 +32,7 @@ public:
     const std::string& device_id() const { return _device_id; }
     bool performance_counting() const { return _performance_counting; }
     InferenceEngine::ColorFormat getGraphColorFormat() const { return _graph_color_format; }
+    uint64_t getCSRAMSize() const { return _csram_size; }
 
     void parse(const std::map<std::string, std::string>& config) override;
 
@@ -44,6 +45,7 @@ private:
     std::string _device_id;
     bool _performance_counting = false;
     InferenceEngine::ColorFormat _graph_color_format = InferenceEngine::ColorFormat::BGR;
+    uint64_t _csram_size = 0;
 };
 
 }  // namespace vpu

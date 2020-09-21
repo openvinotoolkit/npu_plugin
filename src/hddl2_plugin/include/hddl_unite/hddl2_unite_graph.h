@@ -35,14 +35,14 @@ public:
      * @brief Create HddlUnite graph object using context to specify which devices to use
      */
     explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::CPtr& context,
-        const LogLevel& logLevel = LogLevel::Error);
+        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel& logLevel = LogLevel::Error);
 
     /**
      * @brief Create HddlUnite graph object using specific device. If empty, use all
      * available devices
      */
     explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID = "",
-        const LogLevel& logLevel = LogLevel::Error);
+        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel& logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
     void InferAsync(const HddlUniteInferData::Ptr& data) const;

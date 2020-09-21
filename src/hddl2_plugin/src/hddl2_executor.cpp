@@ -342,11 +342,18 @@ InferenceEngine::Parameter HDDL2Executor::getParameter(const std::string& paramN
 }
 
 void HDDL2Executor::loadGraphToDevice() {
+    std::unordered_map<std::string, std::string> hddlUniteConfig = {};
+    const auto csram_size = _config.getCSRAMSize();
+    if (csram_size) {
+        hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
+    }
+
     if (_context == nullptr) {
-        _uniteGraphPtr =
-            std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _config.device_id(), _config.logLevel());
+        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+            _network, _config.device_id(), hddlUniteConfig, _config.logLevel());
     } else {
-        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _context, _config.logLevel());
+        _uniteGraphPtr =
+            std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _context, hddlUniteConfig, _config.logLevel());
     }
 }
 

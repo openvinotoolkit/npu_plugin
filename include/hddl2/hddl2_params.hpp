@@ -64,5 +64,11 @@ namespace HDDL2ContextParams {
      * @brief ROI of blob
      */
     DECLARE_HDDL2_PARAM_KEY(ROI, InferenceEngine::ROI);
+
+    /**
+     * @brief CSRAM size
+     */
+    DECLARE_HDDL2_PARAM_KEY(CSRAM_SIZE, uint64_t);
+
 }  // namespace HDDL2ContextParams
 }  // namespace InferenceEngine
