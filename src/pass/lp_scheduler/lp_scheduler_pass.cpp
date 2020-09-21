@@ -48,16 +48,17 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
         msrelations(input_dag, model);
 
-    const std::string& stringfile =
+    const std::string& stringdata =
       global_params->get<std::string>(reader_t::ddr_address_attribute());
-    assert(!stringfile.empty());
+    assert(!stringdata.empty());
 
     const char *lp_sched_ddr_address_dump_filename = nullptr;
     if (mv::isDebugFilesEnabled())
     {
       lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
-    begin = reader_t::begin_read(stringfile, om);
+    std::istringstream iss(stringdata);
+    begin = reader_t::begin_read(iss, om);
     end = reader_t::end_read();
 
     mv::lp_scheduler::DDR_Address_Generator<dag_t> ddr_address_generator(
