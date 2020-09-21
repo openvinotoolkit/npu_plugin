@@ -36,17 +36,18 @@ const std::unordered_set<std::string>& KmbConfig::getCompileOptions() const {
 
 const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
     static const std::unordered_set<std::string> options =
-        merge(MCMConfig::getCompileOptions(), {
-                                                  VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
-                                                  KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
-                                                  VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
-                                                  VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
-                                                  VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
-                                                  VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
-                                                  VPU_KMB_CONFIG_KEY(USE_SIPP),
-                                                  VPU_KMB_CONFIG_KEY(USE_M2I),
-                                                  VPU_KMB_CONFIG_KEY(USE_CORE_NN),
-                                              });
+        merge(VPUXConfig::getCompileOptions(), {
+                                                   VPU_KMB_CONFIG_KEY(KMB_EXECUTOR),
+                                                   KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
+                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_SHAVES),
+                                                   VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI),
+                                                   VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT),
+                                                   VPU_KMB_CONFIG_KEY(FORCE_NCHW_TO_NHWC),
+                                                   VPU_KMB_CONFIG_KEY(USE_SIPP),
+                                                   CONFIG_KEY(PERF_COUNT),
+                                                   VPU_KMB_CONFIG_KEY(USE_M2I),
+                                                   VPU_KMB_CONFIG_KEY(USE_CORE_NN),
+                                               });
 
     return options;
 }
@@ -86,4 +87,5 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
+    setOption(_useCoreNN, switches, config, VPU_KMB_CONFIG_KEY(USE_CORE_NN));
 }

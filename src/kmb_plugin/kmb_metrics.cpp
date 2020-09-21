@@ -46,6 +46,7 @@ KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>
         CONFIG_KEY(LOG_LEVEL),
         KMB_CONFIG_KEY(THROUGHPUT_STREAMS),
         VPU_KMB_CONFIG_KEY(USE_M2I),
+        VPU_KMB_CONFIG_KEY(USE_CORE_NN),
     };
 
     for (const auto& elem : devices) {
