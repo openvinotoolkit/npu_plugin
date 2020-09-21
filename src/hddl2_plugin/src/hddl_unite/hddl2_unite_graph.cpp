@@ -64,7 +64,7 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     const int nnThreadNum = 1;
-    const int nnShaveNum = 16;
+    const int nnShaveNum = 4;
     statusCode = HddlUnite::Inference::loadGraph(
         _uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use, nnThreadNum, nnShaveNum, config);
 
