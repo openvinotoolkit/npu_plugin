@@ -77,8 +77,8 @@ TEST_F(InferRequest_SetBlob, RemoteBlob) {
 
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    RemoteMemoryFd memoryFd = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -138,8 +138,8 @@ TEST_F(InferRequest_GetBlob, InputRemoteBlobContainSameDataAsOnSet) {
 
     RemoteMemory_Helper remoteMemory;
     IE::TensorDesc inputTensorDesc = inputInfoPtr->getTensorDesc();
-    RemoteMemoryFd memoryFd = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
-    auto blobParams = RemoteBlob_Helper::wrapRemoteFdToMap(memoryFd);
+    auto remoMemory = remoteMemory.allocateRemoteMemory(id, inputTensorDesc);
+    auto blobParams = RemoteBlob_Helper::wrapRemoteMemToMap(remoMemory);
     IE::RemoteBlob::Ptr remoteBlobPtr = remoteContext->CreateBlob(inputInfoPtr->getTensorDesc(), blobParams);
     ASSERT_NE(nullptr, remoteBlobPtr);
 
@@ -244,7 +244,7 @@ static void dumpPerformance(const std::map<std::string, IE::InferenceEngineProfi
         std::string name = it->first;
         IE::InferenceEngineProfileInfo info = it->second;
         if (info.status == IE::InferenceEngineProfileInfo::EXECUTED) {
-            printf("HDDL2 time: '%s' is %f ms.\n", name.c_str(), info.realTime_uSec / 1000.f);
+            std::cout << "HDDL2 time: '" << name.c_str() << "' is " << info.realTime_uSec / 1000.f << " ms." << std::endl;
         }
     }
 }
