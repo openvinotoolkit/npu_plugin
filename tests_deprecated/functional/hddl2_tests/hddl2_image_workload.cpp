@@ -57,7 +57,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInference) {
     IE::Core ie;
 
     // ---- Import or load network
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -88,7 +88,7 @@ TEST_F(ImageWorkload_WithoutPreprocessing, precommit_SyncInferenceNCHWInput) {
     IE::Core ie;
 
     // ---- Import or load network
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
 
     // ---- Create infer request
     IE::InferRequest inferRequest;
@@ -137,7 +137,7 @@ TEST_F(ImageWorkload_WithPreprocessing, precommit_SyncInference) {
     IE::Core ie;
 
     // ---- Import or load network
-    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "HDDL2");
+    IE::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphPath, "VPUX");
 
     // ---- Create infer request
     IE::InferRequest inferRequest;

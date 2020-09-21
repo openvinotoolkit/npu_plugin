@@ -38,8 +38,7 @@ HDDL2ContextParams::HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap
     if (workload_ctx_iter == paramMap.end()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map does not contain workload id information";
     }
-    _workloadId = workload_ctx_iter->second.as<RemoteMemoryFD>();
-
+    _workloadId = paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
     _paramMap = paramMap;
 }
 
@@ -71,7 +70,7 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
         return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params, _config);
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
-                         "Please make sure remote memory fd is correct.\nError: %s\n",
+                         "Please make sure remote memory is correct.\nError: %s\n",
             ex.what());
         return nullptr;
     }
@@ -81,7 +80,7 @@ std::string HDDL2RemoteContext::getDeviceName() const noexcept {
     if (_workloadContext == nullptr) {
         return "";
     }
-    return "HDDL2." + _workloadContext->getDevice()->getName();
+    return "VPUX." + _workloadContext->getDevice()->getName();
 }
 
 IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }

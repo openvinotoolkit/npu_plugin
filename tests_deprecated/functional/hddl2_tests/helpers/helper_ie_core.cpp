@@ -9,7 +9,7 @@ namespace IE = InferenceEngine;
 
 IE_Core_Helper::IE_Core_Helper()
     : pluginName(
-          std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "HDDL2") {}
+          std::getenv("IE_KMB_TESTS_DEVICE_NAME") != nullptr ? std::getenv("IE_KMB_TESTS_DEVICE_NAME") : "VPUX") {}
 
 IE::Blob::Ptr IE_Core_Helper::loadCatImage(const IE::Layout& targetImageLayout) {
     // TODO All old blobs RGB based, need to refactor and switch to IR instead

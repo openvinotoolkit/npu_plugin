@@ -34,7 +34,6 @@ project(InferenceEngineKMBPlugin)
 
 set(VPUX_DEVICE_NAME    "VPUX")
 set(KMB_DEVICE_NAME     "KMB")
-set(HDDL2_DEVICE_NAME   "HDDL2")
 
 set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
@@ -68,9 +67,6 @@ endif()
 #
 
 ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
-if(ENABLE_HDDL2)
-    ie_cpack_add_component(${HDDL2_DEVICE_NAME} REQUIRED)
-endif()
 ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
 
 add_subdirectory(thirdparty)
@@ -93,9 +89,6 @@ add_subdirectory(tools)
 
 set(ALL_COMPONENTS)
 list(APPEND ALL_COMPONENTS ${KMB_DEVICE_NAME})
-if(ENABLE_HDDL2)
-    list(APPEND ALL_COMPONENTS ${HDDL2_DEVICE_NAME})
-endif()
 list(APPEND ALL_COMPONENTS ${VPUX_DEVICE_NAME})
 
 ie_cpack(${ALL_COMPONENTS})
