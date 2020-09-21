@@ -1825,8 +1825,9 @@ namespace mv
                         }
                     }
                 }
-                else if (childOpType == "Concat")
+                else if (childOpType == "Concat" )
                 {
+                    //NOTE: This is not correct for the spilling concats, as there the strategies can change with the dma...
                     std::pair<std::string, std::string> possibleCombination(parentClustering, childClustering);
                     for (auto restrictedCombination: incompatibleStrategiesChildConcat)
                     {
