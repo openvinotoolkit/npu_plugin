@@ -3,8 +3,57 @@
 #include "include/mcm/utils/custom_math.hpp"
 #include "include/mcm/utils/custom_strings.hpp"
 
-std::map<std::string,mv::Tensor::MemoryLocation::Location> mv::Tensor::MemoryLocation::namingMap = mv::Tensor::MemoryLocation::createNamingMap();
+namespace {
 
+std::map<std::string, mv::Tensor::MemoryLocation::Location> createNamingMap() {
+        return {{"NNCMX",mv::Tensor::MemoryLocation::NNCMX},
+                {"UPACMX",mv::Tensor::MemoryLocation::UPACMX},
+                {"DDR",mv::Tensor::MemoryLocation::DDR},
+                {"INPUT",mv::Tensor::MemoryLocation::INPUT},
+                {"OUTPUT",mv::Tensor::MemoryLocation::OUTPUT},
+                {"BLOB",mv::Tensor::MemoryLocation::BLOB},
+                {"VIRTUAL",mv::Tensor::MemoryLocation::VIRTUAL},
+                {"CSRAM",mv::Tensor::MemoryLocation::CSRAM},
+                {"DEFAULT",mv::Tensor::MemoryLocation::DEFAULT}
+        };
+}
+
+std::map<std::string, mv::Tensor::MemoryLocation::Location> namingMap = createNamingMap();
+
+}  // namespace
+
+mv::Tensor::MemoryLocation::MemoryLocation(const std::string& location)
+    : location_(namingMap[location]), forced_(false)
+{}
+
+mv::Tensor::MemoryLocation::MemoryLocation(const std::string& location, bool forced)
+    : location_(namingMap[location]), forced_(forced)
+{}
+
+bool mv::Tensor::MemoryLocation::operator==(std::string& other)
+{
+    return (location_ == namingMap[other]);
+}
+
+bool mv::Tensor::MemoryLocation::operator!=(std::string& other)
+{
+    return (location_ != namingMap[other]);
+}
+
+bool mv::Tensor::MemoryLocation::relocate(std::string& newPlace)
+{
+    return relocate( namingMap[newPlace]);
+}
+
+std::string mv::Tensor::MemoryLocation::toString() const
+{
+    for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
+    {
+        if(it->second == location_)
+            return it->first;
+    }
+    throw ValueError(*this, "Memory location cannot be found in Map!!");
+}
 
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
 Element(name),
