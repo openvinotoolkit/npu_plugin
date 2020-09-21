@@ -159,7 +159,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
             notDW = false;
     }
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and notDW)
+    if (enableChannelMajor and dpuConvOp->supportsCMConv() and notDW)
     {
         dpuConvOp->erase("taskOp");
         dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
