@@ -59,6 +59,7 @@ public:
 };
 
 static const std::string CSRAM_DEVICE_ID = "CSRAM";
+const std::string CSRAM_SLICE_ID = "VPU-32";
 
 class Executor;
 
