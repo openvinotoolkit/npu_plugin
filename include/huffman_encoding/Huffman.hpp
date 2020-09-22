@@ -41,34 +41,24 @@ struct Symbol
     int occurrences = 0;
 
     /**
-     * Just an empty constructor.
-     */
-    Symbol()
-    {
-
-    }
-
-    /**
      * Constructs a symbol from a character and its number of occurrences.
-     * @param [in] symbol      - A character used for symbol identifier.
-     * @param [in] occurrences - Number of occurrences of the symbol.
+     * @param [in] cSymbol        - A character used for symbol identifier.
+     * @param [in] occurrencesNum - Number of occurrences of the symbol.
      */
-    Symbol(const char symbol, int occurrences)
-    {
-        this->symbol += symbol;
-        this->occurrences = occurrences;
-    }
+    explicit Symbol(const char cSymbol, int occurrencesNum) :
+        symbol(std::string(1, cSymbol)),
+        occurrences(occurrencesNum)
+    {}
 
     /**
      * Constructs a symbol from a string and its number of occurrences.
-     * @param [in] symbol      - A character used for symbol identifier.
-     * @param [in] occurrences - Number of occurrences of the symbol.
+     * @param [in] sSymbol        - A character used for symbol identifier.
+     * @param [in] occurrencesNum - Number of occurrences of the symbol.
      */
-    Symbol(const std::string &symbol, int occurrences)
-    {
-        this->symbol = symbol;
-        this->occurrences = occurrences;
-    }
+    explicit Symbol(const std::string &sSymbol, int occurrencesNum) :
+        symbol(sSymbol),
+        occurrences(occurrencesNum)
+    {}
 
     std::string getFullSymbol () const
     {
@@ -89,54 +79,47 @@ struct HuffmanTuple_t
     std::string symbol;
     int occurrences = 0, index = 0, leftSon = 0, rightSon = 0;
 
-    /**
-     * Just an empty constructor.
-     */
-    HuffmanTuple_t()
-    {
-
-    }
+    explicit HuffmanTuple_t() {};
 
     /**
      * Constructs a Huffman symbol from a character.
-     * @param [in] symbol      - A character used for symbol identifier.
-     * @param [in] occurrences - Number of occurrences of the symbol.
-     * @param [in] index       - Index of the node in the symbols queue.
-     * @param [in] leftSon     - Index of the node in the symbols queue which
-     *                           is its left son in the Huffman tree.
-     *                           -1 if the node is a leaf.
-     * @param [in] rightSon    - Index of the node in the symbols queue which
-     *                           is its right son in the Huffman tree.
-     *                           -1 if the node is a leaf.
+     * @param [in] cSymbol         - A character used for symbol identifier.
+     * @param [in] occurrencesNum  - Number of occurrences of the symbol.
+     * @param [in] nodeIndex       - Index of the node in the symbols queue.
+     * @param [in] leftSonNode     - Index of the node in the symbols queue which
+     *                               is its left son in the Huffman tree.
+     *                               -1 if the node is a leaf.
+     * @param [in] rightSonNode    - Index of the node in the symbols queue which
+     *                               is its right son in the Huffman tree.
+     *                               -1 if the node is a leaf.
      */
-    HuffmanTuple_t(char symbol, int occurrences, int index, int leftSon,
-            int rightSon)
+    explicit HuffmanTuple_t(char cSymbol, int occurrencesNum, int nodeIndex, int leftSonNode,
+            int rightSonNode)
     {
-        *this = HuffmanTuple_t(std::string(1, symbol), occurrences, index,
-                leftSon, rightSon);
+        *this = HuffmanTuple_t(std::string(1, cSymbol), occurrencesNum, nodeIndex,
+                leftSonNode, rightSonNode);
     }
 
     /**
      * Constructs a Huffman symbol from any string.
-     * @param [in] symbol      - A string used for symbol identifier.
-     * @param [in] occurrences - Number of occurrences of the symbol.
-     * @param [in] index       - Index of the node in the symbols queue.
-     * @param [in] leftSon     - Index of the node in the symbols queue which
-     *                           is its left son in the Huffman tree.
-     *                           -1 if the node is a leaf.
-     * @param [in] rightSon    - Index of the node in the symbols queue which
-     *                           is its right son in the Huffman tree.
-     *                           -1 if the node is a leaf.
+     * @param [in] sSymbol         - A string used for symbol identifier.
+     * @param [in] occurrencesNum  - Number of occurrences of the symbol.
+     * @param [in] NodeIndex       - Index of the node in the symbols queue.
+     * @param [in] leftSonNode     - Index of the node in the symbols queue which
+     *                               is its left son in the Huffman tree.
+     *                               -1 if the node is a leaf.
+     * @param [in] rightSonNode    - Index of the node in the symbols queue which
+     *                               is its right son in the Huffman tree.
+     *                               -1 if the node is a leaf.
      */
-    HuffmanTuple_t(const std::string &symbol, int occurrences, int index,
-            int leftSon, int rightSon)
-    {
-        this->symbol = symbol;
-        this->occurrences = occurrences;
-        this->index = index;
-        this->leftSon = leftSon;
-        this->rightSon = rightSon;
-    }
+    explicit HuffmanTuple_t(const std::string &sSymbol, int occurrencesNum, int nodeIndex,
+            int leftSonNode, int rightSonNode) :
+        symbol(sSymbol),
+        occurrences(occurrencesNum),
+        index(nodeIndex),
+        leftSon(leftSonNode),
+        rightSon(rightSonNode)
+    {}
 
     bool operator <(const HuffmanTuple_t &b) const
     {
@@ -215,30 +198,13 @@ struct HuffmanResult_t
 
 /**
  * Structure for a Huffman coded symbol.
+ * @param [in] code     - 32-bit natural number, which represents
+ *                        the Huffman code for a symbol.
+ * @param [in] nrOfBits - Number of bits for the symbol. Required for padded 0.
  */
 struct HuffmanCoded_t
 {
     uint32_t code, nrOfBits;
-
-    /**
-     * Just an empty constructor, initializing everything with 0.
-     */
-    HuffmanCoded_t()
-    {
-        code = nrOfBits = 0;
-    }
-
-    /**
-     * Constructs a Huffman symbol from any string.
-     * @param [in] code     - 32-bit natural number, which represents
-     *                        the Huffman code for a symbol.
-     * @param [in] nrOfBits - Number of bits for the symbol. Required for padded 0.
-     */
-    HuffmanCoded_t(uint32_t code, uint32_t nrOfBits)
-    {
-        this->code = code;
-        this->nrOfBits = nrOfBits;
-    }
 };
 
 /**

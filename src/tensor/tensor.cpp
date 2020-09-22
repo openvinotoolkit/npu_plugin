@@ -1508,5 +1508,7 @@ int mv::Tensor::computeAppropriatePadding() const
         pad = 8;
     else if (getDType() == mv::DType("UInt8"))
         pad = 16;
+    else
+        throw DTypeError(*this, "Incorrect DType");
     return pad;
 }

@@ -86,16 +86,18 @@ class Recompute_Memory_Locations {
 
         for (auto itr=curr_level.begin(); itr!=curr_level.end(); ++itr) {
           operation_t zop = *itr;
+          mem_location_t zop_mem_location;
+
           // inductive argument: any implicit op should have a valid memory
           // location//
-          if (zop->isImplicit() && (implicit_op_mem_table.find(zop) ==
-                  implicit_op_mem_table.end()) ) {
-            throw exception_t("Inductive invariant violation.");
+          if (zop->isImplicit()) {
+            auto imop = implicit_op_mem_table.find(zop);
+            if (imop == implicit_op_mem_table.end())
+              throw mv::RuntimeError("LpScheduler", "Inductive invariant violation.");
+            zop_mem_location = imop->second;
+          } else {
+            zop_mem_location = get_mem_location_of_real_op(zop);
           }
-
-          mem_location_t zop_mem_location = zop->isImplicit() ?
-            (implicit_op_mem_table.find(zop))->second :
-              get_mem_location_of_real_op(zop);
 
           mv::Data::OpListIterator zop_itr = omodel_.getOp(zop->getName());
           for (auto citr=zop_itr.leftmostChild(); citr!=omodel_.opEnd(); ++citr)
@@ -163,7 +165,11 @@ void RecomputeImplicitOpMemoryLocations(const mv::pass::PassEntry&,
   if (passDesc.hasAttr("output")) {
     std::string output_file = passDesc.get<std::string>("output");
     FILE *fptr = fopen(output_file.c_str(), "w");
-    computer.dump(fptr);
-    fclose(fptr);
+    if (fptr != nullptr) {
+      computer.dump(fptr);
+      fclose(fptr);
+    } else {
+      throw mv::RuntimeError("LpScheduler", "Can't write to the file " + output_file);
+    }
   }
 }
