@@ -51,6 +51,12 @@ std::string getNameByHandle(const std::shared_ptr<xlink_handle>& devHandle) {
     };
     return xlinkNameMapping.at(devName);
 }
+
+bool isVPUDevice(const uint32_t deviceId) {
+    constexpr uint32_t IPC_INTERFACE_MARKER = 0x1000000;
+    bool isPCIDevice = (deviceId & IPC_INTERFACE_MARKER);
+    return !isPCIDevice;
+}
 #endif
 
 std::vector<std::string> getAvailableDevices() {
@@ -71,8 +77,12 @@ std::vector<std::string> getAvailableDevices() {
     }
     deviceIdList.resize(availableDevicesCount);
 
+    // filter devices by type since VPUAL backend cannot use PCIe end-points for inference
+    std::vector<uint32_t> vpuDevIdList;
+    std::copy_if(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(vpuDevIdList), isVPUDevice);
+
     std::vector<std::shared_ptr<xlink_handle>> devHandleList;
-    std::transform(deviceIdList.begin(), deviceIdList.end(), std::back_inserter(devHandleList), getHandleById);
+    std::transform(vpuDevIdList.begin(), vpuDevIdList.end(), std::back_inserter(devHandleList), getHandleById);
 
     // filter devices by status
     std::vector<std::shared_ptr<xlink_handle>> freeDevIdList;
