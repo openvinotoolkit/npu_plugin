@@ -66,7 +66,7 @@ def test_compile(request, param_ir):
     os.makedirs(os.path.split(out)[0], exist_ok=True)
     returncode, output, peak_memory = measured_run([
         param_ir.compiler_tool,
-        '-d=KMB',
+        '-d=VPUX',
         f'-m={os.path.join(param_ir.models_dir, param_ir.model)}',
         f'-o={out}'
     ])
