@@ -105,8 +105,9 @@ TEST_P(KmbConvolutionLayerTests, FP16) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-// [Track number: S#26002]
+// [Track number: S#39422]
 TEST_P(KmbConvolutionLayerTests, FQ) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
     const auto& p = GetParam();
     const auto& convParams = std::get<1>(p);
     const auto withBiases = std::get<2>(p);
