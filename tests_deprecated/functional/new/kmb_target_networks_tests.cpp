@@ -41,57 +41,6 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
         1, 2.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_ResNet_50) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/ResNet-50/resnet50_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/husky.bmp", ImageFormat::RGB),
-        1, 0.7f);
-}
-
-// KMB : Hangs on infer stage [Track number: D#2245]
-TEST_F(KmbClassifyNetworkTest, INT8_SparseV1_TF_IRv7_ResNet_50) {  // 28.4% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v1-tf-0001.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// KMB : Hangs on infer stage
-// [Track number: D#2245]
-TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_ResNet_50) {  // 60.4% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-tf/resnetv1-int8-sparse-v2-tf-0001.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// KMB : Bad inference results.
-// Track number: D#2245]
-TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_ResNet_50) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Compiler Error: min > max");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/ResNet-50-onnx/resnet50-int8-sparse-v2.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
 //
 // MobileNetV2
 //
@@ -118,54 +67,6 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_MobileNet_V2) {
         3, 2.15f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_PyTorch_IRv7_MobileNet_V2) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/MobileNet_V2/mobilenet_v2_uint8_int8_weights_perchannel.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_SparseV1_TF_IRv7_MobileNet_V2) {  // 30.8% sparsity
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v1-tf-0001.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// KMB : Bad inference results.
-// [Track number: D#2246 D#2691]
-TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_TF_IRv7_MobileNet_V2) {  // 59.3% sparsity
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results, mixed up top2 classes");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-tf/mobilenetv2-int8-sparse-v2-tf-0001.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// KMB : Bad inference results.
-// [Track number: D#2246]
-TEST_F(KmbClassifyNetworkTest, INT8_SparseV2_ONNX_IRv7_MobileNet_V2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/MoblieNet-v2-onnx/mobilenetv2-int8-sparse-v2.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-	    TestImageDesc("224x224/watch.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
 //
 // InceptionV1
 //
@@ -181,46 +82,6 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv10_Inception_V1) {
             .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
         3, 1e-2f);
-}
-
-// KMB : Test on caffe based inception_v1 fails on IE to mcmCompiler parsing stage
-// KMB : C++ exception with description "Op:pool5/7x7_s1 - OpError: Invalid input data (0) -
-// KMB : Filter kernel width (7) exceeds the padded input width (6)
-// [Track number: S#25483/D#2374]
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_Inception_V1) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/inception-v1_caffe/googlenet-v1.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv7_Inception_V1) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/inception-v1_tf/inception-v1_tf_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
-// KMB : Hangs on infer stage
-// [Track number: D#2293]
-TEST_F(KmbClassifyNetworkTest, INT8_Sparse_TF_IRv7_Inception_V1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/GoogLeNet-v1-tf/inceptionv1-int8-sparse-tf-0001.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
 }
 
 //
@@ -253,16 +114,6 @@ TEST_F(KmbClassifyNetworkTest, INT8_Dense_TF_IRv10_Inception_V3) {
         1, 1e-1f);
 }
 
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_TF_IRv7_Inception_V3) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/inception-v3_tf/inception-v3_tf_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("299x299/n01537544_28.bmp", ImageFormat::RGB),
-        1, 0.05f);
-}
-
 //
 // SqueezeNet 1.1
 //
@@ -278,45 +129,6 @@ TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Dense_Caffe2_IRv10_SqueezeNet_1_1) 
             .setUserOutputPrecision("output", Precision::FP16),
         TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
         3, 1e-1f);
-}
-
-// KMB : Following test on caffe based squeezenet1_1 fails on IE to mcmCompiler parsing stage
-// KMB : with message
-// KMB : C++ exception with description "Op:pool10 - OpError: Invalid input data (0) -
-// KMB : Filter kernel width (14) exceeds the padded input width (13)
-// [Track number: S#25483/D#2374]
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_Caffe_IRv7_SqueezeNet_1_1) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_caffe/squeezenet1.1.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16)
-            .setUserOutputLayout("input", Layout::NHWC),
-        TestImageDesc("227x227/cat3.bmp", ImageFormat::RGB),
-        1, 0.5f);
-}
-
-TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_SqueezeNet_1_1) {
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/squeezenet1_1_pytorch/squeezenet1_1_pytorch_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 2.f);
-}
-
-// [Track number: D#3052]
-TEST_F(KmbClassifyNetworkTest, DISABLED_INT8_Sparse_ONNX_IRv7_SqueezeNet_1_1) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
-
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/public/sparse/squeezenetv1.1-int8-onnx/squeezenetv1.1-int8-sparse-v2.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16),
-        TestImageDesc("224x224/cat3.bmp", ImageFormat::RGB),
-        1, 0.05f);
 }
 
 //
