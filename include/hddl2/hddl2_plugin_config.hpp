@@ -52,6 +52,13 @@ namespace HDDL2ConfigParams {
     DECLARE_VPU_HDDL2_CONFIG_VALUE(BGR);
     DECLARE_VPU_HDDL2_CONFIG_VALUE(RGB);
 
+/**
+* @brief [Only for hddl2Plugin]
+* Type: Arbitrary string.
+* This option allows to specify CSRAM size
+*/
+    DECLARE_VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE);
+
 }  // namespace HDDL2ConfigParams
 }  // namespace InferenceEngine
 

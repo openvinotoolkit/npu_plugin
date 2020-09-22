@@ -41,8 +41,8 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
     return std::make_shared<HddlUnite::Device>(*deviceIt);
 }
 
-HddlUniteGraph::HddlUniteGraph(
-    const vpux::NetworkDescription::CPtr& network, const std::string& deviceID, const vpu::LogLevel& logLevel)
+HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
+    const std::unordered_map<std::string, std::string>& config, const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
@@ -62,8 +62,12 @@ HddlUniteGraph::HddlUniteGraph(
         _logger->info("All devices will be used.");
     }
 
-    statusCode =
-        HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use);
+    // TODO we need to get number of NN shaves and threads via config, not as parameters
+    // [Track number: S#39350]
+    const int nnThreadNum = 1;
+    const int nnShaveNum = 4;
+    statusCode = HddlUnite::Inference::loadGraph(
+        _uniteGraphPtr, graphName, graphData.data(), graphData.size(), devices_to_use, nnThreadNum, nnShaveNum, config);
 
     // FIXME This error handling part should be refactored according to new api
     if (statusCode == HddlStatusCode::HDDL_CONNECT_ERROR) {
@@ -78,7 +82,8 @@ HddlUniteGraph::HddlUniteGraph(
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
-    const HDDL2RemoteContext::CPtr& contextPtr, const vpu::LogLevel& logLevel)
+    const HDDL2RemoteContext::CPtr& contextPtr, const std::unordered_map<std::string, std::string>& config,
+    const vpu::LogLevel& logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
     if (contextPtr == nullptr) {
@@ -90,8 +95,12 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
 
     HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
 
-    statusCode = HddlUnite::Inference::loadGraph(
-        _uniteGraphPtr, graphName, graphData.data(), graphData.size(), {*workloadContext});
+    // TODO we need to get number of NN shaves and threads via config, not as parameters
+    // [Track number: S#39350]
+    const int nnThreadNum = 1;
+    const int nnShaveNum = 4;
+    statusCode = HddlUnite::Inference::loadGraph(_uniteGraphPtr, graphName, graphData.data(), graphData.size(),
+        {*workloadContext}, nnThreadNum, nnShaveNum, config);
 
     if (statusCode != HddlStatusCode::HDDL_OK) {
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Load graph error: " << statusCode;

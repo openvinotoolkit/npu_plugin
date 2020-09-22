@@ -31,12 +31,9 @@ const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
 }
 
 const std::unordered_set<std::string>& HDDL2Config::getRunTimeOptions() const {
-    static const std::unordered_set<std::string> options =
-        merge(vpux::VPUXConfig::getRunTimeOptions(), {
-                                                         CONFIG_KEY(PERF_COUNT),
-                                                         CONFIG_KEY(DEVICE_ID),
-                                                         VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT),
-                                                     });
+    static const std::unordered_set<std::string> options = merge(vpux::VPUXConfig::getRunTimeOptions(),
+        {CONFIG_KEY(PERF_COUNT), CONFIG_KEY(DEVICE_ID), VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT),
+            VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE)});
 
     return options;
 }
@@ -55,4 +52,5 @@ void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
     setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
     setOption(_performance_counting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_graph_color_format, colorFormat, config, VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT));
+    setOption(_csram_size, config, VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE), parseInt);
 }
