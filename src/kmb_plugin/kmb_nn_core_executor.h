@@ -24,15 +24,8 @@
 #include <vector>
 
 #if defined(__arm__) || defined(__aarch64__)
-#include <GraphManagerPlg.h>
-#include <MemAllocator.h>
-#include <NNFlicPlg.h>
-#include <PlgInferenceInput.h>
-#include <PlgInferenceOutput.h>
-#include <PlgStreamResult.h>
-#include <PlgTensorSource.h>
-#include <Pool.h>
-#include <cma_allocation_helper.h>
+#include <NnCorePlg.h>
+#include <NnXlinkPlg.h>
 #include <mvMacros.h>
 #include <xlink_uapi.h>
 #endif
@@ -44,12 +37,12 @@
 namespace vpu {
 namespace KmbPlugin {
 
-class KmbExecutor : public vpux::Executor {
+class KmbNNCoreExecutor : public vpux::Executor {
 public:
-    using Ptr = std::shared_ptr<KmbExecutor>;
+    using Ptr = std::shared_ptr<KmbNNCoreExecutor>;
 
-    virtual ~KmbExecutor();
-    KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
+    virtual ~KmbNNCoreExecutor();
+    KmbNNCoreExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
         const std::shared_ptr<vpux::Allocator>& allocator, const KmbConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
@@ -69,23 +62,13 @@ private:
     Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
-    std::shared_ptr<GraphManagerPlg> gg;
-    std::shared_ptr<PlgTensorSource> plgTensorInput_;
-    std::shared_ptr<PlgStreamResult> plgTensorOutput_;
-    std::shared_ptr<PlgInferenceInput> plgInferenceInput_;
-    std::shared_ptr<PlgInferenceOutput> plgInferenceOutput_;
-    std::shared_ptr<RgnAllocator> RgnAlloc;
-    std::shared_ptr<HeapAllocator> HeapAlloc;
-
-    std::shared_ptr<NNFlicPlg> nnPl;
+    std::shared_ptr<NnCorePlg> _nnCorePlg;
+    std::shared_ptr<NnXlinkPlg> _nnXlinkPlg;
 
     void* blob_file = nullptr;
-    std::shared_ptr<BlobHandle_t> BHandle;
+    std::shared_ptr<BlobHandle_t> _blobHandle;
 
-    std::shared_ptr<PlgPool<TensorMsg>> plgPoolOutputs;
-    std::shared_ptr<PlgPool<InferenceMsg>> plgPoolInferenceMsg;
-
-    std::shared_ptr<Pipeline> pipe;
+    std::shared_ptr<Pipeline> _pipe;
 #endif
     void initVpualObjects();
     void allocateGraph(const std::vector<char>& compiledNetwork);
@@ -103,9 +86,7 @@ private:
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
 
-    // _inferenceId is used to satisfy VPUAL API which requires to pass some id for each inference
-    // there are no contraints on a value passed, so we pass id=1 each inference
-    std::unique_ptr<uint32_t, std::function<void(uint32_t*)>> _inferenceId;
+    std::vector<uint32_t> _outputPhysAddrs;
 };
 
 }  // namespace KmbPlugin

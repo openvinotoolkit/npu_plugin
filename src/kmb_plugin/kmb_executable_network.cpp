@@ -39,6 +39,8 @@
 #include "kmb_remote_context.h"
 #include "file_reader.h"
 #include "kmb_executable_network.h"
+#include "kmb_nn_flic_executor.h"
+#include "kmb_nn_core_executor.h"
 
 // clang-format on
 
@@ -66,7 +68,11 @@ void ExecutableNetwork::LoadBlob() {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
 
-    _executor = std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), _config);
+    if (_config.useCoreNN()) {
+        _executor = std::make_shared<KmbNNCoreExecutor>(_networkDescription, _device->getAllocator(), _config);
+    } else {
+        _executor = std::make_shared<KmbNNFlicExecutor>(_networkDescription, _device->getAllocator(), _config);
+    }
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
