@@ -22,16 +22,13 @@
 // ResNet50 FP16 IRv10
 //
 TEST_F(KmbClassifyNetworkTest, precommit_resnet_50_pytorch_dense_fp16_IRv10) {
-    // [Track number: D#3222]
-    SKIP_ON("KMB", "HDDL2", "VPUX", "MemoryAllocator:VPU_DDR_Heap - ArgumentError");
     runTest(
         TestNetworkDesc("KMB_models/FP16/resnet_50_pytorch/resnet-50-pytorch.xml")
-            .setUserInputPrecision("input", Precision::FP16)
             .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP16)
-            .setCompileConfig({{"VPU_COMPILER_USE_NGRAPH_PARSER", CONFIG_VALUE(YES)}}),
+            .setUserInputPrecision("input", Precision::FP16)
+            .setUserOutputPrecision("output", Precision::FP16),
         "224x224/cat3.bmp",
-        3, 1e-5f);
+        3, 0.05);
 }
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv10_ResNet_50) {
@@ -334,22 +331,6 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
             .setUserOutputPrecision("output", Precision::FP32),
         TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
         0.6, 0.4, 0.4, true);
-}
-
-//
-// TinyYolo V2
-//
-
-TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV2) {
-    // Track number: H#18012088819
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
-    runTest(
-        TestNetworkDesc("KMB_models/INT8/ava/TinyYolo_V2/tiny_yolo_v2_uint8_int8_weights_pertensor.xml")
-            .setUserInputPrecision("input", Precision::U8)
-            .setUserInputLayout("input", Layout::NHWC)
-            .setUserOutputPrecision("output", Precision::FP32),
-        TestImageDesc("512x512/dog_croped512.bmp", ImageFormat::RGB),
-        0.6, 0.4, 0.4, false);
 }
 
 //

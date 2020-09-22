@@ -53,14 +53,13 @@ void computeSparsitySolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel
     mv::OpModel om(model);
     auto opsMap = om.getOpsOfTypes({"Conv", "Eltwise"});
 
-    if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv"))
-    {
-        if(opsMap["Conv"].size())
-        {
-            // Trim out channel major convolutions
+    if (model.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")) {
+        // Trim out channel major convolutions
+        if (opsMap.count("Conv")) {
             auto new_end = std::remove_if(opsMap.at("Conv").begin(), opsMap.at("Conv").end(),
-                        [](const mv::Data::OpListIterator op)
-                        {return op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;});
+                                          [](const mv::Data::OpListIterator op) {
+                                              return op->getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16;
+                                          });
             opsMap.at("Conv").erase(new_end, opsMap.at("Conv").end());
         }
     }
