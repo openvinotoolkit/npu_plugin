@@ -50,7 +50,11 @@ KmbMetrics::KmbMetrics(const std::map<std::string, std::shared_ptr<vpux::Device>
 
     for (const auto& elem : devices) {
         const auto& device = elem.second;
-        _availableDevices.emplace_back(device->getName());
+        const auto& deviceName = device->getName();
+        // exclude CSRAM device from the list of available devices
+        if (deviceName != vpux::CSRAM_SLICE_ID) {
+            _availableDevices.emplace_back(device->getName());
+        }
     }
 }
 
@@ -58,7 +62,9 @@ std::vector<std::string> KmbMetrics::AvailableDevicesNames() const { return _ava
 
 const std::vector<std::string>& KmbMetrics::SupportedMetrics() const { return _supportedMetrics; }
 
-std::string KmbMetrics::GetFullDevicesNames() { return {"Gen3 Intel(R) Movidius(TM) VPU code-named Keem Bay"}; }
+std::string KmbMetrics::GetFullDevicesNames() {
+    return {"Gen4 Intel(R) Movidius(TM) VPU code-named Thunder Bay Harbor"};
+}
 
 const std::vector<std::string>& KmbMetrics::GetSupportedConfigKeys() const { return _supportedConfigKeys; }
 

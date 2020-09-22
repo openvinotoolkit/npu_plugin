@@ -7,8 +7,6 @@
 
 namespace vpux {
 
-const std::string CSRAM_SLICE_ID = "VPU-32";
-
 class VpualDevice final : public IDevice {
 public:
     VpualDevice(const std::string& name);
