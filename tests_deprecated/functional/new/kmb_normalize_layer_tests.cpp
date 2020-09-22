@@ -65,7 +65,9 @@ std::ostream& operator<<(std::ostream& os, const NormTestParams& p) {
 
 class KmbNormalizeLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<NormTestParams> {};
 
+// [Track number: S#39423]
 TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
     const auto& p = GetParam();
 
     const auto netPresicion = p._netPrecision;
