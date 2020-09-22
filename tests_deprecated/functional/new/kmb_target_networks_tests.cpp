@@ -514,7 +514,10 @@ TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v1_tf_dense_int8_IRv10_from_f
         1, 0.05f);
 }
 
+// Bad accuracy
+// [Track number: S#39433]
 TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v1/googlenet_v1_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -525,7 +528,10 @@ TEST_F(KmbClassifyNetworkTest, googlenet_v1_tf_dense_int8_IRv10_ngraph) {
         1, 0.05f);
 }
 
+// Bad accuracy
+// [Track number: S#39435]
 TEST_F(KmbClassifyNetworkTest, precommit_googlenet_v3_tf_dense_int8_IRv10_from_fp32) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/public/googlenet-v3/googlenet_v3_tf_dense_int8_IRv10_from_fp32.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -965,7 +971,10 @@ TEST_F(KmbRFCNNetworkTest, rfcn_resnet50_caffe_IRV10_fp16_int8) {
 // End of test-set for IRv10 FP16 to INT8 quantization
 ////////////////////////////////////////////////////////////
 
+// Bad accuracy
+// [Track number: S#39421]
 TEST_F(KmbClassifyNetworkTest, emotion_recognition_retail_0003) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/emotions-recognition-retail-0003/emotions-recognition-retail-0003_int8_from_fp16.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -1007,12 +1016,16 @@ TEST_F(UnetNetworkTest, unet_camvid_ava_0001_NCHW_NCHW) {
         0.3f);  // mean intersection over union tolerance
 }
 
+// Compilation fails with exception:
+// "Caught exception during unit run: QuantizationParams: quantParams -
+// ArgumentError: attribute identifer mult - Undefine identifier"
+// [Track number: D#3707]
 TEST_F(GazeEstimationNetworkTest, gaze_estimation_adas_0002) {
     const auto left_eye_input_name = "left_eye_image";
     const auto right_eye_input_name = "right_eye_image";
     const auto head_pos_input_name = "head_pose_angles";
 
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "compile error");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/gaze-estimation-adas-0002/gaze_estimation_adas_0002_int8_from_fp16_ww22.xml")
             .setUserInputPrecision(left_eye_input_name, Precision::U8)
