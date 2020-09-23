@@ -89,7 +89,11 @@ namespace mv
              */
             bool operator()(const typename std::weak_ptr<T_unique>& lhs, const typename std::weak_ptr<T_unique>& rhs) const
             {
-                return lhs.lock()->getID() < rhs.lock()->getID();
+                auto rptr = rhs.lock();
+                if (!rptr) return false;
+                auto lptr = lhs.lock();
+                if (!lptr) return true;
+                return lptr->getID() < rptr->getID();
             }
 
             /**
@@ -433,24 +437,29 @@ namespace mv
             
             T_content& operator*() const
             {
-                if (std::weak_ptr<T_iterable>::expired())
+                auto ptr = std::weak_ptr<T_iterable>::lock();
+                if (!ptr)
                     throw std::runtime_error("Null pointer dereference");
-                return std::weak_ptr<T_iterable>::lock()->get_content();
+                return ptr->get_content();
             }
 
             T_iterable* operator->() const
             {
-                if (std::weak_ptr<T_iterable>::expired())
+                auto ptr = std::weak_ptr<T_iterable>::lock();
+                if (!ptr)
                     throw std::runtime_error("Null pointer dereference");
-                return std::weak_ptr<T_iterable>::lock().operator->();
+                return ptr.operator->();
             }
 
             bool operator==(const base_iterator& other) const noexcept
             {
-                if (!this->expired())
+                auto selfptr = std::weak_ptr<T_iterable>::lock();
+
+                if (selfptr)
                 {
-                    if (!other.expired())
-                        return *std::weak_ptr<T_iterable>::lock() == *other.lock();
+                    auto otherptr = other.lock();
+                    if (otherptr)
+                        return *selfptr == *otherptr;
                 }
                 else
                 {
@@ -1271,12 +1280,16 @@ namespace mv
 
             T_node& get_stored_content_()
             {
-                return content_.lock()->get_content();
+                auto ptr = content_.lock();
+                if (!ptr) throw std::runtime_error("Invalid node content");
+                return ptr->get_content();
             }
             
             void set_stored_content_(const T_node& content)
             {
-                content_.lock()->get_content() = content;
+                auto ptr = content_.lock();
+                if (!ptr) throw std::runtime_error("Invalid node content");
+                ptr->get_content() = content;
             }
 
             void set_id_(std::size_t id)

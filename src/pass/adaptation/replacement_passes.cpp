@@ -29,6 +29,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
 void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -46,6 +47,12 @@ namespace mv
         .setFunc(handleEltWiseDifferentScales)
         .setDescription(
             "Replaces Eltwise with SW Layer Eltwise in case scales of inputs are different"
+        );
+
+        MV_REGISTER_PASS(MarkEltWiseUpaInputs)
+        .setFunc(detectEltWiseUpaInputs)
+        .setDescription(
+            "Detect if Eltwise has Upa inputs and in case of Upa inputs avoid HKSwitch for possible strategy"
         );
     }
 
@@ -1601,6 +1608,26 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::Computat
 
                 linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);  
             }
+        }
+    }
+}
+
+void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+
+    mv::OpModel om(model);
+
+    auto eltWiseOps = om.getOps("Eltwise");
+
+    for (auto& opIt : eltWiseOps)
+    {
+        auto firstEltwiseParent = om.getSourceOp(opIt->getInputTensor(0));
+        auto secondEltwiseParent = om.getSourceOp(opIt->getInputTensor(1));
+
+        if(!(firstEltwiseParent->isHardwarizable() && secondEltwiseParent->isHardwarizable()))
+        {
+            opIt->set<bool>("upaInputs", true);
         }
     }
 }

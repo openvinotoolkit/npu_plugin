@@ -102,6 +102,9 @@ mv::Element& mv::PassManager::step()
     }
 
     auto passPtr = pass::PassRegistry::instance().find(currentPass_->getName());
+    if (passPtr == nullptr) {
+        throw RuntimeError(*this, "Pass not found in the registry");
+    }
 
     compOutput_.get<std::vector<Element>>("passes").push_back(Element(passPtr->getName()));
     Element& lastPassOutput = compOutput_.get<std::vector<Element>>("passes").back();

@@ -27,10 +27,6 @@ namespace mv
         {
             auto opIt = args.at("taskOp").get<std::string>();
 
-            auto dTypeToUse = args.at("dType").get<mv::DType>();
-            if(dTypeToUse == mv::DType("Default"))
-                dTypeToUse = inputs[0]->getDType();
-
             mv::op::OpRegistry::getOutputsDef(opIt, inputs, args, outputs);
         };
     }
@@ -48,7 +44,7 @@ namespace mv
         .setBaseOperation({"Dummy", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling", "Quantize", "Reshape",
                            "RegionYolo", "ReorgYolo", "Normalize", "Permute", "Eltwise", "Interp",
                            "DetectionOutput", "Priorbox", "Argmax", "TopK", "Norm", "Resample", "FakeQuantize", 
-                           "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv"})
+                           "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv", "Gather"})
         .setExtraInputs(true);
     }
 
