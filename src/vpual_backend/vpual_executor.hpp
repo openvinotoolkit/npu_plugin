@@ -1,5 +1,5 @@
 //
-// Copyright 2019 Intel Corporation.
+// Copyright 2019-2020 Intel Corporation.
 //
 // This software and the related documents are Intel copyrighted materials,
 // and your use of them is governed by the express license under which they
@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <ie_icnn_network.hpp>
 #include <iomanip>
 #include <memory>
 #include <string>
@@ -37,24 +36,29 @@
 #include <xlink_uapi.h>
 #endif
 
-#include <kmb_config.h>
-
+// FIXME: get back config
+// #include <kmb_config.h>
+#include <vpu/utils/logger.hpp>
 #include <vpux.hpp>
+#include <vpux_config.hpp>
 
-namespace vpu {
-namespace KmbPlugin {
+#include "vpual_config.hpp"
+#include "vpusmm_allocator.hpp"
 
-class KmbExecutor : public vpux::Executor {
+namespace ie = InferenceEngine;
+
+namespace vpux {
+
+class VpualExecutor final : public vpux::Executor {
 public:
-    using Ptr = std::shared_ptr<KmbExecutor>;
+    using Ptr = std::shared_ptr<VpualExecutor>;
 
-    virtual ~KmbExecutor();
-    KmbExecutor(const vpux::NetworkDescription::Ptr& networkDescription,
-        const std::shared_ptr<vpux::Allocator>& allocator, const KmbConfig& config);
+    virtual ~VpualExecutor();
+    VpualExecutor(const vpux::NetworkDescription::Ptr& networkDescription, const VpusmmAllocator::Ptr& allocator,
+        const VpualConfig& config);
 
     void push(const InferenceEngine::BlobMap& inputs) override;
-    void push(const InferenceEngine::BlobMap& inputs, const vpux::PreprocMap& preProcMap) override;
-
+    void push(const InferenceEngine::BlobMap& inputs, const PreprocMap& preProcMap) override;
     void pull(InferenceEngine::BlobMap& outputs) override;
     // TODO: not implemented
     void setup(const InferenceEngine::ParamMap& params) override;
@@ -64,9 +68,9 @@ public:
 
 private:
     vpux::NetworkDescription::Ptr _networkDescription;
-    std::shared_ptr<vpux::Allocator> _allocator;
-    const KmbConfig& _config;
-    Logger::Ptr _logger;
+    VpusmmAllocator::Ptr _allocator;
+    const VpualConfig& _config;
+    vpu::Logger::Ptr _logger;
 
 #if defined(__arm__) || defined(__aarch64__)
     std::shared_ptr<GraphManagerPlg> gg;
@@ -91,22 +95,18 @@ private:
     void allocateGraph(const std::vector<char>& compiledNetwork);
     void deallocateGraph();
 
-    InferenceEngine::Blob::Ptr prepareInputForInference(
-        const InferenceEngine::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc);
-    uint32_t extractPhysAddrForInference(const InferenceEngine::BlobMap& inputs);
+    ie::Blob::Ptr prepareInputForInference(
+        const ie::Blob::Ptr& actualInput, const InferenceEngine::TensorDesc& deviceDesc);
+    uint32_t extractPhysAddrForInference(const ie::BlobMap& inputs);
 
-    InferenceEngine::BlobMap extractOutputsFromPhysAddr(uint32_t physAddr);
+    ie::BlobMap extractOutputsFromPhysAddr(uint32_t physAddr);
     void repackDeviceOutputsToNetworkOutputs(
         const InferenceEngine ::BlobMap& deviceOutputs, InferenceEngine::BlobMap& networkOutputs);
 
     std::vector<void*> _scratchBuffers;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _inputBuffer;
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _outputBuffer;
-
-    // _inferenceId is used to satisfy VPUAL API which requires to pass some id for each inference
-    // there are no contraints on a value passed, so we pass id=1 each inference
     std::unique_ptr<uint32_t, std::function<void(uint32_t*)>> _inferenceId;
 };
 
-}  // namespace KmbPlugin
-}  // namespace vpu
+}  // namespace vpux

@@ -13,26 +13,28 @@
 // express or implied warranties, other than those that are expressly
 // stated in the License.
 //
+
 #pragma once
 
 #include <ie_common.h>
 
 #include <map>
-#include <memory>
-#include <vpux.hpp>
+#include <string>
+#include <unordered_set>
+#include <vpux_config.hpp>
 
 namespace vpux {
 
-class VpualEngineBackend final : public vpux::IEngineBackend {
-    std::unique_ptr<vpu::Logger> _logger;
-    std::map<std::string, std::shared_ptr<IDevice>> _devices;
-
+class VpualConfig final : public vpux::VPUXConfig {
 public:
-    VpualEngineBackend();
-    const std::map<std::string, std::shared_ptr<IDevice>>& getDevices() const override;
+    bool forceNCHWToNHWC() const { return _forceNCHWToNHWC; }
+
+protected:
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
+    void parse(const std::map<std::string, std::string>& config) override;
 
 private:
-    const std::map<std::string, std::shared_ptr<IDevice>> createDeviceMap();
+    bool _forceNCHWToNHWC = false;
 };
 
 }  // namespace vpux

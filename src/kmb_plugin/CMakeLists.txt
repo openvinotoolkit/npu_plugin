@@ -47,19 +47,15 @@ target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
         ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
     SYSTEM PRIVATE
-        ${VPUAL_NN_INCLUDES}
         ${GAPI_SIPP_INCLUDES}
         ${GAPI_M2I_INCLUDES})
 
 link_system_libraries(${KMB_PLUGIN_OBJS_TARGET}
     PUBLIC
-        IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
-        ${VPUAL_NN_LIBRARY}
         ${GAPI_SIPP_LIBRARY}
-        ${GAPI_M2I_LIBRARY}
-        ${VPUSMM_LIBRARY})
+        ${GAPI_M2I_LIBRARY})
 target_link_libraries(${KMB_PLUGIN_OBJS_TARGET}
     PUBLIC
         kmb_utils
@@ -117,11 +113,8 @@ target_include_directories(${KMB_PLUGIN_STATIC_TARGET}
 
 link_system_libraries(${KMB_PLUGIN_STATIC_TARGET}
     PUBLIC
-        IE::inference_engine
         IE::inference_engine_plugin_api
         IE::vpu_common_lib
-        ${VPUAL_NN_LIBRARY}
-        ${VPUSMM_LIBRARY}
     PRIVATE
         ${GAPI_SIPP_LIBRARY}
         ${GAPI_M2I_LIBRARY})

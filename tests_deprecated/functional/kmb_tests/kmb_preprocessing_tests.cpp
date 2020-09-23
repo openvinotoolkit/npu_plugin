@@ -1,3 +1,19 @@
+//
+// Copyright 2020 Intel Corporation.
+//
+// This software and the related documents are Intel copyrighted materials,
+// and your use of them is governed by the express license under which they
+// were provided to you (End User License Agreement for the Intel(R) Software
+// Development Products (Version May 2017)). Unless the License provides
+// otherwise, you may not use, modify, copy, publish, distribute, disclose or
+// transmit this software or the related documents without Intel's prior
+// written permission.
+//
+// This software and the related documents are provided as is, with no
+// express or implied warranties, other than those that are expressly
+// stated in the License.
+//
+
 #if defined(__arm__) || defined(__aarch64__)
 
 #include <fcntl.h>
@@ -838,11 +854,11 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksHDImage1000Iterations) {
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, DEVICE_NAME, {}));
 
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, DEVICE_NAME, {}));
 
     std::cout << "Created networks\n";
 
@@ -949,11 +965,11 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_twoNetworksStressTest) {
     Core ie;
     InferenceEngine::ExecutableNetwork network1;
     std::string network1Path = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, "KMB", {}));
+    ASSERT_NO_THROW(network1 = ie.ImportNetwork(network1Path, DEVICE_NAME, {}));
 
     std::string network2Path = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
     InferenceEngine::ExecutableNetwork network2;
-    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, "KMB", {}));
+    ASSERT_NO_THROW(network2 = ie.ImportNetwork(network2Path, DEVICE_NAME, {}));
 
     std::cout << "Created networks\n";
 
@@ -1082,10 +1098,10 @@ TEST_F(VpuPreprocessingStressTests, DISABLED_detectClassify4Threads) {
     Core ie;
 
     std::string detectNetworkPath = ModelsPath() + "/KMB_models/BLOBS/tiny-yolo-v2/tiny-yolo-v2.blob";
-    InferenceEngine::ExecutableNetwork detectionNetwork = ie.ImportNetwork(detectNetworkPath, "KMB", {});
+    InferenceEngine::ExecutableNetwork detectionNetwork = ie.ImportNetwork(detectNetworkPath, DEVICE_NAME, {});
 
     std::string classifyNetworkPath = ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob";
-    InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, "KMB", {});
+    InferenceEngine::ExecutableNetwork classificationNetwork = ie.ImportNetwork(classifyNetworkPath, DEVICE_NAME, {});
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> kmbAllocator =
         buildAllocator(std::getenv("IE_VPU_KMB_MEMORY_ALLOCATOR_TYPE"));

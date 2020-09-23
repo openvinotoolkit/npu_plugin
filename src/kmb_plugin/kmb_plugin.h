@@ -28,7 +28,6 @@
 #include <string>
 #include <map>
 #include <cpp_interfaces/impl/ie_plugin_internal.hpp>
-#include "kmb_config.h"
 #include "kmb_remote_context.h"
 #include <vpux_compiler.hpp>
 
@@ -65,10 +64,12 @@ public:
 
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 
+    static const char deviceName[];
+
 private:
     RemoteContext::Ptr GetDefaultContext(const std::string& deviceId = "VPU-0");
 
-    KmbConfig _parsedConfig;
+    vpux::VPUXConfig _parsedConfig;
     std::mutex _contextCreateMutex;
 
     std::shared_ptr<vpux::EngineBackend> _backend;

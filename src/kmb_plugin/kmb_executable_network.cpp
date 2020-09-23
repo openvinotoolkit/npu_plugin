@@ -50,7 +50,7 @@ namespace KmbPlugin {
 void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager* executorManager = ExecutorManager::getInstance();
-        _taskExecutor = executorManager->getExecutor("KMB");
+        _taskExecutor = executorManager->getExecutor("VPUX");
     }
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
         std::stringstream idStream;
@@ -66,18 +66,18 @@ void ExecutableNetwork::LoadBlob() {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
 
-    _executor = std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), _config);
+    _executor = _device->createExecutor(_networkDescription, _config);
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
     _netName = _networkDescription->getName();
 }
 
-ExecutableNetwork::ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device)
     : _config(config), _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)), _device(device) {}
 
 ExecutableNetwork::ExecutableNetwork(
-    ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+    ICNNNetwork& network, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device)
     : ExecutableNetwork(config, device) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
 
@@ -135,7 +135,7 @@ ExecutableNetwork::ExecutableNetwork(
 }
 
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+    std::istream& strm, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device)
     : ExecutableNetwork(config, device) {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());

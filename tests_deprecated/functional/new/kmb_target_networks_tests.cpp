@@ -150,7 +150,7 @@ TEST_F(KmbYoloV1NetworkTest, INT8_Dense_TF_DarkNet_TinyYoloV1) {
 //
 
 TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPU", "bad results");  // TODO: create JIRA ticket
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");  // TODO: create JIRA ticket
     runTest(
         TestNetworkDesc("KMB_models/INT8/ava/Yolo_V2/yolo_v2_uint8_int8_weights_pertensor.xml")
             .setUserInputPrecision("input", Precision::U8)
