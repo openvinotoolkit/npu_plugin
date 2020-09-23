@@ -89,6 +89,7 @@ namespace mv
                 SparsityKSegmented,
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
+                UpaHKSwitch,
                 Unknown
             };
 
@@ -114,6 +115,7 @@ namespace mv
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
+                {FailCause::UpaHKSwitch, "UpaHKSwitch"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -1156,6 +1158,11 @@ namespace mv
                             return FailCause::DeConvSubConvSOKHeight;
                         }
                     }
+                }
+
+                if(op.getOpType() == "Eltwise" && op.hasAttr("upaInputs") && clustering == "HKSwitch")
+                {
+                    return FailCause::UpaHKSwitch;
                 }
 
                 return FailCause::Pass; //good strategy
