@@ -1,0 +1,10 @@
+prefix=/home/mkurin/projects/mcmCompiler/install
+exec_prefix=/home/mkurin/projects/mcmCompiler/install/bin
+libdir=/home/mkurin/projects/mcmCompiler/install/lib
+includedir=/home/mkurin/projects/mcmCompiler/install/include
+
+Name: LEMON
+Description: Library for Efficient Modeling and Optimization in Networks
+Version: 
+Libs: -L${libdir} -lemon     
+Cflags: -I${includedir}
