@@ -1058,7 +1058,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
     return toReturn;
 }
 
-void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
+bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
 {
     // Note: Zero-padding populated tensor used for large kernel support needs to keep existing dst strides
     auto skip_unstriding_dst = false;
@@ -1080,6 +1080,9 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
+        
+        if (totalSize == 0)
+            return false;
 
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
@@ -1092,11 +1095,13 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->data_dtype = dtype;
 
         if(skip_unstriding_dst)
-            return;
+            return true;
 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
+
+        return true;
     }
 }
 
@@ -1187,7 +1192,8 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
 
 
-        checkUnstridedDMA(src, i, tmp);
+        if (!checkUnstridedDMA(src, i, tmp))
+            continue;
 
         // Check if the HDE engine compressed the weights
         if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
@@ -3192,6 +3198,16 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             toReturn = 1;
 
         toReturn *= multiplicator;
+
+        if (inputTensor->isPopulated() && inputTensor->isSparse())
+        {
+            if (numClusters < toReturn) {
+                for (int i = 0; i < numClusters; ++i) {
+                    if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
+                        toReturn--;
+                }
+            }
+        }
     }
     else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;
