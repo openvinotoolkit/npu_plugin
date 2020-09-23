@@ -541,7 +541,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
 
-            if (opType == "Conv")
+            if (opType == "Conv"){
                 newTensor = om.conv(slice,
                                 op->getInputTensor(1),
                                 kernelStride,
@@ -551,6 +551,8 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
+                newTensor->setOrder(mv::Order("NHWC"));
+            }
             if (split != number_of_splits - 1)
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
