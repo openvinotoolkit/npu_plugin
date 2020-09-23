@@ -29,7 +29,7 @@ namespace mv
         };
 
         #define MV_REGISTER_PASS(Name)                          \
-            MV_REGISTER_ENTRY(PassRegistry, std::string, PassEntry, #Name)    \
+            MV_REGISTER_ENTRY(PassRegistry, std::string, PassEntry, Name)     \
                               
     }
 

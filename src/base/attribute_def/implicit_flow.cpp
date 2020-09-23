@@ -38,7 +38,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(ImplicitFlow)
+        MV_REGISTER_SIMPLE_ATTR(ImplicitFlow)
             .setToJSONFunc(attr_implicit_flow::toJSON)
             .setFromJSONFunc(attr_implicit_flow::fromJSON)
             .setToStringFunc(attr_implicit_flow::toString)

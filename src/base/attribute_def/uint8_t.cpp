@@ -35,7 +35,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_ATTR(uint8_t)
+        MV_REGISTER_SIMPLE_ATTR(uint8_t)
                 .setToJSONFunc(attr_uint8_t::toJSON)
                 .setFromJSONFunc(attr_uint8_t::fromJSON)
                 .setToStringFunc(attr_uint8_t::toString)

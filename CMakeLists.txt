@@ -122,7 +122,11 @@ add_subdirectory(contrib/flatbuffers)
 #############################################################################################
 
 if (MSVC)
-    add_compile_options("/permissive-" "/EHsc")
+    add_compile_options(
+        "/permissive-"       # Disallow MSVC extensions (also enables iso646 keywords)
+        "/EHsc"              # Standard excaption handling (extern "C" never throws)
+        "/we4003"            # Error on missing macro parameters
+    )
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options("--no-gnu-unique" "-Wall" "-Wextra" "-Wshadow" "-Wnon-virtual-dtor"
                         "-pedantic" "-fstack-protector-all")
@@ -391,7 +395,7 @@ endif()
 add_library(model STATIC ${model})
 
 if (MCM_COMPILER_BUILD_STATIC_LIBS)
-    add_library(cm OBJECT ${base} ${logger} ${pass} ${compiler} ${syscalls})
+    add_library(cm STATIC ${base} ${logger} ${pass} ${compiler} ${syscalls})
     target_link_libraries(model PRIVATE cm)
 else()
     add_library(cm SHARED ${base} ${logger} ${pass} ${compiler} ${syscalls})
