@@ -59,6 +59,11 @@ void propagateShapeChange(mv::OpModel& om, const std::string& flowStr)
     if(opType == "DPUTask")
         opType = sink->get<std::string>("taskOp");
 
+// Below check for Conv ensures weight (input channel) alignment for the case of Convs that follow non-Conv DPU layers
+// and need weight alignment
+    if(opType == "Conv")
+        sink->set<bool>("alignment", true);
+
     if(opType == "Eltwise" ||
        opType == "DepthwiseConv" || opType == "MaxPool")
     {
@@ -351,14 +356,20 @@ void addAlignOpForInputTensorsFunc(const mv::pass::PassEntry& , mv::ComputationM
                     std::vector<std::size_t> inputSlots;
                     std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
 
-
                     auto sourceFlowStart = parentOpIt.leftmostOutput();
-
                     for (mv::Data::FlowSiblingIterator sinkFlow(sourceFlowStart); sinkFlow != om.flowEnd(); ++sinkFlow)
                     {
-                        opsToLink.push_back(sinkFlow.sink());
-                        inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-                        flowsToRemove.push_back(sinkFlow);
+                        auto opType = sinkFlow.sink()->getOpType();
+                        if (opType == "DPUTask")
+                        {
+                            auto taskType = sinkFlow.sink()->get<std::string>("taskOp");
+                            if((taskType == "Conv") || (taskType == "DepthwiseConv") || (taskType == "MaxPool") || (taskType == "Eltwise"))
+                            {
+                                opsToLink.push_back(sinkFlow.sink());
+                                inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
+                                flowsToRemove.push_back(sinkFlow);
+                            }
+                        }
                     }
 
                     auto alignOpName = inputTensor->getName() + "_align";
