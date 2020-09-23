@@ -42,7 +42,7 @@ using namespace InferenceEngine;
 
 KmbInferRequest::KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-    const KmbConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
+    const vpux::VPUXConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
     const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executor(executor),
@@ -99,6 +99,7 @@ void KmbInferRequest::InferImpl() {
 }
 
 void KmbInferRequest::InferAsync() {
+    _logger->debug("InferAsync started");
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "InferAsync");
     execPreprocessing(_inputs);
 
@@ -107,6 +108,8 @@ void KmbInferRequest::InferAsync() {
     }
 
     _executor->push(_inputs);
+
+    _logger->debug("InferAsync finished");
 }
 
 void KmbInferRequest::execPreprocessing(InferenceEngine::BlobMap& inputs) {

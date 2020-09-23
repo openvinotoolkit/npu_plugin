@@ -20,17 +20,18 @@
 
 #include <memory>
 #include <string>
+#include <vpux.hpp>
 
 #include "ie_remote_context.hpp"
-#include "kmb_config.h"
 #include "kmb_remote_context.h"
+#include "vpu/kmb_params.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
 
 class KmbBlobParams {
 public:
-    explicit KmbBlobParams(const InferenceEngine::ParamMap& paramMap, const KmbConfig& config);
+    explicit KmbBlobParams(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config);
 
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     KmbRemoteMemoryFD getRemoteMemoryFD() const { return _remoteMemoryFd; }
@@ -50,7 +51,7 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteBlob>;
 
     explicit KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params, const KmbConfig& config,
+        const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
         const std::shared_ptr<vpux::Allocator>& allocator);
     explicit KmbRemoteBlob(const KmbRemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest);
     ~KmbRemoteBlob() override = default;
@@ -97,7 +98,7 @@ protected:
     std::weak_ptr<KmbRemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
-    const KmbConfig& _config;
+    const vpux::VPUXConfig& _config;
     const KmbRemoteMemoryFD _remoteMemoryFd;
     const Logger::Ptr _logger;
     const std::shared_ptr<InferenceEngine::IAllocator> _allocator = nullptr;

@@ -34,6 +34,10 @@ target_include_directories(${TARGET_NAME}
         # FIXME: should be here?
         "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
 
+link_system_libraries(${TARGET_NAME}
+    PRIVATE
+        IE::inference_engine
+        IE::vpu_common_lib)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         kmb_utils)

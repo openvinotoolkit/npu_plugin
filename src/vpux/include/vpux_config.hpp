@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <ie_common.h>
+
 #include <vpu/parsed_config_base.hpp>
 
 namespace vpux {
@@ -25,6 +27,7 @@ public:
     VPUXConfigBase();
     const std::map<std::string, std::string>& getConfig() const { return _config; }
     const std::unordered_set<std::string>& getCompileOptions() const override;
+    const std::unordered_set<std::string>& getRunTimeOptions() const override;
     void expandSupportedOptions(const std::unordered_set<std::string>& options);
 
 protected:
@@ -40,12 +43,44 @@ public:
     VPUXConfig();
     bool useNGraphParser() const { return _useNGraphParser; }
 
+    int throughputStreams() const { return _throughputStreams; }
+
+    const std::string& platform() const { return _platform; }
+
+    int numberOfSIPPShaves() const { return _numberOfSIPPShaves; }
+
+    int SIPPLpi() const { return _SIPPLpi; }
+
+    // FIXME: drop SIPP from the method name
+    InferenceEngine::ColorFormat outColorFmtSIPP() const { return _outColorFmtSIPP; }
+
+    bool useSIPP() const { return _useSIPP; }
+
+    bool useM2I() const { return _useM2I; }
+
+    std::string deviceId() const { return _deviceId; }
+
     void parseFrom(const VPUXConfig& other);
 
 protected:
     void parse(const std::map<std::string, std::string>& config) override;
 
     bool _useNGraphParser = false;
+
+    int _throughputStreams = 1;
+
+    std::string _platform = "VPU_2490";
+
+    int _numberOfSIPPShaves = 4;
+    int _SIPPLpi = 8;
+    InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
+    bool _useSIPP = true;
+
+    // FIXME: Likely has to be true by default as well.
+    // NB.: Currently applies to the detection use-case only
+    bool _useM2I = false;
+
+    std::string _deviceId = "VPU-0";
 };
 
 }  // namespace vpux

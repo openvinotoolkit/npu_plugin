@@ -47,10 +47,9 @@ TEST_F(vpuLayersTests, remoteCtx) {
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output.bin";
 
     InferenceEngine::Core ie;
-    const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
-    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
@@ -109,10 +108,9 @@ TEST_F(vpuLayersTests, remoteCtxNV12) {
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
 
     InferenceEngine::Core ie;
-    const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
-    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
@@ -235,10 +233,9 @@ TEST_P(VpuRemoteCtxTests, remoteCtxNV12WithROI) {
     const std::string refOutputPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/output-dog-1080x1080-nv12.bin";
 
     InferenceEngine::Core ie;
-    const std::string devName = "KMB";
-    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, devName);
+    const std::string firstAvailableDeviceId = getFirstAvailableDeviceId(ie, deviceName);
     const ParamMap ctxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), firstAvailableDeviceId }, };
-    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(devName, ctxParams);
+    InferenceEngine::RemoteContext::Ptr contextPtr = ie.CreateContext(deviceName, ctxParams);
 
     std::filebuf blobFile;
     if (!blobFile.open(graphPath, std::ios::in | std::ios::binary)) {
@@ -320,7 +317,7 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
 
     const ParamMap invalidCtxParams = { { InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), "VPU-42" }, };
     InferenceEngine::RemoteContext::Ptr invalidContextPtr;
-    ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext("KMB", invalidCtxParams));
+    ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext(deviceName, invalidCtxParams));
 }
 
 TEST_F(vpuLayersTests, keyDeviceId) {
@@ -337,8 +334,8 @@ TEST_F(vpuLayersTests, keyDeviceId) {
     std::istream graphBlob(&blobFile);
 
     const std::map<std::string, std::string> netParams = {};
-    static std::string deviceId = getFirstAvailableDeviceId(ie, "KMB");
-    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, "KMB." + deviceId, netParams);
+    static std::string deviceId = getFirstAvailableDeviceId(ie, deviceName);
+    InferenceEngine::ExecutableNetwork executableNetwork = ie.ImportNetwork(graphBlob, deviceName + "." + deviceId, netParams);
     InferenceEngine::InferRequest inferRequest = executableNetwork.CreateInferRequest();
 
     std::shared_ptr<vpu::KmbPlugin::utils::VPUAllocator> vpuAllocator = std::make_shared<vpu::KmbPlugin::utils::VPUSMMAllocator>();

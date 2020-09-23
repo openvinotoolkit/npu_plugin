@@ -26,10 +26,10 @@
 #include <vector>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/perf_report.hpp>
+#include <vpux.hpp>
 
-#include "kmb_config.h"
-#include "kmb_executor.h"
 #include "kmb_preproc.hpp"
+#include "vpu/kmb_params.hpp"
 
 namespace vpu {
 namespace KmbPlugin {
@@ -38,7 +38,7 @@ class KmbInferRequest : public InferenceEngine::InferRequestInternal {
     std::shared_ptr<vpux::Executor> _executor;
     std::shared_ptr<InferenceEngine::IAllocator> _allocator;
     std::vector<StageMetaInfo> _stagesMetaData;
-    KmbConfig _config;
+    vpux::VPUXConfig _config;
     const std::string _netUniqueId;
     // the buffer is used when non-shareable memory passed for preprocessing
     std::unique_ptr<uint8_t, std::function<void(uint8_t*)>> _preprocBuffer;
@@ -49,7 +49,7 @@ public:
 
     explicit KmbInferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const std::vector<vpu::StageMetaInfo>& blobMetaData,
-        const KmbConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
+        const vpux::VPUXConfig& kmbConfig, const std::shared_ptr<vpux::Executor>& executor,
         const std::shared_ptr<InferenceEngine::IAllocator>& allocator, const std::string& netName);
 
     void InferImpl() override;

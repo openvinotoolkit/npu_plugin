@@ -30,8 +30,6 @@
 #include <ie_remote_context.hpp>
 #include <ie_icnn_network.hpp>
 
-#include <vpu/kmb_params.hpp>
-
 #include "vpux_compiler.hpp"
 #include "vpux_config.hpp"
 
@@ -49,10 +47,9 @@ public:
 class Allocator : public InferenceEngine::IAllocator {
 public:
     // TODO: need update methods to remove Kmb from parameters
-    virtual void* wrapRemoteMemoryHandle(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
+    virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
     virtual void* wrapRemoteMemoryOffset(
-        const KmbRemoteMemoryFD& remoteMemoryFd, const size_t size, const KmbOffsetParam& memOffset) noexcept = 0;
+        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept = 0;
 
     // FIXME: temporary exposed to allow executor to use vpux::Allocator
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
@@ -64,9 +61,8 @@ class IDevice : public InferenceEngine::details::IRelease {
 public:
     virtual std::shared_ptr<Allocator> getAllocator() const = 0;
 
-    // TODO: uncomment once we have a concrete executor for the backend
-    /* virtual std::shared_ptr<Executor> createExecutor( */
-    /* const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0; */
+    virtual std::shared_ptr<Executor> createExecutor(
+        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0;
 
     virtual std::string getName() const = 0;
 
@@ -85,9 +81,10 @@ public:
         : _actual(device), _plg(plg) {}
     std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
 
-    // TODO: uncomment once we have a concrete executor for the backend
-    /* virtual std::shared_ptr<Executor> createExecutor( */
-    /* const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) = 0; */
+    virtual std::shared_ptr<Executor> createExecutor(
+        const NetworkDescription::Ptr& networkDescription, const VPUXConfig& config) {
+        return _actual->createExecutor(networkDescription, config);
+    }
 
     std::string getName() const { return _actual->getName(); }
 
@@ -107,7 +104,7 @@ public:
     const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
 
 private:
-    EngineBackend(std::string name);
+    EngineBackend(std::string pathToLib);
     EngineBackend() = default;
     const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
 };

@@ -40,7 +40,9 @@ link_system_libraries(${TARGET_NAME}
     PRIVATE
         ${VPUAL_NN_LIBRARY}
         ${VPUSMM_LIBRARY}
-        IE::inference_engine)
+        IE::inference_engine
+        IE::inference_engine_plugin_api
+        IE::vpu_common_lib)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux

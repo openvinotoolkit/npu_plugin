@@ -120,9 +120,6 @@ const static std::vector<modelBlobsInfo> pathToPreCompiledGraph = {
 class VpuNoRegressionInference : public Regression::RegressionTests {
 public:
     std::string getDeviceName() const override { return ""; }
-
-protected:
-    std::string pluginName = "kmbPlugin";
 };
 
 TEST_P(VpuInferWithPath, canDoInferenceOnImportedBlob) {

@@ -184,5 +184,7 @@ RemoteContext::Ptr Engine::GetDefaultContext(const std::string& deviceId) {
     return std::dynamic_pointer_cast<RemoteContext>(_defaultContextMap.at(deviceId));
 }
 
+const char Engine::deviceName[] = DEVICE_NAME;
+
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "kmbPlugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)

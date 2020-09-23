@@ -30,5 +30,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     Boost::disable_autolinking Boost::filesystem
     opencv_core opencv_imgproc opencv_imgcodecs
     gflags
+    IE::inference_engine_plugin_api
     kmb_utils
 )

@@ -19,12 +19,13 @@
 #include <memory>
 #include <string>
 
+#include "kmb_plugin.h"
 #include "kmb_remote_blob.h"
 
 using namespace vpu::KmbPlugin;
 
-KmbRemoteContext::KmbRemoteContext(
-    const InferenceEngine::ParamMap& params, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device)
+KmbRemoteContext::KmbRemoteContext(const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
+    const std::shared_ptr<vpux::Device>& device)
     : _config(config),
       _params(params),
       _logger(std::make_shared<Logger>("KmbRemoteContext", config.logLevel(), consoleOutput())),
@@ -53,6 +54,8 @@ InferenceEngine::RemoteBlob::Ptr KmbRemoteContext::CreateBlob(
     }
 }
 
-std::string KmbRemoteContext::getDeviceName() const noexcept { return "KMB." + _device->getName(); }
+std::string KmbRemoteContext::getDeviceName() const noexcept {
+    return std::string(Engine::deviceName) + "." + _device->getName();
+}
 
 InferenceEngine::ParamMap KmbRemoteContext::getParams() const { return _params; }

@@ -23,7 +23,7 @@
 
 using namespace vpu::KmbPlugin;
 
-KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const KmbConfig& config)
+KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config)
     : _paramMap(params), _logger(std::make_shared<Logger>("KmbBlobParams", config.logLevel(), consoleOutput())) {
     if (params.empty()) {
         THROW_IE_EXCEPTION << "KmbBlobParams::KmbBlobParams: Param map for blob is empty.";
@@ -67,7 +67,8 @@ KmbBlobParams::KmbBlobParams(const InferenceEngine::ParamMap& params, const KmbC
 }
 
 KmbRemoteBlob::KmbRemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const KmbRemoteContext::Ptr& contextPtr,
-    const InferenceEngine::ParamMap& params, const KmbConfig& config, const std::shared_ptr<vpux::Allocator>& allocator)
+    const InferenceEngine::ParamMap& params, const vpux::VPUXConfig& config,
+    const std::shared_ptr<vpux::Allocator>& allocator)
     : RemoteBlob(tensorDesc),
       _params(params, config),
       _remoteContextPtr(contextPtr),

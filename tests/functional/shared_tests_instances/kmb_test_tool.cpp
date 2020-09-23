@@ -15,7 +15,7 @@ using namespace InferenceEngine;
 namespace LayerTestsUtils {
 
 KmbTestTool::KmbTestTool(const KmbTestEnvConfig& envCfg): envConfig(envCfg),
-    DEVICE_NAME(envConfig.IE_KMB_TESTS_DEVICE_NAME.empty() ? "KMB" : envConfig.IE_KMB_TESTS_DEVICE_NAME) {
+    DEVICE_NAME(envConfig.IE_KMB_TESTS_DEVICE_NAME.empty() ? "VPUX" : envConfig.IE_KMB_TESTS_DEVICE_NAME) {
 }
 
 void KmbTestTool::exportNetwork(ExecutableNetwork& exeNet, const std::string& testName) {

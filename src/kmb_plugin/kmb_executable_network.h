@@ -26,11 +26,10 @@
 #include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <vector>
+#include <vpux.hpp>
 
 #include "ie_remote_context.hpp"
 #include "kmb_async_infer_request.h"
-#include "kmb_config.h"
-#include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "kmb_remote_context.h"
 
@@ -43,9 +42,9 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(
-        ie::ICNNNetwork& network, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+        ie::ICNNNetwork& network, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);
     explicit ExecutableNetwork(
-        std::istream& strm, const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+        std::istream& strm, const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);
 
     virtual ~ExecutableNetwork() = default;
 
@@ -103,7 +102,7 @@ public:
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
 private:
-    explicit ExecutableNetwork(const KmbConfig& config, const std::shared_ptr<vpux::Device>& device);
+    explicit ExecutableNetwork(const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device);
 
     void ConfigureExecutor(const std::string& networkName);
     void LoadBlob();
@@ -113,7 +112,7 @@ private:
     Logger::Ptr _logger;
 
     std::vector<StageMetaInfo> _stagesMetaData;
-    KmbConfig _config;
+    vpux::VPUXConfig _config;
     std::map<std::string, ie::Parameter> _parsedConfig;
     std::vector<std::string> _supportedMetrics;
 
@@ -127,9 +126,8 @@ private:
 
     std::shared_ptr<vpux::Device> _device = nullptr;
     // FIXME: executor contains a pointer for allocator which comes from dll.
-    // executor should be destroyed before _device
-    KmbExecutor::Ptr _executor = nullptr;
-
+    // executor should be destroyed before _device. TBD: ticket
+    std::shared_ptr<vpux::Executor> _executor = nullptr;
     static std::atomic<int> loadBlobCounter;
 };
 

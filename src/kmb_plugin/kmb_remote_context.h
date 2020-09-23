@@ -24,8 +24,6 @@
 #include <string>
 #include <vpux.hpp>
 
-#include "kmb_config.h"
-
 namespace vpu {
 namespace KmbPlugin {
 //------------------------------------------------------------------------------
@@ -36,7 +34,7 @@ public:
     using Ptr = std::shared_ptr<KmbRemoteContext>;
     using CPtr = std::shared_ptr<const KmbRemoteContext>;
 
-    explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const KmbConfig& config,
+    explicit KmbRemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config,
         const std::shared_ptr<vpux::Device>& device);
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
@@ -47,7 +45,7 @@ public:
     InferenceEngine::ParamMap getParams() const override;
 
 protected:
-    const KmbConfig& _config;
+    const vpux::VPUXConfig& _config;
     InferenceEngine::ParamMap _params;
 
     const Logger::Ptr _logger;
