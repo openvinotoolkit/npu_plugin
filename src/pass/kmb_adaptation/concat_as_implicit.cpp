@@ -97,6 +97,7 @@ void decideConcatLocationFcn(const mv::pass::PassEntry& , mv::ComputationModel& 
 
     auto concats = om.getOps("Concat");
 
+    //NOTE: SplitOverk->SOH, Clustering->SOH might work even if we stay on cmx we need to test and fix
     std::vector<std::pair<std::string, std::string>>incompatibleStrategiesWithOutSpilling =
     {
         {"SplitOverHOverlapped", "Clustering"},

@@ -221,6 +221,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -247,7 +248,7 @@
             "RemoveBiasTensors",
             "SetSparsityAttrForUnpopulatedTensors",
             "SplittingTensorsAcrossClusters",
-	    "ImplicitOutputDTypeUpdate",
+            "ImplicitOutputDTypeUpdate",
             "KMBQuantizeConversion",
             "ConfigureOutputPrecision"
         ]
@@ -287,6 +288,7 @@
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"

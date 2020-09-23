@@ -205,6 +205,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",

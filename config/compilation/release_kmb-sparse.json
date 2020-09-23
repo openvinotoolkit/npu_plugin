@@ -222,6 +222,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -288,6 +289,7 @@
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
