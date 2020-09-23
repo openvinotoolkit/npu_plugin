@@ -290,7 +290,7 @@ Run the following commands on the KMB board:
 
 ```bash
 # ssh root@$KMB_BOARD_HOST from HOST
-export LD_LIBRARY_PATH=$KMB_WORK_DIR/Release/lib
+export LD_LIBRARY_PATH=$KMB_WORK_DIR/Release/lib:$KMB_WORK_DIR/Release/lib/vpu
 export DATA_PATH=$KMB_WORK_DIR/temp/validation_set/src/validation_set
 export MODELS_PATH=$KMB_WORK_DIR/temp/models
 export IE_KMB_TESTS_DUMP_PATH=$KMB_WORK_DIR/tests-dump
@@ -303,7 +303,7 @@ Run the following commands on the KMB board:
 
 ```bash
 # ssh root@$KMB_BOARD_HOST from HOST
-export LD_LIBRARY_PATH=$KMB_WORK_DIR/Release/lib
+export LD_LIBRARY_PATH=$KMB_WORK_DIR/Release/lib:$KMB_WORK_DIR/Release/lib/vpu
 export DATA_PATH=$KMB_WORK_DIR/temp/validation_set/src/validation_set
 export MODELS_PATH=$KMB_WORK_DIR/temp/models
 $KMB_WORK_DIR/Release/KmbFunctionalTests
