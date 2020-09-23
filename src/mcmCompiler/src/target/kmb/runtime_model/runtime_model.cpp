@@ -1137,6 +1137,9 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
+        
+        if (totalSize == 0)
+            return false;
 
         if (totalSize == 0)
             return false;
@@ -1157,6 +1160,8 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
+
+        return true;
     }
     return true;
 }
