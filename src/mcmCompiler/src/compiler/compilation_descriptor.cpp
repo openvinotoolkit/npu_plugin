@@ -120,7 +120,7 @@ void mv::CompilationDescriptor::remove(const std::string& group, const std::stri
 {
     if (!hasAttr(group))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to remove pass from a non-existent group (" + group + ")");
-    
+
     Element& g_elem = get<Element>(group);
 
     if (!g_elem.hasAttr(recurrence))
@@ -128,11 +128,11 @@ void mv::CompilationDescriptor::remove(const std::string& group, const std::stri
 
     // Remove element from list of passes.
     auto& rec_v = g_elem.get<std::vector<Element>>(recurrence);
-    
+
     auto it = std::find(rec_v.begin(), rec_v.end(), Element(elem));
     if (it == rec_v.end())
         throw RuntimeError(*this, "Unable to find element (" + elem + ") in group (" + group + ")");
-    
+
     rec_v.erase(it);
 }
 
@@ -154,7 +154,7 @@ void mv::CompilationDescriptor::remove(const std::string& group)
 {
     if (!hasAttr(group))
         throw ArgumentError(*this, "CompilationDescriptor", "invalid", "Trying to remove a non-existent group (" + group + ")");
-    
+
     // Remove group attribute from descriptor.
     erase(group);
 
@@ -172,7 +172,7 @@ void mv::CompilationDescriptor::remove(const std::string& group)
         {
             // Find group in g's recurrence lists, and remove it
             auto removeInRecurrenceGroup = [this, g, group](const std::string& recType) {
-                auto& elem = get<Element>(g);
+                auto& elem = this->get<Element>(g);
                 if (elem.hasAttr(recType)) {
                     auto& recList = elem.get<std::vector<Element>>(recType);
                     auto it = std::find(recList.begin(), recList.end(), Element(group));
@@ -229,7 +229,7 @@ void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::s
         {
             auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
             {
-                auto& g = get<Element>(group);
+                auto& g = this->get<Element>(group);
 
                 bool foundPass = false;
                 if (g.hasAttr(recType)) {
@@ -269,7 +269,7 @@ void mv::CompilationDescriptor::setPassArg(const std::string& group, const std::
 
     auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
     {
-        auto& g = get<Element>(group);
+        auto& g = this->get<Element>(group);
 
         if (g.hasAttr(recType)) {
             std::vector<mv::Element>& recList = g.get<std::vector<Element>>(recType);

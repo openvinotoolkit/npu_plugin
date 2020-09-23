@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include <ngraph/pass/pass.hpp>
@@ -41,5 +40,4 @@ private:
     NodeOutputToMcmMap& _mcmOutputsMap;
 };
 
-#endif
 // clang-format on

@@ -34,9 +34,11 @@ typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
 
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
-  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   mv::lp_scheduler::Tensor_Allocator_Assignment alloc(model);
   mv::OpModel om(model);
+
+#ifndef WIN32
+  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   auto global_params = model.getGlobalConfigParams();
 
   if (global_params->hasAttr(reader_t::ddr_address_attribute())) {
@@ -68,6 +70,7 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       throw std::string("[DDR_Address_Generation]: insufficient DDR space");
     }
   }
+#endif  // WIN32
 
   for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
     mv::Op &op = *itr;
@@ -160,7 +163,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
   scheduled_op_list_t scheduled_ops;
 
-  std::string scheduled_op_type; 
+  std::string scheduled_op_type;
   while (scheduler != scheduler_end) { // collect original schedule //
     const scheduled_op_info_t &scheduled_op = *scheduler;
     mv::Op const *op = scheduled_op.op_;
@@ -170,7 +173,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     scheduled_op_type = scheduled_op.op_type_name();
 
     if (input_dag.is_input_op(op)) {
-      // explicitly set the resource bounds so that the prefetch edges can 
+      // explicitly set the resource bounds so that the prefetch edges can
       // be done as high as possible.
       rbegin = 1UL;
       rend = upper_bound;
@@ -189,7 +192,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     ++scheduler;
   } // while (scheduler != scheduler_end) //
 
-  { 
+  {
     std::list<scheduled_op_t> new_scheduled_ops;
 
     mv::lp_scheduler::Remove_Redundant_Spill_Writes::remove(
@@ -313,7 +316,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
     repacker_t repacker(input_dag, repackable_op_selector);
 
-    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(), 
+    repacker.repack(scheduled_ops.begin(), scheduled_ops.end(),
         std::back_inserter(new_scheduled_ops));
 
     scheduled_ops = new_scheduled_ops;
@@ -328,6 +331,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
 
 
   ///////////////Save Schedule for DDR Address Generation///////////////////////
+#ifndef WIN32
   if (passDesc.hasAttr("ddr_address_generation") &&
         passDesc.get<bool>("ddr_address_generation")) {
     typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> writer_t;
@@ -342,6 +346,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     params->set<std::string>(writer_t::ddr_address_attribute(),
           schedule_state.str());
   }
+#endif  // WIN32
   //////////////////////////////////////////////////////////////////////////////
 
   ////////////////////// Control Edge Generation ///////////////////////////////
@@ -371,8 +376,8 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
   }
 
-  { 
-    control_edges.add_cmx_memory_control_edges(input_dag, model, 
+  {
+    control_edges.add_cmx_memory_control_edges(input_dag, model,
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());

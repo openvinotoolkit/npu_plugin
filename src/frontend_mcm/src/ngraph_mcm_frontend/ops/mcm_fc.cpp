@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/ops/mcm_fc.hpp"
 #include <memory>
@@ -41,5 +40,4 @@ std::shared_ptr<ngraph::Node> McmFC::clone_with_new_inputs(const ngraph::OutputV
     return std::make_shared<McmFC>(new_args.at(0), new_args.at(1), _output_shape, _type);
 }
 
-#endif
 // clang-format on

@@ -20,6 +20,9 @@
 
 #include <caseless.hpp>
 #include <converters.hpp>
+#include <custom_layer/custom_layer.hpp>
+#include <graph_tools.hpp>
+#include <include/mcm/op_model.hpp>
 #include <map>
 #include <memory>
 #include <set>
@@ -32,12 +35,6 @@
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/error.hpp>
 #include <vpu/utils/logger.hpp>
-
-#ifdef ENABLE_MCM_COMPILER
-
-#include <custom_layer/custom_layer.hpp>
-#include <graph_tools.hpp>
-#include <include/mcm/op_model.hpp>
 
 #include "mcm_config.hpp"
 #include "mcm_helper.hpp"
@@ -199,5 +196,3 @@ private:
 };
 
 }  // namespace vpu
-
-#endif

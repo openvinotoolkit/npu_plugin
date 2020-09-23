@@ -23,7 +23,6 @@ using namespace InferenceEngine;
 
 typedef kmbLayerTestBaseWithParam<Dims> kmbLayersTestsScaleParams;
 
-#ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsScaleParams, TestsScale) {
     auto param = GetParam();
     tensor_test_params tensor = param;
@@ -53,4 +52,3 @@ const static std::vector<Dims> scaleTensors = {
 };
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsScaleParams, ::testing::ValuesIn(scaleTensors));
-#endif

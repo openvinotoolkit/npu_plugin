@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/quantization_helpers.hpp"
 #include <details/ie_exception.hpp>
@@ -183,5 +182,4 @@ std::vector<std::shared_ptr<ngraph::Node>> getInputsFQ(std::shared_ptr<ngraph::N
     return result;
 }
 
-#endif
 // clang-format on

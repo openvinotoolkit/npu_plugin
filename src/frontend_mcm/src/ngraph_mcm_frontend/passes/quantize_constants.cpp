@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/quantize_constants.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_quantize.hpp"
@@ -81,5 +80,4 @@ QuantizeConstants::QuantizeConstants() {
     add_matcher(m, rewrite, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-#endif
 // clang-format on

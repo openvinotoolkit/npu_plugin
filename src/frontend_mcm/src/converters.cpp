@@ -71,8 +71,6 @@ InferenceEngine::Precision MvcnnDTypeToPrecision(const MVCNN::DType& dtype) {
     return mapIter->first;
 }
 
-#ifdef ENABLE_MCM_COMPILER
-
 std::vector<uint32_t> layoutToOrderVector(const InferenceEngine::Layout& tensorLayout) {
     return orderMapping.at(tensorLayout);
 }
@@ -124,4 +122,3 @@ mv::Shape sizeVectorToShape(InferenceEngine::SizeVector dims) {
     std::reverse(begin(dims), end(dims));
     return mv::Shape(dims);
 }
-#endif

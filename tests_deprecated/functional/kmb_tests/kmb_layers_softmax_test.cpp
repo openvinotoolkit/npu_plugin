@@ -22,7 +22,6 @@ using namespace InferenceEngine;
 
 typedef kmbLayerTestBaseWithParam<std::tuple<Dims, size_t>> kmbLayersTestsSoftMaxParams;
 
-#ifdef ENABLE_MCM_COMPILER
 TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);
@@ -52,4 +51,3 @@ static std::vector<Dims> s_softMaxTensors = {
 
 INSTANTIATE_TEST_CASE_P(accuracy, kmbLayersTestsSoftMaxParams,
     ::testing::Combine(::testing::ValuesIn(s_softMaxTensors), ::testing::Values(1, 2)));
-#endif

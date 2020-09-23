@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/mcm_attrs.hpp"
 #include <sstream>
@@ -91,5 +90,4 @@ void McmOpAttrs::setOrder(const mv::Order& order, std::shared_ptr<ngraph::Node> 
     }
 }
 
-#endif
 // clang-format on

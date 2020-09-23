@@ -33,14 +33,12 @@ add_subdirectory(flatbuffers)
 # Lemon
 #
 
-if(X86_64 AND NOT WIN32)
-    add_subdirectory(lemon)
+add_subdirectory(lemon)
 
-    target_include_directories(lemon
-        PUBLIC
-            ${CMAKE_CURRENT_SOURCE_DIR}/lemon
-            ${CMAKE_CURRENT_BINARY_DIR}/lemon)
-endif()
+target_include_directories(lemon
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/lemon
+        ${CMAKE_CURRENT_BINARY_DIR}/lemon)
 
 #
 # vpual

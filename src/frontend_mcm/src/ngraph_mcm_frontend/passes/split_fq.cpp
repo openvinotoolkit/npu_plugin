@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/split_fq.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_quantize.hpp"
@@ -77,5 +76,4 @@ bool SplitFQ::run_on_node(std::shared_ptr<ngraph::Node> node) {
     return false;
 }
 
-#endif
 // clang-format on

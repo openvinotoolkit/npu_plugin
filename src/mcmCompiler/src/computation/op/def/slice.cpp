@@ -16,8 +16,8 @@ namespace mv
             const auto& inputShape = inputs[0]->getShape();
 
             //TODO: support variable number of dims
-            if ( (startCoord.ndims() != 4) or
-                 (outputSize.ndims() != 4) or
+            if ( (startCoord.ndims() != 4) ||
+                 (outputSize.ndims() != 4) ||
                  (inputShape.ndims() != 4) )
             {
                 errMsg = "Invalid shape at input. InputTensor - StartingCoord - OutputSize - must have a dimensionality of 4"

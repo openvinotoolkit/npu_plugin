@@ -326,7 +326,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
                     workload_partition_2.points.push_back(*it_all);
             }
         }
-        else if (not interesting_point.second)
+        else if (!interesting_point.second)
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {
@@ -349,7 +349,7 @@ std::vector<mv::Workload> mv::Workloads::workloadSplitHelper(const mv::pass::Pas
                     workload_partition_2.points.push_back(*it_all);
             }
         }
-        else if (not interesting_point.second)
+        else if (!interesting_point.second)
         {
             for (auto it_all = workload.points.begin(); it_all != workload.points.end(); it_all++)
             {

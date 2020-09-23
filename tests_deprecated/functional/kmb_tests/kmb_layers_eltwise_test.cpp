@@ -27,7 +27,6 @@
 
 using namespace InferenceEngine;
 
-#ifdef ENABLE_MCM_COMPILER
 // TODO find a way to specify several inputs to Eltwise without other layers
 
 struct eltwise_test_params {
@@ -469,5 +468,3 @@ TEST_F(kmbLayersTests_nightly, DISABLED_EltwiseWithFakeQuantize) {
 }
 
 INSTANTIATE_TEST_CASE_P(accuracy, EltwiseTest, ::testing::ValuesIn(test_params));
-
-#endif

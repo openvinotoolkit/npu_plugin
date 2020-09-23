@@ -18,10 +18,13 @@
 
 #include <algorithm>
 #include <blob_factory.hpp>
+#include <converters.hpp>
+#include <custom_layer/custom_parser.hpp>
 #include <frontend_mcm.hpp>
 #include <graph_tools.hpp>
 #include <ie_itt.hpp>
 #include <ie_util_internal.hpp>
+#include <include/mcm/tensor/tiling.hpp>
 #include <limits>
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/transformer.hpp>
@@ -38,12 +41,6 @@
 
 #include "dims_parser.hpp"
 #include "ie_macro.hpp"
-
-#ifdef ENABLE_MCM_COMPILER
-
-#include <converters.hpp>
-#include <custom_layer/custom_parser.hpp>
-#include <include/mcm/tensor/tiling.hpp>
 
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
@@ -2299,4 +2296,3 @@ void FrontEndMcm::parseExp(const ie::CNNLayerPtr& layer, const McmNodeVector& in
 }
 
 }  // namespace vpu
-#endif

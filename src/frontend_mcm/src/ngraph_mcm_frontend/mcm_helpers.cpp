@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include <details/ie_exception.hpp>
@@ -109,5 +108,4 @@ mv::DType cvtElemTypeToMCM(const ngraph::element::Type& elemType) {
     return mv::DType(mcmTypeName.str());
 }
 
-#endif
 // clang-format on

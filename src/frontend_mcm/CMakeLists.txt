@@ -14,9 +14,10 @@
 # stated in the License.
 #
 
-if(ENABLE_LTO)
-    ie_enable_lto()
-endif()
+# FIXME ENABLE_LTO leads to segmentation fault after 'calling fini libfrontend_mcm.so'
+# if(ENABLE_LTO)
+#     ie_enable_lto()
+# endif()
 
 set(TARGET_NAME "frontend_mcm")
 
@@ -52,27 +53,17 @@ link_system_libraries(${TARGET_NAME}
         IE::pugixml
         IE::ngraph_reference
         IE::vpu_common_lib
-        flatbuffers)
+        mcmCompiler)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
         vpux
         kmb_utils)
 
-# TODO: do this unconditionally, when compiler will be tested on AARCH64 and WIN32
-if(X86_64 AND NOT WIN32)
-    link_system_libraries(${TARGET_NAME}
-        PRIVATE
-            mcmCompiler)
-
-   # TODO: remove define once we hide all logic for compiler in a separate library
-   target_compile_definitions(${TARGET_NAME} PUBLIC ENABLE_MCM_COMPILER)
-
-    add_custom_target(mcm_compiler_copy ALL
-        COMMAND ${CMAKE_COMMAND} -E copy_directory
-            "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
-            "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
-        COMMENT "[MCM Compiler] Copy config files")
-endif()
+add_custom_target(mcm_compiler_copy ALL
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
+        "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
+    COMMENT "[MCM Compiler] Copy config files")
 
 if(ENABLE_CLANG_FORMAT)
     add_clang_format_target(clang_format_${TARGET_NAME} FOR_TARGETS ${TARGET_NAME} ALL)

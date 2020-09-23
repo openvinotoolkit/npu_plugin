@@ -24,7 +24,6 @@ using namespace InferenceEngine;
 
 typedef kmbLayerTestBaseWithParam<tensor_test_params> kmbLayersTestsReLUParams;
 
-#ifdef ENABLE_MCM_COMPILER
 // TODO: mcmCompiler compilation fails (Convolution with bias): Segmentation fault.
 // [Track number: D#1474]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestsReLUAfterConvolution) {
@@ -230,4 +229,3 @@ static const tensor_test_params paramsTable[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsReLUParams, ::testing::ValuesIn(paramsTable));
-#endif

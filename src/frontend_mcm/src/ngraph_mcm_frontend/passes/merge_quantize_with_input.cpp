@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/merge_quantize_with_input.hpp"
 #include "ngraph_mcm_frontend/ops/mcm_quantize.hpp"
@@ -79,5 +78,4 @@ MergeQuantizeWithInput::MergeQuantizeWithInput() {
     add_matcher(m, rewrite, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-#endif
 // clang-format on

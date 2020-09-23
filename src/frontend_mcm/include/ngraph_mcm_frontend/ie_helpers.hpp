@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ie_precision.hpp>
 #include <ngraph/type/element_type.hpp>
@@ -26,5 +25,4 @@ namespace ie = InferenceEngine;
 
 ngraph::element::Type cvtPrecisionToElemType(const ie::Precision& precision);
 
-#endif
 // clang-format on

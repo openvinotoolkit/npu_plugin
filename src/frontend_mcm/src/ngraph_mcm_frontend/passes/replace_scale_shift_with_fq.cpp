@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/passes/replace_scale_shift_with_fq.hpp"
 #include <details/ie_exception.hpp>
@@ -97,5 +96,4 @@ ReplaceScaleShiftWithFQ::ReplaceScaleShiftWithFQ() {
     add_matcher(m, rewrite, ngraph::pass::PassProperty::CHANGE_DYNAMIC_STATE);
 }
 
-#endif
 // clang-format on

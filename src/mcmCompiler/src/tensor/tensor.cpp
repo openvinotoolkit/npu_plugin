@@ -449,9 +449,9 @@ void mv::Tensor::setAddress(int64_t address)
         {
             auto storageElementSize = storageElement_->getClusterSize();
             storageElement_->setAddress(address + (tensorSize - storageElementSize - sparsitySize));
-        } 
+        }
     }
-   
+
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++)
     {
         subTensors_[tIdx]->setAddress(address);
@@ -461,7 +461,7 @@ void mv::Tensor::setAddress(int64_t address)
             auto se_addr = subTensors_[0]->getStorageElement()->getAddress();
             subTensors_[tIdx]->getSparsityMap()->setAddress(sm_addr);
             subTensors_[tIdx]->getStorageElement()->setAddress(se_addr);
-        } 
+        }
     }
 }
 
@@ -498,7 +498,7 @@ bool mv::Tensor::setSparse()
     sparsityMap_->set<bool>("sparsityMap", true);
     noneZeroElements_ = 0;
 
-    
+
 
     //populate sparsity map
     if (isPopulated())
@@ -517,7 +517,7 @@ bool mv::Tensor::setSparse()
 
     unsigned sm_offset_byte_index = 0UL, se_offset_byte_index = 0UL;
     for (size_t tIdx = 0; tIdx < subTensors_.size(); tIdx++) {
-        
+
         subTensors_[tIdx]->setSparse();
         if (!isPopulated()) {
           auto sub_sparsity_map = subTensors_[tIdx]->getSparsityMap();
@@ -1156,7 +1156,7 @@ mv::Tensor& mv::Tensor::operator=(const Tensor& other)
     subTensors_ = other.subTensors_;
     kernelDataOffsets_ = other.kernelDataOffsets_;
 
-   
+
 
     if (other.hasSubTensors())
     {
@@ -1331,9 +1331,9 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
-            auto width = wlItr->MaxX - wlItr->MinX;
-            auto height = wlItr->MaxY - wlItr->MinY;
-            auto channels = wlItr->MaxZ - wlItr->MinZ;
+            size_t width = wlItr->MaxX - wlItr->MinX;
+            size_t height = wlItr->MaxY - wlItr->MinY;
+            size_t channels = wlItr->MaxZ - wlItr->MinZ;
             if (clustering)
             {
                 mv::Shape newShape = {width, height, channels, 1};

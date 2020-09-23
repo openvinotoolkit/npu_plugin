@@ -35,18 +35,14 @@ static void syslog(string const &);
  */
 string PrintToString(const char *fmt, ...)
 {
-   char *fmt_out = 0;
+   char fmt_buf[1024];
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
+   vsnprintf(fmt_buf, 1023, fmt, ap);
+   fmt_buf[1023] = '\0';
    va_end(ap);
 
-   if (!fmt_out)
-      return ("Error: PrintToString");
-
-   string output(fmt_out);
-   free(fmt_out);
-   return output;
+   return string(fmt_buf);
 } // PrintToString()
 
 void Report(int level, std::stringstream &reportStream)
@@ -93,18 +89,15 @@ void Log(int level, const char *fmt, ...)
    strftime(timebuf, 128, "%F %T", loctime);
 
    // get the formatted output
-   char *fmt_out;
+   char fmt_buf[1024];
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
 
    ostringstream outstr;
    outstr << "(LOG: " << timebuf << ": Log L" << level << ")     "
-          << fmt_out << '\n';
+          << fmt_buf << '\n';
    syslog(outstr.str());
-   if (fmt_out)
-      free(fmt_out);
 } // Log()
 
 /**
@@ -113,19 +106,18 @@ void Log(int level, const char *fmt, ...)
 void AssertFail(const char *file, int line, const char *fmt, ...)
 {
    // get the formatted output first
-   char *fmt_out;
+   char fmt_buf[1024];
    va_list ap;
    va_start(ap, fmt);
-   VASPRINTF(&fmt_out, fmt, ap);
+   vsnprintf(fmt_buf, 1023, fmt, ap);
+   fmt_buf[1023] = '\0';
    va_end(ap);
 
    ostringstream outstr;
    outstr << "assertion failure at '" << file
-          << "', line " << line << " (" << fmt_out << ")\n";
+          << "', line " << line << " (" << fmt_buf << ")\n";
    // logging is handled at the catch
    // syslog(outstr.str());
-   if (fmt_out)
-      free(fmt_out);
 
    throw Exception(outstr.str());
 } // AssertFail()

@@ -84,7 +84,7 @@ const bool KmbTestBase::RUN_COMPILER = []() -> bool {
         return true;
     }
 
-#if defined(__aarch64__) || !defined(ENABLE_MCM_COMPILER)
+#if defined(__aarch64__)
     return false;
 #else
     return true;

@@ -15,7 +15,6 @@
 //
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/ie_helpers.hpp"
 #include <details/ie_exception.hpp>
@@ -43,5 +42,4 @@ ngraph::element::Type cvtPrecisionToElemType(const ie::Precision& precision) {
     }
 }
 
-#endif
 // clang-format on

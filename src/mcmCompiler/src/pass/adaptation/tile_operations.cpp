@@ -44,14 +44,14 @@ void tileOpsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
         auto kernel_size = conv->getInputTensor(1)->getShape()[mv::KERNEL_WIDTH];
         if (kernel_size > MAX_LIMIT_KERNEL)
         {
-            // Check if padding is too large for the partition. If so, pre pad the input and 
+            // Check if padding is too large for the partition. If so, pre pad the input and
             // remove padding from original conv before the partition operation
             // auto originalPadding = conv->get<std::array<unsigned short, 4>>("padding");
             // if((originalPadding[0] > std::floor(MID_LIMIT_KERNEL_W/2)) or (originalPadding[2] > std::floor(MID_LIMIT_KERNEL_H/2)))
             // {
                 padInputTensor(conv, model); //TODO renable handling of padding where it's small enough!
             // }
-            
+
 
             auto nextOp = mv::findSinkLayers(dm, conv->getOutputTensor(0))[0];
             //NOTE: The idea here is that we need 4 equal partitions
@@ -85,19 +85,19 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     auto bottomSize = inputTensorShape[mv::IO_WIDTH_DIMENSION] * originalPadding[3];
 
     std::vector<int64_t> topData(topSize * otherDimSize, zeroPoint[0]);
-    auto topPad = om.constantInt(topData, 
-                                {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                                mv::DType("UInt8"), 
-                                inputTensor->getOrder(), 
+    auto topPad = om.constantInt(topData,
+                                {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[2], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                mv::DType("UInt8"),
+                                inputTensor->getOrder(),
                                 inputTensorQPs);
     om.getSourceOp(topPad)->set<unsigned>("opId", opId);
     topPad->set<bool>("is_pad", true);
 
     std::vector<int64_t> bottomData(bottomSize * otherDimSize, zeroPoint[0]);
-    auto bottomPad = om.constantInt(bottomData, 
-                            {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                            mv::DType("UInt8"), 
-                            inputTensor->getOrder(), 
+    auto bottomPad = om.constantInt(bottomData,
+                            {inputTensorShape[mv::IO_WIDTH_DIMENSION], originalPadding[3], inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                            mv::DType("UInt8"),
+                            inputTensor->getOrder(),
                             inputTensorQPs);
     om.getSourceOp(bottomPad)->set<unsigned>("opId", opId);
     bottomPad->set<bool>("is_pad", true);
@@ -108,19 +108,19 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     auto rightSize = newHeight * originalPadding[1];
 
     std::vector<int64_t> leftData(leftSize * otherDimSize, zeroPoint[0]);
-    auto leftPad = om.constantInt(leftData, 
-                                {originalPadding[0], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                                mv::DType("UInt8"), 
-                                inputTensor->getOrder(), 
+    auto leftPad = om.constantInt(leftData,
+                                {originalPadding[0], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                                mv::DType("UInt8"),
+                                inputTensor->getOrder(),
                                 inputTensorQPs);
     leftPad->set<bool>("is_pad", true);
 
     om.getSourceOp(leftPad)->set<unsigned>("opId", opId);
     std::vector<int64_t> rightData(rightSize * otherDimSize, zeroPoint[0]);
-    auto rightPad = om.constantInt(rightData, 
-                            {originalPadding[1], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]}, 
-                            mv::DType("UInt8"), 
-                            inputTensor->getOrder(), 
+    auto rightPad = om.constantInt(rightData,
+                            {originalPadding[1], newHeight, inputTensorShape[mv::IO_CHANNEL_DIMENSION], inputTensorShape[mv::IO_BATCH_DIMENSION]},
+                            mv::DType("UInt8"),
+                            inputTensor->getOrder(),
                             inputTensorQPs);
     om.getSourceOp(rightPad)->set<unsigned>("opId", opId);
     rightPad->set<bool>("is_pad", true);
@@ -131,7 +131,7 @@ void padInputTensor(mv::Data::OpListIterator opIt, mv::ComputationModel &model)
     om.getSourceOp(concatH)->set<unsigned>("opId", opId);
     auto concatW = om.concat({leftPad, concatH, rightPad}, "W", mv::DType("UInt8"), inputTensorQPs, opIt->getName() + "_padW");
     om.getSourceOp(concatW)->set<unsigned>("opId", opId);
-    
+
     auto sourceFlow = opIt.leftmostInput();
     om.undefineFlow(sourceFlow);
     opIt->setInputTensor(concatW, 0, false);
@@ -306,7 +306,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         if(partitionedKernelHeight > partitionedKernelWidth)
             largeDim = 1;
 
-        
+
         branchWeightSize = {partitionedKernelWidth, partitionedKernelHeight,
                             weightTensor->getShape()[mv::KERNEL_INPUT_CHANNELS],
                             weightTensor->getShape()[mv::KERNEL_OUTPUT_CHANNELS]};
@@ -343,7 +343,7 @@ void partitionOperation(mv::Data::OpListIterator opIt, std::size_t oldKernelSize
         if(isasymmetric)
             convOp->set<unsigned>("asymmetricKernel", 1-largeDim);
 
-        if (hasBias and (branchId == 4))
+        if (hasBias && (branchId == 4))
         {
             std::string biasName = mv::createBiasName(convOp->getName() + "_bias");
             newBias = dm.defineTensor(mv::Tensor(biasName, bias->getShape(),

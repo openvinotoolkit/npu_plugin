@@ -290,7 +290,7 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
                     std::vector<mv::Data::OpListIterator> sinkOperators = findSinkLayers(dm, tensor);
                     if (!sinkOperators.empty())
                     {
-                        while (sinkOperators[0]->getOpType() != "DPUTask" and
+                        while (sinkOperators[0]->getOpType() != "DPUTask" &&
                                 sinkOperators[0]->getOpType() != "Output"){
                             sinkOperators = findSinkLayers(dm, sinkOperators[0]->getOutputTensor(0));
                         }

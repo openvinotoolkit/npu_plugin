@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <ngraph/pass/pass.hpp>
 #include <memory>
@@ -31,5 +30,4 @@ public:
     bool run_on_node(std::shared_ptr<ngraph::Node> node) override;
 };
 
-#endif
 // clang-format on

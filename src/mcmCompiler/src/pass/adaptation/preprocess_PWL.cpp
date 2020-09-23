@@ -106,7 +106,7 @@ void preprocessForPWL(const mv::pass::PassEntry&, mv::ComputationModel& model, m
                     auto itr = std::find(postOpTypes.begin(), postOpTypes.end(), "LeakyRelu");
                     if (itr != postOpTypes.end())
                     {
-                        replace(postOpTypes.begin(), postOpTypes.end(), +"LeakyRelu", +"FLEXARB");
+                        std::replace(postOpTypes.begin(), postOpTypes.end(), std::string("LeakyRelu"), std::string("FLEXARB"));
                         convOp->set<std::vector<std::string>>("postOpTypes", postOpTypes);
                     }
                 }

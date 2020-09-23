@@ -78,7 +78,7 @@ namespace mv
 
         bool isImplicit()
         {
-            return (resolved_ or passtrough_ );
+            return (resolved_ || passtrough_ );
         }
 
         bool isPasstrough()

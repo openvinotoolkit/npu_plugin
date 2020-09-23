@@ -5,6 +5,9 @@
 #pragma once
 
 #include <converters.hpp>
+#include <custom_layer/custom_kernel.hpp>
+#include <frontend_mcm.hpp>
+#include <ie_layers.h>
 #include <vpu/utils/simple_math.hpp>
 
 namespace vpu {

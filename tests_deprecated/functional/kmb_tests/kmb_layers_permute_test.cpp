@@ -23,7 +23,6 @@ using namespace InferenceEngine;
 typedef std::tuple<tensor_test_params, tensor_test_params, std::string> permute_test_params;
 typedef kmbLayerTestBaseWithParam<permute_test_params> kmbLayersTestsPermuteParams;
 
-#ifdef ENABLE_MCM_COMPILER
 // [Track number: S#23996]
 TEST_P(kmbLayersTestsPermuteParams, DISABLED_TestsPermute) {
     auto param = GetParam();
@@ -55,4 +54,3 @@ static const permute_test_params paramsTable[] = {
 };
 
 INSTANTIATE_TEST_CASE_P(loadNetworkNoThrow, kmbLayersTestsPermuteParams, ::testing::ValuesIn(paramsTable));
-#endif

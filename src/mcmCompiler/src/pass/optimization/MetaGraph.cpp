@@ -104,7 +104,7 @@ bool MetaGraph::StrategytSetCompare::operator()(const StrategySetPair& lhs,
     auto leftSecondId  = lhs.child->find("id")->second.get<int>();
     auto rightSecondId = rhs.child->find("id")->second.get<int>();
 
-    return ((leftFirstId == rightFirstId) and (leftSecondId == rightSecondId));
+    return ((leftFirstId == rightFirstId) && (leftSecondId == rightSecondId));
 }
 
 bool MetaGraph::costEdgeIteratorComp::operator()(const OptimizationGraph::edge_list_iterator lhs,
@@ -257,11 +257,11 @@ void MetaGraph::fuseMeta(shared_ptr<MetaGraph> childGraph)
             if( (*(levels[levelCtr].op)) == (*childLastLevel.op))
                 childLevelCtr = levelCtr;
 
-            if( (parentLevelCtr != -1) and (childLevelCtr != -1))
+            if( (parentLevelCtr != -1) && (childLevelCtr != -1))
                 break;
         }
 
-        if( (parentLevelCtr != -1) and (childLevelCtr != -1))
+        if( (parentLevelCtr != -1) && (childLevelCtr != -1))
         {
             //both levels are existing. then we take each edge between the levels in the parent graph, and
             //extend the edge info, by increasing the cost of the edge with the childGraph's critical path
@@ -302,7 +302,7 @@ void MetaGraph::fuseMeta(shared_ptr<MetaGraph> childGraph)
             //in this case we will not update the first/last level indexes in the graph, since this was not an
             //addition but a fusion
         }
-        else if( (parentLevelCtr != -1) and (childLevelCtr == -1))
+        else if( (parentLevelCtr != -1) && (childLevelCtr == -1))
         {
             //if we found only the parent, then we will append a new set of nodes, aka, the children.
 
@@ -446,7 +446,7 @@ shared_ptr<MetaGraph::CriticalPath> MetaGraph::getLowestCriticalPathExtended()
     StrategySetPair bestPair;
     OptimizationGraph::node_list_iterator bestSource,bestSink;
     bool foundPath = false;
-    
+
     for(auto parent : firstLevel)
         for(auto child : lastLevel)
         {
@@ -533,7 +533,7 @@ void MetaGraph::write(string dotFileLocation,bool skipInf)
     for(auto edge = internalGraph_.edge_begin(); edge != internalGraph_.edge_end(); ++edge)
     {
         auto cost = (*edge).cost();
-        if( skipInf and ( cost == numeric_limits<double>::infinity()))
+        if( skipInf && ( cost == numeric_limits<double>::infinity()))
             continue;
 
         auto sourceNode = edge->source();

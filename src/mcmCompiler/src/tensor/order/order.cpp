@@ -1,7 +1,10 @@
 #include "include/mcm/tensor/order/order.hpp"
 #include <set>
 
-const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID_ =
+namespace
+{
+
+const std::unordered_map<std::size_t, std::string> rowMajorID_ =
 {
     {1, "W"},
     {2, "WH"},
@@ -10,7 +13,7 @@ const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorID_ =
     {5, "WHCNT"}
 };
 
-const std::unordered_map<std::size_t, std::string> mv::Order::colMajorID_ =
+const std::unordered_map<std::size_t, std::string> colMajorID_ =
 {
     {1, "W"},
     {2, "HW"},
@@ -19,7 +22,7 @@ const std::unordered_map<std::size_t, std::string> mv::Order::colMajorID_ =
     {5, "TNCHW"}
 };
 
-const std::unordered_map<std::size_t, std::string> mv::Order::colMajorPlanarID_ =
+const std::unordered_map<std::size_t, std::string> colMajorPlanarID_ =
 {
     {1, "W"},
     {2, "WH"},
@@ -28,7 +31,7 @@ const std::unordered_map<std::size_t, std::string> mv::Order::colMajorPlanarID_ 
     {5, "TNCWH"}
 };
 
-const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ =
+const std::unordered_map<std::size_t, std::string> rowMajorPlanarID_ =
 {
     {1, "W"},
     {2, "HW"},
@@ -37,10 +40,37 @@ const std::unordered_map<std::size_t, std::string> mv::Order::rowMajorPlanarID_ 
     {5, "HWCNT"}
 };
 
-const std::unordered_map<std::size_t, std::string> mv::Order::ZMajorID_ =
+const std::unordered_map<std::size_t, std::string> ZMajorID_ =
 {
     {4, "NHWC"}
 };
+
+}  // namespace
+
+std::string mv::Order::getRowMajorID(std::size_t dimension)
+{
+    return rowMajorID_.at(dimension);
+}
+
+std::string mv::Order::getColMajorID(std::size_t dimension)
+{
+    return colMajorID_.at(dimension);
+}
+
+std::string mv::Order::getColMajorPlanarID(std::size_t dimension)
+{
+    return colMajorPlanarID_.at(dimension);
+}
+
+std::string mv::Order::getRowMajorPlanarID(std::size_t dimension)
+{
+    return rowMajorPlanarID_.at(dimension);
+}
+
+std::string mv::Order::getZMajorID(std::size_t dimension)
+{
+    return ZMajorID_.at(dimension);
+}
 
 mv::Order::Order(const std::string& value)
    :Order([this, value]()->Order
@@ -263,4 +293,3 @@ std::string mv::Order::getLogID() const
 {
     return "Order '" + toString() + "'";
 }
-

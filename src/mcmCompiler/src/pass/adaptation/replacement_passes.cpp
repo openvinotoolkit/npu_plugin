@@ -337,11 +337,11 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             (inHeight / outHeight) == inWidth / outWidth)
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto factor = inHeight / outHeight;
+            unsigned short factor = inHeight / outHeight;
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
-            std::array<unsigned short, 2> kSize({factor, factor});
-            std::array<unsigned short, 2> stride({factor, factor});
+            std::array<unsigned short, 2> kSize{{factor, factor}};
+            std::array<unsigned short, 2> stride{{factor, factor}};
             auto name = opIt->getName();
 
             //Check the last argument name!!!
@@ -483,7 +483,9 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
                                             mv::Order(mv::Order::getColMajorID(4)),
                                             weightsTensorQuantizationParams);
                 }
-                auto gridConv = om.depthwiseConv(sourceTensor, weight, {stride, stride}, {0, 0, 0, 0}, 1, outputTensorType,
+                auto gridConv = om.depthwiseConv(sourceTensor, weight,
+                                                {static_cast<unsigned short>(stride), static_cast<unsigned short>(stride)},
+                                                {0, 0, 0, 0}, 1, outputTensorType,
                                                  outputTensorQuantizationParams,
                                                  opIt->getName() + "_DepthwiseConvGrid" + ":_" + std::to_string(rowIdx) + "_" + std::to_string(colIdx) + "_");
                 auto convOp = om.getSourceOp(gridConv);
@@ -1004,7 +1006,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             kSize[mv::KERNEL_HEIGHT] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT];
             kSize[mv::KERNEL_WIDTH] = opIt->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH];
         }
-        if(kSize[mv::KERNEL_WIDTH] <= mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] <= mv::MAX_KERNEL) // can do as single depthwise, skip
+        if(kSize[mv::KERNEL_WIDTH] <= mv::MAX_KERNEL && kSize[mv::KERNEL_HEIGHT] <= mv::MAX_KERNEL) // can do as single depthwise, skip
             continue;//skip for this avgPool
 
         //figure out the bigger kernel dimension width or height when having an asymmetric kernel
@@ -1013,9 +1015,9 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
         auto asymmetricCase = false;
         auto asymmetricBothKernelsLarge = false;
 
-        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) and (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL or kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL))
+        if((kSize[mv::KERNEL_WIDTH] != kSize[mv::KERNEL_HEIGHT]) && (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL || kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL))
         {
-            if (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL and kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL)
+            if (kSize[mv::KERNEL_WIDTH] >  mv::MAX_KERNEL && kSize[mv::KERNEL_HEIGHT] >  mv::MAX_KERNEL)
                 asymmetricBothKernelsLarge = true;
 
             // deal with asymetric kernels when one dim is larger than MAX_KERNEL
@@ -1046,7 +1048,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
 
         factors = getFactors(kernelSize);
         pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kernelSize) + " , factor1=" + std::to_string(factors.first)+ " , factor2=" + std::to_string(factors.second));
-        if (factors.first >  mv::MAX_KERNEL or factors.second >  mv::MAX_KERNEL)
+        if (factors.first >  mv::MAX_KERNEL || factors.second >  mv::MAX_KERNEL)
         {
             //unable to split into appropriate size
             throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
@@ -1058,7 +1060,7 @@ void replaceLargeKernelsFcn(const mv::pass::PassEntry& pass, mv::ComputationMode
             factorsDim2 = getFactors(kSize[mv::KERNEL_HEIGHT - largeDim]);//toggling between the two kernel sizes
             pass.log(mv::Logger::MessageType::Debug, "kernel " +  std::to_string(kSize[mv::KERNEL_HEIGHT - largeDim]) + " , factor1=" + std::to_string(factorsDim2.first)+ " , factor2=" + std::to_string(factorsDim2.second));
 
-            if (factorsDim2.first >  mv::MAX_KERNEL or factorsDim2.second >  mv::MAX_KERNEL)
+            if (factorsDim2.first >  mv::MAX_KERNEL || factorsDim2.second >  mv::MAX_KERNEL)
             {
                 //unable to split into appropriate size
                 throw std::runtime_error(std::string(__FUNCTION__).append(" ERROR: factors are larger the MAX_KERNEL 11"));
@@ -1288,7 +1290,7 @@ void replaceConcatOfPopulatedTensorsFcn(const mv::pass::PassEntry& pass, mv::Com
     }
 }
 //pass slicing horizontally by the provided width also slicing vertically by the provided height
-//original operation  is performed per small partitions, 
+//original operation  is performed per small partitions,
 //result concatenated per each line (horizontally) and at the end concatening the  1 column of results vertically
 mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::ComputationModel& model, mv::Data::OpListIterator operation, size_t widthSlice, size_t heightSlice, mv::Data::OpListIterator nextOpIt)
 {
@@ -1305,8 +1307,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     if ( operation->hasAttr("kSize") )
         kSize = operation->get<std::array<unsigned short, 2>>("kSize");
     else
-        kSize = {operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH],
-                 operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT] };
+        kSize = {
+            static_cast<unsigned short>(operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH]),
+            static_cast<unsigned short>(operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT])
+        };
 
     auto initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 4> padding = initialPadding;
@@ -1331,7 +1335,7 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
 
     unsigned int i = 0; //counts the slices on the 0x axis
     unsigned int j = 0; //counts the slices on the 0y axis
-    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis 
+    do {//slicing on the vertical axis , agnostic whether we need to slice vertically that's why [do .. while] is chosen to execute at least once the code if we not slice on oy axis
         do {//slicing on the horizontal axis , agnostic whether we need to slice horizontally that's why [do .. while] is chosen to execute at least once the code if we not slice on ox axis
             //start new tile from the boundaries, with origin at the strides
             beginInputShape = { (unsigned long)( (i)*widthSlice),
@@ -1348,10 +1352,12 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
 
-            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT] : 0,
-                       (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
-                       (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
-                       (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
+            padding = {
+                static_cast<unsigned short>((i == 0) ? initialPadding[mv::PADDING_LEFT] : 0),
+                static_cast<unsigned short>((i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0),
+                static_cast<unsigned short>((j == 0) ? initialPadding[mv::PADDING_TOP] : 0),
+                static_cast<unsigned short>((j == vslices) ? initialPadding[mv::PADDING_BOT] : 0)
+            };
             std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto sliceInput = om.slice(inputTensor,
                                        beginInputShape,
@@ -1545,7 +1551,7 @@ bool matchPattern(const std::vector<std::string>& pattern, mv::Data::OpListItera
         lastIt = opIt;
         opIt = om.getSourceOp(opIt->getInputTensor(0));
     }
-    
+
     return true;
 }
 
@@ -1605,7 +1611,7 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::Computat
                     om.getSourceOp(sm)->set<unsigned>("opId", currentOpId);
                 }
 
-                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);  
+                linkNewOperationsReplacement(om.getSourceOp(scoreMap), sm, om, opIt);
             }
         }
     }

@@ -56,7 +56,6 @@ static const std::string model_regionYolo = R"V0G0N(
 </net>
 )V0G0N";
 
-#ifdef ENABLE_MCM_COMPILER
 // TODO: enable test when mcmCompiler will be able to compile it
 // [Track number: S#27194]
 TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
@@ -75,5 +74,4 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestRegionYolo) {
     setCommonConfig(config);
 
     ASSERT_NO_THROW(core->LoadNetwork(network, deviceName, config));
-};
-#endif
+}

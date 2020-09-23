@@ -1,5 +1,6 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include <numeric>
 
 mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element(content)
 {
@@ -187,4 +188,3 @@ double mv::QuantizationParams::getScale(const size_t channel) const {
                             "Invalid index: channel is greater than scales vector");
     return scales[channel];
 }
-

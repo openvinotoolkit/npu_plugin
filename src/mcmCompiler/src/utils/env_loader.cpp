@@ -3,11 +3,14 @@
 #include <iostream>
 #include <fstream>
 #include <sys/stat.h>
+#ifdef WIN32
+#   include <direct.h>
+#endif
 
 
 std::string mv::utils::projectRootPath()
 {
-    
+
     std::string path = PROJECT_DIR;
     if (*path.rbegin() == '/')
         path.erase(path.size() - 1);
@@ -55,7 +58,11 @@ void mv::utils::validatePath(const std::string& filename)
                 this_dir = path.substr(0, pos);
                 all_dir += this_dir + "/";
                 mv::Logger::log(mv::Logger::MessageType::Debug, "RuntimeModel", "Making:  " + all_dir);
+#ifdef WIN32
+                _mkdir(all_dir.c_str());
+#else
                 mkdir(all_dir.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
                 path.erase(0, pos+1);
             }
         }

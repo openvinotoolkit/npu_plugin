@@ -23,8 +23,6 @@
 #include <vector>
 
 #include "ie_utils.hpp"
-
-#ifdef ENABLE_MCM_COMPILER
 #include "include/mcm/tensor/quantization_params.hpp"
 
 using namespace InferenceEngine;
@@ -76,5 +74,3 @@ bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network) {
 
 }  // namespace QuantizationHelpers
 }  // namespace vpu
-
-#endif

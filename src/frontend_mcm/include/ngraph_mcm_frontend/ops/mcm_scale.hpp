@@ -15,8 +15,8 @@
 //
 
 #pragma once
+
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include <memory>
 #include "ngraph/op/op.hpp"
@@ -43,5 +43,5 @@ public:
 private:
     ngraph::element::Type _type;
 };
-#endif // ENABLE_MCM_COMPILER
+
 // clang-format on

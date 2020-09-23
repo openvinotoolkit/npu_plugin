@@ -17,7 +17,6 @@
 #pragma once
 
 // clang-format off
-#ifdef ENABLE_MCM_COMPILER
 
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include <ie_layouts.h>
@@ -50,5 +49,4 @@ private:
     std::unordered_map<size_t, mv::Order> _mvOrders;
 };
 
-#endif
 // clang-format on

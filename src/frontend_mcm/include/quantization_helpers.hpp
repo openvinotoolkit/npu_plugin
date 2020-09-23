@@ -18,11 +18,9 @@
 #include <ie_layers_internal.hpp>
 #include <low_precision_transformations/network_helper.hpp>
 #include <low_precision_transformations/quantization_details.hpp>
+#include <mcm/tensor/quantization_params.hpp>
 #include <string>
 #include <vector>
-
-#ifdef ENABLE_MCM_COMPILER
-#include <mcm/tensor/quantization_params.hpp>
 
 namespace vpu {
 
@@ -35,5 +33,3 @@ bool isCNNNetworkQuantized(const InferenceEngine::CNNNetwork& network);
 
 }  // namespace QuantizationHelpers
 }  // namespace vpu
-
-#endif
