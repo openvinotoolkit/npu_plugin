@@ -94,7 +94,7 @@ namespace mv
                 SparsityKSegmented,
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
-                SpiltOverHWithOneInputChannel,
+                SpiltOverHForLayer79InACLNet,
                 Unknown
             };
 
@@ -123,7 +123,7 @@ namespace mv
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
-                {FailCause::SpiltOverHWithOneInputChannel, "SpiltOverHWithOneInputChannel"},
+                {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
                 {FailCause::Unknown, "Unknown"}
             };
 
@@ -1010,8 +1010,11 @@ namespace mv
                 
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
-                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1)
-                    return FailCause::SpiltOverHWithOneInputChannel;
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 && 
+                    op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && 
+                    op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64)
+                    return FailCause::SpiltOverHForLayer79InACLNet;
 
                 return FailCause::Pass; //good strategy
             }
