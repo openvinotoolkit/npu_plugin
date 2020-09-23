@@ -159,6 +159,10 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
             notDW = false;
     }
+
+    if(attrs.find("supportsCM") != attrs.end())
+        dpuConvOp->set<bool>("supportsCM", attrs.at("supportsCM").get<bool>());
+
     if (enableChannelMajor && dpuConvOp->supportsCMConv() && notDW)
     {
         dpuConvOp->erase("taskOp");
