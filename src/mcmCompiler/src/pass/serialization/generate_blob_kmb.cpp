@@ -54,14 +54,30 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
 {
     mv::OpModel om(model); 
     mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName());
-    while(!((childOp->getOpType() != "DPUTask") || (childOp->getOpType() != "UPATask"))) 
+    //std::cout << "childop of task " << op->getName() << " is " << childOp->getName() << std::endl;
+    //std::cout << "childop type is " << childOp->getOpType() << std::endl;
+    //std::cout << bool(childOp->getOpType() != "DPUTask") << std::endl;
+    //std::cout << bool(childOp->getOpType() != "UPATask") << std::endl;
+
+    if(childOp->getOpType() == "DPUTask" || childOp->getOpType() == "UPATask")
+            return om.getOp(childOp->getName());
+
+    while(!(childOp->getOpType() == "DPUTask") && !(childOp->getOpType() == "UPATask"))
     { 
+        
+
         childOp = om.getOp(childOp.leftmostChild()->getName());
+        //std::cout << "child op is " << childOp->getName() << std::endl;
+        if(childOp->getOpType() == "DPUTask" || childOp->getOpType() == "UPATask")
+            return om.getOp(childOp->getName());
         if(childOp->getOpType() == "Output")
             return om.getOutput();
         else 
             childOp = om.getOp(childOp.leftmostChild()->getName());
+
+        //std::cout << "childop now is" << childOp->getName() << std::endl;  
     } 
+    //std::cout << "returning " << childOp->getName() << std::endl; 
     return om.getOp(childOp->getName());
 }
 
@@ -74,38 +90,85 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     unsigned dpuTaskschedulingNumber = 0;
     unsigned dmaTasklayernumber = 0;
     unsigned maxdpuTaskschedulingNumber = 0;
-    unsigned dpulevel = 0;
+//     unsigned dpulevel = 0;
+//     auto sortedOps = cm.topologicalSort();
+
+//     auto dmas = om.getOps("DMATask");
+
+//     for(auto& dmaOp: dmas) {
+
+//             std::cout << "DMA op is " << dmaOp->getName() << std::endl;
+//             auto son = dmaOp.leftmostChild(); 
+//                 auto task = om.getOp(son->getName()); 
+//                 std::cout << "task op is " << task->getName() << std::endl;
+//                 if(task->getOpType() != "DPUTask" && (task->getOpType() != "Output" && task->getOpType() != "UPATask"))
+//                     task = findChildDPUorUPATaskOp(model, son); 
+       
+//                 if(task->hasAttr("schedulingNumber"))
+//                 {
+//                     dpuTaskschedulingNumber = task->get<unsigned>("schedulingNumber");
+//                     dpulevel = task->get<unsigned>("layerNumber");
+//                 }
+                
+//                 auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber"); 
+
+//                 if(dpuTaskschedulingNumber > maxdpuTaskschedulingNumber)
+//                     maxdpuTaskschedulingNumber = dpuTaskschedulingNumber; 
+
+
+//                 if(task->getOpType() == "Output")
+//                     dpuTaskschedulingNumber= maxdpuTaskschedulingNumber+1;
+                
+//                 dmaOp->set<unsigned>("DPULevel",dpulevel);
+//                 dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
+//                 dmaOp->set<unsigned>("DPU-schedule-number",dpuTaskschedulingNumber);
+//                 dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {dmaTasklayernumber, dpuTaskschedulingNumber});
+            
+//     }
+// }
+
+unsigned dpulevel = 0;
     auto sortedOps = cm.topologicalSort();
+    std::vector<unsigned> dpuTaskschedulingNumbers;
 
     auto dmas = om.getOps("DMATask");
 
     for(auto& dmaOp: dmas) {
 
-            for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son) 
-            { 
-                auto task = om.getOp(son->getName()); 
+            dpuTaskschedulingNumbers.clear();
+            //std::cout << "DMA name is " << dmaOp->getName() << std::endl;
+            for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son)
+            {
+                auto task = om.getOp(son->getName());
                 if(task->getOpType() != "DPUTask" && (task->getOpType() != "Output" && task->getOpType() != "UPATask"))
-                    task = findChildDPUorUPATaskOp(model, son); 
+                    task = findChildDPUorUPATaskOp(model, son);
        
                 if(task->hasAttr("schedulingNumber"))
                 {
                     dpuTaskschedulingNumber = task->get<unsigned>("schedulingNumber");
+                    //std::cout << "task name is " << task->getName() << std::endl;
+                    //std::cout << "adding scheduling number to vector " << dpuTaskschedulingNumber << std::endl;
+                    dpuTaskschedulingNumbers.push_back(dpuTaskschedulingNumber);
                     dpulevel = task->get<unsigned>("layerNumber");
                 }
-                
-                auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber"); 
+               
+                auto dmaTasklayernumber = dmaOp->get<unsigned>("layerNumber");
 
                 if(dpuTaskschedulingNumber > maxdpuTaskschedulingNumber)
-                    maxdpuTaskschedulingNumber = dpuTaskschedulingNumber; 
+                    maxdpuTaskschedulingNumber = dpuTaskschedulingNumber;
 
 
                 if(task->getOpType() == "Output")
                     dpuTaskschedulingNumber= maxdpuTaskschedulingNumber+1;
-                
+               
                 dmaOp->set<unsigned>("DPULevel",dpulevel);
                 dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
-                dmaOp->set<unsigned>("DPU-schedule-number",dpuTaskschedulingNumber);
+                //std::cout << "DMA name is " << dmaOp->getName() << std::endl;
+                for(unsigned i = 0; i < dpuTaskschedulingNumbers.size(); i++)
+                    std::cout << dpuTaskschedulingNumbers[i] << std::endl;
+                //std::cout << "DMA name is " << dmaOp->getName() << " min scheduing number is " << *std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)) << std::endl;
+                dmaOp->set<unsigned>("DPU-schedule-number",*std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)));
                 dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {dmaTasklayernumber, dpuTaskschedulingNumber});
-            } 
+            }
     }
 }
