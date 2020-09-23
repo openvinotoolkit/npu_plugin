@@ -36,6 +36,7 @@ void MCMAdapter_Tests::SetUp() {
     network = modelPoolingHelper.getNetwork();
 }
 
+#ifndef __aarch64__
 using MCMAdapter_compileNetwork = MCMAdapter_Tests;
 TEST_F(MCMAdapter_compileNetwork, canCompile) {
     std::vector<char> blobFile;
@@ -43,3 +44,4 @@ TEST_F(MCMAdapter_compileNetwork, canCompile) {
     ASSERT_NO_THROW(MCMAdapter::compileNetwork(network, mcmConfig, blobFile));
     ASSERT_GT(blobFile.size(), 0);
 }
+#endif

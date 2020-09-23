@@ -31,6 +31,7 @@ addIeTargetTest(
         IE::gtest
         IE::gtest_main
         vpux
+        common_tests_helpers
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
 )

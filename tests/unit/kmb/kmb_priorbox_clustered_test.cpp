@@ -18,8 +18,7 @@
 
 #include <ie_core.hpp>
 #include <parse_layers_helpers.hpp>
-#include <single_layer_common.hpp>
-#include <tests_common.hpp>
+#include <common_test_utils/xml_net_builder/xml_filler.hpp>
 
 using namespace InferenceEngine;
 
@@ -61,8 +60,7 @@ struct xmlPriorBoxClusteredParam {
 };
 
 class KmbComputePriorboxClusteredTest :
-    public TestsCommon,
-    public testing::WithParamInterface<xmlPriorBoxClusteredParam> {
+    public testing::TestWithParam<xmlPriorBoxClusteredParam> {
     std::string model_t = R"V0G0N(
 <Net Name="PriorBoxClustered_Only" version="2" precision="FP32" batch="1">
     <layers>

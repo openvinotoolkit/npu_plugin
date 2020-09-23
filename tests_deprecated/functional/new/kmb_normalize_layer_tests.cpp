@@ -81,7 +81,7 @@ TEST_P(KmbNormalizeLayerTests, EqualWithCPU) {
         return genBlobUniform(desc, rd, 0, 10);
     });
     registerBlobGenerator("axes", TensorDesc(Precision::I64, {1}, Layout::C),[&](const TensorDesc& desc) {
-            return makeSingleValueBlob(desc, 1l);
+            return makeSingleValueBlob(desc, int64_t{1});
         }
     );
 

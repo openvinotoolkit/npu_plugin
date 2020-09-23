@@ -33,7 +33,8 @@ addIeTargetTest(
         HddlUnite
         ${XLINK_LIB}
         kmb_utils
-        frontend_mcm
+        frontend_mcm_static
+        common_tests_helpers
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData
     LABELS

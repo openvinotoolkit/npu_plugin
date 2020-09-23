@@ -22,7 +22,7 @@ namespace Blob_Creator {
     InferenceEngine::Blob::Ptr createBlob(const InferenceEngine::SizeVector& dims,
             const InferenceEngine::Layout& layout = InferenceEngine::Layout::NHWC);
 
-    InferenceEngine::Blob::Ptr createBlob(const InferenceEngine::SizeVector &dims, const InferenceEngine::Layout &layout) {
+    inline InferenceEngine::Blob::Ptr createBlob(const InferenceEngine::SizeVector &dims, const InferenceEngine::Layout &layout) {
         if (dims.size() != 4) {
             THROW_IE_EXCEPTION << "Dims size must be 4 for CreateBlob method";
         }

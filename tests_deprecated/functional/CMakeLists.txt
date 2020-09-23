@@ -40,6 +40,7 @@ if (UNIX)
                 ${VPUSMM_LIB}
                 kmb_utils
                 Boost::filesystem
+                common_tests_helpers
             LINK_LIBRARIES_WHOLE_ARCHIVE
                 kmbTestData
             LABELS  # Must be the last parameter. Reason: see description comment for addIeTargetTest().
