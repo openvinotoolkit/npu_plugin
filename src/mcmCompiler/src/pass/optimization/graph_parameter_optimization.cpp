@@ -1016,8 +1016,9 @@ namespace mv
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 && 
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
-                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && 
-                    op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64)
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && 
+                    op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
+                    op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
                     return FailCause::SpiltOverHForLayer79InACLNet;
 
                 return FailCause::Pass; //good strategy
