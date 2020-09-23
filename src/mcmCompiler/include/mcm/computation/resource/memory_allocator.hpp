@@ -243,6 +243,7 @@ namespace mv
         BufferIterator move(BufferIterator slaveBuffer, BufferIterator masterBuffer, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves=false);
         BufferIterator getTopMasterBuffer(BufferIterator t);
+        BufferIterator getSimpleMasterBuffer(BufferIterator t);
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
         void deallocateAll(std::size_t stageIdx);
