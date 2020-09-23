@@ -70,6 +70,48 @@
                             {"K" : 1},
                             {"N" : 1}
                         ]
+                    },
+                    {
+                     "name_filter": "g_net/enc1_1_1/BiasAdd/Add",
+            "splits":
+            [
+                {
+                    "W": 1
+                },
+                {
+                    "H": 15
+                },
+                {
+                    "C": 1
+                },
+                {
+                    "K": 1
+                },
+                {
+                    "N": 1
+                }
+            ]
+                    },
+                    {
+                     "name_filter": "g_net/enc1_1_2/BiasAdd/Add",
+            "splits":
+            [
+                {
+                    "W": 1
+                },
+                {
+                    "H": 72
+                },
+                {
+                    "C": 1
+                },
+                {
+                    "K": 1
+                },
+                {
+                    "N": 1
+                }
+            ]
                     }
                 ],
                 "sparsity_strategy" :
