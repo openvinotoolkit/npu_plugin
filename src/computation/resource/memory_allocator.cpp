@@ -415,6 +415,13 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::
     return t;
 }
 
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getSimpleMasterBuffer(mv::MemoryAllocator::BufferIterator t)
+{
+    auto mt = (*t)->masterBuffer;
+    if (*mt != *bufferEnd((*t)->stage))
+        return mt;
+    return t;
+}
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer,
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves)
 {

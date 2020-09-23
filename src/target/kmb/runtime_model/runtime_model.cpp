@@ -330,22 +330,55 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+        //NOTE: Sometimes we need to align and use the strides[0], cause when we change axis in concats
+        //in the end we need to mutiply the offsets with the dimensions of the last master Buffer, but
+        //WATCH OUT!!! not when the axis remain the same...more See allocate_memory_kmb.cpp line 552
         auto strides = tensorBufferIt->getStrides();
         std::size_t leading_offset = strides[0];
-
         auto temporaryBuffer = tensorBufferIt;
-        //NOTE: See allocate_memory_kmb.cpp line 552
+        auto recursiveBuffer = tensorBufferIt;
         if (t->hasAttr("leftIndex"))
         {
-            leading_offset = t->get<std::size_t>("leftIndex") * toBuild->strides[0];
-            while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+            bool sameAxisMasterBuffers = true;
+            while (recursiveBuffer->getData()->getName() !=
+                   (*tensorAllocator.getTopMasterBuffer(recursiveBuffer))->getData()->getName())
             {
-                temporaryBuffer = temporaryBuffer->getMaster();
-                if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
-                    leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
-                            toBuild->strides[0];
+                recursiveBuffer = tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
+                auto newMaster = *tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
+                if (dm.getTensor(recursiveBuffer->getData()->getName())->hasAttr("concatAxis") &&
+                        dm.getTensor(newMaster->getData()->getName())->hasAttr("concatAxis") )
+                {
+                    if (dm.getTensor(recursiveBuffer->getData()->getName())->get<std::string>("concatAxis") !=
+                            dm.getTensor(newMaster->getData()->getName())->get<std::string>("concatAxis"))
+                    {
+                        sameAxisMasterBuffers = false;
+                        break;
+                    }
+                }
+            }
+            if (sameAxisMasterBuffers)
+            {
+                leading_offset = t->get<std::size_t>("leftIndex") * toBuild->strides[0];
+                while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+                {
+                    temporaryBuffer = temporaryBuffer->getMaster();
+                    if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
+                        leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
+                                toBuild->strides[0];
+                }
             }
         }
+//        if (leading_offset != strides[0])
+//        {
+//            std::size_t initAddr = 0;
+//            if (t->hasAttr("address"))
+//                initAddr = t->getAddress();
+//            else
+//                initAddr = (*masterBuffer)->getOffset();
+//            std::cout << "Tensor with name: " + t->getName()  + " and with data index: " + std::to_string(initAddr) +
+//                         " has difference in values leading offset of: " + std::to_string(leading_offset) + " and stride[0]: " +
+//                         std::to_string(strides[0]) << std::endl;
+//        }
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
@@ -559,7 +592,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
-            auto parentOp = om.getSourceOp(t);
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
