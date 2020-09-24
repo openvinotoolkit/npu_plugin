@@ -436,6 +436,7 @@ bool mv::Op::supportsCMConv()
     }
 
     // All traversed paths are C-Major-friendly
+    set<bool>("CMinput", true);
     for (auto& op : ops_in_input_path)
         if (op->getOpType() != "Input")
             op->set<bool>("CMinput", true);
