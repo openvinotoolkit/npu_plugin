@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
@@ -337,7 +337,28 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/DMAOrdering.dot",
+                "scope": "OpModel",
+                "content": "full",
+                "html": true
+            },
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/DMAOrderingcontrol.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "DMAOrdering",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/afterDMAOrderingcontrol.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
