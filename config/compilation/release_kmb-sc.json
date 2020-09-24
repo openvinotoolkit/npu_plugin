@@ -268,12 +268,7 @@
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "NNCMX2DDRControlFlows",
-            "TransitiveReduction"
+            "NNCMX2DDRControlFlows"
         ]
     },
     "finalize": {
@@ -313,7 +308,6 @@
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "TransitiveReduction",
             "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
