@@ -48,9 +48,9 @@ class Pipeline_Chains {
     struct control_edge_t {
       control_edge_t(mv::Data::OpListIterator src,
             mv::Data::OpListIterator sink)
-          : source_itr_(src) , sink_itr_(sink) { } 
+          : source_itr_(src) , sink_itr_(sink) { }
 
-      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_), 
+      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_),
         sink_itr_(o.sink_itr_) {}
 
       control_edge_t& operator=(const control_edge_t& o) {
@@ -73,10 +73,10 @@ class Pipeline_Chains {
     bool is_weight_read(T op) const {
       mv::Data::OpListIterator oitr = omodel_.getOp(op->getName());
       if (oitr->getOpType() != "DMATask") { return false; }
-      // indegree must be 1 and 
+      // indegree must be 1 and
       auto pitr = oitr.leftmostParent();
       auto pitr_next = pitr;
-      
+
       ++pitr_next;
       if (pitr_next != omodel_.opEnd()) { return false; }
 
@@ -92,7 +92,7 @@ class Pipeline_Chains {
       size_t return_value = 0UL;
       for (auto pitr=oitr.leftmostParent(); pitr!=omodel_.opEnd(); ++pitr) {
         operation_t pop = &(*pitr);
-        if (is_weight_read(pop)) { 
+        if (is_weight_read(pop)) {
           return_value += pitr->getOutputTensor(0UL)->getClusterSize();
         }
       }
@@ -158,7 +158,7 @@ class Pipeline_Chains {
     }
 
     template<typename OutputIterator>
-    size_t locate_chains(OutputIterator output) {
+    void locate_chains(OutputIterator output) {
       std::unordered_set<operation_t> already_in_some_chain;
       for (mv::Data::OpListIterator oitr=omodel_.opBegin();
             oitr!=omodel_.opEnd(); ++oitr) {
@@ -256,7 +256,7 @@ class Pipeline_Chains {
          *             v        v               v
          *  (head)-->[DPU1]-->[DPU2]-->.....->[DPU-N]
          *
-         *    transform with a pseduo op chain 
+         *    transform with a pseduo op chain
          *
          *  Output: G_sub U G_sub_pseduo
          *
@@ -268,7 +268,7 @@ class Pipeline_Chains {
          *              v
          *           [PSEDUO-3]-->[read-4]
          *              .
-         *              . 
+         *              .
          *              .
          *           [PSEUDO-N-1]-->[read-N]
          */
@@ -302,7 +302,7 @@ class Pipeline_Chains {
                 om.getOp(weight_read->getName());
             weight_read_itr->set<bool>("pipeline_data_start", true);
             auto chain_head_itr = om.getOp(chain_head->getName());
-            //om.defineFlow(chain_head_itr->getOutputTensor(0UL), 
+            //om.defineFlow(chain_head_itr->getOutputTensor(0UL),
              //     weight_read_itr, 0UL);
           }
         }
@@ -400,7 +400,7 @@ class Pipeline_Chains {
         auto pprev_dpu_itr = curr_dpu_itr;
 
         auto pprev_itr = curr_itr;
-      
+
         const op_list_t & weight_reads_start_list = weight_reads.front();
 
 
@@ -482,7 +482,7 @@ MOVE_TO_NEXT_SUBGRAPH:
         printf("\n\n");
         printf("======================\n");
         for (auto itr=stage_memory.begin(); itr!=stage_memory.end(); ++itr) {
-          printf("[stage_memory] op=%s demand=%lu\n", 
+          printf("[stage_memory] op=%s demand=%lu\n",
               (itr->first->getName()).c_str(), itr->second);
         }
         printf("======================\n");
@@ -510,4 +510,3 @@ MOVE_TO_NEXT_SUBGRAPH:
 
 
 #endif
-

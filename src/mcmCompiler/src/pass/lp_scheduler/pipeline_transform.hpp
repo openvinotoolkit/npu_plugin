@@ -35,9 +35,9 @@ class Pipelining_Transform {
     struct control_edge_t {
       control_edge_t(mv::Data::OpListIterator src,
             mv::Data::OpListIterator sink)
-          : source_itr_(src) , sink_itr_(sink) { } 
+          : source_itr_(src) , sink_itr_(sink) { }
 
-      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_), 
+      control_edge_t(const control_edge_t& o) : source_itr_(o.source_itr_),
         sink_itr_(o.sink_itr_) {}
 
       control_edge_t& operator=(const control_edge_t& o) {
@@ -73,7 +73,7 @@ class Pipelining_Transform {
           }
           mv::Data::TensorIterator titr = pitr->getOutputTensor(0UL);
 
-          if (titr->get<mv::Tensor::MemoryLocation>("Location") == 
+          if (titr->get<mv::Tensor::MemoryLocation>("Location") ==
                 mv::Tensor::MemoryLocation::NNCMX) {
             input_size += titr->getClusterSize();
           }
@@ -144,7 +144,7 @@ class Pipelining_Transform {
       }
 
       const std::string& name() const {
-        return concat_root_->getName(); 
+        return concat_root_->getName();
       }
 
 
@@ -214,7 +214,7 @@ class Pipelining_Transform {
         max_input_size_ = std::numeric_limits<size_t>::min();
 
         for (auto sitr=stream_map_.begin(); sitr!=stream_map_.end(); ++sitr) {
-          max_weight_size_ = std::max(max_weight_size_, 
+          max_weight_size_ = std::max(max_weight_size_,
               (sitr->second).compute_read_input_size(om) );
           max_input_size_ = std::max( max_input_size_,
               (sitr->second).compute_non_read_input_size(om) );
@@ -225,7 +225,7 @@ class Pipelining_Transform {
       }
 
       bool is_pipelineable(size_t memory_upper_bound) const {
-        return (max_input_size_ + 2*(max_weight_size_) + max_output_size_) 
+        return (max_input_size_ + 2*(max_weight_size_) + max_output_size_)
             < memory_upper_bound;
       }
 
@@ -378,10 +378,10 @@ class Pipelining_Transform {
         mv::Data::OpListIterator dpu_itr = omodel_.getOp(dpu->getName());
         for (auto pitr=dpu_itr.leftmostParent(); pitr!=omodel_.opEnd();
               ++pitr) {
-          //TODO(vamsikku): handle the case where the same DMA read is the 
+          //TODO(vamsikku): handle the case where the same DMA read is the
           //weight input for several DPU tasks.
           if ( (pitr->getOpType() == "DMATask") &&
-                (is_the_output_of_this_op_in_cmx(pitr)) && 
+                (is_the_output_of_this_op_in_cmx(pitr)) &&
                 (is_the_output_of_this_op_populated_tensor(pitr)) ) {
             pipeline_subgraph.weight_reads_.push_back( &(*pitr) );
           }
@@ -395,7 +395,7 @@ class Pipelining_Transform {
     }
 
     template<typename OutputIterator>
-    size_t locate_pipeline_subgraphs(OutputIterator output) {
+    void locate_pipeline_subgraphs(OutputIterator output) {
       // STEP-0: locate all concat subgraphs //
       concat_subgraph_finder_t subgraph_finder(omodel_);
       std::list<concat_subgraph_t> concat_subgraphs;
@@ -442,7 +442,7 @@ class Pipelining_Transform {
         if (!(subitr->is_pipelineable(cmx_size))) { continue; }
 
 
-        // move the max_output to first dpu in the stream 
+        // move the max_output to first dpu in the stream
         // move 2*(max_weight_size) to the first read //
         const pipeline_subgraph_t &curr_subgraph = *subitr;
         const streamed_operation_map_t &stream_map = curr_subgraph.stream_map_;
@@ -496,7 +496,7 @@ class Pipelining_Transform {
           ++weight_reads_itr;
         }
 
-        // Add a control edge between non-weight read input of DPU and the 
+        // Add a control edge between non-weight read input of DPU and the
         // weight_read_rep_itr //
         operation_t non_read_dpu_rep_input =
             stream_op.compute_non_read_input_operation(omodel_);
@@ -512,7 +512,7 @@ class Pipelining_Transform {
         }
 
         // add the read_offset for all even streams //
-        auto prev_prev_stream_itr = stream_map.end(); 
+        auto prev_prev_stream_itr = stream_map.end();
         auto prev_stream_itr = stream_itr;
         size_t curr_stream_idx = 1UL;
 
@@ -522,7 +522,7 @@ class Pipelining_Transform {
           const stream_operation_t& stream_op = stream_itr->second;
           const stream_operation_t& prev_stream_op = prev_stream_itr->second;
           auto dpu_itr = omodel_.getOp(stream_op.dpu_->getName());
-         
+
           // DPU RESOURCE SETTING //
           dpu_itr->set<std::string>(pipeline_dpu_representative_attribute(),
               dpu_rep_name);
@@ -592,7 +592,7 @@ class Pipelining_Transform {
           prev_stream_itr = stream_itr;
         } // foreach stream operation in this subgraph//
 
-        // BUFFER CONTROL EDGES: add control edges between the rep_dpu and 
+        // BUFFER CONTROL EDGES: add control edges between the rep_dpu and
         // rep_weight and concat root. Buffer should remain until the concat is
         // scheduled.
         assert(weight_read_rep_itr != omodel_.opEnd());
