@@ -61,6 +61,10 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test)
     auto ng = g.node_insert('g');
     auto nh = g.node_insert('h');
     auto ni = g.node_insert('i');
+    auto nj = g.node_insert('j');
+    auto nk = g.node_insert('k');
+    auto nl = g.node_insert('l');
+
 
     auto e1 = g.edge_insert(na, nd, 1);
     auto e2 = g.edge_insert(na, ne, 2);
@@ -82,15 +86,18 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test)
     auto e16 = g.edge_insert(nc, ng, 16);
     auto e17 = g.edge_insert(nc, nh, 17);
     auto e18 = g.edge_insert(nc, ni, 18);
-
+    auto e19 = g.edge_insert(nd, nj, 19);
+    auto e20 = g.edge_insert(nd, nk, 20);
+    auto e21 = g.edge_insert(ne, nl, 21);
 
     // Siblings of node ne
     std::vector<char> nodes_sid={'d','e','g','h','i'};
     int count_nodes_sid= 0 ;
-    for (char_int_graph::node_sibling_iterator it(nf); it != char_int_graph::node_sibling_iterator(); ++it)
+    for (char_int_graph::node_sibling_iterator it(nf); it != g.node_end(); ++it)
     {
         EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node f";
     }
+
     EXPECT_EQ (nf->siblings_size(), count_nodes_sid) << "ERROR: wrong number of siblings of node f";
 
     EXPECT_EQ ('e', *nd->leftmost_sibling()) << "ERROR: wrong leftmost sibling node of node d";
@@ -100,6 +107,15 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test)
     EXPECT_EQ ('i', *nd->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node d";
     EXPECT_EQ ('i', *nf->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node f";
     EXPECT_EQ ('h', *ni->rightmost_sibling()) << "ERROR: wrong rightmost sibling node of node i";
+
+    // Siblings of node nj
+    std::vector<char> nodes_sid_2={'k'};
+    int count_nodes_sid_2= 0 ;
+    for (char_int_graph::node_sibling_iterator it(nj); it != g.node_end(); ++it)
+    {
+        EXPECT_EQ (nodes_sid_2[count_nodes_sid_2++], *it) << "ERROR: incorrect sibling of node j";
+    }
+    EXPECT_EQ (nj->siblings_size(), count_nodes_sid_2) << "ERROR: wrong number of siblings of node j";
 
 }
 
@@ -139,7 +155,7 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test_2)
     // Siblings of node nc
     std::vector<char> nodes_sid={'d','e'};
     int count_nodes_sid= 0 ;
-    for (char_int_graph::node_sibling_iterator it(nc); it != char_int_graph::node_sibling_iterator(); ++it)
+    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
     {
         EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
     }
@@ -175,10 +191,11 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test_3)
     // Siblings of node nc
     std::vector<char> nodes_sid={'b'};
     int count_nodes_sid= 0 ;
-    for (char_int_graph::node_sibling_iterator it(nc); it != char_int_graph::node_sibling_iterator(); ++it)
+    for (char_int_graph::node_sibling_iterator it(nc); it != g.node_end(); ++it)
     {
         EXPECT_EQ (nodes_sid[count_nodes_sid++], *it) << "ERROR: incorrect sibling of node c";
     }
+
 }
 
 /*
@@ -227,6 +244,7 @@ TEST (graph_dynamic_sibling_enumeration, sibling_test_no_sibling)
     try
     {
      char_int_graph::node_sibling_iterator it(nd);
+     auto test_null_sibling = *it;
     }
     catch (std::exception& e)
     {

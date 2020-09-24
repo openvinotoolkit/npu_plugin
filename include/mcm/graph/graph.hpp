@@ -5,6 +5,7 @@
 #include <set>
 #include <deque>
 #include <stdexcept>
+#include <iostream>
 
 
 namespace mv
@@ -268,9 +269,9 @@ namespace mv
             std::size_t siblings_size()
             {
                 //Returns 0 if no siblings
-                if(leftmost_sibling() == sibling_iterator<T_iterable, T_content>())
-                   return 0;
 
+              if(leftmost_sibling())
+              {
                 size_t numSiblings = 1;
                 auto itr = leftmost_sibling();
                 auto itr_rightmost_silbling = rightmost_sibling();
@@ -285,6 +286,10 @@ namespace mv
                    ++itr;
                 }
                 return numSiblings;
+              }
+              else
+                return 0;
+
             }
 
             std::size_t parents_size() const
@@ -315,7 +320,6 @@ namespace mv
 
             sibling_iterator<T_iterable, T_content> leftmost_sibling()
             {
-
                //Evaluated dynamically using parents_ information
                bool valid_sibling_exists = false;
                auto leftmost_parent_itr = parents_.begin();
@@ -341,11 +345,9 @@ namespace mv
                }
                //Returns valid sibling iterator when it exists
                if(valid_sibling_exists)
-               {
-                 return sibling_iterator<T_iterable, T_content>(*leftmost_parent_child, *orig_leftmost_parent);
-               }
+                 return sibling_iterator<T_iterable, T_content>(get_parents(), leftmost_parent_itr, (*leftmost_parent_itr).lock()->get_children(), leftmost_parent_child);
                else
-                 return sibling_iterator<T_iterable, T_content>();
+                 return sibling_iterator<T_iterable, T_content>(get_parents(), get_parents().end(), (*orig_leftmost_parent).lock()->get_children(), (*orig_leftmost_parent).lock()->get_children().end());
             }
 
             sibling_iterator<T_iterable, T_content> rightmost_sibling()
@@ -361,6 +363,7 @@ namespace mv
                   if((*rightmost_parent_itr).lock()->children_size() > 1)
                   {
                     rightmost_parent_child = (*rightmost_parent_itr).lock()->get_children().rbegin();
+
                     if(this->getID() == (*rightmost_parent_child).lock()->getID())
                       ++rightmost_parent_child;
 
@@ -372,9 +375,9 @@ namespace mv
                }
                //Returns valid sibling iterator when it exists
                if(valid_sibling_exists)
-                 return sibling_iterator<T_iterable, T_content>(*rightmost_parent_child, *orig_rightmost_parent);
+                 return sibling_iterator<T_iterable, T_content>(get_parents(), (++rightmost_parent_itr).base(), (*rightmost_parent_itr).lock()->get_children(), (++rightmost_parent_child).base());
                else
-                 return sibling_iterator<T_iterable, T_content>();
+                 return sibling_iterator<T_iterable, T_content>(get_parents(), rightmost_parent_itr.base(), (*orig_rightmost_parent).lock()->get_children(), (*orig_rightmost_parent).lock()->get_children().end());
             }
 
         };
@@ -1070,7 +1073,7 @@ namespace mv
             friend child_iterator iterable<T_iterable, T_content>::leftmost_child() ;
             friend child_iterator iterable<T_iterable, T_content>::rightmost_child();
 
-        protected:
+        public:
 
             child_iterator(iterable_access_set<T_iterable>& children, 
             typename iterable_access_set<T_iterable>::iterator current_child) :
@@ -1079,13 +1082,18 @@ namespace mv
 
             }
 
-        public:
 
             child_iterator(const list_iterator<T_iterable, T_content>& other) :
             relative_iterator<T_iterable, T_content>(other->get_children())
             {
 
             }
+            
+            child_iterator():
+               relative_iterator<T_iterable, T_content>()
+            {
+            
+            }            
 
         };
 
@@ -1096,7 +1104,7 @@ namespace mv
             friend parent_iterator iterable<T_iterable, T_content>::leftmost_parent();
             friend parent_iterator iterable<T_iterable, T_content>::rightmost_parent();
 
-        protected:
+        public:
 
             parent_iterator(iterable_access_set<T_iterable>& parents, 
             typename iterable_access_set<T_iterable>::iterator current_parent) :
@@ -1105,13 +1113,18 @@ namespace mv
 
             }
 
-        public:
-
+        
             parent_iterator(const list_iterator<T_iterable, T_content>& other) :
             relative_iterator<T_iterable, T_content>(other->get_parents())
             {
 
             }
+
+            parent_iterator():
+               relative_iterator<T_iterable, T_content>()
+            {
+            
+            }            
         
         };
 
@@ -1123,23 +1136,32 @@ namespace mv
             friend sibling_iterator iterable<T_iterable, T_content>::rightmost_sibling();
             friend class node;
 
-            list_iterator<T_iterable, T_content> current_parent_;
-            list_iterator<T_iterable, T_content> current_parent_child_;
+            iterable_access_set<T_iterable>& node_parents;
+            typename iterable_access_set<T_iterable>::iterator current_parent_;
+            iterable_access_set<T_iterable>& current_parent_children_;
+            typename iterable_access_set<T_iterable>::iterator current_parent_child_;
+            
             std::set<size_t> visited_sibling_;
 
             bool reached_end()
             {
-               return(current_parent_ == list_iterator<T_iterable, T_content>() && current_parent_child_ == list_iterator<T_iterable, T_content>());
+               return(current_parent_ == node_parents.end() && current_parent_child_ == current_parent_children_.end());
             }
 
             void move_next_node()
             {
-              if(current_parent_child_ == list_iterator<T_iterable, T_content>())
+              if(current_parent_child_ == current_parent_children_.end())
               {
                 ++current_parent_;
-                if(current_parent_ != list_iterator<T_iterable, T_content>())
+                if(current_parent_ != node_parents.end())
                 {
-                  current_parent_child_ = list_iterator<T_iterable, T_content>(*(current_parent_->get_children().begin()));
+                   if((*current_parent_).lock()->children_size() > 0)
+                   {
+                       current_parent_children_ = (*current_parent_).lock()->get_children();
+                       current_parent_child_ = current_parent_children_.begin();
+                   }
+                   else
+                    current_parent_child_ = current_parent_children_.end();
                 }
               }
               else
@@ -1148,26 +1170,27 @@ namespace mv
 
         protected:
 
-            sibling_iterator(const std::weak_ptr<T_iterable>& child, const std::weak_ptr<T_iterable>& child_parent) :
-            	relative_iterator<T_iterable, T_content>(),current_parent_child_(), current_parent_(),  visited_sibling_()
+            sibling_iterator(iterable_access_set<T_iterable>& parents, typename iterable_access_set<T_iterable>::iterator current_parent,
+            		iterable_access_set<T_iterable>& children, typename iterable_access_set<T_iterable>::iterator current_child) :
+            	relative_iterator<T_iterable, T_content>(),node_parents(parents),  current_parent_(current_parent), current_parent_children_(children), 
+            	current_parent_child_(current_child),  visited_sibling_()
             {
-               current_parent_child_ = list_iterator<T_iterable, T_content>(child);
-               current_parent_ = list_iterator<T_iterable, T_content>(child_parent);
-               auto result = visited_sibling_.insert(current_parent_child_->getID());
-                 if (!result.second)
+                if(current_parent_child_ != current_parent_children_.end())
+                {
+                  auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
+                  if (!result.second)
                      throw std::runtime_error("Unable to insert sibling");
 
-                 std::weak_ptr<T_iterable>::operator=(current_parent_child_);
+                  std::weak_ptr<T_iterable>::operator=(*current_parent_child_);
+                }
             }
 
         public:
 
             sibling_iterator(const list_iterator<T_iterable, T_content>& other) :
-            	relative_iterator<T_iterable, T_content>(),current_parent_child_(), current_parent_(),  visited_sibling_()
+            	relative_iterator<T_iterable, T_content>(),node_parents(other->get_parents()),  current_parent_(node_parents.begin()),
+				current_parent_children_((*current_parent_).lock()->get_children()), current_parent_child_(current_parent_children_.begin()),  visited_sibling_()
             {
-               //Constructor returns the iterator pointing at leftmost sibling
-               current_parent_ = list_iterator<T_iterable, T_content>(*(other->get_parents().begin()));;
-               current_parent_child_ = list_iterator<T_iterable, T_content>(*(current_parent_->get_children().begin()));
 
                auto result = visited_sibling_.insert(other->getID());
                  if (!result.second)
@@ -1178,25 +1201,24 @@ namespace mv
                 //           /|\
                 //          x y z
                 //  sibling_iterator(x) points to y
-                while(other->getID() == current_parent_child_->getID() && !reached_end())
+                while(!reached_end())
                 {
-                   move_next_node();
+                	if(current_parent_child_ != current_parent_children_.end())
+                	{
+                	  if(other->getID() != (*current_parent_child_).lock()->getID())
+                		break;
+                	}
+                     move_next_node();
                 }
 
-               if(current_parent_child_ != list_iterator<T_iterable, T_content>())
+               if(current_parent_child_ != current_parent_children_.end())
              	{
-                 auto result = visited_sibling_.insert(current_parent_child_->getID());
+                 auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                  if (!result.second)
                      throw std::runtime_error("Unable to insert sibling");
 
-                 std::weak_ptr<T_iterable>::operator=(current_parent_child_);
+                 std::weak_ptr<T_iterable>::operator=(*current_parent_child_);
                }
-
-            }
-
-            sibling_iterator():
-               relative_iterator<T_iterable, T_content>(),current_parent_child_(), current_parent_(),  visited_sibling_()
-            {
             }
 
             sibling_iterator& operator++()
@@ -1205,26 +1227,26 @@ namespace mv
               {
                 while(!reached_end())
                 {
-                  if(current_parent_child_ != list_iterator<T_iterable, T_content>())
+                  if(current_parent_child_ != current_parent_children_.end())
                   {
-                    if(visited_sibling_.find(current_parent_child_->getID()) != visited_sibling_.end())
+                    if(visited_sibling_.find((*current_parent_child_).lock()->getID()) != visited_sibling_.end())
                       move_next_node();
                     else
                       break;
                   }
-		   else
+		          else
                   {
-                      move_next_node();
+                    move_next_node();
                   }
                 }
 
-                if(current_parent_child_ != list_iterator<T_iterable, T_content>() && visited_sibling_.find(current_parent_child_->getID()) == visited_sibling_.end())
+                if(current_parent_child_ != current_parent_children_.end() && visited_sibling_.find((*current_parent_child_).lock()->getID()) == visited_sibling_.end())
                 {
-                  auto result = visited_sibling_.insert(current_parent_child_->getID());
+                  auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                   if (!result.second)
                     throw std::runtime_error("Unable to insert sibling");
 
-                  std::weak_ptr<T_iterable>::operator=(current_parent_child_);
+                  std::weak_ptr<T_iterable>::operator=(*current_parent_child_);
                 }
                 else
                 {
