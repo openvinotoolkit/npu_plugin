@@ -31,6 +31,8 @@ namespace mv
         MV_REGISTER_OP(Tanh)
         .setInputs({"data"})
         .setOutputs({"output"})
+        .setOptionalArg<mv::DType>("dType", mv::DType("Default"))
+        .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({}, {}, {}, {}))
         .setInputCheck(op_tanh::inputCheckFcn)
         .setOutputDef(op_tanh::outputDefFcn)
         .setTypeTrait({"executable", "exposed"});
