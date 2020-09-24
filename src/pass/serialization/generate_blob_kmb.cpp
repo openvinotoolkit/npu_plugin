@@ -56,6 +56,9 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
     mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName());
     //std::cout << "childop of task " << op->getName() << " is " << childOp->getName() << std::endl;
     //std::cout << "childop type is " << childOp->getOpType() << std::endl;
+
+    if(childOp->getOpType() == "Output")
+            return om.getOutput();
     //std::cout << bool(childOp->getOpType() != "DPUTask") << std::endl;
     //std::cout << bool(childOp->getOpType() != "UPATask") << std::endl;
 
