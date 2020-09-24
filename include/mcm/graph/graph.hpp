@@ -5,7 +5,6 @@
 #include <set>
 #include <deque>
 #include <stdexcept>
-#include <iostream>
 
 
 namespace mv
@@ -1082,7 +1081,7 @@ namespace mv
             friend child_iterator iterable<T_iterable, T_content>::leftmost_child() ;
             friend child_iterator iterable<T_iterable, T_content>::rightmost_child();
 
-        public:
+        protected:
 
             child_iterator(iterable_access_set<T_iterable>& children, 
             typename iterable_access_set<T_iterable>::iterator current_child) :
@@ -1091,18 +1090,12 @@ namespace mv
 
             }
 
-
+        public:
             child_iterator(const list_iterator<T_iterable, T_content>& other) :
             relative_iterator<T_iterable, T_content>(other->get_children())
             {
 
             }
-            
-            child_iterator():
-               relative_iterator<T_iterable, T_content>()
-            {
-            
-            }            
 
         };
 
@@ -1113,7 +1106,7 @@ namespace mv
             friend parent_iterator iterable<T_iterable, T_content>::leftmost_parent();
             friend parent_iterator iterable<T_iterable, T_content>::rightmost_parent();
 
-        public:
+        protected:
 
             parent_iterator(iterable_access_set<T_iterable>& parents, 
             typename iterable_access_set<T_iterable>::iterator current_parent) :
@@ -1122,18 +1115,13 @@ namespace mv
 
             }
 
-        
+        public:
+
             parent_iterator(const list_iterator<T_iterable, T_content>& other) :
             relative_iterator<T_iterable, T_content>(other->get_parents())
             {
 
             }
-
-            parent_iterator():
-               relative_iterator<T_iterable, T_content>()
-            {
-            
-            }            
         
         };
 
