@@ -573,10 +573,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     auto numericStrides = t->computeNumericStrides();
     numericStrides.push_back(t->getDType().getSizeInBits() / 8);
 
-    if(*tensorAllocatorName == "VPU_CMX_NN" ||
-            *tensorAllocatorName == "ProgrammableOutput" ||
-            *tensorAllocatorName == "VPU_DDR_Heap"
-            && !subtensor.getOrder().isColMajor())
+    if(*tensorAllocatorName == "VPU_CMX_NN" || *tensorAllocatorName == "ProgrammableOutput" || *tensorAllocatorName == "VPU_DDR_Heap"  && !subtensor.getOrder().isColMajor())
     {
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
         numericStrides = (*masterBuffer)->getData()->getSubTensor(clusterId).computeNumericStrides();
@@ -669,7 +666,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
           auto tensorStrides = t->computeNumericStrides();
           tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
           std::reverse(tensorStrides.begin(), tensorStrides.end());
-
+          //NOTE: the division is going to extinguish the data type offset!!!
+          if(numericStrides[4] != tensorStrides[4])
+              byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
         }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
