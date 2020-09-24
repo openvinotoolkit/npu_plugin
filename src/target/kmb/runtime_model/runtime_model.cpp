@@ -224,6 +224,9 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
 
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(om, "buildTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
 
@@ -447,6 +450,10 @@ void mv::RuntimeModel::updateTensorReferenceT(mv::ComputationModel& cm, mv::Elem
     auto tensorAllocatorName = tensorAllocators.begin();
     if(!allocatorName.empty())
         tensorAllocatorName = tensorAllocators.find(allocatorName);
+
+    if(tensorAllocatorName == tensorAllocators.end()){
+        throw mv::ArgumentError(cm, "updateTensorReferenceT", "0", "No tensor allocators found");
+    }
     auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
     mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, s); // 0 is the only stage for now, but this will probably change in the future
 
@@ -882,6 +889,22 @@ std::unique_ptr<MVCNN::BinaryDataT> mv::RuntimeModel::buildBinaryDataT(Computati
             t.set<bool>("Compression", false);
         }
     }
+    else if (t.getDType() == mv::DType("Float16") && !t.isSparse())
+    {
+        if (t.hasAttr("quantParams"))
+        {
+            const auto& quantParams = t.get<mv::QuantizationParams>("quantParams");
+            if (!quantParams.isEmpty() && !quantParams.isNeutral()) {
+                throw std::runtime_error("Bad quantParams for Float16 Binary Data");
+            }
+        }
+
+        auto dataPacked = t.getIntData();
+        toBuild->data = packToInt64(dataPacked, t.getDType());
+        toBuild->length = dataPacked.size() * t.getDType().getSizeInBits() / 8;
+        toBuild->underlying_type = MVCNN::DType::DType_U8;
+        t.set<bool>("Compression", false);
+    }
     else
     {
         auto dataPacked = t.getDataPacked();
@@ -1203,6 +1226,11 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
     }
 
     auto tensorAllocatorName = outputTensor->get<std::set<std::string>>("allocators").begin();
+
+    if(tensorAllocatorName == outputTensor->get<std::set<std::string>>("allocators").end()) {
+        throw mv::ArgumentError(om, "buildNNDMATaskT", "0", "No tensor allocators found");
+    }
+
     if (*tensorAllocatorName == "ProgrammableOutput")
         //Only if we are DMA-ing to programmable output check if we need to padd it
         padFinalOutput = cm.getGlobalConfigParams()->hasAttr("PadOutput") ? cm.getGlobalConfigParams()->get<bool>("PadOutput") : false;
@@ -2258,6 +2286,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAPSROIPoolingTask(ComputationMod
     } else if (mode.compare(std::string("bilinear_deformable")) == 0) {
         softLayerParamsValue->mode = MVCNN::PSROIPoolingMode_BILINEAR_DEFORMABLE;
     } else {
+        delete toBuild;
+        delete softLayerParamsValue;
         throw ArgumentError("buildUPAPSROIPoolingTask", "file:content", "invalid", "Invalid mode for PSROIPooling");
     }
 
@@ -2672,7 +2702,8 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPATileTask(ComputationModel& cm, 
     auto softLayerParamsValue = new MVCNN::TileParamsT();
 
     // Fill in required params
-    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+    // reverse axis position  since buildTensorReferenceT reverses shape order
+    softLayerParamsValue->axis = (input->getShape().ndims() - 1) - opIt->get<unsigned>("axis");
     softLayerParamsValue->tiles = opIt->get<unsigned>("tiles");
 
     toBuild->softLayerParams.value = softLayerParamsValue;
@@ -2838,12 +2869,20 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& c
     const auto toBuild = new MVCNN::UPALayerTaskT();
     toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_ConvolutionParams;
 
+    const auto numInputs = opIt->inputSlots();
+    assert(numInputs == 2 || numInputs == 3);
+
     const auto input = opIt->getInputTensor(0);
     const auto weights = opIt->getInputTensor(1);
     const auto output = opIt->getOutputTensor(0);
 
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
     toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, weights)));
+    if (numInputs == 3)
+    {
+        const auto biases = opIt->getInputTensor(2);
+        toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, biases)));
+    }
     toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
 
     const auto softLayerParamsValue = new MVCNN::ConvolutionParamsT();
@@ -2895,6 +2934,68 @@ MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPARefConvTask(ComputationModel& c
 
     return toBuild;
 }
+
+MVCNN::UPALayerTaskT * mv::RuntimeModel::buildUPAFakeQuantizeTask(ComputationModel &cm, Element &compilationDescriptor, Control::OpListIterator opIt)
+{
+    const auto toBuild = new MVCNN::UPALayerTaskT();
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_FakeQuantizeParams;
+
+    const auto input = opIt->getInputTensor(0);
+    const auto output = opIt->getOutputTensor(0);
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    const auto input_low = opIt->getInputTensor(1)->getIntData();
+    const auto input_high = opIt->getInputTensor(2)->getIntData();
+    const auto output_low = opIt->getInputTensor(3)->getIntData();
+    const auto output_high = opIt->getInputTensor(4)->getIntData();
+
+    const auto softLayerParamsValue = new MVCNN::FakeQuantizeParamsT();
+
+    softLayerParamsValue->levels = opIt->get<unsigned>("levels");
+
+    softLayerParamsValue->input_low.resize(input_low.size());
+    std::copy_n(input_low.data(), input_low.size(), softLayerParamsValue->input_low.data());
+
+    softLayerParamsValue->input_high.resize(input_high.size());
+    std::copy_n(input_high.data(), input_high.size(), softLayerParamsValue->input_high.data());
+
+    softLayerParamsValue->output_low.resize(output_low.size());
+    std::copy_n(output_low.data(), output_low.size(), softLayerParamsValue->output_low.data());
+
+    softLayerParamsValue->output_high.resize(output_high.size());
+    std::copy_n(output_high.data(), output_high.size(), softLayerParamsValue->output_high.data());
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
+MVCNN::UPALayerTaskT *mv::RuntimeModel::buildUPAGatherTask(mv::ComputationModel &cm, mv::Element &compilationDescriptor, mv::Control::OpListIterator opIt)
+{
+    auto input0 = opIt->getInputTensor(0);
+    auto input1 = opIt->getInputTensor(1);
+    auto output = opIt->getOutputTensor(0);
+    auto toBuild = new MVCNN::UPALayerTaskT();
+
+    toBuild->softLayerParams.type = MVCNN::SoftwareLayerParams_GatherParams;
+
+    auto softLayerParamsValue = new MVCNN::GatherParamsT();
+
+    // Fill in required params
+
+    softLayerParamsValue->axis = opIt->get<unsigned>("axis");
+
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input0)));
+    toBuild->inputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, input1)));
+    toBuild->outputs.push_back(std::move(buildTensorReferenceT(cm, compilationDescriptor, output)));
+
+    toBuild->softLayerParams.value = softLayerParamsValue;
+
+    return toBuild;
+}
+
 
 // For now 1:1 mapping
 std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(ComputationModel& cm, mv::Element &compilationDescriptor, Control::OpListIterator opIt)
@@ -2957,6 +3058,10 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPATask(Comput
         toReturn[0]->task.value = buildUPACTCDecoderTask(cm, compilationDescriptor, opIt);
     else if(underlyingTask == "RefConv")
         toReturn[0]->task.value = buildUPARefConvTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "FakeQuantize")
+        toReturn[0]->task.value = buildUPAFakeQuantizeTask(cm, compilationDescriptor, opIt);
+    else if(underlyingTask == "Gather")
+        toReturn[0]->task.value = buildUPAGatherTask(cm, compilationDescriptor, opIt);
     // TODO: Add other UPA layers
 
     if(opIt->hasAttr("trailing") && opIt->get<bool>("trailing"))

@@ -55,6 +55,7 @@ namespace mv
         bool hasWeights() const;
         bool hasPWLActivation() const;
         bool hasFloatPrecision() const;
+        bool supportsCMConv();
 
         std::string getLogID() const override;
 

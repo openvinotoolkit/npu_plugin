@@ -7,13 +7,13 @@
 int main()
 {
     const std::string binLocation = mv::utils::projectRootPath() +
-        "/tests/system_tests/network/mobilenetv2_fp16/";
+        "/tests/layer/net_test_mobilenetv2_fp16/";
     mv::CompilationUnit compilationUnit = buildMobilenetV2_fp16(binLocation);
     mv::OpModel& opModel = compilationUnit.model();
 
     // Initialize and run the compilation unit.
     compilationUnit.loadCompilationDescriptor(mv::utils::projectRootPath() +
-        "/config/compilation/release_kmb.json");
+        "/config/compilation/release_kmb_with_CM_Conv.json");
     compilationUnit.loadTargetDescriptor(mv::Target::ma2490);
     compilationUnit.initialize();
     compilationUnit.run();

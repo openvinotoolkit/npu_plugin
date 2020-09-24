@@ -64,14 +64,14 @@ void Huffman::reset()
 
 void Huffman::constructHeap(const vector<Symbol> &data, int bpb)
 {
-    HuffmanTuple_t t;
     for (unsigned int i = 0; i < data.size(); i++)
     {
-        t = HuffmanTuple_t(data[i].symbol, data[i].occurrences, i, -1, -1);
-        nodes.push_back(t);
+        nodes.emplace_back(data[i].symbol, data[i].occurrences, i, -1, -1);
     }
-    for (HuffmanTuple_t &it : nodes)
+    for (HuffmanTuple_t &it : nodes) 
+    {
         heap.push(it);
+    }
     SIZE_OF_SYMBOL = bpb;
     nrOfDistSyms = nodes.size();
     if(encodeSymbols > 0)
@@ -324,8 +324,8 @@ void Huffman::generateEncodedSymbols()
     sort(encSymLengths.begin(), encSymLengths.end());
     encSyms.push_back((1 << encSymLengths[0].first) - 1);
     codedSyms.insert(make_pair(encSymLengths[0].second,
-                               HuffmanCoded_t(encSyms[0],
-                                       encSymLengths[0].first)));
+                               HuffmanCoded_t{static_cast<uint32_t>(encSyms[0]),
+                                       static_cast<uint32_t>(encSymLengths[0].first)}));
 
     Log(4, "generateEncodedSymbols: encoded Symbol %0x, length: %0d from original byte 0x%0x", encSyms[0], encSymLengths[0].first, encSymLengths[0].second[0] & 0xFF);
 
@@ -334,7 +334,7 @@ void Huffman::generateEncodedSymbols()
         const int sh = (encSymLengths[i].first - encSymLengths[i - 1].first);
 
         encSyms.push_back((encSyms[i - 1] << sh) - 1);
-        codedSyms.insert(make_pair(symbol, HuffmanCoded_t(encSyms[i], encSymLengths[i].first)));
+        codedSyms.insert(make_pair(symbol, HuffmanCoded_t{static_cast<uint32_t>(encSyms[i]), static_cast<uint32_t>(encSymLengths[i].first)}));
 
         Log(4, "generateEncodedSymbols: encoded Symbol %0x, length: %0d from original byte 0x%0x", encSyms[i], encSymLengths[i].first, symbol[0] & 0xFF);
     }
@@ -1049,17 +1049,23 @@ found_solution_again: ;
         int status = 0;
         if ( outputDataRouting == WRITE_TO_FILE )
         {
-            if((status = writeToFile(encodedValues.bits.data(), encodedValues.bits.size(), outputDataFileName)));
+            if((status = writeToFile(encodedValues.bits.data(), encodedValues.bits.size(), outputDataFileName)))
+            {
+                return encodedValues.bits.size()*8;
+            }
         }
         else
         {
-            if((status = writeToBuffer(encodedValues.bits.data(), encodedValues.bits.size(), outputDataBuffer)));
+            if((status = writeToBuffer(encodedValues.bits.data(), encodedValues.bits.size(), outputDataBuffer)))
+            {
+                return encodedValues.bits.size()*8;
+            }
         }
     }
     return (encodedValues.length);
 }
 
-unsigned char Huffman::decodeSymbol(string Huffman, const vector<int> &symbolTable,
+unsigned char Huffman::decodeSymbol(string huffman, const vector<int> &symbolTable,
         const vector<int> &skipTable)
 {
     int code_ptr = 1;
@@ -1068,11 +1074,11 @@ unsigned char Huffman::decodeSymbol(string Huffman, const vector<int> &symbolTab
     int cprefix_H = 0;
     stringstream rptStream;
 
-    Huffman = ' ' + Huffman;
-    while(Huffman[code_ptr] == '0' || Huffman[code_ptr] == '1')
+    huffman = ' ' + huffman;
+    while(huffman[code_ptr] == '0' || huffman[code_ptr] == '1')
     {
         internal_node = (internal_node << 1) - skipTable[code_ptr];
-        cprefix_H = (cprefix_H << 1) + (Huffman[code_ptr] - '0');
+        cprefix_H = (cprefix_H << 1) + (huffman[code_ptr] - '0');
         if(cprefix_H >= internal_node)
         {
             return symbolTable[symbol_ptr + cprefix_H - internal_node];
@@ -1081,7 +1087,7 @@ unsigned char Huffman::decodeSymbol(string Huffman, const vector<int> &symbolTab
         code_ptr++;
     }
 
-    rptStream << "decodeSymbol: ERROR - Symbol " << Huffman << " not found in symbol table" << endl;
+    rptStream << "decodeSymbol: ERROR - Symbol " << huffman << " not found in symbol table" << endl;
     
     Error(0, rptStream);
     // Log(0, rptStream.str().c_str());
@@ -1237,9 +1243,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         else
         {
             d_read = inputDataBuffer[bytes_read++];
+            Log(2, "readEncodedData: Block = %0d Mode = %x ODV size = %0ld (delta %0ld, d_read 0x%0x, bytes_read %0d)", lviBlockNumber, (d_read & 0x03), outputDataVector->size(), ( outputDataVector->size() - odvSizePrev ), (d_read&0xFFFF), bytes_read);
+            odvSizePrev = outputDataVector->size();
         }
-        Log(2, "readEncodedData: Block = %0d Mode = %x ODV size = %0ld (delta %0ld, d_read 0x%0x, bytes_read %0d)", lviBlockNumber, (d_read & 0x03), outputDataVector->size(), ( outputDataVector->size() - odvSizePrev ), (d_read&0xFFFF), bytes_read);
-        odvSizePrev = outputDataVector->size();
 
         //---------------------------------------------------------------------------------------------------------------------
         // BYPASS mode 
@@ -1249,10 +1255,10 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             Report(1, rptStream);
             Log(1, "readEncodedData: Bypass mode");
 
-            int dataSize;
+            int localDataSize;
 
             // Read in data size from. 6 bits in first byte, 6 bits in second byte
-            dataSize = (d_read >> 2) & 0x3F;
+            localDataSize = (d_read >> 2) & 0x3F;
             if ( inputDataRouting == READ_FROM_FILE )
             {
                 bytes_read += fread(&d_read, 1, 1, fin);
@@ -1261,12 +1267,12 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             {
                 d_read = inputDataBuffer[bytes_read++];
             }
-            dataSize |= (d_read & 0x3F) << 6;
-            Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", dataSize, dataSize);
+            localDataSize |= (d_read & 0x3F) << 6;
+            Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", localDataSize, localDataSize);
 
             // write data to file
             uint8_t by_data;
-            for(int j = 0; j < dataSize + 1; j++) {
+            for(int j = 0; j < localDataSize + 1; j++) {
                 if ( inputDataRouting == READ_FROM_FILE )
                 {
                     bytes_read += fread(&by_data, 1, 1, fin);
@@ -1313,11 +1319,11 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             Report(1, rptStream);
             Log(1, "readEncodedData: RLE mode");
 
-            int dataSize;
+            int localDataSize;
             char symbol;
 
             // Read in data size. 6 bits in first byte, 6 bits in second byte
-            dataSize = (d_read >> 2) & 0x3F;
+            localDataSize = (d_read >> 2) & 0x3F;
             if ( inputDataRouting == READ_FROM_FILE )
             {
                 bytes_read += fread(&d_read, 1, 1, fin);
@@ -1326,8 +1332,8 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             {
                 d_read = inputDataBuffer[bytes_read++];
             }
-            dataSize |= (d_read & 0x3F) << 6;
-            Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", dataSize, dataSize);
+            localDataSize |= (d_read & 0x3F) << 6;
+            Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", localDataSize, localDataSize);
             
             // Read symbol from metadata. Last 2 bits of first byte, first 6 bits from following
             symbol = (d_read >> 6) & 0x03;
@@ -1342,7 +1348,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             symbol |= (d_read & 0x3F) << 2;
             Log(5, "readEncodedData: RLE symbol = 0x%02X ", (int)symbol & 0xFF);
 
-            bytes.insert(bytes.begin(), dataSize+1, symbol);
+            bytes.insert(bytes.begin(), localDataSize+1, symbol);
             
             if ( outputDataRouting == WRITE_TO_FILE )
             {
@@ -1350,10 +1356,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
             }
             else
             {
-                for ( uint32_t i = 0; i < bytes.size(); i++ )
-                {
-                    outputDataVector->push_back(bytes[i]);
-                }
+                outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
             }
 
             if ( RLE_BLOCKS_PADDED_TO_32_BYTES )
@@ -1388,13 +1391,13 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         //---------------------------------------------------------------------------------------------------------------------
         // If it is Huffman
         //---------------------------------------------------------------------------------------------------------------------
-        int             dataSize;
+        int             localDataSize;
         vector<int>     leafTable;
         vector<int>     symbolTable;
         vector<int>     bufferSizes;
 
         // Read in data size from 6 bits in first byte, 6 bits in second byte
-        dataSize = (d_read >> 2) & 0x3F;
+        localDataSize = (d_read >> 2) & 0x3F;
         if ( inputDataRouting == READ_FROM_FILE )
         {
             bytes_read += fread(&d_read, 1, 1, fin);
@@ -1403,10 +1406,10 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         {
             d_read = inputDataBuffer[bytes_read++];
         }
-        dataSize |= (d_read & 0x3F) << 6;
+        localDataSize |= (d_read & 0x3F) << 6;
 
         // Exit if data size is 0. Padded data to interface width
-        if (dataSize == 0) {
+        if (localDataSize == 0) {
             Log(1, "readEncodedData: 0 sized block seen. Exiting");
             break;
         }
@@ -1415,7 +1418,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         Report (1, rptStream);
 
         Log(1, "readEncodedData: HUFFMAN mode\n"); 
-        Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", dataSize, dataSize);
+        Log(3, "readEncodedData: Data size read = 0x%03x (%0d)", localDataSize, localDataSize);
 
         // Read in leaf table. Last 2 bits of first byte, first 6 bits of following
         leafTable.push_back(0);
@@ -1502,7 +1505,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         vector<int> tmp_leafTable (leafTable);
         constructOneSidedTree(tmp_leafTable, decodingTree[0], 1, 0);
 
-        int SIZE_OF_SYMBOL = 8;
+        int LOCAL_SIZE_OF_SYMBOL = 8;
 
         for (uint_fast8_t pipe=0; pipe<13; ++pipe) {
             unsigned int bufferSizeB = bufferSizes[pipe]/8 + (bufferSizes[pipe]%8 != 0) + ((bufferSizes[pipe]%16 != 0 && bufferSizes[pipe]%16 <= 8));
@@ -1536,9 +1539,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
                 if (first) {
                     if (encodedValues.getBit(i) == 0) { // Start bit == 0; Symbol not encoded
                         ++i;
-                        bytes.push_back( (unsigned char) encodedValues.getBitsVal(i, SIZE_OF_SYMBOL) );
-                        Log(5, "Unencoded byte added: 0x%0x", (unsigned char) encodedValues.getBitsVal(i, SIZE_OF_SYMBOL) );
-                        i += SIZE_OF_SYMBOL;
+                        bytes.push_back( (unsigned char) encodedValues.getBitsVal(i, LOCAL_SIZE_OF_SYMBOL) );
+                        Log(5, "Unencoded byte added: 0x%0x", (unsigned char) encodedValues.getBitsVal(i, LOCAL_SIZE_OF_SYMBOL) );
+                        i += LOCAL_SIZE_OF_SYMBOL;
                         first = true;
                         continue;
                     }
@@ -1573,10 +1576,7 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
         }
         else
         {
-            for ( uint32_t i = 0; i < bytes.size(); i++ )
-            {
-                outputDataVector->push_back(bytes[i]);
-            }
+            outputDataVector->insert(outputDataVector->end(), bytes.cbegin(), bytes.cend());
         }
 
         // Can only have one block per DMA word. Data will be padded to 256 bits otherwise
@@ -1601,9 +1601,9 @@ uint32_t Huffman::readEncodedData (  const string              &srcFile,
     {
         outputDataLength = outputDataVector->size();
         
-        if ( outputDataLength > 0 )
+        if ( !outputDataVector->empty() )
         {
-            memcpy(reinterpret_cast<void*>(outputDataBuffer), reinterpret_cast<void*>(outputDataVector->data()), outputDataLength);
+            move(outputDataVector->begin(), outputDataVector->end(), outputDataBuffer);
             delete outputDataVector;
         }
         else

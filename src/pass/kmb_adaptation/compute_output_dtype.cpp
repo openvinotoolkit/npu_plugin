@@ -278,18 +278,18 @@ void tensorsToFP16Fcn(const mv::pass::PassEntry&  , mv::ComputationModel& model,
                 {
                     std::vector<double> oldData = kernelOp->getOutputTensor(0)->getDoubleData();
                     std::vector<int64_t> newData(oldData.size());
-                    mv::QuantizationParams quantParams = {{},{},{},{}};
-                    if(outputTensor->hasAttr("quantParams"))
-                        quantParams = outputTensor->get<mv::QuantizationParams>("quantParams");
 
-                    for(unsigned i = 0; i < oldData.size(); ++i)
+                    for (size_t i = 0; i < oldData.size(); ++i)
+                    {
                         newData[i] = mv::fp32_to_fp16(oldData[i]);
+                    }
+
                     auto kernelShape = kernelOp->getOutputTensor(0)->getShape();
                     auto kernelOrder = kernelOp->getOutputTensor(0)->getOrder();
                     //with data flows I am finding where the op was attached to attache the new one!!!
                     auto outputDataFlows = mv::getOutputDataFlow(om, kernelOp);
 
-                    auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder, quantParams);
+                    auto newKernel = om.constantInt(newData, kernelShape, mv::DType("Float16"), kernelOrder, {{},{},{},{}});
                     auto newKernelOp = om.getSourceOp(newKernel);
                     newKernelOp->set<unsigned>("opId", opId);
                     newKernelOp->set<mv::DType>("dType",  mv::DType("Float16"));

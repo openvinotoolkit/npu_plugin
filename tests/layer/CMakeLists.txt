@@ -6,8 +6,6 @@ if (MSVC)
     # TODO - implement
 
 else()
-    # not integerated into CI setup
-    # add_subdirectory(test_runner)
 
     add_executable(avgpool_asymmetric_large_stride avgpool_asymmetric_large_stride/avgpool_asymmetric_large_stride.cpp)
     target_link_libraries(avgpool_asymmetric_large_stride cm)
@@ -231,5 +229,14 @@ else()
 
     add_executable(deconv_fp16 deconv_fp16/deconv_fp16.cpp)
     target_link_libraries(deconv_fp16 cm)
+
+    add_executable(eltwise_conv eltwise_conv/eltwise_conv.cpp)
+    target_link_libraries(eltwise_conv cm)
+    
+    add_executable(net_test_resnet50_fp16 net_test_resnet50_fp16/test.cpp net_test_resnet50_fp16/resnet50_fp16.cpp)
+    target_link_libraries(net_test_resnet50_fp16 cm)
+
+    add_executable(net_test_mobilenetv2_fp16 net_test_mobilenetv2_fp16/test.cpp net_test_mobilenetv2_fp16/mobilenetv2_fp16.cpp)
+    target_link_libraries(net_test_mobilenetv2_fp16 cm)
 
 endif(MSVC)

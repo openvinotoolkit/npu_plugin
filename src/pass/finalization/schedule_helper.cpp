@@ -60,6 +60,11 @@ void addressHelperPass(const mv::pass::PassEntry& pass, mv::ComputationModel& mo
             auto t = dm.getTensor(name);
             t->setAddress(address);
             auto tensorAllocatorName = t->get<std::set<std::string>>("allocators").begin();
+
+            if(tensorAllocatorName == t->get<std::set<std::string>>("allocators").end()) {
+                throw mv::ArgumentError(dm, "allocators", "0", "No tensor allocators found");
+            }
+
             auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
             mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, t); // 0 is the only stage for now, but this will probably change in the future
             tensorBufferIt->setOffset(address);
