@@ -353,22 +353,8 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/DMAOrdering.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
             "DMAOrdering",
             "BuildGraphFileKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

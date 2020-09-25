@@ -924,9 +924,6 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     // THe (DMA-level, DPU-schedule-number) aattrbute is used to sort them
     auto sortedDMAOps = controlModel.schedulingSortDMA();
 
-    // for(auto& dma: sortedDMAOps)
-    //     std::cout << dma->getName() << std::endl;
-
     sortedDPUUPAOps.insert(sortedDPUUPAOps.end(), sortedDMAOps.begin(), sortedDMAOps.end() );
 
     int initialId = 0;
