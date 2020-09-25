@@ -16,8 +16,7 @@
 
 #include "test_model/kmb_test_base.hpp"
 
-TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // [Track number: S#30561]
+TEST_F(KmbClassifyNetworkTest, precommit_customnet1_tf_int8_dense_grayscale_fashionmnist) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet1_tf_int8_dense_grayscale_fashionmnist.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -27,8 +26,7 @@ TEST_F(KmbClassifyNetworkTest, customnet1_tf_int8_dense_grayscale_fashionmnist) 
         1, 0.5f);
 }
 
-TEST_F(KmbClassifyNetworkTest, customnet_sigmoid) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // [Track number: S#30561]
+TEST_F(KmbClassifyNetworkTest, precommit_customnet_sigmoid) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/customnets/customnet_sigmoid.xml")
             .setUserInputPrecision("input", Precision::U8)
