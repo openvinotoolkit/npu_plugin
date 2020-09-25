@@ -293,6 +293,7 @@
               "ddr_control_edges" : true
             },
             "TransitiveReduction",
+            "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
