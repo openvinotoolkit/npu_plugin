@@ -12,6 +12,8 @@
 #include "include/mcm/target/kmb/runtime_model/runtime_model.hpp"
 #include "include/mcm/utils/warning_manager.hpp"
 #include "pass/lp_scheduler/cmx_concat_transform.hpp"
+#include "pass/lp_scheduler/pipeline_transform.hpp"
+#include "pass/lp_scheduler/pipeline_chains_transform.hpp"
 #include "scheduler/feasible_scheduler.hpp"
 
 namespace mv {
@@ -187,6 +189,15 @@ class Operation_Dag {
         cmx_concat_control_edge_t;
     typedef typename cmx_concat_algo_t::concat_subgraph_t cmx_concat_subgraph_t;
 
+    typedef mv::scheduler::Pipelining_Transform pipeline_algo_t;
+    typedef typename pipeline_algo_t::control_edge_t pipeline_control_edge_t;
+    typedef typename pipeline_algo_t::pipeline_subgraph_t pipeline_subgraph_t;
+
+    typedef mv::scheduler::Pipeline_Chains pipeline_chain_algo_t;
+    typedef typename pipeline_chain_algo_t::chain_subgraph_t chain_subgraph_t;
+    typedef typename pipeline_chain_algo_t::control_edge_t chain_control_edge_t;
+
+
     struct cmx_concat_subgraph_hash_t {
       std::size_t operator() (const cmx_concat_subgraph_t& a) const {
         return (size_t)(a.representative_dpu_);
@@ -207,6 +218,16 @@ class Operation_Dag {
 
     typedef std::unordered_map<operation_t, cmx_concat_subgraph_t>
         cmx_concat_subgraphs_t;
+    struct pseudo_edge_t {
+      pseudo_edge_t(operation_t src, operation_t sink)
+        : src_(src), sink_(sink) {}
+      bool operator<(const pseudo_edge_t& o) const {
+        return (src_ == o.src_) ? (sink_ < o.sink_) : (src_ < o.src_);
+      }
+      operation_t src_;
+      operation_t sink_;
+    }; // struct pseudo_edge_t //
+    typedef std::set<pseudo_edge_t> pseudo_edge_set_t;
     // use the operation name as the hash key to reduce any non-determinism with
     // the virtual address //
     struct operation_hash_t {
@@ -308,7 +329,8 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() {
+          "ImplicitInputSlice", "ImplicitJoin"} ),
+      cmx_concat_subgraphs_(), pseudo_edge_set_() {
         init_from_model(model);
     }
 
@@ -320,7 +342,8 @@ class Operation_Dag {
       //is left in place to reduce the edge blowup (quadratic) of dependencies.
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
-          "ImplicitInputSlice", "ImplicitJoin"} ), cmx_concat_subgraphs_() { }
+          "ImplicitInputSlice", "ImplicitJoin"} ),
+        cmx_concat_subgraphs_(), pseudo_edge_set_() { }
 
     void reset(model_t& model) { init_from_model(model); }
 
@@ -330,14 +353,49 @@ class Operation_Dag {
       return (itr == cmx_concat_subgraphs_.end()) ? NULL : &(itr->second);
     }
 
+    //TODO(vamsikku): please make mv::DataModel const correct we cannot even
+    //scan through the edges in a read only fashion.
+    void add_pseudo_edges_from_model(mv::OpModel& om) {
+      mv::DataModel dm(om);
+      pseudo_edge_set_.clear();
+      for (auto eitr=dm.flowBegin(); eitr!=dm.flowEnd(); ++eitr) {
+        if (eitr->hasAttr("pseudo_data_flow")) {
+          pseudo_edge_set_.insert(
+              pseudo_edge_t( &(*(eitr.source())), &(*(eitr.sink())) )
+          );
+        }
+      }
+    }
+
+    bool is_pseudo_edge(operation_t src, operation_t sink) const {
+      return (pseudo_edge_set_.find( pseudo_edge_t(src, sink) ) 
+            != pseudo_edge_set_.end() );
+    }
+
     template<typename ControlEdgeContainer>
     void reset_from_cmx_concat_control_edges(mv::OpModel& omodel,
           const ControlEdgeContainer cedge_container) {
       init_from_model(omodel);
-      apply_cmx_concat_control_edges(cedge_container.begin(),
-            cedge_container.end());
-      update_resource_utility_for_cmx_concateable_dpu_ops(
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
+      update_resource_utility_with_attribute(
           cmx_concat_algo_t::cmx_concat_attribute() );
+    }
+
+    template<typename ControlEdgeContainer>
+    void reset_from_pipeline_control_edges(mv::OpModel& omodel,
+          const ControlEdgeContainer cedge_container) {
+      init_from_model(omodel);
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
+      connect_all_non_unit_outdegree_dmas_to_input(omodel);
+      update_resource_utility_with_attribute_all_ops(
+          pipeline_algo_t::pipeline_resource_attribute() );
+    }
+
+    template<typename ControlEdgeContainer>
+    void reset_from_chain_pipeline_control_edges(mv::OpModel& omodel,
+          const ControlEdgeContainer cedge_container) {
+      init_from_model(omodel);
+      apply_control_edges(cedge_container.begin(), cedge_container.end());
     }
 
 
@@ -377,6 +435,42 @@ class Operation_Dag {
       // reinit the DAG with fresh op model //
       reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
     }
+
+    void enable_chain_pipeline_transforms(mv::OpModel& omodel) {
+      pipeline_chain_algo_t algo(omodel);
+      std::list<chain_subgraph_t> pipeline_subgraphs;
+      std::list<chain_control_edge_t> chain_control_edges;
+
+      algo.transform_op_model(std::back_inserter(chain_control_edges),
+          pipeline_subgraphs);
+
+      mv::GenerateDotFromModel(omodel, "OpModel",
+            "pipeline_chain_transformed_model.dot");
+      reset_from_chain_pipeline_control_edges(omodel, chain_control_edges);
+    }
+
+    template<typename PipeLineControlEdgeContainer>
+    void enable_pipeline_transforms(mv::OpModel& omodel,
+          PipeLineControlEdgeContainer &pipeline_control_edges,
+            size_t cmx_size=917504UL) {
+
+      static_assert(std::is_same<
+          typename PipeLineControlEdgeContainer::value_type,
+            pipeline_control_edge_t>::value, "Invalid Control Edge container");
+
+      // generate control edges for CMX concatenation //
+      pipeline_algo_t pipeline_algo(omodel);
+
+      std::list<pipeline_subgraph_t> pipeline_subgraphs;
+      pipeline_algo.transform_op_model(
+          std::back_inserter(pipeline_control_edges), pipeline_subgraphs,
+            cmx_size);
+      mv::GenerateDotFromModel(omodel, "OpModel",
+            "pipeline_transformed_model.dot");
+
+      reset_from_pipeline_control_edges(omodel, pipeline_control_edges);
+    }
+
 
     template<typename OpTypeIterator>
     void set_implicit_op_types(OpTypeIterator begin, OpTypeIterator end) {
@@ -471,6 +565,18 @@ class Operation_Dag {
       return (citr == citr_end);
     }
 
+    bool op_has_input_as_only_parent(const operation_t& op) const {
+      const_operation_iterator_t citr = begin_parent_nodes(op),
+                                 citr_end = end_parent_nodes(op);
+
+      if (citr == citr_end) { return false; }
+      operation_t pop = *citr;
+      if (!is_input_op(pop)) { return false; }
+      ++citr;
+      bool ret_value = (citr == citr_end);
+      return ret_value;
+    }
+
     // Precondition: out degree of op >= 1 //
     operation_t get_first_child_op(const operation_t& op) const {
       const_operation_iterator_t citr = begin_nodes(op);
@@ -534,10 +640,17 @@ class Operation_Dag {
           dag.op_has_zero_in_degree(op);
     }
 
+    static bool is_pseudo_input_edge(const dag_t& dag, const operation_t& src,
+        const operation_t& sink) { return dag.is_pseudo_edge(src, sink); }
+
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
-      return dag.is_dma_op(op) &&
+      if (op->hasAttr("pipeline_flow_control")) { return false;}
+      else if (op->hasAttr("pipeline_data_start")) { return true;}
+
+      bool ret_value = (dag.is_dma_op(op) &&
           !(dag.is_dma_op_moving_data_from_cmx_to_ddr(op)) &&
-          dag.op_has_unit_out_degree(op);
+            dag.op_has_unit_out_degree(op));
+      return ret_value;
     }
     static bool is_compute_operation(const dag_t& dag, const operation_t& op) {
       // an implicit op is a compute op which takes 0 resources //
@@ -716,8 +829,14 @@ class Operation_Dag {
         const_operation_iterator_t citr_end=end_nodes(curr_op);
         for (; citr != citr_end; ++citr) {
           operation_t child_op = *citr;
-          itr = op_size_table.find(child_op);
+          
+          if (is_pseudo_edge(curr_op, child_op)) {
+            // pseudo edge does not contribute to the resource utility of //
+            // the child op//
+            continue;
+          }
 
+          itr = op_size_table.find(child_op);
           if (itr == op_size_table.end()) {
             // initialize it with its output size //
             itr = op_size_table.insert(
@@ -876,9 +995,11 @@ class Operation_Dag {
 
       for (auto oitr=remove_list.begin(); oitr!=remove_list.end(); ++oitr) {
         bool short_circuited = short_circuit_implicit_op(*oitr);
-//        if (!short_circuited) {
-//          throw std::string("[ImplicitOp-Short-Circuting]: failed");
-//        }
+        //TODO(vamsikku): investigate on why short cirucuiting failures are
+        //commented out.
+        //if (!short_circuited) {
+        //  throw std::string("[ImplicitOp-Short-Circuting]: failed");
+        //}
       }
       return true;
     }
@@ -1119,6 +1240,23 @@ class Operation_Dag {
       }
     }
 
+    void connect_all_non_unit_outdegree_dmas_to_input(mv::OpModel& model) {
+
+      // connect all non-unit outdegree DMAS to input //
+      for (op_itr_t itr = mtraits::begin_operations(model);
+            itr != mtraits::end_operations(model); ++itr) {
+        operation_t op = &(*itr);
+        
+        if (is_operation_ignored(op, model)) { continue; }
+        if (!is_dma_op(op)) { continue; }
+        if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
+        if (op_has_unit_out_degree(op)) { continue; }
+
+        add_directed_edge_from_input(op);
+      }
+
+    }
+
       // short circuit implicit ops //
     void shorting_implicit_ops() {
       for (auto short_circuit_itr=implicit_op_types_.begin();
@@ -1135,7 +1273,7 @@ class Operation_Dag {
     }
 
     template<typename ControlEdgeIterator>
-    void apply_cmx_concat_control_edges(ControlEdgeIterator cbegin, 
+    void apply_control_edges(ControlEdgeIterator cbegin, 
         ControlEdgeIterator cend) {
       while (cbegin != cend) {
         operation_t src_op = (&(*((*cbegin).source_itr_)));
@@ -1145,15 +1283,26 @@ class Operation_Dag {
       }
     }
 
-    void update_resource_utility_for_cmx_concateable_dpu_ops(
-        const std::string& cmx_concat_attribute="cmx_concatable") {
+    void update_resource_utility_with_attribute(
+        const std::string& attribute="cmx_concatable") {
       for (typename resource_utility_map_t::iterator
             ritr = resource_utility_map_.begin();
             ritr != resource_utility_map_.end(); ++ritr) {
         operation_t op = ritr->first;
-        fflush(stdout);
-        if (is_dpu_op(op) && op->hasAttr(cmx_concat_attribute)) {
-          ritr->second = op->get<size_t>(cmx_concat_attribute);
+        if (is_dpu_op(op) && op->hasAttr(attribute)) {
+          ritr->second = op->get<size_t>(attribute);
+        }
+      }
+    }
+
+    void update_resource_utility_with_attribute_all_ops(
+        const std::string& attribute="cmx_concatable") {
+      for (typename resource_utility_map_t::iterator
+            ritr = resource_utility_map_.begin();
+            ritr != resource_utility_map_.end(); ++ritr) {
+        operation_t op = ritr->first;
+        if (op->hasAttr(attribute)) {
+          ritr->second = op->get<size_t>(attribute);
         }
       }
     }
@@ -1166,21 +1315,15 @@ class Operation_Dag {
       // Transform OpModel for scheduling //
       shorting_implicit_ops();
 
-      // connect all non-unit outdegree DMAS to input //
-      for (op_itr_t itr = mtraits::begin_operations(model);
-            itr != mtraits::end_operations(model); ++itr) {
-        operation_t op = &(*itr);
-        
-        if (is_operation_ignored(op, model)) { continue; }
-        if (!is_dma_op(op)) { continue; }
-        if (is_dma_op_moving_data_from_cmx_to_ddr(op)) {continue;}
-        if (op_has_unit_out_degree(op)) { continue; }
-        add_directed_edge_from_input(op);
-      }
+      connect_all_non_unit_outdegree_dmas_to_input(model);
 
       update_resource_utility_for_aligned_dma_ops(model);
 
+      // add pseudo edges //
+      add_pseudo_edges_from_model(model);
     }
+
+  public:
 
     // Removes the op from the DAG and removes all incoming and outgoing edges
     void remove_op_from_dag(operation_t op) {
@@ -1250,6 +1393,7 @@ class Operation_Dag {
       ops_.erase(op_itr);
       op_name_table_.erase(op->getName().c_str());
     }
+  private:
 
     void clear_resource_model() { resource_utility_map_.clear(); }
 
@@ -1319,7 +1463,95 @@ class Operation_Dag {
       return true;
     }
 
+    void drop_all_pseudo_edges() {
+      for (pseudo_edge_t edge : pseudo_edge_set_) {
+        remove_directed_edge(edge.src_, edge.sink_);
+      }
+      pseudo_edge_set_.clear();
+    }
+
+    void drop_all_pseudo_edges_in_model(mv::OpModel& om) {
+      mv::DataModel dm(om);
+      std::list<mv::Data::FlowListIterator> edges_to_drop;
+      for (mv::Data::FlowListIterator eitr=dm.flowBegin(); eitr!=dm.flowEnd();
+            ++eitr) {
+        if (eitr->hasAttr("pseudo_data_flow")) {
+          edges_to_drop.push_back(eitr);
+        }
+      }
+
+      for (mv::Data::FlowListIterator eitr : edges_to_drop) {
+        om.undefineFlow(eitr);
+      }
+    }
+
+    bool remove_directed_edge(operation_t source_op, operation_t sink_op) {
+      master_op_iterator_t itr_source = ops_.find(source_op);
+      master_op_iterator_t itr_sink = ops_.find(sink_op);
+
+      if ((itr_source == ops_.end()) || (itr_sink == ops_.end())) {
+        return false;
+      }
+
+      // remove sink_op from adj_list of source_op //
+      op_ref_list_t *child_list_ptr = NULL, *parent_list_ptr = NULL;
+      typename op_ref_list_t::iterator child_remove_iterator,
+               parent_remove_iterator; 
+      {
+        adjacency_map_t::iterator adj_itr = adj_map_.find(source_op);
+        if (adj_itr == adj_map_.end()) { return false; }
+
+        op_ref_list_t& child_list = adj_itr->second;
+        for (op_ref_list_t::iterator child=child_list.begin();
+              child!=child_list.end(); ++child) {
+          if (*child == &(*itr_sink)) {
+            child_list_ptr = &child_list;
+            child_remove_iterator = child;
+            break;
+          }
+        }
+      }
+
+      // remove source_op from rev_adj_list of sink_op //
+      {
+        adjacency_map_t::iterator adj_rev_itr = adj_map_rev_.find(sink_op);
+
+        if (adj_rev_itr == adj_map_rev_.end()) { return false; }
+
+        op_ref_list_t& parent_list = adj_rev_itr->second;
+        for (op_ref_list_t::iterator parent=parent_list.begin();
+              parent!=parent_list.end(); ++parent) {
+          if (*parent == &(*itr_source)) { 
+            parent_remove_iterator = parent;
+            parent_list_ptr = &parent_list;
+          }
+        }
+      }
+
+      bool ret_value = false;
+      if (child_list_ptr && parent_list_ptr) {
+        child_list_ptr->erase(child_remove_iterator);
+        parent_list_ptr->erase(parent_remove_iterator);
+
+        // update the indegree of sink_op //
+        in_degree_map_t::iterator in_degree_itr = in_degree_map_.find(sink_op);
+
+        assert(in_degree_itr != in_degree_map_.end());
+        assert(in_degree_itr->second >= 1UL);
+
+        in_degree_itr->second--;
+        ret_value = true;
+      }
+      return ret_value;
+    }
+
+
     bool add_directed_edge_from_input(operation_t sink_op) {
+      operation_t source_op = get_input_op();
+      return add_directed_edge(source_op, sink_op);
+    }
+
+    bool add_directed_edge_from_input_old(operation_t sink_op) {
 
       operation_t source_op = get_input_op();
       master_op_iterator_t itr_source = ops_.find(source_op);
@@ -1408,6 +1640,7 @@ class Operation_Dag {
     operation_t input_op_;
     std::unordered_set<std::string> implicit_op_types_;
     cmx_concat_subgraphs_t cmx_concat_subgraphs_;
+    pseudo_edge_set_t pseudo_edge_set_;
 }; // class Operation_Dag //
 
 

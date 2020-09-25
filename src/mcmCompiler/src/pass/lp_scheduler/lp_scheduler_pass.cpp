@@ -112,6 +112,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     passDesc.get<bool>("enable_cmx_concat");
   typedef typename mv::scheduler::CMX_Concatenation::control_edge_t
       cmx_concat_control_edge_t;
+
   std::list<cmx_concat_control_edge_t> cmx_concat_control_edges;
 
   if (apply_cmx_concat_transforms) {
@@ -143,11 +144,14 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
         std::back_inserter(exceeding_ops));
 
     for (auto itr=exceeding_ops.begin(); itr!=exceeding_ops.end(); ++itr) {
-      pass.log(mv::Logger::MessageType::Info," Exceeding Op: " + (itr->first)->getName() +
-                                                  " with resources:# " + (std::to_string(itr->second)));
-
+      pass.log(mv::Logger::MessageType::Info,
+          " Exceeding Op: " + (itr->first)->getName() +
+          " with resources:# " + (std::to_string(itr->second)));
     }
-    assert(exceeding_ops.empty());
+
+    if (!(exceeding_ops.empty())) {
+      throw "Exceeding ops";
+    }
   }
 
   if (fptr) {
@@ -179,17 +183,40 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
 
     mv::lp_scheduler::op_type_e scheduled_op_enum;
-    if (scheduled_op_type == "ORIGINAL") {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
-    } else if (scheduled_op_type == "SPILLED_READ") {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
-    } else {
-      scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
+    if (op->getOpType() != "PseudoOp") {
+      if (scheduled_op_type == "ORIGINAL") {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::ORIGINAL_OP;
+      } else if (scheduled_op_type == "SPILLED_READ") {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_READ_OP;
+      } else {
+        scheduled_op_enum = mv::lp_scheduler::op_type_e::SPILLED_WRITE_OP;
+      }
+      scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
+            rbegin, rend, scheduled_op_enum));
     }
-    scheduled_ops.push_back(scheduled_op_t(op, scheduled_op.time_,
-          rbegin, rend, scheduled_op_enum));
     ++scheduler;
   } // while (scheduler != scheduler_end) //
+
+  { // remove any pseudo ops //
+    std::list<mv::Data::OpListIterator> ops_to_remove;
+    for (mv::Data::OpListIterator oitr=cm.opBegin(); oitr!=cm.opEnd();
+          ++oitr) {
+      if (oitr->getOpType() == "PseudoOp") {
+        ops_to_remove.push_back(oitr);
+      }
+    }
+
+    for (mv::Data::OpListIterator oitr : ops_to_remove) {
+      input_dag.remove_op_from_dag(&(*oitr));
+      cm.removeOp(oitr);
+    }
+  }
+
+  // drop all pseudo edges from input_dag and model //
+  {
+    input_dag.drop_all_pseudo_edges_in_model(cm);
+    input_dag.drop_all_pseudo_edges();
+  }
 
   {
     std::list<scheduled_op_t> new_scheduled_ops;
@@ -306,6 +333,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   }
 
   ///////////////////// REPACKING //////////////////////////////////////////////
+  //TODO(vamsikku): get rid of repacking.
   if (passDesc.hasAttr("enable_simple_repacking"))
   {
     // Repack all ops are now original//
@@ -325,7 +353,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
   }
   //////////////////////////////////////////////////////////////////////////////
-
 
 
 
@@ -375,6 +402,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     }
   }
 
+
   {
     control_edges.add_cmx_memory_control_edges(input_dag, model,
         scheduled_ops.begin(), scheduled_ops.end(), generate_temporal_edges);
@@ -386,6 +414,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());
   }
+
   ////////////////////// Control Edge Generation ///////////////////////////////
 
 

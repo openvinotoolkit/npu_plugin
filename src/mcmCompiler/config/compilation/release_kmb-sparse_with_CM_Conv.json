@@ -135,6 +135,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "MarkEltWiseUpaInputs",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -339,6 +340,13 @@
         "Singular": [
             "RemoveRedundantUpdateBarriers",
             "BuildGraphFileKmb",
+            {
+                "name": "GenerateDot",
+                "output": "output/dots/before_serialization.dot",
+                "scope": "ControlModel",
+                "content": "full",
+                "html": true
+            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

@@ -1,4 +1,5 @@
 #include "include/mcm/computation/op/op.hpp"
+#include "include/mcm//op_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
 
 mv::Op::Op(ComputationModel& model, const std::string& opType, const std::string& name,
@@ -200,7 +201,7 @@ unsigned mv::Op::addInputTensor(Data::TensorIterator tensor)
         throw OpError(*this, "This operation does not support extra inputs after creation");
 }
 
-mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx) 
+mv::Data::TensorIterator mv::Op::getInputTensor(std::size_t idx)
 {
     if (idx >= inputs_.size())
         throw IndexError(*this, idx, "Exceeds the number of inputs");
@@ -274,7 +275,7 @@ std::vector<mv::Data::TensorIterator> mv::Op::getOutputTensor()
     return outputs_;
 }
 
-std::size_t mv::Op::inputSlots() const 
+std::size_t mv::Op::inputSlots() const
 {
     return inputs_.size();
 }
@@ -391,4 +392,26 @@ bool mv::Op::hasPWLActivation() const
 bool mv::Op::hasFloatPrecision() const
 {
     return hasAttr("floatPrecision") && get<bool>("floatPrecision");
+}
+
+bool mv::Op::supportsCMConv()
+{
+    OpModel om(getModel_());
+
+    auto is_Conv_op = (getOpType() == "Conv");
+    auto is_Conv_task = (getOpType() == "DPUTask" && hasAttr("taskOp") && get<std::string>("taskOp") == "Conv");
+
+    if((is_Conv_op || is_Conv_task) && getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
+    {
+        auto parent = om.getSourceOp(getInputTensor(0));
+        while(parent->isImplicit() || parent->isUPA())
+        {
+            parent = om.getSourceOp(parent->getInputTensor(0));
+        }
+        if (parent->getOpType() == "Input")
+            return true;
+    }
+
+    return false;
+
 }
