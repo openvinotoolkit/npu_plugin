@@ -231,6 +231,7 @@
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
+            "TaskMultiplePostOps",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",
