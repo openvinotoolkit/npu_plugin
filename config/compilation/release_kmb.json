@@ -292,7 +292,6 @@
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -310,7 +309,6 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
-            "TransitiveReduction",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
