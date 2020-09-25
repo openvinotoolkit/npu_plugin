@@ -59,12 +59,11 @@ std::vector<std::vector<std::uint8_t>> KmbLayerTestsCommon::CalculateRefs() {
 void KmbLayerTestsCommon::Run() {
     SKIP_IF_CURRENT_TEST_IS_DISABLED()
 
-    ConfigurePlugin();
     std::cout << "KmbLayerTestsCommon::BuildNetworkWithoutCompile" << std::endl;
     BuildNetworkWithoutCompile();
 #ifndef __aarch64__
     std::cout << "KmbLayerTestsCommon::Compile" << std::endl;
-    executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice);
+    executableNetwork = getCore()->LoadNetwork(cnnNetwork, targetDevice, configuration);
     std::cout << "KmbLayerTestsCommon::ExportNetwork()" << std::endl;
     ASSERT_NO_THROW(ExportNetwork());
 #else
