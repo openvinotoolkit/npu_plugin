@@ -1138,6 +1138,11 @@ namespace mv
                 {
                     streamedChannels = mv::round_up(streamedChannels, 16);
                 }
+                //weightd output channels always aligned to 16, regardless if streamed or not
+                if(opType == "Conv" && !isInput)
+                {
+                    streamedChannels = mv::round_up(streamedChannels, 16);
+                }
                 return tensorShape[mv::IO_WIDTH_DIMENSION] * streamedHeight * streamedChannels * streamedBatch * dtypeMultiplier;
             }
 
