@@ -41,26 +41,12 @@ namespace mv
             bool forced_;
             //bool relocatable need this?
 
-            static std::map<std::string,Location> createNamingMap() {
-                    return {{"NNCMX",NNCMX},
-                            {"UPACMX",UPACMX},
-                            {"DDR",DDR},
-                            {"INPUT",INPUT},
-                            {"OUTPUT",OUTPUT},
-                            {"BLOB",BLOB},
-                            {"VIRTUAL",VIRTUAL},
-                            {"CSRAM",CSRAM},
-                            {"DEFAULT",DEFAULT}
-                    };
-            }
-            static std::map<std::string,Location> namingMap;
-
         public:
-            MemoryLocation(const std::string& location) : location_(namingMap[location]),forced_(false) {}
+            MemoryLocation(const std::string& location);
             MemoryLocation(const Location location) : location_(location),forced_(false) {}
             MemoryLocation() : location_(DEFAULT),forced_(false) {}
 
-            MemoryLocation(const std::string& location, bool forced) : location_(namingMap[location]),forced_(forced) {}
+            MemoryLocation(const std::string& location, bool forced);
             MemoryLocation(const Location location, bool forced) : location_(location),forced_(forced) {}
 
 //            MemoryLocation(MemoryLocation& location) = delete;
@@ -68,11 +54,11 @@ namespace mv
             void operator=(MemoryLocation& location) = delete;
 
             bool operator==(const Location other) { return (location_ == other); }
-            bool operator==(std::string& other) { return (location_ == namingMap[other]);}
+            bool operator==(std::string& other);
             bool operator==(const MemoryLocation& other) { return (location_ == other.location_);}
 
             bool operator!=(const Location other) {return  (location_ != other); }
-            bool operator!=(std::string& other) {return ( location_ != namingMap[other]);}
+            bool operator!=(std::string& other);
             bool operator!=(const MemoryLocation& other) { return (location_ != other.location_);}
 
             void force() { forced_ = true;}
@@ -93,25 +79,14 @@ namespace mv
                 }
             }
 
-            bool relocate(std::string& newPlace)
-            {
-                return relocate( namingMap[newPlace]);
-            }
+            bool relocate(std::string& newPlace);
 
             bool relocate(MemoryLocation& newPlace)
             {
                 return relocate(newPlace.location_);
             }
 
-            std::string toString() const
-            {
-                for( auto it = namingMap.begin(); it != namingMap.end(); ++it )
-                {
-                    if(it->second == location_)
-                        return it->first;
-                }
-                throw ValueError(*this, "Memory location cannot be found in Map!!");
-            }
+            std::string toString() const;
 
             virtual std::string getLogID() const override
             {

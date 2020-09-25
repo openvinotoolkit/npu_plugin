@@ -133,6 +133,10 @@ namespace mv
              */
             std::size_t dataTypeSize;
 
+            /**
+             * @brief Indicates that buffer has master buffer
+             */
+            bool hasMaster;
         public:
 
             MemoryBuffer();

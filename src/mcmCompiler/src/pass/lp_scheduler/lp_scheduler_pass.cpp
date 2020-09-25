@@ -37,7 +37,6 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
   mv::lp_scheduler::Tensor_Allocator_Assignment alloc(model);
   mv::OpModel om(model);
 
-#ifndef WIN32
   typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   auto global_params = model.getGlobalConfigParams();
 
@@ -50,16 +49,17 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
         msrelations(input_dag, model);
 
-    const std::string& stringfile =
+    const std::string& stringdata =
       global_params->get<std::string>(reader_t::ddr_address_attribute());
-    assert(!stringfile.empty());
+    assert(!stringdata.empty());
 
     const char *lp_sched_ddr_address_dump_filename = nullptr;
     if (mv::isDebugFilesEnabled())
     {
       lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
-    begin = reader_t::begin_read(stringfile, om);
+    std::istringstream iss(stringdata);
+    begin = reader_t::begin_read(iss, om);
     end = reader_t::end_read();
 
     mv::lp_scheduler::DDR_Address_Generator<dag_t> ddr_address_generator(
@@ -70,7 +70,6 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       throw std::string("[DDR_Address_Generation]: insufficient DDR space");
     }
   }
-#endif  // WIN32
 
   for (auto itr=om.opBegin(); itr!=om.opEnd(); ++itr) {
     mv::Op &op = *itr;
@@ -382,7 +381,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
     printfInfo("LpScheduler:", "[Dynamic Spill Control Edge Count]: %lu\n",
         dynamic_spill_control_edges.size());
 
-    //NOTE: dynamic_spill_control_edges for spilled CMX Concat DPU reps are 
+    //NOTE: dynamic_spill_control_edges for spilled CMX Concat DPU reps are
     //included
     control_edges.add_control_edges(model, dynamic_spill_control_edges.begin(),
         dynamic_spill_control_edges.end());

@@ -205,7 +205,7 @@ class Operation_Dag {
 
     const_operation_iterator_t begin_in(const operation_t& op) const {
       adjacency_map_t::const_iterator itr = inv_adj_map_.find(op), itr_next;
-      if (itr == adj_map_.end()) { return const_operation_iterator_t(); }
+      if (itr == inv_adj_map_.end()) { return const_operation_iterator_t(); }
 
       itr_next = itr;
       ++itr_next;

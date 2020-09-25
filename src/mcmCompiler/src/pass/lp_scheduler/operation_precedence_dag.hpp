@@ -1217,7 +1217,7 @@ class Operation_Dag {
       {
         adjacency_map_t::iterator child_itr = adj_map_.find(op);
 
-        if (child_itr != adj_map_rev_.end()) {
+        if (child_itr != adj_map_.end()) {
           op_ref_list_t& child_list = child_itr->second;
 
           for(op_ref_list_t::const_iterator child=child_list.begin();
