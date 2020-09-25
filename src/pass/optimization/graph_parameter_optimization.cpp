@@ -1673,7 +1673,11 @@ namespace mv
 
                 //NOTE: On floating point network, Mobilenet there is a case that if we have runtime sparsity with 
                 //SOH going to an eltwise the eltwise fails, so the step is to use compiler sparsity on that point
-                if (childOpType == "Eltwise" && childOp.get<bool>("floatPrecision") &&
+                if (childOpType == "Eltwise" && (parentOpType == "Conv" || parentOpType == "Eltwise)"
+                    && childOp.get<bool>("floatPrecision") &&
+                    (parentOp->getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 28 &&
+                       parentOp->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 28 &&
+                       parentOp->getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 32) &&
                     parentOutputSparsity && childInputSparsity && (childClustering == "SplitOverH" ||
                         childClustering == "HKSwitch"))
                     return INF;
