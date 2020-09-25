@@ -1673,6 +1673,13 @@ namespace mv
                     }
                 }
 
+                //NOTE: On floating point network, Mobilenet there is a case that if we have runtime sparsity with 
+                //SOH going to an eltwise the eltwise fails, so the step is to use compiler sparsity on that point
+                if (childOpType == "Eltwise" && childOp.get<bool>("floatPrecision") &&
+                    parentOutputSparsity && childInputSparsity && (childClustering == "SplitOverH" ||
+                        childClustering == "HKSwitch"))
+                    return INF;
+
                 //Note: Input clustering strategy should match first layer, if it is Z-major
                 if(parentOpType == "Input" && !isChildChanMajor)
                 {
