@@ -245,7 +245,7 @@ static void generateSparsityMapsPopulatedTensorsFcn(const mv::pass::PassEntry& p
                         // In the case of SOH, ZM conv, kernel height > 1, we need to adjust the sm size so each subtensor will be
                         // aligned to the 16 byte limitaiton
                         if (dpuTask->get<std::string>("taskOp") == "Conv" &&
-                            dpuTask->getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] > 1)
+                            dpuTask->get<std::array<unsigned short, 2>>("kSize")[mv::KERNEL_HEIGHT] > 1)
                         {
                             while ((w*h*c/8)%128 != 0)
                                 w+=1;
