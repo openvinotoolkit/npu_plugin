@@ -46,16 +46,10 @@ static InferenceEngine::Layout extractLayoutFromStrides(const std::vector<uint32
     if (maxStrideVal == strides[DIM_H]) {
         if (std::max(strides[DIM_W], strides[DIM_C]) == strides[DIM_W]) {
             tensorLayout = InferenceEngine::Layout::NHWC;
-        } else {
-            // NHCW
-            THROW_IE_EXCEPTION << "getIOLayout: NHCW layout is not supported";
         }
     } else if (maxStrideVal == strides[DIM_C]) {
         if (std::max(strides[DIM_W], strides[DIM_H]) == strides[DIM_H]) {
             tensorLayout = InferenceEngine::Layout::NCHW;
-        } else {
-            // NCWH
-            THROW_IE_EXCEPTION << "getIOLayout: NCWH layout is not supported";
         }
     } else {
         // width-major
@@ -71,7 +65,7 @@ static InferenceEngine::Data deserializeTensor(const std::unique_ptr<MVCNN::Tens
     std::copy(tensor->dimensions.begin(), tensor->dimensions.end(), std::back_inserter(dataDims));
 
     InferenceEngine::Layout dataLayout = extractLayoutFromStrides(tensor->strides);
-    InferenceEngine::Precision dataPrecision = DTypeToPrecision(tensor->data_dtype);
+    InferenceEngine::Precision dataPrecision = MvcnnDTypeToPrecision(tensor->data_dtype);
 
     InferenceEngine::TensorDesc ieDesc(dataPrecision, dataDims, dataLayout);
 

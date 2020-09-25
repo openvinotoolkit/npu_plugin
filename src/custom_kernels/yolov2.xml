@@ -4,12 +4,10 @@
 <CustomLayer name="RegionYolo" type="MVCL" version="1">
     <Where do_softmax="1"/>
     <Kernel entry="region_hwc">
-        <Source filename="yolov2_region_hwc.bin"/>
+        <Source filename="region_hwc.bin"/>
         <Parameters>
-            <Tensor arg-name="src_data" type="input" port-index="0" format="BYXF"/>
-            <Tensor arg-name="dst_data" type="output" port-index="0" format="BYXF"/>
-            <Data arg-name="local_src" type="local_data" dim="input,0" size="X*(coords+1+classes)*2"/>
-            <Data arg-name="local_dst" type="local_data" dim="input,0" size="X*(coords+1+classes)*2"/>
+            <Tensor arg-name="src" type="input" port-index="0" format="BYXF"/>
+            <Tensor arg-name="dst" type="output" port-index="0" format="BFYX"/>
             <Scalar arg-name="W" type="int" port-index="0" source="I.X"/>
             <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
             <Scalar arg-name="classes" type="int" source="classes"/>
@@ -18,13 +16,13 @@
             <Scalar arg-name="maskSize" type="int" source="3"/>
             <Scalar arg-name="doSoftmax" type="int" source="do_softmax"/>
         </Parameters>
-        <WorkSizes global="((X+7)/8)*8*Y,num,1" local="((X+7)/8)*8,1,1" dim="input,0"/>
+        <WorkSizes global="((X*Y+7)/8)*8,num,1" local="((X*Y+7)/8)*8,1,1" dim="input,0"/>
     </Kernel>
 </CustomLayer>
 
 <CustomLayer name="ReorgYolo" type="MVCL" version="1">
     <Kernel entry="reorg_hwc">
-        <Source filename="yolov2_reorg_hwc.bin"/>
+        <Source filename="reorg_hwc.bin"/>
         <Parameters>
             <Tensor arg-name="src" type="input" port-index="0" format="BYXF"/>
             <Tensor arg-name="dst" type="output" port-index="0" format="BYXF"/>
@@ -32,8 +30,6 @@
             <Scalar arg-name="H" type="int" port-index="0" source="I.Y"/>
             <Scalar arg-name="C" type="int" port-index="0" source="I.F"/>
             <Scalar arg-name="stride" type="int" source="stride"/>
-            <Data arg-name="local_src" type="local_data" dim="input,0" size="X*Y*2"/>
-            <Data arg-name="local_dst" type="local_data" dim="input,0" size="X*Y*2"/>
         </Parameters>
         <WorkSizes dim="input,0" global="Y*F/(stride*stride),stride*stride,1" local="Y/stride,stride,1"/>
     </Kernel>

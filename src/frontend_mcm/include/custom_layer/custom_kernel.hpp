@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include <pugixml.hpp>
 #include <ie_common.h>
 
+#include <pugixml.hpp>
 #include <vpu/utils/enums.hpp>
 #include <vpu/utils/small_vector.hpp>
 
@@ -14,23 +14,15 @@ namespace vpu {
 
 namespace ie = InferenceEngine;
 
-VPU_DECLARE_ENUM(CustomParamType,
-    Input,
-    Output,
-    Data,
-    LocalData,
-    InputBuffer,
-    OutputBuffer,
-    Int,
-    Float)
+VPU_DECLARE_ENUM(CustomParamType, Input, Output, Data, LocalData, InputBuffer, OutputBuffer, Int, Float)
 
 VPU_DECLARE_ENUM(CustomDataFormat,
-                 BYXF = 0,  // NHWC used in most software layers
-                 BFYX = 1,  // NCHW used if HW module is enabled
-                 YXF = 2,   // HWC used in most software layers
-                 FYX = 3,   // CHW used if HW module is enabled
-                 BF = 4,    // NC layout
-                 Any = 5)   // doesn't really matter
+    BYXF = 0,  // NHWC used in most software layers
+    BFYX = 1,  // NCHW used if HW module is enabled
+    YXF = 2,   // HWC used in most software layers
+    FYX = 3,   // CHW used if HW module is enabled
+    BF = 4,    // NC layout
+    Any = 5)   // doesn't really matter
 
 VPU_DECLARE_ENUM(CustomDimSource, Input, Output)
 
@@ -86,4 +78,4 @@ public:
     int inputDataCount() const { return _inputDataCount; }
 };
 
-} // namespace vpu
+}  // namespace vpu

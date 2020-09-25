@@ -43,7 +43,7 @@ fetch_models_and_validation_set()
 # OpenCL compiler
 #
 
-set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.06.03")
+set(VPU_CLC_MA2X9X_VERSION "movi-cltools-20.09.1-ldscripts-kmb")
 
 if(LINUX AND LINUX_OS_NAME MATCHES "Ubuntu")
     if(DEFINED ENV{THIRDPARTY_SERVER_PATH})
@@ -125,7 +125,7 @@ function(add_kmb_compile_custom_kernels)
                     "SHAVE_MA2X8XLIBS_DIR=${VPU_CLC_MA2X9X}/lib"
                     "SHAVE_MYRIAD_LD_DIR=${VPU_CLC_MA2X9X}/bin"
                     "SHAVE_MOVIASM_DIR=${VPU_CLC_MA2X9X}/bin"
-                ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header ${cl_file} -o ${out_file}
+                ${VPU_CLC_MA2X9X_COMMAND} --strip-binary-header -d 3010xx ${cl_file} -o ${out_file}
             MAIN_DEPENDENCY ${cl_file}
             DEPENDS ${VPU_CLC_MA2X9X_COMMAND}
             COMMENT "[KMB] Compile ${cl_file}"

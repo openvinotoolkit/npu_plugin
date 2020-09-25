@@ -16,44 +16,10 @@
 
 #include "kmb_test_convert_def.hpp"
 
-#include <precision_utils.h>
-
-#include <blob_factory.hpp>
-#include <ngraph/runtime/reference/convert.hpp>
-
-#include "vpu/utils/ie_helpers.hpp"
-
 namespace {
 
-template <typename From, typename To>
-void convert(const Blob::Ptr &input, Blob::Ptr &output, const std::function<To(From)>& convFunc) {
-    IE_ASSERT(input->size() == output->size());
-    const auto srcPtr = input->buffer().as<const From *>();
-    const auto dstPtr = output->buffer().as<To *>();
-    for (size_t i = 0; i < input->size(); i++) {
-        dstPtr[i] = convFunc(srcPtr[i]);
-    }
-}
-
-BlobVector refConvert(const TestNetwork::NodePtr& layer, const BlobVector& inputs, const TestNetwork&) {
-    IE_ASSERT(layer != nullptr);
-    IE_ASSERT(inputs.size() == 1);
-
-    const auto convertLayer = std::dynamic_pointer_cast<ngraph::op::v0::Convert>(layer);
-    IE_ASSERT(convertLayer != nullptr);
-
-    const auto dstPrecision = Precision::FP32;
-
-    const auto input = inputs.at(0);
-
-    const auto& outDims = layer->output(0).get_shape();
-    const auto outDesc = TensorDesc(dstPrecision, outDims, Layout::NHWC);
-    auto output = make_blob_with_precision(outDesc);
-    output->allocate();
-
-    vpu::copyBlob(input, output);
-
-    return {output};
+BlobVector refConvert(const TestNetwork::NodePtr&, const BlobVector& inputs, const TestNetwork&) {
+    return inputs;
 }
 
 }  // namespace

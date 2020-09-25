@@ -79,8 +79,8 @@ static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     for (const size_t& dim : dimVec) {
         toBuild->dimensions.push_back(dim);
     }
-    toBuild->strides = layoutToOrder(tensorInfo.getLayout());
-    toBuild->data_dtype = precisionToDType(tensorInfo.getPrecision());
+    toBuild->strides = layoutToOrderVector(tensorInfo.getLayout());
+    toBuild->data_dtype = precisionToMvcnnDType(tensorInfo.getPrecision());
     toBuild->data = nullptr;
 
     return toBuild;
@@ -138,6 +138,7 @@ void MCMAdapter::compileNetwork(
     // TODO: This hack needs to be fixed
     auto compDescName = config.mcmCompilationDesciptor();
     ie::InputsDataMap networkInputs;
+    ///
     bool layoutNCHW = true;
     network.getInputsInfo(networkInputs);
     for (const auto& netInput : networkInputs) {
@@ -149,6 +150,7 @@ void MCMAdapter::compileNetwork(
     if (layoutNCHW) {
         compDescName = "release_kmb_with_CM_Conv";
     }
+    ///
 
     const auto compDescPath =
         getIELibraryPath() + "/" + config.mcmCompilationDesciptorPath() + "/" + compDescName + ".json";
@@ -338,8 +340,8 @@ std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::
             inputSerializer << " " << dim << " ";
         }
         inputSerializer << "}" << std::endl;
-        InferenceEngine::Layout ieLayout = orderToLayout(tensorRef->strides);
-        InferenceEngine::Precision iePrecision = DTypeToPrecision(tensorRef->data_dtype);
+        InferenceEngine::Layout ieLayout = orderVectorToLayout(tensorRef->strides);
+        InferenceEngine::Precision iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype);
         inputSerializer << "Layout: " << ieLayout << std::endl;
         inputSerializer << "Precision: " << iePrecision << std::endl;
 
@@ -366,8 +368,8 @@ std::pair<InferenceEngine::InputsDataMap, InferenceEngine::OutputsDataMap> vpu::
             outputSerializer << " " << dim << " ";
         }
         outputSerializer << "}" << std::endl;
-        InferenceEngine::Layout ieLayout = orderToLayout(tensorRef->strides);
-        InferenceEngine::Precision iePrecision = DTypeToPrecision(tensorRef->data_dtype);
+        InferenceEngine::Layout ieLayout = orderVectorToLayout(tensorRef->strides);
+        InferenceEngine::Precision iePrecision = MvcnnDTypeToPrecision(tensorRef->data_dtype);
         outputSerializer << "Layout: " << ieLayout << std::endl;
         outputSerializer << "Precision: " << iePrecision << std::endl;
         logger->debug("output info:\n%s\n", outputSerializer.str());

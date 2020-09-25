@@ -7,8 +7,8 @@
 #include <ie_common.h>
 
 #include <caseless.hpp>
-#include <functional>
 #include <custom_layer/custom_kernel.hpp>
+#include <functional>
 #include <map>
 #include <memory>
 #include <pugixml.hpp>
@@ -29,20 +29,20 @@ public:
 
     std::vector<CustomKernel> kernels() const { return _kernels; }
     std::string layerName() const { return _layerName; }
-    std::map<int, ie::Layout> inputs() { return _inputs; }
-    std::map<int, ie::Layout> outputs() { return _outputs; }
+    std::map<int, ie::Layout> inputs() const { return _inputs; }
+    std::map<int, ie::Layout> outputs() const { return _outputs; }
 
     static ie::details::caseless_map<std::string, std::vector<CustomLayer::Ptr>> loadFromFile(
-                const std::string& configFile,
-                bool canBeMissed = false);
+        const std::string& configFile, bool canBeMissed = false);
 
     bool meetsWhereRestrictions(const std::map<std::string, std::string>& params) const;
     static bool isLegalSizeRule(const std::string& rule, std::map<std::string, std::string> layerParams);
     static InferenceEngine::Layout formatToLayout(const CustomDataFormat& format);
+
 private:
     std::string _configDir;
     std::string _layerName;
-    std::map<std::string, std::string> _whereParams;
+    std::unordered_map<std::string, std::string> _whereParams;
 
     std::vector<CustomKernel> _kernels;
 

@@ -75,4 +75,4 @@ const std::vector<ConvertTestParams> convertParams = {
             .destination_type(ngraph::element::Type_t::f16)
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbConvertLayerTests, testing::ValuesIn(convertParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbConvertLayerTests, testing::ValuesIn(convertParams));
