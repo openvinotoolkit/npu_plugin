@@ -3,7 +3,7 @@
 
 mv::BufferEntry::BufferEntry(const std::string& name, BufferType type,
     const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype) :
-name_(name), type_(type), order_(order), shape_(shape), dtype_(dtype)
+name_(name), type_(type), size_(shape.totalSize()), order_(order), shape_(shape), dtype_(dtype)
 {
 
 }

@@ -25,7 +25,7 @@ TEST(populate_buffer_map, single_input)
         unit.loadCompilationDescriptor(compDescPath);
         unit.loadTargetDescriptor(mv::Target::ma2490);
 
-        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}}, inputName);
+        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}}, true, inputName);
 
         std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*48);
         auto weights0 = om.constantInt(weightsData0,{3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}}, "MobilenetV2/Conv/Relu6#0_weights#1");
@@ -235,7 +235,7 @@ TEST(parse_buffer_map, single_input)
         unit.loadCompilationDescriptor(compDescPath);
         unit.loadTargetDescriptor(mv::Target::ma2490);
 
-        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}}, inputName);
+        auto input0 = om.input(inputShape, inputDType, inputOrder, {{128},{0.007843137718737125},{-1.0},{1.0}}, true, inputName);
 
         std::vector<int64_t> weightsData0 = mv::utils::generateSequence<int64_t> (3*3*3*48);
         auto weights0 = om.constantInt(weightsData0,{3,3,3,48}, mv::DType("UInt8"), mv::Order::getZMajorID(4), {{143},{0.04871978983283043},{-6.9027419090271},{5.472084999084473}}, "MobilenetV2/Conv/Relu6#0_weights#1");
