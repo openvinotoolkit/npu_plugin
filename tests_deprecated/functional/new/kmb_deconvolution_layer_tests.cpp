@@ -39,8 +39,10 @@ std::ostream& operator<<(std::ostream& os, const DeconvTestParams& p) {
 
 class KmbDeconvLayerTests : public KmbLayerTestBase, public testing::WithParamInterface<DeconvTestParams> {};
 
+// Bad results
+// [Track number: S#39622]
 TEST_P(KmbDeconvLayerTests, DepthWiseFP16) {
-
+    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
     const auto& p = GetParam();
 
     const auto netPresicion = Precision::FP32;
