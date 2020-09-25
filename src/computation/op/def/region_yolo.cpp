@@ -105,7 +105,6 @@ namespace mv
                 auto new_w = input->getShape()[IO_CHANNEL_DIMENSION] * input->getShape()[IO_HEIGHT_DIMENSION] *
                              input->getShape()[IO_WIDTH_DIMENSION];
                 out_shape = mv::Shape({new_w, 1, 1, 1});
-                out_order = in_order;
             }
 
             auto dTypeToUse = args.at("dType").get<mv::DType>();
