@@ -1054,11 +1054,11 @@ namespace mv
             }
 
 
-            std::size_t activationTensorSize(const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, bool isCMConv, mv::Op& op, bool dilation = false)
+            std::size_t activationTensorSize(const mv::Data::TensorIterator tensorToSize, std::string clustering, const mv::Shape& streamingPool, bool isCMConv, mv::Op& op, bool isInput, bool dilation = false)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
                 auto dtypeMultiplier = std::ceil(tensorToSize->getDType().getSizeInBits()/8.0);
-
+                auto opType = op.getOpType();
                 auto tensorShape = tensorToSize->getShape();
                 if (dilation)
                     tensorShape = tensorToSize->get<mv::Shape>("originalShape");
@@ -1129,7 +1129,11 @@ namespace mv
                 {
                     streamedHeight = div(streamedHeight,totalClusters);
                 }
-
+                if((opType == "Conv" || opType == "DepthwiseConv" || opType == "MaxPool" ||
+                    opType == "Eltwise") && isInput)
+                {
+                    streamedChannels = mv::round_up(streamedChannels, 16);
+                }
                 return tensorShape[mv::IO_WIDTH_DIMENSION] * streamedHeight * streamedChannels * streamedBatch * dtypeMultiplier;
             }
 
@@ -1188,7 +1192,7 @@ namespace mv
                     Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
                     if(!parentSpilling)
                         temporaryStreamConfig = {1,1,1,1,1};
-                    inputSize = activationTensorSize(op.getInputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op, dilatedLayerInputMemory);
+                    inputSize = activationTensorSize(op.getInputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op, true, dilatedLayerInputMemory);
                 }
                 if(opType != "Output")
                 {
@@ -1198,7 +1202,7 @@ namespace mv
                     if (!spilling)
                         temporaryStreamConfig = {1,1,1,1,1};
 
-                    outputSize = activationTensorSize(op.getOutputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op);
+                    outputSize = activationTensorSize(op.getOutputTensor(0),clusterStrategy,temporaryStreamConfig, isCMConv, op, false);
                 }
 
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
@@ -1237,7 +1241,7 @@ namespace mv
                     Shape temporaryStreamConfig = {streamConfig["W"],streamConfig["H"],streamConfig["C"],1,streamConfig["B"]};
                     if(!parentSpilling)
                         temporaryStreamConfig = {1,1,1,1,1};
-                    inputSize += activationTensorSize(op.getInputTensor(1),clusterStrategy,temporaryStreamConfig, isCMConv, op);
+                    inputSize += activationTensorSize(op.getInputTensor(1),clusterStrategy,temporaryStreamConfig, isCMConv, op, true);
                 }
 
                 //Additional memory footprint for sparsity
