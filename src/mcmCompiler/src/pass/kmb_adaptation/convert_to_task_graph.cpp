@@ -490,7 +490,8 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
     return om.uPATaskCustom(inputs,
                             attrs.at("kernelData").get<std::vector<uint8_t>>(),
                             attrs.at("paramData").get<std::vector<uint8_t>>(),
-                            attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>(),
+                            attrs.at("outOrder").get<mv::Order>(),
+                            attrs.at("outShape").get<mv::Shape>(),
                             attrs.at("dType").get<mv::DType>(),
                             attrs.at("quantParams").get<mv::QuantizationParams>(),
                             name);
