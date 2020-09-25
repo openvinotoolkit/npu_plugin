@@ -1130,7 +1130,7 @@ namespace mv
                     streamedHeight = div(streamedHeight,totalClusters);
                 }
                 if((opType == "Conv" || opType == "DepthwiseConv" || opType == "MaxPool" ||
-                    opType == "Eltwise") && isInput)
+                    opType == "Eltwise") && isInput && (!isCMConv))
                 {
                     streamedChannels = mv::round_up(streamedChannels, 16);
                 }
