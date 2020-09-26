@@ -394,13 +394,19 @@ void populateActivationStorageElementMap(
                 size_t inputTensorIdx,
                 clusterSolverFunc clSolver,
                 size_t clIdx){
+                auto in0 = clSolver(op, 0, clIdx);
+                auto in1 = clSolver(op, 1, clIdx);
+                auto in0_addr = in0->hasAttr("address") ? in0->getAddress() : in0->get<std::size_t>("sliceAddress");
+                auto in1_addr = in1->hasAttr("address") ? in1->getAddress() : in1->get<std::size_t>("sliceAddress");
                 auto base_addr =std::min(
-                    clSolver(op, 0, clIdx)->getAddress(),
-                    clSolver(op, 1, clIdx)->getAddress());
-                auto offset = clSolver(op, inputTensorIdx, clIdx)->getAddress() - base_addr;
+                    in0_addr,
+                    in1_addr);
+                auto in_tensor = inputTensorIdx == 0 ? in0 : in1;
+                auto in_addr = inputTensorIdx == 0 ? in0_addr : in1_addr;
+                auto offset = in_addr - base_addr;
                 auto increment =
-                    clSolver(op, inputTensorIdx, clIdx)->getShape()[mv::IO_CHANNEL_DIMENSION] *
-                    (clSolver(op, inputTensorIdx, clIdx)->getDType().getSizeInBytes());
+                    in_tensor->getShape()[mv::IO_CHANNEL_DIMENSION] *
+                    (in_tensor->getDType().getSizeInBytes());
                 return std::make_pair(offset, increment);
             }
         }

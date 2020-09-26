@@ -9,6 +9,7 @@ static void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::
 static void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -38,6 +39,10 @@ namespace mv
         MV_REGISTER_PASS(ReAllocateImplicitOperationsKmb)
         .setFunc(allocateImplicitOperationsKmbFcn)
         .setDescription("Iterates over all implicit operations and moves implicit buffers into explicit buffers");
+
+        MV_REGISTER_PASS(SetSliceAddressesInCMX)
+        .setFunc(setSliceAddressesInCMXFunc)
+        .setDescription("Iterates over all Streaming that happens in CMX and assigns the right address for Slice Output");
     }
 }
 
@@ -782,5 +787,50 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             }
             
         }
+    }
+}
+
+void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto sliceOps = om.getOps("Slice");
+    auto sliceIt = sliceOps.begin();
+
+    while (sliceIt != sliceOps.end())
+    {
+        auto sliceOp = *sliceIt;
+        auto inputTensor = sliceOp->getInputTensor(0);
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+        {
+            auto outputs = sliceOp->getOutputTensor();
+            auto outputIt = outputs.begin();
+            while (outputIt != outputs.end()) /// to cover the case of multiple outputs
+            {
+                auto outputTensor = *outputIt;
+
+                auto tensorAllocators = outputTensor->get<std::set<std::string>>("allocators");
+
+                auto tensorAllocatorName = tensorAllocators.begin();
+                auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+                mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
+                std::size_t address = 0;
+                if (inputTensor->hasAttr("address"))
+                {
+                    address = inputTensor->getAddress();
+                }
+                else
+                {
+                    auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+                    address = (*masterBuffer)->getOffset();
+                }
+                auto strides = tensorBufferIt->getStrides();
+                auto leading_offset = strides[0];
+
+                outputTensor->set<std::size_t>("sliceAddress", address+leading_offset);
+                outputIt++;
+            }
+        }
+        sliceIt++;
     }
 }
