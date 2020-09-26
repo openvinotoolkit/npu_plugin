@@ -40,7 +40,7 @@ preCompiled_(true)
         model_->bufferMap().addInput(
             graphFile.header->net_input[i]->name,
             //graphFile.header->net_input[i]->,
-            RuntimeModel::stridesToOrder(strides),
+            RuntimeModel::stridesToOrder(strides, dimensions),
             std::vector<std::size_t>(dimensions.begin(), dimensions.end()),
             RuntimeModel::convertDtype(graphFile.header->net_input[i]->data_dtype)
         );
@@ -53,7 +53,7 @@ preCompiled_(true)
         std::reverse(strides.begin(), strides.end());
         model_->bufferMap().addOutput(
             graphFile.header->net_output[i]->name,
-            RuntimeModel::stridesToOrder(strides),
+            RuntimeModel::stridesToOrder(strides, dimensions),
             std::vector<std::size_t>(dimensions.begin(), dimensions.end()),
             RuntimeModel::convertDtype(graphFile.header->net_output[i]->data_dtype)
         );
