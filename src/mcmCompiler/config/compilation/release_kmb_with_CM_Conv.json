@@ -324,6 +324,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "TransitiveReduction",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
