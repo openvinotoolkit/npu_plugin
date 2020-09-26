@@ -159,7 +159,7 @@ namespace mv
             const MVCNN::GraphFileT& getGraphFile();
             void clear();
     
-            static Order stridesToOrder(std::vector<unsigned> strides);
+            static Order stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims);
     
     };
 }

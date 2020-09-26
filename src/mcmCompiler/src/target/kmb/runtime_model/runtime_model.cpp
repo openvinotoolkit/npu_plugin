@@ -3498,12 +3498,12 @@ void mv::RuntimeModel::clear()
     binaryData_->clear();
 }
 
-mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
+mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims)
 {
 
     std::vector<std::size_t> contVector;
     std::map<float, unsigned> indices;
-    
+
     // Hardcoded for 3d tensors 
     // TODO update when 3d RT ops enabled
     auto current_idx = 0;
@@ -3516,8 +3516,13 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides)
     }
 
     for (auto it = indices.begin(); it != indices.end(); ++it)
-        contVector.push_back(it->second);    
-    
-    return OrderRegistry::instance().getLabel(contVector);
+        contVector.push_back(it->second);
 
+    auto order = OrderRegistry::instance().getLabel(contVector);
+
+    // Check for non-standard order & replace with standard order if tensor dimension is flat
+    if (order == "NHCW" && dims[mv::IO_CHANNEL_DIMENSION] == 1)
+        order = "NCHW";
+
+    return order;
 }
