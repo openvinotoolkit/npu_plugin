@@ -24,8 +24,8 @@ int main()
         }
     }
 
-    std::vector<double> weightsData = mv::utils::generateSequence<double>(input->getShape()[2] * 100u, 1, 0);
-    auto weights1 = om.constant(weightsData, {input->getShape()[2], 100}, mv::DType("Float64"), mv::Order::getColMajorID(2), {{0},{scale},{},{}});
+    std::vector<int64_t> weightsData = mv::utils::generateSequence<int64_t>(input->getShape()[2] * 100u, 1, 0);
+    auto weights1 = om.constantInt(weightsData, {input->getShape()[2], 100}, mv::DType("UInt8"), mv::Order::getColMajorID(2), {{0},{scale},{},{}});
     auto fullyConnected = om.fullyConnected(input, weights1, mv::DType("UInt8"), {{0},{1.0},{},{}});
     auto output = om.output(fullyConnected);
 
