@@ -177,6 +177,7 @@ void fuseScaleFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, s
 void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model, std::string opType)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto ppeOutputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
     auto parentOpIt = om.getSourceOp(opIt->getInputTensor(0));
 
@@ -185,8 +186,10 @@ void fuseUsualPPEFcn(mv::Data::OpListIterator &opIt, mv::ComputationModel &model
     else if (opIt->hasPWLActivation())
     {
         // Check for fuseable parentOp; else, execute in software
+        // Check for (multiple) children, if multiple children, can't fuse into the parents
         auto optype = parentOpIt->getOpType();
-        if (!(optype == "Conv" || optype == "DepthwiseConv" || optype == "CMConv"))
+        auto nextOps = mv::findSinkLayers(dm, opIt->getInputTensor(0));
+        if (!(optype == "Conv" || optype == "DepthwiseConv" || optype == "CMConv") || (nextOps.size() != 1))
         {
             opIt->set<bool>("softwareExecuted", true);
             return;

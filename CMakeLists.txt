@@ -232,6 +232,7 @@ set(base
     "${PROJECT_SOURCE_DIR}/src/tensor/quantization_params.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/shape.cpp"
     "${PROJECT_SOURCE_DIR}/src/tensor/tensor.cpp"
+    "${PROJECT_SOURCE_DIR}/src/tensor/tensor_info.cpp"
 
     "${PROJECT_SOURCE_DIR}/src/utils/parser/json_text.cpp"
     "${PROJECT_SOURCE_DIR}/src/utils/serializer/file_buffer.cpp"
@@ -307,6 +308,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/compute_tensors_quant.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/loadPwlQuantParams.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/convert_to_task_graph.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_multiple_postops.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/bias_fixed_point_compute.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/kmb_adaptation/task_memory_location.cpp"
 
@@ -366,6 +368,7 @@ set(pass
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/barrier_scheduler_pass.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/force_spill_activation.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/cmx_concat_transform.cpp"
+    "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/pipeline_transform.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/remove_redundant_dmas_from_concat.cpp"
     "${PROJECT_SOURCE_DIR}/src/pass/lp_scheduler/recompute_implicit_memory_locations.cpp"
 

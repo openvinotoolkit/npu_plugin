@@ -81,8 +81,8 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
         dpuElementWiseOp->set<bool>("hasWeights", false);
 
         std::vector<std::string> postOps;
-        if(dpuElementWiseOp->hasAttr("postOpTypes"))
-            postOps = dpuElementWiseOp->get<std::vector<std::string>>("postOpTypes");
+        if(attrs.find("postOpTypes") != attrs.end())
+            postOps = attrs.at("postOpTypes").get<std::vector<std::string>>();
         postOps.push_back(eltwiseType);
         dpuElementWiseOp->set<std::vector<std::string>>("postOpTypes", postOps);
         eltwiseTask = dpuElementWise;
@@ -159,7 +159,7 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
             notDW = false;
     }
-    if(enableChannelMajor and inputs[1]->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16 and notDW)
+    if (enableChannelMajor and dpuConvOp->supportsCMConv() and notDW)
     {
         dpuConvOp->erase("taskOp");
         dpuConvOp->set<std::string>("taskOp", "ChannelMajorConvolution");
@@ -490,8 +490,7 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
     return om.uPATaskCustom(inputs,
                             attrs.at("kernelData").get<std::vector<uint8_t>>(),
                             attrs.at("paramData").get<std::vector<uint8_t>>(),
-                            attrs.at("outOrder").get<mv::Order>(),
-                            attrs.at("outShape").get<mv::Shape>(),
+                            attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>(),
                             attrs.at("dType").get<mv::DType>(),
                             attrs.at("quantParams").get<mv::QuantizationParams>(),
                             name);
@@ -556,6 +555,28 @@ mv::Data::TensorIterator convertRefConvToUPATask(mv::OpModel& om, const std::vec
         inputs, strides, padding, dilationFactor, group, outputTensorType, quantParams, name);
 }
 
+mv::Data::TensorIterator convertGatherToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    auto axis = attrs.at("axis").get<unsigned>();
+    auto dtype = attrs.at("dType").get<mv::DType>();
+    auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    return om.uPATaskGather(inputs, axis, dtype, quantParams, name);
+}
+
+mv::Data::TensorIterator convertFakeQuantizeToUPATask(mv::OpModel& om, const std::vector<mv::Data::TensorIterator>& inputs,
+                                                const std::map<std::string, mv::Attribute>& attrs,
+                                                const std::string& name, bool software = false)
+{
+    const auto levels = attrs.at("levels").get<unsigned>();
+    const auto quantParams = attrs.at("quantParams").get<mv::QuantizationParams>();
+
+    return om.uPATaskFakeQuantize(
+        inputs, levels, quantParams, name);
+}
+
 void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
 
@@ -568,7 +589,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     std::vector<std::string> opsTypesToConvertToUPA = {"Argmax", "Identity", "Softmax", "Proposal", "ROIPooling", "PSROIPooling",
                                                        "Quantize", "Resample", "Reshape", "RegionYolo", "ReorgYolo",
                                                        "Normalize", "DetectionOutput", "Priorbox", "Permute", "Interp",
-                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder", "RefConv"};
+                                                       "Norm", "FakeQuantize", "Custom", "Sigmoid", "Deconv", "Tile", "CTCDecoder",
+                                                       "RefConv", "Gather"};
 
 
     opsTypesToConvert.insert(opsTypesToConvert.end(), opsTypesToConvertToUPA.begin(), opsTypesToConvertToUPA.end());
@@ -604,6 +626,8 @@ void convertOpsToTasksFcn(const mv::pass::PassEntry& , mv::ComputationModel& mod
     {"Tile", convertTileToUPATask},
     {"CTCDecoder", convertCTCDecoderToUPATask},
     {"RefConv", convertRefConvToUPATask},
+    {"FakeQuantize", convertFakeQuantizeToUPATask},
+    {"Gather", convertGatherToUPATask}
     };
 
     for(auto& opType: opsTypesToConvert)

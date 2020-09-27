@@ -135,6 +135,7 @@
             "PlacementOfOps",
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
+            "MarkEltWiseUpaInputs",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -229,6 +230,7 @@
             "ConvertOpsToTasks",
             "AdaptFixedPointCompute",
             "SetUpPPETasks",
+            "TaskMultiplePostOps",
             "ForceSerialize",
             "KMBOrderConversion",
             "AlignUnpopulatedTensors",

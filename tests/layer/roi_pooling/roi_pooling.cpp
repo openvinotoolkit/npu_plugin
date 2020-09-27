@@ -28,7 +28,7 @@ int main()
     for(unsigned i = 0; i < weightsData.size(); ++i)
         weightsData_converted[i] = weightsData[i];
 
-    auto weights0 = om.constantInt(weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{0},{1.1524552064656746e-05},{},{}}, "weights0");
+    auto weights0 = om.constantInt(weightsData_converted,{1,1,5*5,1}, mv::DType("Float16"), mv::Order::getZMajorID(4), {{},{},{},{}}, "weights0");
 
     // Build inputs vector
     std::vector<mv::Data::TensorIterator> inputs;
