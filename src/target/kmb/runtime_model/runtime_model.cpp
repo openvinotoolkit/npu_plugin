@@ -917,18 +917,18 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
     // Get DPU or UPA task in order of the scheduling number assigned by the scheduler
-    auto sortedDPUUPAOps = controlModel.schedulingSortDPUorUPA();
+    auto sortedOps = controlModel.schedulingSortDPUorUPA();
 
     // As there is only one DMA controller in KMB we need to be careful not
     // to sealize DMAs in the incorrect order
     // THe (DMA-level, DPU-schedule-number) attribute is used to sort them
     auto sortedDMAOps = controlModel.schedulingSortDMA();
 
-    sortedDPUUPAOps.insert(sortedDPUUPAOps.end(), sortedDMAOps.begin(), sortedDMAOps.end() );
+    sortedOps.insert(sortedOps.end(), sortedDMAOps.begin(), sortedDMAOps.end());
 
     int initialId = 0;
 
-    for(auto vecIt = sortedDPUUPAOps.begin(); vecIt != sortedDPUUPAOps.end(); ++vecIt)
+    for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
         std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
