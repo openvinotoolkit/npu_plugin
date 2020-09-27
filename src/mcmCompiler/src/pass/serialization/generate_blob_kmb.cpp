@@ -55,13 +55,9 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
 {
     mv::OpModel om(model); 
     mv::Data::OpListIterator childOp = om.getOp(op.leftmostChild()->getName());
-    std::cout << "childop of task " << op->getName() << " is " << childOp->getName() << std::endl;
-    std::cout << "childop type is " << childOp->getOpType() << std::endl;
-
+   
     if(childOp->getOpType() == "Output")
             return om.getOutput();
-    std::cout << bool(childOp->getOpType() != "DPUTask") << std::endl;
-    std::cout << bool(childOp->getOpType() != "UPATask") << std::endl;
 
     if(childOp->getOpType() == "DPUTask" || childOp->getOpType() == "UPATask")
             return om.getOp(childOp->getName());
@@ -71,7 +67,6 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
         
 
         childOp = om.getOp(childOp.leftmostChild()->getName());
-        std::cout << "child op is " << childOp->getName() << std::endl;
         if(childOp->getOpType() == "DPUTask" || childOp->getOpType() == "UPATask")
             return om.getOp(childOp->getName());
         if(childOp->getOpType() == "Output")
@@ -79,11 +74,9 @@ mv::Data::OpListIterator findChildDPUorUPATaskOp(mv::ComputationModel& model, mv
         else 
             childOp = om.getOp(childOp.leftmostChild()->getName());
 
-        std::cout << "childop now is" << childOp->getName() << std::endl;
         if(childOp->getOpType() == "Output")
             return om.getOutput();
     } 
-    std::cout << "returning " << childOp->getName() << std::endl; 
     return om.getOp(childOp->getName());
 }
 
@@ -105,7 +98,6 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
     for(auto& dmaOp: dmas) {
 
             dpuTaskschedulingNumbers.clear();
-            std::cout << "DMA name is " << dmaOp->getName() << std::endl;
             for(auto son = dmaOp.leftmostChild(); son != om.opEnd(); ++son)
             {
                 auto task = om.getOp(son->getName());
@@ -115,8 +107,6 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
                 if(task->hasAttr("schedulingNumber"))
                 {
                     dpuTaskschedulingNumber = task->get<unsigned>("schedulingNumber");
-                    std::cout << "task name is " << task->getName() << std::endl;
-                    std::cout << "adding scheduling number to vector " << dpuTaskschedulingNumber << std::endl;
                     dpuTaskschedulingNumbers.push_back(dpuTaskschedulingNumber);
                     dpulevel = task->get<unsigned>("layerNumber");
                 }
@@ -136,10 +126,6 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
                
                 dmaOp->set<unsigned>("DPULevel",dpulevel);
                 dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
-                std::cout << "DMA name is " << dmaOp->getName() << std::endl;
-                for(unsigned i = 0; i < dpuTaskschedulingNumbers.size(); i++)
-                    std::cout << dpuTaskschedulingNumbers[i] << std::endl;
-                std::cout << "DMA name is " << dmaOp->getName() << " min scheduing number is " << *std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)) << std::endl;
                 dmaOp->set<unsigned>("DPU-schedule-number",*std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)));
                 dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {dmaTasklayernumber, dpuTaskschedulingNumber});
             }

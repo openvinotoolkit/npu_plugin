@@ -985,7 +985,7 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
 
     // As there is only one DMA controller in KMB we need to be careful not
     // to sealize DMAs in the incorrect order
-    // THe (DMA-level, DPU-schedule-number) aattrbute is used to sort them
+    // THe (DMA-level, DPU-schedule-number) attribute is used to sort them
     auto sortedDMAOps = controlModel.schedulingSortDMA();
 
     sortedDPUUPAOps.insert(sortedDPUUPAOps.end(), sortedDMAOps.begin(), sortedDMAOps.end() );
