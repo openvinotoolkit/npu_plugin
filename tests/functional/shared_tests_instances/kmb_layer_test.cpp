@@ -26,7 +26,7 @@ KmbLayerTestsCommon::KmbLayerTestsCommon(): kmbTestTool(envConfig) {
     // targetDevice = testPlatformTargetDevice;
     inLayout = InferenceEngine::Layout::NHWC;
     outLayout = InferenceEngine::Layout::NHWC;
-    inPrc = InferenceEngine::Precision::U8;
+    inPrc = InferenceEngine::Precision::FP16;
     outPrc = InferenceEngine::Precision::FP16;
 }
 
