@@ -90,11 +90,11 @@ namespace mv
                 DWLargeStrideReplacementSOK,
                 SpiltOverHWithStreamOverK,
                 SpiltOverHWithStreamOverHInCMX,
-                SpiltOverHWithStreamOverHInYOLOV3,
                 SparsityKSegmented,
                 SparsitySpilling,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
+                SoftwareDeconvolutionSet,
                 UpaHKSwitch
             };
 
@@ -119,11 +119,11 @@ namespace mv
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::SpiltOverHWithStreamOverHInCMX, "SpiltOverHWithStreamOverHInCMX"},
-                {FailCause::SpiltOverHWithStreamOverHInYOLOV3, "SpiltOverHWithStreamOverHInYOLOV3"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
+                {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
                 {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
 
@@ -978,7 +978,6 @@ namespace mv
                     if ((originalH % numberOfStreamSplits) != 0)
                     {
                         auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
-                        int newOutputSize = newOutputSizes.front();
                         int remainderOutputSize = newOutputSizes.back();
 
                         if (remainderOutputSize < totalClusters)
@@ -1003,11 +1002,6 @@ namespace mv
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
 
-                //NOTE: Temporary change for handling the yolov3 failing case
-                if (clustering == "SplitOverH" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 416 &&
-                    streamShape["H"] > 1)
-                    return FailCause::SpiltOverHWithStreamOverHInYOLOV3;
-
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
                 if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 &&
@@ -1016,6 +1010,17 @@ namespace mv
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
                     op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
                     return FailCause::SpiltOverHForLayer79InACLNet;
+
+                //NOTE: we need a ticket for that failure, blob looks fine for streaming overH = 12 which means every stream assigned with 2 lines
+                //last one with 1, and the last one seems not to function correctly
+                 if (op.getOpType() == "Conv" && op.get<bool>("floatPrecision") && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1024 &&
+                         op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23)
+                 {
+                    auto outputTilesShape = tileSpatialOutputSize(op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], streamShape["H"]);
+                    for (auto tileShape:outputTilesShape)
+                        if (tileShape == 1)
+                            return FailCause::SoftwareDeconvolutionSet;
+                 }
 
                 return FailCause::Pass; //good strategy
             }
