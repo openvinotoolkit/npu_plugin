@@ -195,4 +195,4 @@ const std::vector<ProposalTestParams> proposalParams {
                                     .scale({8.0, 16.0, 32.0}))
 };
 
-INSTANTIATE_TEST_CASE_P(SomeCase, KmbProposalLayerTests, testing::ValuesIn(proposalParams));
+INSTANTIATE_TEST_CASE_P(precommit_SomeCase, KmbProposalLayerTests, testing::ValuesIn(proposalParams));
