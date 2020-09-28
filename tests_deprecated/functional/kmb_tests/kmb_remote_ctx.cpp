@@ -323,9 +323,7 @@ TEST_F(vpuLayersTests, incompatibleRemoteCtx) {
     ASSERT_ANY_THROW(invalidContextPtr = ie.CreateContext("KMB", invalidCtxParams));
 }
 
-// C++ exception with description "[NOT_FOUND] DEVICE_ID key is not supported for VPU"
-// [Track number: S#39520]
-TEST_F(vpuLayersTests, DISABLED_keyDeviceId) {
+TEST_F(vpuLayersTests, keyDeviceId) {
     const std::string graphPath = ModelsPath() + "/KMB_models/BLOBS/resnet-50/resnet-50.blob";
 
     InferenceEngine::Core ie;
