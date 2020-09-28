@@ -2357,6 +2357,9 @@ class DDR_Address_Generator {
       if (status) {
         auto params = model_.getGlobalConfigParams();
         params->set<int>("DDRScratch", (int)(high_watermark_));
+        if (high_watermark_)
+          model_.bufferMap().addScratch("Scratch", mv::Order("W"),
+              {high_watermark_}, mv::DType("Default"));
       }
 
 
