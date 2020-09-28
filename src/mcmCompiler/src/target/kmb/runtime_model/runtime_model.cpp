@@ -1366,34 +1366,23 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         auto sinkOperators = findSinkLayers(dm, omOpIt->getOutputTensor(0));
 
-        if (sinkOperators[0]->getOpType() == "Align")
+        if ((sinkOperators[0]->getOpType() == "Align" && sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped") ||
+            (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy") && omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped"))
         {
-            if (sinkOperators[0]->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            if (parentOp->getOpType() == "DMATask")
             {
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->DMA(DDR2CMX)
                 auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
                 if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                {
                     dmaToDma = true;
-                }
             }
-        }
-        else if (omOpIt->getOutputTensor(0)->hasAttr("splitStrategy"))
-        {
-            if (omOpIt->getOutputTensor(0)->get<std::string>("splitStrategy") == "SplitOverHOverlapped")
+            else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
             {
-                if (parentOp->getOpType() == "DMATask")
-                {
-                    auto parentDirection = parentOp->get<mv::DmaDirection>("direction");
-                    if (parentDirection == mv::NNCMX2DDR && direction == mv::DDR2NNCMX)
-                        dmaToDma = true;
-                }
-                else if ((parentOp->getOpType() == "ImplicitConcat" && direction == mv::DDR2NNCMX))
-                {
-                    dmaToDma = true;
-                }
+                // Indicate dmaToDma case if we have DMA(CMX2DDR)->ImplicitConcat->DMA(DDR2CMX)
+                // TODO: Concat case should be revisited as concat might happen in CMX
+                dmaToDma = true;
             }
         }
-
     }
 
     std::uint8_t port = opIt->get<std::uint8_t>("port");
