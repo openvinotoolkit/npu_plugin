@@ -18,7 +18,7 @@ addIeTargetTest(
         common_tests_helpers
         ${KMB_PLUGIN_STATIC_TARGET}
         kmb_utils
-        vpux
+        vpux_al
         frontend_mcm_static
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"

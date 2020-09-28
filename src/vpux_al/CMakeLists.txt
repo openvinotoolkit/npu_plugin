@@ -18,7 +18,7 @@ if(ENABLE_LTO)
     ie_enable_lto()
 endif()
 
-set(TARGET_NAME vpux)
+set(TARGET_NAME vpux_al)
 
 file(GLOB_RECURSE SOURCES *.cpp *.hpp *.h)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})

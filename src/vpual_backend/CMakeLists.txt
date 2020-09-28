@@ -45,7 +45,7 @@ link_system_libraries(${TARGET_NAME}
         IE::vpu_common_lib)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux
+        vpux_al
         kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)

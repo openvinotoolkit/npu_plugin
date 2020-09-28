@@ -30,7 +30,7 @@ addIeTargetTest(
         ${XLINK_LIB}
         IE::gtest
         IE::gtest_main
-        vpux
+        vpux_al
         common_tests_helpers
     LINK_LIBRARIES_WHOLE_ARCHIVE
         kmbTestData

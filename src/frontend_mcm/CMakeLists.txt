@@ -63,7 +63,7 @@ link_system_libraries(${OBJ_TARGET_NAME}
 )
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        vpux
+        vpux_al
         kmb_utils
 )
 

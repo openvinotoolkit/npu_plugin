@@ -15,7 +15,7 @@
 #
 
 add_subdirectory(utils)
-add_subdirectory(vpux)
+add_subdirectory(vpux_al)
 add_subdirectory(vpual_backend)
 add_subdirectory(mcmCompiler)
 add_subdirectory(frontend_mcm)

@@ -57,7 +57,7 @@ link_system_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
 target_link_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         kmb_utils
-        vpux)
+        vpux_al)
 
 add_cpplint_target(${HDDL2_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET})
 
@@ -94,4 +94,4 @@ target_link_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
         kmb_utils
     PRIVATE
-        vpux)
+        vpux_al)
