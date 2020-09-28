@@ -62,14 +62,15 @@ if(ENABLE_EXPORT_SYMBOLS)
     replace_compile_visibility_options()
 endif()
 
+ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
+ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
+
 #
 # Sub-directories
 #
 
-ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
-ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
-
 add_subdirectory(thirdparty)
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
@@ -87,8 +88,4 @@ add_subdirectory(tools)
 # CPack
 #
 
-set(ALL_COMPONENTS)
-list(APPEND ALL_COMPONENTS ${KMB_DEVICE_NAME})
-list(APPEND ALL_COMPONENTS ${VPUX_DEVICE_NAME})
-
-ie_cpack(${ALL_COMPONENTS})
+ie_cpack(${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME})
