@@ -59,7 +59,7 @@ if(UNIX)
 endif()
 
 if(ENABLE_EXPORT_SYMBOLS)
-    replace_compile_options()
+    replace_compile_visibility_options()
 endif()
 
 #

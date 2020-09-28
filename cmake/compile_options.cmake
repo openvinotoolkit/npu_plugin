@@ -3,7 +3,7 @@
 #
 
 # put flags allowing dynamic symbols into target
-macro(replace_compile_options)
+macro(replace_compile_visibility_options)
     # Replace compiler flags
     foreach(flag IN ITEMS "-fvisibility=default" "-fvisibility=hidden" "-rdynamic" "-export-dynamic")
         string(REPLACE ${flag} "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
@@ -18,7 +18,7 @@ macro(replace_compile_options)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -rdynamic -export-dynamic")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -rdynamic -export-dynamic")
     set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -rdynamic -export-dynamic")
-endmacro(replace_compile_options)
+endmacro()
 
 function(enable_warnings_as_errors TARGET_NAME)
     if(MSVC)
