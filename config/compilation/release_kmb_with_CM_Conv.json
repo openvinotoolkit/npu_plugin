@@ -154,7 +154,8 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
@@ -167,7 +168,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK", "Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : true}
+                                {"name" : "weightsSparsity",                      "value" : true},
+                                {"name" : "pipelining",                           "value" : true}
                             ]
                         },
                         {
@@ -178,7 +180,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH", "Clustering","SplitOverK"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                           "value" : false}
                             ]
                         },
                         {
@@ -188,16 +191,18 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                           "value" : false}
                             ]
                         },
                         {
                             "name" : "Concat",
                             "strategies": [
-                                {"name" : "clusteringStrategies", "value" : ["Clustering"]},
+                                {"name" : "clusteringStrategies", "value" : ["SplitOverH","SplitOverK"]},
                                 {"name" : "inputActivationSparsity",             "value" : false},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                           "value" : false}
                             ]
                         },
                         {
@@ -207,7 +212,8 @@
                                 {"name" : "clusteringStrategies", "value" : ["SplitOverH","HKSwitch","Clustering"]},
                                 {"name" : "inputActivationSparsity",             "value" : true},
                                 {"name" : "outputActivationSparsity",             "value" : true},
-                                {"name" : "weightsSparsity",                      "value" : false}
+                                {"name" : "weightsSparsity",                      "value" : false},
+                                {"name" : "pipelining",                           "value" : false}
                             ]
                         }
                     ]
@@ -222,6 +228,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -293,6 +300,7 @@
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
@@ -316,6 +324,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",

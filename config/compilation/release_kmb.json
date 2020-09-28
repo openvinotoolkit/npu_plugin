@@ -154,7 +154,8 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
@@ -222,6 +223,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -293,6 +295,7 @@
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
@@ -316,6 +319,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "TransitiveReduction",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
