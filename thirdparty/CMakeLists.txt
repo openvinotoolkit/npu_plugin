@@ -27,7 +27,7 @@ if(CMAKE_CROSSCOMPILING)
 else()
     set(FLATBUFFERS_BUILD_FLATC ON CACHE BOOL "" FORCE)
 endif()
-add_subdirectory(flatbuffers)
+add_subdirectory(flatbuffers EXCLUDE_FROM_ALL)
 
 #
 # vpual
