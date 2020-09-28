@@ -1013,15 +1013,17 @@ namespace mv
 
                 //NOTE: we need a ticket for that failure, blob looks fine for streaming overH = 12 which means every stream assigned with 2 lines
                 //last one with 1, and the last one seems not to function correctly
-                 if (op.getOpType() == "Conv" && op.get<bool>("floatPrecision") && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1024 &&
-                         op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23)
-                 {
-                    auto outputTilesShape = tileSpatialOutputSize(op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], streamShape["H"]);
-                    for (auto tileShape:outputTilesShape)
-                        if (tileShape == 1)
-                            return FailCause::SoftwareDeconvolutionSet;
-                 }
-
+                if (op.hasAttr("floatPrecision"))
+                {
+                     if (op.getOpType() == "Conv" && op.get<bool>("floatPrecision") && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1024 &&
+                             op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23)
+                     {
+                        auto outputTilesShape = tileSpatialOutputSize(op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], streamShape["H"]);
+                        for (auto tileShape:outputTilesShape)
+                            if (tileShape == 1)
+                                return FailCause::SoftwareDeconvolutionSet;
+                     }
+                }
                 return FailCause::Pass; //good strategy
             }
 
