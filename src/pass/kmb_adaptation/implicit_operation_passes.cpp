@@ -172,6 +172,18 @@ void resolveImplicitOperationsFcn(const mv::pass::PassEntry& pass, mv::Computati
                         }
 
                     }
+                    // For pipelining, pass strategy decision to overlap dpu, dma tasks
+                    if(opIt->hasAttr("schedule_for_dpu_dma_overlap") || 
+                            sinkOp->hasAttr("schedule_for_dpu_dma_overlap"))
+                    {
+                        unsigned pipelineId = 0;
+                        if(opIt->hasAttr("schedule_for_dpu_dma_overlap"))
+                            pipelineId = opIt->get<unsigned>("schedule_for_dpu_dma_overlap");
+                        else
+                            pipelineId = sinkOp->get<unsigned>("schedule_for_dpu_dma_overlap");
+                        
+                        om.getSourceOp(compensatorOutput)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+                    }
 
                     compensatorOutput->get<mv::QuantizationParams>("quantParams").quantize(inQuantParams.getShift(), inQuantParams.getMult());
 

@@ -571,6 +571,12 @@ size_t mv::BaseOpModel::getNumNetworkOutputs()
     return networkOutputs_->size();
 }
 
+void mv::BaseOpModel::setNumNetworkOutputs(std::size_t numOutputs)
+{
+    while (networkOutputs_->size() != numOutputs)
+        networkOutputs_->erase(networkOutputs_->begin());
+}
+
 void mv::BaseOpModel::setOutputNode(Data::OpListIterator output)
 {
     if (!output)

@@ -9,6 +9,7 @@ static void allocateGraphfileTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::
 static void allocateCMXTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateInputOutputTensorsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 static void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -38,6 +39,10 @@ namespace mv
         MV_REGISTER_PASS(ReAllocateImplicitOperationsKmb)
         .setFunc(allocateImplicitOperationsKmbFcn)
         .setDescription("Iterates over all implicit operations and moves implicit buffers into explicit buffers");
+
+        MV_REGISTER_PASS(SetSliceAddressesInCMX)
+        .setFunc(setSliceAddressesInCMXFunc)
+        .setDescription("Iterates over all Streaming that happens in CMX and assigns the right address for Slice Output");
     }
 }
 
@@ -530,7 +535,6 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     std::vector<std::size_t> lhs_padding(inputTensor->getShape().ndims());
                     std::vector<std::size_t> rhs_padding(inputTensor->getShape().ndims());
 
-
                     // This code assumes all tensors are of equal size. TODO: Assertions
                     auto lhs = running_concat_offset_LHS[i];
                     auto rhs = running_concat_offset_RHS[i];
@@ -539,11 +543,57 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
                     rhs_padding.at(axis) = rhs;
 
                     auto source_optype = om.getSourceOp(inputTensor)->getOpType();
+
                     auto propagate_to_slaves = (!(source_optype == "Concat" || source_optype == "ImplicitConcat"));
 
                     auto NewBuffer = dm.moveTensor(location2Allocator[inputLocation.toString()],
                                                     inputBuffer, outputBuffer,
                                                     lhs_padding, rhs_padding, propagate_to_slaves);
+//                    //NOTE: all the addresses between the relationships of input/output buffers are RELATIVE, e.g
+//                    //think of a 3 level concat after concat with the master buffer of having size of 10
+//                    //let's suppose that on index 5 we have a second concat and inside this concat there is one more
+//                    //with index 3. The final relative index of the inputBuffer to the masterBuffer is 8=5+3
+//                    //This index is exactly expressed through the lhs_padding.at(axis) and belongs to every inputbuffer.
+                    auto inp = dm.getTensor(inputBuffer->getData()->getName());
+                    auto out = dm.getTensor(outputBuffer->getData()->getName());
+                    std::size_t left_index = 0;
+                    std::string axisConcat = "C";
+                    //NOTE: CONCAT OVER C
+                    if(inp->getShape()[mv::IO_CHANNEL_DIMENSION] != out->getShape()[mv::IO_CHANNEL_DIMENSION])
+                    {
+                        if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_HEIGHT_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis);
+                        axisConcat = "C";
+                    }
+                    //NOTE: CONCAT OVER H
+                    if(inp->getShape()[mv::IO_HEIGHT_DIMENSION] != out->getShape()[mv::IO_HEIGHT_DIMENSION])
+                    {
+                        if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION] * inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                        axisConcat = "H";
+                    }
+                    //NOTE: CONCAT OVER W
+                    if(inp->getShape()[mv::IO_WIDTH_DIMENSION] != out->getShape()[mv::IO_WIDTH_DIMENSION])
+                    {
+                        if (inp->getOrder() == mv::Order("NHWC"))
+                            left_index = lhs_padding.at(axis) *  inp->getShape()[mv::IO_CHANNEL_DIMENSION];
+                        else if (inp->getOrder() == mv::Order("NCHW"))
+                            left_index = lhs_padding.at(axis);
+                        axisConcat = "W";
+                    }
+                    //NOTE: CONCAT OVER N, same calculation for both z and c major because N is biggest for both
+                    if(inp->getShape()[mv::IO_BATCH_DIMENSION] != out->getShape()[mv::IO_BATCH_DIMENSION])
+                    {
+                        left_index = lhs_padding.at(axis) * inp->getShape()[mv::IO_CHANNEL_DIMENSION] 
+                                                            * inp->getShape()[mv::IO_HEIGHT_DIMENSION] * inp->getShape()[mv::IO_WIDTH_DIMENSION];
+                        axisConcat = "N";
+                    }
+                    inp->set<std::size_t>("leftIndex", left_index);
+                    out->set<std::string>("concatAxis", axisConcat);
                 }
             }
             else if(opType == "ImplicitUnion" || opType == "ImplicitInputSlice")
@@ -737,5 +787,50 @@ void allocateImplicitOperationsKmbFcn(const mv::pass::PassEntry& pass,
             }
             
         }
+    }
+}
+
+void setSliceAddressesInCMXFunc(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
+{
+    mv::OpModel om(model);
+    mv::DataModel dm(model);
+    auto sliceOps = om.getOps("Slice");
+    auto sliceIt = sliceOps.begin();
+
+    while (sliceIt != sliceOps.end())
+    {
+        auto sliceOp = *sliceIt;
+        auto inputTensor = sliceOp->getInputTensor(0);
+        if (inputTensor->get<mv::Tensor::MemoryLocation>("Location") == mv::Tensor::MemoryLocation::NNCMX)
+        {
+            auto outputs = sliceOp->getOutputTensor();
+            auto outputIt = outputs.begin();
+            while (outputIt != outputs.end()) /// to cover the case of multiple outputs
+            {
+                auto outputTensor = *outputIt;
+
+                auto tensorAllocators = outputTensor->get<std::set<std::string>>("allocators");
+
+                auto tensorAllocatorName = tensorAllocators.begin();
+                auto tensorAllocator = dm.getAllocator(*tensorAllocatorName);
+                mv::Data::BufferIterator tensorBufferIt = tensorAllocator.getBuffer(0, outputTensor); // 0 is the only stage for now, but this will probably change in the future
+                std::size_t address = 0;
+                if (inputTensor->hasAttr("address"))
+                {
+                    address = inputTensor->getAddress();
+                }
+                else
+                {
+                    auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
+                    address = (*masterBuffer)->getOffset();
+                }
+                auto strides = tensorBufferIt->getStrides();
+                auto leading_offset = strides[0];
+
+                outputTensor->set<std::size_t>("sliceAddress", address+leading_offset);
+                outputIt++;
+            }
+        }
+        sliceIt++;
     }
 }
