@@ -22,7 +22,7 @@ addIeTargetTest(
     INCLUDES
         "helpers"
         "${IE_MAIN_KMB_PLUGIN_TEST_DIR}/common_helpers"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
     LINK_LIBRARIES
         IE::IESharedTests
         ${HDDL2_PLUGIN_STATIC_TARGET}

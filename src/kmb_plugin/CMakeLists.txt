@@ -42,8 +42,8 @@ target_compile_definitions(${KMB_PLUGIN_OBJS_TARGET}
 
 target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
     PUBLIC
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
         ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(${KMB_PLUGIN_OBJS_TARGET}
     SYSTEM PRIVATE

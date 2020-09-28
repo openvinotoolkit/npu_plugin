@@ -14,7 +14,7 @@ if(COMMAND get_linux_name)
     get_linux_name(LINUX_OS_NAME)
 endif()
 
-set_temp_directory(TEMP "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}")
+set_temp_directory(TEMP "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}")
 
 #
 # Models and Images for tests

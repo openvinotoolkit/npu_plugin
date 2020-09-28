@@ -26,7 +26,7 @@ cmake_policy(SET CMP0063 NEW)
 # Set PROJECT_VERSION* variables by project command only.
 cmake_policy(SET CMP0048 NEW)
 
-project(InferenceEngineKMBPlugin)
+project(InferenceEngineVPUXPlugin)
 
 #
 # Build properties
@@ -35,7 +35,7 @@ project(InferenceEngineKMBPlugin)
 set(VPUX_DEVICE_NAME    "VPUX")
 set(KMB_DEVICE_NAME     "KMB")
 
-set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)

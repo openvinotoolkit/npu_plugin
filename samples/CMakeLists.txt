@@ -154,7 +154,7 @@ macro(ie_add_sample)
     if(IE_SAMPLE_INCLUDE_DIRECTORIES)
         target_include_directories(${IE_SAMPLE_NAME} PRIVATE ${IE_SAMPLE_INCLUDE_DIRECTORIES})
     endif()
-    target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
+    target_include_directories(${IE_SAMPLE_NAME} PRIVATE "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
     if(IE_SAMPLE_OPENCV_DEPENDENCIES)
         target_link_libraries(${IE_SAMPLE_NAME} PRIVATE ${OpenCV_LIBRARIES})

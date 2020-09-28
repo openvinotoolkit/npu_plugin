@@ -40,7 +40,7 @@ if(AARCH64)
         IMPORTED_LOCATION ${VPUSMM_LIBRARY})
 
     find_package(vpualHost REQUIRED CONFIG NO_DEFAULT_PATH
-        PATHS "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost"
+        PATHS "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpualHostInstallPackage/share/vpualHost"
         CMAKE_FIND_ROOT_PATH_BOTH)
 
     set_target_properties(NN PROPERTIES IMPORTED_GLOBAL TRUE)
@@ -106,6 +106,6 @@ endif()
 # copy firmware to lib folder to have vpu.bin in a package
 add_custom_target(vpu_bin_copy ALL
     COMMAND ${CMAKE_COMMAND} -E copy
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/artifacts/vpuip_2/vpu.bin"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/vpu"
     COMMENT "[Firmware] Copy vpu.bin")

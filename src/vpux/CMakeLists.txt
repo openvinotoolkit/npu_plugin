@@ -32,7 +32,7 @@ target_include_directories(${TARGET_NAME}
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE
         # FIXME: should be here?
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
