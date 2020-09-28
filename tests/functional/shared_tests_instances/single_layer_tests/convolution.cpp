@@ -45,13 +45,13 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(::testing::ValuesIn(ke
     ::testing::Values(std::vector<ptrdiff_t>({0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0})),
     ::testing::ValuesIn(dilations), ::testing::ValuesIn(numOutCannels), ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(precommit_Convolution2D_ExplicitPadding, KmbConvolutionLayerTest,
     ::testing::Combine(conv2DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(precommit_Convolution2D_AutoPadValid, KmbConvolutionLayerTest,
     ::testing::Combine(conv2DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -82,13 +82,13 @@ const auto conv3DParams_AutoPadValid =
         ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})), ::testing::Values(std::vector<ptrdiff_t>({0, 0, 0})),
         ::testing::ValuesIn(dilations3d), ::testing::ValuesIn(numOutChannels3d), ::testing::Values(ngraph::op::PadType::VALID));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_Convolution3D_ExplicitPadding, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_Convolution3D_ExplicitPadding, KmbConvolutionLayerTest,
     ::testing::Combine(conv3DParams_ExplicitPadding,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
     ConvolutionLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(DISABLED_Convolution3D_AutoPadValid, KmbConvolutionLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit_Convolution3D_AutoPadValid, KmbConvolutionLayerTest,
     ::testing::Combine(conv3DParams_AutoPadValid,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 10, 10, 10})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),

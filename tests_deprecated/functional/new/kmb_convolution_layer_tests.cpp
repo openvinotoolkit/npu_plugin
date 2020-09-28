@@ -162,7 +162,7 @@ const std::vector<ConvolutionParams> dilatedParams = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    Simple, KmbConvolutionLayerTests,
+    precommit_Simple, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),
         testing::ValuesIn(simpleParams),
@@ -172,7 +172,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    Dilated, KmbConvolutionLayerTests,
+    precommit_Dilated, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),
         testing::ValuesIn(dilatedParams),
