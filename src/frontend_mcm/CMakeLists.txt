@@ -45,10 +45,10 @@ endif()
 
 target_include_directories(${OBJ_TARGET_NAME}
     PUBLIC
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
     PRIVATE
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/meta/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/meta/include"
 )
 
 link_system_libraries(${OBJ_TARGET_NAME}
@@ -63,13 +63,13 @@ link_system_libraries(${OBJ_TARGET_NAME}
 )
 target_link_libraries(${OBJ_TARGET_NAME}
     PUBLIC
-        vpux
+        vpux_al
         kmb_utils
 )
 
 add_custom_target(mcm_compiler_copy ALL
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/src/mcmCompiler/config"
         "${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/mcm_config"
     COMMENT "[MCM Compiler] Copy config files"
 )

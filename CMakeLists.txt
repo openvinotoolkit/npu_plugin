@@ -26,7 +26,7 @@ cmake_policy(SET CMP0063 NEW)
 # Set PROJECT_VERSION* variables by project command only.
 cmake_policy(SET CMP0048 NEW)
 
-project(InferenceEngineKMBPlugin)
+project(InferenceEngineVPUXPlugin)
 
 #
 # Build properties
@@ -35,7 +35,7 @@ project(InferenceEngineKMBPlugin)
 set(VPUX_DEVICE_NAME    "VPUX")
 set(KMB_DEVICE_NAME     "KMB")
 
-set(IE_MAIN_KMB_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(THIRDPARTY_SERVER_PATH "http://nnt-srv01.inn.intel.com/dl_score_engine/")
 
 find_package(InferenceEngineDeveloperPackage REQUIRED)
@@ -59,17 +59,18 @@ if(UNIX)
 endif()
 
 if(ENABLE_EXPORT_SYMBOLS)
-    replace_compile_options()
+    replace_compile_visibility_options()
 endif()
+
+ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
+ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
 
 #
 # Sub-directories
 #
 
-ie_cpack_add_component(${KMB_DEVICE_NAME} REQUIRED)
-ie_cpack_add_component(${VPUX_DEVICE_NAME} REQUIRED)
-
 add_subdirectory(thirdparty)
+
 add_subdirectory(src)
 
 if(ENABLE_TESTS)
@@ -87,8 +88,4 @@ add_subdirectory(tools)
 # CPack
 #
 
-set(ALL_COMPONENTS)
-list(APPEND ALL_COMPONENTS ${KMB_DEVICE_NAME})
-list(APPEND ALL_COMPONENTS ${VPUX_DEVICE_NAME})
-
-ie_cpack(${ALL_COMPONENTS})
+ie_cpack(${VPUX_DEVICE_NAME} ${KMB_DEVICE_NAME})

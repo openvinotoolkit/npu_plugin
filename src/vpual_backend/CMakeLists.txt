@@ -34,7 +34,7 @@ target_compile_definitions(${TARGET_NAME}
 target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include")
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include")
 
 link_system_libraries(${TARGET_NAME}
     PRIVATE
@@ -45,7 +45,7 @@ link_system_libraries(${TARGET_NAME}
         IE::vpu_common_lib)
 target_link_libraries(${TARGET_NAME}
     PRIVATE
-        vpux
+        vpux_al
         kmb_utils)
 
 if(ENABLE_CLANG_FORMAT)

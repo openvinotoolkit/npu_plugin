@@ -9,7 +9,7 @@ addIeTargetTest(
         ROOT ${CMAKE_CURRENT_SOURCE_DIR}
         INCLUDES
             ${CMAKE_CURRENT_SOURCE_DIR}
-            ${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include
+            ${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include
         DEFINES
             INSTANTIATE_TESTS=1
         LINK_LIBRARIES

@@ -9,7 +9,7 @@ addIeTargetTest(
     NAME ${TARGET_NAME}
     ROOT ${CMAKE_CURRENT_SOURCE_DIR}
     INCLUDES
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
     LINK_LIBRARIES
         IE::commonTestUtils
         IE::ngraph
@@ -18,7 +18,7 @@ addIeTargetTest(
         common_tests_helpers
         ${KMB_PLUGIN_STATIC_TARGET}
         kmb_utils
-        vpux
+        vpux_al
         frontend_mcm_static
     DEFINES
         DATA_PATH=\"${DATA_PATH}\"

@@ -42,9 +42,9 @@ target_compile_definitions(${HDDL2_PLUGIN_OBJS_TARGET}
 
 target_include_directories(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/vpu"
-        "${IE_MAIN_KMB_PLUGIN_SOURCE_DIR}/include/hddl2"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/vpu"
+        "${IE_MAIN_VPUX_PLUGIN_SOURCE_DIR}/include/hddl2"
         "${CMAKE_CURRENT_SOURCE_DIR}/include"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/hddl_unite")
 
@@ -57,7 +57,7 @@ link_system_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
 target_link_libraries(${HDDL2_PLUGIN_OBJS_TARGET}
     PUBLIC
         kmb_utils
-        vpux)
+        vpux_al)
 
 add_cpplint_target(${HDDL2_PLUGIN_OBJS_TARGET}_cpplint FOR_TARGETS ${HDDL2_PLUGIN_OBJS_TARGET})
 
@@ -94,4 +94,4 @@ target_link_libraries(${HDDL2_PLUGIN_STATIC_TARGET}
     PUBLIC
         kmb_utils
     PRIVATE
-        vpux)
+        vpux_al)
