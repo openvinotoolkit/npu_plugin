@@ -28,6 +28,10 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${OBJ_TARGET_NAME} OBJECT ${SOURCES})
 
+ie_faster_build(${OBJ_TARGET_NAME}
+    PCH PRIVATE "src/precomp.hpp"
+)
+
 enable_warnings_as_errors(${OBJ_TARGET_NAME})
 
 target_compile_definitions(${OBJ_TARGET_NAME}
@@ -75,7 +79,11 @@ add_custom_target(mcm_compiler_copy ALL
 )
 
 if(ENABLE_CLANG_FORMAT)
-    add_clang_format_target(clang_format_${OBJ_TARGET_NAME} FOR_TARGETS ${OBJ_TARGET_NAME} ALL)
+    add_clang_format_target(clang_format_${OBJ_TARGET_NAME}
+        FOR_TARGETS ${OBJ_TARGET_NAME}
+        EXCLUDE_PATTERNS ".*precomp.hpp"
+        ALL
+    )
     add_dependencies(${OBJ_TARGET_NAME} clang_format_${OBJ_TARGET_NAME})
 endif()
 
