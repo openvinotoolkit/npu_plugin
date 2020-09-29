@@ -116,7 +116,7 @@ private:
     std::map<std::string, ie::Parameter> _parsedConfig;
     std::vector<std::string> _supportedMetrics;
 
-    const size_t _maxTaskExecutorGetResultCount = 1;
+    size_t _maxTaskExecutorGetResultCount = 1;
     std::queue<std::string> _taskExecutorGetResultIds;
 
     std::string _netName;

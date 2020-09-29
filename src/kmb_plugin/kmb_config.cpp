@@ -48,6 +48,8 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                    VPU_KMB_CONFIG_KEY(USE_M2I),
                                                    VPU_KMB_CONFIG_KEY(USE_CORE_NN),
                                                    CONFIG_KEY(DEVICE_ID),
+                                                   CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
+                                                   VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
                                                });
 
     return options;
@@ -69,6 +71,7 @@ void KmbConfig::parse(const std::map<std::string, std::string>& config) {
     setOption(_useKmbExecutor, switches, config, VPU_KMB_CONFIG_KEY(KMB_EXECUTOR));
 
     setOption(_throughputStreams, config, KMB_CONFIG_KEY(THROUGHPUT_STREAMS), parseInt);
+    setOption(_executorStreams, config, VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS), parseInt);
 
     setOption(_platform, switches, config, VPU_KMB_CONFIG_KEY(PLATFORM));
 

@@ -33,6 +33,7 @@ public:
     bool loadNetworkAfterCompilation() const { return _loadNetworkAfterCompilation; }
 
     int throughputStreams() const { return _throughputStreams; }
+    int executorStreams() const { return _executorStreams; }
 
     const std::string& platform() const { return _platform; }
 
@@ -72,6 +73,7 @@ private:
 #endif
 
     int _throughputStreams = 1;
+    int _executorStreams = 1;
 
     std::string _platform = "VPU_2490";
 
