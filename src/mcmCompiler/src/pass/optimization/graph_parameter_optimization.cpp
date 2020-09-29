@@ -838,10 +838,7 @@ namespace mv
                     }
                 }
 
-                auto isChanMajor = enableChannelMajorConv &&
-                    op.getOpType() == "Conv" &&
-                    op.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
-
+                bool isChanMajor = enableChannelMajorConv && op.supportsCMConv();
                 //If spilling, HKSwitch makes no sense
                 if( (spilling) && (clustering == "HKSwitch"))
                     return FailCause::SpillHKSwitch;
