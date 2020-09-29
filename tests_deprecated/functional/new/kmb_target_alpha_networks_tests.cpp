@@ -14,6 +14,7 @@
 // stated in the License.
 //
 
+#include <test_kmb_models_path.h>
 #include "test_model/kmb_test_base.hpp"
 
 TEST_F(KmbClassifyNetworkTest, INT8_Dense_PyTorch_IRv7_ResNet_50_Alpha) {

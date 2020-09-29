@@ -21,6 +21,8 @@
 
 #include <ngraph/runtime/reference/convolution.hpp>
 
+#include "deconv_ref.hpp"
+
 namespace {
 
 BlobVector refDeconv(const TestNetwork::NodePtr& layer, const BlobVector& inputs, const TestNetwork&) {

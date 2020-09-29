@@ -19,9 +19,9 @@
 #include <fstream>
 
 #include <blob_factory.hpp>
+#include <test_model/kmb_test_utils.hpp>
 #include <vpu_layers_tests.hpp>
 #include <ie_compound_blob.h>
-#include <ie_utils.hpp>
 
 #include "vpu/kmb_params.hpp"
 

@@ -26,6 +26,10 @@ if (ENABLE_FUNCTIONAL_TESTS)
     add_subdirectory(functional)
 endif()
 
+if (ENABLE_BEH_TESTS)
+    add_subdirectory(behavior)
+endif()
+
 if(AARCH64)
     add_subdirectory(gapi_preproc)
 endif()

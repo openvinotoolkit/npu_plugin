@@ -914,7 +914,7 @@ TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
 
 // TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");    
     const std::string input_name = "input";
 
     runTest(
