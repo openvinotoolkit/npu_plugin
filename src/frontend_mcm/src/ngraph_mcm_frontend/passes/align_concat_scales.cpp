@@ -32,7 +32,6 @@ namespace {
 
 bool needsConcatScaleAlignment(std::shared_ptr<ngraph::Node> node) {
     auto input_values = node->input_values();
-    std::vector<std::shared_ptr<ngraph::Node>> result;
     for ( auto&& iv : input_values ) {
         if (dynamic_cast<ngraph::op::v0::PriorBox*>(iv.get_node()))
             return false;
