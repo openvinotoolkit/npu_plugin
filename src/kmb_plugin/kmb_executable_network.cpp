@@ -52,7 +52,13 @@ void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager* executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("VPUX");
+        _maxTaskExecutorGetResultCount = 1;
+    } else {
+        _taskExecutor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(
+            IStreamsExecutor::Config{"KMBPlugin executor", _config.executorStreams()});
+        _maxTaskExecutorGetResultCount = _config.executorStreams();
     }
+
     for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
         std::stringstream idStream;
         idStream << networkName << "_TaskExecutorGetResult" << i;
