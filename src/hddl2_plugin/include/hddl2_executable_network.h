@@ -15,20 +15,24 @@
 //
 
 #pragma once
+
 // System
 #include <memory>
 #include <string>
 #include <vector>
 // IE
+// #include <ie_common.h>
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
 // Plugin
 #include "hddl2_config.h"
 #include "vpux.hpp"
+// #include <Inference.h>
 
 namespace vpu {
 namespace HDDL2Plugin {
+namespace ie = InferenceEngine;
 
-class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDefault {
+class ExecutableNetwork : public ie::ExecutableNetworkThreadSafeDefault {
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
@@ -39,13 +43,12 @@ public:
         std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
-    InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
-        const InferenceEngine::InputsDataMap networkInputs,
-        const InferenceEngine::OutputsDataMap networkOutputs) override;
+    ie::InferRequestInternal::Ptr CreateInferRequestImpl(
+        const ie::InputsDataMap networkInputs, const ie::OutputsDataMap networkOutputs) override;
     void ExportImpl(std::ostream& model) override;
     void Export(std::ostream& networkModel) override { ExportImpl(networkModel); }
 
-    using InferenceEngine::ExecutableNetworkInternal::Export;
+    using ie::ExecutableNetworkInternal::Export;
     void Export(const std::string& modelFileName) override;
 
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;

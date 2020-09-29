@@ -14,14 +14,19 @@
 // stated in the License.
 //
 
+// clang-format off
+// Can get compile error, if the order of the headers will be changed.
+
 // System
-#include <fstream>
 #include <memory>
+#include <fstream>
 #include <string>
 #include <vector>
-// IE
-#include <legacy/net_pass.h>
 
+//IE
+#include <ie_metric_helpers.hpp>
+#include <ie_plugin_config.hpp>
+#include <legacy/net_pass.h>
 #include <generic_ie.hpp>
 #include <ie_metric_helpers.hpp>
 #include <legacy/convert_function_to_cnn_network.hpp>
@@ -45,6 +50,8 @@
 #include "subplugin/hddl2_device.h"
 #include "vpux.hpp"
 #include "vpux_compiler.hpp"
+
+// clang-format on
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -204,7 +211,7 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
-void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc*) const {
+void ExecutableNetwork::GetMetric(const std::string& name, IE::Parameter& result, IE::ResponseDesc*) const {
     if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
         result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
     } else {
