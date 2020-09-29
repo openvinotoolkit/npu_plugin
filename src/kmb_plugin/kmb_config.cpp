@@ -47,6 +47,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                    CONFIG_KEY(PERF_COUNT),
                                                    VPU_KMB_CONFIG_KEY(USE_M2I),
                                                    VPU_KMB_CONFIG_KEY(USE_CORE_NN),
+                                                   CONFIG_KEY(DEVICE_ID),
                                                });
 
     return options;
