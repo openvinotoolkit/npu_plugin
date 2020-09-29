@@ -326,6 +326,7 @@
             },
             "SetSliceAddressesInCMX",
             "TransitiveReduction",
+            "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -352,6 +353,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

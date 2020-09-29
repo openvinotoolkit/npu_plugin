@@ -291,6 +291,7 @@
               "ddr_control_edges" : true
             },
             "TransitiveReduction",
+            "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -316,6 +317,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",
