@@ -105,8 +105,8 @@ TEST(graph_transitive_reduction, read_from_file) {
   typedef mv::DAG_Transitive_Reducer<dag_t,
           DefaultComparator, DefaultComparator> dag_transitive_reducer_t;
 
-
-  FILE *fptr = fopen("./test_input_dag_1.txt", "r");
+  std::string path = std::string(std::getenv("MCM_HOME")) + std::string("/tests/unit/graph/test_input_dag_1.txt");
+  FILE *fptr = fopen(path.c_str(), "r");
 
   dag_t test_dag;
   std::unordered_map<node_t, node_iterator_t> node_iterators;
