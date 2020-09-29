@@ -300,6 +300,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "LayerNumbering",            
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -315,7 +316,6 @@
               "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             },
-            "LayerNumbering",            
             "LayoutDMA"
         ]
     },

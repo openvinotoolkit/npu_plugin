@@ -320,6 +320,7 @@
               "ddr_control_edges" : true
             },
             "SetSliceAddressesInCMX",
+            "LayerNumbering",                        
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -335,7 +336,6 @@
               "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             },
-            "LayerNumbering",                        
             "LayoutDMA"
         ]
     },
