@@ -265,6 +265,7 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     streamingOpName);
+            newTensor->setOrder(mv::Order("NHWC"));
 
             if (split != number_of_splits - 1)
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
