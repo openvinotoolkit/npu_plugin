@@ -51,6 +51,8 @@ public:
     InferenceEngine::IInferRequest::Ptr CreateInferRequest() override;
     InferenceEngine::Parameter GetMetric(const std::string& name) const override;
 
+    void GetMetric(const std::string& name, ie::Parameter& result, ie::ResponseDesc* resp) const override;
+
 private:
     explicit ExecutableNetwork(const vpux::VPUXConfig& config);
 
@@ -61,6 +63,7 @@ private:
     vpux::Compiler::Ptr _compiler = nullptr;
     vpux::NetworkDescription::Ptr _networkPtr = nullptr;
     vpux::Executor::Ptr _executorPtr;
+    std::vector<std::string> _supportedMetrics;
 };
 
 }  //  namespace HDDL2Plugin

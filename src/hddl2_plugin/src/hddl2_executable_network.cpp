@@ -86,6 +86,7 @@ ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config)
 ExecutableNetwork::ExecutableNetwork(
     IE::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
+    _supportedMetrics = {METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)};
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
     if (_config.useNGraphParser()) {
@@ -203,13 +204,9 @@ void ExecutableNetwork::Export(const std::string& modelFileName) {
     }
 }
 
-InferenceEngine::Parameter ExecutableNetwork::GetMetric(const std::string& name) const {
-    if (name == METRIC_KEY(NETWORK_NAME)) {
-        if (_networkPtr != nullptr) {
-            IE_SET_METRIC_RETURN(NETWORK_NAME, _networkPtr->getName());
-        } else {
-            THROW_IE_EXCEPTION << "GetMetric: network is not initialized";
-        }
+void ExecutableNetwork::GetMetric(const std::string& name, Parameter& result, ResponseDesc*) const {
+    if (name == METRIC_KEY(OPTIMAL_NUMBER_OF_INFER_REQUESTS)) {
+        result = IE_SET_METRIC(OPTIMAL_NUMBER_OF_INFER_REQUESTS, static_cast<unsigned int>(4u));
     } else {
         THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
     }
