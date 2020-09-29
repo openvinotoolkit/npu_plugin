@@ -1131,15 +1131,11 @@ namespace mv
                     streamedHeight = div(streamedHeight,totalClusters);
                 }
                 if((opType == "Conv" || opType == "DepthwiseConv" || opType == "MaxPool" ||
-                    opType == "Eltwise") && isInput && (!isCMConv))
+                    opType == "Eltwise") && (!isCMConv || !isInput)) //for DPU tasks we align both input (except CM) and output tensors channels
                 {
                     streamedChannels = mv::round_up(streamedChannels, 16);
                 }
-                //weightd output channels always aligned to 16, regardless if streamed or not
-                if(opType == "Conv" && !isInput)
-                {
-                    streamedChannels = mv::round_up(streamedChannels, 16);
-                }
+
                 return tensorShape[mv::IO_WIDTH_DIMENSION] * streamedHeight * streamedChannels * streamedBatch * dtypeMultiplier;
             }
 
