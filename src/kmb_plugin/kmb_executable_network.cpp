@@ -50,17 +50,18 @@ namespace vpu {
 namespace KmbPlugin {
 
 void ExecutableNetwork::ConfigureExecutor(const std::string& networkName) {
+    size_t maxTaskExecutorGetResultCount = 1;
     if (_config.exclusiveAsyncRequests()) {
         ExecutorManager* executorManager = ExecutorManager::getInstance();
         _taskExecutor = executorManager->getExecutor("KMB");
-        _maxTaskExecutorGetResultCount = 1;
+        maxTaskExecutorGetResultCount = 1;
     } else {
         _taskExecutor = std::make_shared<InferenceEngine::CPUStreamsExecutor>(
             IStreamsExecutor::Config{"KMBPlugin executor", _config.executorStreams()});
-        _maxTaskExecutorGetResultCount = _config.executorStreams();
+        maxTaskExecutorGetResultCount = _config.executorStreams();
     }
 
-    for (size_t i = 0; i < _maxTaskExecutorGetResultCount; i++) {
+    for (size_t i = 0; i < maxTaskExecutorGetResultCount; i++) {
         std::stringstream idStream;
         idStream << networkName << "_TaskExecutorGetResult" << i;
         _taskExecutorGetResultIds.emplace(idStream.str());
