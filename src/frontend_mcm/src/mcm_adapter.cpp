@@ -210,6 +210,29 @@ void MCMAdapter::compileNetwork(
         compDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
     }
 
+    std::function<void(void*)> metaInfoSerializer = [&network](void* graphFileInstance) -> void {
+        MVCNN::GraphFileT* graphFileInstancePtr = reinterpret_cast<MVCNN::GraphFileT*>(graphFileInstance);
+        if (graphFileInstancePtr == nullptr || graphFileInstancePtr->header == nullptr) {
+            THROW_IE_EXCEPTION << "metaInfoSerializer: graph file pointer is null";
+        }
+        InferenceEngine::InputsDataMap inputMap;
+        network.getInputsInfo(inputMap);
+
+        InferenceEngine::OutputsDataMap outputMap;
+        network.getOutputsInfo(outputMap);
+
+        for (const auto& inInfo : inputMap) {
+            graphFileInstancePtr->header->in_tensor_desc.push_back(
+                buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+        }
+
+        for (const auto& outInfo : outputMap) {
+            graphFileInstancePtr->header->out_tensor_desc.push_back(
+                buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+        }
+    };
+    compDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
+
     if (!config.mcmCompilationPassBanList().empty()) {
         std::stringstream banList{config.mcmCompilationPassBanList()};
         std::string groupPassPair;
@@ -248,29 +271,21 @@ void MCMAdapter::compileNetwork(
     }
 
     if (config.mcmGenerateBlob()) {
-        InferenceEngine::InputsDataMap inputInfo;
-        network.getInputsInfo(inputInfo);
-
-        InferenceEngine::OutputsDataMap outputInfo;
-        network.getOutputsInfo(outputInfo);
-
         auto memBlob = unit->getBlob();
-        std::vector<char> binaryData;
         if (memBlob == nullptr) {
             std::ifstream blobFile(resultsFullName + ".blob", std::ios::binary);
             if (blobFile) {
                 std::ostringstream blobContentStream;
                 blobContentStream << blobFile.rdbuf();
                 const std::string& blobContentString = blobContentStream.str();
-                binaryData = serializeMetaData(blobContentString.c_str(), inputInfo, outputInfo);
+                std::copy(blobContentString.begin(), blobContentString.end(), std::back_inserter(blob));
             } else {
                 VPU_THROW_EXCEPTION << "Can not open blob file " << resultsFullName + ".blob"
                                     << ". It was not created by mcmCompiler!";
             }
         } else {
-            binaryData = serializeMetaData(memBlob->data(), inputInfo, outputInfo);
+            std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
         }
-        std::copy(binaryData.begin(), binaryData.end(), std::back_inserter(blob));
 
         if (blob.empty()) {
             VPU_THROW_EXCEPTION << "Blob file " << resultsFullName + ".blob"

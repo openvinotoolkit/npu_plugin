@@ -3385,3 +3385,7 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
         serialize();
     return binaryData_;
 }
+
+void mv::RuntimeModel::serializeHelper(const std::function<void(void*)>& serializeCallback) {
+    serializeCallback(reinterpret_cast<void*>(&graphFile_));
+}
