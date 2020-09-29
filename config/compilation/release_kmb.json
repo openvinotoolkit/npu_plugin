@@ -5,7 +5,7 @@
                 "name" : "GlobalConfigParams",
                 "_comment" : "Stores common params accross multiple passes. Access through the Computation Model.",
                 "recorded_model": false,
-                "verbose": "Error",
+                "verbose": "Info",
                 "weights_form": "None",
                 "referenceDevice": "A0",
                 "barrier_index_assignment" : "Dynamic",
@@ -154,7 +154,8 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
@@ -222,6 +223,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -288,6 +290,7 @@
             {
               "name" : "RecomputeImplicitOpMemoryLocations"
             },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
@@ -309,6 +312,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -324,6 +328,7 @@
               "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             },
+            "LayerNumbering",
             "LayoutDMA"
         ]
     },
@@ -335,6 +340,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateBlobKmb",

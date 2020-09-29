@@ -154,7 +154,8 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : true},
                         {"name" : "clusteringStrategy","value" : "Automatic"}
@@ -323,6 +324,7 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -338,6 +340,7 @@
               "remove_barriers_in_upa_tail" : true,
               "remove_redundant_wait_barriers" : true
             },
+            "LayerNumbering",            
             "LayoutDMA"
         ]
     },
@@ -349,6 +352,7 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
             {
                 "name": "GenerateDot",
