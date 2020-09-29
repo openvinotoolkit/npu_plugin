@@ -42,7 +42,7 @@ struct CustomKernel final {
         int portIndex = -1;
         std::string irSource;
         std::string bufferSizeRule;
-        CustomDimSource dimSource;
+        CustomDimSource dimSource = CustomDimSource::Input;
         int dimIdx = -1;
     };
 
