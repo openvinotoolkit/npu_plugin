@@ -92,6 +92,8 @@ void Log(int level, const char *fmt, ...)
    char fmt_buf[1024];
    va_list ap;
    va_start(ap, fmt);
+   vsnprintf(fmt_buf, 1023, fmt, ap);
+   fmt_buf[1023] = '\0';
    va_end(ap);
 
    ostringstream outstr;

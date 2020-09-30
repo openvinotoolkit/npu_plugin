@@ -43,6 +43,7 @@ class Pipelining_Transform {
       control_edge_t& operator=(const control_edge_t& o) {
         source_itr_ = o.source_itr_;
         sink_itr_ = o.sink_itr_;
+        return *this;
       }
 
       mv::Data::OpListIterator source_itr_;

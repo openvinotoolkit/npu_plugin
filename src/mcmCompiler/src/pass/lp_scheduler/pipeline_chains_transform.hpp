@@ -56,6 +56,7 @@ class Pipeline_Chains {
       control_edge_t& operator=(const control_edge_t& o) {
         source_itr_ = o.source_itr_;
         sink_itr_ = o.sink_itr_;
+        return *this;
       }
       mv::Data::OpListIterator source_itr_;
       mv::Data::OpListIterator sink_itr_;
@@ -386,7 +387,6 @@ class Pipeline_Chains {
       locate_chains(std::back_inserter(chain_subgraphs));
 
 
-      char buf[4096];
       static size_t pseudo_op_id = 0UL;
       for (chain_subgraph_t chain_subgraph : chain_subgraphs) {
         const std::list<op_list_t>& weight_reads = chain_subgraph.weight_reads_;
