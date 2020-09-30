@@ -344,7 +344,7 @@ void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel
             (inHeight / outHeight) == inWidth / outWidth)
         {
             auto outputMemoryLocation = opIt->getOutputTensor(0)->get<mv::Tensor::MemoryLocation>("Location");
-            auto factor = inHeight / outHeight;
+            unsigned short factor = inHeight / outHeight;
             auto parentOpIt = om.getSourceOp(sourceTensor);
 
             std::array<unsigned short, 2> kSize({factor, factor});
@@ -447,7 +447,7 @@ void reorgYoloAsConvConcatFcn(const mv::pass::PassEntry& pass, mv::ComputationMo
         auto sourceTensor = opIt->getInputTensor(0);
         auto parentOpIt = om.getSourceOp(sourceTensor);
         auto inputShape = sourceTensor->getShape();
-        unsigned stride = opIt->get<unsigned>("stride");
+        unsigned short stride = opIt->get<unsigned>("stride");
         unsigned C = inputShape[2];
         mv::QuantizationParams weightsTensorQuantizationParams = {{0}, {1.}, {}, {}};
         mv::QuantizationParams outputTensorQuantizationParams = {{}, {}, {}, {}};
@@ -1312,10 +1312,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
     if ( operation->hasAttr("kSize") )
         kSize = operation->get<std::array<unsigned short, 2>>("kSize");
     else
-        kSize = {operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH],
-                 operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT] };
+        kSize = { static_cast<unsigned short>(operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_WIDTH]),
+                  static_cast<unsigned short>(operation->getInputTensor(mv::IO_TENSOR_WEIGHTS_SET)->getShape()[mv::KERNEL_HEIGHT]) };
 
-    auto initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
+    std::array<unsigned short, 4> initialPadding = operation->get<std::array<unsigned short, 4>>("padding");
     std::array<unsigned short, 4> padding = initialPadding;
     std::size_t branchWidth, branchHeight;
     mv::Shape beginInputShape, branchInputSize; //coordinates to slice
@@ -1355,10 +1355,10 @@ mv::Data::OpListIterator  splitOperationSlicingFixedWidthHeight ( mv::Computatio
                                inputTensor->getShape()[mv::IO_CHANNEL_DIMENSION],
                                inputTensor->getShape()[mv::IO_BATCH_DIMENSION]};
 
-            padding = {(i == 0) ? initialPadding[mv::PADDING_LEFT] : 0,
-                       (i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0,
-                       (j == 0) ? initialPadding[mv::PADDING_TOP] : 0,
-                       (j == vslices) ? initialPadding[mv::PADDING_BOT] : 0 };
+            padding = { static_cast<unsigned short>((i == 0)       ? initialPadding[mv::PADDING_LEFT]  : 0),
+                        static_cast<unsigned short>((i == hslices) ? initialPadding[mv::PADDING_RIGHT] : 0),
+                        static_cast<unsigned short>((j == 0)       ? initialPadding[mv::PADDING_TOP]   : 0),
+                        static_cast<unsigned short>((j == vslices) ? initialPadding[mv::PADDING_BOT]   : 0) };
             std::string sliceName ("Slice_Input_l" + std::to_string(i) + "c" + std::to_string(j));
             auto sliceInput = om.slice(inputTensor,
                                        beginInputShape,

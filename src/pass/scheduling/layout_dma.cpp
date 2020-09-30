@@ -639,12 +639,10 @@ void layoutDMAFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, 
         benefits.emplace_back(std::move(benefit));
     }
 
-    benefits.sort([](const Benefit& lhs, const Benefit& rhs)
-                  {
-                      // Sort s.t. the highest benefit is "smaller" ->
-                      // at the front of the benefits list.
-                      return !(lhs < rhs);
-                  });
+    // Sort s.t. the highest benefit is "smaller" ->
+    // at the front of the benefits list.
+    benefits.sort();
+    benefits.reverse();
 
     std::uint64_t csramAvailable = static_cast<std::uint64_t>(csramLimit);
     int currentGraphfileIndex = 0;

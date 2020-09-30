@@ -127,7 +127,10 @@ static void DMAOrderingFcn(const mv::pass::PassEntry&, mv::ComputationModel& mod
                 dmaOp->set<unsigned>("DPULevel",dpulevel);
                 dmaOp->set<unsigned>("DMALevel",dmaTasklayernumber);
                 dmaOp->set<unsigned>("DPU-schedule-number",*std::min_element(std::begin(dpuTaskschedulingNumbers), std::end(dpuTaskschedulingNumbers)));
-                dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {dmaTasklayernumber, dpuTaskschedulingNumber});
+                dmaOp->set<std::array<unsigned short, 2>>("DMALevel-DPU-schedule-number", {
+                    static_cast<unsigned short>(dmaTasklayernumber),
+                    static_cast<unsigned short>(dpuTaskschedulingNumber)
+                  });
             }
     }
 }

@@ -43,6 +43,7 @@ class Pipelining_Transform {
       control_edge_t& operator=(const control_edge_t& o) {
         source_itr_ = o.source_itr_;
         sink_itr_ = o.sink_itr_;
+        return *this;
       }
 
       mv::Data::OpListIterator source_itr_;
@@ -221,7 +222,7 @@ class Pipelining_Transform {
           max_output_size_ = std::max(max_output_size_,
               (sitr->second).compute_output_size(om) );
         }
-
+        return true;
       }
 
       bool is_pipelineable(size_t memory_upper_bound) const {
@@ -395,7 +396,7 @@ class Pipelining_Transform {
     }
 
     template<typename OutputIterator>
-    size_t locate_pipeline_subgraphs(OutputIterator output) {
+    void locate_pipeline_subgraphs(OutputIterator output) {
       // STEP-0: locate all concat subgraphs //
       concat_subgraph_finder_t subgraph_finder(omodel_);
       std::list<concat_subgraph_t> concat_subgraphs;

@@ -769,7 +769,7 @@ class Feasible_Schedule_Generator {
 
     while (itr != itr_end) {
       const_op_ptr_t op_ptr = &(*itr);
-      if (in_degree.find(op_ptr) == in_degree_.end()) {
+      if (in_degree.find(op_ptr) == in_degree.end()) {
         zero_in_degree_nodes[curr_priority%2].push_back(op_ptr);
         priority_[op_ptr] = curr_priority;
       }

@@ -43,7 +43,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(Element)
+        MV_REGISTER_SIMPLE_ATTR(Element)
             .setToJSONFunc(attr_mv_element::toJSON)
             .setFromJSONFunc(attr_mv_element::fromJSON)
             .setToSimplifiedJSONFunc(attr_mv_element::toSimplifiedJSON)

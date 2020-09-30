@@ -7,11 +7,11 @@
 #include <math.h>
 #include <sys/stat.h>
 #include <sstream>
-#include <dirent.h>
 #include <iomanip>
 #include <vector>
 #include <ios>
 #include <string>
+#include <map>
 
 /**
  * Required environmental variables
@@ -616,7 +616,7 @@ bool validate(std::string blobPath, std::vector<std::string> expectedPaths, std:
         }
         else if (dtype == MVCNN::DType::DType_FP16)
         {
-            std::vector<u_int16_t> outputVector(totalActual);
+            std::vector<uint16_t> outputVector(totalActual);
             file.read(reinterpret_cast<char *>(&outputVector[0]), totalActual * typesize);
             std::cout << totalActual << " elements" << std::endl;
             float min = mv::fp16_to_fp32(outputVector[0]);
@@ -780,12 +780,12 @@ int copyImage(std::string imagePath, std::string blobPath)
             auto totalActual = fileIn.tellg() / sizeof(float);
             fileIn.seekg(0, std::ios::beg);
 
-            std::vector<u_int16_t> inputVectorFP16;
+            std::vector<uint16_t> inputVectorFP16;
             std::vector<float> inputVectorFP32(totalActual);
             fileIn.read(reinterpret_cast<char *>(&inputVectorFP32[0]), totalActual * sizeof(float));
             for (size_t i = 0; i < inputVectorFP32.size(); ++i)
                 inputVectorFP16.push_back(mv::fp32_to_fp16(inputVectorFP32[i]));
-            fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(u_int16_t) );
+            fileOut.write(reinterpret_cast<char *>(&inputVectorFP16[0]), totalActual * sizeof(uint16_t) );
             fileOut.close();
             fileIn.close();
             //rename(inputSource.c_str(), cpubackup.c_str());

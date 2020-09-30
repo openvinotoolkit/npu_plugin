@@ -1,7 +1,7 @@
 if(CMAKE_CROSSCOMPILING AND NOT TARGET gen_composition_api)
     # Old behavior.
     message(STATUS "Cross-compiling, assumes meta/ files already generated...")
-    add_library(metamodel SHARED
+    add_library(metamodel STATIC
         ${META_DIR_PATH}/src/compositional_model.cpp
         ${META_DIR_PATH}/src/op_model.cpp
     )
@@ -42,22 +42,14 @@ add_custom_target(generate-comp-api
         "Generate compositional API"
 )
 
-if (MSVC)
-    add_library(metamodel OBJECT
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-        $<TARGET_OBJECTS:model>
-    )
-else()
-    add_library(metamodel SHARED
-        ${META_DIR_PATH}/src/compositional_model.cpp
-        ${META_DIR_PATH}/src/op_model.cpp
-    )
+add_library(metamodel STATIC
+    ${META_DIR_PATH}/src/compositional_model.cpp
+    ${META_DIR_PATH}/src/op_model.cpp
+)
 
-    target_link_libraries(metamodel model)
-    if(${PROFILER})
-        target_link_libraries(metamodel easy_profiler)
-    endif()
+target_link_libraries(metamodel model)
+if(${PROFILER})
+    target_link_libraries(metamodel easy_profiler)
 endif()
 
 install(TARGETS metamodel

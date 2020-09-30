@@ -177,7 +177,7 @@ void populateWeightsTablesSparsityPointers(mv::Data::TensorIterator weightsTable
         {
             // Dense ZMajor Convolution case
             // Not using the generic function because it's a super simple case
-            long int offset = 0xFFFFFF; // NOTE: Implementation defined
+            int64_t offset = 0xFFFFFF; // NOTE: Implementation defined
             for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
                   weightsTableData->at(i+1) = offset;
         }
@@ -268,7 +268,7 @@ void populateWeightsTablesActivationAndBias(mv::Data::TensorIterator weightsTabl
 
     for (size_t i = 0; i < weightsTableData->size(); i+=WT_ELEMENTS_PER_CHANNEL)
     {
-        weightsTableData->at(i+2) = static_cast<long int>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
+        weightsTableData->at(i+2) = static_cast<int64_t>((mScaled[i/WT_ELEMENTS_PER_CHANNEL] << 16) | (round32[i/WT_ELEMENTS_PER_CHANNEL] << 14) | (mShift[i/WT_ELEMENTS_PER_CHANNEL]) << 8) | reluMultData[i/WT_ELEMENTS_PER_CHANNEL];
         if (hasBias)
             weightsTableData->at(i+3) = biasData[i/WT_ELEMENTS_PER_CHANNEL];
     }

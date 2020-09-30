@@ -1,5 +1,6 @@
 #include "include/mcm/tensor/quantization_params.hpp"
 #include "include/mcm/base/exception/argument_error.hpp"
+#include <numeric>
 
 mv::QuantizationParams::QuantizationParams(const json::Value& content) : Element(content)
 {
