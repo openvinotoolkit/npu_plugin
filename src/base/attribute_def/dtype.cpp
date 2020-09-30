@@ -32,7 +32,7 @@ namespace mv
 
 
     namespace attr {
-        MV_REGISTER_ATTR(DType)
+        MV_REGISTER_SIMPLE_ATTR(DType)
             .setToJSONFunc(attr_dtype::toJSON)
             .setFromJSONFunc(attr_dtype::fromJSON)
             .setToStringFunc(attr_dtype::toString);

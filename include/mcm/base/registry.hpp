@@ -94,12 +94,14 @@ namespace mv
 
         };
 
-		#ifdef ATTRIBUTE_UNUSED
-		#elif defined(__GNUC__)
-			# define ATTRIBUTE_UNUSED(x) x __attribute__((unused))
-		#else
-			# define ATTRIBUTE_UNUSED(x) x
-		#endif
+        #ifdef KEEP_SYMBOL
+        #elif defined(__GNUC__)
+            # define KEEP_SYMBOL(x) static x __attribute__((used))
+        #elif defined(_MSC_VER)
+            # define KEEP_SYMBOL(x) extern "C" x
+        #else
+            # define KEEP_SYMBOL(x) x
+        #endif
 
         #define MV_DEFINE_REGISTRY(RegistryType, KeyType, EntryType)                        \
             template <>                                                                     \
@@ -114,8 +116,8 @@ namespace mv
         #define CONCATENATE(x, y) CONCATENATE_DETAIL(x, y)                                                      
 
         #define MV_REGISTER_ENTRY(RegistryType, KeyType, EntryType, key)                            \
-            static ATTRIBUTE_UNUSED(EntryType& CONCATENATE(__ ## EntryType ## __, __COUNTER__)) =   \
-                mv::Registry<RegistryType, KeyType, EntryType >::instance().enter(key)                 
+            KEEP_SYMBOL(EntryType& __MCM_REGISTER__ ## EntryType ## _ ## key) = \
+                mv::Registry<RegistryType, KeyType, EntryType >::instance().enter(#key)
 
     //}
 

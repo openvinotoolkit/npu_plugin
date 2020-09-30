@@ -1,5 +1,11 @@
 #include "include/mcm/compiler/compilation_unit.hpp"
 
+#ifdef _MSC_VER
+// Force linking relevant global objects (registry entries),
+// by putting linker directives inside the compilation_unit object file
+#include "msvc_registry_init_syms.h"
+#endif
+
 const std::string mv::CompilationUnit::ma2490DefTargetDescPath_ = "/config/target/release_kmb.json";
 const std::string mv::CompilationUnit::ma3100DefTargetDescPath_ = "/config/target/release_thb.json";
 const std::string mv::CompilationUnit::compositionalModelRecordingsPath_ = "/recordings/";

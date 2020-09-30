@@ -12,6 +12,7 @@ namespace mv
     public:
             
         explicit OrderError(const LogSender& sender, const std::string& whatArg);
+        explicit OrderError(const std::string& senderID, const std::string& whatArg);
         
     };
 

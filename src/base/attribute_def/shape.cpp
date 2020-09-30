@@ -50,7 +50,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(Shape)
+        MV_REGISTER_SIMPLE_ATTR(Shape)
             .setToJSONFunc(attr_shape::toJSON)
             .setFromJSONFunc(attr_shape::fromJSON)
             .setToStringFunc(attr_shape::toString);

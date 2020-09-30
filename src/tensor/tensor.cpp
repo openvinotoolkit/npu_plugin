@@ -6,6 +6,25 @@
 std::map<std::string,mv::Tensor::MemoryLocation::Location> mv::Tensor::MemoryLocation::namingMap = mv::Tensor::MemoryLocation::createNamingMap();
 
 
+mv::Tensor::MemoryLocation::MemoryLocation(const std::string& location)
+    : location_(namingMap[location]), forced_(false)
+{}
+
+mv::Tensor::MemoryLocation::MemoryLocation(const std::string& location, bool forced)
+    : location_(namingMap[location]), forced_(forced)
+{}
+
+bool mv::Tensor::MemoryLocation::operator==(std::string& other)
+{
+    return (location_ == namingMap[other]);
+}
+
+bool mv::Tensor::MemoryLocation::operator!=(std::string& other)
+{
+    return (location_ != namingMap[other]);
+}
+
+
 mv::Tensor::Tensor(const std::string &name, const Shape &shape, DType dType, Order order):
 Element(name),
 shape_(shape),
@@ -1331,9 +1350,9 @@ void mv::Tensor::shareAcrossClusters(std::vector<mv::Workload> workloads, unsign
         for (auto wlItr = workloads.begin(); wlItr != workloads.end(); wlItr++)
         {
             size_t idx = wlItr - workloads.begin();
-            auto width = wlItr->MaxX - wlItr->MinX;
-            auto height = wlItr->MaxY - wlItr->MinY;
-            auto channels = wlItr->MaxZ - wlItr->MinZ;
+            unsigned width = wlItr->MaxX - wlItr->MinX;
+            unsigned height = wlItr->MaxY - wlItr->MinY;
+            unsigned channels = wlItr->MaxZ - wlItr->MinZ;
             if (clustering)
             {
                 mv::Shape newShape = {width, height, channels, 1};

@@ -41,7 +41,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_DUPLICATE_ATTR(std::size_t)
+        MV_REGISTER_DUPLICATE_ATTR(std::size_t, InitSizeT)
             .setToJSONFunc(attr_std_size_t::toJSON)
             .setFromJSONFunc(attr_std_size_t::fromJSON)
             .setToStringFunc(attr_std_size_t::toString)
