@@ -29,7 +29,7 @@ using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config)
+HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("VPUXRemoteContext", config.logLevel(), consoleOutput())),
       _paramMap(paramMap) {
@@ -47,7 +47,7 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     }
     try {
         auto allocator = _devicePtr->getAllocator();
-        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config);
+        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config.logLevel());
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",

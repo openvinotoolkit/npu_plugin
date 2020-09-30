@@ -43,8 +43,7 @@ InferenceEngine::ParamMap HDDL2ContextParams::getParamMap() const { return _para
 WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
 
 //------------------------------------------------------------------------------
-HDDLUniteContextDevice::HDDLUniteContextDevice(
-    const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config)
+HDDLUniteContextDevice::HDDLUniteContextDevice(const InferenceEngine::ParamMap& paramMap, const VPUXConfig& config)
     : _contextParams(paramMap) {
     // TODO Use config
     _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
@@ -55,7 +54,7 @@ HDDLUniteContextDevice::HDDLUniteContextDevice(
         THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "Device from context not found.";
     }
     _name = _workloadContext->getDevice()->getName();
-    _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config);
+    _allocatorPtr = std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteAllocator>(_workloadContext, config.logLevel());
 }
 
 vpux::Executor::Ptr HDDLUniteContextDevice::createExecutor(

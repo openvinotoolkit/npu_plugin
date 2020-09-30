@@ -43,8 +43,8 @@ static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
 }
 
 //------------------------------------------------------------------------------
-HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
-    : _logger(std::make_shared<Logger>("HDDL2BlobParams", config.logLevel(), consoleOutput())) {
+HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const vpu::LogLevel& logLevel)
+    : _logger(std::make_shared<Logger>("HDDL2BlobParams", logLevel, consoleOutput())) {
     if (params.empty()) {
         THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for blob is empty.";
     }
@@ -81,16 +81,15 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     const HDDL2RemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
-    const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
+    const InferenceEngine::ParamMap& params, const LogLevel logLevel)
     : RemoteBlob(tensorDesc),
-      _params(params, config),
+      _params(params, logLevel),
       _remoteContextPtr(contextPtr),
       _allocatorPtr(allocator),
-      _config(config),
       _remoteMemory(_params.getRemoteMemory()),
       _colorFormat(_params.getColorFormat()),
       _roiPtr(nullptr),
-      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", config.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", logLevel, consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
@@ -113,10 +112,9 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const Inferenc
       _params(origBlob._params),
       _remoteContextPtr(origBlob._remoteContextPtr),
       _allocatorPtr(origBlob._allocatorPtr),
-      _config(origBlob._config),
       _remoteMemory(origBlob._remoteMemory),
       _colorFormat(origBlob._colorFormat),
-      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", origBlob._config.logLevel(), consoleOutput())) {
+      _logger(std::make_shared<Logger>("HDDL2RemoteBlob", origBlob._logger->level(), consoleOutput())) {
     if (_allocatorPtr == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Failed to set allocator";
     }

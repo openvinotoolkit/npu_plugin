@@ -43,9 +43,8 @@ static std::string lockOpToStr(const InferenceEngine::LockOp& lockOp) {
 HDDL2RemoteMemoryContainer::HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory)
     : remoteMemory(remoteMemory) {}
 
-HDDL2RemoteAllocator::HDDL2RemoteAllocator(
-    const HddlUnite::WorkloadContext::Ptr& contextPtr, const vpu::HDDL2Config& config)
-    : _config(config), _logger(std::make_shared<Logger>("RemoteAllocator", config.logLevel(), consoleOutput())) {
+HDDL2RemoteAllocator::HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const LogLevel logLevel)
+    : _logger(std::make_shared<Logger>("RemoteAllocator", logLevel, consoleOutput())) {
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << "Context pointer is null";
     }

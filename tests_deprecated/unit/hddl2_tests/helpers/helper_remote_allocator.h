@@ -41,11 +41,10 @@ public:
     virtual std::string getRemoteMemory(const size_t &size) = 0;
 
     HDDL2RemoteAllocator::Ptr allocatorPtr;
-    const vpu::HDDL2Config config;
 };
 
 inline Allocator_Helper::Allocator_Helper(WorkloadContextPtr& workloadContextPtr) {
-    allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
+    allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
 }
 
 //------------------------------------------------------------------------------
