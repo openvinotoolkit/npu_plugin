@@ -1074,6 +1074,7 @@ class Feasible_Memory_Schedule_Generator {
         op_ = o.op_; parent_op_ = o.parent_op_;
         demand_index_ = o.demand_index_;
         interval_info_ = o.interval_info_;
+        return *this;
       }
 
       operation_t op_;
@@ -1122,6 +1123,7 @@ class Feasible_Memory_Schedule_Generator {
       const scheduled_op_info_t& operator=(const heap_element_t& helement) {
         op_ = helement.op_;
         op_type_ = helement.op_type_;
+        return *this;
       }
 
       const char* op_type_name() const { 

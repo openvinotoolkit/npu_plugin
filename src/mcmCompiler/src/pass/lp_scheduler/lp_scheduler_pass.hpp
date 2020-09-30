@@ -963,6 +963,7 @@ class Dynamic_Spill_Node_Inserter {
         read_op_ = o.read_op_; consumer_list_ = o.consumer_list_;
         effective_children_ = o.effective_children_;
         effective_child_map_ = o.effective_child_map_;
+        return *this;
       }
 
       void add_spill_read_consumer(operation_t consumer) {
