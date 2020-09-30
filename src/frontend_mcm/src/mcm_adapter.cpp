@@ -65,7 +65,7 @@ static std::string getMcmLogLevel(LogLevel lvl) {
     }
 }
 
-static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     const std::string& tensorName, const InferenceEngine::TensorDesc& tensorInfo) {
     std::unique_ptr<MVCNN::TensorReferenceT> toBuild =
         std::unique_ptr<MVCNN::TensorReferenceT>(new MVCNN::TensorReferenceT());
@@ -79,31 +79,6 @@ static std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
     toBuild->data = nullptr;
 
     return toBuild;
-}
-
-std::vector<char> serializeMetaData(const char* memBlobData, const InferenceEngine::InputsDataMap& inputInfo,
-    const InferenceEngine::OutputsDataMap& outputInfo) {
-    const MVCNN::GraphFile* graphFilePtr = MVCNN::GetGraphFile(memBlobData);
-    MVCNN::GraphFileT graphFileInstance;
-    graphFilePtr->UnPackTo(&graphFileInstance);
-
-    for (auto inIter = inputInfo.begin(); inIter != inputInfo.end(); ++inIter) {
-        graphFileInstance.header->in_tensor_desc.push_back(
-            buildTensorReference(inIter->first, inIter->second->getTensorDesc()));
-    }
-
-    for (auto outIter = outputInfo.begin(); outIter != outputInfo.end(); ++outIter) {
-        graphFileInstance.header->out_tensor_desc.push_back(
-            buildTensorReference(outIter->first, outIter->second->getTensorDesc()));
-    }
-
-    flatbuffers::FlatBufferBuilder builder;
-    flatbuffers::Offset<MVCNN::GraphFile> offset = MVCNN::CreateGraphFile(builder, &graphFileInstance);
-    MVCNN::FinishGraphFileBuffer(builder, offset);
-    std::vector<char> binaryData(builder.GetSize());
-    ie_memcpy(binaryData.data(), binaryData.size(), builder.GetBufferPointer(), binaryData.size());
-
-    return binaryData;
 }
 
 void MCMAdapter::compileNetwork(
@@ -210,10 +185,9 @@ void MCMAdapter::compileNetwork(
         compDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
     }
 
-    std::function<void(void*)> metaInfoSerializer = [&network](void* graphFileInstance) -> void {
-        MVCNN::GraphFileT* graphFileInstancePtr = reinterpret_cast<MVCNN::GraphFileT*>(graphFileInstance);
-        if (graphFileInstancePtr == nullptr || graphFileInstancePtr->header == nullptr) {
-            THROW_IE_EXCEPTION << "metaInfoSerializer: graph file pointer is null";
+    std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer = [&network](MVCNN::GraphFileT& graphFileInstance) {
+        if (graphFileInstance.header == nullptr) {
+            THROW_IE_EXCEPTION << "metaInfoSerializer: graph file header points to null";
         }
         InferenceEngine::InputsDataMap inputMap;
         network.getInputsInfo(inputMap);
@@ -222,12 +196,12 @@ void MCMAdapter::compileNetwork(
         network.getOutputsInfo(outputMap);
 
         for (const auto& inInfo : inputMap) {
-            graphFileInstancePtr->header->in_tensor_desc.push_back(
+            graphFileInstance.header->in_tensor_desc.push_back(
                 buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
         }
 
         for (const auto& outInfo : outputMap) {
-            graphFileInstancePtr->header->out_tensor_desc.push_back(
+            graphFileInstance.header->out_tensor_desc.push_back(
                 buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
         }
     };

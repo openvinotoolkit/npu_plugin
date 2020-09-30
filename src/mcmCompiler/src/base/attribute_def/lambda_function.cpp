@@ -3,6 +3,7 @@
 #include "include/mcm/base/attribute.hpp"
 #include <vector>
 #include <functional>
+#include "schema/graphfile/graphfile_generated.h"
 
 namespace mv {
 namespace attr_lambda_function {
@@ -15,7 +16,7 @@ static Attribute fromJSON(const json::Value&) {
 }
 
 static std::string toString(const Attribute& a) {
-    return "std::function<void(void*)>()";
+    return "std::function<void(MVCNN::GraphFileT&)>()";
 }
 
 static std::vector<uint8_t> toBinary(const Attribute&) {
@@ -24,9 +25,7 @@ static std::vector<uint8_t> toBinary(const Attribute&) {
 }  // namespace attr_lambda_function
 
 namespace attr {
-    // FIXME use MVCNN::GraphFileT reference here instead of void pointer
-    // for some reason, it's impossible to include graphfile_generated.h
-    MV_REGISTER_ATTR(std::function<void(void* graphFileInstance)>)
+    MV_REGISTER_ATTR(std::function<void(MVCNN::GraphFileT&)>)
         .setToJSONFunc(attr_lambda_function::toJSON)
         .setFromJSONFunc(attr_lambda_function::fromJSON)
         .setToStringFunc(attr_lambda_function::toString)

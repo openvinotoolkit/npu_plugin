@@ -36,7 +36,8 @@ void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
 
     if (passDesc.hasAttr("metaInfoSerializer"))
     {
-        std::function<void(void*)> metaInfoFcn = passDesc.get<std::function<void(void*)>>("metaInfoSerializer");
+        std::function<void(MVCNN::GraphFileT&)> metaInfoFcn =
+            passDesc.get<std::function<void(MVCNN::GraphFileT&)>>("metaInfoSerializer");
         rm.serializeHelper(metaInfoFcn);
     }
 
