@@ -51,7 +51,9 @@ namespace mv
 
         };
 
-        using BufferIterator = std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>::iterator;
+        using MemoryBufferPtr = std::shared_ptr<MemoryBuffer>;
+        using MemoryBufferSet = std::set<MemoryBufferPtr, BufferOrderComparator>;
+        using BufferIterator = MemoryBufferSet::iterator;
 
         class MemoryBuffer
         {
@@ -189,7 +191,7 @@ namespace mv
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
-        std::map<unsigned, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>> entries_;
+        std::map<unsigned, MemoryBufferSet> entries_;
 
         void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
