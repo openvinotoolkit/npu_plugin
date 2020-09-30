@@ -48,6 +48,7 @@ const std::unordered_set<std::string>& KmbConfig::getRunTimeOptions() const {
                                                    VPU_KMB_CONFIG_KEY(USE_M2I),
                                                    VPU_KMB_CONFIG_KEY(USE_CORE_NN),
                                                    CONFIG_KEY(DEVICE_ID),
+                                                   // FIXME EXCLUSIVE_ASYNC_REQUESTS has to be inherited
                                                    CONFIG_KEY(EXCLUSIVE_ASYNC_REQUESTS),
                                                    VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS),
                                                });
