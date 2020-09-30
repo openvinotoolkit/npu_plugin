@@ -74,7 +74,7 @@ The X86_64 build is needed to get reference results for the tests.
     mkdir -p $OPENVINO_HOME/build-x86_64
     cd $OPENVINO_HOME/build-x86_64
     cmake \
-        -D ENABLE_MKL_DNN=ON \
+        -D CMAKE_BUILD_TYPE=Release \
         -D ENABLE_TESTS=ON \
         -D ENABLE_FUNCTIONAL_TESTS=ON \
         ..
@@ -462,7 +462,7 @@ For any questions regarding this component please refer to [G-API-VPU project] m
 * Garnov, Ruslan <Ruslan.Garnov@intel.com>
 * Matveev, Dmitry <dmitry.matveev@intel.com>
 
-[OpenVINO Project]: https://gitlab-icv.inn.intel.com/inference-engine/dldt
+[OpenVINO Project]: https://github.com/openvinotoolkit/openvino
 [KMB Plugin Project]: https://gitlab-icv.inn.intel.com/inference-engine/kmb-plugin
 [OpenVINO Linux Setup Script]: https://github.com/openvinotoolkit/openvino/blob/master/install_dependencies.sh
 [OpenVINO Build Instructions]: https://github.com/openvinotoolkit/openvino/blob/master/build-instruction.md
