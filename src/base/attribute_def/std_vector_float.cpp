@@ -30,7 +30,7 @@ namespace mv
     namespace attr {
         // NB: This attribute isn't used by JSON reader,
         // so it isn't necessary to implement corresponding functions here
-        MV_REGISTER_ATTR(std::vector<float>)
+        MV_REGISTER_ATTR(std::vector<float>, InitVecFloat)
             .setToStringFunc(attr_std_vector_float::toString)
             .setToStringFunc(attr_std_vector_float::toLongString)
             .setTypeTrait("large");

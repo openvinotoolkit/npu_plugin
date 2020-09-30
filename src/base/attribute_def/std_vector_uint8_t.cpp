@@ -2,6 +2,7 @@
 #include "include/mcm/base/exception/attribute_error.hpp"
 #include "include/mcm/base/attribute.hpp"
 #include <vector>
+#include <numeric>
 
 namespace mv
 {
@@ -57,7 +58,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_ATTR(std::vector<uint8_t>)
+        MV_REGISTER_ATTR(std::vector<uint8_t>, InitVecU8)
                 .setToJSONFunc(attr_std_vector_uint8_t::toJSON)
                 .setFromJSONFunc(attr_std_vector_uint8_t::fromJSON)
                 .setToStringFunc(attr_std_vector_uint8_t::toString);

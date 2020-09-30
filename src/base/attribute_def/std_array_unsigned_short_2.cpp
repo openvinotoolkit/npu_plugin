@@ -70,7 +70,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::array<unsigned short COMMA 2>)
+        MV_REGISTER_ATTR(std::array<unsigned short COMMA 2>, InitArrayShort2)
             .setToJSONFunc(attr_us2::toJSON)
             .setFromJSONFunc(attr_us2::fromJSON)
             .setToStringFunc(attr_us2::toString)

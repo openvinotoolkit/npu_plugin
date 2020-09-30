@@ -158,7 +158,7 @@ class Pipeline_Chains {
     }
 
     template<typename OutputIterator>
-    size_t locate_chains(OutputIterator output) {
+    void locate_chains(OutputIterator output) {
       std::unordered_set<operation_t> already_in_some_chain;
       for (mv::Data::OpListIterator oitr=omodel_.opBegin();
             oitr!=omodel_.opEnd(); ++oitr) {

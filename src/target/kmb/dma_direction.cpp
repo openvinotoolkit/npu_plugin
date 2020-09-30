@@ -74,7 +74,7 @@ mv::DmaDirection& mv::DmaDirection::operator=(const DmaDirectionEnum& other)
     return *this;
 }
 
-mv::DmaDirection::operator DmaDirectionEnum() const
+mv::DmaDirection::operator mv::DmaDirectionEnum() const
 {
     return direction_;
 }

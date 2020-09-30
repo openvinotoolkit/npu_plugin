@@ -9,6 +9,8 @@
 #include <type_traits>
 #include <unordered_map>
 #include <unordered_set>
+#include <sstream>
+#include <iterator>
 
 
 #include "include/mcm/computation/model/base_op_model.hpp"
@@ -2447,17 +2449,15 @@ struct Schedule_Reader_Writer {
     class Schedule_Read_Iterator {
       public:
 
-        Schedule_Read_Iterator(FILE *fptr, mv::OpModel& model)
-          : fptr_(fptr), op_model_ptr_(&model) {
+        Schedule_Read_Iterator(std::istringstream &input, mv::OpModel& model)
+          : input_it_(input), op_model_ptr_(&model) {
             if (is_valid()) { next_valid_record(); }
         }
-        Schedule_Read_Iterator() : fptr_(NULL) , op_model_ptr_(NULL) {
+
+        Schedule_Read_Iterator() : op_model_ptr_(nullptr) {
         }
 
-        Schedule_Read_Iterator(const Schedule_Read_Iterator& o)
-          : fptr_(o.fptr_), op_model_ptr_(o.op_model_ptr_),
-            current_record_(o.current_record_) {}
-
+        Schedule_Read_Iterator(const Schedule_Read_Iterator&) = default;
 
         const scheduled_op_t& operator*() const { return current_record_; }
 
@@ -2474,61 +2474,38 @@ struct Schedule_Reader_Writer {
         }
 
       private:
-        bool is_valid() const { return fptr_ && op_model_ptr_; }
+        bool is_valid() const { return op_model_ptr_ != nullptr; }
 
-        //Precondition: is_valid() //
-        bool next_valid_record() {
+        void next_valid_record() {
           assert(is_valid());
-          string_buffer_ = "";
 
-          // ignore any white spaces //
-          while ( ((stream_char_ = ::fgetc(fptr_)) != EOF) &&
-                (::isspace(stream_char_)) ) {}
-
-          if (stream_char_ != EOF) {
-            string_buffer_.push_back((char)stream_char_);
+          const std::istream_iterator<std::string> end;
+          if (input_it_ == end) {
+              invalidate();
+              return;
           }
 
-          // read a sequence of non-white space chars //
-          while (((stream_char_ = ::fgetc(fptr_)) != EOF) &&
-                !::isspace(stream_char_)) {
-            string_buffer_.push_back((char)stream_char_);
-          }
-          if (stream_char_ == EOF) {
-            invalidate();
-            return false;
-          }
+          std::string opname, schtime;
 
-          // lookup this operation //
-          mv::Data::OpListIterator op_itr =
-              op_model_ptr_->getOp(string_buffer_);
+          opname  = *input_it_++;
+          schtime = *input_it_++;
 
-          if (op_itr == op_model_ptr_->opEnd()) {
-            fprintf(stderr, "[Schedule_Reader_Writer] unable to locate "
-                  "the op %s in OpModel\n", string_buffer_.c_str());
-          }
-          assert(op_itr != op_model_ptr_->opEnd());
+          mv::Data::OpListIterator op_itr = op_model_ptr_->getOp(opname);
+          if (op_itr == op_model_ptr_->opEnd())
+            throw RuntimeError("LpScheduler", "[Schedule_Reader_Writer] unable to locate "
+                               + opname + "OpModel");
 
           current_record_.op_ = &(*op_itr);
-
-          if (fscanf(fptr_, "%lu", &current_record_.schedule_time_) != 1UL) {
-            fprintf(stderr, "[Schedule_Reader_Writer] invalid schedule time\n");
-            return false;
-          }
-          return true;
+          current_record_.schedule_time_ = std::stoul(schtime);
         }
 
         void invalidate() {
-          if (!is_valid()) { return; }
-          fclose(fptr_);
-          op_model_ptr_ = NULL;
+          op_model_ptr_ = nullptr;
         }
 
-        FILE *fptr_; // read only //
+        std::istream_iterator<std::string> input_it_;
         mv::OpModel *op_model_ptr_;
         scheduled_op_t current_record_;
-        std::string string_buffer_;
-        int stream_char_;
     };  // class Schedule_Read_Iterator //
     typedef Schedule_Read_Iterator schedule_read_iterator_t;
     ////////////////////////////////////////////////////////////////////////////
@@ -2536,25 +2513,6 @@ struct Schedule_Reader_Writer {
 
     static const char* ddr_address_attribute() {
       return "lp_scheduler_state_for_ddr_address_generation";
-    }
-    template<typename ScheduleIterator>
-    static bool write(const char*file_name,
-          ScheduleIterator begin, ScheduleIterator end) {
-      FILE *fptr = fopen(file_name, "w");
-      if (!fptr) {
-        fprintf(stderr, "[Schedule_Reader_Writer] %s\n", ::strerror(errno));
-        return false;
-      }
-
-      while (begin != end) {
-        operation_t op = traits::scheduled_op(*begin);
-        size_t time = traits::scheduled_op_time(*begin);
-
-        fprintf(fptr, "%s %lu\n", op->getName().c_str(), time);
-        ++begin;
-      }
-      fclose(fptr);
-      return true;
     }
 
     template<typename ScheduleIterator>
@@ -2570,23 +2528,9 @@ struct Schedule_Reader_Writer {
       return true;
     }
 
-
-    static schedule_read_iterator_t begin_read(const char *file_name,
+    static schedule_read_iterator_t begin_read(std::istringstream& input,
         mv::OpModel& op_model) {
-      FILE *fptr = fopen(file_name, "r");
-      if (!fptr) {
-        fprintf(stderr, "[Schedule_Reader_Writer] %s\n", ::strerror(errno));
-        return schedule_read_iterator_t();
-      }
-      return schedule_read_iterator_t(fptr, op_model);
-    }
-
-    static schedule_read_iterator_t begin_read(const std::string& string_file,
-        mv::OpModel& op_model) {
-      FILE *fptr = fmemopen((void *)(string_file.c_str()),
-            string_file.length(), "r");
-      assert(fptr);
-      return schedule_read_iterator_t(fptr, op_model);
+      return schedule_read_iterator_t(input, op_model);
     }
 
     static schedule_read_iterator_t end_read() {
@@ -2927,6 +2871,7 @@ class Repack_Input_DMA_Tasks {
     // Then we cannot repack this task //
     void remove_non_repackable_ops() {
       typename repack_map_t::iterator itr, itr_next;
+      itr = repack_map_.begin();
 
       while ( itr != repack_map_.end() ) {
         const repack_info_t& repack_info = itr->second;
