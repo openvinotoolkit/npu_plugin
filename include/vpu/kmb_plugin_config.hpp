@@ -65,13 +65,6 @@ DECLARE_KMB_CONFIG_KEY(THROUGHPUT_STREAMS);
 
 /**
  * @brief [Only for kmbPlugin]
- * Type: integer, default is 1.
- * This option allows to specify the number of executor streams
- */
-DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
-
-/**
- * @brief [Only for kmbPlugin]
  * Type: "YES", "NO", default is "NO"
  * This option allows to use Media-to-Inference (M2I) module for image pre-processing
  */
