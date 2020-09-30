@@ -485,10 +485,10 @@ class Disjoint_Interval_Set {
     bool is_interval_disjoint(const end_point_t& lkey, const end_point_t& rkey,
         const_end_point_iterator_t lkey_lower_bound) const {
 
+      if (lkey_lower_bound == tree_.end()) { return true; }
       const end_point_t &lkey_lb = lkey_lower_bound->first;
-
-      return (lkey_lower_bound == tree_.end()) || (lkey_lb.is_left_end() &&
-          (lkey.x_ < lkey_lb.x_) && (rkey.x_ < lkey_lb.x_));
+      return (lkey_lb.is_left_end() && (lkey.x_ < lkey_lb.x_)
+          && (rkey.x_ < lkey_lb.x_));
     }
 
     ////////////////////////////////////////////////////////////////////////////

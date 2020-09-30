@@ -84,7 +84,7 @@ namespace mv
     };
 
     #define MV_REGISTER_DTYPE(Name)                          \
-        MV_REGISTER_ENTRY(DTypeRegistry, std::string, DTypeEntry, #Name)    \
+        MV_REGISTER_ENTRY(DTypeRegistry, std::string, DTypeEntry, Name)    \
 
 }
 

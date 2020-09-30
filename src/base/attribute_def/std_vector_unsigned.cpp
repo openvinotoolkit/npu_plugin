@@ -74,7 +74,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_DUPLICATE_ATTR(std::vector<unsigned>)
+        MV_REGISTER_DUPLICATE_ATTR(std::vector<unsigned>, InitVecUnsigned)
             .setToJSONFunc(attr_std_vector_unsigned::toJSON)
             .setFromJSONFunc(attr_std_vector_unsigned::fromJSON)
             .setToStringFunc(attr_std_vector_unsigned::toString)

@@ -330,8 +330,55 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
+        //NOTE: Sometimes we need to align and use the strides[0], cause when we change axis in concats
+        //in the end we need to mutiply the offsets with the dimensions of the last master Buffer, but
+        //WATCH OUT!!! not when the axis remain the same...more See allocate_memory_kmb.cpp line 552
         auto strides = tensorBufferIt->getStrides();
-        auto leading_offset = strides[0];
+        std::size_t leading_offset = strides[0];
+        auto temporaryBuffer = tensorBufferIt;
+        auto recursiveBuffer = tensorBufferIt;
+        if (t->hasAttr("leftIndex"))
+        {
+            bool sameAxisMasterBuffers = true;
+            while (recursiveBuffer->getData()->getName() !=
+                   (*tensorAllocator.getTopMasterBuffer(recursiveBuffer))->getData()->getName())
+            {
+                recursiveBuffer = tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
+                auto newMaster = *tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
+                if (dm.getTensor(recursiveBuffer->getData()->getName())->hasAttr("concatAxis") &&
+                        dm.getTensor(newMaster->getData()->getName())->hasAttr("concatAxis") )
+                {
+                    if (dm.getTensor(recursiveBuffer->getData()->getName())->get<std::string>("concatAxis") !=
+                            dm.getTensor(newMaster->getData()->getName())->get<std::string>("concatAxis"))
+                    {
+                        sameAxisMasterBuffers = false;
+                        break;
+                    }
+                }
+            }
+            if (sameAxisMasterBuffers)
+            {
+                leading_offset = t->get<std::size_t>("leftIndex") * toBuild->strides[0];
+                while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
+                {
+                    temporaryBuffer = temporaryBuffer->getMaster();
+                    if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
+                        leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
+                                toBuild->strides[0];
+                }
+            }
+        }
+//        if (leading_offset != strides[0])
+//        {
+//            std::size_t initAddr = 0;
+//            if (t->hasAttr("address"))
+//                initAddr = t->getAddress();
+//            else
+//                initAddr = (*masterBuffer)->getOffset();
+//            std::cout << "Tensor with name: " + t->getName()  + " and with data index: " + std::to_string(initAddr) +
+//                         " has difference in values leading offset of: " + std::to_string(leading_offset) + " and stride[0]: " +
+//                         std::to_string(strides[0]) << std::endl;
+//        }
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
@@ -339,10 +386,10 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
             toBuild->data->data_index = t->getAddress();
         else
         {
-            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution() 
+            // The storage element pointers offsets generated in populateActivationStorageElementMapForLayerAfterDilatedConvolution()
             // are calculated from the smallest address of the input tenor to the ImplicitUnion operation
             // Here we have to ensure that the data_index of this tensor is the same smallest address otherwise the SEPs
-            // offsets will point to the wrong location 
+            // offsets will point to the wrong location
             auto parentOp = om.getSourceOp(t);
             if(parentOp->getOpType() == "ImplicitJoin")
             {
@@ -545,7 +592,6 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
-            auto parentOp = om.getSourceOp(t);
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
@@ -608,19 +654,21 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         unsigned byte_index;
 
-        if (subtensor.hasAttr("offset_byte_index")) {
+        if (subtensor.hasAttr("offset_byte_index"))
+        {
           byte_index = subtensor.get<unsigned>("offset_byte_index");
-        } else {
+        }
+        else
+        {
           auto offset = subtensor.get<std::vector<std::size_t>>("offset");
           auto index = t->getOrder().subToInd(t->getShape(), offset);
           byte_index = index * t->getDType().getSizeInBits() / 8;
           auto tensorStrides = t->computeNumericStrides();
           tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
           std::reverse(tensorStrides.begin(), tensorStrides.end());
-
-          if(numericStrides[4] != tensorStrides[4]){
-              byte_index = index * (numericStrides[4]/tensorStrides[4]);
-          }
+          //NOTE: the division is going to extinguish the data type offset!!!
+          if(numericStrides[4] != tensorStrides[4])
+              byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
         }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
@@ -662,7 +710,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
               std::reverse(tensorStrides.begin(), tensorStrides.end());
 
               if(numericStrides[4] != tensorStrides[4]){
-                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
+                  byte_index = index * (double(numericStrides[4])/double(tensorStrides[4]));
               }
               net_address += byte_index;
           }
@@ -837,7 +885,7 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
 }
 
 template <typename T>
-std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::DType dtype)
+std::vector<uint64_t> packToInt64(const std::vector<T>& origData, mv::DType dtype)
 {
     unsigned dataSize = origData.size();
     unsigned origDataSize = dtype.getSizeInBits();
@@ -845,7 +893,7 @@ std::vector<long unsigned int> packToInt64(const std::vector<T>& origData, mv::D
     unsigned nElementToPack = 64 / origDataSize;
     unsigned finalLength = mv::ceil_division(dataSize , nElementToPack);
 
-    std::vector<long unsigned int> toReturn(finalLength, 0);
+    std::vector<uint64_t> toReturn(finalLength, 0);
 
     for(unsigned i = 0; i < finalLength; ++i)
         for(unsigned j = 0; j < nElementToPack; ++j)
@@ -932,11 +980,19 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    auto topologicallySortedOps = controlModel.schedulingSort();
+    // Get DPU or UPA task in order of the scheduling number assigned by the scheduler
+    auto sortedOps = controlModel.schedulingSortDPUorUPA();
+
+    // As there is only one DMA controller in KMB we need to be careful not
+    // to sealize DMAs in the incorrect order
+    // THe (DMA-level, DPU-schedule-number) attribute is used to sort them
+    auto sortedDMAOps = controlModel.schedulingSortDMA();
+
+    sortedOps.insert(sortedOps.end(), sortedDMAOps.begin(), sortedDMAOps.end());
 
     int initialId = 0;
 
-    for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
+    for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
         std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
@@ -1058,7 +1114,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildUPADMATaskT(Co
     return toReturn;
 }
 
-void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
+bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * tmp)
 {
     // Note: Zero-padding populated tensor used for large kernel support needs to keep existing dst strides
     auto skip_unstriding_dst = false;
@@ -1080,6 +1136,9 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
+        
+        if (totalSize == 0)
+            return false;
 
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
@@ -1092,12 +1151,15 @@ void checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->src->data_dtype = dtype;
 
         if(skip_unstriding_dst)
-            return;
+            return true;
 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
+
+        return true;
     }
+    return true;
 }
 
 void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor,
@@ -1129,7 +1191,8 @@ void mv::RuntimeModel::case1MC(unsigned numTasks, mv::ComputationModel& cm, mv::
         tmp->dst->locale_index = locale_index;
 
     // Passing -1 as subtensor index, will have us get the full tensor
-    checkUnstridedDMA(src, -1, tmp);
+    if (!checkUnstridedDMA(src, -1, tmp))
+        return;
 
     // Check if the HDE engine compressed the weights
     if(tmp->src->dimensions[0] != tmp->dst->dimensions[0] && !(src->hasAttr("is_pad") && src->get<bool>("is_pad")))
@@ -1186,7 +1249,8 @@ void mv::RuntimeModel::case2MC(unsigned numTasks, ComputationModel& cm,  mv::Dma
 
 
 
-        checkUnstridedDMA(src, i, tmp);
+        if (!checkUnstridedDMA(src, i, tmp))
+            continue;
 
         // Check if the HDE engine compressed the weights
         if(tmp->src->dimensions[0] != tmp->dst->dimensions[0])
@@ -1337,8 +1401,8 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
 
         case2MC(numTasks, cm, direction, compilationDescriptor, padFinalOutput,
             dmaToDma, toReturn, inputTensor, outputTensor, port);
-        // If the input tensor for a DMA task is sparse then we also need to 
-        // create DMA tasks which transfer Storage Element (SE) Table and 
+        // If the input tensor for a DMA task is sparse then we also need to
+        // create DMA tasks which transfer Storage Element (SE) Table and
         // Sparsity Map (SM).
         if(inputTensor->isSparse())
         {
@@ -1361,7 +1425,7 @@ std::vector<std::unique_ptr<MVCNN::TaskT>> mv::RuntimeModel::buildNNDMATaskT(Com
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputSparsityMap,
                   outputSparsityMap, port);
-                
+
             case2MC(numTasks, cm, direction, compilationDescriptor,
                 padFinalOutput, dmaToDma, toReturn, inputStorageElementTable,
                   outputStorageElementTable, port);
@@ -3191,6 +3255,16 @@ unsigned mv::RuntimeModel::countProducerConsumerTasks(mv::ComputationModel& cm, 
             toReturn = 1;
 
         toReturn *= multiplicator;
+
+        if (inputTensor->isPopulated() && inputTensor->isSparse())
+        {
+            if (numClusters < toReturn) {
+                for (int i = 0; i < numClusters; ++i) {
+                    if (inputTensor->getSubTensor(i).dataPackedSize() == 0)
+                        toReturn--;
+                }
+            }
+        }
     }
     else if(taskType == "UPATask" || opIt->isImplicit())
         toReturn = 1;

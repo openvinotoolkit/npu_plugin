@@ -2,7 +2,12 @@
 #include "include/mcm/base/exception/argument_error.hpp"
 #include <iostream>
 #include <fstream>
-#include <sys/stat.h>
+#ifdef _WIN32
+#  include <direct.h>
+#  define mkdir(name, perm) _mkdir(name)
+#else
+#  include <sys/stat.h>
+#endif
 
 
 std::string mv::utils::projectRootPath()

@@ -172,7 +172,7 @@ void mv::CompilationDescriptor::remove(const std::string& group)
         {
             // Find group in g's recurrence lists, and remove it
             auto removeInRecurrenceGroup = [this, g, group](const std::string& recType) {
-                auto& elem = get<Element>(g);
+                auto& elem = this->get<Element>(g);
                 if (elem.hasAttr(recType)) {
                     auto& recList = elem.get<std::vector<Element>>(recType);
                     auto it = std::find(recList.begin(), recList.end(), Element(group));
@@ -229,7 +229,7 @@ void mv::CompilationDescriptor::setPassArg(const std::string& pass, const std::s
         {
             auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
             {
-                auto& g = get<Element>(group);
+                auto& g = this->get<Element>(group);
 
                 bool foundPass = false;
                 if (g.hasAttr(recType)) {
@@ -269,7 +269,7 @@ void mv::CompilationDescriptor::setPassArg(const std::string& group, const std::
 
     auto addPassArgInRecType = [this, group, pass, arg, value](const std::string& recType)
     {
-        auto& g = get<Element>(group);
+        auto& g = this->get<Element>(group);
 
         if (g.hasAttr(recType)) {
             std::vector<mv::Element>& recList = g.get<std::vector<Element>>(recType);

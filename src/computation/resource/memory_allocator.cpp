@@ -9,7 +9,8 @@ blockSize(0),
 blockNum(0),
 postAlign(0),
 stage(0),
-dataTypeSize(1)
+dataTypeSize(1),
+hasMaster(false)
 {
 
 }
@@ -28,7 +29,8 @@ leftPad(other.leftPad),
 rightPad(other.rightPad),
 masterBuffer(other.masterBuffer),
 slaveBuffers(other.slaveBuffers),
-dataTypeSize(other.dataTypeSize)
+dataTypeSize(other.dataTypeSize),
+hasMaster(other.hasMaster)
 {
 
 }
@@ -49,6 +51,7 @@ mv::MemoryAllocator::MemoryBuffer& mv::MemoryAllocator::MemoryBuffer::operator=(
     masterBuffer = other.masterBuffer;
     slaveBuffers = other.slaveBuffers;
     dataTypeSize = other.dataTypeSize;
+    hasMaster = other.hasMaster;
     return *this;
 }
 
@@ -202,7 +205,7 @@ void mv::MemoryAllocator::placeBuffers_(unsigned stageIdx)
     for (auto it = entries_[stageIdx].begin(); it != entries_[stageIdx].end(); ++it)
     {
         // Move only master buffers
-        if ((*it)->masterBuffer == bufferEnd(stageIdx))
+        if (!(*it)->hasMaster)
         {
             if ((lastOffset + (*it)->size) >= size_ && name_ == "VPU_DDR_Heap")
             {
@@ -301,10 +304,10 @@ void mv::MemoryAllocator::moveSlave_(BufferIterator slaveBuffer)
 
 void mv::MemoryAllocator::bindData_(BufferIterator slaveBuffer, bool pad)
 {
-    auto masterBuffer = (*slaveBuffer)->masterBuffer;
-    if (masterBuffer == bufferEnd((*slaveBuffer)->stage))
+    if (!(*slaveBuffer)->hasMaster)
         return;
 
+    auto masterBuffer = (*slaveBuffer)->getMaster();
     if (pad)
         (*slaveBuffer)->getData()->bindData(*(*masterBuffer)->getData(), (*slaveBuffer)->leftPad, (*slaveBuffer)->rightPad);
     else
@@ -337,6 +340,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
         newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());
         newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
         newBuffer.masterBuffer = bufferEnd(stageIdx);
+        newBuffer.hasMaster = false;
         newBuffer.slaveBuffers = {};
         newBuffer.dataTypeSize = dataTypeSize;
 
@@ -378,6 +382,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
             newBuffer.leftPad = std::vector<std::size_t>(shape.ndims());
             newBuffer.rightPad = std::vector<std::size_t>(shape.ndims());
             newBuffer.masterBuffer = bufferEnd(stageIdx);
+            newBuffer.hasMaster = false;
             newBuffer.slaveBuffers = {};
             newBuffer.dataTypeSize = dataTypeSize;
 
@@ -409,12 +414,18 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::allocate(Data::TensorIt
 }
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getTopMasterBuffer(mv::MemoryAllocator::BufferIterator t)
 {
+    if (!(*t)->hasMaster)
+        return t;
     auto mt = (*t)->masterBuffer;
-    if (*mt != *bufferEnd((*t)->stage))
-        return getTopMasterBuffer(mt);
-    return t;
+    return getTopMasterBuffer(mt);
 }
 
+mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::getSimpleMasterBuffer(mv::MemoryAllocator::BufferIterator t)
+{
+    const MemoryBufferPtr& bufptr = *t;
+    if (!bufptr->hasMaster) return t;
+    return bufptr->masterBuffer;
+}
 mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator slaveBuffer, BufferIterator masterBuffer,
     const std::vector<std::size_t>& leftPadding, const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves)
 {
@@ -461,7 +472,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
                     " of the tensor " + (*masterBuffer)->getData()->getName() + " already allocated in the given buffer");
     }
 
-    if ((*slaveBuffer)->masterBuffer != bufferEnd((*slaveBuffer)->stage))
+    if ((*slaveBuffer)->hasMaster)
     {
         auto &slaves = (*masterBuffer)->slaveBuffers;
         slaves.erase(std::remove(slaves.begin(), slaves.end(), slaveBuffer), slaves.end());
@@ -474,6 +485,7 @@ mv::MemoryAllocator::BufferIterator mv::MemoryAllocator::move(BufferIterator sla
     {
         (*slaveBuf)->offset = (*masterBuffer)->offset;
         (*slaveBuf)->masterBuffer = masterBuffer;
+        (*slaveBuffer)->hasMaster = true;
         auto masterTensor = (*masterBuffer)->getData();
         (*slaveBuf)->leftPad = std::vector<std::size_t>(shape.ndims());
         (*slaveBuf)->rightPad = std::vector<std::size_t>(shape.ndims());

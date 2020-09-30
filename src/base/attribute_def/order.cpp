@@ -33,7 +33,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(Order)
+        MV_REGISTER_SIMPLE_ATTR(Order)
             .setToJSONFunc(attr_order::toJSON)
             .setFromJSONFunc(attr_order::fromJSON)
             .setToStringFunc(attr_order::toString);

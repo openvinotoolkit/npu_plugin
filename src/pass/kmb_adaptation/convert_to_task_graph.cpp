@@ -81,8 +81,8 @@ mv::Data::TensorIterator convertEltwiseToTask(mv::OpModel& om, const std::vector
         dpuElementWiseOp->set<bool>("hasWeights", false);
 
         std::vector<std::string> postOps;
-        if(dpuElementWiseOp->hasAttr("postOpTypes"))
-            postOps = dpuElementWiseOp->get<std::vector<std::string>>("postOpTypes");
+        if(attrs.find("postOpTypes") != attrs.end())
+            postOps = attrs.at("postOpTypes").get<std::vector<std::string>>();
         postOps.push_back(eltwiseType);
         dpuElementWiseOp->set<std::vector<std::string>>("postOpTypes", postOps);
         eltwiseTask = dpuElementWise;
@@ -490,8 +490,7 @@ mv::Data::TensorIterator convertCustomToUPATask(mv::OpModel& om, const std::vect
     return om.uPATaskCustom(inputs,
                             attrs.at("kernelData").get<std::vector<uint8_t>>(),
                             attrs.at("paramData").get<std::vector<uint8_t>>(),
-                            attrs.at("outOrder").get<mv::Order>(),
-                            attrs.at("outShape").get<mv::Shape>(),
+                            attrs.at("outputsInfo").get<std::vector<mv::TensorInfo>>(),
                             attrs.at("dType").get<mv::DType>(),
                             attrs.at("quantParams").get<mv::QuantizationParams>(),
                             name);

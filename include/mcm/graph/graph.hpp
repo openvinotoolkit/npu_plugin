@@ -5,6 +5,7 @@
 #include <set>
 #include <deque>
 #include <stdexcept>
+#include <string>
 
 
 namespace mv

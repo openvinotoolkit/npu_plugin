@@ -83,8 +83,8 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
                 quantParams = kernel->get<mv::QuantizationParams>("quantParams");
 
             auto inputChannels = kernelShape[mv::KERNEL_INPUT_CHANNELS];
-            auto kernelWidth = kernelShape[mv::KERNEL_WIDTH];
-            auto kernelHeight = kernelShape[mv::KERNEL_HEIGHT];
+            unsigned short kernelWidth = kernelShape[mv::KERNEL_WIDTH];
+            unsigned short kernelHeight = kernelShape[mv::KERNEL_HEIGHT];
             auto oldWeightLocation = kernel->get<mv::Tensor::MemoryLocation>("Location");
 
             //Initializions are done assuming regular convolution and then eventually modified for depthwise
