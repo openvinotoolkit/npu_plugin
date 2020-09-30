@@ -41,6 +41,8 @@ ie_option(ENABLE_EXPORT_SYMBOLS "Enable compiler -fvisibility=default and linker
 
 ie_option(ENABLE_MCM_COMPILER_PACKAGE "Enable build of separate mcmCompiler package" OFF)
 
+ie_dependent_option(ENABLE_ZEROAPI_BACKEND "Enable zero-api as a plugin backend" ON "WIN32" OFF)
+
 function (print_enabled_kmb_features)
     message(STATUS "KMB Plugin enabled features: ")
     message(STATUS "")

@@ -728,7 +728,7 @@ std::string KmbNetworkTestBase::getTestModelsPath() {
     return getTestModelsBasePath() + "/src/models";
 }
 
-Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, int channels, int height, int width) {
+Blob::Ptr KmbNetworkTestBase::loadImage(const TestImageDesc& image, size_t channels, size_t height, size_t width) {
     std::ostringstream imageFilePath;
     imageFilePath << getTestDataPath() << "/" << image.imageFileName();
 

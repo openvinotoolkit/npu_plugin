@@ -370,7 +370,7 @@ protected:
     static std::string getTestDataPath();
     static std::string getTestModelsPath();
 
-    static Blob::Ptr loadImage(const TestImageDesc& image, int channels, int height, int width);
+    static Blob::Ptr loadImage(const TestImageDesc& image, size_t channels, size_t height, size_t width);
 
     void registerSingleImage (const TestImageDesc& image,
                               const std::string& inputName,
