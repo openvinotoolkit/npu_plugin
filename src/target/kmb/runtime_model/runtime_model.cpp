@@ -32,6 +32,28 @@ const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMappi
     {"Log", MVCNN::DType::DType_LOG}
 };
 
+const std::unordered_map<MVCNN::DType, std::string> mv::RuntimeModel::reverseDTypeMapping_ =
+{
+    {MVCNN::DType::DType_FP64, "Float64"},
+    {MVCNN::DType::DType_FP32, "Float32"},
+    {MVCNN::DType::DType_FP16, "Float16"},
+    {MVCNN::DType::DType_FP8, "Float8"},
+    {MVCNN::DType::DType_U64, "UInt64"},
+    {MVCNN::DType::DType_U32, "UInt32"},
+    {MVCNN::DType::DType_U16, "UInt16"},
+    {MVCNN::DType::DType_U8, "UInt8"},
+    {MVCNN::DType::DType_I64, "Int64"},
+    {MVCNN::DType::DType_I32, "Int32"},
+    {MVCNN::DType::DType_I16, "Int16"},
+    {MVCNN::DType::DType_I8, "Int8"},
+    {MVCNN::DType::DType_I4, "Int4"},
+    {MVCNN::DType::DType_I2, "Int2"},
+    {MVCNN::DType::DType_I2X, "Int2X"},
+    {MVCNN::DType::DType_I4X, "Int4X"},
+    {MVCNN::DType::DType_BIN, "Bin"},
+    {MVCNN::DType::DType_LOG, "Log"}
+};
+
 const std::unordered_map<std::string, MVCNN::MemoryLocation> mv::RuntimeModel::memoryLocationMapping_ =
 {
     {"ProgrammableInput", MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput},
@@ -130,6 +152,11 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
+}
+
+mv::DType mv::RuntimeModel::convertDtype(const MVCNN::DType& dtype)
+{
+    return reverseDTypeMapping_.at(dtype);
 }
 
 MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
@@ -795,13 +822,18 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
+    toBuild->identifier = cm.getName();
 
     // Support multiple inputs
     auto numInputs = om.getNumNetworkInputs();
     if (numInputs == 1)
     {
+        auto inputIt = om.getInput()->getOutputTensor(0);
+        // Rename input tensor - same as input operation name
+        inputIt->setName(om.getInput()->getName());
         toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
         toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
+        cm.bufferMap().addInput(inputIt->getName(), inputIt->getOrder(), inputIt->getShape(), inputIt->getDType());
     }
     else
     {
@@ -818,7 +850,11 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     if (numOutputs == 1)
     {
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
+        auto outputIt = om.getOutput()->getInputTensor(0);
+        // Rename output tensor - same as output operation name
+        outputIt->setName(om.getOutput()->getName());
+        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
+        cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
     }
     else
     {
@@ -827,7 +863,11 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
             auto destOp = implicitOutputOps[i];
-            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
+            auto outputIt = destOp->getInputTensor(0);
+            // Rename output tensor - same as output operation name
+            outputIt->setName(destOp->get("networkOutputName"));
+            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
+            cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
         }
     }
 
@@ -879,8 +919,8 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
     toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
-    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
-
+    // Set DDR scratch value to high watermark, which is saved in BufferMap
+    toBuild->ddr_scratch = (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
     return toBuild;
 }
 
@@ -3429,7 +3469,7 @@ void mv::RuntimeModel::deserialize(const std::string& path)
     deserialize(binaryData_->data(), binaryData_->size());
 }
 
-void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
+void mv::RuntimeModel::deserialize(const char *dataBuffer, int length)
 {
     flatbuffers::Verifier verifier(reinterpret_cast<const unsigned char*>(dataBuffer), length);
     if (!MVCNN::VerifyGraphFileBuffer(verifier))
@@ -3444,4 +3484,44 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     if(nullptr == binaryData_)
         serialize();
     return binaryData_;
+}
+
+const MVCNN::GraphFileT& mv::RuntimeModel::getGraphFile()
+{
+    return graphFile_;
+}
+
+void mv::RuntimeModel::clear()
+{
+    graphFile_ = MVCNN::GraphFileT();
+    binaryData_->clear();
+}
+
+mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims)
+{
+
+    std::vector<std::size_t> contVector;
+    std::map<float, unsigned> indices;
+
+    // Hardcoded for 3d tensors 
+    // TODO update when 3d RT ops enabled
+    auto current_idx = 0;
+    for (unsigned i = 0; i < 4; ++i)
+    {
+        // if stride not already in map, add it
+        float unique_stride = strides[i] + float(i) / 100;
+        if (indices.find(unique_stride) == indices.end())
+            indices[unique_stride] = current_idx++;
+    }
+
+    for (auto it = indices.begin(); it != indices.end(); ++it)
+        contVector.push_back(it->second);
+
+    auto order = OrderRegistry::instance().getLabel(contVector);
+
+    // Check for non-standard order & replace with standard order if tensor dimension is flat
+    if (order == "NHCW" && dims[mv::IO_CHANNEL_DIMENSION] == 1)
+        order = "NCHW";
+
+    return order;
 }
