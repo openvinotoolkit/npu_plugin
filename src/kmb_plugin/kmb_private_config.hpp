@@ -64,5 +64,12 @@ DECLARE_VPU_KMB_CONFIG_KEY(PREPROCESSING_LPI);
  */
 DECLARE_VPU_KMB_CONFIG_KEY(KMB_EXECUTOR);
 
+/**
+ * @brief [Only for kmbPlugin]
+ * Type: integer, default is 1.
+ * This option allows to specify the number of executor streams
+ */
+DECLARE_VPU_KMB_CONFIG_KEY(EXECUTOR_STREAMS);
+
 }  // namespace VPUConfigParams
 }  // namespace InferenceEngine
