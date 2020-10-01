@@ -106,4 +106,4 @@ const std::vector<InterpTestParams> interpParams {
             .outShapeHW(23, 30)
 };
 
-INSTANTIATE_TEST_CASE_P(Interpolation, KmbInterpLayerTests, testing::ValuesIn(interpParams));
+INSTANTIATE_TEST_CASE_P(precommit_Interpolation, KmbInterpLayerTests, testing::ValuesIn(interpParams));

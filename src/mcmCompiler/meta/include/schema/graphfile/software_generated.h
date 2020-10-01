@@ -81,7 +81,6 @@ struct SoftmaxParamsBuilder;
 struct SoftmaxParamsT;
 
 struct NegativeParams;
-struct NegativeParamsBuilder;
 struct NegativeParamsT;
 
 struct CustomLayerParams;
@@ -93,11 +92,9 @@ struct InitValue;
 struct Term;
 
 struct Polynomial;
-struct PolynomialBuilder;
 struct PolynomialT;
 
 struct DmaTransfer;
-struct DmaTransferBuilder;
 struct DmaTransferT;
 
 struct EdslParams;
@@ -121,19 +118,15 @@ struct NormParamsBuilder;
 struct NormParamsT;
 
 struct EltwiseI32;
-struct EltwiseI32Builder;
 struct EltwiseI32T;
 
 struct EltwiseFP32;
-struct EltwiseFP32Builder;
 struct EltwiseFP32T;
 
 struct EltwisePostOpEmpty;
-struct EltwisePostOpEmptyBuilder;
 struct EltwisePostOpEmptyT;
 
 struct EltwisePostOpPReLU;
-struct EltwisePostOpPReLUBuilder;
 struct EltwisePostOpPReLUT;
 
 struct EltwiseParams;
@@ -185,55 +178,42 @@ struct SigmoidParamsBuilder;
 struct SigmoidParamsT;
 
 struct ReluParams;
-struct ReluParamsBuilder;
 struct ReluParamsT;
 
 struct GatherParams;
-struct GatherParamsBuilder;
 struct GatherParamsT;
 
 struct ClampParams;
-struct ClampParamsBuilder;
 struct ClampParamsT;
 
 struct EluParams;
-struct EluParamsBuilder;
 struct EluParamsT;
 
 struct PowerParams;
-struct PowerParamsBuilder;
 struct PowerParamsT;
 
 struct BiasLeakyReluParams;
-struct BiasLeakyReluParamsBuilder;
 struct BiasLeakyReluParamsT;
 
 struct BiasReluParams;
-struct BiasReluParamsBuilder;
 struct BiasReluParamsT;
 
 struct PReluParams;
-struct PReluParamsBuilder;
 struct PReluParamsT;
 
 struct TanhParams;
-struct TanhParamsBuilder;
 struct TanhParamsT;
 
 struct BiasParams;
-struct BiasParamsBuilder;
 struct BiasParamsT;
 
 struct ScaleParams;
-struct ScaleParamsBuilder;
 struct ScaleParamsT;
 
 struct ScaleShiftParams;
-struct ScaleShiftParamsBuilder;
 struct ScaleShiftParamsT;
 
 struct PostOpsParams;
-struct PostOpsParamsBuilder;
 struct PostOpsParamsT;
 
 struct UnaryOpParams;
@@ -359,7 +339,7 @@ inline const DataType (&EnumValuesDataType())[13] {
 }
 
 inline const char * const *EnumNamesDataType() {
-  static const char * const names[14] = {
+  static const char * const names[] = {
     "UNKNOWN",
     "INT1",
     "INT8",
@@ -379,7 +359,7 @@ inline const char * const *EnumNamesDataType() {
 }
 
 inline const char *EnumNameDataType(DataType e) {
-  if (flatbuffers::IsOutRange(e, DataType_UNKNOWN, DataType_FLOAT64)) return "";
+  if (e < DataType_UNKNOWN || e > DataType_FLOAT64) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesDataType()[index];
 }
@@ -402,7 +382,7 @@ inline const EltwiseParam (&EnumValuesEltwiseParam())[3] {
 }
 
 inline const char * const *EnumNamesEltwiseParam() {
-  static const char * const names[4] = {
+  static const char * const names[] = {
     "NONE",
     "i32",
     "fp",
@@ -412,7 +392,7 @@ inline const char * const *EnumNamesEltwiseParam() {
 }
 
 inline const char *EnumNameEltwiseParam(EltwiseParam e) {
-  if (flatbuffers::IsOutRange(e, EltwiseParam_NONE, EltwiseParam_fp)) return "";
+  if (e < EltwiseParam_NONE || e > EltwiseParam_fp) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEltwiseParam()[index];
 }
@@ -421,11 +401,11 @@ template<typename T> struct EltwiseParamTraits {
   static const EltwiseParam enum_value = EltwiseParam_NONE;
 };
 
-template<> struct EltwiseParamTraits<MVCNN::EltwiseI32> {
+template<> struct EltwiseParamTraits<EltwiseI32> {
   static const EltwiseParam enum_value = EltwiseParam_i32;
 };
 
-template<> struct EltwiseParamTraits<MVCNN::EltwiseFP32> {
+template<> struct EltwiseParamTraits<EltwiseFP32> {
   static const EltwiseParam enum_value = EltwiseParam_fp;
 };
 
@@ -437,8 +417,8 @@ struct EltwiseParamUnion {
   EltwiseParamUnion(EltwiseParamUnion&& u) FLATBUFFERS_NOEXCEPT :
     type(EltwiseParam_NONE), value(nullptr)
     { std::swap(type, u.type); std::swap(value, u.value); }
-  EltwiseParamUnion(const EltwiseParamUnion &);
-  EltwiseParamUnion &operator=(const EltwiseParamUnion &u)
+  EltwiseParamUnion(const EltwiseParamUnion &) FLATBUFFERS_NOEXCEPT;
+  EltwiseParamUnion &operator=(const EltwiseParamUnion &u) FLATBUFFERS_NOEXCEPT
     { EltwiseParamUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
   EltwiseParamUnion &operator=(EltwiseParamUnion &&u) FLATBUFFERS_NOEXCEPT
     { std::swap(type, u.type); std::swap(value, u.value); return *this; }
@@ -461,21 +441,21 @@ struct EltwiseParamUnion {
   static void *UnPack(const void *obj, EltwiseParam type, const flatbuffers::resolver_function_t *resolver);
   flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
-  MVCNN::EltwiseI32T *Asi32() {
+  EltwiseI32T *Asi32() {
     return type == EltwiseParam_i32 ?
-      reinterpret_cast<MVCNN::EltwiseI32T *>(value) : nullptr;
+      reinterpret_cast<EltwiseI32T *>(value) : nullptr;
   }
-  const MVCNN::EltwiseI32T *Asi32() const {
+  const EltwiseI32T *Asi32() const {
     return type == EltwiseParam_i32 ?
-      reinterpret_cast<const MVCNN::EltwiseI32T *>(value) : nullptr;
+      reinterpret_cast<const EltwiseI32T *>(value) : nullptr;
   }
-  MVCNN::EltwiseFP32T *Asfp() {
+  EltwiseFP32T *Asfp() {
     return type == EltwiseParam_fp ?
-      reinterpret_cast<MVCNN::EltwiseFP32T *>(value) : nullptr;
+      reinterpret_cast<EltwiseFP32T *>(value) : nullptr;
   }
-  const MVCNN::EltwiseFP32T *Asfp() const {
+  const EltwiseFP32T *Asfp() const {
     return type == EltwiseParam_fp ?
-      reinterpret_cast<const MVCNN::EltwiseFP32T *>(value) : nullptr;
+      reinterpret_cast<const EltwiseFP32T *>(value) : nullptr;
   }
 };
 
@@ -500,7 +480,7 @@ inline const EltwisePostOpsNestedParams (&EnumValuesEltwisePostOpsNestedParams()
 }
 
 inline const char * const *EnumNamesEltwisePostOpsNestedParams() {
-  static const char * const names[4] = {
+  static const char * const names[] = {
     "NONE",
     "EltwisePostOpEmpty",
     "EltwisePostOpPReLU",
@@ -510,7 +490,7 @@ inline const char * const *EnumNamesEltwisePostOpsNestedParams() {
 }
 
 inline const char *EnumNameEltwisePostOpsNestedParams(EltwisePostOpsNestedParams e) {
-  if (flatbuffers::IsOutRange(e, EltwisePostOpsNestedParams_NONE, EltwisePostOpsNestedParams_EltwisePostOpPReLU)) return "";
+  if (e < EltwisePostOpsNestedParams_NONE || e > EltwisePostOpsNestedParams_EltwisePostOpPReLU) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesEltwisePostOpsNestedParams()[index];
 }
@@ -519,11 +499,11 @@ template<typename T> struct EltwisePostOpsNestedParamsTraits {
   static const EltwisePostOpsNestedParams enum_value = EltwisePostOpsNestedParams_NONE;
 };
 
-template<> struct EltwisePostOpsNestedParamsTraits<MVCNN::EltwisePostOpEmpty> {
+template<> struct EltwisePostOpsNestedParamsTraits<EltwisePostOpEmpty> {
   static const EltwisePostOpsNestedParams enum_value = EltwisePostOpsNestedParams_EltwisePostOpEmpty;
 };
 
-template<> struct EltwisePostOpsNestedParamsTraits<MVCNN::EltwisePostOpPReLU> {
+template<> struct EltwisePostOpsNestedParamsTraits<EltwisePostOpPReLU> {
   static const EltwisePostOpsNestedParams enum_value = EltwisePostOpsNestedParams_EltwisePostOpPReLU;
 };
 
@@ -535,8 +515,8 @@ struct EltwisePostOpsNestedParamsUnion {
   EltwisePostOpsNestedParamsUnion(EltwisePostOpsNestedParamsUnion&& u) FLATBUFFERS_NOEXCEPT :
     type(EltwisePostOpsNestedParams_NONE), value(nullptr)
     { std::swap(type, u.type); std::swap(value, u.value); }
-  EltwisePostOpsNestedParamsUnion(const EltwisePostOpsNestedParamsUnion &);
-  EltwisePostOpsNestedParamsUnion &operator=(const EltwisePostOpsNestedParamsUnion &u)
+  EltwisePostOpsNestedParamsUnion(const EltwisePostOpsNestedParamsUnion &) FLATBUFFERS_NOEXCEPT;
+  EltwisePostOpsNestedParamsUnion &operator=(const EltwisePostOpsNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT
     { EltwisePostOpsNestedParamsUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
   EltwisePostOpsNestedParamsUnion &operator=(EltwisePostOpsNestedParamsUnion &&u) FLATBUFFERS_NOEXCEPT
     { std::swap(type, u.type); std::swap(value, u.value); return *this; }
@@ -559,21 +539,21 @@ struct EltwisePostOpsNestedParamsUnion {
   static void *UnPack(const void *obj, EltwisePostOpsNestedParams type, const flatbuffers::resolver_function_t *resolver);
   flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
-  MVCNN::EltwisePostOpEmptyT *AsEltwisePostOpEmpty() {
+  EltwisePostOpEmptyT *AsEltwisePostOpEmpty() {
     return type == EltwisePostOpsNestedParams_EltwisePostOpEmpty ?
-      reinterpret_cast<MVCNN::EltwisePostOpEmptyT *>(value) : nullptr;
+      reinterpret_cast<EltwisePostOpEmptyT *>(value) : nullptr;
   }
-  const MVCNN::EltwisePostOpEmptyT *AsEltwisePostOpEmpty() const {
+  const EltwisePostOpEmptyT *AsEltwisePostOpEmpty() const {
     return type == EltwisePostOpsNestedParams_EltwisePostOpEmpty ?
-      reinterpret_cast<const MVCNN::EltwisePostOpEmptyT *>(value) : nullptr;
+      reinterpret_cast<const EltwisePostOpEmptyT *>(value) : nullptr;
   }
-  MVCNN::EltwisePostOpPReLUT *AsEltwisePostOpPReLU() {
+  EltwisePostOpPReLUT *AsEltwisePostOpPReLU() {
     return type == EltwisePostOpsNestedParams_EltwisePostOpPReLU ?
-      reinterpret_cast<MVCNN::EltwisePostOpPReLUT *>(value) : nullptr;
+      reinterpret_cast<EltwisePostOpPReLUT *>(value) : nullptr;
   }
-  const MVCNN::EltwisePostOpPReLUT *AsEltwisePostOpPReLU() const {
+  const EltwisePostOpPReLUT *AsEltwisePostOpPReLU() const {
     return type == EltwisePostOpsNestedParams_EltwisePostOpPReLU ?
-      reinterpret_cast<const MVCNN::EltwisePostOpPReLUT *>(value) : nullptr;
+      reinterpret_cast<const EltwisePostOpPReLUT *>(value) : nullptr;
   }
 };
 
@@ -653,7 +633,7 @@ inline const PostOpsNestedParams (&EnumValuesPostOpsNestedParams())[14] {
 }
 
 inline const char * const *EnumNamesPostOpsNestedParams() {
-  static const char * const names[15] = {
+  static const char * const names[] = {
     "NONE",
     "BiasParams",
     "ScaleParams",
@@ -674,7 +654,7 @@ inline const char * const *EnumNamesPostOpsNestedParams() {
 }
 
 inline const char *EnumNamePostOpsNestedParams(PostOpsNestedParams e) {
-  if (flatbuffers::IsOutRange(e, PostOpsNestedParams_NONE, PostOpsNestedParams_TanhParams)) return "";
+  if (e < PostOpsNestedParams_NONE || e > PostOpsNestedParams_TanhParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesPostOpsNestedParams()[index];
 }
@@ -683,55 +663,55 @@ template<typename T> struct PostOpsNestedParamsTraits {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_NONE;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::BiasParams> {
+template<> struct PostOpsNestedParamsTraits<BiasParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_BiasParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::ScaleParams> {
+template<> struct PostOpsNestedParamsTraits<ScaleParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_ScaleParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::ScaleShiftParams> {
+template<> struct PostOpsNestedParamsTraits<ScaleShiftParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_ScaleShiftParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::ClampParams> {
+template<> struct PostOpsNestedParamsTraits<ClampParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_ClampParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::EluParams> {
+template<> struct PostOpsNestedParamsTraits<EluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_EluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::PowerParams> {
+template<> struct PostOpsNestedParamsTraits<PowerParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_PowerParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::BiasLeakyReluParams> {
+template<> struct PostOpsNestedParamsTraits<BiasLeakyReluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_BiasLeakyReluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::BiasReluParams> {
+template<> struct PostOpsNestedParamsTraits<BiasReluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_BiasReluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::LeakyReluParams> {
+template<> struct PostOpsNestedParamsTraits<LeakyReluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_LeakyReluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::ReluParams> {
+template<> struct PostOpsNestedParamsTraits<ReluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_ReluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::PReluParams> {
+template<> struct PostOpsNestedParamsTraits<PReluParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_PReluParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::SigmoidParams> {
+template<> struct PostOpsNestedParamsTraits<SigmoidParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_SigmoidParams;
 };
 
-template<> struct PostOpsNestedParamsTraits<MVCNN::TanhParams> {
+template<> struct PostOpsNestedParamsTraits<TanhParams> {
   static const PostOpsNestedParams enum_value = PostOpsNestedParams_TanhParams;
 };
 
@@ -743,8 +723,8 @@ struct PostOpsNestedParamsUnion {
   PostOpsNestedParamsUnion(PostOpsNestedParamsUnion&& u) FLATBUFFERS_NOEXCEPT :
     type(PostOpsNestedParams_NONE), value(nullptr)
     { std::swap(type, u.type); std::swap(value, u.value); }
-  PostOpsNestedParamsUnion(const PostOpsNestedParamsUnion &);
-  PostOpsNestedParamsUnion &operator=(const PostOpsNestedParamsUnion &u)
+  PostOpsNestedParamsUnion(const PostOpsNestedParamsUnion &) FLATBUFFERS_NOEXCEPT;
+  PostOpsNestedParamsUnion &operator=(const PostOpsNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT
     { PostOpsNestedParamsUnion t(u); std::swap(type, t.type); std::swap(value, t.value); return *this; }
   PostOpsNestedParamsUnion &operator=(PostOpsNestedParamsUnion &&u) FLATBUFFERS_NOEXCEPT
     { std::swap(type, u.type); std::swap(value, u.value); return *this; }
@@ -767,109 +747,109 @@ struct PostOpsNestedParamsUnion {
   static void *UnPack(const void *obj, PostOpsNestedParams type, const flatbuffers::resolver_function_t *resolver);
   flatbuffers::Offset<void> Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher = nullptr) const;
 
-  MVCNN::BiasParamsT *AsBiasParams() {
+  BiasParamsT *AsBiasParams() {
     return type == PostOpsNestedParams_BiasParams ?
-      reinterpret_cast<MVCNN::BiasParamsT *>(value) : nullptr;
+      reinterpret_cast<BiasParamsT *>(value) : nullptr;
   }
-  const MVCNN::BiasParamsT *AsBiasParams() const {
+  const BiasParamsT *AsBiasParams() const {
     return type == PostOpsNestedParams_BiasParams ?
-      reinterpret_cast<const MVCNN::BiasParamsT *>(value) : nullptr;
+      reinterpret_cast<const BiasParamsT *>(value) : nullptr;
   }
-  MVCNN::ScaleParamsT *AsScaleParams() {
+  ScaleParamsT *AsScaleParams() {
     return type == PostOpsNestedParams_ScaleParams ?
-      reinterpret_cast<MVCNN::ScaleParamsT *>(value) : nullptr;
+      reinterpret_cast<ScaleParamsT *>(value) : nullptr;
   }
-  const MVCNN::ScaleParamsT *AsScaleParams() const {
+  const ScaleParamsT *AsScaleParams() const {
     return type == PostOpsNestedParams_ScaleParams ?
-      reinterpret_cast<const MVCNN::ScaleParamsT *>(value) : nullptr;
+      reinterpret_cast<const ScaleParamsT *>(value) : nullptr;
   }
-  MVCNN::ScaleShiftParamsT *AsScaleShiftParams() {
+  ScaleShiftParamsT *AsScaleShiftParams() {
     return type == PostOpsNestedParams_ScaleShiftParams ?
-      reinterpret_cast<MVCNN::ScaleShiftParamsT *>(value) : nullptr;
+      reinterpret_cast<ScaleShiftParamsT *>(value) : nullptr;
   }
-  const MVCNN::ScaleShiftParamsT *AsScaleShiftParams() const {
+  const ScaleShiftParamsT *AsScaleShiftParams() const {
     return type == PostOpsNestedParams_ScaleShiftParams ?
-      reinterpret_cast<const MVCNN::ScaleShiftParamsT *>(value) : nullptr;
+      reinterpret_cast<const ScaleShiftParamsT *>(value) : nullptr;
   }
-  MVCNN::ClampParamsT *AsClampParams() {
+  ClampParamsT *AsClampParams() {
     return type == PostOpsNestedParams_ClampParams ?
-      reinterpret_cast<MVCNN::ClampParamsT *>(value) : nullptr;
+      reinterpret_cast<ClampParamsT *>(value) : nullptr;
   }
-  const MVCNN::ClampParamsT *AsClampParams() const {
+  const ClampParamsT *AsClampParams() const {
     return type == PostOpsNestedParams_ClampParams ?
-      reinterpret_cast<const MVCNN::ClampParamsT *>(value) : nullptr;
+      reinterpret_cast<const ClampParamsT *>(value) : nullptr;
   }
-  MVCNN::EluParamsT *AsEluParams() {
+  EluParamsT *AsEluParams() {
     return type == PostOpsNestedParams_EluParams ?
-      reinterpret_cast<MVCNN::EluParamsT *>(value) : nullptr;
+      reinterpret_cast<EluParamsT *>(value) : nullptr;
   }
-  const MVCNN::EluParamsT *AsEluParams() const {
+  const EluParamsT *AsEluParams() const {
     return type == PostOpsNestedParams_EluParams ?
-      reinterpret_cast<const MVCNN::EluParamsT *>(value) : nullptr;
+      reinterpret_cast<const EluParamsT *>(value) : nullptr;
   }
-  MVCNN::PowerParamsT *AsPowerParams() {
+  PowerParamsT *AsPowerParams() {
     return type == PostOpsNestedParams_PowerParams ?
-      reinterpret_cast<MVCNN::PowerParamsT *>(value) : nullptr;
+      reinterpret_cast<PowerParamsT *>(value) : nullptr;
   }
-  const MVCNN::PowerParamsT *AsPowerParams() const {
+  const PowerParamsT *AsPowerParams() const {
     return type == PostOpsNestedParams_PowerParams ?
-      reinterpret_cast<const MVCNN::PowerParamsT *>(value) : nullptr;
+      reinterpret_cast<const PowerParamsT *>(value) : nullptr;
   }
-  MVCNN::BiasLeakyReluParamsT *AsBiasLeakyReluParams() {
+  BiasLeakyReluParamsT *AsBiasLeakyReluParams() {
     return type == PostOpsNestedParams_BiasLeakyReluParams ?
-      reinterpret_cast<MVCNN::BiasLeakyReluParamsT *>(value) : nullptr;
+      reinterpret_cast<BiasLeakyReluParamsT *>(value) : nullptr;
   }
-  const MVCNN::BiasLeakyReluParamsT *AsBiasLeakyReluParams() const {
+  const BiasLeakyReluParamsT *AsBiasLeakyReluParams() const {
     return type == PostOpsNestedParams_BiasLeakyReluParams ?
-      reinterpret_cast<const MVCNN::BiasLeakyReluParamsT *>(value) : nullptr;
+      reinterpret_cast<const BiasLeakyReluParamsT *>(value) : nullptr;
   }
-  MVCNN::BiasReluParamsT *AsBiasReluParams() {
+  BiasReluParamsT *AsBiasReluParams() {
     return type == PostOpsNestedParams_BiasReluParams ?
-      reinterpret_cast<MVCNN::BiasReluParamsT *>(value) : nullptr;
+      reinterpret_cast<BiasReluParamsT *>(value) : nullptr;
   }
-  const MVCNN::BiasReluParamsT *AsBiasReluParams() const {
+  const BiasReluParamsT *AsBiasReluParams() const {
     return type == PostOpsNestedParams_BiasReluParams ?
-      reinterpret_cast<const MVCNN::BiasReluParamsT *>(value) : nullptr;
+      reinterpret_cast<const BiasReluParamsT *>(value) : nullptr;
   }
-  MVCNN::LeakyReluParamsT *AsLeakyReluParams() {
+  LeakyReluParamsT *AsLeakyReluParams() {
     return type == PostOpsNestedParams_LeakyReluParams ?
-      reinterpret_cast<MVCNN::LeakyReluParamsT *>(value) : nullptr;
+      reinterpret_cast<LeakyReluParamsT *>(value) : nullptr;
   }
-  const MVCNN::LeakyReluParamsT *AsLeakyReluParams() const {
+  const LeakyReluParamsT *AsLeakyReluParams() const {
     return type == PostOpsNestedParams_LeakyReluParams ?
-      reinterpret_cast<const MVCNN::LeakyReluParamsT *>(value) : nullptr;
+      reinterpret_cast<const LeakyReluParamsT *>(value) : nullptr;
   }
-  MVCNN::ReluParamsT *AsReluParams() {
+  ReluParamsT *AsReluParams() {
     return type == PostOpsNestedParams_ReluParams ?
-      reinterpret_cast<MVCNN::ReluParamsT *>(value) : nullptr;
+      reinterpret_cast<ReluParamsT *>(value) : nullptr;
   }
-  const MVCNN::ReluParamsT *AsReluParams() const {
+  const ReluParamsT *AsReluParams() const {
     return type == PostOpsNestedParams_ReluParams ?
-      reinterpret_cast<const MVCNN::ReluParamsT *>(value) : nullptr;
+      reinterpret_cast<const ReluParamsT *>(value) : nullptr;
   }
-  MVCNN::PReluParamsT *AsPReluParams() {
+  PReluParamsT *AsPReluParams() {
     return type == PostOpsNestedParams_PReluParams ?
-      reinterpret_cast<MVCNN::PReluParamsT *>(value) : nullptr;
+      reinterpret_cast<PReluParamsT *>(value) : nullptr;
   }
-  const MVCNN::PReluParamsT *AsPReluParams() const {
+  const PReluParamsT *AsPReluParams() const {
     return type == PostOpsNestedParams_PReluParams ?
-      reinterpret_cast<const MVCNN::PReluParamsT *>(value) : nullptr;
+      reinterpret_cast<const PReluParamsT *>(value) : nullptr;
   }
-  MVCNN::SigmoidParamsT *AsSigmoidParams() {
+  SigmoidParamsT *AsSigmoidParams() {
     return type == PostOpsNestedParams_SigmoidParams ?
-      reinterpret_cast<MVCNN::SigmoidParamsT *>(value) : nullptr;
+      reinterpret_cast<SigmoidParamsT *>(value) : nullptr;
   }
-  const MVCNN::SigmoidParamsT *AsSigmoidParams() const {
+  const SigmoidParamsT *AsSigmoidParams() const {
     return type == PostOpsNestedParams_SigmoidParams ?
-      reinterpret_cast<const MVCNN::SigmoidParamsT *>(value) : nullptr;
+      reinterpret_cast<const SigmoidParamsT *>(value) : nullptr;
   }
-  MVCNN::TanhParamsT *AsTanhParams() {
+  TanhParamsT *AsTanhParams() {
     return type == PostOpsNestedParams_TanhParams ?
-      reinterpret_cast<MVCNN::TanhParamsT *>(value) : nullptr;
+      reinterpret_cast<TanhParamsT *>(value) : nullptr;
   }
-  const MVCNN::TanhParamsT *AsTanhParams() const {
+  const TanhParamsT *AsTanhParams() const {
     return type == PostOpsNestedParams_TanhParams ?
-      reinterpret_cast<const MVCNN::TanhParamsT *>(value) : nullptr;
+      reinterpret_cast<const TanhParamsT *>(value) : nullptr;
   }
 };
 
@@ -907,7 +887,7 @@ inline const char * const *EnumNamesUnaryOpNestedParams() {
 }
 
 inline const char *EnumNameUnaryOpNestedParams(UnaryOpNestedParams e) {
-  if (flatbuffers::IsOutRange(e, UnaryOpNestedParams_NONE, UnaryOpNestedParams_ReluParams)) return "";
+  if (e < UnaryOpNestedParams_NONE || e > UnaryOpNestedParams_ReluParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesUnaryOpNestedParams()[index];
 }
@@ -924,7 +904,7 @@ template<> struct UnaryOpNestedParamsTraits<MVCNN::SigmoidParams> {
   static const UnaryOpNestedParams enum_value = UnaryOpNestedParams_SigmoidParams;
 };
 
-template<> struct UnaryOpNestedParamsTraits<MVCNN::ReluParams> {
+template<> struct UnaryOpNestedParamsTraits<ReluParams> {
   static const UnaryOpNestedParams enum_value = UnaryOpNestedParams_ReluParams;
 };
 
@@ -983,6 +963,14 @@ struct UnaryOpNestedParamsUnion {
   const MVCNN::ReluParamsT *AsReluParams() const {
     return type == UnaryOpNestedParams_ReluParams ?
       reinterpret_cast<const MVCNN::ReluParamsT *>(value) : nullptr;
+  }
+  ReluParamsT *AsReluParams() {
+    return type == UnaryOpNestedParams_ReluParams ?
+      reinterpret_cast<ReluParamsT *>(value) : nullptr;
+  }
+  const ReluParamsT *AsReluParams() const {
+    return type == UnaryOpNestedParams_ReluParams ?
+      reinterpret_cast<const ReluParamsT *>(value) : nullptr;
   }
 };
 
@@ -1122,7 +1110,7 @@ inline const char * const *EnumNamesSoftwareLayerParams() {
 }
 
 inline const char *EnumNameSoftwareLayerParams(SoftwareLayerParams e) {
-  if (flatbuffers::IsOutRange(e, SoftwareLayerParams_NONE, SoftwareLayerParams_NegativeParams)) return "";
+  if (e < SoftwareLayerParams_NONE || e > SoftwareLayerParams_NegativeParams) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesSoftwareLayerParams()[index];
 }
@@ -1267,15 +1255,15 @@ template<> struct SoftwareLayerParamsTraits<MVCNN::ConvolutionParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_ConvolutionParams;
 };
 
-template<> struct SoftwareLayerParamsTraits<MVCNN::GatherParams> {
+template<> struct SoftwareLayerParamsTraits<GatherParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_GatherParams;
 };
 
-template<> struct SoftwareLayerParamsTraits<MVCNN::PostOpsParams> {
+template<> struct SoftwareLayerParamsTraits<PostOpsParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_PostOpsParams;
 };
 
-template<> struct SoftwareLayerParamsTraits<MVCNN::NegativeParams> {
+template<> struct SoftwareLayerParamsTraits<NegativeParams> {
   static const SoftwareLayerParams enum_value = SoftwareLayerParams_NegativeParams;
 };
 
@@ -1606,6 +1594,30 @@ struct SoftwareLayerParamsUnion {
   const MVCNN::NegativeParamsT *AsNegativeParams() const {
     return type == SoftwareLayerParams_NegativeParams ?
       reinterpret_cast<const MVCNN::NegativeParamsT *>(value) : nullptr;
+  }
+  GatherParamsT *AsGatherParams() {
+    return type == SoftwareLayerParams_GatherParams ?
+      reinterpret_cast<GatherParamsT *>(value) : nullptr;
+  }
+  const GatherParamsT *AsGatherParams() const {
+    return type == SoftwareLayerParams_GatherParams ?
+      reinterpret_cast<const GatherParamsT *>(value) : nullptr;
+  }
+  PostOpsParamsT *AsPostOpsParams() {
+    return type == SoftwareLayerParams_PostOpsParams ?
+      reinterpret_cast<PostOpsParamsT *>(value) : nullptr;
+  }
+  const PostOpsParamsT *AsPostOpsParams() const {
+    return type == SoftwareLayerParams_PostOpsParams ?
+      reinterpret_cast<const PostOpsParamsT *>(value) : nullptr;
+  }
+  NegativeParamsT *AsNegativeParams() {
+    return type == SoftwareLayerParams_NegativeParams ?
+      reinterpret_cast<NegativeParamsT *>(value) : nullptr;
+  }
+  const NegativeParamsT *AsNegativeParams() const {
+    return type == SoftwareLayerParams_NegativeParams ?
+      reinterpret_cast<const NegativeParamsT *>(value) : nullptr;
   }
 };
 
@@ -3847,7 +3859,6 @@ struct NegativeParamsT : public flatbuffers::NativeTable {
 
 struct NegativeParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef NegativeParamsT NativeTableType;
-  typedef NegativeParamsBuilder Builder;
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            verifier.EndTable();
@@ -3858,7 +3869,6 @@ struct NegativeParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct NegativeParamsBuilder {
-  typedef NegativeParams Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   explicit NegativeParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
@@ -3963,7 +3973,7 @@ flatbuffers::Offset<CustomLayerParams> CreateCustomLayerParams(flatbuffers::Flat
 
 struct PolynomialT : public flatbuffers::NativeTable {
   typedef Polynomial TableType;
-  std::vector<MVCNN::Term> terms;
+  std::vector<Term> terms;
   int32_t constant;
   PolynomialT()
       : constant(0) {
@@ -3972,13 +3982,12 @@ struct PolynomialT : public flatbuffers::NativeTable {
 
 struct Polynomial FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef PolynomialT NativeTableType;
-  typedef PolynomialBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_TERMS = 4,
     VT_CONSTANT = 6
   };
-  const flatbuffers::Vector<const MVCNN::Term *> *terms() const {
-    return GetPointer<const flatbuffers::Vector<const MVCNN::Term *> *>(VT_TERMS);
+  const flatbuffers::Vector<const Term *> *terms() const {
+    return GetPointer<const flatbuffers::Vector<const Term *> *>(VT_TERMS);
   }
   int32_t constant() const {
     return GetField<int32_t>(VT_CONSTANT, 0);
@@ -3996,10 +4005,9 @@ struct Polynomial FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct PolynomialBuilder {
-  typedef Polynomial Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_terms(flatbuffers::Offset<flatbuffers::Vector<const MVCNN::Term *>> terms) {
+  void add_terms(flatbuffers::Offset<flatbuffers::Vector<const Term *>> terms) {
     fbb_.AddOffset(Polynomial::VT_TERMS, terms);
   }
   void add_constant(int32_t constant) {
@@ -4019,7 +4027,7 @@ struct PolynomialBuilder {
 
 inline flatbuffers::Offset<Polynomial> CreatePolynomial(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<flatbuffers::Vector<const MVCNN::Term *>> terms = 0,
+    flatbuffers::Offset<flatbuffers::Vector<const Term *>> terms = 0,
     int32_t constant = 0) {
   PolynomialBuilder builder_(_fbb);
   builder_.add_constant(constant);
@@ -4029,9 +4037,9 @@ inline flatbuffers::Offset<Polynomial> CreatePolynomial(
 
 inline flatbuffers::Offset<Polynomial> CreatePolynomialDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    const std::vector<MVCNN::Term> *terms = nullptr,
+    const std::vector<Term> *terms = nullptr,
     int32_t constant = 0) {
-  auto terms__ = terms ? _fbb.CreateVectorOfStructs<MVCNN::Term>(*terms) : 0;
+  auto terms__ = terms ? _fbb.CreateVectorOfStructs<Term>(*terms) : 0;
   return MVCNN::CreatePolynomial(
       _fbb,
       terms__,
@@ -4049,7 +4057,7 @@ struct DmaTransferT : public flatbuffers::NativeTable {
   std::vector<uint32_t> localShape;
   std::vector<uint32_t> globalShape;
   std::vector<uint32_t> ranges;
-  std::unique_ptr<MVCNN::PolynomialT> bases;
+  std::unique_ptr<PolynomialT> bases;
   DmaTransferT()
       : fromDDR(false),
         dataTypeSize(0),
@@ -4060,7 +4068,6 @@ struct DmaTransferT : public flatbuffers::NativeTable {
 
 struct DmaTransfer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef DmaTransferT NativeTableType;
-  typedef DmaTransferBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_FROMDDR = 4,
     VT_DATATYPESIZE = 6,
@@ -4092,8 +4099,8 @@ struct DmaTransfer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   const flatbuffers::Vector<uint32_t> *ranges() const {
     return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_RANGES);
   }
-  const MVCNN::Polynomial *bases() const {
-    return GetPointer<const MVCNN::Polynomial *>(VT_BASES);
+  const Polynomial *bases() const {
+    return GetPointer<const Polynomial *>(VT_BASES);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -4117,7 +4124,6 @@ struct DmaTransfer FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct DmaTransferBuilder {
-  typedef DmaTransfer Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_fromDDR(bool fromDDR) {
@@ -4141,7 +4147,7 @@ struct DmaTransferBuilder {
   void add_ranges(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> ranges) {
     fbb_.AddOffset(DmaTransfer::VT_RANGES, ranges);
   }
-  void add_bases(flatbuffers::Offset<MVCNN::Polynomial> bases) {
+  void add_bases(flatbuffers::Offset<Polynomial> bases) {
     fbb_.AddOffset(DmaTransfer::VT_BASES, bases);
   }
   explicit DmaTransferBuilder(flatbuffers::FlatBufferBuilder &_fbb)
@@ -4165,7 +4171,7 @@ inline flatbuffers::Offset<DmaTransfer> CreateDmaTransfer(
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> localShape = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> globalShape = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> ranges = 0,
-    flatbuffers::Offset<MVCNN::Polynomial> bases = 0) {
+    flatbuffers::Offset<Polynomial> bases = 0) {
   DmaTransferBuilder builder_(_fbb);
   builder_.add_bases(bases);
   builder_.add_ranges(ranges);
@@ -4187,7 +4193,7 @@ inline flatbuffers::Offset<DmaTransfer> CreateDmaTransferDirect(
     const std::vector<uint32_t> *localShape = nullptr,
     const std::vector<uint32_t> *globalShape = nullptr,
     const std::vector<uint32_t> *ranges = nullptr,
-    flatbuffers::Offset<MVCNN::Polynomial> bases = 0) {
+    flatbuffers::Offset<Polynomial> bases = 0) {
   auto localShape__ = localShape ? _fbb.CreateVector<uint32_t>(*localShape) : 0;
   auto globalShape__ = globalShape ? _fbb.CreateVector<uint32_t>(*globalShape) : 0;
   auto ranges__ = ranges ? _fbb.CreateVector<uint32_t>(*ranges) : 0;
@@ -4207,16 +4213,16 @@ flatbuffers::Offset<DmaTransfer> CreateDmaTransfer(flatbuffers::FlatBufferBuilde
 
 struct EdslParamsT : public flatbuffers::NativeTable {
   typedef EdslParams TableType;
-  std::unique_ptr<MVCNN::BinaryDataT> kernelData;
-  std::unique_ptr<MVCNN::BinaryDataT> paramData;
+  std::unique_ptr<BinaryDataT> kernelData;
+  std::unique_ptr<BinaryDataT> paramData;
   std::vector<uint32_t> outerRanges;
   std::vector<uint32_t> outerSteps;
   std::vector<uint32_t> middleRanges;
   std::vector<uint32_t> middleSteps;
-  std::vector<std::unique_ptr<MVCNN::DmaTransferT>> dmaTransfers;
-  std::vector<MVCNN::InitValue> initOutputs;
-  std::vector<MVCNN::DataType> inputDataTypes;
-  std::vector<MVCNN::DataType> outputDataTypes;
+  std::vector<std::unique_ptr<DmaTransferT>> dmaTransfers;
+  std::vector<InitValue> initOutputs;
+  std::vector<DataType> inputDataTypes;
+  std::vector<DataType> outputDataTypes;
   EdslParamsT() {
   }
 };
@@ -4236,11 +4242,8 @@ struct EdslParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
     VT_INPUTDATATYPES = 20,
     VT_OUTPUTDATATYPES = 22
   };
-  const MVCNN::BinaryData *kernelData() const {
-    return GetPointer<const MVCNN::BinaryData *>(VT_KERNELDATA);
-  }
-  const MVCNN::BinaryData *paramData() const {
-    return GetPointer<const MVCNN::BinaryData *>(VT_PARAMDATA);
+  const BinaryData *kernelData() const {
+    return GetPointer<const BinaryData *>(VT_KERNELDATA);
   }
   const flatbuffers::Vector<uint32_t> *outerRanges() const {
     return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_OUTERRANGES);
@@ -4259,6 +4262,30 @@ struct EdslParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   }
   const flatbuffers::Vector<const MVCNN::InitValue *> *initOutputs() const {
     return GetPointer<const flatbuffers::Vector<const MVCNN::InitValue *> *>(VT_INITOUTPUTS);
+  }
+  const flatbuffers::Vector<uint8_t> *inputDataTypes() const {
+    return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_INPUTDATATYPES);
+  }
+  const flatbuffers::Vector<uint8_t> *outputDataTypes() const {
+    return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_OUTPUTDATATYPES);
+  }
+  const flatbuffers::Vector<uint32_t> *outerRanges() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_OUTERRANGES);
+  }
+  const flatbuffers::Vector<uint32_t> *outerSteps() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_OUTERSTEPS);
+  }
+  const flatbuffers::Vector<uint32_t> *middleRanges() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_MIDDLERANGES);
+  }
+  const flatbuffers::Vector<uint32_t> *middleSteps() const {
+    return GetPointer<const flatbuffers::Vector<uint32_t> *>(VT_MIDDLESTEPS);
+  }
+  const flatbuffers::Vector<flatbuffers::Offset<DmaTransfer>> *dmaTransfers() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<DmaTransfer>> *>(VT_DMATRANSFERS);
+  }
+  const flatbuffers::Vector<const InitValue *> *initOutputs() const {
+    return GetPointer<const flatbuffers::Vector<const InitValue *> *>(VT_INITOUTPUTS);
   }
   const flatbuffers::Vector<uint8_t> *inputDataTypes() const {
     return GetPointer<const flatbuffers::Vector<uint8_t> *>(VT_INPUTDATATYPES);
@@ -4300,7 +4327,7 @@ struct EdslParamsBuilder {
   typedef EdslParams Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
-  void add_kernelData(flatbuffers::Offset<MVCNN::BinaryData> kernelData) {
+  void add_kernelData(flatbuffers::Offset<BinaryData> kernelData) {
     fbb_.AddOffset(EdslParams::VT_KERNELDATA, kernelData);
   }
   void add_paramData(flatbuffers::Offset<MVCNN::BinaryData> paramData) {
@@ -4318,10 +4345,10 @@ struct EdslParamsBuilder {
   void add_middleSteps(flatbuffers::Offset<flatbuffers::Vector<uint32_t>> middleSteps) {
     fbb_.AddOffset(EdslParams::VT_MIDDLESTEPS, middleSteps);
   }
-  void add_dmaTransfers(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::DmaTransfer>>> dmaTransfers) {
+  void add_dmaTransfers(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DmaTransfer>>> dmaTransfers) {
     fbb_.AddOffset(EdslParams::VT_DMATRANSFERS, dmaTransfers);
   }
-  void add_initOutputs(flatbuffers::Offset<flatbuffers::Vector<const MVCNN::InitValue *>> initOutputs) {
+  void add_initOutputs(flatbuffers::Offset<flatbuffers::Vector<const InitValue *>> initOutputs) {
     fbb_.AddOffset(EdslParams::VT_INITOUTPUTS, initOutputs);
   }
   void add_inputDataTypes(flatbuffers::Offset<flatbuffers::Vector<uint8_t>> inputDataTypes) {
@@ -4344,14 +4371,14 @@ struct EdslParamsBuilder {
 
 inline flatbuffers::Offset<EdslParams> CreateEdslParams(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<MVCNN::BinaryData> kernelData = 0,
-    flatbuffers::Offset<MVCNN::BinaryData> paramData = 0,
+    flatbuffers::Offset<BinaryData> kernelData = 0,
+    flatbuffers::Offset<BinaryData> paramData = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> outerRanges = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> outerSteps = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> middleRanges = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint32_t>> middleSteps = 0,
-    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<MVCNN::DmaTransfer>>> dmaTransfers = 0,
-    flatbuffers::Offset<flatbuffers::Vector<const MVCNN::InitValue *>> initOutputs = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<DmaTransfer>>> dmaTransfers = 0,
+    flatbuffers::Offset<flatbuffers::Vector<const InitValue *>> initOutputs = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> inputDataTypes = 0,
     flatbuffers::Offset<flatbuffers::Vector<uint8_t>> outputDataTypes = 0) {
   EdslParamsBuilder builder_(_fbb);
@@ -4370,22 +4397,22 @@ inline flatbuffers::Offset<EdslParams> CreateEdslParams(
 
 inline flatbuffers::Offset<EdslParams> CreateEdslParamsDirect(
     flatbuffers::FlatBufferBuilder &_fbb,
-    flatbuffers::Offset<MVCNN::BinaryData> kernelData = 0,
-    flatbuffers::Offset<MVCNN::BinaryData> paramData = 0,
+    flatbuffers::Offset<BinaryData> kernelData = 0,
+    flatbuffers::Offset<BinaryData> paramData = 0,
     const std::vector<uint32_t> *outerRanges = nullptr,
     const std::vector<uint32_t> *outerSteps = nullptr,
     const std::vector<uint32_t> *middleRanges = nullptr,
     const std::vector<uint32_t> *middleSteps = nullptr,
-    const std::vector<flatbuffers::Offset<MVCNN::DmaTransfer>> *dmaTransfers = nullptr,
-    const std::vector<MVCNN::InitValue> *initOutputs = nullptr,
+    const std::vector<flatbuffers::Offset<DmaTransfer>> *dmaTransfers = nullptr,
+    const std::vector<InitValue> *initOutputs = nullptr,
     const std::vector<uint8_t> *inputDataTypes = nullptr,
     const std::vector<uint8_t> *outputDataTypes = nullptr) {
   auto outerRanges__ = outerRanges ? _fbb.CreateVector<uint32_t>(*outerRanges) : 0;
   auto outerSteps__ = outerSteps ? _fbb.CreateVector<uint32_t>(*outerSteps) : 0;
   auto middleRanges__ = middleRanges ? _fbb.CreateVector<uint32_t>(*middleRanges) : 0;
   auto middleSteps__ = middleSteps ? _fbb.CreateVector<uint32_t>(*middleSteps) : 0;
-  auto dmaTransfers__ = dmaTransfers ? _fbb.CreateVector<flatbuffers::Offset<MVCNN::DmaTransfer>>(*dmaTransfers) : 0;
-  auto initOutputs__ = initOutputs ? _fbb.CreateVectorOfStructs<MVCNN::InitValue>(*initOutputs) : 0;
+  auto dmaTransfers__ = dmaTransfers ? _fbb.CreateVector<flatbuffers::Offset<DmaTransfer>>(*dmaTransfers) : 0;
+  auto initOutputs__ = initOutputs ? _fbb.CreateVectorOfStructs<InitValue>(*initOutputs) : 0;
   auto inputDataTypes__ = inputDataTypes ? _fbb.CreateVector<uint8_t>(*inputDataTypes) : 0;
   auto outputDataTypes__ = outputDataTypes ? _fbb.CreateVector<uint8_t>(*outputDataTypes) : 0;
   return MVCNN::CreateEdslParams(
@@ -4699,7 +4726,6 @@ struct EltwiseI32T : public flatbuffers::NativeTable {
 
 struct EltwiseI32 FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef EltwiseI32T NativeTableType;
-  typedef EltwiseI32Builder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_VALUE = 4
   };
@@ -4717,7 +4743,6 @@ struct EltwiseI32 FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct EltwiseI32Builder {
-  typedef EltwiseI32 Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_value(int32_t value) {
@@ -4755,7 +4780,6 @@ struct EltwiseFP32T : public flatbuffers::NativeTable {
 
 struct EltwiseFP32 FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef EltwiseFP32T NativeTableType;
-  typedef EltwiseFP32Builder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_VALUE = 4
   };
@@ -4773,7 +4797,6 @@ struct EltwiseFP32 FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct EltwiseFP32Builder {
-  typedef EltwiseFP32 Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_value(float value) {
@@ -4809,7 +4832,489 @@ struct EltwisePostOpEmptyT : public flatbuffers::NativeTable {
 
 struct EltwisePostOpEmpty FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef EltwisePostOpEmptyT NativeTableType;
-  typedef EltwisePostOpEmptyBuilder Builder;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  EltwisePostOpEmptyT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EltwisePostOpEmptyT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<EltwisePostOpEmpty> Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwisePostOpEmptyT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EltwisePostOpEmptyBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit EltwisePostOpEmptyBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  EltwisePostOpEmptyBuilder &operator=(const EltwisePostOpEmptyBuilder &);
+  flatbuffers::Offset<EltwisePostOpEmpty> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<EltwisePostOpEmpty>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<EltwisePostOpEmpty> CreateEltwisePostOpEmpty(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  EltwisePostOpEmptyBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<EltwisePostOpEmpty> CreateEltwisePostOpEmpty(flatbuffers::FlatBufferBuilder &_fbb, const EltwisePostOpEmptyT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct EltwisePostOpPReLUT : public flatbuffers::NativeTable {
+  typedef EltwisePostOpPReLU TableType;
+  EltwiseParamUnion reluNegSlope;
+  EltwiseParamUnion clampMinValue;
+  EltwiseParamUnion clampMaxValue;
+  EltwisePostOpPReLUT() {
+  }
+};
+
+struct EltwisePostOpPReLU FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef EltwisePostOpPReLUT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RELUNEGSLOPE_TYPE = 4,
+    VT_RELUNEGSLOPE = 6,
+    VT_CLAMPMINVALUE_TYPE = 8,
+    VT_CLAMPMINVALUE = 10,
+    VT_CLAMPMAXVALUE_TYPE = 12,
+    VT_CLAMPMAXVALUE = 14
+  };
+  EltwiseParam reluNegSlope_type() const {
+    return static_cast<EltwiseParam>(GetField<uint8_t>(VT_RELUNEGSLOPE_TYPE, 0));
+  }
+  const void *reluNegSlope() const {
+    return GetPointer<const void *>(VT_RELUNEGSLOPE);
+  }
+  template<typename T> const T *reluNegSlope_as() const;
+  const EltwiseI32 *reluNegSlope_as_i32() const {
+    return reluNegSlope_type() == EltwiseParam_i32 ? static_cast<const EltwiseI32 *>(reluNegSlope()) : nullptr;
+  }
+  const EltwiseFP32 *reluNegSlope_as_fp() const {
+    return reluNegSlope_type() == EltwiseParam_fp ? static_cast<const EltwiseFP32 *>(reluNegSlope()) : nullptr;
+  }
+  EltwiseParam clampMinValue_type() const {
+    return static_cast<EltwiseParam>(GetField<uint8_t>(VT_CLAMPMINVALUE_TYPE, 0));
+  }
+  const void *clampMinValue() const {
+    return GetPointer<const void *>(VT_CLAMPMINVALUE);
+  }
+  template<typename T> const T *clampMinValue_as() const;
+  const EltwiseI32 *clampMinValue_as_i32() const {
+    return clampMinValue_type() == EltwiseParam_i32 ? static_cast<const EltwiseI32 *>(clampMinValue()) : nullptr;
+  }
+  const EltwiseFP32 *clampMinValue_as_fp() const {
+    return clampMinValue_type() == EltwiseParam_fp ? static_cast<const EltwiseFP32 *>(clampMinValue()) : nullptr;
+  }
+  EltwiseParam clampMaxValue_type() const {
+    return static_cast<EltwiseParam>(GetField<uint8_t>(VT_CLAMPMAXVALUE_TYPE, 0));
+  }
+  const void *clampMaxValue() const {
+    return GetPointer<const void *>(VT_CLAMPMAXVALUE);
+  }
+  template<typename T> const T *clampMaxValue_as() const;
+  const EltwiseI32 *clampMaxValue_as_i32() const {
+    return clampMaxValue_type() == EltwiseParam_i32 ? static_cast<const EltwiseI32 *>(clampMaxValue()) : nullptr;
+  }
+  const EltwiseFP32 *clampMaxValue_as_fp() const {
+    return clampMaxValue_type() == EltwiseParam_fp ? static_cast<const EltwiseFP32 *>(clampMaxValue()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_RELUNEGSLOPE_TYPE) &&
+           VerifyOffset(verifier, VT_RELUNEGSLOPE) &&
+           VerifyEltwiseParam(verifier, reluNegSlope(), reluNegSlope_type()) &&
+           VerifyField<uint8_t>(verifier, VT_CLAMPMINVALUE_TYPE) &&
+           VerifyOffset(verifier, VT_CLAMPMINVALUE) &&
+           VerifyEltwiseParam(verifier, clampMinValue(), clampMinValue_type()) &&
+           VerifyField<uint8_t>(verifier, VT_CLAMPMAXVALUE_TYPE) &&
+           VerifyOffset(verifier, VT_CLAMPMAXVALUE) &&
+           VerifyEltwiseParam(verifier, clampMaxValue(), clampMaxValue_type()) &&
+           verifier.EndTable();
+  }
+  EltwisePostOpPReLUT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EltwisePostOpPReLUT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<EltwisePostOpPReLU> Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwisePostOpPReLUT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const EltwiseI32 *EltwisePostOpPReLU::reluNegSlope_as<EltwiseI32>() const {
+  return reluNegSlope_as_i32();
+}
+
+template<> inline const EltwiseFP32 *EltwisePostOpPReLU::reluNegSlope_as<EltwiseFP32>() const {
+  return reluNegSlope_as_fp();
+}
+
+template<> inline const EltwiseI32 *EltwisePostOpPReLU::clampMinValue_as<EltwiseI32>() const {
+  return clampMinValue_as_i32();
+}
+
+template<> inline const EltwiseFP32 *EltwisePostOpPReLU::clampMinValue_as<EltwiseFP32>() const {
+  return clampMinValue_as_fp();
+}
+
+template<> inline const EltwiseI32 *EltwisePostOpPReLU::clampMaxValue_as<EltwiseI32>() const {
+  return clampMaxValue_as_i32();
+}
+
+template<> inline const EltwiseFP32 *EltwisePostOpPReLU::clampMaxValue_as<EltwiseFP32>() const {
+  return clampMaxValue_as_fp();
+}
+
+struct EltwisePostOpPReLUBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_reluNegSlope_type(EltwiseParam reluNegSlope_type) {
+    fbb_.AddElement<uint8_t>(EltwisePostOpPReLU::VT_RELUNEGSLOPE_TYPE, static_cast<uint8_t>(reluNegSlope_type), 0);
+  }
+  void add_reluNegSlope(flatbuffers::Offset<void> reluNegSlope) {
+    fbb_.AddOffset(EltwisePostOpPReLU::VT_RELUNEGSLOPE, reluNegSlope);
+  }
+  void add_clampMinValue_type(EltwiseParam clampMinValue_type) {
+    fbb_.AddElement<uint8_t>(EltwisePostOpPReLU::VT_CLAMPMINVALUE_TYPE, static_cast<uint8_t>(clampMinValue_type), 0);
+  }
+  void add_clampMinValue(flatbuffers::Offset<void> clampMinValue) {
+    fbb_.AddOffset(EltwisePostOpPReLU::VT_CLAMPMINVALUE, clampMinValue);
+  }
+  void add_clampMaxValue_type(EltwiseParam clampMaxValue_type) {
+    fbb_.AddElement<uint8_t>(EltwisePostOpPReLU::VT_CLAMPMAXVALUE_TYPE, static_cast<uint8_t>(clampMaxValue_type), 0);
+  }
+  void add_clampMaxValue(flatbuffers::Offset<void> clampMaxValue) {
+    fbb_.AddOffset(EltwisePostOpPReLU::VT_CLAMPMAXVALUE, clampMaxValue);
+  }
+  explicit EltwisePostOpPReLUBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  EltwisePostOpPReLUBuilder &operator=(const EltwisePostOpPReLUBuilder &);
+  flatbuffers::Offset<EltwisePostOpPReLU> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<EltwisePostOpPReLU>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<EltwisePostOpPReLU> CreateEltwisePostOpPReLU(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    EltwiseParam reluNegSlope_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> reluNegSlope = 0,
+    EltwiseParam clampMinValue_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> clampMinValue = 0,
+    EltwiseParam clampMaxValue_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> clampMaxValue = 0) {
+  EltwisePostOpPReLUBuilder builder_(_fbb);
+  builder_.add_clampMaxValue(clampMaxValue);
+  builder_.add_clampMinValue(clampMinValue);
+  builder_.add_reluNegSlope(reluNegSlope);
+  builder_.add_clampMaxValue_type(clampMaxValue_type);
+  builder_.add_clampMinValue_type(clampMinValue_type);
+  builder_.add_reluNegSlope_type(reluNegSlope_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<EltwisePostOpPReLU> CreateEltwisePostOpPReLU(flatbuffers::FlatBufferBuilder &_fbb, const EltwisePostOpPReLUT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct EltwiseParamsT : public flatbuffers::NativeTable {
+  typedef EltwiseParams TableType;
+  std::string operation;
+  EltwiseParamUnion coeff1;
+  EltwiseParamUnion coeff2;
+  EltwisePostOpsNestedParamsUnion postop_params;
+  EltwiseParamsT() {
+  }
+};
+
+struct EltwiseParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef EltwiseParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_OPERATION = 4,
+    VT_COEFF1_TYPE = 6,
+    VT_COEFF1 = 8,
+    VT_COEFF2_TYPE = 10,
+    VT_COEFF2 = 12,
+    VT_POSTOP_PARAMS_TYPE = 14,
+    VT_POSTOP_PARAMS = 16
+  };
+  const flatbuffers::String *operation() const {
+    return GetPointer<const flatbuffers::String *>(VT_OPERATION);
+  }
+  EltwiseParam coeff1_type() const {
+    return static_cast<EltwiseParam>(GetField<uint8_t>(VT_COEFF1_TYPE, 0));
+  }
+  const void *coeff1() const {
+    return GetPointer<const void *>(VT_COEFF1);
+  }
+  template<typename T> const T *coeff1_as() const;
+  const EltwiseI32 *coeff1_as_i32() const {
+    return coeff1_type() == EltwiseParam_i32 ? static_cast<const EltwiseI32 *>(coeff1()) : nullptr;
+  }
+  const EltwiseFP32 *coeff1_as_fp() const {
+    return coeff1_type() == EltwiseParam_fp ? static_cast<const EltwiseFP32 *>(coeff1()) : nullptr;
+  }
+  EltwiseParam coeff2_type() const {
+    return static_cast<EltwiseParam>(GetField<uint8_t>(VT_COEFF2_TYPE, 0));
+  }
+  const void *coeff2() const {
+    return GetPointer<const void *>(VT_COEFF2);
+  }
+  template<typename T> const T *coeff2_as() const;
+  const EltwiseI32 *coeff2_as_i32() const {
+    return coeff2_type() == EltwiseParam_i32 ? static_cast<const EltwiseI32 *>(coeff2()) : nullptr;
+  }
+  const EltwiseFP32 *coeff2_as_fp() const {
+    return coeff2_type() == EltwiseParam_fp ? static_cast<const EltwiseFP32 *>(coeff2()) : nullptr;
+  }
+  EltwisePostOpsNestedParams postop_params_type() const {
+    return static_cast<EltwisePostOpsNestedParams>(GetField<uint8_t>(VT_POSTOP_PARAMS_TYPE, 0));
+  }
+  const void *postop_params() const {
+    return GetPointer<const void *>(VT_POSTOP_PARAMS);
+  }
+  template<typename T> const T *postop_params_as() const;
+  const EltwisePostOpEmpty *postop_params_as_EltwisePostOpEmpty() const {
+    return postop_params_type() == EltwisePostOpsNestedParams_EltwisePostOpEmpty ? static_cast<const EltwisePostOpEmpty *>(postop_params()) : nullptr;
+  }
+  const EltwisePostOpPReLU *postop_params_as_EltwisePostOpPReLU() const {
+    return postop_params_type() == EltwisePostOpsNestedParams_EltwisePostOpPReLU ? static_cast<const EltwisePostOpPReLU *>(postop_params()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_OPERATION) &&
+           verifier.VerifyString(operation()) &&
+           VerifyField<uint8_t>(verifier, VT_COEFF1_TYPE) &&
+           VerifyOffset(verifier, VT_COEFF1) &&
+           VerifyEltwiseParam(verifier, coeff1(), coeff1_type()) &&
+           VerifyField<uint8_t>(verifier, VT_COEFF2_TYPE) &&
+           VerifyOffset(verifier, VT_COEFF2) &&
+           VerifyEltwiseParam(verifier, coeff2(), coeff2_type()) &&
+           VerifyField<uint8_t>(verifier, VT_POSTOP_PARAMS_TYPE) &&
+           VerifyOffset(verifier, VT_POSTOP_PARAMS) &&
+           VerifyEltwisePostOpsNestedParams(verifier, postop_params(), postop_params_type()) &&
+           verifier.EndTable();
+  }
+  EltwiseParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EltwiseParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<EltwiseParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwiseParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const EltwiseI32 *EltwiseParams::coeff1_as<EltwiseI32>() const {
+  return coeff1_as_i32();
+}
+
+template<> inline const EltwiseFP32 *EltwiseParams::coeff1_as<EltwiseFP32>() const {
+  return coeff1_as_fp();
+}
+
+template<> inline const EltwiseI32 *EltwiseParams::coeff2_as<EltwiseI32>() const {
+  return coeff2_as_i32();
+}
+
+template<> inline const EltwiseFP32 *EltwiseParams::coeff2_as<EltwiseFP32>() const {
+  return coeff2_as_fp();
+}
+
+template<> inline const EltwisePostOpEmpty *EltwiseParams::postop_params_as<EltwisePostOpEmpty>() const {
+  return postop_params_as_EltwisePostOpEmpty();
+}
+
+template<> inline const EltwisePostOpPReLU *EltwiseParams::postop_params_as<EltwisePostOpPReLU>() const {
+  return postop_params_as_EltwisePostOpPReLU();
+}
+
+struct EltwiseParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_operation(flatbuffers::Offset<flatbuffers::String> operation) {
+    fbb_.AddOffset(EltwiseParams::VT_OPERATION, operation);
+  }
+  void add_coeff1_type(EltwiseParam coeff1_type) {
+    fbb_.AddElement<uint8_t>(EltwiseParams::VT_COEFF1_TYPE, static_cast<uint8_t>(coeff1_type), 0);
+  }
+  void add_coeff1(flatbuffers::Offset<void> coeff1) {
+    fbb_.AddOffset(EltwiseParams::VT_COEFF1, coeff1);
+  }
+  void add_coeff2_type(EltwiseParam coeff2_type) {
+    fbb_.AddElement<uint8_t>(EltwiseParams::VT_COEFF2_TYPE, static_cast<uint8_t>(coeff2_type), 0);
+  }
+  void add_coeff2(flatbuffers::Offset<void> coeff2) {
+    fbb_.AddOffset(EltwiseParams::VT_COEFF2, coeff2);
+  }
+  void add_postop_params_type(EltwisePostOpsNestedParams postop_params_type) {
+    fbb_.AddElement<uint8_t>(EltwiseParams::VT_POSTOP_PARAMS_TYPE, static_cast<uint8_t>(postop_params_type), 0);
+  }
+  void add_postop_params(flatbuffers::Offset<void> postop_params) {
+    fbb_.AddOffset(EltwiseParams::VT_POSTOP_PARAMS, postop_params);
+  }
+  explicit EltwiseParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  EltwiseParamsBuilder &operator=(const EltwiseParamsBuilder &);
+  flatbuffers::Offset<EltwiseParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<EltwiseParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<EltwiseParams> CreateEltwiseParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::String> operation = 0,
+    EltwiseParam coeff1_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> coeff1 = 0,
+    EltwiseParam coeff2_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> coeff2 = 0,
+    EltwisePostOpsNestedParams postop_params_type = EltwisePostOpsNestedParams_NONE,
+    flatbuffers::Offset<void> postop_params = 0) {
+  EltwiseParamsBuilder builder_(_fbb);
+  builder_.add_postop_params(postop_params);
+  builder_.add_coeff2(coeff2);
+  builder_.add_coeff1(coeff1);
+  builder_.add_operation(operation);
+  builder_.add_postop_params_type(postop_params_type);
+  builder_.add_coeff2_type(coeff2_type);
+  builder_.add_coeff1_type(coeff1_type);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<EltwiseParams> CreateEltwiseParamsDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const char *operation = nullptr,
+    EltwiseParam coeff1_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> coeff1 = 0,
+    EltwiseParam coeff2_type = EltwiseParam_NONE,
+    flatbuffers::Offset<void> coeff2 = 0,
+    EltwisePostOpsNestedParams postop_params_type = EltwisePostOpsNestedParams_NONE,
+    flatbuffers::Offset<void> postop_params = 0) {
+  auto operation__ = operation ? _fbb.CreateString(operation) : 0;
+  return MVCNN::CreateEltwiseParams(
+      _fbb,
+      operation__,
+      coeff1_type,
+      coeff1,
+      coeff2_type,
+      coeff2,
+      postop_params_type,
+      postop_params);
+}
+
+flatbuffers::Offset<EltwiseParams> CreateEltwiseParams(flatbuffers::FlatBufferBuilder &_fbb, const EltwiseParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ResampleParamsT : public flatbuffers::NativeTable {
+  typedef ResampleParams TableType;
+  InterpolationMethod interpolation;
+  bool antialias;
+  ResampleParamsT()
+      : interpolation(InterpolationMethod_NEAREST),
+        antialias(false) {
+  }
+};
+
+struct ResampleParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ResampleParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_INTERPOLATION = 4,
+    VT_ANTIALIAS = 6
+  };
+  InterpolationMethod interpolation() const {
+    return static_cast<InterpolationMethod>(GetField<int8_t>(VT_INTERPOLATION, 0));
+  }
+  bool antialias() const {
+    return GetField<uint8_t>(VT_ANTIALIAS, 0) != 0;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_INTERPOLATION) &&
+           VerifyField<uint8_t>(verifier, VT_ANTIALIAS) &&
+           verifier.EndTable();
+  }
+  ResampleParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ResampleParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ResampleParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ResampleParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ResampleParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_interpolation(InterpolationMethod interpolation) {
+    fbb_.AddElement<int8_t>(ResampleParams::VT_INTERPOLATION, static_cast<int8_t>(interpolation), 0);
+  }
+  void add_antialias(bool antialias) {
+    fbb_.AddElement<uint8_t>(ResampleParams::VT_ANTIALIAS, static_cast<uint8_t>(antialias), 0);
+  }
+  explicit ResampleParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ResampleParamsBuilder &operator=(const ResampleParamsBuilder &);
+  flatbuffers::Offset<ResampleParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<ResampleParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<ResampleParams> CreateResampleParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    InterpolationMethod interpolation = InterpolationMethod_NEAREST,
+    bool antialias = false) {
+  ResampleParamsBuilder builder_(_fbb);
+  builder_.add_antialias(antialias);
+  builder_.add_interpolation(interpolation);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<ResampleParams> CreateResampleParams(flatbuffers::FlatBufferBuilder &_fbb, const ResampleParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct CorrelationParamsT : public flatbuffers::NativeTable {
+  typedef CorrelationParams TableType;
+  int32_t kernel_size;
+  int32_t max_displacement;
+  int32_t pad_size;
+  int32_t stride1;
+  int32_t stride2;
+  uint32_t correlation_type;
+  CorrelationParamsT()
+      : kernel_size(0),
+        max_displacement(0),
+        pad_size(0),
+        stride1(0),
+        stride2(0),
+        correlation_type(0) {
+  }
+};
+
+struct CorrelationParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef CorrelationParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_KERNEL_SIZE = 4,
+    VT_MAX_DISPLACEMENT = 6,
+    VT_PAD_SIZE = 8,
+    VT_STRIDE1 = 10,
+    VT_STRIDE2 = 12,
+    VT_CORRELATION_TYPE = 14
+  };
+  int32_t kernel_size() const {
+    return GetField<int32_t>(VT_KERNEL_SIZE, 0);
+  }
+  int32_t max_displacement() const {
+    return GetField<int32_t>(VT_MAX_DISPLACEMENT, 0);
+  }
+  int32_t pad_size() const {
+    return GetField<int32_t>(VT_PAD_SIZE, 0);
+  }
+  int32_t stride1() const {
+    return GetField<int32_t>(VT_STRIDE1, 0);
+  }
+  int32_t stride2() const {
+    return GetField<int32_t>(VT_STRIDE2, 0);
+  }
+  uint32_t correlation_type() const {
+    return GetField<uint32_t>(VT_CORRELATION_TYPE, 0);
+  }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            verifier.EndTable();
@@ -5627,458 +6132,6 @@ inline flatbuffers::Offset<SpatialTransformParams> CreateSpatialTransformParamsD
 
 flatbuffers::Offset<SpatialTransformParams> CreateSpatialTransformParams(flatbuffers::FlatBufferBuilder &_fbb, const SpatialTransformParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 
-struct FakeQuantizeParamsT : public flatbuffers::NativeTable {
-  typedef FakeQuantizeParams TableType;
-  uint32_t levels;
-  std::vector<uint16_t> input_low;
-  std::vector<uint16_t> input_high;
-  std::vector<uint16_t> output_low;
-  std::vector<uint16_t> output_high;
-  FakeQuantizeParamsT()
-      : levels(0) {
-  }
-};
-
-struct FakeQuantizeParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef FakeQuantizeParamsT NativeTableType;
-  typedef FakeQuantizeParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_LEVELS = 4,
-    VT_INPUT_LOW = 6,
-    VT_INPUT_HIGH = 8,
-    VT_OUTPUT_LOW = 10,
-    VT_OUTPUT_HIGH = 12
-  };
-  uint32_t levels() const {
-    return GetField<uint32_t>(VT_LEVELS, 0);
-  }
-  const flatbuffers::Vector<uint16_t> *input_low() const {
-    return GetPointer<const flatbuffers::Vector<uint16_t> *>(VT_INPUT_LOW);
-  }
-  const flatbuffers::Vector<uint16_t> *input_high() const {
-    return GetPointer<const flatbuffers::Vector<uint16_t> *>(VT_INPUT_HIGH);
-  }
-  const flatbuffers::Vector<uint16_t> *output_low() const {
-    return GetPointer<const flatbuffers::Vector<uint16_t> *>(VT_OUTPUT_LOW);
-  }
-  const flatbuffers::Vector<uint16_t> *output_high() const {
-    return GetPointer<const flatbuffers::Vector<uint16_t> *>(VT_OUTPUT_HIGH);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_LEVELS) &&
-           VerifyOffset(verifier, VT_INPUT_LOW) &&
-           verifier.VerifyVector(input_low()) &&
-           VerifyOffset(verifier, VT_INPUT_HIGH) &&
-           verifier.VerifyVector(input_high()) &&
-           VerifyOffset(verifier, VT_OUTPUT_LOW) &&
-           verifier.VerifyVector(output_low()) &&
-           VerifyOffset(verifier, VT_OUTPUT_HIGH) &&
-           verifier.VerifyVector(output_high()) &&
-           verifier.EndTable();
-  }
-  FakeQuantizeParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(FakeQuantizeParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<FakeQuantizeParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const FakeQuantizeParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct FakeQuantizeParamsBuilder {
-  typedef FakeQuantizeParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_levels(uint32_t levels) {
-    fbb_.AddElement<uint32_t>(FakeQuantizeParams::VT_LEVELS, levels, 0);
-  }
-  void add_input_low(flatbuffers::Offset<flatbuffers::Vector<uint16_t>> input_low) {
-    fbb_.AddOffset(FakeQuantizeParams::VT_INPUT_LOW, input_low);
-  }
-  void add_input_high(flatbuffers::Offset<flatbuffers::Vector<uint16_t>> input_high) {
-    fbb_.AddOffset(FakeQuantizeParams::VT_INPUT_HIGH, input_high);
-  }
-  void add_output_low(flatbuffers::Offset<flatbuffers::Vector<uint16_t>> output_low) {
-    fbb_.AddOffset(FakeQuantizeParams::VT_OUTPUT_LOW, output_low);
-  }
-  void add_output_high(flatbuffers::Offset<flatbuffers::Vector<uint16_t>> output_high) {
-    fbb_.AddOffset(FakeQuantizeParams::VT_OUTPUT_HIGH, output_high);
-  }
-  explicit FakeQuantizeParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  FakeQuantizeParamsBuilder &operator=(const FakeQuantizeParamsBuilder &);
-  flatbuffers::Offset<FakeQuantizeParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<FakeQuantizeParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<FakeQuantizeParams> CreateFakeQuantizeParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t levels = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint16_t>> input_low = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint16_t>> input_high = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint16_t>> output_low = 0,
-    flatbuffers::Offset<flatbuffers::Vector<uint16_t>> output_high = 0) {
-  FakeQuantizeParamsBuilder builder_(_fbb);
-  builder_.add_output_high(output_high);
-  builder_.add_output_low(output_low);
-  builder_.add_input_high(input_high);
-  builder_.add_input_low(input_low);
-  builder_.add_levels(levels);
-  return builder_.Finish();
-}
-
-inline flatbuffers::Offset<FakeQuantizeParams> CreateFakeQuantizeParamsDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t levels = 0,
-    const std::vector<uint16_t> *input_low = nullptr,
-    const std::vector<uint16_t> *input_high = nullptr,
-    const std::vector<uint16_t> *output_low = nullptr,
-    const std::vector<uint16_t> *output_high = nullptr) {
-  auto input_low__ = input_low ? _fbb.CreateVector<uint16_t>(*input_low) : 0;
-  auto input_high__ = input_high ? _fbb.CreateVector<uint16_t>(*input_high) : 0;
-  auto output_low__ = output_low ? _fbb.CreateVector<uint16_t>(*output_low) : 0;
-  auto output_high__ = output_high ? _fbb.CreateVector<uint16_t>(*output_high) : 0;
-  return MVCNN::CreateFakeQuantizeParams(
-      _fbb,
-      levels,
-      input_low__,
-      input_high__,
-      output_low__,
-      output_high__);
-}
-
-flatbuffers::Offset<FakeQuantizeParams> CreateFakeQuantizeParams(flatbuffers::FlatBufferBuilder &_fbb, const FakeQuantizeParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct PoolingParamsT : public flatbuffers::NativeTable {
-  typedef PoolingParams TableType;
-  std::unique_ptr<MVCNN::order3> kernel;
-  std::string pool_method;
-  std::string exclude_pad;
-  std::unique_ptr<MVCNN::order3> strides;
-  std::unique_ptr<MVCNN::order3> pads_begin;
-  std::unique_ptr<MVCNN::order3> pads_end;
-  std::string rounding_type;
-  std::string auto_pad;
-  PoolingParamsT() {
-  }
-};
-
-struct PoolingParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PoolingParamsT NativeTableType;
-  typedef PoolingParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_KERNEL = 4,
-    VT_POOL_METHOD = 6,
-    VT_EXCLUDE_PAD = 8,
-    VT_STRIDES = 10,
-    VT_PADS_BEGIN = 12,
-    VT_PADS_END = 14,
-    VT_ROUNDING_TYPE = 16,
-    VT_AUTO_PAD = 18
-  };
-  const MVCNN::order3 *kernel() const {
-    return GetStruct<const MVCNN::order3 *>(VT_KERNEL);
-  }
-  const flatbuffers::String *pool_method() const {
-    return GetPointer<const flatbuffers::String *>(VT_POOL_METHOD);
-  }
-  const flatbuffers::String *exclude_pad() const {
-    return GetPointer<const flatbuffers::String *>(VT_EXCLUDE_PAD);
-  }
-  const MVCNN::order3 *strides() const {
-    return GetStruct<const MVCNN::order3 *>(VT_STRIDES);
-  }
-  const MVCNN::order3 *pads_begin() const {
-    return GetStruct<const MVCNN::order3 *>(VT_PADS_BEGIN);
-  }
-  const MVCNN::order3 *pads_end() const {
-    return GetStruct<const MVCNN::order3 *>(VT_PADS_END);
-  }
-  const flatbuffers::String *rounding_type() const {
-    return GetPointer<const flatbuffers::String *>(VT_ROUNDING_TYPE);
-  }
-  const flatbuffers::String *auto_pad() const {
-    return GetPointer<const flatbuffers::String *>(VT_AUTO_PAD);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<MVCNN::order3>(verifier, VT_KERNEL) &&
-           VerifyOffset(verifier, VT_POOL_METHOD) &&
-           verifier.VerifyString(pool_method()) &&
-           VerifyOffset(verifier, VT_EXCLUDE_PAD) &&
-           verifier.VerifyString(exclude_pad()) &&
-           VerifyField<MVCNN::order3>(verifier, VT_STRIDES) &&
-           VerifyField<MVCNN::order3>(verifier, VT_PADS_BEGIN) &&
-           VerifyField<MVCNN::order3>(verifier, VT_PADS_END) &&
-           VerifyOffset(verifier, VT_ROUNDING_TYPE) &&
-           verifier.VerifyString(rounding_type()) &&
-           VerifyOffset(verifier, VT_AUTO_PAD) &&
-           verifier.VerifyString(auto_pad()) &&
-           verifier.EndTable();
-  }
-  PoolingParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PoolingParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct PoolingParamsBuilder {
-  typedef PoolingParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_kernel(const MVCNN::order3 *kernel) {
-    fbb_.AddStruct(PoolingParams::VT_KERNEL, kernel);
-  }
-  void add_pool_method(flatbuffers::Offset<flatbuffers::String> pool_method) {
-    fbb_.AddOffset(PoolingParams::VT_POOL_METHOD, pool_method);
-  }
-  void add_exclude_pad(flatbuffers::Offset<flatbuffers::String> exclude_pad) {
-    fbb_.AddOffset(PoolingParams::VT_EXCLUDE_PAD, exclude_pad);
-  }
-  void add_strides(const MVCNN::order3 *strides) {
-    fbb_.AddStruct(PoolingParams::VT_STRIDES, strides);
-  }
-  void add_pads_begin(const MVCNN::order3 *pads_begin) {
-    fbb_.AddStruct(PoolingParams::VT_PADS_BEGIN, pads_begin);
-  }
-  void add_pads_end(const MVCNN::order3 *pads_end) {
-    fbb_.AddStruct(PoolingParams::VT_PADS_END, pads_end);
-  }
-  void add_rounding_type(flatbuffers::Offset<flatbuffers::String> rounding_type) {
-    fbb_.AddOffset(PoolingParams::VT_ROUNDING_TYPE, rounding_type);
-  }
-  void add_auto_pad(flatbuffers::Offset<flatbuffers::String> auto_pad) {
-    fbb_.AddOffset(PoolingParams::VT_AUTO_PAD, auto_pad);
-  }
-  explicit PoolingParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  PoolingParamsBuilder &operator=(const PoolingParamsBuilder &);
-  flatbuffers::Offset<PoolingParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PoolingParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<PoolingParams> CreatePoolingParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    const MVCNN::order3 *kernel = 0,
-    flatbuffers::Offset<flatbuffers::String> pool_method = 0,
-    flatbuffers::Offset<flatbuffers::String> exclude_pad = 0,
-    const MVCNN::order3 *strides = 0,
-    const MVCNN::order3 *pads_begin = 0,
-    const MVCNN::order3 *pads_end = 0,
-    flatbuffers::Offset<flatbuffers::String> rounding_type = 0,
-    flatbuffers::Offset<flatbuffers::String> auto_pad = 0) {
-  PoolingParamsBuilder builder_(_fbb);
-  builder_.add_auto_pad(auto_pad);
-  builder_.add_rounding_type(rounding_type);
-  builder_.add_pads_end(pads_end);
-  builder_.add_pads_begin(pads_begin);
-  builder_.add_strides(strides);
-  builder_.add_exclude_pad(exclude_pad);
-  builder_.add_pool_method(pool_method);
-  builder_.add_kernel(kernel);
-  return builder_.Finish();
-}
-
-inline flatbuffers::Offset<PoolingParams> CreatePoolingParamsDirect(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    const MVCNN::order3 *kernel = 0,
-    const char *pool_method = nullptr,
-    const char *exclude_pad = nullptr,
-    const MVCNN::order3 *strides = 0,
-    const MVCNN::order3 *pads_begin = 0,
-    const MVCNN::order3 *pads_end = 0,
-    const char *rounding_type = nullptr,
-    const char *auto_pad = nullptr) {
-  auto pool_method__ = pool_method ? _fbb.CreateString(pool_method) : 0;
-  auto exclude_pad__ = exclude_pad ? _fbb.CreateString(exclude_pad) : 0;
-  auto rounding_type__ = rounding_type ? _fbb.CreateString(rounding_type) : 0;
-  auto auto_pad__ = auto_pad ? _fbb.CreateString(auto_pad) : 0;
-  return MVCNN::CreatePoolingParams(
-      _fbb,
-      kernel,
-      pool_method__,
-      exclude_pad__,
-      strides,
-      pads_begin,
-      pads_end,
-      rounding_type__,
-      auto_pad__);
-}
-
-flatbuffers::Offset<PoolingParams> CreatePoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const PoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct TileParamsT : public flatbuffers::NativeTable {
-  typedef TileParams TableType;
-  uint32_t axis;
-  uint32_t tiles;
-  TileParamsT()
-      : axis(0),
-        tiles(0) {
-  }
-};
-
-struct TileParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef TileParamsT NativeTableType;
-  typedef TileParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_AXIS = 4,
-    VT_TILES = 6
-  };
-  uint32_t axis() const {
-    return GetField<uint32_t>(VT_AXIS, 0);
-  }
-  uint32_t tiles() const {
-    return GetField<uint32_t>(VT_TILES, 0);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint32_t>(verifier, VT_AXIS) &&
-           VerifyField<uint32_t>(verifier, VT_TILES) &&
-           verifier.EndTable();
-  }
-  TileParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(TileParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<TileParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct TileParamsBuilder {
-  typedef TileParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_axis(uint32_t axis) {
-    fbb_.AddElement<uint32_t>(TileParams::VT_AXIS, axis, 0);
-  }
-  void add_tiles(uint32_t tiles) {
-    fbb_.AddElement<uint32_t>(TileParams::VT_TILES, tiles, 0);
-  }
-  explicit TileParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  TileParamsBuilder &operator=(const TileParamsBuilder &);
-  flatbuffers::Offset<TileParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<TileParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<TileParams> CreateTileParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    uint32_t axis = 0,
-    uint32_t tiles = 0) {
-  TileParamsBuilder builder_(_fbb);
-  builder_.add_tiles(tiles);
-  builder_.add_axis(axis);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct LeakyReluParamsT : public flatbuffers::NativeTable {
-  typedef LeakyReluParams TableType;
-  float negative_slope;
-  LeakyReluParamsT()
-      : negative_slope(0.0f) {
-  }
-};
-
-struct LeakyReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef LeakyReluParamsT NativeTableType;
-  typedef LeakyReluParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NEGATIVE_SLOPE = 4
-  };
-  float negative_slope() const {
-    return GetField<float>(VT_NEGATIVE_SLOPE, 0.0f);
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<float>(verifier, VT_NEGATIVE_SLOPE) &&
-           verifier.EndTable();
-  }
-  LeakyReluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(LeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<LeakyReluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct LeakyReluParamsBuilder {
-  typedef LeakyReluParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_negative_slope(float negative_slope) {
-    fbb_.AddElement<float>(LeakyReluParams::VT_NEGATIVE_SLOPE, negative_slope, 0.0f);
-  }
-  explicit LeakyReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  LeakyReluParamsBuilder &operator=(const LeakyReluParamsBuilder &);
-  flatbuffers::Offset<LeakyReluParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<LeakyReluParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    float negative_slope = 0.0f) {
-  LeakyReluParamsBuilder builder_(_fbb);
-  builder_.add_negative_slope(negative_slope);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct SigmoidParamsT : public flatbuffers::NativeTable {
-  typedef SigmoidParams TableType;
-  SigmoidParamsT() {
-  }
-};
-
-struct SigmoidParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef SigmoidParamsT NativeTableType;
-  typedef SigmoidParamsBuilder Builder;
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           verifier.EndTable();
-  }
-  SigmoidParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(SigmoidParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<SigmoidParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct SigmoidParamsBuilder {
-  typedef SigmoidParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  explicit SigmoidParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  SigmoidParamsBuilder &operator=(const SigmoidParamsBuilder &);
-  flatbuffers::Offset<SigmoidParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<SigmoidParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
-  SigmoidParamsBuilder builder_(_fbb);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(flatbuffers::FlatBufferBuilder &_fbb, const SigmoidParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
 struct ReluParamsT : public flatbuffers::NativeTable {
   typedef ReluParams TableType;
   ReluParamsT() {
@@ -6087,7 +6140,6 @@ struct ReluParamsT : public flatbuffers::NativeTable {
 
 struct ReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ReluParamsT NativeTableType;
-  typedef ReluParamsBuilder Builder;
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
            verifier.EndTable();
@@ -6098,7 +6150,6 @@ struct ReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct ReluParamsBuilder {
-  typedef ReluParams Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   explicit ReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
@@ -6131,7 +6182,6 @@ struct GatherParamsT : public flatbuffers::NativeTable {
 
 struct GatherParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef GatherParamsT NativeTableType;
-  typedef GatherParamsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_AXIS = 4
   };
@@ -6149,7 +6199,6 @@ struct GatherParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct GatherParamsBuilder {
-  typedef GatherParams Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_axis(uint32_t axis) {
@@ -6189,7 +6238,6 @@ struct ClampParamsT : public flatbuffers::NativeTable {
 
 struct ClampParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef ClampParamsT NativeTableType;
-  typedef ClampParamsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_MIN = 4,
     VT_MAX = 6
@@ -6212,7 +6260,6 @@ struct ClampParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
 };
 
 struct ClampParamsBuilder {
-  typedef ClampParams Table;
   flatbuffers::FlatBufferBuilder &fbb_;
   flatbuffers::uoffset_t start_;
   void add_min(float min) {
@@ -6255,12 +6302,741 @@ struct EluParamsT : public flatbuffers::NativeTable {
 
 struct EluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   typedef EluParamsT NativeTableType;
-  typedef EluParamsBuilder Builder;
   enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
     VT_X = 4
   };
   float x() const {
     return GetField<float>(VT_X, 0.0f);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_X) &&
+           verifier.EndTable();
+  }
+  EluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(EluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<EluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const EluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct EluParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_x(float x) {
+    fbb_.AddElement<float>(EluParams::VT_X, x, 0.0f);
+  }
+  explicit EluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  EluParamsBuilder &operator=(const EluParamsBuilder &);
+  flatbuffers::Offset<EluParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<EluParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<EluParams> CreateEluParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float x = 0.0f) {
+  EluParamsBuilder builder_(_fbb);
+  builder_.add_x(x);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<EluParams> CreateEluParams(flatbuffers::FlatBufferBuilder &_fbb, const EluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PowerParamsT : public flatbuffers::NativeTable {
+  typedef PowerParams TableType;
+  float shift;
+  float scale;
+  float power;
+  PowerParamsT()
+      : shift(0.0f),
+        scale(0.0f),
+        power(0.0f) {
+  }
+};
+
+struct PowerParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PowerParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SHIFT = 4,
+    VT_SCALE = 6,
+    VT_POWER = 8
+  };
+  float shift() const {
+    return GetField<float>(VT_SHIFT, 0.0f);
+  }
+  float scale() const {
+    return GetField<float>(VT_SCALE, 0.0f);
+  }
+  float power() const {
+    return GetField<float>(VT_POWER, 0.0f);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_SHIFT) &&
+           VerifyField<float>(verifier, VT_SCALE) &&
+           VerifyField<float>(verifier, VT_POWER) &&
+           verifier.EndTable();
+  }
+  PowerParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PowerParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PowerParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PowerParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PowerParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_shift(float shift) {
+    fbb_.AddElement<float>(PowerParams::VT_SHIFT, shift, 0.0f);
+  }
+  void add_scale(float scale) {
+    fbb_.AddElement<float>(PowerParams::VT_SCALE, scale, 0.0f);
+  }
+  void add_power(float power) {
+    fbb_.AddElement<float>(PowerParams::VT_POWER, power, 0.0f);
+  }
+  explicit PowerParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PowerParamsBuilder &operator=(const PowerParamsBuilder &);
+  flatbuffers::Offset<PowerParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PowerParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PowerParams> CreatePowerParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float shift = 0.0f,
+    float scale = 0.0f,
+    float power = 0.0f) {
+  PowerParamsBuilder builder_(_fbb);
+  builder_.add_power(power);
+  builder_.add_scale(scale);
+  builder_.add_shift(shift);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<PowerParams> CreatePowerParams(flatbuffers::FlatBufferBuilder &_fbb, const PowerParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct BiasLeakyReluParamsT : public flatbuffers::NativeTable {
+  typedef BiasLeakyReluParams TableType;
+  float negative_slope;
+  BiasLeakyReluParamsT()
+      : negative_slope(0.0f) {
+  }
+};
+
+struct BiasLeakyReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef BiasLeakyReluParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NEGATIVE_SLOPE = 4
+  };
+  float negative_slope() const {
+    return GetField<float>(VT_NEGATIVE_SLOPE, 0.0f);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_NEGATIVE_SLOPE) &&
+           verifier.EndTable();
+  }
+  BiasLeakyReluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(BiasLeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<BiasLeakyReluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasLeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct BiasLeakyReluParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_negative_slope(float negative_slope) {
+    fbb_.AddElement<float>(BiasLeakyReluParams::VT_NEGATIVE_SLOPE, negative_slope, 0.0f);
+  }
+  explicit BiasLeakyReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  BiasLeakyReluParamsBuilder &operator=(const BiasLeakyReluParamsBuilder &);
+  flatbuffers::Offset<BiasLeakyReluParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<BiasLeakyReluParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<BiasLeakyReluParams> CreateBiasLeakyReluParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float negative_slope = 0.0f) {
+  BiasLeakyReluParamsBuilder builder_(_fbb);
+  builder_.add_negative_slope(negative_slope);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<BiasLeakyReluParams> CreateBiasLeakyReluParams(flatbuffers::FlatBufferBuilder &_fbb, const BiasLeakyReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct BiasReluParamsT : public flatbuffers::NativeTable {
+  typedef BiasReluParams TableType;
+  float negative_slope;
+  BiasReluParamsT()
+      : negative_slope(0.0f) {
+  }
+};
+
+struct BiasReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef BiasReluParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NEGATIVE_SLOPE = 4
+  };
+  float negative_slope() const {
+    return GetField<float>(VT_NEGATIVE_SLOPE, 0.0f);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<float>(verifier, VT_NEGATIVE_SLOPE) &&
+           verifier.EndTable();
+  }
+  BiasReluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(BiasReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<BiasReluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct BiasReluParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_negative_slope(float negative_slope) {
+    fbb_.AddElement<float>(BiasReluParams::VT_NEGATIVE_SLOPE, negative_slope, 0.0f);
+  }
+  explicit BiasReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  BiasReluParamsBuilder &operator=(const BiasReluParamsBuilder &);
+  flatbuffers::Offset<BiasReluParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<BiasReluParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<BiasReluParams> CreateBiasReluParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    float negative_slope = 0.0f) {
+  BiasReluParamsBuilder builder_(_fbb);
+  builder_.add_negative_slope(negative_slope);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<BiasReluParams> CreateBiasReluParams(flatbuffers::FlatBufferBuilder &_fbb, const BiasReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PReluParamsT : public flatbuffers::NativeTable {
+  typedef PReluParams TableType;
+  PReluParamsT() {
+  }
+};
+
+struct PReluParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PReluParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  PReluParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PReluParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PReluParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit PReluParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PReluParamsBuilder &operator=(const PReluParamsBuilder &);
+  flatbuffers::Offset<PReluParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PReluParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PReluParams> CreatePReluParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  PReluParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<PReluParams> CreatePReluParams(flatbuffers::FlatBufferBuilder &_fbb, const PReluParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct TanhParamsT : public flatbuffers::NativeTable {
+  typedef TanhParams TableType;
+  TanhParamsT() {
+  }
+};
+
+struct TanhParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef TanhParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  TanhParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TanhParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<TanhParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TanhParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct TanhParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit TanhParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  TanhParamsBuilder &operator=(const TanhParamsBuilder &);
+  flatbuffers::Offset<TanhParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<TanhParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<TanhParams> CreateTanhParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  TanhParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<TanhParams> CreateTanhParams(flatbuffers::FlatBufferBuilder &_fbb, const TanhParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct BiasParamsT : public flatbuffers::NativeTable {
+  typedef BiasParams TableType;
+  BiasParamsT() {
+  }
+};
+
+struct BiasParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef BiasParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  BiasParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(BiasParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<BiasParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct BiasParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit BiasParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  BiasParamsBuilder &operator=(const BiasParamsBuilder &);
+  flatbuffers::Offset<BiasParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<BiasParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<BiasParams> CreateBiasParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  BiasParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<BiasParams> CreateBiasParams(flatbuffers::FlatBufferBuilder &_fbb, const BiasParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ScaleParamsT : public flatbuffers::NativeTable {
+  typedef ScaleParams TableType;
+  ScaleParamsT() {
+  }
+};
+
+struct ScaleParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ScaleParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  ScaleParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ScaleParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ScaleParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ScaleParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ScaleParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit ScaleParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ScaleParamsBuilder &operator=(const ScaleParamsBuilder &);
+  flatbuffers::Offset<ScaleParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<ScaleParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<ScaleParams> CreateScaleParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  ScaleParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<ScaleParams> CreateScaleParams(flatbuffers::FlatBufferBuilder &_fbb, const ScaleParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ScaleShiftParamsT : public flatbuffers::NativeTable {
+  typedef ScaleShiftParams TableType;
+  ScaleShiftParamsT() {
+  }
+};
+
+struct ScaleShiftParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef ScaleShiftParamsT NativeTableType;
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           verifier.EndTable();
+  }
+  ScaleShiftParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(ScaleShiftParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<ScaleShiftParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ScaleShiftParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct ScaleShiftParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  explicit ScaleShiftParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  ScaleShiftParamsBuilder &operator=(const ScaleShiftParamsBuilder &);
+  flatbuffers::Offset<ScaleShiftParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<ScaleShiftParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(
+    flatbuffers::FlatBufferBuilder &_fbb) {
+  ScaleShiftParamsBuilder builder_(_fbb);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(flatbuffers::FlatBufferBuilder &_fbb, const ScaleShiftParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PostOpsParamsT : public flatbuffers::NativeTable {
+  typedef PostOpsParams TableType;
+  bool has_weights;
+  bool has_bias;
+  PostOpsNestedParamsUnion nested_params;
+  PostOpsParamsT()
+      : has_weights(false),
+        has_bias(false) {
+  }
+};
+
+struct PostOpsParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PostOpsParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_HAS_WEIGHTS = 4,
+    VT_HAS_BIAS = 6,
+    VT_NESTED_PARAMS_TYPE = 8,
+    VT_NESTED_PARAMS = 10
+  };
+  bool has_weights() const {
+    return GetField<uint8_t>(VT_HAS_WEIGHTS, 0) != 0;
+  }
+  bool has_bias() const {
+    return GetField<uint8_t>(VT_HAS_BIAS, 0) != 0;
+  }
+  PostOpsNestedParams nested_params_type() const {
+    return static_cast<PostOpsNestedParams>(GetField<uint8_t>(VT_NESTED_PARAMS_TYPE, 0));
+  }
+  const void *nested_params() const {
+    return GetPointer<const void *>(VT_NESTED_PARAMS);
+  }
+  template<typename T> const T *nested_params_as() const;
+  const BiasParams *nested_params_as_BiasParams() const {
+    return nested_params_type() == PostOpsNestedParams_BiasParams ? static_cast<const BiasParams *>(nested_params()) : nullptr;
+  }
+  const ScaleParams *nested_params_as_ScaleParams() const {
+    return nested_params_type() == PostOpsNestedParams_ScaleParams ? static_cast<const ScaleParams *>(nested_params()) : nullptr;
+  }
+  const ScaleShiftParams *nested_params_as_ScaleShiftParams() const {
+    return nested_params_type() == PostOpsNestedParams_ScaleShiftParams ? static_cast<const ScaleShiftParams *>(nested_params()) : nullptr;
+  }
+  const ClampParams *nested_params_as_ClampParams() const {
+    return nested_params_type() == PostOpsNestedParams_ClampParams ? static_cast<const ClampParams *>(nested_params()) : nullptr;
+  }
+  const EluParams *nested_params_as_EluParams() const {
+    return nested_params_type() == PostOpsNestedParams_EluParams ? static_cast<const EluParams *>(nested_params()) : nullptr;
+  }
+  const PowerParams *nested_params_as_PowerParams() const {
+    return nested_params_type() == PostOpsNestedParams_PowerParams ? static_cast<const PowerParams *>(nested_params()) : nullptr;
+  }
+  const BiasLeakyReluParams *nested_params_as_BiasLeakyReluParams() const {
+    return nested_params_type() == PostOpsNestedParams_BiasLeakyReluParams ? static_cast<const BiasLeakyReluParams *>(nested_params()) : nullptr;
+  }
+  const BiasReluParams *nested_params_as_BiasReluParams() const {
+    return nested_params_type() == PostOpsNestedParams_BiasReluParams ? static_cast<const BiasReluParams *>(nested_params()) : nullptr;
+  }
+  const LeakyReluParams *nested_params_as_LeakyReluParams() const {
+    return nested_params_type() == PostOpsNestedParams_LeakyReluParams ? static_cast<const LeakyReluParams *>(nested_params()) : nullptr;
+  }
+  const ReluParams *nested_params_as_ReluParams() const {
+    return nested_params_type() == PostOpsNestedParams_ReluParams ? static_cast<const ReluParams *>(nested_params()) : nullptr;
+  }
+  const PReluParams *nested_params_as_PReluParams() const {
+    return nested_params_type() == PostOpsNestedParams_PReluParams ? static_cast<const PReluParams *>(nested_params()) : nullptr;
+  }
+  const SigmoidParams *nested_params_as_SigmoidParams() const {
+    return nested_params_type() == PostOpsNestedParams_SigmoidParams ? static_cast<const SigmoidParams *>(nested_params()) : nullptr;
+  }
+  const TanhParams *nested_params_as_TanhParams() const {
+    return nested_params_type() == PostOpsNestedParams_TanhParams ? static_cast<const TanhParams *>(nested_params()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_HAS_WEIGHTS) &&
+           VerifyField<uint8_t>(verifier, VT_HAS_BIAS) &&
+           VerifyField<uint8_t>(verifier, VT_NESTED_PARAMS_TYPE) &&
+           VerifyOffset(verifier, VT_NESTED_PARAMS) &&
+           VerifyPostOpsNestedParams(verifier, nested_params(), nested_params_type()) &&
+           verifier.EndTable();
+  }
+  PostOpsParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PostOpsParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PostOpsParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PostOpsParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const BiasParams *PostOpsParams::nested_params_as<BiasParams>() const {
+  return nested_params_as_BiasParams();
+}
+
+template<> inline const ScaleParams *PostOpsParams::nested_params_as<ScaleParams>() const {
+  return nested_params_as_ScaleParams();
+}
+
+template<> inline const ScaleShiftParams *PostOpsParams::nested_params_as<ScaleShiftParams>() const {
+  return nested_params_as_ScaleShiftParams();
+}
+
+template<> inline const ClampParams *PostOpsParams::nested_params_as<ClampParams>() const {
+  return nested_params_as_ClampParams();
+}
+
+template<> inline const EluParams *PostOpsParams::nested_params_as<EluParams>() const {
+  return nested_params_as_EluParams();
+}
+
+template<> inline const PowerParams *PostOpsParams::nested_params_as<PowerParams>() const {
+  return nested_params_as_PowerParams();
+}
+
+template<> inline const BiasLeakyReluParams *PostOpsParams::nested_params_as<BiasLeakyReluParams>() const {
+  return nested_params_as_BiasLeakyReluParams();
+}
+
+template<> inline const BiasReluParams *PostOpsParams::nested_params_as<BiasReluParams>() const {
+  return nested_params_as_BiasReluParams();
+}
+
+template<> inline const LeakyReluParams *PostOpsParams::nested_params_as<LeakyReluParams>() const {
+  return nested_params_as_LeakyReluParams();
+}
+
+template<> inline const ReluParams *PostOpsParams::nested_params_as<ReluParams>() const {
+  return nested_params_as_ReluParams();
+}
+
+template<> inline const PReluParams *PostOpsParams::nested_params_as<PReluParams>() const {
+  return nested_params_as_PReluParams();
+}
+
+template<> inline const SigmoidParams *PostOpsParams::nested_params_as<SigmoidParams>() const {
+  return nested_params_as_SigmoidParams();
+}
+
+template<> inline const TanhParams *PostOpsParams::nested_params_as<TanhParams>() const {
+  return nested_params_as_TanhParams();
+}
+
+struct PostOpsParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_has_weights(bool has_weights) {
+    fbb_.AddElement<uint8_t>(PostOpsParams::VT_HAS_WEIGHTS, static_cast<uint8_t>(has_weights), 0);
+  }
+  void add_has_bias(bool has_bias) {
+    fbb_.AddElement<uint8_t>(PostOpsParams::VT_HAS_BIAS, static_cast<uint8_t>(has_bias), 0);
+  }
+  void add_nested_params_type(PostOpsNestedParams nested_params_type) {
+    fbb_.AddElement<uint8_t>(PostOpsParams::VT_NESTED_PARAMS_TYPE, static_cast<uint8_t>(nested_params_type), 0);
+  }
+  void add_nested_params(flatbuffers::Offset<void> nested_params) {
+    fbb_.AddOffset(PostOpsParams::VT_NESTED_PARAMS, nested_params);
+  }
+  explicit PostOpsParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PostOpsParamsBuilder &operator=(const PostOpsParamsBuilder &);
+  flatbuffers::Offset<PostOpsParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PostOpsParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PostOpsParams> CreatePostOpsParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    bool has_weights = false,
+    bool has_bias = false,
+    PostOpsNestedParams nested_params_type = PostOpsNestedParams_NONE,
+    flatbuffers::Offset<void> nested_params = 0) {
+  PostOpsParamsBuilder builder_(_fbb);
+  builder_.add_nested_params(nested_params);
+  builder_.add_nested_params_type(nested_params_type);
+  builder_.add_has_bias(has_bias);
+  builder_.add_has_weights(has_weights);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<PostOpsParams> CreatePostOpsParams(flatbuffers::FlatBufferBuilder &_fbb, const PostOpsParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct UnaryOpParamsT : public flatbuffers::NativeTable {
+  typedef UnaryOpParams TableType;
+  UnaryOpNestedParamsUnion nested_params;
+  UnaryOpParamsT() {
+  }
+};
+
+struct UnaryOpParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UnaryOpParamsT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_NESTED_PARAMS_TYPE = 4,
+    VT_NESTED_PARAMS = 6
+  };
+  UnaryOpNestedParams nested_params_type() const {
+    return static_cast<UnaryOpNestedParams>(GetField<uint8_t>(VT_NESTED_PARAMS_TYPE, 0));
+  }
+  const void *nested_params() const {
+    return GetPointer<const void *>(VT_NESTED_PARAMS);
+  }
+  template<typename T> const T *nested_params_as() const;
+  const LeakyReluParams *nested_params_as_LeakyReluParams() const {
+    return nested_params_type() == UnaryOpNestedParams_LeakyReluParams ? static_cast<const LeakyReluParams *>(nested_params()) : nullptr;
+  }
+  const SigmoidParams *nested_params_as_SigmoidParams() const {
+    return nested_params_type() == UnaryOpNestedParams_SigmoidParams ? static_cast<const SigmoidParams *>(nested_params()) : nullptr;
+  }
+  const ReluParams *nested_params_as_ReluParams() const {
+    return nested_params_type() == UnaryOpNestedParams_ReluParams ? static_cast<const ReluParams *>(nested_params()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_NESTED_PARAMS_TYPE) &&
+           VerifyOffset(verifier, VT_NESTED_PARAMS) &&
+           VerifyUnaryOpNestedParams(verifier, nested_params(), nested_params_type()) &&
+           verifier.EndTable();
+  }
+  UnaryOpParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(UnaryOpParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<UnaryOpParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const LeakyReluParams *UnaryOpParams::nested_params_as<LeakyReluParams>() const {
+  return nested_params_as_LeakyReluParams();
+}
+
+template<> inline const SigmoidParams *UnaryOpParams::nested_params_as<SigmoidParams>() const {
+  return nested_params_as_SigmoidParams();
+}
+
+template<> inline const ReluParams *UnaryOpParams::nested_params_as<ReluParams>() const {
+  return nested_params_as_ReluParams();
+}
+
+struct UnaryOpParamsBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_nested_params_type(UnaryOpNestedParams nested_params_type) {
+    fbb_.AddElement<uint8_t>(UnaryOpParams::VT_NESTED_PARAMS_TYPE, static_cast<uint8_t>(nested_params_type), 0);
+  }
+  void add_nested_params(flatbuffers::Offset<void> nested_params) {
+    fbb_.AddOffset(UnaryOpParams::VT_NESTED_PARAMS, nested_params);
+  }
+  explicit UnaryOpParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  UnaryOpParamsBuilder &operator=(const UnaryOpParamsBuilder &);
+  flatbuffers::Offset<UnaryOpParams> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<UnaryOpParams>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    UnaryOpNestedParams nested_params_type = UnaryOpNestedParams_NONE,
+    flatbuffers::Offset<void> nested_params = 0) {
+  UnaryOpParamsBuilder builder_(_fbb);
+  builder_.add_nested_params(nested_params);
+  builder_.add_nested_params_type(nested_params_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct UPALayerTaskT : public flatbuffers::NativeTable {
+  typedef UPALayerTask TableType;
+  uint8_t maxShaves;
+  SoftwareLayerParamsUnion softLayerParams;
+  std::unique_ptr<TensorReferenceT> input_data;
+  std::unique_ptr<TensorReferenceT> output_data;
+  std::unique_ptr<TensorReferenceT> weights_data;
+  std::unique_ptr<TensorReferenceT> weights_table;
+  std::vector<std::unique_ptr<TensorReferenceT>> inputs;
+  std::vector<std::unique_ptr<TensorReferenceT>> outputs;
+  bool isTrailingSWLayer;
+  UPALayerTaskT()
+      : maxShaves(0),
+        isTrailingSWLayer(false) {
+  }
+};
+
+struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef UPALayerTaskT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_MAXSHAVES = 4,
+    VT_SOFTLAYERPARAMS_TYPE = 6,
+    VT_SOFTLAYERPARAMS = 8,
+    VT_INPUT_DATA = 10,
+    VT_OUTPUT_DATA = 12,
+    VT_WEIGHTS_DATA = 14,
+    VT_WEIGHTS_TABLE = 16,
+    VT_INPUTS = 18,
+    VT_OUTPUTS = 20,
+    VT_ISTRAILINGSWLAYER = 22
+  };
+  uint8_t maxShaves() const {
+    return GetField<uint8_t>(VT_MAXSHAVES, 0);
+  }
+  SoftwareLayerParams softLayerParams_type() const {
+    return static_cast<SoftwareLayerParams>(GetField<uint8_t>(VT_SOFTLAYERPARAMS_TYPE, 0));
+  }
+  const void *softLayerParams() const {
+    return GetPointer<const void *>(VT_SOFTLAYERPARAMS);
   }
   bool Verify(flatbuffers::Verifier &verifier) const {
     return VerifyTableStart(verifier) &&
@@ -6539,610 +7315,32 @@ struct TanhParamsT : public flatbuffers::NativeTable {
   typedef TanhParams TableType;
   TanhParamsT() {
   }
-};
-
-struct TanhParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef TanhParamsT NativeTableType;
-  typedef TanhParamsBuilder Builder;
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           verifier.EndTable();
+  const GatherParams *softLayerParams_as_GatherParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_GatherParams ? static_cast<const GatherParams *>(softLayerParams()) : nullptr;
   }
-  TanhParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(TanhParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<TanhParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TanhParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct TanhParamsBuilder {
-  typedef TanhParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  explicit TanhParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
+  const PostOpsParams *softLayerParams_as_PostOpsParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PostOpsParams ? static_cast<const PostOpsParams *>(softLayerParams()) : nullptr;
   }
-  TanhParamsBuilder &operator=(const TanhParamsBuilder &);
-  flatbuffers::Offset<TanhParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<TanhParams>(end);
-    return o;
+  const NegativeParams *softLayerParams_as_NegativeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_NegativeParams ? static_cast<const NegativeParams *>(softLayerParams()) : nullptr;
   }
-};
-
-inline flatbuffers::Offset<TanhParams> CreateTanhParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
-  TanhParamsBuilder builder_(_fbb);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<TanhParams> CreateTanhParams(flatbuffers::FlatBufferBuilder &_fbb, const TanhParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct BiasParamsT : public flatbuffers::NativeTable {
-  typedef BiasParams TableType;
-  BiasParamsT() {
+  const TensorReference *input_data() const {
+    return GetPointer<const TensorReference *>(VT_INPUT_DATA);
   }
-};
-
-struct BiasParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef BiasParamsT NativeTableType;
-  typedef BiasParamsBuilder Builder;
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           verifier.EndTable();
+  const TensorReference *output_data() const {
+    return GetPointer<const TensorReference *>(VT_OUTPUT_DATA);
   }
-  BiasParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(BiasParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<BiasParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct BiasParamsBuilder {
-  typedef BiasParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  explicit BiasParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
+  const TensorReference *weights_data() const {
+    return GetPointer<const TensorReference *>(VT_WEIGHTS_DATA);
   }
-  BiasParamsBuilder &operator=(const BiasParamsBuilder &);
-  flatbuffers::Offset<BiasParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<BiasParams>(end);
-    return o;
+  const TensorReference *weights_table() const {
+    return GetPointer<const TensorReference *>(VT_WEIGHTS_TABLE);
   }
-};
-
-inline flatbuffers::Offset<BiasParams> CreateBiasParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
-  BiasParamsBuilder builder_(_fbb);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<BiasParams> CreateBiasParams(flatbuffers::FlatBufferBuilder &_fbb, const BiasParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct ScaleParamsT : public flatbuffers::NativeTable {
-  typedef ScaleParams TableType;
-  ScaleParamsT() {
+  const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *inputs() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *>(VT_INPUTS);
   }
-};
-
-struct ScaleParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef ScaleParamsT NativeTableType;
-  typedef ScaleParamsBuilder Builder;
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           verifier.EndTable();
-  }
-  ScaleParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(ScaleParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<ScaleParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ScaleParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct ScaleParamsBuilder {
-  typedef ScaleParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  explicit ScaleParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ScaleParamsBuilder &operator=(const ScaleParamsBuilder &);
-  flatbuffers::Offset<ScaleParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<ScaleParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<ScaleParams> CreateScaleParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
-  ScaleParamsBuilder builder_(_fbb);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<ScaleParams> CreateScaleParams(flatbuffers::FlatBufferBuilder &_fbb, const ScaleParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct ScaleShiftParamsT : public flatbuffers::NativeTable {
-  typedef ScaleShiftParams TableType;
-  ScaleShiftParamsT() {
-  }
-};
-
-struct ScaleShiftParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef ScaleShiftParamsT NativeTableType;
-  typedef ScaleShiftParamsBuilder Builder;
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           verifier.EndTable();
-  }
-  ScaleShiftParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(ScaleShiftParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<ScaleShiftParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const ScaleShiftParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-struct ScaleShiftParamsBuilder {
-  typedef ScaleShiftParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  explicit ScaleShiftParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  ScaleShiftParamsBuilder &operator=(const ScaleShiftParamsBuilder &);
-  flatbuffers::Offset<ScaleShiftParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<ScaleShiftParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(
-    flatbuffers::FlatBufferBuilder &_fbb) {
-  ScaleShiftParamsBuilder builder_(_fbb);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(flatbuffers::FlatBufferBuilder &_fbb, const ScaleShiftParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct PostOpsParamsT : public flatbuffers::NativeTable {
-  typedef PostOpsParams TableType;
-  bool has_weights;
-  bool has_bias;
-  MVCNN::PostOpsNestedParamsUnion nested_params;
-  PostOpsParamsT()
-      : has_weights(false),
-        has_bias(false) {
-  }
-};
-
-struct PostOpsParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef PostOpsParamsT NativeTableType;
-  typedef PostOpsParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_HAS_WEIGHTS = 4,
-    VT_HAS_BIAS = 6,
-    VT_NESTED_PARAMS_TYPE = 8,
-    VT_NESTED_PARAMS = 10
-  };
-  bool has_weights() const {
-    return GetField<uint8_t>(VT_HAS_WEIGHTS, 0) != 0;
-  }
-  bool has_bias() const {
-    return GetField<uint8_t>(VT_HAS_BIAS, 0) != 0;
-  }
-  MVCNN::PostOpsNestedParams nested_params_type() const {
-    return static_cast<MVCNN::PostOpsNestedParams>(GetField<uint8_t>(VT_NESTED_PARAMS_TYPE, 0));
-  }
-  const void *nested_params() const {
-    return GetPointer<const void *>(VT_NESTED_PARAMS);
-  }
-  template<typename T> const T *nested_params_as() const;
-  const MVCNN::BiasParams *nested_params_as_BiasParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_BiasParams ? static_cast<const MVCNN::BiasParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::ScaleParams *nested_params_as_ScaleParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_ScaleParams ? static_cast<const MVCNN::ScaleParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::ScaleShiftParams *nested_params_as_ScaleShiftParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_ScaleShiftParams ? static_cast<const MVCNN::ScaleShiftParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::ClampParams *nested_params_as_ClampParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_ClampParams ? static_cast<const MVCNN::ClampParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::EluParams *nested_params_as_EluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_EluParams ? static_cast<const MVCNN::EluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::PowerParams *nested_params_as_PowerParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_PowerParams ? static_cast<const MVCNN::PowerParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::BiasLeakyReluParams *nested_params_as_BiasLeakyReluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_BiasLeakyReluParams ? static_cast<const MVCNN::BiasLeakyReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::BiasReluParams *nested_params_as_BiasReluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_BiasReluParams ? static_cast<const MVCNN::BiasReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::LeakyReluParams *nested_params_as_LeakyReluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_LeakyReluParams ? static_cast<const MVCNN::LeakyReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::ReluParams *nested_params_as_ReluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_ReluParams ? static_cast<const MVCNN::ReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::PReluParams *nested_params_as_PReluParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_PReluParams ? static_cast<const MVCNN::PReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::SigmoidParams *nested_params_as_SigmoidParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_SigmoidParams ? static_cast<const MVCNN::SigmoidParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::TanhParams *nested_params_as_TanhParams() const {
-    return nested_params_type() == MVCNN::PostOpsNestedParams_TanhParams ? static_cast<const MVCNN::TanhParams *>(nested_params()) : nullptr;
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_HAS_WEIGHTS) &&
-           VerifyField<uint8_t>(verifier, VT_HAS_BIAS) &&
-           VerifyField<uint8_t>(verifier, VT_NESTED_PARAMS_TYPE) &&
-           VerifyOffset(verifier, VT_NESTED_PARAMS) &&
-           VerifyPostOpsNestedParams(verifier, nested_params(), nested_params_type()) &&
-           verifier.EndTable();
-  }
-  PostOpsParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(PostOpsParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<PostOpsParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PostOpsParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-template<> inline const MVCNN::BiasParams *PostOpsParams::nested_params_as<MVCNN::BiasParams>() const {
-  return nested_params_as_BiasParams();
-}
-
-template<> inline const MVCNN::ScaleParams *PostOpsParams::nested_params_as<MVCNN::ScaleParams>() const {
-  return nested_params_as_ScaleParams();
-}
-
-template<> inline const MVCNN::ScaleShiftParams *PostOpsParams::nested_params_as<MVCNN::ScaleShiftParams>() const {
-  return nested_params_as_ScaleShiftParams();
-}
-
-template<> inline const MVCNN::ClampParams *PostOpsParams::nested_params_as<MVCNN::ClampParams>() const {
-  return nested_params_as_ClampParams();
-}
-
-template<> inline const MVCNN::EluParams *PostOpsParams::nested_params_as<MVCNN::EluParams>() const {
-  return nested_params_as_EluParams();
-}
-
-template<> inline const MVCNN::PowerParams *PostOpsParams::nested_params_as<MVCNN::PowerParams>() const {
-  return nested_params_as_PowerParams();
-}
-
-template<> inline const MVCNN::BiasLeakyReluParams *PostOpsParams::nested_params_as<MVCNN::BiasLeakyReluParams>() const {
-  return nested_params_as_BiasLeakyReluParams();
-}
-
-template<> inline const MVCNN::BiasReluParams *PostOpsParams::nested_params_as<MVCNN::BiasReluParams>() const {
-  return nested_params_as_BiasReluParams();
-}
-
-template<> inline const MVCNN::LeakyReluParams *PostOpsParams::nested_params_as<MVCNN::LeakyReluParams>() const {
-  return nested_params_as_LeakyReluParams();
-}
-
-template<> inline const MVCNN::ReluParams *PostOpsParams::nested_params_as<MVCNN::ReluParams>() const {
-  return nested_params_as_ReluParams();
-}
-
-template<> inline const MVCNN::PReluParams *PostOpsParams::nested_params_as<MVCNN::PReluParams>() const {
-  return nested_params_as_PReluParams();
-}
-
-template<> inline const MVCNN::SigmoidParams *PostOpsParams::nested_params_as<MVCNN::SigmoidParams>() const {
-  return nested_params_as_SigmoidParams();
-}
-
-template<> inline const MVCNN::TanhParams *PostOpsParams::nested_params_as<MVCNN::TanhParams>() const {
-  return nested_params_as_TanhParams();
-}
-
-struct PostOpsParamsBuilder {
-  typedef PostOpsParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_has_weights(bool has_weights) {
-    fbb_.AddElement<uint8_t>(PostOpsParams::VT_HAS_WEIGHTS, static_cast<uint8_t>(has_weights), 0);
-  }
-  void add_has_bias(bool has_bias) {
-    fbb_.AddElement<uint8_t>(PostOpsParams::VT_HAS_BIAS, static_cast<uint8_t>(has_bias), 0);
-  }
-  void add_nested_params_type(MVCNN::PostOpsNestedParams nested_params_type) {
-    fbb_.AddElement<uint8_t>(PostOpsParams::VT_NESTED_PARAMS_TYPE, static_cast<uint8_t>(nested_params_type), 0);
-  }
-  void add_nested_params(flatbuffers::Offset<void> nested_params) {
-    fbb_.AddOffset(PostOpsParams::VT_NESTED_PARAMS, nested_params);
-  }
-  explicit PostOpsParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  PostOpsParamsBuilder &operator=(const PostOpsParamsBuilder &);
-  flatbuffers::Offset<PostOpsParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<PostOpsParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<PostOpsParams> CreatePostOpsParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    bool has_weights = false,
-    bool has_bias = false,
-    MVCNN::PostOpsNestedParams nested_params_type = MVCNN::PostOpsNestedParams_NONE,
-    flatbuffers::Offset<void> nested_params = 0) {
-  PostOpsParamsBuilder builder_(_fbb);
-  builder_.add_nested_params(nested_params);
-  builder_.add_nested_params_type(nested_params_type);
-  builder_.add_has_bias(has_bias);
-  builder_.add_has_weights(has_weights);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<PostOpsParams> CreatePostOpsParams(flatbuffers::FlatBufferBuilder &_fbb, const PostOpsParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct UnaryOpParamsT : public flatbuffers::NativeTable {
-  typedef UnaryOpParams TableType;
-  MVCNN::UnaryOpNestedParamsUnion nested_params;
-  UnaryOpParamsT() {
-  }
-};
-
-struct UnaryOpParams FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef UnaryOpParamsT NativeTableType;
-  typedef UnaryOpParamsBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_NESTED_PARAMS_TYPE = 4,
-    VT_NESTED_PARAMS = 6
-  };
-  MVCNN::UnaryOpNestedParams nested_params_type() const {
-    return static_cast<MVCNN::UnaryOpNestedParams>(GetField<uint8_t>(VT_NESTED_PARAMS_TYPE, 0));
-  }
-  const void *nested_params() const {
-    return GetPointer<const void *>(VT_NESTED_PARAMS);
-  }
-  template<typename T> const T *nested_params_as() const;
-  const MVCNN::LeakyReluParams *nested_params_as_LeakyReluParams() const {
-    return nested_params_type() == MVCNN::UnaryOpNestedParams_LeakyReluParams ? static_cast<const MVCNN::LeakyReluParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::SigmoidParams *nested_params_as_SigmoidParams() const {
-    return nested_params_type() == MVCNN::UnaryOpNestedParams_SigmoidParams ? static_cast<const MVCNN::SigmoidParams *>(nested_params()) : nullptr;
-  }
-  const MVCNN::ReluParams *nested_params_as_ReluParams() const {
-    return nested_params_type() == MVCNN::UnaryOpNestedParams_ReluParams ? static_cast<const MVCNN::ReluParams *>(nested_params()) : nullptr;
-  }
-  bool Verify(flatbuffers::Verifier &verifier) const {
-    return VerifyTableStart(verifier) &&
-           VerifyField<uint8_t>(verifier, VT_NESTED_PARAMS_TYPE) &&
-           VerifyOffset(verifier, VT_NESTED_PARAMS) &&
-           VerifyUnaryOpNestedParams(verifier, nested_params(), nested_params_type()) &&
-           verifier.EndTable();
-  }
-  UnaryOpParamsT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  void UnPackTo(UnaryOpParamsT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
-  static flatbuffers::Offset<UnaryOpParams> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-};
-
-template<> inline const MVCNN::LeakyReluParams *UnaryOpParams::nested_params_as<MVCNN::LeakyReluParams>() const {
-  return nested_params_as_LeakyReluParams();
-}
-
-template<> inline const MVCNN::SigmoidParams *UnaryOpParams::nested_params_as<MVCNN::SigmoidParams>() const {
-  return nested_params_as_SigmoidParams();
-}
-
-template<> inline const MVCNN::ReluParams *UnaryOpParams::nested_params_as<MVCNN::ReluParams>() const {
-  return nested_params_as_ReluParams();
-}
-
-struct UnaryOpParamsBuilder {
-  typedef UnaryOpParams Table;
-  flatbuffers::FlatBufferBuilder &fbb_;
-  flatbuffers::uoffset_t start_;
-  void add_nested_params_type(MVCNN::UnaryOpNestedParams nested_params_type) {
-    fbb_.AddElement<uint8_t>(UnaryOpParams::VT_NESTED_PARAMS_TYPE, static_cast<uint8_t>(nested_params_type), 0);
-  }
-  void add_nested_params(flatbuffers::Offset<void> nested_params) {
-    fbb_.AddOffset(UnaryOpParams::VT_NESTED_PARAMS, nested_params);
-  }
-  explicit UnaryOpParamsBuilder(flatbuffers::FlatBufferBuilder &_fbb)
-        : fbb_(_fbb) {
-    start_ = fbb_.StartTable();
-  }
-  UnaryOpParamsBuilder &operator=(const UnaryOpParamsBuilder &);
-  flatbuffers::Offset<UnaryOpParams> Finish() {
-    const auto end = fbb_.EndTable(start_);
-    auto o = flatbuffers::Offset<UnaryOpParams>(end);
-    return o;
-  }
-};
-
-inline flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(
-    flatbuffers::FlatBufferBuilder &_fbb,
-    MVCNN::UnaryOpNestedParams nested_params_type = MVCNN::UnaryOpNestedParams_NONE,
-    flatbuffers::Offset<void> nested_params = 0) {
-  UnaryOpParamsBuilder builder_(_fbb);
-  builder_.add_nested_params(nested_params);
-  builder_.add_nested_params_type(nested_params_type);
-  return builder_.Finish();
-}
-
-flatbuffers::Offset<UnaryOpParams> CreateUnaryOpParams(flatbuffers::FlatBufferBuilder &_fbb, const UnaryOpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
-
-struct UPALayerTaskT : public flatbuffers::NativeTable {
-  typedef UPALayerTask TableType;
-  uint8_t maxShaves;
-  MVCNN::SoftwareLayerParamsUnion softLayerParams;
-  std::unique_ptr<MVCNN::TensorReferenceT> input_data;
-  std::unique_ptr<MVCNN::TensorReferenceT> output_data;
-  std::unique_ptr<MVCNN::TensorReferenceT> weights_data;
-  std::unique_ptr<MVCNN::TensorReferenceT> weights_table;
-  std::vector<std::unique_ptr<MVCNN::TensorReferenceT>> inputs;
-  std::vector<std::unique_ptr<MVCNN::TensorReferenceT>> outputs;
-  bool isTrailingSWLayer;
-  UPALayerTaskT()
-      : maxShaves(0),
-        isTrailingSWLayer(false) {
-  }
-};
-
-struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
-  typedef UPALayerTaskT NativeTableType;
-  typedef UPALayerTaskBuilder Builder;
-  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
-    VT_MAXSHAVES = 4,
-    VT_SOFTLAYERPARAMS_TYPE = 6,
-    VT_SOFTLAYERPARAMS = 8,
-    VT_INPUT_DATA = 10,
-    VT_OUTPUT_DATA = 12,
-    VT_WEIGHTS_DATA = 14,
-    VT_WEIGHTS_TABLE = 16,
-    VT_INPUTS = 18,
-    VT_OUTPUTS = 20,
-    VT_ISTRAILINGSWLAYER = 22
-  };
-  uint8_t maxShaves() const {
-    return GetField<uint8_t>(VT_MAXSHAVES, 0);
-  }
-  MVCNN::SoftwareLayerParams softLayerParams_type() const {
-    return static_cast<MVCNN::SoftwareLayerParams>(GetField<uint8_t>(VT_SOFTLAYERPARAMS_TYPE, 0));
-  }
-  const void *softLayerParams() const {
-    return GetPointer<const void *>(VT_SOFTLAYERPARAMS);
-  }
-  template<typename T> const T *softLayerParams_as() const;
-  const MVCNN::DummyParams *softLayerParams_as_DummyParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_DummyParams ? static_cast<const MVCNN::DummyParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::DetectionOutputParams *softLayerParams_as_DetectionOutputParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_DetectionOutputParams ? static_cast<const MVCNN::DetectionOutputParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::FlattenParams *softLayerParams_as_FlattenParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_FlattenParams ? static_cast<const MVCNN::FlattenParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::InterpParams *softLayerParams_as_InterpParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_InterpParams ? static_cast<const MVCNN::InterpParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::NormalizeParams *softLayerParams_as_NormalizeParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_NormalizeParams ? static_cast<const MVCNN::NormalizeParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PermuteParams *softLayerParams_as_PermuteParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PermuteParams ? static_cast<const MVCNN::PermuteParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PriorboxParams *softLayerParams_as_PriorboxParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PriorboxParams ? static_cast<const MVCNN::PriorboxParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ProposalParams *softLayerParams_as_ProposalParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ProposalParams ? static_cast<const MVCNN::ProposalParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::RegionYOLOParams *softLayerParams_as_RegionYOLOParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_RegionYOLOParams ? static_cast<const MVCNN::RegionYOLOParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ReorgYOLOParams *softLayerParams_as_ReorgYOLOParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ReorgYOLOParams ? static_cast<const MVCNN::ReorgYOLOParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ReshapeParams *softLayerParams_as_ReshapeParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ReshapeParams ? static_cast<const MVCNN::ReshapeParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::SoftmaxParams *softLayerParams_as_SoftmaxParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_SoftmaxParams ? static_cast<const MVCNN::SoftmaxParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::CustomLayerParams *softLayerParams_as_CustomLayerParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_CustomLayerParams ? static_cast<const MVCNN::CustomLayerParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PassthroughParams *softLayerParams_as_PassthroughParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PassthroughParams ? static_cast<const MVCNN::PassthroughParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::LayerRecordParams *softLayerParams_as_LayerRecordParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_LayerRecordParams ? static_cast<const MVCNN::LayerRecordParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ROIPoolingParams *softLayerParams_as_ROIPoolingParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ROIPoolingParams ? static_cast<const MVCNN::ROIPoolingParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::QuantizeParams *softLayerParams_as_QuantizeParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_QuantizeParams ? static_cast<const MVCNN::QuantizeParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ArgMaxParams *softLayerParams_as_ArgMaxParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ArgMaxParams ? static_cast<const MVCNN::ArgMaxParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::NormParams *softLayerParams_as_NormParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_NormParams ? static_cast<const MVCNN::NormParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::EltwiseParams *softLayerParams_as_EltwiseParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_EltwiseParams ? static_cast<const MVCNN::EltwiseParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ResampleParams *softLayerParams_as_ResampleParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ResampleParams ? static_cast<const MVCNN::ResampleParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::CorrelationParams *softLayerParams_as_CorrelationParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_CorrelationParams ? static_cast<const MVCNN::CorrelationParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::MVNParams *softLayerParams_as_MVNParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_MVNParams ? static_cast<const MVCNN::MVNParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::GRNParams *softLayerParams_as_GRNParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_GRNParams ? static_cast<const MVCNN::GRNParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::CTCDecoderParams *softLayerParams_as_CTCDecoderParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_CTCDecoderParams ? static_cast<const MVCNN::CTCDecoderParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::SpatialTransformParams *softLayerParams_as_SpatialTransformParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_SpatialTransformParams ? static_cast<const MVCNN::SpatialTransformParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::FakeQuantizeParams *softLayerParams_as_FakeQuantizeParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_FakeQuantizeParams ? static_cast<const MVCNN::FakeQuantizeParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PoolingParams *softLayerParams_as_PoolingParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PoolingParams ? static_cast<const MVCNN::PoolingParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::EdslParams *softLayerParams_as_EdslParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_EdslParams ? static_cast<const MVCNN::EdslParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::TileParams *softLayerParams_as_TileParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_TileParams ? static_cast<const MVCNN::TileParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PSROIPoolingParams *softLayerParams_as_PSROIPoolingParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PSROIPoolingParams ? static_cast<const MVCNN::PSROIPoolingParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_DeconvolutionParams ? static_cast<const MVCNN::DeconvolutionParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_UnaryOpParams ? static_cast<const MVCNN::UnaryOpParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::ConvolutionParams *softLayerParams_as_ConvolutionParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_ConvolutionParams ? static_cast<const MVCNN::ConvolutionParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::GatherParams *softLayerParams_as_GatherParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_GatherParams ? static_cast<const MVCNN::GatherParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::PostOpsParams *softLayerParams_as_PostOpsParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PostOpsParams ? static_cast<const MVCNN::PostOpsParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::NegativeParams *softLayerParams_as_NegativeParams() const {
-    return softLayerParams_type() == MVCNN::SoftwareLayerParams_NegativeParams ? static_cast<const MVCNN::NegativeParams *>(softLayerParams()) : nullptr;
-  }
-  const MVCNN::TensorReference *input_data() const {
-    return GetPointer<const MVCNN::TensorReference *>(VT_INPUT_DATA);
-  }
-  const MVCNN::TensorReference *output_data() const {
-    return GetPointer<const MVCNN::TensorReference *>(VT_OUTPUT_DATA);
-  }
-  const MVCNN::TensorReference *weights_data() const {
-    return GetPointer<const MVCNN::TensorReference *>(VT_WEIGHTS_DATA);
-  }
-  const MVCNN::TensorReference *weights_table() const {
-    return GetPointer<const MVCNN::TensorReference *>(VT_WEIGHTS_TABLE);
-  }
-  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>> *inputs() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>> *>(VT_INPUTS);
-  }
-  const flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>> *outputs() const {
-    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<MVCNN::TensorReference>> *>(VT_OUTPUTS);
+  const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *outputs() const {
+    return GetPointer<const flatbuffers::Vector<flatbuffers::Offset<TensorReference>> *>(VT_OUTPUTS);
   }
   bool isTrailingSWLayer() const {
     return GetField<uint8_t>(VT_ISTRAILINGSWLAYER, 0) != 0;
@@ -7175,17 +7373,1102 @@ struct UPALayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
   static flatbuffers::Offset<UPALayerTask> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UPALayerTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
 };
 
-template<> inline const MVCNN::DummyParams *UPALayerTask::softLayerParams_as<MVCNN::DummyParams>() const {
+template<> inline const DummyParams *UPALayerTask::softLayerParams_as<DummyParams>() const {
   return softLayerParams_as_DummyParams();
 }
 
-template<> inline const MVCNN::DetectionOutputParams *UPALayerTask::softLayerParams_as<MVCNN::DetectionOutputParams>() const {
+template<> inline const DetectionOutputParams *UPALayerTask::softLayerParams_as<DetectionOutputParams>() const {
   return softLayerParams_as_DetectionOutputParams();
 }
 
-template<> inline const MVCNN::FlattenParams *UPALayerTask::softLayerParams_as<MVCNN::FlattenParams>() const {
+template<> inline const FlattenParams *UPALayerTask::softLayerParams_as<FlattenParams>() const {
   return softLayerParams_as_FlattenParams();
 }
+
+template<> inline const InterpParams *UPALayerTask::softLayerParams_as<InterpParams>() const {
+  return softLayerParams_as_InterpParams();
+}
+
+template<> inline const NormalizeParams *UPALayerTask::softLayerParams_as<NormalizeParams>() const {
+  return softLayerParams_as_NormalizeParams();
+}
+
+template<> inline const PermuteParams *UPALayerTask::softLayerParams_as<PermuteParams>() const {
+  return softLayerParams_as_PermuteParams();
+}
+
+template<> inline const PriorboxParams *UPALayerTask::softLayerParams_as<PriorboxParams>() const {
+  return softLayerParams_as_PriorboxParams();
+}
+
+template<> inline const ProposalParams *UPALayerTask::softLayerParams_as<ProposalParams>() const {
+  return softLayerParams_as_ProposalParams();
+}
+
+template<> inline const RegionYOLOParams *UPALayerTask::softLayerParams_as<RegionYOLOParams>() const {
+  return softLayerParams_as_RegionYOLOParams();
+}
+
+template<> inline const ReorgYOLOParams *UPALayerTask::softLayerParams_as<ReorgYOLOParams>() const {
+  return softLayerParams_as_ReorgYOLOParams();
+}
+
+template<> inline const ReshapeParams *UPALayerTask::softLayerParams_as<ReshapeParams>() const {
+  return softLayerParams_as_ReshapeParams();
+}
+
+template<> inline const SoftmaxParams *UPALayerTask::softLayerParams_as<SoftmaxParams>() const {
+  return softLayerParams_as_SoftmaxParams();
+}
+
+template<> inline const CustomLayerParams *UPALayerTask::softLayerParams_as<CustomLayerParams>() const {
+  return softLayerParams_as_CustomLayerParams();
+}
+
+template<> inline const PassthroughParams *UPALayerTask::softLayerParams_as<PassthroughParams>() const {
+  return softLayerParams_as_PassthroughParams();
+}
+
+template<> inline const LayerRecordParams *UPALayerTask::softLayerParams_as<LayerRecordParams>() const {
+  return softLayerParams_as_LayerRecordParams();
+}
+
+template<> inline const ROIPoolingParams *UPALayerTask::softLayerParams_as<ROIPoolingParams>() const {
+  return softLayerParams_as_ROIPoolingParams();
+}
+
+template<> inline const QuantizeParams *UPALayerTask::softLayerParams_as<QuantizeParams>() const {
+  return softLayerParams_as_QuantizeParams();
+}
+
+template<> inline const ArgMaxParams *UPALayerTask::softLayerParams_as<ArgMaxParams>() const {
+  return softLayerParams_as_ArgMaxParams();
+}
+
+template<> inline const NormParams *UPALayerTask::softLayerParams_as<NormParams>() const {
+  return softLayerParams_as_NormParams();
+}
+
+template<> inline const EltwiseParams *UPALayerTask::softLayerParams_as<EltwiseParams>() const {
+  return softLayerParams_as_EltwiseParams();
+}
+
+template<> inline const ResampleParams *UPALayerTask::softLayerParams_as<ResampleParams>() const {
+  return softLayerParams_as_ResampleParams();
+}
+
+template<> inline const CorrelationParams *UPALayerTask::softLayerParams_as<CorrelationParams>() const {
+  return softLayerParams_as_CorrelationParams();
+}
+
+template<> inline const MVNParams *UPALayerTask::softLayerParams_as<MVNParams>() const {
+  return softLayerParams_as_MVNParams();
+}
+
+template<> inline const GRNParams *UPALayerTask::softLayerParams_as<GRNParams>() const {
+  return softLayerParams_as_GRNParams();
+}
+
+template<> inline const CTCDecoderParams *UPALayerTask::softLayerParams_as<CTCDecoderParams>() const {
+  return softLayerParams_as_CTCDecoderParams();
+}
+
+template<> inline const SpatialTransformParams *UPALayerTask::softLayerParams_as<SpatialTransformParams>() const {
+  return softLayerParams_as_SpatialTransformParams();
+}
+
+template<> inline const FakeQuantizeParams *UPALayerTask::softLayerParams_as<FakeQuantizeParams>() const {
+  return softLayerParams_as_FakeQuantizeParams();
+}
+
+template<> inline const PoolingParams *UPALayerTask::softLayerParams_as<PoolingParams>() const {
+  return softLayerParams_as_PoolingParams();
+}
+
+template<> inline const EdslParams *UPALayerTask::softLayerParams_as<EdslParams>() const {
+  return softLayerParams_as_EdslParams();
+}
+
+template<> inline const TileParams *UPALayerTask::softLayerParams_as<TileParams>() const {
+  return softLayerParams_as_TileParams();
+}
+
+template<> inline const PSROIPoolingParams *UPALayerTask::softLayerParams_as<PSROIPoolingParams>() const {
+  return softLayerParams_as_PSROIPoolingParams();
+}
+
+template<> inline const DeconvolutionParams *UPALayerTask::softLayerParams_as<DeconvolutionParams>() const {
+  return softLayerParams_as_DeconvolutionParams();
+}
+
+template<> inline const UnaryOpParams *UPALayerTask::softLayerParams_as<UnaryOpParams>() const {
+  return softLayerParams_as_UnaryOpParams();
+}
+
+template<> inline const ConvolutionParams *UPALayerTask::softLayerParams_as<ConvolutionParams>() const {
+  return softLayerParams_as_ConvolutionParams();
+}
+
+template<> inline const GatherParams *UPALayerTask::softLayerParams_as<GatherParams>() const {
+  return softLayerParams_as_GatherParams();
+}
+
+template<> inline const PostOpsParams *UPALayerTask::softLayerParams_as<PostOpsParams>() const {
+  return softLayerParams_as_PostOpsParams();
+}
+
+template<> inline const NegativeParams *UPALayerTask::softLayerParams_as<NegativeParams>() const {
+  return softLayerParams_as_NegativeParams();
+}
+
+struct UPALayerTaskBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_maxShaves(uint8_t maxShaves) {
+    fbb_.AddElement<uint8_t>(UPALayerTask::VT_MAXSHAVES, maxShaves, 0);
+  }
+  void add_softLayerParams_type(SoftwareLayerParams softLayerParams_type) {
+    fbb_.AddElement<uint8_t>(UPALayerTask::VT_SOFTLAYERPARAMS_TYPE, static_cast<uint8_t>(softLayerParams_type), 0);
+  }
+  void add_softLayerParams(flatbuffers::Offset<void> softLayerParams) {
+    fbb_.AddOffset(UPALayerTask::VT_SOFTLAYERPARAMS, softLayerParams);
+  }
+  void add_input_data(flatbuffers::Offset<TensorReference> input_data) {
+    fbb_.AddOffset(UPALayerTask::VT_INPUT_DATA, input_data);
+  }
+  void add_output_data(flatbuffers::Offset<TensorReference> output_data) {
+    fbb_.AddOffset(UPALayerTask::VT_OUTPUT_DATA, output_data);
+  }
+  void add_weights_data(flatbuffers::Offset<TensorReference> weights_data) {
+    fbb_.AddOffset(UPALayerTask::VT_WEIGHTS_DATA, weights_data);
+  }
+  void add_weights_table(flatbuffers::Offset<TensorReference> weights_table) {
+    fbb_.AddOffset(UPALayerTask::VT_WEIGHTS_TABLE, weights_table);
+  }
+  void add_inputs(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> inputs) {
+    fbb_.AddOffset(UPALayerTask::VT_INPUTS, inputs);
+  }
+  void add_outputs(flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> outputs) {
+    fbb_.AddOffset(UPALayerTask::VT_OUTPUTS, outputs);
+  }
+  void add_isTrailingSWLayer(bool isTrailingSWLayer) {
+    fbb_.AddElement<uint8_t>(UPALayerTask::VT_ISTRAILINGSWLAYER, static_cast<uint8_t>(isTrailingSWLayer), 0);
+  }
+  explicit UPALayerTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  UPALayerTaskBuilder &operator=(const UPALayerTaskBuilder &);
+  flatbuffers::Offset<UPALayerTask> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<UPALayerTask>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<UPALayerTask> CreateUPALayerTask(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint8_t maxShaves = 0,
+    SoftwareLayerParams softLayerParams_type = SoftwareLayerParams_NONE,
+    flatbuffers::Offset<void> softLayerParams = 0,
+    flatbuffers::Offset<TensorReference> input_data = 0,
+    flatbuffers::Offset<TensorReference> output_data = 0,
+    flatbuffers::Offset<TensorReference> weights_data = 0,
+    flatbuffers::Offset<TensorReference> weights_table = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> inputs = 0,
+    flatbuffers::Offset<flatbuffers::Vector<flatbuffers::Offset<TensorReference>>> outputs = 0,
+    bool isTrailingSWLayer = false) {
+  UPALayerTaskBuilder builder_(_fbb);
+  builder_.add_outputs(outputs);
+  builder_.add_inputs(inputs);
+  builder_.add_weights_table(weights_table);
+  builder_.add_weights_data(weights_data);
+  builder_.add_output_data(output_data);
+  builder_.add_input_data(input_data);
+  builder_.add_softLayerParams(softLayerParams);
+  builder_.add_isTrailingSWLayer(isTrailingSWLayer);
+  builder_.add_softLayerParams_type(softLayerParams_type);
+  builder_.add_maxShaves(maxShaves);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<UPALayerTask> CreateUPALayerTaskDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint8_t maxShaves = 0,
+    SoftwareLayerParams softLayerParams_type = SoftwareLayerParams_NONE,
+    flatbuffers::Offset<void> softLayerParams = 0,
+    flatbuffers::Offset<TensorReference> input_data = 0,
+    flatbuffers::Offset<TensorReference> output_data = 0,
+    flatbuffers::Offset<TensorReference> weights_data = 0,
+    flatbuffers::Offset<TensorReference> weights_table = 0,
+    const std::vector<flatbuffers::Offset<TensorReference>> *inputs = nullptr,
+    const std::vector<flatbuffers::Offset<TensorReference>> *outputs = nullptr,
+    bool isTrailingSWLayer = false) {
+  auto inputs__ = inputs ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*inputs) : 0;
+  auto outputs__ = outputs ? _fbb.CreateVector<flatbuffers::Offset<TensorReference>>(*outputs) : 0;
+  return MVCNN::CreateUPALayerTask(
+      _fbb,
+      maxShaves,
+      softLayerParams_type,
+      softLayerParams,
+      input_data,
+      output_data,
+      weights_data,
+      weights_table,
+      inputs__,
+      outputs__,
+      isTrailingSWLayer);
+}
+
+flatbuffers::Offset<UPALayerTask> CreateUPALayerTask(flatbuffers::FlatBufferBuilder &_fbb, const UPALayerTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct SNNLayerTaskT : public flatbuffers::NativeTable {
+  typedef SNNLayerTask TableType;
+  SoftwareLayerParamsUnion softLayerParams;
+  SNNLayerTaskT() {
+  }
+};
+
+struct SNNLayerTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef SNNLayerTaskT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SOFTLAYERPARAMS_TYPE = 4,
+    VT_SOFTLAYERPARAMS = 6
+  };
+  SoftwareLayerParams softLayerParams_type() const {
+    return static_cast<SoftwareLayerParams>(GetField<uint8_t>(VT_SOFTLAYERPARAMS_TYPE, 0));
+  }
+  const void *softLayerParams() const {
+    return GetPointer<const void *>(VT_SOFTLAYERPARAMS);
+  }
+  template<typename T> const T *softLayerParams_as() const;
+  const DummyParams *softLayerParams_as_DummyParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_DummyParams ? static_cast<const DummyParams *>(softLayerParams()) : nullptr;
+  }
+  const DetectionOutputParams *softLayerParams_as_DetectionOutputParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_DetectionOutputParams ? static_cast<const DetectionOutputParams *>(softLayerParams()) : nullptr;
+  }
+  const FlattenParams *softLayerParams_as_FlattenParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_FlattenParams ? static_cast<const FlattenParams *>(softLayerParams()) : nullptr;
+  }
+  const InterpParams *softLayerParams_as_InterpParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_InterpParams ? static_cast<const InterpParams *>(softLayerParams()) : nullptr;
+  }
+  const NormalizeParams *softLayerParams_as_NormalizeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_NormalizeParams ? static_cast<const NormalizeParams *>(softLayerParams()) : nullptr;
+  }
+  const PermuteParams *softLayerParams_as_PermuteParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PermuteParams ? static_cast<const PermuteParams *>(softLayerParams()) : nullptr;
+  }
+  const PriorboxParams *softLayerParams_as_PriorboxParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PriorboxParams ? static_cast<const PriorboxParams *>(softLayerParams()) : nullptr;
+  }
+  const ProposalParams *softLayerParams_as_ProposalParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ProposalParams ? static_cast<const ProposalParams *>(softLayerParams()) : nullptr;
+  }
+  const RegionYOLOParams *softLayerParams_as_RegionYOLOParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_RegionYOLOParams ? static_cast<const RegionYOLOParams *>(softLayerParams()) : nullptr;
+  }
+  const ReorgYOLOParams *softLayerParams_as_ReorgYOLOParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ReorgYOLOParams ? static_cast<const ReorgYOLOParams *>(softLayerParams()) : nullptr;
+  }
+  const ReshapeParams *softLayerParams_as_ReshapeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ReshapeParams ? static_cast<const ReshapeParams *>(softLayerParams()) : nullptr;
+  }
+  const SoftmaxParams *softLayerParams_as_SoftmaxParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_SoftmaxParams ? static_cast<const SoftmaxParams *>(softLayerParams()) : nullptr;
+  }
+  const CustomLayerParams *softLayerParams_as_CustomLayerParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_CustomLayerParams ? static_cast<const CustomLayerParams *>(softLayerParams()) : nullptr;
+  }
+  const PassthroughParams *softLayerParams_as_PassthroughParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PassthroughParams ? static_cast<const PassthroughParams *>(softLayerParams()) : nullptr;
+  }
+  const LayerRecordParams *softLayerParams_as_LayerRecordParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_LayerRecordParams ? static_cast<const LayerRecordParams *>(softLayerParams()) : nullptr;
+  }
+  const ROIPoolingParams *softLayerParams_as_ROIPoolingParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ROIPoolingParams ? static_cast<const ROIPoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const QuantizeParams *softLayerParams_as_QuantizeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_QuantizeParams ? static_cast<const QuantizeParams *>(softLayerParams()) : nullptr;
+  }
+  const ArgMaxParams *softLayerParams_as_ArgMaxParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ArgMaxParams ? static_cast<const ArgMaxParams *>(softLayerParams()) : nullptr;
+  }
+  const NormParams *softLayerParams_as_NormParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_NormParams ? static_cast<const NormParams *>(softLayerParams()) : nullptr;
+  }
+  const EltwiseParams *softLayerParams_as_EltwiseParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_EltwiseParams ? static_cast<const EltwiseParams *>(softLayerParams()) : nullptr;
+  }
+  const ResampleParams *softLayerParams_as_ResampleParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ResampleParams ? static_cast<const ResampleParams *>(softLayerParams()) : nullptr;
+  }
+  const CorrelationParams *softLayerParams_as_CorrelationParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_CorrelationParams ? static_cast<const CorrelationParams *>(softLayerParams()) : nullptr;
+  }
+  const MVNParams *softLayerParams_as_MVNParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_MVNParams ? static_cast<const MVNParams *>(softLayerParams()) : nullptr;
+  }
+  const GRNParams *softLayerParams_as_GRNParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_GRNParams ? static_cast<const GRNParams *>(softLayerParams()) : nullptr;
+  }
+  const CTCDecoderParams *softLayerParams_as_CTCDecoderParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_CTCDecoderParams ? static_cast<const CTCDecoderParams *>(softLayerParams()) : nullptr;
+  }
+  const SpatialTransformParams *softLayerParams_as_SpatialTransformParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_SpatialTransformParams ? static_cast<const SpatialTransformParams *>(softLayerParams()) : nullptr;
+  }
+  const FakeQuantizeParams *softLayerParams_as_FakeQuantizeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_FakeQuantizeParams ? static_cast<const FakeQuantizeParams *>(softLayerParams()) : nullptr;
+  }
+  const PoolingParams *softLayerParams_as_PoolingParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PoolingParams ? static_cast<const PoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const EdslParams *softLayerParams_as_EdslParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_EdslParams ? static_cast<const EdslParams *>(softLayerParams()) : nullptr;
+  }
+  const TileParams *softLayerParams_as_TileParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_TileParams ? static_cast<const TileParams *>(softLayerParams()) : nullptr;
+  }
+  const PSROIPoolingParams *softLayerParams_as_PSROIPoolingParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PSROIPoolingParams ? static_cast<const PSROIPoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_DeconvolutionParams ? static_cast<const DeconvolutionParams *>(softLayerParams()) : nullptr;
+  }
+  const UnaryOpParams *softLayerParams_as_UnaryOpParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_UnaryOpParams ? static_cast<const UnaryOpParams *>(softLayerParams()) : nullptr;
+  }
+  const ConvolutionParams *softLayerParams_as_ConvolutionParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_ConvolutionParams ? static_cast<const ConvolutionParams *>(softLayerParams()) : nullptr;
+  }
+  const GatherParams *softLayerParams_as_GatherParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_GatherParams ? static_cast<const GatherParams *>(softLayerParams()) : nullptr;
+  }
+  const PostOpsParams *softLayerParams_as_PostOpsParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_PostOpsParams ? static_cast<const PostOpsParams *>(softLayerParams()) : nullptr;
+  }
+  const NegativeParams *softLayerParams_as_NegativeParams() const {
+    return softLayerParams_type() == SoftwareLayerParams_NegativeParams ? static_cast<const NegativeParams *>(softLayerParams()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_SOFTLAYERPARAMS_TYPE) &&
+           VerifyOffset(verifier, VT_SOFTLAYERPARAMS) &&
+           VerifySoftwareLayerParams(verifier, softLayerParams(), softLayerParams_type()) &&
+           verifier.EndTable();
+  }
+  SNNLayerTaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(SNNLayerTaskT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<SNNLayerTask> Pack(flatbuffers::FlatBufferBuilder &_fbb, const SNNLayerTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const DummyParams *SNNLayerTask::softLayerParams_as<DummyParams>() const {
+  return softLayerParams_as_DummyParams();
+}
+
+template<> inline const DetectionOutputParams *SNNLayerTask::softLayerParams_as<DetectionOutputParams>() const {
+  return softLayerParams_as_DetectionOutputParams();
+}
+
+template<> inline const FlattenParams *SNNLayerTask::softLayerParams_as<FlattenParams>() const {
+  return softLayerParams_as_FlattenParams();
+}
+
+template<> inline const InterpParams *SNNLayerTask::softLayerParams_as<InterpParams>() const {
+  return softLayerParams_as_InterpParams();
+}
+
+template<> inline const NormalizeParams *SNNLayerTask::softLayerParams_as<NormalizeParams>() const {
+  return softLayerParams_as_NormalizeParams();
+}
+
+template<> inline const PermuteParams *SNNLayerTask::softLayerParams_as<PermuteParams>() const {
+  return softLayerParams_as_PermuteParams();
+}
+
+template<> inline const PriorboxParams *SNNLayerTask::softLayerParams_as<PriorboxParams>() const {
+  return softLayerParams_as_PriorboxParams();
+}
+
+template<> inline const ProposalParams *SNNLayerTask::softLayerParams_as<ProposalParams>() const {
+  return softLayerParams_as_ProposalParams();
+}
+
+template<> inline const RegionYOLOParams *SNNLayerTask::softLayerParams_as<RegionYOLOParams>() const {
+  return softLayerParams_as_RegionYOLOParams();
+}
+
+template<> inline const ReorgYOLOParams *SNNLayerTask::softLayerParams_as<ReorgYOLOParams>() const {
+  return softLayerParams_as_ReorgYOLOParams();
+}
+
+template<> inline const ReshapeParams *SNNLayerTask::softLayerParams_as<ReshapeParams>() const {
+  return softLayerParams_as_ReshapeParams();
+}
+
+template<> inline const SoftmaxParams *SNNLayerTask::softLayerParams_as<SoftmaxParams>() const {
+  return softLayerParams_as_SoftmaxParams();
+}
+
+template<> inline const CustomLayerParams *SNNLayerTask::softLayerParams_as<CustomLayerParams>() const {
+  return softLayerParams_as_CustomLayerParams();
+}
+
+template<> inline const PassthroughParams *SNNLayerTask::softLayerParams_as<PassthroughParams>() const {
+  return softLayerParams_as_PassthroughParams();
+}
+
+template<> inline const LayerRecordParams *SNNLayerTask::softLayerParams_as<LayerRecordParams>() const {
+  return softLayerParams_as_LayerRecordParams();
+}
+
+template<> inline const ROIPoolingParams *SNNLayerTask::softLayerParams_as<ROIPoolingParams>() const {
+  return softLayerParams_as_ROIPoolingParams();
+}
+
+template<> inline const QuantizeParams *SNNLayerTask::softLayerParams_as<QuantizeParams>() const {
+  return softLayerParams_as_QuantizeParams();
+}
+
+template<> inline const ArgMaxParams *SNNLayerTask::softLayerParams_as<ArgMaxParams>() const {
+  return softLayerParams_as_ArgMaxParams();
+}
+
+template<> inline const NormParams *SNNLayerTask::softLayerParams_as<NormParams>() const {
+  return softLayerParams_as_NormParams();
+}
+
+template<> inline const EltwiseParams *SNNLayerTask::softLayerParams_as<EltwiseParams>() const {
+  return softLayerParams_as_EltwiseParams();
+}
+
+template<> inline const ResampleParams *SNNLayerTask::softLayerParams_as<ResampleParams>() const {
+  return softLayerParams_as_ResampleParams();
+}
+
+template<> inline const CorrelationParams *SNNLayerTask::softLayerParams_as<CorrelationParams>() const {
+  return softLayerParams_as_CorrelationParams();
+}
+
+template<> inline const MVNParams *SNNLayerTask::softLayerParams_as<MVNParams>() const {
+  return softLayerParams_as_MVNParams();
+}
+
+template<> inline const GRNParams *SNNLayerTask::softLayerParams_as<GRNParams>() const {
+  return softLayerParams_as_GRNParams();
+}
+
+template<> inline const CTCDecoderParams *SNNLayerTask::softLayerParams_as<CTCDecoderParams>() const {
+  return softLayerParams_as_CTCDecoderParams();
+}
+
+template<> inline const SpatialTransformParams *SNNLayerTask::softLayerParams_as<SpatialTransformParams>() const {
+  return softLayerParams_as_SpatialTransformParams();
+}
+
+template<> inline const FakeQuantizeParams *SNNLayerTask::softLayerParams_as<FakeQuantizeParams>() const {
+  return softLayerParams_as_FakeQuantizeParams();
+}
+
+template<> inline const PoolingParams *SNNLayerTask::softLayerParams_as<PoolingParams>() const {
+  return softLayerParams_as_PoolingParams();
+}
+
+template<> inline const EdslParams *SNNLayerTask::softLayerParams_as<EdslParams>() const {
+  return softLayerParams_as_EdslParams();
+}
+
+template<> inline const TileParams *SNNLayerTask::softLayerParams_as<TileParams>() const {
+  return softLayerParams_as_TileParams();
+}
+
+template<> inline const PSROIPoolingParams *SNNLayerTask::softLayerParams_as<PSROIPoolingParams>() const {
+  return softLayerParams_as_PSROIPoolingParams();
+}
+
+template<> inline const DeconvolutionParams *SNNLayerTask::softLayerParams_as<DeconvolutionParams>() const {
+  return softLayerParams_as_DeconvolutionParams();
+}
+
+template<> inline const UnaryOpParams *SNNLayerTask::softLayerParams_as<UnaryOpParams>() const {
+  return softLayerParams_as_UnaryOpParams();
+}
+
+template<> inline const ConvolutionParams *SNNLayerTask::softLayerParams_as<ConvolutionParams>() const {
+  return softLayerParams_as_ConvolutionParams();
+}
+
+template<> inline const GatherParams *SNNLayerTask::softLayerParams_as<GatherParams>() const {
+  return softLayerParams_as_GatherParams();
+}
+
+template<> inline const PostOpsParams *SNNLayerTask::softLayerParams_as<PostOpsParams>() const {
+  return softLayerParams_as_PostOpsParams();
+}
+
+template<> inline const NegativeParams *SNNLayerTask::softLayerParams_as<NegativeParams>() const {
+  return softLayerParams_as_NegativeParams();
+}
+
+struct SNNLayerTaskBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_softLayerParams_type(SoftwareLayerParams softLayerParams_type) {
+    fbb_.AddElement<uint8_t>(SNNLayerTask::VT_SOFTLAYERPARAMS_TYPE, static_cast<uint8_t>(softLayerParams_type), 0);
+  }
+  void add_softLayerParams(flatbuffers::Offset<void> softLayerParams) {
+    fbb_.AddOffset(SNNLayerTask::VT_SOFTLAYERPARAMS, softLayerParams);
+  }
+  explicit SNNLayerTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  SNNLayerTaskBuilder &operator=(const SNNLayerTaskBuilder &);
+  flatbuffers::Offset<SNNLayerTask> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<SNNLayerTask>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<SNNLayerTask> CreateSNNLayerTask(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    SoftwareLayerParams softLayerParams_type = SoftwareLayerParams_NONE,
+    flatbuffers::Offset<void> softLayerParams = 0) {
+  SNNLayerTaskBuilder builder_(_fbb);
+  builder_.add_softLayerParams(softLayerParams);
+  builder_.add_softLayerParams_type(softLayerParams_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<SNNLayerTask> CreateSNNLayerTask(flatbuffers::FlatBufferBuilder &_fbb, const SNNLayerTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct TensorT : public flatbuffers::NativeTable {
+  typedef Tensor TableType;
+  uint32_t dimX;
+  uint32_t dimY;
+  uint32_t dimZ;
+  uint32_t strideX;
+  uint32_t strideY;
+  uint32_t strideZ;
+  uint32_t offset;
+  uint32_t location;
+  uint32_t dataType;
+  uint32_t order;
+  TensorT()
+      : dimX(0),
+        dimY(0),
+        dimZ(0),
+        strideX(0),
+        strideY(0),
+        strideZ(0),
+        offset(0),
+        location(0),
+        dataType(0),
+        order(0) {
+  }
+};
+
+struct Tensor FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef TensorT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_DIMX = 4,
+    VT_DIMY = 6,
+    VT_DIMZ = 8,
+    VT_STRIDEX = 10,
+    VT_STRIDEY = 12,
+    VT_STRIDEZ = 14,
+    VT_OFFSET = 16,
+    VT_LOCATION = 18,
+    VT_DATATYPE = 20,
+    VT_ORDER = 22
+  };
+  uint32_t dimX() const {
+    return GetField<uint32_t>(VT_DIMX, 0);
+  }
+  uint32_t dimY() const {
+    return GetField<uint32_t>(VT_DIMY, 0);
+  }
+  uint32_t dimZ() const {
+    return GetField<uint32_t>(VT_DIMZ, 0);
+  }
+  uint32_t strideX() const {
+    return GetField<uint32_t>(VT_STRIDEX, 0);
+  }
+  uint32_t strideY() const {
+    return GetField<uint32_t>(VT_STRIDEY, 0);
+  }
+  uint32_t strideZ() const {
+    return GetField<uint32_t>(VT_STRIDEZ, 0);
+  }
+  uint32_t offset() const {
+    return GetField<uint32_t>(VT_OFFSET, 0);
+  }
+  uint32_t location() const {
+    return GetField<uint32_t>(VT_LOCATION, 0);
+  }
+  uint32_t dataType() const {
+    return GetField<uint32_t>(VT_DATATYPE, 0);
+  }
+  uint32_t order() const {
+    return GetField<uint32_t>(VT_ORDER, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_DIMX) &&
+           VerifyField<uint32_t>(verifier, VT_DIMY) &&
+           VerifyField<uint32_t>(verifier, VT_DIMZ) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEX) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEY) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEZ) &&
+           VerifyField<uint32_t>(verifier, VT_OFFSET) &&
+           VerifyField<uint32_t>(verifier, VT_LOCATION) &&
+           VerifyField<uint32_t>(verifier, VT_DATATYPE) &&
+           VerifyField<uint32_t>(verifier, VT_ORDER) &&
+           verifier.EndTable();
+  }
+  TensorT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(TensorT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Tensor> Pack(flatbuffers::FlatBufferBuilder &_fbb, const TensorT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct TensorBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_dimX(uint32_t dimX) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_DIMX, dimX, 0);
+  }
+  void add_dimY(uint32_t dimY) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_DIMY, dimY, 0);
+  }
+  void add_dimZ(uint32_t dimZ) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_DIMZ, dimZ, 0);
+  }
+  void add_strideX(uint32_t strideX) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_STRIDEX, strideX, 0);
+  }
+  void add_strideY(uint32_t strideY) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_STRIDEY, strideY, 0);
+  }
+  void add_strideZ(uint32_t strideZ) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_STRIDEZ, strideZ, 0);
+  }
+  void add_offset(uint32_t offset) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_OFFSET, offset, 0);
+  }
+  void add_location(uint32_t location) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_LOCATION, location, 0);
+  }
+  void add_dataType(uint32_t dataType) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_DATATYPE, dataType, 0);
+  }
+  void add_order(uint32_t order) {
+    fbb_.AddElement<uint32_t>(Tensor::VT_ORDER, order, 0);
+  }
+  explicit TensorBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  TensorBuilder &operator=(const TensorBuilder &);
+  flatbuffers::Offset<Tensor> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<Tensor>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<Tensor> CreateTensor(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t dimX = 0,
+    uint32_t dimY = 0,
+    uint32_t dimZ = 0,
+    uint32_t strideX = 0,
+    uint32_t strideY = 0,
+    uint32_t strideZ = 0,
+    uint32_t offset = 0,
+    uint32_t location = 0,
+    uint32_t dataType = 0,
+    uint32_t order = 0) {
+  TensorBuilder builder_(_fbb);
+  builder_.add_order(order);
+  builder_.add_dataType(dataType);
+  builder_.add_location(location);
+  builder_.add_offset(offset);
+  builder_.add_strideZ(strideZ);
+  builder_.add_strideY(strideY);
+  builder_.add_strideX(strideX);
+  builder_.add_dimZ(dimZ);
+  builder_.add_dimY(dimY);
+  builder_.add_dimX(dimX);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<Tensor> CreateTensor(flatbuffers::FlatBufferBuilder &_fbb, const TensorT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct Conv2DT : public flatbuffers::NativeTable {
+  typedef Conv2D TableType;
+  uint32_t radixX;
+  uint32_t radixY;
+  uint32_t strideX;
+  uint32_t strideY;
+  uint32_t padX;
+  uint32_t padY;
+  uint32_t padStyle;
+  uint32_t dilation;
+  std::unique_ptr<TensorReferenceT> input;
+  std::unique_ptr<TensorReferenceT> output;
+  std::unique_ptr<TensorReferenceT> weight;
+  std::unique_ptr<TensorReferenceT> bias;
+  Conv2DT()
+      : radixX(0),
+        radixY(0),
+        strideX(0),
+        strideY(0),
+        padX(0),
+        padY(0),
+        padStyle(0),
+        dilation(0) {
+  }
+};
+
+struct Conv2D FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef Conv2DT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RADIXX = 4,
+    VT_RADIXY = 6,
+    VT_STRIDEX = 8,
+    VT_STRIDEY = 10,
+    VT_PADX = 12,
+    VT_PADY = 14,
+    VT_PADSTYLE = 16,
+    VT_DILATION = 18,
+    VT_INPUT = 20,
+    VT_OUTPUT = 22,
+    VT_WEIGHT = 24,
+    VT_BIAS = 26
+  };
+  uint32_t radixX() const {
+    return GetField<uint32_t>(VT_RADIXX, 0);
+  }
+  uint32_t radixY() const {
+    return GetField<uint32_t>(VT_RADIXY, 0);
+  }
+  const MVCNN::SpatialTransformParams *softLayerParams_as_SpatialTransformParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_SpatialTransformParams ? static_cast<const MVCNN::SpatialTransformParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::FakeQuantizeParams *softLayerParams_as_FakeQuantizeParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_FakeQuantizeParams ? static_cast<const MVCNN::FakeQuantizeParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::PoolingParams *softLayerParams_as_PoolingParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PoolingParams ? static_cast<const MVCNN::PoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::EdslParams *softLayerParams_as_EdslParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_EdslParams ? static_cast<const MVCNN::EdslParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::TileParams *softLayerParams_as_TileParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_TileParams ? static_cast<const MVCNN::TileParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::PSROIPoolingParams *softLayerParams_as_PSROIPoolingParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_PSROIPoolingParams ? static_cast<const MVCNN::PSROIPoolingParams *>(softLayerParams()) : nullptr;
+  }
+  const MVCNN::DeconvolutionParams *softLayerParams_as_DeconvolutionParams() const {
+    return softLayerParams_type() == MVCNN::SoftwareLayerParams_DeconvolutionParams ? static_cast<const MVCNN::DeconvolutionParams *>(softLayerParams()) : nullptr;
+  }
+  const TensorReference *weight() const {
+    return GetPointer<const TensorReference *>(VT_WEIGHT);
+  }
+  const TensorReference *bias() const {
+    return GetPointer<const TensorReference *>(VT_BIAS);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_RADIXX) &&
+           VerifyField<uint32_t>(verifier, VT_RADIXY) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEX) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEY) &&
+           VerifyField<uint32_t>(verifier, VT_PADX) &&
+           VerifyField<uint32_t>(verifier, VT_PADY) &&
+           VerifyField<uint32_t>(verifier, VT_PADSTYLE) &&
+           VerifyField<uint32_t>(verifier, VT_DILATION) &&
+           VerifyOffset(verifier, VT_INPUT) &&
+           verifier.VerifyTable(input()) &&
+           VerifyOffset(verifier, VT_OUTPUT) &&
+           verifier.VerifyTable(output()) &&
+           VerifyOffset(verifier, VT_WEIGHT) &&
+           verifier.VerifyTable(weight()) &&
+           VerifyOffset(verifier, VT_BIAS) &&
+           verifier.VerifyTable(bias()) &&
+           verifier.EndTable();
+  }
+  Conv2DT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(Conv2DT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Conv2D> Pack(flatbuffers::FlatBufferBuilder &_fbb, const Conv2DT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct Conv2DBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_radixX(uint32_t radixX) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_RADIXX, radixX, 0);
+  }
+  void add_radixY(uint32_t radixY) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_RADIXY, radixY, 0);
+  }
+  void add_strideX(uint32_t strideX) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_STRIDEX, strideX, 0);
+  }
+  void add_strideY(uint32_t strideY) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_STRIDEY, strideY, 0);
+  }
+  void add_padX(uint32_t padX) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_PADX, padX, 0);
+  }
+  void add_padY(uint32_t padY) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_PADY, padY, 0);
+  }
+  void add_padStyle(uint32_t padStyle) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_PADSTYLE, padStyle, 0);
+  }
+  void add_dilation(uint32_t dilation) {
+    fbb_.AddElement<uint32_t>(Conv2D::VT_DILATION, dilation, 0);
+  }
+  void add_input(flatbuffers::Offset<TensorReference> input) {
+    fbb_.AddOffset(Conv2D::VT_INPUT, input);
+  }
+  void add_output(flatbuffers::Offset<TensorReference> output) {
+    fbb_.AddOffset(Conv2D::VT_OUTPUT, output);
+  }
+  void add_weight(flatbuffers::Offset<TensorReference> weight) {
+    fbb_.AddOffset(Conv2D::VT_WEIGHT, weight);
+  }
+  void add_bias(flatbuffers::Offset<TensorReference> bias) {
+    fbb_.AddOffset(Conv2D::VT_BIAS, bias);
+  }
+  explicit Conv2DBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  Conv2DBuilder &operator=(const Conv2DBuilder &);
+  flatbuffers::Offset<Conv2D> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<Conv2D>(end);
+    return o;
+  }
+  UPALayerTaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(UPALayerTaskT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<UPALayerTask> Pack(flatbuffers::FlatBufferBuilder &_fbb, const UPALayerTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+inline flatbuffers::Offset<Conv2D> CreateConv2D(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t radixX = 0,
+    uint32_t radixY = 0,
+    uint32_t strideX = 0,
+    uint32_t strideY = 0,
+    uint32_t padX = 0,
+    uint32_t padY = 0,
+    uint32_t padStyle = 0,
+    uint32_t dilation = 0,
+    flatbuffers::Offset<TensorReference> input = 0,
+    flatbuffers::Offset<TensorReference> output = 0,
+    flatbuffers::Offset<TensorReference> weight = 0,
+    flatbuffers::Offset<TensorReference> bias = 0) {
+  Conv2DBuilder builder_(_fbb);
+  builder_.add_bias(bias);
+  builder_.add_weight(weight);
+  builder_.add_output(output);
+  builder_.add_input(input);
+  builder_.add_dilation(dilation);
+  builder_.add_padStyle(padStyle);
+  builder_.add_padY(padY);
+  builder_.add_padX(padX);
+  builder_.add_strideY(strideY);
+  builder_.add_strideX(strideX);
+  builder_.add_radixY(radixY);
+  builder_.add_radixX(radixX);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<Conv2D> CreateConv2D(flatbuffers::FlatBufferBuilder &_fbb, const Conv2DT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PoolingT : public flatbuffers::NativeTable {
+  typedef Pooling TableType;
+  uint32_t radixX;
+  uint32_t radixY;
+  uint32_t strideX;
+  uint32_t strideY;
+  uint32_t padX;
+  uint32_t padY;
+  uint32_t padStyle;
+  uint32_t dilation;
+  std::unique_ptr<TensorReferenceT> input;
+  std::unique_ptr<TensorReferenceT> output;
+  PoolingT()
+      : radixX(0),
+        radixY(0),
+        strideX(0),
+        strideY(0),
+        padX(0),
+        padY(0),
+        padStyle(0),
+        dilation(0) {
+  }
+};
+
+struct Pooling FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PoolingT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_RADIXX = 4,
+    VT_RADIXY = 6,
+    VT_STRIDEX = 8,
+    VT_STRIDEY = 10,
+    VT_PADX = 12,
+    VT_PADY = 14,
+    VT_PADSTYLE = 16,
+    VT_DILATION = 18,
+    VT_INPUT = 20,
+    VT_OUTPUT = 22
+  };
+  uint32_t radixX() const {
+    return GetField<uint32_t>(VT_RADIXX, 0);
+  }
+  uint32_t radixY() const {
+    return GetField<uint32_t>(VT_RADIXY, 0);
+  }
+  uint32_t strideX() const {
+    return GetField<uint32_t>(VT_STRIDEX, 0);
+  }
+  uint32_t strideY() const {
+    return GetField<uint32_t>(VT_STRIDEY, 0);
+  }
+  uint32_t padX() const {
+    return GetField<uint32_t>(VT_PADX, 0);
+  }
+  uint32_t padY() const {
+    return GetField<uint32_t>(VT_PADY, 0);
+  }
+  uint32_t padStyle() const {
+    return GetField<uint32_t>(VT_PADSTYLE, 0);
+  }
+  uint32_t dilation() const {
+    return GetField<uint32_t>(VT_DILATION, 0);
+  }
+  const TensorReference *input() const {
+    return GetPointer<const TensorReference *>(VT_INPUT);
+  }
+  const TensorReference *output() const {
+    return GetPointer<const TensorReference *>(VT_OUTPUT);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint32_t>(verifier, VT_RADIXX) &&
+           VerifyField<uint32_t>(verifier, VT_RADIXY) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEX) &&
+           VerifyField<uint32_t>(verifier, VT_STRIDEY) &&
+           VerifyField<uint32_t>(verifier, VT_PADX) &&
+           VerifyField<uint32_t>(verifier, VT_PADY) &&
+           VerifyField<uint32_t>(verifier, VT_PADSTYLE) &&
+           VerifyField<uint32_t>(verifier, VT_DILATION) &&
+           VerifyOffset(verifier, VT_INPUT) &&
+           verifier.VerifyTable(input()) &&
+           VerifyOffset(verifier, VT_OUTPUT) &&
+           verifier.VerifyTable(output()) &&
+           verifier.EndTable();
+  }
+  PoolingT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PoolingT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<Pooling> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PoolingT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PoolingBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_radixX(uint32_t radixX) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_RADIXX, radixX, 0);
+  }
+  void add_radixY(uint32_t radixY) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_RADIXY, radixY, 0);
+  }
+  void add_strideX(uint32_t strideX) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_STRIDEX, strideX, 0);
+  }
+  void add_strideY(uint32_t strideY) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_STRIDEY, strideY, 0);
+  }
+  void add_padX(uint32_t padX) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_PADX, padX, 0);
+  }
+  void add_padY(uint32_t padY) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_PADY, padY, 0);
+  }
+  void add_padStyle(uint32_t padStyle) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_PADSTYLE, padStyle, 0);
+  }
+  void add_dilation(uint32_t dilation) {
+    fbb_.AddElement<uint32_t>(Pooling::VT_DILATION, dilation, 0);
+  }
+  void add_input(flatbuffers::Offset<TensorReference> input) {
+    fbb_.AddOffset(Pooling::VT_INPUT, input);
+  }
+  void add_output(flatbuffers::Offset<TensorReference> output) {
+    fbb_.AddOffset(Pooling::VT_OUTPUT, output);
+  }
+  explicit PoolingBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PoolingBuilder &operator=(const PoolingBuilder &);
+  flatbuffers::Offset<Pooling> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<Pooling>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<Pooling> CreatePooling(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    uint32_t radixX = 0,
+    uint32_t radixY = 0,
+    uint32_t strideX = 0,
+    uint32_t strideY = 0,
+    uint32_t padX = 0,
+    uint32_t padY = 0,
+    uint32_t padStyle = 0,
+    uint32_t dilation = 0,
+    flatbuffers::Offset<TensorReference> input = 0,
+    flatbuffers::Offset<TensorReference> output = 0) {
+  PoolingBuilder builder_(_fbb);
+  builder_.add_output(output);
+  builder_.add_input(input);
+  builder_.add_dilation(dilation);
+  builder_.add_padStyle(padStyle);
+  builder_.add_padY(padY);
+  builder_.add_padX(padX);
+  builder_.add_strideY(strideY);
+  builder_.add_strideX(strideX);
+  builder_.add_radixY(radixY);
+  builder_.add_radixX(radixX);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<Pooling> CreatePooling(flatbuffers::FlatBufferBuilder &_fbb, const PoolingT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct ReLUT : public flatbuffers::NativeTable {
+  typedef ReLU TableType;
+  uint32_t opX;
+  std::unique_ptr<TensorReferenceT> input;
+  std::unique_ptr<TensorReferenceT> output;
+  uint32_t strideX;
+  uint32_t strideY;
+  ReLUT()
+      : opX(0),
+        strideX(0),
+        strideY(0) {
+  }
+};
 
 template<> inline const MVCNN::InterpParams *UPALayerTask::softLayerParams_as<MVCNN::InterpParams>() const {
   return softLayerParams_as_InterpParams();
@@ -9390,6 +10673,808 @@ inline flatbuffers::Offset<RegionYOLOParams> RegionYOLOParams::Pack(flatbuffers:
   return CreateRegionYOLOParams(_fbb, _o, _rehasher);
 }
 
+template<> inline const Conv2D *MvTensorTask::layer_as<Conv2D>() const {
+  return layer_as_Conv2D();
+}
+
+template<> inline const Pooling *MvTensorTask::layer_as<Pooling>() const {
+  return layer_as_Pooling();
+}
+
+template<> inline const ReLU *MvTensorTask::layer_as<ReLU>() const {
+  return layer_as_ReLU();
+}
+
+template<> inline const Passthrough *MvTensorTask::layer_as<Passthrough>() const {
+  return layer_as_Passthrough();
+}
+
+template<> inline const Custom *MvTensorTask::layer_as<Custom>() const {
+  return layer_as_Custom();
+}
+
+struct MvTensorTaskBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_layer_type(SoftwareLayer layer_type) {
+    fbb_.AddElement<uint8_t>(MvTensorTask::VT_LAYER_TYPE, static_cast<uint8_t>(layer_type), 0);
+  }
+  void add_layer(flatbuffers::Offset<void> layer) {
+    fbb_.AddOffset(MvTensorTask::VT_LAYER, layer);
+  }
+  explicit MvTensorTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  MvTensorTaskBuilder &operator=(const MvTensorTaskBuilder &);
+  flatbuffers::Offset<MvTensorTask> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<MvTensorTask>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<MvTensorTask> CreateMvTensorTask(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    SoftwareLayer layer_type = SoftwareLayer_NONE,
+    flatbuffers::Offset<void> layer = 0) {
+  MvTensorTaskBuilder builder_(_fbb);
+  builder_.add_layer(layer);
+  builder_.add_layer_type(layer_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<MvTensorTask> CreateMvTensorTask(flatbuffers::FlatBufferBuilder &_fbb, const MvTensorTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PPEConfigureT : public flatbuffers::NativeTable {
+  typedef PPEConfigure TableType;
+  std::vector<int8_t> vals;
+  PPEConfigureT() {
+  }
+};
+
+struct PPEConfigure FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PPEConfigureT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_VALS = 4
+  };
+  const flatbuffers::Vector<int8_t> *vals() const {
+    return GetPointer<const flatbuffers::Vector<int8_t> *>(VT_VALS);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyOffset(verifier, VT_VALS) &&
+           verifier.VerifyVector(vals()) &&
+           verifier.EndTable();
+  }
+  PPEConfigureT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PPEConfigureT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PPEConfigure> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PPEConfigureT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PPEConfigureBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_vals(flatbuffers::Offset<flatbuffers::Vector<int8_t>> vals) {
+    fbb_.AddOffset(PPEConfigure::VT_VALS, vals);
+  }
+  explicit PPEConfigureBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PPEConfigureBuilder &operator=(const PPEConfigureBuilder &);
+  flatbuffers::Offset<PPEConfigure> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PPEConfigure>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PPEConfigure> CreatePPEConfigure(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    flatbuffers::Offset<flatbuffers::Vector<int8_t>> vals = 0) {
+  PPEConfigureBuilder builder_(_fbb);
+  builder_.add_vals(vals);
+  return builder_.Finish();
+}
+
+inline flatbuffers::Offset<PPEConfigure> CreatePPEConfigureDirect(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    const std::vector<int8_t> *vals = nullptr) {
+  auto vals__ = vals ? _fbb.CreateVector<int8_t>(*vals) : 0;
+  return MVCNN::CreatePPEConfigure(
+      _fbb,
+      vals__);
+}
+
+flatbuffers::Offset<PPEConfigure> CreatePPEConfigure(flatbuffers::FlatBufferBuilder &_fbb, const PPEConfigureT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct PPEAssistT : public flatbuffers::NativeTable {
+  typedef PPEAssist TableType;
+  int8_t op;
+  PPEAssistT()
+      : op(0) {
+  }
+};
+
+struct PPEAssist FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef PPEAssistT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_OP = 4
+  };
+  int8_t op() const {
+    return GetField<int8_t>(VT_OP, 0);
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<int8_t>(verifier, VT_OP) &&
+           verifier.EndTable();
+  }
+  PPEAssistT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(PPEAssistT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<PPEAssist> Pack(flatbuffers::FlatBufferBuilder &_fbb, const PPEAssistT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+struct PPEAssistBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_op(int8_t op) {
+    fbb_.AddElement<int8_t>(PPEAssist::VT_OP, op, 0);
+  }
+  explicit PPEAssistBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  PPEAssistBuilder &operator=(const PPEAssistBuilder &);
+  flatbuffers::Offset<PPEAssist> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<PPEAssist>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<PPEAssist> CreatePPEAssist(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    int8_t op = 0) {
+  PPEAssistBuilder builder_(_fbb);
+  builder_.add_op(op);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<PPEAssist> CreatePPEAssist(flatbuffers::FlatBufferBuilder &_fbb, const PPEAssistT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+struct NNTensorTaskT : public flatbuffers::NativeTable {
+  typedef NNTensorTask TableType;
+  NNHelperUnion subtask;
+  NNTensorTaskT() {
+  }
+};
+
+struct NNTensorTask FLATBUFFERS_FINAL_CLASS : private flatbuffers::Table {
+  typedef NNTensorTaskT NativeTableType;
+  enum FlatBuffersVTableOffset FLATBUFFERS_VTABLE_UNDERLYING_TYPE {
+    VT_SUBTASK_TYPE = 4,
+    VT_SUBTASK = 6
+  };
+  NNHelper subtask_type() const {
+    return static_cast<NNHelper>(GetField<uint8_t>(VT_SUBTASK_TYPE, 0));
+  }
+  const void *subtask() const {
+    return GetPointer<const void *>(VT_SUBTASK);
+  }
+  template<typename T> const T *subtask_as() const;
+  const PPEConfigure *subtask_as_PPEConfigure() const {
+    return subtask_type() == NNHelper_PPEConfigure ? static_cast<const PPEConfigure *>(subtask()) : nullptr;
+  }
+  const PPEAssist *subtask_as_PPEAssist() const {
+    return subtask_type() == NNHelper_PPEAssist ? static_cast<const PPEAssist *>(subtask()) : nullptr;
+  }
+  bool Verify(flatbuffers::Verifier &verifier) const {
+    return VerifyTableStart(verifier) &&
+           VerifyField<uint8_t>(verifier, VT_SUBTASK_TYPE) &&
+           VerifyOffset(verifier, VT_SUBTASK) &&
+           VerifyNNHelper(verifier, subtask(), subtask_type()) &&
+           verifier.EndTable();
+  }
+  NNTensorTaskT *UnPack(const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  void UnPackTo(NNTensorTaskT *_o, const flatbuffers::resolver_function_t *_resolver = nullptr) const;
+  static flatbuffers::Offset<NNTensorTask> Pack(flatbuffers::FlatBufferBuilder &_fbb, const NNTensorTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+};
+
+template<> inline const PPEConfigure *NNTensorTask::subtask_as<PPEConfigure>() const {
+  return subtask_as_PPEConfigure();
+}
+
+template<> inline const PPEAssist *NNTensorTask::subtask_as<PPEAssist>() const {
+  return subtask_as_PPEAssist();
+}
+
+struct NNTensorTaskBuilder {
+  flatbuffers::FlatBufferBuilder &fbb_;
+  flatbuffers::uoffset_t start_;
+  void add_subtask_type(NNHelper subtask_type) {
+    fbb_.AddElement<uint8_t>(NNTensorTask::VT_SUBTASK_TYPE, static_cast<uint8_t>(subtask_type), 0);
+  }
+  void add_subtask(flatbuffers::Offset<void> subtask) {
+    fbb_.AddOffset(NNTensorTask::VT_SUBTASK, subtask);
+  }
+  explicit NNTensorTaskBuilder(flatbuffers::FlatBufferBuilder &_fbb)
+        : fbb_(_fbb) {
+    start_ = fbb_.StartTable();
+  }
+  NNTensorTaskBuilder &operator=(const NNTensorTaskBuilder &);
+  flatbuffers::Offset<NNTensorTask> Finish() {
+    const auto end = fbb_.EndTable(start_);
+    auto o = flatbuffers::Offset<NNTensorTask>(end);
+    return o;
+  }
+};
+
+inline flatbuffers::Offset<NNTensorTask> CreateNNTensorTask(
+    flatbuffers::FlatBufferBuilder &_fbb,
+    NNHelper subtask_type = NNHelper_NONE,
+    flatbuffers::Offset<void> subtask = 0) {
+  NNTensorTaskBuilder builder_(_fbb);
+  builder_.add_subtask(subtask);
+  builder_.add_subtask_type(subtask_type);
+  return builder_.Finish();
+}
+
+flatbuffers::Offset<NNTensorTask> CreateNNTensorTask(flatbuffers::FlatBufferBuilder &_fbb, const NNTensorTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher = nullptr);
+
+inline QuantizeParamsT *QuantizeParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new QuantizeParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void QuantizeParams::UnPackTo(QuantizeParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = scale(); if (_e) { _o->scale.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->scale[_i] = _e->Get(_i); } } };
+  { auto _e = zero(); if (_e) { _o->zero.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->zero[_i] = _e->Get(_i); } } };
+}
+
+inline flatbuffers::Offset<QuantizeParams> QuantizeParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const QuantizeParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateQuantizeParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<QuantizeParams> CreateQuantizeParams(flatbuffers::FlatBufferBuilder &_fbb, const QuantizeParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const QuantizeParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _scale = _fbb.CreateVector(_o->scale);
+  auto _zero = _fbb.CreateVector(_o->zero);
+  return MVCNN::CreateQuantizeParams(
+      _fbb,
+      _scale,
+      _zero);
+}
+
+inline DummyParamsT *DummyParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new DummyParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void DummyParams::UnPackTo(DummyParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = message(); if (_e) _o->message = _e->str(); };
+  { auto _e = executeShaveKernel(); _o->executeShaveKernel = _e; };
+}
+
+inline flatbuffers::Offset<DummyParams> DummyParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DummyParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateDummyParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<DummyParams> CreateDummyParams(flatbuffers::FlatBufferBuilder &_fbb, const DummyParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DummyParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _message = _o->message.empty() ? _fbb.CreateSharedString("") : _fbb.CreateString(_o->message);
+  auto _executeShaveKernel = _o->executeShaveKernel;
+  return MVCNN::CreateDummyParams(
+      _fbb,
+      _message,
+      _executeShaveKernel);
+}
+
+inline DetectionOutputParamsT *DetectionOutputParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new DetectionOutputParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void DetectionOutputParams::UnPackTo(DetectionOutputParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = num_classes(); _o->num_classes = _e; };
+  { auto _e = keep_top_k(); _o->keep_top_k = _e; };
+  { auto _e = nms_threshold(); _o->nms_threshold = _e; };
+  { auto _e = background_label_id(); _o->background_label_id = _e; };
+  { auto _e = top_k(); _o->top_k = _e; };
+  { auto _e = variance_encoded_in_target(); _o->variance_encoded_in_target = _e; };
+  { auto _e = code_type(); if (_e) _o->code_type = _e->str(); };
+  { auto _e = share_location(); _o->share_location = _e; };
+  { auto _e = confidence_threshold(); _o->confidence_threshold = _e; };
+  { auto _e = clip_before_nms(); _o->clip_before_nms = _e; };
+  { auto _e = clip_after_nms(); _o->clip_after_nms = _e; };
+  { auto _e = decrease_label_id(); _o->decrease_label_id = _e; };
+  { auto _e = normalized(); _o->normalized = _e; };
+  { auto _e = input_height(); _o->input_height = _e; };
+  { auto _e = input_width(); _o->input_width = _e; };
+  { auto _e = objectness_score(); _o->objectness_score = _e; };
+}
+
+inline flatbuffers::Offset<DetectionOutputParams> DetectionOutputParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DetectionOutputParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateDetectionOutputParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<DetectionOutputParams> CreateDetectionOutputParams(flatbuffers::FlatBufferBuilder &_fbb, const DetectionOutputParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DetectionOutputParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _num_classes = _o->num_classes;
+  auto _keep_top_k = _o->keep_top_k;
+  auto _nms_threshold = _o->nms_threshold;
+  auto _background_label_id = _o->background_label_id;
+  auto _top_k = _o->top_k;
+  auto _variance_encoded_in_target = _o->variance_encoded_in_target;
+  auto _code_type = _o->code_type.empty() ? _fbb.CreateSharedString("") : _fbb.CreateString(_o->code_type);
+  auto _share_location = _o->share_location;
+  auto _confidence_threshold = _o->confidence_threshold;
+  auto _clip_before_nms = _o->clip_before_nms;
+  auto _clip_after_nms = _o->clip_after_nms;
+  auto _decrease_label_id = _o->decrease_label_id;
+  auto _normalized = _o->normalized;
+  auto _input_height = _o->input_height;
+  auto _input_width = _o->input_width;
+  auto _objectness_score = _o->objectness_score;
+  return MVCNN::CreateDetectionOutputParams(
+      _fbb,
+      _num_classes,
+      _keep_top_k,
+      _nms_threshold,
+      _background_label_id,
+      _top_k,
+      _variance_encoded_in_target,
+      _code_type,
+      _share_location,
+      _confidence_threshold,
+      _clip_before_nms,
+      _clip_after_nms,
+      _decrease_label_id,
+      _normalized,
+      _input_height,
+      _input_width,
+      _objectness_score);
+}
+
+inline DeconvolutionParamsT *DeconvolutionParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new DeconvolutionParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void DeconvolutionParams::UnPackTo(DeconvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = dilations(); if (_e) _o->dilations = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = output_padding(); if (_e) _o->output_padding = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = is_depthwise(); _o->is_depthwise = _e; };
+}
+
+inline flatbuffers::Offset<DeconvolutionParams> DeconvolutionParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateDeconvolutionParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<DeconvolutionParams> CreateDeconvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const DeconvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const DeconvolutionParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _kernel = _o->kernel ? _o->kernel.get() : 0;
+  auto _strides = _o->strides ? _o->strides.get() : 0;
+  auto _dilations = _o->dilations ? _o->dilations.get() : 0;
+  auto _pads_begin = _o->pads_begin ? _o->pads_begin.get() : 0;
+  auto _pads_end = _o->pads_end ? _o->pads_end.get() : 0;
+  auto _output_padding = _o->output_padding ? _o->output_padding.get() : 0;
+  auto _is_depthwise = _o->is_depthwise;
+  return MVCNN::CreateDeconvolutionParams(
+      _fbb,
+      _kernel,
+      _strides,
+      _dilations,
+      _pads_begin,
+      _pads_end,
+      _output_padding,
+      _is_depthwise);
+}
+
+inline ConvolutionParamsT *ConvolutionParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new ConvolutionParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void ConvolutionParams::UnPackTo(ConvolutionParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = dilations(); if (_e) _o->dilations = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = group(); _o->group = _e; };
+}
+
+inline flatbuffers::Offset<ConvolutionParams> ConvolutionParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateConvolutionParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ConvolutionParams> CreateConvolutionParams(flatbuffers::FlatBufferBuilder &_fbb, const ConvolutionParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ConvolutionParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _kernel = _o->kernel ? _o->kernel.get() : 0;
+  auto _strides = _o->strides ? _o->strides.get() : 0;
+  auto _dilations = _o->dilations ? _o->dilations.get() : 0;
+  auto _pads_begin = _o->pads_begin ? _o->pads_begin.get() : 0;
+  auto _pads_end = _o->pads_end ? _o->pads_end.get() : 0;
+  auto _group = _o->group;
+  return MVCNN::CreateConvolutionParams(
+      _fbb,
+      _kernel,
+      _strides,
+      _dilations,
+      _pads_begin,
+      _pads_end,
+      _group);
+}
+
+inline FlattenParamsT *FlattenParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new FlattenParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void FlattenParams::UnPackTo(FlattenParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+}
+
+inline flatbuffers::Offset<FlattenParams> FlattenParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const FlattenParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateFlattenParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<FlattenParams> CreateFlattenParams(flatbuffers::FlatBufferBuilder &_fbb, const FlattenParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const FlattenParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  return MVCNN::CreateFlattenParams(
+      _fbb);
+}
+
+inline InterpParamsT *InterpParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new InterpParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void InterpParams::UnPackTo(InterpParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = pad_beg(); _o->pad_beg = _e; };
+  { auto _e = pad_end(); _o->pad_end = _e; };
+  { auto _e = align_corners(); _o->align_corners = _e; };
+}
+
+inline flatbuffers::Offset<InterpParams> InterpParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const InterpParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateInterpParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<InterpParams> CreateInterpParams(flatbuffers::FlatBufferBuilder &_fbb, const InterpParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const InterpParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _pad_beg = _o->pad_beg;
+  auto _pad_end = _o->pad_end;
+  auto _align_corners = _o->align_corners;
+  return MVCNN::CreateInterpParams(
+      _fbb,
+      _pad_beg,
+      _pad_end,
+      _align_corners);
+}
+
+inline NormalizeParamsT *NormalizeParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new NormalizeParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void NormalizeParams::UnPackTo(NormalizeParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = eps(); _o->eps = _e; };
+  { auto _e = across_spatial(); _o->across_spatial = _e; };
+  { auto _e = channel_shared(); _o->channel_shared = _e; };
+}
+
+inline flatbuffers::Offset<NormalizeParams> NormalizeParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const NormalizeParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateNormalizeParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<NormalizeParams> CreateNormalizeParams(flatbuffers::FlatBufferBuilder &_fbb, const NormalizeParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const NormalizeParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _eps = _o->eps;
+  auto _across_spatial = _o->across_spatial;
+  auto _channel_shared = _o->channel_shared;
+  return MVCNN::CreateNormalizeParams(
+      _fbb,
+      _eps,
+      _across_spatial,
+      _channel_shared);
+}
+
+inline PermuteParamsT *PermuteParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new PermuteParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void PermuteParams::UnPackTo(PermuteParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = permute_order(); if (_e) _o->permute_order = std::unique_ptr<order3>(new order3(*_e)); };
+}
+
+inline flatbuffers::Offset<PermuteParams> PermuteParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PermuteParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePermuteParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<PermuteParams> CreatePermuteParams(flatbuffers::FlatBufferBuilder &_fbb, const PermuteParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PermuteParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _permute_order = _o->permute_order ? _o->permute_order.get() : 0;
+  return MVCNN::CreatePermuteParams(
+      _fbb,
+      _permute_order);
+}
+
+inline PriorboxParamsT *PriorboxParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new PriorboxParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void PriorboxParams::UnPackTo(PriorboxParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = min_sizes(); if (_e) { _o->min_sizes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->min_sizes[_i] = _e->Get(_i); } } };
+  { auto _e = max_sizes(); if (_e) { _o->max_sizes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->max_sizes[_i] = _e->Get(_i); } } };
+  { auto _e = aspect_ratios(); if (_e) { _o->aspect_ratios.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->aspect_ratios[_i] = _e->Get(_i); } } };
+  { auto _e = variances(); if (_e) { _o->variances.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->variances[_i] = _e->Get(_i); } } };
+  { auto _e = flip(); _o->flip = _e; };
+  { auto _e = clip(); _o->clip = _e; };
+  { auto _e = step_w(); _o->step_w = _e; };
+  { auto _e = step_h(); _o->step_h = _e; };
+  { auto _e = offset(); _o->offset = _e; };
+}
+
+inline flatbuffers::Offset<PriorboxParams> PriorboxParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PriorboxParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePriorboxParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<PriorboxParams> CreatePriorboxParams(flatbuffers::FlatBufferBuilder &_fbb, const PriorboxParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PriorboxParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _min_sizes = _fbb.CreateVector(_o->min_sizes);
+  auto _max_sizes = _fbb.CreateVector(_o->max_sizes);
+  auto _aspect_ratios = _fbb.CreateVector(_o->aspect_ratios);
+  auto _variances = _fbb.CreateVector(_o->variances);
+  auto _flip = _o->flip;
+  auto _clip = _o->clip;
+  auto _step_w = _o->step_w;
+  auto _step_h = _o->step_h;
+  auto _offset = _o->offset;
+  return MVCNN::CreatePriorboxParams(
+      _fbb,
+      _min_sizes,
+      _max_sizes,
+      _aspect_ratios,
+      _variances,
+      _flip,
+      _clip,
+      _step_w,
+      _step_h,
+      _offset);
+}
+
+inline ROIPoolingParamsT *ROIPoolingParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new ROIPoolingParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void ROIPoolingParams::UnPackTo(ROIPoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = pooled_w(); _o->pooled_w = _e; };
+  { auto _e = pooled_h(); _o->pooled_h = _e; };
+  { auto _e = spatial_scale(); _o->spatial_scale = _e; };
+  { auto _e = roi_pooling_method(); _o->roi_pooling_method = _e; };
+  { auto _e = num_rois(); _o->num_rois = _e; };
+}
+
+inline flatbuffers::Offset<ROIPoolingParams> ROIPoolingParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ROIPoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateROIPoolingParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ROIPoolingParams> CreateROIPoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const ROIPoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ROIPoolingParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _pooled_w = _o->pooled_w;
+  auto _pooled_h = _o->pooled_h;
+  auto _spatial_scale = _o->spatial_scale;
+  auto _roi_pooling_method = _o->roi_pooling_method;
+  auto _num_rois = _o->num_rois;
+  return MVCNN::CreateROIPoolingParams(
+      _fbb,
+      _pooled_w,
+      _pooled_h,
+      _spatial_scale,
+      _roi_pooling_method,
+      _num_rois);
+}
+
+inline PSROIPoolingParamsT *PSROIPoolingParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new PSROIPoolingParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void PSROIPoolingParams::UnPackTo(PSROIPoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = output_dim(); _o->output_dim = _e; };
+  { auto _e = group_size(); _o->group_size = _e; };
+  { auto _e = spatial_scale(); _o->spatial_scale = _e; };
+  { auto _e = pooled_w(); _o->pooled_w = _e; };
+  { auto _e = pooled_h(); _o->pooled_h = _e; };
+  { auto _e = spatial_bin_x(); _o->spatial_bin_x = _e; };
+  { auto _e = spatial_bin_y(); _o->spatial_bin_y = _e; };
+  { auto _e = mode(); _o->mode = _e; };
+}
+
+inline flatbuffers::Offset<PSROIPoolingParams> PSROIPoolingParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePSROIPoolingParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<PSROIPoolingParams> CreatePSROIPoolingParams(flatbuffers::FlatBufferBuilder &_fbb, const PSROIPoolingParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PSROIPoolingParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _output_dim = _o->output_dim;
+  auto _group_size = _o->group_size;
+  auto _spatial_scale = _o->spatial_scale;
+  auto _pooled_w = _o->pooled_w;
+  auto _pooled_h = _o->pooled_h;
+  auto _spatial_bin_x = _o->spatial_bin_x;
+  auto _spatial_bin_y = _o->spatial_bin_y;
+  auto _mode = _o->mode;
+  return MVCNN::CreatePSROIPoolingParams(
+      _fbb,
+      _output_dim,
+      _group_size,
+      _spatial_scale,
+      _pooled_w,
+      _pooled_h,
+      _spatial_bin_x,
+      _spatial_bin_y,
+      _mode);
+}
+
+inline ProposalParamsT *ProposalParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new ProposalParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void ProposalParams::UnPackTo(ProposalParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = base_size(); _o->base_size = _e; };
+  { auto _e = pre_nms_topn(); _o->pre_nms_topn = _e; };
+  { auto _e = post_nms_topn(); _o->post_nms_topn = _e; };
+  { auto _e = nms_thresh(); _o->nms_thresh = _e; };
+  { auto _e = feat_stride(); _o->feat_stride = _e; };
+  { auto _e = min_size(); _o->min_size = _e; };
+  { auto _e = ratio(); if (_e) { _o->ratio.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->ratio[_i] = _e->Get(_i); } } };
+  { auto _e = scale(); if (_e) { _o->scale.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->scale[_i] = _e->Get(_i); } } };
+  { auto _e = pre_nms_thresh(); _o->pre_nms_thresh = _e; };
+  { auto _e = clip_before_nms(); _o->clip_before_nms = _e; };
+  { auto _e = clip_after_nms(); _o->clip_after_nms = _e; };
+  { auto _e = normalize(); _o->normalize = _e; };
+  { auto _e = box_size_scale(); _o->box_size_scale = _e; };
+  { auto _e = box_coordinate_scale(); _o->box_coordinate_scale = _e; };
+  { auto _e = framework(); if (_e) _o->framework = _e->str(); };
+  { auto _e = for_deformable(); _o->for_deformable = _e; };
+}
+
+inline flatbuffers::Offset<ProposalParams> ProposalParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ProposalParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateProposalParams(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<ProposalParams> CreateProposalParams(flatbuffers::FlatBufferBuilder &_fbb, const ProposalParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const ProposalParamsT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _base_size = _o->base_size;
+  auto _pre_nms_topn = _o->pre_nms_topn;
+  auto _post_nms_topn = _o->post_nms_topn;
+  auto _nms_thresh = _o->nms_thresh;
+  auto _feat_stride = _o->feat_stride;
+  auto _min_size = _o->min_size;
+  auto _ratio = _fbb.CreateVector(_o->ratio);
+  auto _scale = _fbb.CreateVector(_o->scale);
+  auto _pre_nms_thresh = _o->pre_nms_thresh;
+  auto _clip_before_nms = _o->clip_before_nms;
+  auto _clip_after_nms = _o->clip_after_nms;
+  auto _normalize = _o->normalize;
+  auto _box_size_scale = _o->box_size_scale;
+  auto _box_coordinate_scale = _o->box_coordinate_scale;
+  auto _framework = _o->framework.empty() ? _fbb.CreateSharedString("") : _fbb.CreateString(_o->framework);
+  auto _for_deformable = _o->for_deformable;
+  return MVCNN::CreateProposalParams(
+      _fbb,
+      _base_size,
+      _pre_nms_topn,
+      _post_nms_topn,
+      _nms_thresh,
+      _feat_stride,
+      _min_size,
+      _ratio,
+      _scale,
+      _pre_nms_thresh,
+      _clip_before_nms,
+      _clip_after_nms,
+      _normalize,
+      _box_size_scale,
+      _box_coordinate_scale,
+      _framework,
+      _for_deformable);
+}
+
+inline RegionYOLOParamsT *RegionYOLOParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new RegionYOLOParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void RegionYOLOParams::UnPackTo(RegionYOLOParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = coords(); _o->coords = _e; };
+  { auto _e = classes(); _o->classes = _e; };
+  { auto _e = num(); _o->num = _e; };
+  { auto _e = do_softmax(); _o->do_softmax = _e; };
+  { auto _e = mask(); if (_e) { _o->mask.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->mask[_i] = _e->Get(_i); } } };
+}
+
+inline flatbuffers::Offset<RegionYOLOParams> RegionYOLOParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const RegionYOLOParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateRegionYOLOParams(_fbb, _o, _rehasher);
+}
+
 inline flatbuffers::Offset<RegionYOLOParams> CreateRegionYOLOParams(flatbuffers::FlatBufferBuilder &_fbb, const RegionYOLOParamsT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
   (void)_rehasher;
   (void)_o;
@@ -9409,15 +11494,15 @@ inline flatbuffers::Offset<RegionYOLOParams> CreateRegionYOLOParams(flatbuffers:
 }
 
 inline ReorgYOLOParamsT *ReorgYOLOParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ReorgYOLOParamsT> _o = std::unique_ptr<MVCNN::ReorgYOLOParamsT>(new ReorgYOLOParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ReorgYOLOParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ReorgYOLOParams::UnPackTo(ReorgYOLOParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = stride(); _o->stride = _e; }
+  { auto _e = stride(); _o->stride = _e; };
 }
 
 inline flatbuffers::Offset<ReorgYOLOParams> ReorgYOLOParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ReorgYOLOParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9435,9 +11520,9 @@ inline flatbuffers::Offset<ReorgYOLOParams> CreateReorgYOLOParams(flatbuffers::F
 }
 
 inline ReshapeParamsT *ReshapeParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ReshapeParamsT> _o = std::unique_ptr<MVCNN::ReshapeParamsT>(new ReshapeParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ReshapeParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ReshapeParams::UnPackTo(ReshapeParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -9458,15 +11543,15 @@ inline flatbuffers::Offset<ReshapeParams> CreateReshapeParams(flatbuffers::FlatB
 }
 
 inline SoftmaxParamsT *SoftmaxParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::SoftmaxParamsT> _o = std::unique_ptr<MVCNN::SoftmaxParamsT>(new SoftmaxParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new SoftmaxParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void SoftmaxParams::UnPackTo(SoftmaxParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = axis(); _o->axis = _e; }
+  { auto _e = axis(); _o->axis = _e; };
 }
 
 inline flatbuffers::Offset<SoftmaxParams> SoftmaxParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SoftmaxParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9484,9 +11569,9 @@ inline flatbuffers::Offset<SoftmaxParams> CreateSoftmaxParams(flatbuffers::FlatB
 }
 
 inline NegativeParamsT *NegativeParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::NegativeParamsT> _o = std::unique_ptr<MVCNN::NegativeParamsT>(new NegativeParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new NegativeParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void NegativeParams::UnPackTo(NegativeParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -9507,17 +11592,17 @@ inline flatbuffers::Offset<NegativeParams> CreateNegativeParams(flatbuffers::Fla
 }
 
 inline CustomLayerParamsT *CustomLayerParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::CustomLayerParamsT> _o = std::unique_ptr<MVCNN::CustomLayerParamsT>(new CustomLayerParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new CustomLayerParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void CustomLayerParams::UnPackTo(CustomLayerParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = leonPreambleID(); _o->leonPreambleID = _e; }
-  { auto _e = kernelData(); if (_e) _o->kernelData = std::unique_ptr<MVCNN::BinaryDataT>(_e->UnPack(_resolver)); }
-  { auto _e = paramData(); if (_e) _o->paramData = std::unique_ptr<MVCNN::BinaryDataT>(_e->UnPack(_resolver)); }
+  { auto _e = leonPreambleID(); _o->leonPreambleID = _e; };
+  { auto _e = kernelData(); if (_e) _o->kernelData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
+  { auto _e = paramData(); if (_e) _o->paramData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
 }
 
 inline flatbuffers::Offset<CustomLayerParams> CustomLayerParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CustomLayerParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9539,16 +11624,16 @@ inline flatbuffers::Offset<CustomLayerParams> CreateCustomLayerParams(flatbuffer
 }
 
 inline PolynomialT *Polynomial::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PolynomialT> _o = std::unique_ptr<MVCNN::PolynomialT>(new PolynomialT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PolynomialT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void Polynomial::UnPackTo(PolynomialT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = terms(); if (_e) { _o->terms.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->terms[_i] = *_e->Get(_i); } } }
-  { auto _e = constant(); _o->constant = _e; }
+  { auto _e = terms(); if (_e) { _o->terms.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->terms[_i] = *_e->Get(_i); } } };
+  { auto _e = constant(); _o->constant = _e; };
 }
 
 inline flatbuffers::Offset<Polynomial> Polynomial::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PolynomialT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9568,22 +11653,22 @@ inline flatbuffers::Offset<Polynomial> CreatePolynomial(flatbuffers::FlatBufferB
 }
 
 inline DmaTransferT *DmaTransfer::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::DmaTransferT> _o = std::unique_ptr<MVCNN::DmaTransferT>(new DmaTransferT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new DmaTransferT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void DmaTransfer::UnPackTo(DmaTransferT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = fromDDR(); _o->fromDDR = _e; }
-  { auto _e = dataTypeSize(); _o->dataTypeSize = _e; }
-  { auto _e = bufArg(); _o->bufArg = _e; }
-  { auto _e = stage(); _o->stage = _e; }
-  { auto _e = localShape(); if (_e) { _o->localShape.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->localShape[_i] = _e->Get(_i); } } }
-  { auto _e = globalShape(); if (_e) { _o->globalShape.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->globalShape[_i] = _e->Get(_i); } } }
-  { auto _e = ranges(); if (_e) { _o->ranges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->ranges[_i] = _e->Get(_i); } } }
-  { auto _e = bases(); if (_e) _o->bases = std::unique_ptr<MVCNN::PolynomialT>(_e->UnPack(_resolver)); }
+  { auto _e = fromDDR(); _o->fromDDR = _e; };
+  { auto _e = dataTypeSize(); _o->dataTypeSize = _e; };
+  { auto _e = bufArg(); _o->bufArg = _e; };
+  { auto _e = stage(); _o->stage = _e; };
+  { auto _e = localShape(); if (_e) { _o->localShape.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->localShape[_i] = _e->Get(_i); } } };
+  { auto _e = globalShape(); if (_e) { _o->globalShape.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->globalShape[_i] = _e->Get(_i); } } };
+  { auto _e = ranges(); if (_e) { _o->ranges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->ranges[_i] = _e->Get(_i); } } };
+  { auto _e = bases(); if (_e) _o->bases = std::unique_ptr<PolynomialT>(_e->UnPack(_resolver)); };
 }
 
 inline flatbuffers::Offset<DmaTransfer> DmaTransfer::Pack(flatbuffers::FlatBufferBuilder &_fbb, const DmaTransferT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9615,24 +11700,24 @@ inline flatbuffers::Offset<DmaTransfer> CreateDmaTransfer(flatbuffers::FlatBuffe
 }
 
 inline EdslParamsT *EdslParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EdslParamsT> _o = std::unique_ptr<MVCNN::EdslParamsT>(new EdslParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EdslParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EdslParams::UnPackTo(EdslParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = kernelData(); if (_e) _o->kernelData = std::unique_ptr<MVCNN::BinaryDataT>(_e->UnPack(_resolver)); }
-  { auto _e = paramData(); if (_e) _o->paramData = std::unique_ptr<MVCNN::BinaryDataT>(_e->UnPack(_resolver)); }
-  { auto _e = outerRanges(); if (_e) { _o->outerRanges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outerRanges[_i] = _e->Get(_i); } } }
-  { auto _e = outerSteps(); if (_e) { _o->outerSteps.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outerSteps[_i] = _e->Get(_i); } } }
-  { auto _e = middleRanges(); if (_e) { _o->middleRanges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->middleRanges[_i] = _e->Get(_i); } } }
-  { auto _e = middleSteps(); if (_e) { _o->middleSteps.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->middleSteps[_i] = _e->Get(_i); } } }
-  { auto _e = dmaTransfers(); if (_e) { _o->dmaTransfers.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->dmaTransfers[_i] = std::unique_ptr<MVCNN::DmaTransferT>(_e->Get(_i)->UnPack(_resolver)); } } }
-  { auto _e = initOutputs(); if (_e) { _o->initOutputs.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->initOutputs[_i] = *_e->Get(_i); } } }
-  { auto _e = inputDataTypes(); if (_e) { _o->inputDataTypes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->inputDataTypes[_i] = static_cast<MVCNN::DataType>(_e->Get(_i)); } } }
-  { auto _e = outputDataTypes(); if (_e) { _o->outputDataTypes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outputDataTypes[_i] = static_cast<MVCNN::DataType>(_e->Get(_i)); } } }
+  { auto _e = kernelData(); if (_e) _o->kernelData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
+  { auto _e = paramData(); if (_e) _o->paramData = std::unique_ptr<BinaryDataT>(_e->UnPack(_resolver)); };
+  { auto _e = outerRanges(); if (_e) { _o->outerRanges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outerRanges[_i] = _e->Get(_i); } } };
+  { auto _e = outerSteps(); if (_e) { _o->outerSteps.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outerSteps[_i] = _e->Get(_i); } } };
+  { auto _e = middleRanges(); if (_e) { _o->middleRanges.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->middleRanges[_i] = _e->Get(_i); } } };
+  { auto _e = middleSteps(); if (_e) { _o->middleSteps.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->middleSteps[_i] = _e->Get(_i); } } };
+  { auto _e = dmaTransfers(); if (_e) { _o->dmaTransfers.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->dmaTransfers[_i] = std::unique_ptr<DmaTransferT>(_e->Get(_i)->UnPack(_resolver)); } } };
+  { auto _e = initOutputs(); if (_e) { _o->initOutputs.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->initOutputs[_i] = *_e->Get(_i); } } };
+  { auto _e = inputDataTypes(); if (_e) { _o->inputDataTypes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->inputDataTypes[_i] = static_cast<DataType>(_e->Get(_i)); } } };
+  { auto _e = outputDataTypes(); if (_e) { _o->outputDataTypes.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->outputDataTypes[_i] = static_cast<DataType>(_e->Get(_i)); } } };
 }
 
 inline flatbuffers::Offset<EdslParams> EdslParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EdslParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9649,7 +11734,7 @@ inline flatbuffers::Offset<EdslParams> CreateEdslParams(flatbuffers::FlatBufferB
   auto _outerSteps = _fbb.CreateVector(_o->outerSteps);
   auto _middleRanges = _fbb.CreateVector(_o->middleRanges);
   auto _middleSteps = _fbb.CreateVector(_o->middleSteps);
-  auto _dmaTransfers = _fbb.CreateVector<flatbuffers::Offset<MVCNN::DmaTransfer>> (_o->dmaTransfers.size(), [](size_t i, _VectorArgs *__va) { return CreateDmaTransfer(*__va->__fbb, __va->__o->dmaTransfers[i].get(), __va->__rehasher); }, &_va );
+  auto _dmaTransfers = _fbb.CreateVector<flatbuffers::Offset<DmaTransfer>> (_o->dmaTransfers.size(), [](size_t i, _VectorArgs *__va) { return CreateDmaTransfer(*__va->__fbb, __va->__o->dmaTransfers[i].get(), __va->__rehasher); }, &_va );
   auto _initOutputs = _fbb.CreateVectorOfStructs(_o->initOutputs);
   auto _inputDataTypes = _fbb.CreateVectorScalarCast<uint8_t>(flatbuffers::data(_o->inputDataTypes), _o->inputDataTypes.size());
   auto _outputDataTypes = _fbb.CreateVectorScalarCast<uint8_t>(flatbuffers::data(_o->outputDataTypes), _o->outputDataTypes.size());
@@ -9668,15 +11753,15 @@ inline flatbuffers::Offset<EdslParams> CreateEdslParams(flatbuffers::FlatBufferB
 }
 
 inline PassthroughParamsT *PassthroughParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PassthroughParamsT> _o = std::unique_ptr<MVCNN::PassthroughParamsT>(new PassthroughParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PassthroughParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void PassthroughParams::UnPackTo(PassthroughParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = min_delay_us(); _o->min_delay_us = _e; }
+  { auto _e = min_delay_us(); _o->min_delay_us = _e; };
 }
 
 inline flatbuffers::Offset<PassthroughParams> PassthroughParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PassthroughParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9694,9 +11779,9 @@ inline flatbuffers::Offset<PassthroughParams> CreatePassthroughParams(flatbuffer
 }
 
 inline LayerRecordParamsT *LayerRecordParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::LayerRecordParamsT> _o = std::unique_ptr<MVCNN::LayerRecordParamsT>(new LayerRecordParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new LayerRecordParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void LayerRecordParams::UnPackTo(LayerRecordParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -9717,17 +11802,17 @@ inline flatbuffers::Offset<LayerRecordParams> CreateLayerRecordParams(flatbuffer
 }
 
 inline ArgMaxParamsT *ArgMaxParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ArgMaxParamsT> _o = std::unique_ptr<MVCNN::ArgMaxParamsT>(new ArgMaxParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ArgMaxParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ArgMaxParams::UnPackTo(ArgMaxParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = out_max_val(); _o->out_max_val = _e; }
-  { auto _e = top_k(); _o->top_k = _e; }
-  { auto _e = axis(); _o->axis = _e; }
+  { auto _e = out_max_val(); _o->out_max_val = _e; };
+  { auto _e = top_k(); _o->top_k = _e; };
+  { auto _e = axis(); _o->axis = _e; };
 }
 
 inline flatbuffers::Offset<ArgMaxParams> ArgMaxParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ArgMaxParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9749,18 +11834,18 @@ inline flatbuffers::Offset<ArgMaxParams> CreateArgMaxParams(flatbuffers::FlatBuf
 }
 
 inline NormParamsT *NormParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::NormParamsT> _o = std::unique_ptr<MVCNN::NormParamsT>(new NormParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new NormParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void NormParams::UnPackTo(NormParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = alpha(); _o->alpha = _e; }
-  { auto _e = beta(); _o->beta = _e; }
-  { auto _e = region(); if (_e) _o->region = _e->str(); }
-  { auto _e = local_size(); _o->local_size = _e; }
+  { auto _e = alpha(); _o->alpha = _e; };
+  { auto _e = beta(); _o->beta = _e; };
+  { auto _e = region(); if (_e) _o->region = _e->str(); };
+  { auto _e = local_size(); _o->local_size = _e; };
 }
 
 inline flatbuffers::Offset<NormParams> NormParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const NormParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9784,15 +11869,15 @@ inline flatbuffers::Offset<NormParams> CreateNormParams(flatbuffers::FlatBufferB
 }
 
 inline EltwiseI32T *EltwiseI32::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EltwiseI32T> _o = std::unique_ptr<MVCNN::EltwiseI32T>(new EltwiseI32T());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EltwiseI32T();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EltwiseI32::UnPackTo(EltwiseI32T *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = value(); _o->value = _e; }
+  { auto _e = value(); _o->value = _e; };
 }
 
 inline flatbuffers::Offset<EltwiseI32> EltwiseI32::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwiseI32T* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9810,15 +11895,15 @@ inline flatbuffers::Offset<EltwiseI32> CreateEltwiseI32(flatbuffers::FlatBufferB
 }
 
 inline EltwiseFP32T *EltwiseFP32::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EltwiseFP32T> _o = std::unique_ptr<MVCNN::EltwiseFP32T>(new EltwiseFP32T());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EltwiseFP32T();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EltwiseFP32::UnPackTo(EltwiseFP32T *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = value(); _o->value = _e; }
+  { auto _e = value(); _o->value = _e; };
 }
 
 inline flatbuffers::Offset<EltwiseFP32> EltwiseFP32::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwiseFP32T* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9836,9 +11921,9 @@ inline flatbuffers::Offset<EltwiseFP32> CreateEltwiseFP32(flatbuffers::FlatBuffe
 }
 
 inline EltwisePostOpEmptyT *EltwisePostOpEmpty::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EltwisePostOpEmptyT> _o = std::unique_ptr<MVCNN::EltwisePostOpEmptyT>(new EltwisePostOpEmptyT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EltwisePostOpEmptyT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EltwisePostOpEmpty::UnPackTo(EltwisePostOpEmptyT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -9859,20 +11944,20 @@ inline flatbuffers::Offset<EltwisePostOpEmpty> CreateEltwisePostOpEmpty(flatbuff
 }
 
 inline EltwisePostOpPReLUT *EltwisePostOpPReLU::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EltwisePostOpPReLUT> _o = std::unique_ptr<MVCNN::EltwisePostOpPReLUT>(new EltwisePostOpPReLUT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EltwisePostOpPReLUT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EltwisePostOpPReLU::UnPackTo(EltwisePostOpPReLUT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = reluNegSlope_type(); _o->reluNegSlope.type = _e; }
-  { auto _e = reluNegSlope(); if (_e) _o->reluNegSlope.value = MVCNN::EltwiseParamUnion::UnPack(_e, reluNegSlope_type(), _resolver); }
-  { auto _e = clampMinValue_type(); _o->clampMinValue.type = _e; }
-  { auto _e = clampMinValue(); if (_e) _o->clampMinValue.value = MVCNN::EltwiseParamUnion::UnPack(_e, clampMinValue_type(), _resolver); }
-  { auto _e = clampMaxValue_type(); _o->clampMaxValue.type = _e; }
-  { auto _e = clampMaxValue(); if (_e) _o->clampMaxValue.value = MVCNN::EltwiseParamUnion::UnPack(_e, clampMaxValue_type(), _resolver); }
+  { auto _e = reluNegSlope_type(); _o->reluNegSlope.type = _e; };
+  { auto _e = reluNegSlope(); if (_e) _o->reluNegSlope.value = EltwiseParamUnion::UnPack(_e, reluNegSlope_type(), _resolver); };
+  { auto _e = clampMinValue_type(); _o->clampMinValue.type = _e; };
+  { auto _e = clampMinValue(); if (_e) _o->clampMinValue.value = EltwiseParamUnion::UnPack(_e, clampMinValue_type(), _resolver); };
+  { auto _e = clampMaxValue_type(); _o->clampMaxValue.type = _e; };
+  { auto _e = clampMaxValue(); if (_e) _o->clampMaxValue.value = EltwiseParamUnion::UnPack(_e, clampMaxValue_type(), _resolver); };
 }
 
 inline flatbuffers::Offset<EltwisePostOpPReLU> EltwisePostOpPReLU::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwisePostOpPReLUT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9900,21 +11985,21 @@ inline flatbuffers::Offset<EltwisePostOpPReLU> CreateEltwisePostOpPReLU(flatbuff
 }
 
 inline EltwiseParamsT *EltwiseParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EltwiseParamsT> _o = std::unique_ptr<MVCNN::EltwiseParamsT>(new EltwiseParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EltwiseParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EltwiseParams::UnPackTo(EltwiseParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = operation(); if (_e) _o->operation = _e->str(); }
-  { auto _e = coeff1_type(); _o->coeff1.type = _e; }
-  { auto _e = coeff1(); if (_e) _o->coeff1.value = MVCNN::EltwiseParamUnion::UnPack(_e, coeff1_type(), _resolver); }
-  { auto _e = coeff2_type(); _o->coeff2.type = _e; }
-  { auto _e = coeff2(); if (_e) _o->coeff2.value = MVCNN::EltwiseParamUnion::UnPack(_e, coeff2_type(), _resolver); }
-  { auto _e = postop_params_type(); _o->postop_params.type = _e; }
-  { auto _e = postop_params(); if (_e) _o->postop_params.value = MVCNN::EltwisePostOpsNestedParamsUnion::UnPack(_e, postop_params_type(), _resolver); }
+  { auto _e = operation(); if (_e) _o->operation = _e->str(); };
+  { auto _e = coeff1_type(); _o->coeff1.type = _e; };
+  { auto _e = coeff1(); if (_e) _o->coeff1.value = EltwiseParamUnion::UnPack(_e, coeff1_type(), _resolver); };
+  { auto _e = coeff2_type(); _o->coeff2.type = _e; };
+  { auto _e = coeff2(); if (_e) _o->coeff2.value = EltwiseParamUnion::UnPack(_e, coeff2_type(), _resolver); };
+  { auto _e = postop_params_type(); _o->postop_params.type = _e; };
+  { auto _e = postop_params(); if (_e) _o->postop_params.value = EltwisePostOpsNestedParamsUnion::UnPack(_e, postop_params_type(), _resolver); };
 }
 
 inline flatbuffers::Offset<EltwiseParams> EltwiseParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EltwiseParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9944,16 +12029,16 @@ inline flatbuffers::Offset<EltwiseParams> CreateEltwiseParams(flatbuffers::FlatB
 }
 
 inline ResampleParamsT *ResampleParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ResampleParamsT> _o = std::unique_ptr<MVCNN::ResampleParamsT>(new ResampleParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ResampleParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ResampleParams::UnPackTo(ResampleParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = interpolation(); _o->interpolation = _e; }
-  { auto _e = antialias(); _o->antialias = _e; }
+  { auto _e = interpolation(); _o->interpolation = _e; };
+  { auto _e = antialias(); _o->antialias = _e; };
 }
 
 inline flatbuffers::Offset<ResampleParams> ResampleParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ResampleParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -9973,20 +12058,20 @@ inline flatbuffers::Offset<ResampleParams> CreateResampleParams(flatbuffers::Fla
 }
 
 inline CorrelationParamsT *CorrelationParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::CorrelationParamsT> _o = std::unique_ptr<MVCNN::CorrelationParamsT>(new CorrelationParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new CorrelationParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void CorrelationParams::UnPackTo(CorrelationParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = kernel_size(); _o->kernel_size = _e; }
-  { auto _e = max_displacement(); _o->max_displacement = _e; }
-  { auto _e = pad_size(); _o->pad_size = _e; }
-  { auto _e = stride1(); _o->stride1 = _e; }
-  { auto _e = stride2(); _o->stride2 = _e; }
-  { auto _e = correlation_type(); _o->correlation_type = _e; }
+  { auto _e = kernel_size(); _o->kernel_size = _e; };
+  { auto _e = max_displacement(); _o->max_displacement = _e; };
+  { auto _e = pad_size(); _o->pad_size = _e; };
+  { auto _e = stride1(); _o->stride1 = _e; };
+  { auto _e = stride2(); _o->stride2 = _e; };
+  { auto _e = correlation_type(); _o->correlation_type = _e; };
 }
 
 inline flatbuffers::Offset<CorrelationParams> CorrelationParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CorrelationParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10014,17 +12099,17 @@ inline flatbuffers::Offset<CorrelationParams> CreateCorrelationParams(flatbuffer
 }
 
 inline MVNParamsT *MVNParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::MVNParamsT> _o = std::unique_ptr<MVCNN::MVNParamsT>(new MVNParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new MVNParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void MVNParams::UnPackTo(MVNParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = eps(); _o->eps = _e; }
-  { auto _e = across_channels(); _o->across_channels = _e; }
-  { auto _e = normalize_variance(); _o->normalize_variance = _e; }
+  { auto _e = eps(); _o->eps = _e; };
+  { auto _e = across_channels(); _o->across_channels = _e; };
+  { auto _e = normalize_variance(); _o->normalize_variance = _e; };
 }
 
 inline flatbuffers::Offset<MVNParams> MVNParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const MVNParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10046,15 +12131,15 @@ inline flatbuffers::Offset<MVNParams> CreateMVNParams(flatbuffers::FlatBufferBui
 }
 
 inline GRNParamsT *GRNParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::GRNParamsT> _o = std::unique_ptr<MVCNN::GRNParamsT>(new GRNParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new GRNParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void GRNParams::UnPackTo(GRNParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = bias(); _o->bias = _e; }
+  { auto _e = bias(); _o->bias = _e; };
 }
 
 inline flatbuffers::Offset<GRNParams> GRNParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const GRNParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10072,15 +12157,15 @@ inline flatbuffers::Offset<GRNParams> CreateGRNParams(flatbuffers::FlatBufferBui
 }
 
 inline CTCDecoderParamsT *CTCDecoderParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::CTCDecoderParamsT> _o = std::unique_ptr<MVCNN::CTCDecoderParamsT>(new CTCDecoderParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new CTCDecoderParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void CTCDecoderParams::UnPackTo(CTCDecoderParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = ctc_merge_repeated(); _o->ctc_merge_repeated = _e; }
+  { auto _e = ctc_merge_repeated(); _o->ctc_merge_repeated = _e; };
 }
 
 inline flatbuffers::Offset<CTCDecoderParams> CTCDecoderParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const CTCDecoderParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10098,15 +12183,15 @@ inline flatbuffers::Offset<CTCDecoderParams> CreateCTCDecoderParams(flatbuffers:
 }
 
 inline SpatialTransformParamsT *SpatialTransformParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::SpatialTransformParamsT> _o = std::unique_ptr<MVCNN::SpatialTransformParamsT>(new SpatialTransformParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new SpatialTransformParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void SpatialTransformParams::UnPackTo(SpatialTransformParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = theta(); if (_e) { _o->theta.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->theta[_i] = _e->Get(_i); } } }
+  { auto _e = theta(); if (_e) { _o->theta.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->theta[_i] = _e->Get(_i); } } };
 }
 
 inline flatbuffers::Offset<SpatialTransformParams> SpatialTransformParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const SpatialTransformParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10124,19 +12209,19 @@ inline flatbuffers::Offset<SpatialTransformParams> CreateSpatialTransformParams(
 }
 
 inline FakeQuantizeParamsT *FakeQuantizeParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::FakeQuantizeParamsT> _o = std::unique_ptr<MVCNN::FakeQuantizeParamsT>(new FakeQuantizeParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new FakeQuantizeParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void FakeQuantizeParams::UnPackTo(FakeQuantizeParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = levels(); _o->levels = _e; }
-  { auto _e = input_low(); if (_e) { _o->input_low.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->input_low[_i] = _e->Get(_i); } } }
-  { auto _e = input_high(); if (_e) { _o->input_high.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->input_high[_i] = _e->Get(_i); } } }
-  { auto _e = output_low(); if (_e) { _o->output_low.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->output_low[_i] = _e->Get(_i); } } }
-  { auto _e = output_high(); if (_e) { _o->output_high.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->output_high[_i] = _e->Get(_i); } } }
+  { auto _e = levels(); _o->levels = _e; };
+  { auto _e = input_low(); if (_e) { _o->input_low.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->input_low[_i] = _e->Get(_i); } } };
+  { auto _e = input_high(); if (_e) { _o->input_high.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->input_high[_i] = _e->Get(_i); } } };
+  { auto _e = output_low(); if (_e) { _o->output_low.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->output_low[_i] = _e->Get(_i); } } };
+  { auto _e = output_high(); if (_e) { _o->output_high.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->output_high[_i] = _e->Get(_i); } } };
 }
 
 inline flatbuffers::Offset<FakeQuantizeParams> FakeQuantizeParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const FakeQuantizeParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10162,22 +12247,22 @@ inline flatbuffers::Offset<FakeQuantizeParams> CreateFakeQuantizeParams(flatbuff
 }
 
 inline PoolingParamsT *PoolingParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PoolingParamsT> _o = std::unique_ptr<MVCNN::PoolingParamsT>(new PoolingParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PoolingParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void PoolingParams::UnPackTo(PoolingParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(*_e)); }
-  { auto _e = pool_method(); if (_e) _o->pool_method = _e->str(); }
-  { auto _e = exclude_pad(); if (_e) _o->exclude_pad = _e->str(); }
-  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(*_e)); }
-  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(*_e)); }
-  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<MVCNN::order3>(new MVCNN::order3(*_e)); }
-  { auto _e = rounding_type(); if (_e) _o->rounding_type = _e->str(); }
-  { auto _e = auto_pad(); if (_e) _o->auto_pad = _e->str(); }
+  { auto _e = kernel(); if (_e) _o->kernel = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pool_method(); if (_e) _o->pool_method = _e->str(); };
+  { auto _e = exclude_pad(); if (_e) _o->exclude_pad = _e->str(); };
+  { auto _e = strides(); if (_e) _o->strides = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_begin(); if (_e) _o->pads_begin = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = pads_end(); if (_e) _o->pads_end = std::unique_ptr<order3>(new order3(*_e)); };
+  { auto _e = rounding_type(); if (_e) _o->rounding_type = _e->str(); };
+  { auto _e = auto_pad(); if (_e) _o->auto_pad = _e->str(); };
 }
 
 inline flatbuffers::Offset<PoolingParams> PoolingParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PoolingParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10209,16 +12294,16 @@ inline flatbuffers::Offset<PoolingParams> CreatePoolingParams(flatbuffers::FlatB
 }
 
 inline TileParamsT *TileParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::TileParamsT> _o = std::unique_ptr<MVCNN::TileParamsT>(new TileParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new TileParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void TileParams::UnPackTo(TileParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = axis(); _o->axis = _e; }
-  { auto _e = tiles(); _o->tiles = _e; }
+  { auto _e = axis(); _o->axis = _e; };
+  { auto _e = tiles(); _o->tiles = _e; };
 }
 
 inline flatbuffers::Offset<TileParams> TileParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const TileParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10238,15 +12323,15 @@ inline flatbuffers::Offset<TileParams> CreateTileParams(flatbuffers::FlatBufferB
 }
 
 inline LeakyReluParamsT *LeakyReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::LeakyReluParamsT> _o = std::unique_ptr<MVCNN::LeakyReluParamsT>(new LeakyReluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new LeakyReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void LeakyReluParams::UnPackTo(LeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = negative_slope(); _o->negative_slope = _e; }
+  { auto _e = negative_slope(); _o->negative_slope = _e; };
 }
 
 inline flatbuffers::Offset<LeakyReluParams> LeakyReluParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const LeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10264,9 +12349,9 @@ inline flatbuffers::Offset<LeakyReluParams> CreateLeakyReluParams(flatbuffers::F
 }
 
 inline SigmoidParamsT *SigmoidParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::SigmoidParamsT> _o = std::unique_ptr<MVCNN::SigmoidParamsT>(new SigmoidParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new SigmoidParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void SigmoidParams::UnPackTo(SigmoidParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10287,9 +12372,9 @@ inline flatbuffers::Offset<SigmoidParams> CreateSigmoidParams(flatbuffers::FlatB
 }
 
 inline ReluParamsT *ReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ReluParamsT> _o = std::unique_ptr<MVCNN::ReluParamsT>(new ReluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ReluParams::UnPackTo(ReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10310,15 +12395,15 @@ inline flatbuffers::Offset<ReluParams> CreateReluParams(flatbuffers::FlatBufferB
 }
 
 inline GatherParamsT *GatherParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::GatherParamsT> _o = std::unique_ptr<MVCNN::GatherParamsT>(new GatherParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new GatherParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void GatherParams::UnPackTo(GatherParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = axis(); _o->axis = _e; }
+  { auto _e = axis(); _o->axis = _e; };
 }
 
 inline flatbuffers::Offset<GatherParams> GatherParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const GatherParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10336,16 +12421,16 @@ inline flatbuffers::Offset<GatherParams> CreateGatherParams(flatbuffers::FlatBuf
 }
 
 inline ClampParamsT *ClampParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ClampParamsT> _o = std::unique_ptr<MVCNN::ClampParamsT>(new ClampParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ClampParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ClampParams::UnPackTo(ClampParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = min(); _o->min = _e; }
-  { auto _e = max(); _o->max = _e; }
+  { auto _e = min(); _o->min = _e; };
+  { auto _e = max(); _o->max = _e; };
 }
 
 inline flatbuffers::Offset<ClampParams> ClampParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const ClampParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10365,15 +12450,15 @@ inline flatbuffers::Offset<ClampParams> CreateClampParams(flatbuffers::FlatBuffe
 }
 
 inline EluParamsT *EluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::EluParamsT> _o = std::unique_ptr<MVCNN::EluParamsT>(new EluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new EluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void EluParams::UnPackTo(EluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = x(); _o->x = _e; }
+  { auto _e = x(); _o->x = _e; };
 }
 
 inline flatbuffers::Offset<EluParams> EluParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const EluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10391,17 +12476,17 @@ inline flatbuffers::Offset<EluParams> CreateEluParams(flatbuffers::FlatBufferBui
 }
 
 inline PowerParamsT *PowerParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PowerParamsT> _o = std::unique_ptr<MVCNN::PowerParamsT>(new PowerParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PowerParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void PowerParams::UnPackTo(PowerParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = shift(); _o->shift = _e; }
-  { auto _e = scale(); _o->scale = _e; }
-  { auto _e = power(); _o->power = _e; }
+  { auto _e = shift(); _o->shift = _e; };
+  { auto _e = scale(); _o->scale = _e; };
+  { auto _e = power(); _o->power = _e; };
 }
 
 inline flatbuffers::Offset<PowerParams> PowerParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PowerParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10423,15 +12508,15 @@ inline flatbuffers::Offset<PowerParams> CreatePowerParams(flatbuffers::FlatBuffe
 }
 
 inline BiasLeakyReluParamsT *BiasLeakyReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::BiasLeakyReluParamsT> _o = std::unique_ptr<MVCNN::BiasLeakyReluParamsT>(new BiasLeakyReluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new BiasLeakyReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void BiasLeakyReluParams::UnPackTo(BiasLeakyReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = negative_slope(); _o->negative_slope = _e; }
+  { auto _e = negative_slope(); _o->negative_slope = _e; };
 }
 
 inline flatbuffers::Offset<BiasLeakyReluParams> BiasLeakyReluParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasLeakyReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10449,15 +12534,15 @@ inline flatbuffers::Offset<BiasLeakyReluParams> CreateBiasLeakyReluParams(flatbu
 }
 
 inline BiasReluParamsT *BiasReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::BiasReluParamsT> _o = std::unique_ptr<MVCNN::BiasReluParamsT>(new BiasReluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new BiasReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void BiasReluParams::UnPackTo(BiasReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = negative_slope(); _o->negative_slope = _e; }
+  { auto _e = negative_slope(); _o->negative_slope = _e; };
 }
 
 inline flatbuffers::Offset<BiasReluParams> BiasReluParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BiasReluParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -10475,9 +12560,9 @@ inline flatbuffers::Offset<BiasReluParams> CreateBiasReluParams(flatbuffers::Fla
 }
 
 inline PReluParamsT *PReluParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PReluParamsT> _o = std::unique_ptr<MVCNN::PReluParamsT>(new PReluParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PReluParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void PReluParams::UnPackTo(PReluParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10498,9 +12583,9 @@ inline flatbuffers::Offset<PReluParams> CreatePReluParams(flatbuffers::FlatBuffe
 }
 
 inline TanhParamsT *TanhParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::TanhParamsT> _o = std::unique_ptr<MVCNN::TanhParamsT>(new TanhParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new TanhParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void TanhParams::UnPackTo(TanhParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10521,9 +12606,9 @@ inline flatbuffers::Offset<TanhParams> CreateTanhParams(flatbuffers::FlatBufferB
 }
 
 inline BiasParamsT *BiasParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::BiasParamsT> _o = std::unique_ptr<MVCNN::BiasParamsT>(new BiasParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new BiasParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void BiasParams::UnPackTo(BiasParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10544,9 +12629,9 @@ inline flatbuffers::Offset<BiasParams> CreateBiasParams(flatbuffers::FlatBufferB
 }
 
 inline ScaleParamsT *ScaleParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ScaleParamsT> _o = std::unique_ptr<MVCNN::ScaleParamsT>(new ScaleParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ScaleParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ScaleParams::UnPackTo(ScaleParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10567,9 +12652,9 @@ inline flatbuffers::Offset<ScaleParams> CreateScaleParams(flatbuffers::FlatBuffe
 }
 
 inline ScaleShiftParamsT *ScaleShiftParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::ScaleShiftParamsT> _o = std::unique_ptr<MVCNN::ScaleShiftParamsT>(new ScaleShiftParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new ScaleShiftParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void ScaleShiftParams::UnPackTo(ScaleShiftParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
@@ -10590,18 +12675,18 @@ inline flatbuffers::Offset<ScaleShiftParams> CreateScaleShiftParams(flatbuffers:
 }
 
 inline PostOpsParamsT *PostOpsParams::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
-  std::unique_ptr<MVCNN::PostOpsParamsT> _o = std::unique_ptr<MVCNN::PostOpsParamsT>(new PostOpsParamsT());
-  UnPackTo(_o.get(), _resolver);
-  return _o.release();
+  auto _o = new PostOpsParamsT();
+  UnPackTo(_o, _resolver);
+  return _o;
 }
 
 inline void PostOpsParams::UnPackTo(PostOpsParamsT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = has_weights(); _o->has_weights = _e; }
-  { auto _e = has_bias(); _o->has_bias = _e; }
-  { auto _e = nested_params_type(); _o->nested_params.type = _e; }
-  { auto _e = nested_params(); if (_e) _o->nested_params.value = MVCNN::PostOpsNestedParamsUnion::UnPack(_e, nested_params_type(), _resolver); }
+  { auto _e = has_weights(); _o->has_weights = _e; };
+  { auto _e = has_bias(); _o->has_bias = _e; };
+  { auto _e = nested_params_type(); _o->nested_params.type = _e; };
+  { auto _e = nested_params(); if (_e) _o->nested_params.value = PostOpsNestedParamsUnion::UnPack(_e, nested_params_type(), _resolver); };
 }
 
 inline flatbuffers::Offset<PostOpsParams> PostOpsParams::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PostOpsParamsT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
@@ -11256,14 +13341,210 @@ inline flatbuffers::Offset<void> EltwisePostOpsNestedParamsUnion::Pack(flatbuffe
   }
 }
 
-inline EltwisePostOpsNestedParamsUnion::EltwisePostOpsNestedParamsUnion(const EltwisePostOpsNestedParamsUnion &u) : type(u.type), value(nullptr) {
+inline void PPEAssist::UnPackTo(PPEAssistT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = op(); _o->op = _e; };
+}
+
+inline flatbuffers::Offset<PPEAssist> PPEAssist::Pack(flatbuffers::FlatBufferBuilder &_fbb, const PPEAssistT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreatePPEAssist(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<PPEAssist> CreatePPEAssist(flatbuffers::FlatBufferBuilder &_fbb, const PPEAssistT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const PPEAssistT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _op = _o->op;
+  return MVCNN::CreatePPEAssist(
+      _fbb,
+      _op);
+}
+
+inline NNTensorTaskT *NNTensorTask::UnPack(const flatbuffers::resolver_function_t *_resolver) const {
+  auto _o = new NNTensorTaskT();
+  UnPackTo(_o, _resolver);
+  return _o;
+}
+
+inline void NNTensorTask::UnPackTo(NNTensorTaskT *_o, const flatbuffers::resolver_function_t *_resolver) const {
+  (void)_o;
+  (void)_resolver;
+  { auto _e = subtask_type(); _o->subtask.type = _e; };
+  { auto _e = subtask(); if (_e) _o->subtask.value = NNHelperUnion::UnPack(_e, subtask_type(), _resolver); };
+}
+
+inline flatbuffers::Offset<NNTensorTask> NNTensorTask::Pack(flatbuffers::FlatBufferBuilder &_fbb, const NNTensorTaskT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
+  return CreateNNTensorTask(_fbb, _o, _rehasher);
+}
+
+inline flatbuffers::Offset<NNTensorTask> CreateNNTensorTask(flatbuffers::FlatBufferBuilder &_fbb, const NNTensorTaskT *_o, const flatbuffers::rehasher_function_t *_rehasher) {
+  (void)_rehasher;
+  (void)_o;
+  struct _VectorArgs { flatbuffers::FlatBufferBuilder *__fbb; const NNTensorTaskT* __o; const flatbuffers::rehasher_function_t *__rehasher; } _va = { &_fbb, _o, _rehasher}; (void)_va;
+  auto _subtask_type = _o->subtask.type;
+  auto _subtask = _o->subtask.Pack(_fbb);
+  return MVCNN::CreateNNTensorTask(
+      _fbb,
+      _subtask_type,
+      _subtask);
+}
+
+inline bool VerifyEltwiseParam(flatbuffers::Verifier &verifier, const void *obj, EltwiseParam type) {
+  switch (type) {
+    case EltwiseParam_NONE: {
+      return true;
+    }
+    case EltwiseParam_i32: {
+      auto ptr = reinterpret_cast<const EltwiseI32 *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EltwiseParam_fp: {
+      auto ptr = reinterpret_cast<const EltwiseFP32 *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return false;
+  }
+}
+
+inline bool VerifyEltwiseParamVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyEltwiseParam(
+        verifier,  values->Get(i), types->GetEnum<EltwiseParam>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline void *EltwiseParamUnion::UnPack(const void *obj, EltwiseParam type, const flatbuffers::resolver_function_t *resolver) {
+  switch (type) {
+    case EltwiseParam_i32: {
+      auto ptr = reinterpret_cast<const EltwiseI32 *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case EltwiseParam_fp: {
+      auto ptr = reinterpret_cast<const EltwiseFP32 *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    default: return nullptr;
+  }
+}
+
+inline flatbuffers::Offset<void> EltwiseParamUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
+  switch (type) {
+    case EltwiseParam_i32: {
+      auto ptr = reinterpret_cast<const EltwiseI32T *>(value);
+      return CreateEltwiseI32(_fbb, ptr, _rehasher).Union();
+    }
+    case EltwiseParam_fp: {
+      auto ptr = reinterpret_cast<const EltwiseFP32T *>(value);
+      return CreateEltwiseFP32(_fbb, ptr, _rehasher).Union();
+    }
+    default: return 0;
+  }
+}
+
+inline EltwiseParamUnion::EltwiseParamUnion(const EltwiseParamUnion &u) FLATBUFFERS_NOEXCEPT : type(u.type), value(nullptr) {
+  switch (type) {
+    case EltwiseParam_i32: {
+      value = new EltwiseI32T(*reinterpret_cast<EltwiseI32T *>(u.value));
+      break;
+    }
+    case EltwiseParam_fp: {
+      value = new EltwiseFP32T(*reinterpret_cast<EltwiseFP32T *>(u.value));
+      break;
+    }
+    default:
+      break;
+  }
+}
+
+inline void EltwiseParamUnion::Reset() {
+  switch (type) {
+    case EltwiseParam_i32: {
+      auto ptr = reinterpret_cast<EltwiseI32T *>(value);
+      delete ptr;
+      break;
+    }
+    case EltwiseParam_fp: {
+      auto ptr = reinterpret_cast<EltwiseFP32T *>(value);
+      delete ptr;
+      break;
+    }
+    default: break;
+  }
+  value = nullptr;
+  type = EltwiseParam_NONE;
+}
+
+inline bool VerifyEltwisePostOpsNestedParams(flatbuffers::Verifier &verifier, const void *obj, EltwisePostOpsNestedParams type) {
+  switch (type) {
+    case EltwisePostOpsNestedParams_NONE: {
+      return true;
+    }
+    case EltwisePostOpsNestedParams_EltwisePostOpEmpty: {
+      auto ptr = reinterpret_cast<const EltwisePostOpEmpty *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case EltwisePostOpsNestedParams_EltwisePostOpPReLU: {
+      auto ptr = reinterpret_cast<const EltwisePostOpPReLU *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return false;
+  }
+}
+
+inline bool VerifyEltwisePostOpsNestedParamsVector(flatbuffers::Verifier &verifier, const flatbuffers::Vector<flatbuffers::Offset<void>> *values, const flatbuffers::Vector<uint8_t> *types) {
+  if (!values || !types) return !values && !types;
+  if (values->size() != types->size()) return false;
+  for (flatbuffers::uoffset_t i = 0; i < values->size(); ++i) {
+    if (!VerifyEltwisePostOpsNestedParams(
+        verifier,  values->Get(i), types->GetEnum<EltwisePostOpsNestedParams>(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+inline void *EltwisePostOpsNestedParamsUnion::UnPack(const void *obj, EltwisePostOpsNestedParams type, const flatbuffers::resolver_function_t *resolver) {
   switch (type) {
     case EltwisePostOpsNestedParams_EltwisePostOpEmpty: {
-      value = new MVCNN::EltwisePostOpEmptyT(*reinterpret_cast<MVCNN::EltwisePostOpEmptyT *>(u.value));
+      auto ptr = reinterpret_cast<const EltwisePostOpEmpty *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case EltwisePostOpsNestedParams_EltwisePostOpPReLU: {
+      auto ptr = reinterpret_cast<const EltwisePostOpPReLU *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    default: return nullptr;
+  }
+}
+
+inline flatbuffers::Offset<void> EltwisePostOpsNestedParamsUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
+  switch (type) {
+    case EltwisePostOpsNestedParams_EltwisePostOpEmpty: {
+      auto ptr = reinterpret_cast<const EltwisePostOpEmptyT *>(value);
+      return CreateEltwisePostOpEmpty(_fbb, ptr, _rehasher).Union();
+    }
+    case EltwisePostOpsNestedParams_EltwisePostOpPReLU: {
+      auto ptr = reinterpret_cast<const EltwisePostOpPReLUT *>(value);
+      return CreateEltwisePostOpPReLU(_fbb, ptr, _rehasher).Union();
+    }
+    default: return 0;
+  }
+}
+
+inline EltwisePostOpsNestedParamsUnion::EltwisePostOpsNestedParamsUnion(const EltwisePostOpsNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT : type(u.type), value(nullptr) {
+  switch (type) {
+    case EltwisePostOpsNestedParams_EltwisePostOpEmpty: {
+      value = new EltwisePostOpEmptyT(*reinterpret_cast<EltwisePostOpEmptyT *>(u.value));
       break;
     }
     case EltwisePostOpsNestedParams_EltwisePostOpPReLU: {
-      value = new MVCNN::EltwisePostOpPReLUT(*reinterpret_cast<MVCNN::EltwisePostOpPReLUT *>(u.value));
+      value = new EltwisePostOpPReLUT(*reinterpret_cast<EltwisePostOpPReLUT *>(u.value));
       break;
     }
     default:
@@ -11274,12 +13555,12 @@ inline EltwisePostOpsNestedParamsUnion::EltwisePostOpsNestedParamsUnion(const El
 inline void EltwisePostOpsNestedParamsUnion::Reset() {
   switch (type) {
     case EltwisePostOpsNestedParams_EltwisePostOpEmpty: {
-      auto ptr = reinterpret_cast<MVCNN::EltwisePostOpEmptyT *>(value);
+      auto ptr = reinterpret_cast<EltwisePostOpEmptyT *>(value);
       delete ptr;
       break;
     }
     case EltwisePostOpsNestedParams_EltwisePostOpPReLU: {
-      auto ptr = reinterpret_cast<MVCNN::EltwisePostOpPReLUT *>(value);
+      auto ptr = reinterpret_cast<EltwisePostOpPReLUT *>(value);
       delete ptr;
       break;
     }
@@ -11295,58 +13576,58 @@ inline bool VerifyPostOpsNestedParams(flatbuffers::Verifier &verifier, const voi
       return true;
     }
     case PostOpsNestedParams_BiasParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_ScaleParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleParams *>(obj);
+      auto ptr = reinterpret_cast<const ScaleParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_ScaleShiftParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleShiftParams *>(obj);
+      auto ptr = reinterpret_cast<const ScaleShiftParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_ClampParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ClampParams *>(obj);
+      auto ptr = reinterpret_cast<const ClampParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_EluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::EluParams *>(obj);
+      auto ptr = reinterpret_cast<const EluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_PowerParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PowerParams *>(obj);
+      auto ptr = reinterpret_cast<const PowerParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_BiasLeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasLeakyReluParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasLeakyReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_BiasReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasReluParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_LeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::LeakyReluParams *>(obj);
+      auto ptr = reinterpret_cast<const LeakyReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ReluParams *>(obj);
+      auto ptr = reinterpret_cast<const ReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_PReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PReluParams *>(obj);
+      auto ptr = reinterpret_cast<const PReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_SigmoidParams: {
-      auto ptr = reinterpret_cast<const MVCNN::SigmoidParams *>(obj);
+      auto ptr = reinterpret_cast<const SigmoidParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
     case PostOpsNestedParams_TanhParams: {
-      auto ptr = reinterpret_cast<const MVCNN::TanhParams *>(obj);
+      auto ptr = reinterpret_cast<const TanhParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
-    default: return true;
+    default: return false;
   }
 }
 
@@ -11365,55 +13646,55 @@ inline bool VerifyPostOpsNestedParamsVector(flatbuffers::Verifier &verifier, con
 inline void *PostOpsNestedParamsUnion::UnPack(const void *obj, PostOpsNestedParams type, const flatbuffers::resolver_function_t *resolver) {
   switch (type) {
     case PostOpsNestedParams_BiasParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_ScaleParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleParams *>(obj);
+      auto ptr = reinterpret_cast<const ScaleParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_ScaleShiftParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleShiftParams *>(obj);
+      auto ptr = reinterpret_cast<const ScaleShiftParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_ClampParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ClampParams *>(obj);
+      auto ptr = reinterpret_cast<const ClampParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_EluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::EluParams *>(obj);
+      auto ptr = reinterpret_cast<const EluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_PowerParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PowerParams *>(obj);
+      auto ptr = reinterpret_cast<const PowerParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_BiasLeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasLeakyReluParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasLeakyReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_BiasReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasReluParams *>(obj);
+      auto ptr = reinterpret_cast<const BiasReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_LeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::LeakyReluParams *>(obj);
+      auto ptr = reinterpret_cast<const LeakyReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ReluParams *>(obj);
+      auto ptr = reinterpret_cast<const ReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_PReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PReluParams *>(obj);
+      auto ptr = reinterpret_cast<const PReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_SigmoidParams: {
-      auto ptr = reinterpret_cast<const MVCNN::SigmoidParams *>(obj);
+      auto ptr = reinterpret_cast<const SigmoidParams *>(obj);
       return ptr->UnPack(resolver);
     }
     case PostOpsNestedParams_TanhParams: {
-      auto ptr = reinterpret_cast<const MVCNN::TanhParams *>(obj);
+      auto ptr = reinterpret_cast<const TanhParams *>(obj);
       return ptr->UnPack(resolver);
     }
     default: return nullptr;
@@ -11423,113 +13704,113 @@ inline void *PostOpsNestedParamsUnion::UnPack(const void *obj, PostOpsNestedPara
 inline flatbuffers::Offset<void> PostOpsNestedParamsUnion::Pack(flatbuffers::FlatBufferBuilder &_fbb, const flatbuffers::rehasher_function_t *_rehasher) const {
   switch (type) {
     case PostOpsNestedParams_BiasParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasParamsT *>(value);
+      auto ptr = reinterpret_cast<const BiasParamsT *>(value);
       return CreateBiasParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_ScaleParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleParamsT *>(value);
+      auto ptr = reinterpret_cast<const ScaleParamsT *>(value);
       return CreateScaleParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_ScaleShiftParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ScaleShiftParamsT *>(value);
+      auto ptr = reinterpret_cast<const ScaleShiftParamsT *>(value);
       return CreateScaleShiftParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_ClampParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ClampParamsT *>(value);
+      auto ptr = reinterpret_cast<const ClampParamsT *>(value);
       return CreateClampParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_EluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::EluParamsT *>(value);
+      auto ptr = reinterpret_cast<const EluParamsT *>(value);
       return CreateEluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_PowerParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PowerParamsT *>(value);
+      auto ptr = reinterpret_cast<const PowerParamsT *>(value);
       return CreatePowerParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_BiasLeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasLeakyReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const BiasLeakyReluParamsT *>(value);
       return CreateBiasLeakyReluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_BiasReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::BiasReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const BiasReluParamsT *>(value);
       return CreateBiasReluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_LeakyReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::LeakyReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const LeakyReluParamsT *>(value);
       return CreateLeakyReluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const ReluParamsT *>(value);
       return CreateReluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_PReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const PReluParamsT *>(value);
       return CreatePReluParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_SigmoidParams: {
-      auto ptr = reinterpret_cast<const MVCNN::SigmoidParamsT *>(value);
+      auto ptr = reinterpret_cast<const SigmoidParamsT *>(value);
       return CreateSigmoidParams(_fbb, ptr, _rehasher).Union();
     }
     case PostOpsNestedParams_TanhParams: {
-      auto ptr = reinterpret_cast<const MVCNN::TanhParamsT *>(value);
+      auto ptr = reinterpret_cast<const TanhParamsT *>(value);
       return CreateTanhParams(_fbb, ptr, _rehasher).Union();
     }
     default: return 0;
   }
 }
 
-inline PostOpsNestedParamsUnion::PostOpsNestedParamsUnion(const PostOpsNestedParamsUnion &u) : type(u.type), value(nullptr) {
+inline PostOpsNestedParamsUnion::PostOpsNestedParamsUnion(const PostOpsNestedParamsUnion &u) FLATBUFFERS_NOEXCEPT : type(u.type), value(nullptr) {
   switch (type) {
     case PostOpsNestedParams_BiasParams: {
-      value = new MVCNN::BiasParamsT(*reinterpret_cast<MVCNN::BiasParamsT *>(u.value));
+      value = new BiasParamsT(*reinterpret_cast<BiasParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_ScaleParams: {
-      value = new MVCNN::ScaleParamsT(*reinterpret_cast<MVCNN::ScaleParamsT *>(u.value));
+      value = new ScaleParamsT(*reinterpret_cast<ScaleParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_ScaleShiftParams: {
-      value = new MVCNN::ScaleShiftParamsT(*reinterpret_cast<MVCNN::ScaleShiftParamsT *>(u.value));
+      value = new ScaleShiftParamsT(*reinterpret_cast<ScaleShiftParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_ClampParams: {
-      value = new MVCNN::ClampParamsT(*reinterpret_cast<MVCNN::ClampParamsT *>(u.value));
+      value = new ClampParamsT(*reinterpret_cast<ClampParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_EluParams: {
-      value = new MVCNN::EluParamsT(*reinterpret_cast<MVCNN::EluParamsT *>(u.value));
+      value = new EluParamsT(*reinterpret_cast<EluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_PowerParams: {
-      value = new MVCNN::PowerParamsT(*reinterpret_cast<MVCNN::PowerParamsT *>(u.value));
+      value = new PowerParamsT(*reinterpret_cast<PowerParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_BiasLeakyReluParams: {
-      value = new MVCNN::BiasLeakyReluParamsT(*reinterpret_cast<MVCNN::BiasLeakyReluParamsT *>(u.value));
+      value = new BiasLeakyReluParamsT(*reinterpret_cast<BiasLeakyReluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_BiasReluParams: {
-      value = new MVCNN::BiasReluParamsT(*reinterpret_cast<MVCNN::BiasReluParamsT *>(u.value));
+      value = new BiasReluParamsT(*reinterpret_cast<BiasReluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_LeakyReluParams: {
-      value = new MVCNN::LeakyReluParamsT(*reinterpret_cast<MVCNN::LeakyReluParamsT *>(u.value));
+      value = new LeakyReluParamsT(*reinterpret_cast<LeakyReluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_ReluParams: {
-      value = new MVCNN::ReluParamsT(*reinterpret_cast<MVCNN::ReluParamsT *>(u.value));
+      value = new ReluParamsT(*reinterpret_cast<ReluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_PReluParams: {
-      value = new MVCNN::PReluParamsT(*reinterpret_cast<MVCNN::PReluParamsT *>(u.value));
+      value = new PReluParamsT(*reinterpret_cast<PReluParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_SigmoidParams: {
-      value = new MVCNN::SigmoidParamsT(*reinterpret_cast<MVCNN::SigmoidParamsT *>(u.value));
+      value = new SigmoidParamsT(*reinterpret_cast<SigmoidParamsT *>(u.value));
       break;
     }
     case PostOpsNestedParams_TanhParams: {
-      value = new MVCNN::TanhParamsT(*reinterpret_cast<MVCNN::TanhParamsT *>(u.value));
+      value = new TanhParamsT(*reinterpret_cast<TanhParamsT *>(u.value));
       break;
     }
     default:
@@ -11540,67 +13821,67 @@ inline PostOpsNestedParamsUnion::PostOpsNestedParamsUnion(const PostOpsNestedPar
 inline void PostOpsNestedParamsUnion::Reset() {
   switch (type) {
     case PostOpsNestedParams_BiasParams: {
-      auto ptr = reinterpret_cast<MVCNN::BiasParamsT *>(value);
+      auto ptr = reinterpret_cast<BiasParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_ScaleParams: {
-      auto ptr = reinterpret_cast<MVCNN::ScaleParamsT *>(value);
+      auto ptr = reinterpret_cast<ScaleParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_ScaleShiftParams: {
-      auto ptr = reinterpret_cast<MVCNN::ScaleShiftParamsT *>(value);
+      auto ptr = reinterpret_cast<ScaleShiftParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_ClampParams: {
-      auto ptr = reinterpret_cast<MVCNN::ClampParamsT *>(value);
+      auto ptr = reinterpret_cast<ClampParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_EluParams: {
-      auto ptr = reinterpret_cast<MVCNN::EluParamsT *>(value);
+      auto ptr = reinterpret_cast<EluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_PowerParams: {
-      auto ptr = reinterpret_cast<MVCNN::PowerParamsT *>(value);
+      auto ptr = reinterpret_cast<PowerParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_BiasLeakyReluParams: {
-      auto ptr = reinterpret_cast<MVCNN::BiasLeakyReluParamsT *>(value);
+      auto ptr = reinterpret_cast<BiasLeakyReluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_BiasReluParams: {
-      auto ptr = reinterpret_cast<MVCNN::BiasReluParamsT *>(value);
+      auto ptr = reinterpret_cast<BiasReluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_LeakyReluParams: {
-      auto ptr = reinterpret_cast<MVCNN::LeakyReluParamsT *>(value);
+      auto ptr = reinterpret_cast<LeakyReluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<MVCNN::ReluParamsT *>(value);
+      auto ptr = reinterpret_cast<ReluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_PReluParams: {
-      auto ptr = reinterpret_cast<MVCNN::PReluParamsT *>(value);
+      auto ptr = reinterpret_cast<PReluParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_SigmoidParams: {
-      auto ptr = reinterpret_cast<MVCNN::SigmoidParamsT *>(value);
+      auto ptr = reinterpret_cast<SigmoidParamsT *>(value);
       delete ptr;
       break;
     }
     case PostOpsNestedParams_TanhParams: {
-      auto ptr = reinterpret_cast<MVCNN::TanhParamsT *>(value);
+      auto ptr = reinterpret_cast<TanhParamsT *>(value);
       delete ptr;
       break;
     }
@@ -11624,10 +13905,10 @@ inline bool VerifyUnaryOpNestedParams(flatbuffers::Verifier &verifier, const voi
       return verifier.VerifyTable(ptr);
     }
     case UnaryOpNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ReluParams *>(obj);
+      auto ptr = reinterpret_cast<const ReluParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
-    default: return true;
+    default: return false;
   }
 }
 
@@ -11657,6 +13938,10 @@ inline void *UnaryOpNestedParamsUnion::UnPack(const void *obj, UnaryOpNestedPara
       auto ptr = reinterpret_cast<const MVCNN::ReluParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case UnaryOpNestedParams_ReluParams: {
+      auto ptr = reinterpret_cast<const ReluParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -11672,7 +13957,7 @@ inline flatbuffers::Offset<void> UnaryOpNestedParamsUnion::Pack(flatbuffers::Fla
       return CreateSigmoidParams(_fbb, ptr, _rehasher).Union();
     }
     case UnaryOpNestedParams_ReluParams: {
-      auto ptr = reinterpret_cast<const MVCNN::ReluParamsT *>(value);
+      auto ptr = reinterpret_cast<const ReluParamsT *>(value);
       return CreateReluParams(_fbb, ptr, _rehasher).Union();
     }
     default: return 0;
@@ -11691,6 +13976,10 @@ inline UnaryOpNestedParamsUnion::UnaryOpNestedParamsUnion(const UnaryOpNestedPar
     }
     case UnaryOpNestedParams_ReluParams: {
       value = new MVCNN::ReluParamsT(*reinterpret_cast<MVCNN::ReluParamsT *>(u.value));
+      break;
+    }
+    case UnaryOpNestedParams_ReluParams: {
+      value = new ReluParamsT(*reinterpret_cast<ReluParamsT *>(u.value));
       break;
     }
     default:
@@ -11712,6 +14001,11 @@ inline void UnaryOpNestedParamsUnion::Reset() {
     }
     case UnaryOpNestedParams_ReluParams: {
       auto ptr = reinterpret_cast<MVCNN::ReluParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case UnaryOpNestedParams_ReluParams: {
+      auto ptr = reinterpret_cast<ReluParamsT *>(value);
       delete ptr;
       break;
     }
@@ -11874,7 +14168,19 @@ inline bool VerifySoftwareLayerParams(flatbuffers::Verifier &verifier, const voi
       auto ptr = reinterpret_cast<const MVCNN::NegativeParams *>(obj);
       return verifier.VerifyTable(ptr);
     }
-    default: return true;
+    case SoftwareLayerParams_GatherParams: {
+      auto ptr = reinterpret_cast<const GatherParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SoftwareLayerParams_PostOpsParams: {
+      auto ptr = reinterpret_cast<const PostOpsParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    case SoftwareLayerParams_NegativeParams: {
+      auto ptr = reinterpret_cast<const NegativeParams *>(obj);
+      return verifier.VerifyTable(ptr);
+    }
+    default: return false;
   }
 }
 
@@ -12040,6 +14346,18 @@ inline void *SoftwareLayerParamsUnion::UnPack(const void *obj, SoftwareLayerPara
       auto ptr = reinterpret_cast<const MVCNN::NegativeParams *>(obj);
       return ptr->UnPack(resolver);
     }
+    case SoftwareLayerParams_GatherParams: {
+      auto ptr = reinterpret_cast<const GatherParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SoftwareLayerParams_PostOpsParams: {
+      auto ptr = reinterpret_cast<const PostOpsParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
+    case SoftwareLayerParams_NegativeParams: {
+      auto ptr = reinterpret_cast<const NegativeParams *>(obj);
+      return ptr->UnPack(resolver);
+    }
     default: return nullptr;
   }
 }
@@ -12183,15 +14501,15 @@ inline flatbuffers::Offset<void> SoftwareLayerParamsUnion::Pack(flatbuffers::Fla
       return CreateConvolutionParams(_fbb, ptr, _rehasher).Union();
     }
     case SoftwareLayerParams_GatherParams: {
-      auto ptr = reinterpret_cast<const MVCNN::GatherParamsT *>(value);
+      auto ptr = reinterpret_cast<const GatherParamsT *>(value);
       return CreateGatherParams(_fbb, ptr, _rehasher).Union();
     }
     case SoftwareLayerParams_PostOpsParams: {
-      auto ptr = reinterpret_cast<const MVCNN::PostOpsParamsT *>(value);
+      auto ptr = reinterpret_cast<const PostOpsParamsT *>(value);
       return CreatePostOpsParams(_fbb, ptr, _rehasher).Union();
     }
     case SoftwareLayerParams_NegativeParams: {
-      auto ptr = reinterpret_cast<const MVCNN::NegativeParamsT *>(value);
+      auto ptr = reinterpret_cast<const NegativeParamsT *>(value);
       return CreateNegativeParams(_fbb, ptr, _rehasher).Union();
     }
     default: return 0;
@@ -12346,6 +14664,18 @@ inline SoftwareLayerParamsUnion::SoftwareLayerParamsUnion(const SoftwareLayerPar
     }
     case SoftwareLayerParams_NegativeParams: {
       value = new MVCNN::NegativeParamsT(*reinterpret_cast<MVCNN::NegativeParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_GatherParams: {
+      value = new GatherParamsT(*reinterpret_cast<GatherParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_PostOpsParams: {
+      value = new PostOpsParamsT(*reinterpret_cast<PostOpsParamsT *>(u.value));
+      break;
+    }
+    case SoftwareLayerParams_NegativeParams: {
+      value = new NegativeParamsT(*reinterpret_cast<NegativeParamsT *>(u.value));
       break;
     }
     default:
@@ -12537,6 +14867,21 @@ inline void SoftwareLayerParamsUnion::Reset() {
     }
     case SoftwareLayerParams_NegativeParams: {
       auto ptr = reinterpret_cast<MVCNN::NegativeParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_GatherParams: {
+      auto ptr = reinterpret_cast<GatherParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_PostOpsParams: {
+      auto ptr = reinterpret_cast<PostOpsParamsT *>(value);
+      delete ptr;
+      break;
+    }
+    case SoftwareLayerParams_NegativeParams: {
+      auto ptr = reinterpret_cast<NegativeParamsT *>(value);
       delete ptr;
       break;
     }

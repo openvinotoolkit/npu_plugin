@@ -255,7 +255,7 @@ inline const char * const *EnumNamesMPE_Mode() {
 }
 
 inline const char *EnumNameMPE_Mode(MPE_Mode e) {
-  if (flatbuffers::IsOutRange(e, MPE_Mode_VECTOR, MPE_Mode_CUBOID_4x16)) return "";
+  if (e < MPE_Mode_VECTOR || e > MPE_Mode_CUBOID_4x16) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesMPE_Mode()[index];
 }

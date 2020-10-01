@@ -30,6 +30,10 @@
 
 #include "ie_remote_context.hpp"
 #include "kmb_async_infer_request.h"
+<<<<<<< HEAD
+=======
+#include "kmb_config.h"
+>>>>>>> origin/releases/2020/kmb/pv2
 #include "kmb_infer_request.h"
 #include "kmb_remote_context.h"
 
@@ -126,8 +130,9 @@ private:
 
     std::shared_ptr<vpux::Device> _device = nullptr;
     // FIXME: executor contains a pointer for allocator which comes from dll.
-    // executor should be destroyed before _device. TBD: ticket
-    std::shared_ptr<vpux::Executor> _executor = nullptr;
+    // executor should be destroyed before _device
+    vpux::Executor::Ptr _executor = nullptr;
+
     static std::atomic<int> loadBlobCounter;
 };
 

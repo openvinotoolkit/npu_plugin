@@ -42,6 +42,10 @@
 #include "dims_parser.hpp"
 #include "ie_macro.hpp"
 
+#include <converters.hpp>
+#include <custom_layer/custom_parser.hpp>
+#include <include/mcm/tensor/tiling.hpp>
+
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 namespace vpu {
@@ -1729,8 +1733,8 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
                         weightsDataReorder[dst_idx] = weightsData[src_idx];
                     }
 
-        auto mvWeightsValues =
-            _modelMcm.constant(weightsDataReorder, mcmShape, precisionToDType(Precision::FP32), mv::Order("NCHW"));
+        auto mvWeightsValues = _modelMcm.constant(
+            weightsDataReorder, mcmShape, precisionToDType(Precision(Precision::ePrecision::FP32)), mv::Order("NCHW"));
 
         mvDeconv = _modelMcm.deconv(input->getMcmNode(), mvWeightsValues,
             {static_cast<uint16_t>(kernelStrideX), static_cast<uint16_t>(kernelStrideY)},
@@ -1746,8 +1750,8 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
         auto biasData = packBlobToVector<double>(biases, biases->size());
         mv::Shape mcmShape = {biasData.size()};
 
-        auto mvBiases = _modelMcm.constant(
-            biasData, mcmShape, precisionToDType(Precision::FP32), mv::Order::getColMajorID(mcmShape.ndims()));
+        auto mvBiases = _modelMcm.constant(biasData, mcmShape, precisionToDType(Precision(Precision::ePrecision::FP32)),
+            mv::Order::getColMajorID(mcmShape.ndims()));
 
         mvDeconvOnly = mvDeconv;
         mvDeconv = _modelMcm.bias(

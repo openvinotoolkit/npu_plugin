@@ -93,4 +93,4 @@ const std::vector<TopKTestParams> topkParams {
         .outLayout(Layout::NHWC)
 };
 
-INSTANTIATE_TEST_CASE_P(TopK, KmbTopKLayerTests, testing::ValuesIn(topkParams));
+INSTANTIATE_TEST_CASE_P(precommit_TopK, KmbTopKLayerTests, testing::ValuesIn(topkParams));

@@ -16,6 +16,6 @@ def test_infer_compiled(param_ir):
     blob = os.path.splitext(os.path.join(param_ir.models_dir, param_ir.model))[0] + ".blob"
     subprocess.check_call(
         [param_ir.benchmark_app,
-         '-d=KMB',
+         '-d=VPUX',
          f'-m={blob}',
          '-niter=1', '-nireq=1'])

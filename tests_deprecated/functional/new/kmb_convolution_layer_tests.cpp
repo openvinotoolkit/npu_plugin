@@ -76,7 +76,10 @@ public:
     }
 };
 
+// C++ exception with description "Tensor:conv:bias:0 - ArgumentError: attribute identifer splitStrategy - Undefined identifier"
+// [Track number: S#39518]
 TEST_P(KmbConvolutionLayerTests, FP16) {
+    SKIP_ON("KMB", "HDDL2", "VPUX", "ArgumentError exception");
     const auto& p = GetParam();
     const auto& convParams = std::get<1>(p);
     const auto withBiases = std::get<2>(p);
@@ -105,9 +108,11 @@ TEST_P(KmbConvolutionLayerTests, FP16) {
     runTest(netBuidler, tolerance, CompareMethod::Absolute);
 }
 
-// [Track number: S#39422]
+// [Track number: S#26002]
+// C++ exception with description "Tensor:conv:bias:0 - ArgumentError: attribute identifer splitStrategy - Undefined identifier"
+// [Track number: S#39518]
 TEST_P(KmbConvolutionLayerTests, FQ) {
-    SKIP_ON("KMB", "HDDL2", "VPUX", "Bad results");
+    SKIP_ON("KMB", "HDDL2", "VPUX", "ArgumentError exception");
     const auto& p = GetParam();
     const auto& convParams = std::get<1>(p);
     const auto withBiases = std::get<2>(p);
@@ -157,7 +162,7 @@ const std::vector<ConvolutionParams> dilatedParams = {
 };
 
 INSTANTIATE_TEST_CASE_P(
-    Simple, KmbConvolutionLayerTests,
+    precommit_Simple, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),
         testing::ValuesIn(simpleParams),
@@ -167,7 +172,7 @@ INSTANTIATE_TEST_CASE_P(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    Dilated, KmbConvolutionLayerTests,
+    precommit_Dilated, KmbConvolutionLayerTests,
     testing::Combine(
         testing::ValuesIn(inDims),
         testing::ValuesIn(dilatedParams),
