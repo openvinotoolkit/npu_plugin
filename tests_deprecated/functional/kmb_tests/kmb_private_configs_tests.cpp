@@ -228,7 +228,9 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .privateConfig({{"VPU_KMB_USE_SIPP", CONFIG_VALUE(YES)}})
         .inputWidth(228)
         .inputHeight(228)
-        .nClasses(2),
+        .nClasses(2)};
+
+const std::vector<PrivateConfigTestParams> privateConfigParamsBrokenTests {
     PrivateConfigTestParams()
         .testDescription("FORCE_NCHW_TO_NHWC")
         .modelPath(ModelsPath() + "/KMB_models/BLOBS/mobilenet-v2/mobilenet-v2.blob")
@@ -263,7 +265,9 @@ const std::vector<PrivateConfigTestParams> privateConfigParams {
         .inputHeight(228)
         .nClasses(2)};
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+INSTANTIATE_TEST_CASE_P(precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParams));
+
+INSTANTIATE_TEST_CASE_P(DISABLED_precommit, KmbPrivateConfigTests, testing::ValuesIn(privateConfigParamsBrokenTests));
 
 TEST_F(KmbPrivateConfigTests, DISABLED_precommit_SERIALIZE_CNN_BEFORE_COMPILE_FILE) {
 #if defined(__arm__) || defined(__aarch64__)
