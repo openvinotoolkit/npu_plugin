@@ -150,7 +150,7 @@ inline const char * const *EnumNamesDType() {
 }
 
 inline const char *EnumNameDType(DType e) {
-  if (e < DType_NOT_SET || e > DType_BFP16) return "";
+  if (flatbuffers::IsOutRange(e, DType_NOT_SET, DType_BFP16)) return "";
   const size_t index = static_cast<size_t>(e);
   return EnumNamesDType()[index];
 }
@@ -162,7 +162,7 @@ struct BinaryDataT : public flatbuffers::NativeTable {
   std::vector<uint64_t> data;
   bool csram_cacheable;
   BinaryDataT()
-      : underlying_type(DType_NOT_SET),
+      : underlying_type(MVCNN::DType_NOT_SET),
         length(0),
         csram_cacheable(false) {
   }
@@ -630,10 +630,10 @@ inline BinaryDataT *BinaryData::UnPack(const flatbuffers::resolver_function_t *_
 inline void BinaryData::UnPackTo(BinaryDataT *_o, const flatbuffers::resolver_function_t *_resolver) const {
   (void)_o;
   (void)_resolver;
-  { auto _e = underlying_type(); _o->underlying_type = _e; };
-  { auto _e = length(); _o->length = _e; };
-  { auto _e = data(); if (_e) { _o->data.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->data[_i] = _e->Get(_i); } } };
-  { auto _e = csram_cacheable(); _o->csram_cacheable = _e; };
+  { auto _e = underlying_type(); _o->underlying_type = _e; }
+  { auto _e = length(); _o->length = _e; }
+  { auto _e = data(); if (_e) { _o->data.resize(_e->size()); for (flatbuffers::uoffset_t _i = 0; _i < _e->size(); _i++) { _o->data[_i] = _e->Get(_i); } } }
+  { auto _e = csram_cacheable(); _o->csram_cacheable = _e; }
 }
 
 inline flatbuffers::Offset<BinaryData> BinaryData::Pack(flatbuffers::FlatBufferBuilder &_fbb, const BinaryDataT* _o, const flatbuffers::rehasher_function_t *_rehasher) {
