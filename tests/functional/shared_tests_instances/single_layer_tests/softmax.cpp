@@ -52,7 +52,7 @@ const auto params2D = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    precommit_SoftMax2D,
+    smoke_SoftMax2D,
     KmbSoftMaxLayerTest,
     params2D,
     SoftMaxLayerTest::getTestCaseName
@@ -76,7 +76,7 @@ const auto params4D = testing::Combine(
 );
 
 INSTANTIATE_TEST_CASE_P(
-    precommit_SoftMax4D,
+    smoke_SoftMax4D,
     KmbSoftMaxLayerTest,
     params4D,
     SoftMaxLayerTest::getTestCaseName

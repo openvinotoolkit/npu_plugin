@@ -35,6 +35,6 @@ const auto basicCases = ::testing::Combine(
     ::testing::ValuesIn(CommonTestUtils::combineParams(basic)),
     ::testing::Values(CommonTestUtils::DEVICE_KEEMBAY));
 
-INSTANTIATE_TEST_CASE_P(precommit_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
+INSTANTIATE_TEST_CASE_P(smoke_Activation_Basic, ActivationLayerTest, basicCases, ActivationLayerTest::getTestCaseName);
 
 }  // namespace

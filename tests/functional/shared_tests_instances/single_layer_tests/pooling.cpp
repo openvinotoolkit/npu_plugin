@@ -40,7 +40,7 @@ const auto maxPool_ExplicitPad_FloorRounding_Params =
         ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_FloorRounding_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -56,7 +56,7 @@ const auto maxPool_ExplicitPad_CeilRounding_Params =
         ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MaxPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(maxPool_ExplicitPad_CeilRounding_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -74,7 +74,7 @@ const auto avgPoolExplicitPadCeilRoundingParams =
         ::testing::Values(ngraph::op::RoundingType::CEIL), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false));
 
-INSTANTIATE_TEST_CASE_P(precommit_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_AvgPool_ExplicitPad_CeilRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadCeilRoundingParams,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -88,7 +88,7 @@ const auto avgPoolExplicitPadFloorRoundingParams =
         ::testing::Values(ngraph::op::RoundingType::FLOOR), ::testing::Values(ngraph::op::PadType::EXPLICIT),
         ::testing::Values(true, false));
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_AvgPool_ExplicitPad_FloorRounding, KmbPoolingLayerTest,
     ::testing::Combine(avgPoolExplicitPadFloorRoundingParams,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
@@ -104,7 +104,7 @@ const auto allPools_ValidPad_Params = ::testing::Combine(::testing::Values(Pooli
     ::testing::Values(ngraph::op::PadType::VALID),
     ::testing::Values(false));  // placeholder value - exclude pad not applicable for max pooling
 
-INSTANTIATE_TEST_CASE_P(DISABLED_precommit_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_MAX_and_AVGPool_ValidPad, KmbPoolingLayerTest,
     ::testing::Combine(allPools_ValidPad_Params,
         ::testing::ValuesIn(netPrecisions), ::testing::Values(InferenceEngine::SizeVector({1, 3, 30, 30})),
         ::testing::Values(LayerTestsUtils::testPlatformTargetDevice)),
