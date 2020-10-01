@@ -401,7 +401,7 @@ bool mv::Op::supportsCMConv()
     if (hasAttr("supportsCM"))
         return get<bool>("supportsCM");
 
-    if(!(getOpType() == "Conv" and getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16))
+    if(!(getOpType() == "Conv" && getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16))
         return false;
 
     std::vector<mv::Data::OpListIterator> ops_in_input_path;
