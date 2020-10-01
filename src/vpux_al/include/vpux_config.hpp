@@ -59,7 +59,6 @@ public:
     bool useM2I() const { return _useM2I; }
 
     std::string deviceId() const { return _deviceId; }
-    bool useCoreNN() const { return _useCoreNN; }
 
     void parseFrom(const VPUXConfig& other);
 
@@ -82,7 +81,6 @@ protected:
     bool _useM2I = false;
 
     std::string _deviceId = "VPU-0";
-    bool _useCoreNN = false;
 };
 
 }  // namespace vpux
