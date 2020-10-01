@@ -811,7 +811,9 @@ TEST_F(KmbSegmentationNetworkTest, icnet_camvid_ava_0001) {
         0.3f);  // mean intersection over union tolerance
 }
 
-TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
+
+// [Track number: S#25636]
+TEST_F(UnetNetworkTest, DISABLED_precommit_unet_camvid_ava_0001_NHWC_NCHW) {
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
             .setUserInputPrecision("input", Precision::U8)
@@ -823,7 +825,7 @@ TEST_F(UnetNetworkTest, precommit_unet_camvid_ava_0001_NHWC_NCHW) {
 
 // Bad accuracy
 // [Track number: S#39621]
-TEST_F(UnetNetworkTest, unet_camvid_ava_0001_NCHW_NCHW) {
+TEST_F(UnetNetworkTest, DISABLED_unet_camvid_ava_0001_NCHW_NCHW) {
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Bad accuracy");
     runTest(
         TestNetworkDesc("KMB_models/INT8/icv/unet-camvid-onnx-0001/caffe2/FP16-INT8/unet_camvid_onnx_0001_WW34.xml")
