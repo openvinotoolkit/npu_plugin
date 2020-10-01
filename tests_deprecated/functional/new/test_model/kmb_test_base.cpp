@@ -223,6 +223,17 @@ void KmbTestBase::SetUp() {
     }
 }
 
+void KmbTestBase::TearDown() {
+    if (RUN_INFER) {
+        core.reset();
+        // FIXME: reset cache every time to destroy VpualDispatcherResource
+        // this workaround is required to free VPU device properly
+        // Track number: H#18013110883
+        PluginCache::get().reset();
+    }
+    ASSERT_NO_FATAL_FAILURE(TestsCommon::TearDown());
+}
+
 Blob::Ptr KmbTestBase::getBlobByName(const std::string& blobName) {
     const auto it = blobs.find(blobName);
     if (it != blobs.end()) {

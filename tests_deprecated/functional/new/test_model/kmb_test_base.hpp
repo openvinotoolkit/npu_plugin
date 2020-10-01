@@ -185,6 +185,7 @@ public:
 
 protected:
     void SetUp() override;
+    void TearDown() override;
 
 protected:
     ExecutableNetwork getExecNetwork(
