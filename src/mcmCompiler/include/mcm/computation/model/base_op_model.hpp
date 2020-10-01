@@ -36,6 +36,7 @@ namespace mv
         std::vector<Data::OpListIterator> getNetworkOutputs();
         mv::Data::OpListIterator getNetworkOutput(std::size_t idx);
         size_t getNumNetworkOutputs();
+        void setNumNetworkOutputs(size_t numOutputs);
         void setOutputNode(Data::OpListIterator output);
         void replaceNetworkOutputAtIdx(std::size_t idx, mv::Data::OpListIterator op);
 

@@ -61,13 +61,17 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   mv::OpModel omodel(model);
   std::string cut_op_name = passDesc.get<std::string>("op_name");
 
-  { 
+  {
     std::ostringstream log_stream;
     log_stream << "[OpModelCutter] cut_op_name=" << cut_op_name << std::endl;
     passDesc.log(mv::Logger::MessageType::Info, log_stream.str());
   }
 
   mv::Data::OpListIterator output_op_itr;
+
+  bool multipleOutputs = false;
+  if (omodel.getNumNetworkOutputs() > 1)
+      multipleOutputs = true;
 
   //STEP-0: first find the output node and erase it //
   for (mv::Data::OpListIterator itr = omodel.opBegin();
@@ -76,7 +80,7 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
     if (itr->getOpType() != "Output") { continue; }
 
     if (itr->getName() == cut_op_name) {
-      { 
+      {
         std::ostringstream log_stream;
         log_stream << "[OpModelCutter] mv::OpModel already ends at = %s" <<
           cut_op_name << std::endl;
@@ -93,8 +97,8 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
 
   //STEP-1: remove all children for the op which wants to be the output //
   mv::Data::OpListIterator new_oitr = omodel.getOp(cut_op_name);
-  if (new_oitr == omodel.opEnd()) { 
-    { 
+  if (new_oitr == omodel.opEnd()) {
+    {
       std::ostringstream log_stream;
       log_stream << "[OpModelCutter] op " << cut_op_name <<
           "does not exist in mv::OpModel" << std::endl;
@@ -150,6 +154,12 @@ void OpModelCutter(const mv::pass::PassEntry& , mv::ComputationModel& model,
   //STEP-4: make the cut_op connect to new output //
   mv::Data::TensorIterator cut_op_tensor_itr = new_oitr->getOutputTensor(0UL);
   output_op_itr->setInputTensor(cut_op_tensor_itr, 0UL, true);
-  output_op_itr->set("precision", mv::DType("Default"));
+  //NOTE: Most of the times the precision type needs to be fp16 as we compare against cpu, so leaving it...
+  output_op_itr->set("precision", mv::DType("Float16"));
   omodel.defineFlow(cut_op_tensor_itr, output_op_itr, 0UL);
+  if (multipleOutputs)
+  {
+      omodel.setNumNetworkOutputs(1);
+      omodel.setOutputNode(output_op_itr);
+  }
 }

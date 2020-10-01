@@ -136,6 +136,8 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "AddPermuteToNonCMConvPaths",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
@@ -154,7 +156,8 @@
                     "globalStrategies" : [
                         {"name" : "forceSpilling",    "value" : false       },
                         {"name" : "enableStreaming",   "value" : true       },
-                        {"name" : "doubleBuffering",   "value" : false      },
+                        {"name" : "enablePipelining",   "value" : true       },
+                        {"name" : "enablePrefetching",   "value" : true      },
                         {"name" : "forceActivationSparsity",    "value" : false      },
                         {"name" : "enableWeightsSparsity",    "value" : false      },
                         {"name" : "clusteringStrategy","value" : "Automatic"}
@@ -222,6 +225,7 @@
     },
     "kmb_adapt": {
         "Singular": [
+            "DecideConcatLocation",
             "ConcatAsImplicit",
             "PermuteAsImplicit",
             "ReshapeAsImplicit",
@@ -281,17 +285,9 @@
             "GenerateSparsityMapsUnpopulatedTensors",
             "GenerateSparsityMapsEltwise",
             {
-                "name": "GenerateDot",
-                "output": "output/dots/input_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
-            {
               "name" : "ChainPipeliningTransform",
               "select_stages" : 2
             },
-
             { "name": "LpScheduler",
               "output" : "lp_scheduler_output.txt",
               "ddr_address_generation" : true,
@@ -299,16 +295,9 @@
               "enable_cmx_concat" : true
             },
             {
-              "name" : "RecomputeImplicitOpMemoryLocations",
-              "output": "mem_locations.txt"
+              "name" : "RecomputeImplicitOpMemoryLocations"
             },
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/output_op_model.dot",
-                "scope": "OpModel",
-                "content": "full",
-                "html": true
-            },
+            "RecomputeTensorMultiClusterAttributesCauseOfSpilling",
             {
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
@@ -332,7 +321,9 @@
               "allocator_mode": true,
               "ddr_control_edges" : true
             },
+            "SetSliceAddressesInCMX",
             "TransitiveReduction",
+            "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
             "PopulateInstructionListTables"
@@ -359,14 +350,8 @@
     "serialize": {
         "Singular": [
             "RemoveRedundantUpdateBarriers",
+            "DMAOrdering",
             "BuildGraphFileKmb",
-            {
-                "name": "GenerateDot",
-                "output": "output/dots/before_serialization.dot",
-                "scope": "ControlModel",
-                "content": "full",
-                "html": true
-            },
             {
                 "name": "GenerateBlobKmb",
                 "output": "output/mcm.blob"

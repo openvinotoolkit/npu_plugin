@@ -46,7 +46,7 @@ namespace mv
     }
 
     namespace attr {
-	    MV_REGISTER_ATTR(Barrier)
+        MV_REGISTER_SIMPLE_ATTR(Barrier)
 		.setToJSONFunc(attr_barrier_definition::toJSON)
 		.setFromJSONFunc(attr_barrier_definition::fromJSON)
 		.setToStringFunc(attr_barrier_definition::toString);

@@ -134,10 +134,7 @@ void alignTaskWeightsFcn(const mv::pass::PassEntry& , mv::ComputationModel& mode
             newKernel->set<mv::Shape>("OriginalShape", kernelShape);
             for(auto& flowPair: outputDataFlows)
             {
-                flowPair.first->set<std::array<unsigned short, 2>>("kSize", {
-                    static_cast<unsigned short>(kernelWidth),
-                    static_cast<unsigned short>(kernelHeight)
-                });
+                flowPair.first->set<std::array<unsigned short, 2>>("kSize", {kernelWidth, kernelHeight});
                 flowPair.first->set<unsigned>("inputChannels", inputChannels);
                 flowPair.first->set<unsigned>("outputChannels", outputChannels);
                 flowPair.first->set<mv::QuantizationParams>("quantParams", quantParams);

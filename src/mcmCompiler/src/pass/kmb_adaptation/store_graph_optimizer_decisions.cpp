@@ -3,6 +3,7 @@
 #include "include/mcm/op_model.hpp"
 #include "include/mcm/computation/model/control_model.hpp"
 #include "include/mcm/computation/model/data_model.hpp"
+#include "include/mcm/base/exception/runtime_error.hpp"
 #include "include/mcm/op_model.hpp"
 #include <regex>
 
@@ -12,7 +13,9 @@ static void storeDilationConcatsDDRFcn(const mv::pass::PassEntry&, mv::Computati
 static void solveDilatedSlicingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void validateDilationSubConvolutions(const mv::pass::PassEntry&, mv::ComputationModel& model);
 static void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
+static void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
+static void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 
 namespace mv
 {
@@ -50,8 +53,10 @@ void storeStrategy(mv::Data::OpListIterator& opIt, std::vector<mv::Element>& str
 
 void storeGraphOptimizerDecisions(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
+    ensureCMXConcatsDMASPlacedCorrectly(pass, model);
     storeLayerSplitStrategyFcn(pass, model);
     storeLayerSparsityStrategyFcn(pass, model);
+    storeLayerPipeliningStrategyFcn(pass, model);
     storeTensorPlacementFcn(pass, model);
     //NOTE: The idea of that pass is that for the dilation convolution all the dmas of the subconvolutions
     //need to write on one master buffer located or in the ddr or in the output location
@@ -141,6 +146,51 @@ void storeLayerSparsityStrategyFcn(const mv::pass::PassEntry& pass, mv::Computat
                 opIt->set<bool>("inputActivationSparsity", false);
                 opIt->set<bool>("outputActivationSparsity", false);
                 opIt->set<bool>("weightsSparsity", false);
+            }
+        }
+    }
+}
+
+void storeLayerPipeliningStrategyFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)
+{
+
+    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
+    auto globalParams = model.getGlobalConfigParams();
+
+    if (!globalParams->hasAttr("pipelining_strategy"))
+    {
+        pass.log(mv::Logger::MessageType::Debug, "No custom pipelining strategy provided, exiting...");
+        return;
+    }
+
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("pipelining_strategy");
+
+    mv::OpModel om(model);
+
+    unsigned pipelineId = 0;
+
+    for (auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
+    {
+        auto opType = opIt->getOpType();
+        if (opType != "Output" && opType != "Input")
+        {
+            for (auto s: strategyList)
+            {
+                std::string& name_filter = s.get<std::string>("name_filter");
+                std::regex exp(name_filter);
+                if (std::regex_match(opIt->getName(), exp))
+                {
+                    std::string pipelineStrategy = "None";
+                    if(s.hasAttr("pipelining"))
+                        pipelineStrategy = s.get<std::string>("pipelining");
+
+                    if(pipelineStrategy != "None")
+                    {                        
+                        opIt->set<std::string>("pipelining", pipelineStrategy);
+                        opIt->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
+                        pipelineId++;
+                    }
+                }
             }
         }
     }
@@ -378,31 +428,96 @@ void validateDilationSubConvolutions(const mv::pass::PassEntry&,
     mv::OpModel om(model);
     auto convs = om.getOps("Conv");
     auto globalParams = model.getGlobalConfigParams();
-    std::map<std::string, std::set<std::vector<mv::Element>>> subdilationsStrategies;
+    std::map<std::string, std::vector<mv::Element>> subdilationsStrategies;
     auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
     for (auto layerNameStrategy : strategyList)
     {
         std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
-        std::set<std::vector<mv::Element>> setOfStrategies;
+
         for (auto conv : convs)
         {
             bool isDilatedConv = conv->hasAttr("DilatedSubConv") && conv->get<bool>("DilatedSubConv");
             if (isDilatedConv && nodeName == conv->getName())
             {
                 auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
-                setOfStrategies.insert(streaming_strategy);
-                subdilationsStrategies.insert(std::make_pair(conv->get<std::string>("parentOp"),
-                                                             setOfStrategies));
+                auto parentOp = conv->get<std::string>("parentOp");
+                if (subdilationsStrategies.find(parentOp) != subdilationsStrategies.end())
+                {
+                    std::vector<mv::Element> existingStrategy = subdilationsStrategies[parentOp];
+                    for (std::size_t i=0; i < existingStrategy.size(); i++)
+                    {
+                        auto axis = existingStrategy[i].attrsKeys()[0];
+                        auto numSplits = existingStrategy[i].get<int>(axis);
+
+                        for (std::size_t j=0; j < streaming_strategy.size(); j++)
+                        {
+                            auto axis_new = streaming_strategy[j].attrsKeys()[0];
+                            auto numSplits_new = streaming_strategy[j].get<int>(axis_new);
+                            if (axis == axis_new)
+                            {
+                                if (numSplits != numSplits_new)
+                                    throw mv::RuntimeError("", conv->getName() + ": subdilated convs have different streaming strategies!");
+                                break;
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    subdilationsStrategies.insert(std::make_pair(conv->get<std::string>("parentOp"),
+                                                             streaming_strategy));
+                }
             }
         }
-        auto it = subdilationsStrategies.begin();
-        while (it != subdilationsStrategies.end())
+    }
+}
+
+//NOTE: The idea of this pass is that in case of an operation is output-ed from graph
+//optimizer as cmx streaming/concatenation and then there is an operation that needs
+//to have input tensor in ddr like upa/output etc, the dmas should not be placed in the
+//inputs of the concat tensor but in the output tensor of concat with the next operation...
+void ensureCMXConcatsDMASPlacedCorrectly(const mv::pass::PassEntry&,
+                                mv::ComputationModel& model)
+{
+    mv::OpModel om(model);
+    auto globalParams = model.getGlobalConfigParams();
+    auto strategyList = globalParams->get<std::vector<mv::Element>>("streaming_strategy");
+    for (auto layerNameStrategy : strategyList)
+    {
+        std::string nodeName = layerNameStrategy.get<std::string>("name_filter");
+        mv::Data::OpListIterator opIt;
+        if (nodeName != "Example")
         {
-            auto setOfDilationStrategies = it->second;
-            //NOTE: Subdilation convolutions should have same strategy,
-            //if not disable the optimization of streaming with same weigths
-            assert (setOfDilationStrategies.size() == 1);
-            it++;
+            opIt =  om.getOp(nodeName);
+            if (opIt->getOpType() != "Output"
+                    && opIt->getOpType() != "Concat")
+            {
+                auto streaming_strategy = layerNameStrategy.get<std::vector<mv::Element>>("splits");
+                bool isStreaming = (streaming_strategy[3].get<int>("K") > 1 ||
+                                    streaming_strategy[1].get<int>("H") > 1 ||
+                                    streaming_strategy[2].get<int>("C") > 1 ||
+                                    streaming_strategy[4].get<int>("N") > 1 ) ? true : false;
+                if( isStreaming && // Note: all streaming output tensors set to DDR for debug, should never get here TODO renable
+                    opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                                                        == mv::Tensor::MemoryLocation::NNCMX)
+                    opIt->set<bool>("cmxConcatenation", true);
+
+                //Note: GO can't make decisions about cmx concat across parallel branches
+                //TODO scheduler forces cmx concat, and creates an exceeding op! follow up with vamsi for fix
+                if( opIt->getOpType() == "Eltwise" &&
+                    isStreaming &&
+                    opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                                                        == mv::Tensor::MemoryLocation::DDR)
+                    opIt->set<bool>("avoidCmxConcat", true);
+
+            }
+            else if (opIt->getOpType() == "Concat")
+            { //Note: GO does not have sufficient information to good decisions across parallel branches, so all explict concat layer
+            // will spill to DDR still for now. So should never enter this if
+                if (opIt->getOutputTensor()[0]->get<mv::Tensor::MemoryLocation>("Location")
+                        == mv::Tensor::MemoryLocation::NNCMX)
+                    opIt->set<bool>("cmxConcatenation", true);
+            }
         }
     }
 }

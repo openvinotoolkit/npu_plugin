@@ -35,14 +35,18 @@ static void syslog(string const &);
  */
 string PrintToString(const char *fmt, ...)
 {
-   char fmt_buf[1024];
+   char *fmt_out = 0;
    va_list ap;
    va_start(ap, fmt);
-   vsnprintf(fmt_buf, 1023, fmt, ap);
-   fmt_buf[1023] = '\0';
+   VASPRINTF(&fmt_out, fmt, ap);
    va_end(ap);
 
-   return string(fmt_buf);
+   if (!fmt_out)
+      return ("Error: PrintToString");
+
+   string output(fmt_out);
+   free(fmt_out);
+   return output;
 } // PrintToString()
 
 void Report(int level, std::stringstream &reportStream)

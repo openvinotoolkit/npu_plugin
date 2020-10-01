@@ -181,7 +181,7 @@ namespace
 }
 
 
-mv::Data::TensorIterator mv::OpModel::align(Data::TensorIterator data, const std::size_t& dimension, const std::size_t& pad, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::align(Data::TensorIterator data, const std::size_t& dimension, const std::size_t& pad, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -206,7 +206,7 @@ mv::Data::TensorIterator mv::OpModel::align(Data::TensorIterator data, const std
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::argmax(Data::TensorIterator data, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::argmax(Data::TensorIterator data, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -233,7 +233,7 @@ mv::Data::TensorIterator mv::OpModel::argmax(Data::TensorIterator data, const in
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::averagePool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -278,7 +278,7 @@ mv::Data::TensorIterator mv::OpModel::barrierTask(const Barrier& Barrier, const 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::batchNormalization(Data::TensorIterator data, Data::TensorIterator mean, Data::TensorIterator variance, Data::TensorIterator offset, Data::TensorIterator scale, const double& eps, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -307,7 +307,7 @@ mv::Data::TensorIterator mv::OpModel::batchNormalization(Data::TensorIterator da
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -332,7 +332,7 @@ mv::Data::TensorIterator mv::OpModel::bias(Data::TensorIterator data, Data::Tens
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::cTCDecoder(Data::TensorIterator data, Data::TensorIterator seq, const bool& ctc_merge_repeated, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::cTCDecoder(Data::TensorIterator data, Data::TensorIterator seq, const bool& ctc_merge_repeated, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -358,7 +358,7 @@ mv::Data::TensorIterator mv::OpModel::cTCDecoder(Data::TensorIterator data, Data
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::concat(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::concat(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -381,7 +381,7 @@ mv::Data::TensorIterator mv::OpModel::concat(const std::vector< Data::TensorIter
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -407,7 +407,7 @@ mv::Data::TensorIterator mv::OpModel::constant(const std::vector<double>& data, 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::constantDataElement(const std::vector<mv::DataElement>& data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::constantDataElement(const std::vector<mv::DataElement>& data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -428,7 +428,7 @@ mv::Data::TensorIterator mv::OpModel::constantDataElement(const std::vector<mv::
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::constantInt(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::constantInt(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -454,7 +454,7 @@ mv::Data::TensorIterator mv::OpModel::constantInt(const std::vector<int64_t>& da
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::conv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -501,7 +501,7 @@ mv::Data::TensorIterator mv::OpModel::conversion(Data::TensorIterator data, cons
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::copy(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::copy(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -525,7 +525,7 @@ mv::Data::TensorIterator mv::OpModel::copy(Data::TensorIterator data, const DTyp
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::crop(Data::TensorIterator data, const std::size_t& cropVal, const std::size_t& dimension, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::crop(Data::TensorIterator data, const std::size_t& cropVal, const std::size_t& dimension, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -550,7 +550,7 @@ mv::Data::TensorIterator mv::OpModel::crop(Data::TensorIterator data, const std:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::custom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -594,7 +594,7 @@ mv::Data::TensorIterator mv::OpModel::dMATask(Data::TensorIterator data, const D
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dPUTaskConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dPUTaskConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -616,7 +616,7 @@ mv::Data::TensorIterator mv::OpModel::dPUTaskConv(const std::vector< Data::Tenso
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dPUTaskMaxPool(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dPUTaskMaxPool(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -638,7 +638,7 @@ mv::Data::TensorIterator mv::OpModel::dPUTaskMaxPool(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dPUTaskDepthwiseConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dPUTaskDepthwiseConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -659,7 +659,7 @@ mv::Data::TensorIterator mv::OpModel::dPUTaskDepthwiseConv(const std::vector< Da
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dPUTaskEltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dPUTaskEltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -695,7 +695,7 @@ mv::Data::TensorIterator mv::OpModel::deallocate(Data::TensorIterator inputs, co
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::deconv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const bool& is_depthwise, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::deconv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const bool& is_depthwise, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -725,7 +725,7 @@ mv::Data::TensorIterator mv::OpModel::deconv(Data::TensorIterator data, Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::depthwiseConv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::depthwiseConv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -753,7 +753,7 @@ mv::Data::TensorIterator mv::OpModel::depthwiseConv(Data::TensorIterator data, D
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::detectionOutput(const std::vector< Data::TensorIterator >& inputs, const int64_t& num_classes, const int64_t& keep_top_k, const double& nms_threshold, const int64_t& background_label_id, const int64_t& top_k, const bool& variance_encoded_in_target, const std::string& code_type, const bool& share_location, const double& confidence_threshold, const bool& clip_before_nms, const bool& clip_after_nms, const int64_t& decrease_label_id, const bool& normalized, const int64_t& input_height, const int64_t& input_width, const double& objectness_score, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::detectionOutput(const std::vector< Data::TensorIterator >& inputs, const int64_t& num_classes, const int64_t& keep_top_k, const double& nms_threshold, const int64_t& background_label_id, const int64_t& top_k, const bool& variance_encoded_in_target, const std::string& code_type, const bool& share_location, const double& confidence_threshold, const bool& clip_before_nms, const bool& clip_after_nms, const int64_t& decrease_label_id, const bool& normalized, const int64_t& input_height, const int64_t& input_width, const double& objectness_score, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -791,7 +791,7 @@ mv::Data::TensorIterator mv::OpModel::detectionOutput(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::dropout(Data::TensorIterator input, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::dropout(Data::TensorIterator input, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -837,7 +837,7 @@ mv::Data::TensorIterator mv::OpModel::dummy(Data::TensorIterator data, const std
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::eltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::eltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -883,7 +883,7 @@ mv::Data::TensorIterator mv::OpModel::elu(Data::TensorIterator data, const unsig
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::exp(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::exp(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -934,7 +934,7 @@ mv::Data::TensorIterator mv::OpModel::fakeQuantize(Data::TensorIterator data, Da
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::flatten(Data::TensorIterator input, const int64_t& axis, const int64_t& end_axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::flatten(Data::TensorIterator input, const int64_t& axis, const int64_t& end_axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -960,7 +960,7 @@ mv::Data::TensorIterator mv::OpModel::flatten(Data::TensorIterator input, const 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -985,7 +985,7 @@ mv::Data::TensorIterator mv::OpModel::fullyConnected(Data::TensorIterator data, 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::gather(Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::gather(Data::TensorIterator data, Data::TensorIterator indices, const unsigned& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1011,7 +1011,7 @@ mv::Data::TensorIterator mv::OpModel::gather(Data::TensorIterator data, Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::identity(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::identity(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1035,7 +1035,7 @@ mv::Data::TensorIterator mv::OpModel::identity(Data::TensorIterator data, const 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitConcat(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitConcat(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1052,7 +1052,7 @@ mv::Data::TensorIterator mv::OpModel::implicitConcat(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitInput(Data::TensorIterator data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitInput(Data::TensorIterator data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1078,7 +1078,7 @@ mv::Data::TensorIterator mv::OpModel::implicitInput(Data::TensorIterator data, c
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitInputSlice(Data::TensorIterator inputs, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitInputSlice(Data::TensorIterator inputs, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1096,7 +1096,7 @@ mv::Data::TensorIterator mv::OpModel::implicitInputSlice(Data::TensorIterator in
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitJoin(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitJoin(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1114,7 +1114,7 @@ mv::Data::TensorIterator mv::OpModel::implicitJoin(const std::vector< Data::Tens
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitOutput(Data::TensorIterator data, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitOutput(Data::TensorIterator data, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1137,7 +1137,7 @@ mv::Data::TensorIterator mv::OpModel::implicitOutput(Data::TensorIterator data, 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitPermute(Data::TensorIterator inputs, const Shape& shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitPermute(Data::TensorIterator inputs, const Shape& shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1157,7 +1157,7 @@ mv::Data::TensorIterator mv::OpModel::implicitPermute(Data::TensorIterator input
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitReshape(Data::TensorIterator inputs, const Shape& shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitReshape(Data::TensorIterator inputs, const Shape& shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1177,7 +1177,7 @@ mv::Data::TensorIterator mv::OpModel::implicitReshape(Data::TensorIterator input
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::implicitUnion(const std::vector< Data::TensorIterator >& inputs, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::implicitUnion(const std::vector< Data::TensorIterator >& inputs, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1193,7 +1193,7 @@ mv::Data::TensorIterator mv::OpModel::implicitUnion(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const bool& networkInput, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const bool& networkInput, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1219,7 +1219,7 @@ mv::Data::TensorIterator mv::OpModel::input(const Shape& shape, const DType& dTy
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::interp(Data::TensorIterator data, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::interp(Data::TensorIterator data, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1249,7 +1249,7 @@ mv::Data::TensorIterator mv::OpModel::interp(Data::TensorIterator data, const do
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::leakyRelu(Data::TensorIterator data, const double& alpha, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::leakyRelu(Data::TensorIterator data, const double& alpha, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1298,7 +1298,7 @@ mv::Data::TensorIterator mv::OpModel::localResponseNormalization(Data::TensorIte
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator data0, Data::TensorIterator data1, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator data0, Data::TensorIterator data1, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1323,7 +1323,7 @@ mv::Data::TensorIterator mv::OpModel::matMul(Data::TensorIterator data0, Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::maxPool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::maxPool(Data::TensorIterator data, const std::array<unsigned short, 2>& kSize, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const bool& exclude_pad, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1351,7 +1351,7 @@ mv::Data::TensorIterator mv::OpModel::maxPool(Data::TensorIterator data, const s
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::maximum(Data::TensorIterator inputs, const double& maximum, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::maximum(Data::TensorIterator inputs, const double& maximum, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1376,7 +1376,7 @@ mv::Data::TensorIterator mv::OpModel::maximum(Data::TensorIterator inputs, const
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::minimum(Data::TensorIterator inputs, const double& minimum, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::minimum(Data::TensorIterator inputs, const double& minimum, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1401,7 +1401,7 @@ mv::Data::TensorIterator mv::OpModel::minimum(Data::TensorIterator inputs, const
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::norm(Data::TensorIterator data, const double& alpha, const double& beta, const std::string& region, const unsigned& local_size, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::norm(Data::TensorIterator data, const double& alpha, const double& beta, const std::string& region, const unsigned& local_size, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1429,7 +1429,7 @@ mv::Data::TensorIterator mv::OpModel::norm(Data::TensorIterator data, const doub
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::normalize(Data::TensorIterator data, Data::TensorIterator weights, const double& eps, const unsigned& across_spatial, const unsigned& channel_shared, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::normalize(Data::TensorIterator data, Data::TensorIterator weights, const double& eps, const unsigned& across_spatial, const unsigned& channel_shared, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1457,7 +1457,7 @@ mv::Data::TensorIterator mv::OpModel::normalize(Data::TensorIterator data, Data:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator data, const DType& precision, const mv::QuantizationParams& quantParams, const bool& networkOutput, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator data, const DType& precision, const QuantizationParams& quantParams, const bool& networkOutput, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1482,7 +1482,7 @@ mv::Data::TensorIterator mv::OpModel::output(Data::TensorIterator data, const DT
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::pSROIPooling(const std::vector< Data::TensorIterator >& inputs, const std::size_t& output_dim, const std::size_t& group_size, const double& spatial_scale, const std::size_t& pooled_w, const std::size_t& pooled_h, const std::size_t& spatial_bin_x, const std::size_t& spatial_bin_y, const std::string& mode, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::pSROIPooling(const std::vector< Data::TensorIterator >& inputs, const std::size_t& output_dim, const std::size_t& group_size, const double& spatial_scale, const std::size_t& pooled_w, const std::size_t& pooled_h, const std::size_t& spatial_bin_x, const std::size_t& spatial_bin_y, const std::string& mode, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1512,7 +1512,7 @@ mv::Data::TensorIterator mv::OpModel::pSROIPooling(const std::vector< Data::Tens
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::permute(Data::TensorIterator data, const Order& order, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::permute(Data::TensorIterator data, const Order& order, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1579,7 +1579,7 @@ mv::Data::TensorIterator mv::OpModel::prelu(Data::TensorIterator data, Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::priorbox(const std::vector< Data::TensorIterator >& inputs, const unsigned& flip, const unsigned& clip, const double& step_w, const double& step_h, const double& offset, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::priorbox(const std::vector< Data::TensorIterator >& inputs, const unsigned& flip, const unsigned& clip, const double& step_w, const double& step_h, const double& offset, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1606,7 +1606,7 @@ mv::Data::TensorIterator mv::OpModel::priorbox(const std::vector< Data::TensorIt
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::proposal(const std::vector< Data::TensorIterator >& inputs, const std::vector<float>& scale, const std::vector<float>& ratio, const unsigned& base_size, const unsigned& pre_nms_topn, const unsigned& post_nms_topn, const double& nms_thresh, const unsigned& feat_stride, const unsigned& min_size, const double& pre_nms_thresh, const bool& clip_before_nms, const bool& clip_after_nms, const bool& normalize, const double& box_size_scale, const double& box_coordinate_scale, const std::string& framework, const bool& for_deformable, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::proposal(const std::vector< Data::TensorIterator >& inputs, const std::vector<float>& scale, const std::vector<float>& ratio, const unsigned& base_size, const unsigned& pre_nms_topn, const unsigned& post_nms_topn, const double& nms_thresh, const unsigned& feat_stride, const unsigned& min_size, const double& pre_nms_thresh, const bool& clip_before_nms, const bool& clip_after_nms, const bool& normalize, const double& box_size_scale, const double& box_coordinate_scale, const std::string& framework, const bool& for_deformable, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1659,7 +1659,7 @@ mv::Data::TensorIterator mv::OpModel::pseudoOp(const std::vector< Data::TensorIt
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::quantize(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::quantize(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1683,7 +1683,7 @@ mv::Data::TensorIterator mv::OpModel::quantize(Data::TensorIterator data, const 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::rOIPooling(const std::vector< Data::TensorIterator >& inputs, const unsigned& pooled_w, const unsigned& pooled_h, const double& spatial_scale, const unsigned& roi_pooling_method, const unsigned& num_rois, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::rOIPooling(const std::vector< Data::TensorIterator >& inputs, const unsigned& pooled_w, const unsigned& pooled_h, const double& spatial_scale, const unsigned& roi_pooling_method, const unsigned& num_rois, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1710,7 +1710,7 @@ mv::Data::TensorIterator mv::OpModel::rOIPooling(const std::vector< Data::Tensor
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::reciprocal(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::reciprocal(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1734,7 +1734,7 @@ mv::Data::TensorIterator mv::OpModel::reciprocal(Data::TensorIterator data, cons
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::refConv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::refConv(Data::TensorIterator data, Data::TensorIterator weights, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1758,7 +1758,7 @@ mv::Data::TensorIterator mv::OpModel::refConv(Data::TensorIterator data, Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::regionYolo(Data::TensorIterator data, const unsigned& coords, const unsigned& classes, const bool& do_softmax, const unsigned& num, const std::vector<unsigned>& mask, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::regionYolo(Data::TensorIterator data, const unsigned& coords, const unsigned& classes, const bool& do_softmax, const unsigned& num, const std::vector<unsigned>& mask, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1787,7 +1787,7 @@ mv::Data::TensorIterator mv::OpModel::regionYolo(Data::TensorIterator data, cons
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::relu(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1834,7 +1834,7 @@ mv::Data::TensorIterator mv::OpModel::reorder(Data::TensorIterator data, const O
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::reorgYolo(Data::TensorIterator data, const unsigned& stride, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::reorgYolo(Data::TensorIterator data, const unsigned& stride, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1859,7 +1859,7 @@ mv::Data::TensorIterator mv::OpModel::reorgYolo(Data::TensorIterator data, const
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::resample(Data::TensorIterator input, const std::string& interpolation, const bool& antialias, const Shape& output_shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::resample(Data::TensorIterator input, const std::string& interpolation, const bool& antialias, const Shape& output_shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1886,7 +1886,7 @@ mv::Data::TensorIterator mv::OpModel::resample(Data::TensorIterator input, const
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator data, const Shape& shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator data, const Shape& shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1911,7 +1911,7 @@ mv::Data::TensorIterator mv::OpModel::reshape(Data::TensorIterator data, const S
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator data, Data::TensorIterator weights, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1936,7 +1936,7 @@ mv::Data::TensorIterator mv::OpModel::scale(Data::TensorIterator data, Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::sigmoid(Data::TensorIterator data, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::sigmoid(Data::TensorIterator data, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1960,7 +1960,7 @@ mv::Data::TensorIterator mv::OpModel::sigmoid(Data::TensorIterator data, const D
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::slice(Data::TensorIterator data, const Shape& begin, const Shape& size, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::slice(Data::TensorIterator data, const Shape& begin, const Shape& size, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -1985,7 +1985,7 @@ mv::Data::TensorIterator mv::OpModel::slice(Data::TensorIterator data, const Sha
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator data, const std::string& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator data, const std::string& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2010,7 +2010,7 @@ mv::Data::TensorIterator mv::OpModel::softmax(Data::TensorIterator data, const s
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::sparsityMap(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::sparsityMap(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2053,7 +2053,7 @@ mv::Data::TensorIterator mv::OpModel::tanh(Data::TensorIterator data, const std:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::tile(Data::TensorIterator data, const unsigned& axis, const unsigned& tiles, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::tile(Data::TensorIterator data, const unsigned& axis, const unsigned& tiles, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2079,7 +2079,7 @@ mv::Data::TensorIterator mv::OpModel::tile(Data::TensorIterator data, const unsi
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::topK(Data::TensorIterator data, const std::string& sort, const std::string& mode, const int64_t& top_k, const int64_t& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::topK(Data::TensorIterator data, const std::string& sort, const std::string& mode, const int64_t& top_k, const int64_t& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2107,7 +2107,7 @@ mv::Data::TensorIterator mv::OpModel::topK(Data::TensorIterator data, const std:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskDummy(const std::vector< Data::TensorIterator >& inputs, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskDummy(const std::vector< Data::TensorIterator >& inputs, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2123,7 +2123,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskDummy(const std::vector< Data::Tens
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskIdentity(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskIdentity(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2141,7 +2141,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskIdentity(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskSoftmax(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskSoftmax(const std::vector< Data::TensorIterator >& inputs, const std::string& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2160,7 +2160,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskSoftmax(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskProposal(const std::vector< Data::TensorIterator >& inputs, const std::vector<float>& scale, const std::vector<float>& ratio, const unsigned& base_size, const unsigned& pre_nms_topn, const unsigned& post_nms_topn, const double& nms_thresh, const unsigned& feat_stride, const unsigned& min_size, const double& pre_nms_thresh, const bool& clip_before_nms, const bool& clip_after_nms, const bool& normalize, const double& box_size_scale, const double& box_coordinate_scale, const std::string& framework, const bool& for_deformable, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskProposal(const std::vector< Data::TensorIterator >& inputs, const std::vector<float>& scale, const std::vector<float>& ratio, const unsigned& base_size, const unsigned& pre_nms_topn, const unsigned& post_nms_topn, const double& nms_thresh, const unsigned& feat_stride, const unsigned& min_size, const double& pre_nms_thresh, const bool& clip_before_nms, const bool& clip_after_nms, const bool& normalize, const double& box_size_scale, const double& box_coordinate_scale, const std::string& framework, const bool& for_deformable, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2194,7 +2194,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskProposal(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskROIPooling(const std::vector< Data::TensorIterator >& inputs, const unsigned& pooled_w, const unsigned& pooled_h, const double& spatial_scale, const unsigned& roi_pooling_method, const unsigned& num_rois, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskROIPooling(const std::vector< Data::TensorIterator >& inputs, const unsigned& pooled_w, const unsigned& pooled_h, const double& spatial_scale, const unsigned& roi_pooling_method, const unsigned& num_rois, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2217,7 +2217,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskROIPooling(const std::vector< Data:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskPSROIPooling(const std::vector< Data::TensorIterator >& inputs, const std::size_t& output_dim, const std::size_t& group_size, const double& spatial_scale, const std::size_t& pooled_w, const std::size_t& pooled_h, const std::size_t& spatial_bin_x, const std::size_t& spatial_bin_y, const std::string& mode, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskPSROIPooling(const std::vector< Data::TensorIterator >& inputs, const std::size_t& output_dim, const std::size_t& group_size, const double& spatial_scale, const std::size_t& pooled_w, const std::size_t& pooled_h, const std::size_t& spatial_bin_x, const std::size_t& spatial_bin_y, const std::string& mode, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2243,7 +2243,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskPSROIPooling(const std::vector< Dat
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskQuantize(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskQuantize(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2261,7 +2261,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskQuantize(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskReshape(const std::vector< Data::TensorIterator >& inputs, const Shape& shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskReshape(const std::vector< Data::TensorIterator >& inputs, const Shape& shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2280,7 +2280,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskReshape(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskRegionYolo(const std::vector< Data::TensorIterator >& inputs, const unsigned& coords, const unsigned& classes, const bool& do_softmax, const unsigned& num, const std::vector<unsigned>& mask, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskRegionYolo(const std::vector< Data::TensorIterator >& inputs, const unsigned& coords, const unsigned& classes, const bool& do_softmax, const unsigned& num, const std::vector<unsigned>& mask, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2303,7 +2303,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskRegionYolo(const std::vector< Data:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskReorgYolo(const std::vector< Data::TensorIterator >& inputs, const unsigned& stride, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskReorgYolo(const std::vector< Data::TensorIterator >& inputs, const unsigned& stride, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2322,7 +2322,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskReorgYolo(const std::vector< Data::
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskNormalize(const std::vector< Data::TensorIterator >& inputs, const double& eps, const unsigned& across_spatial, const unsigned& channel_shared, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskNormalize(const std::vector< Data::TensorIterator >& inputs, const double& eps, const unsigned& across_spatial, const unsigned& channel_shared, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2343,7 +2343,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskNormalize(const std::vector< Data::
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskPermute(const std::vector< Data::TensorIterator >& inputs, const Order& order, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskPermute(const std::vector< Data::TensorIterator >& inputs, const Order& order, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2362,7 +2362,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskPermute(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskEltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskEltwise(const std::vector< Data::TensorIterator >& inputs, const std::string& eltwiseType, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2381,7 +2381,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskEltwise(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskInterp(const std::vector< Data::TensorIterator >& inputs, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskInterp(const std::vector< Data::TensorIterator >& inputs, const double& factor, const unsigned& pad_beg, const unsigned& pad_end, const unsigned& height, const unsigned& width, const bool& align_corners, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2405,7 +2405,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskInterp(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskDetectionOutput(const std::vector< Data::TensorIterator >& inputs, const int64_t& num_classes, const int64_t& keep_top_k, const double& nms_threshold, const int64_t& background_label_id, const int64_t& top_k, const bool& variance_encoded_in_target, const std::string& code_type, const bool& share_location, const double& confidence_threshold, const bool& clip_before_nms, const bool& clip_after_nms, const int64_t& decrease_label_id, const bool& normalized, const int64_t& input_height, const int64_t& input_width, const double& objectness_score, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskDetectionOutput(const std::vector< Data::TensorIterator >& inputs, const int64_t& num_classes, const int64_t& keep_top_k, const double& nms_threshold, const int64_t& background_label_id, const int64_t& top_k, const bool& variance_encoded_in_target, const std::string& code_type, const bool& share_location, const double& confidence_threshold, const bool& clip_before_nms, const bool& clip_after_nms, const int64_t& decrease_label_id, const bool& normalized, const int64_t& input_height, const int64_t& input_width, const double& objectness_score, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2439,7 +2439,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskDetectionOutput(const std::vector< 
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskPriorbox(const std::vector< Data::TensorIterator >& inputs, const unsigned& flip, const unsigned& clip, const double& step_w, const double& step_h, const double& offset, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskPriorbox(const std::vector< Data::TensorIterator >& inputs, const unsigned& flip, const unsigned& clip, const double& step_w, const double& step_h, const double& offset, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2462,7 +2462,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskPriorbox(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskArgmax(const std::vector< Data::TensorIterator >& inputs, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskArgmax(const std::vector< Data::TensorIterator >& inputs, const int64_t& out_max_val, const int64_t& top_k, const int64_t& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2483,7 +2483,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskArgmax(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskTopK(const std::vector< Data::TensorIterator >& inputs, const std::string& sort, const std::string& mode, const int64_t& top_k, const int64_t& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskTopK(const std::vector< Data::TensorIterator >& inputs, const std::string& sort, const std::string& mode, const int64_t& top_k, const int64_t& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2505,7 +2505,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskTopK(const std::vector< Data::Tenso
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskNorm(const std::vector< Data::TensorIterator >& inputs, const double& alpha, const double& beta, const std::string& region, const unsigned& local_size, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskNorm(const std::vector< Data::TensorIterator >& inputs, const double& alpha, const double& beta, const std::string& region, const unsigned& local_size, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2527,7 +2527,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskNorm(const std::vector< Data::Tenso
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskResample(const std::vector< Data::TensorIterator >& inputs, const std::string& interpolation, const bool& antialias, const Shape& output_shape, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskResample(const std::vector< Data::TensorIterator >& inputs, const std::string& interpolation, const bool& antialias, const Shape& output_shape, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2548,7 +2548,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskResample(const std::vector< Data::T
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskFakeQuantize(const std::vector< Data::TensorIterator >& inputs, const unsigned& levels, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskFakeQuantize(const std::vector< Data::TensorIterator >& inputs, const unsigned& levels, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2565,7 +2565,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskFakeQuantize(const std::vector< Dat
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::TensorIterator >& inputs, const std::vector<uint8_t>& kernelData, const std::vector<uint8_t>& paramData, const std::vector<mv::TensorInfo>& outputsInfo, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2586,7 +2586,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskCustom(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskSigmoid(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskSigmoid(const std::vector< Data::TensorIterator >& inputs, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2604,7 +2604,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskSigmoid(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskDeconv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const bool& is_depthwise, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskDeconv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const bool& is_depthwise, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2627,7 +2627,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskDeconv(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskTile(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const unsigned& tiles, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskTile(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const unsigned& tiles, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2647,7 +2647,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskTile(const std::vector< Data::Tenso
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskCTCDecoder(const std::vector< Data::TensorIterator >& inputs, const bool& ctc_merge_repeated, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskCTCDecoder(const std::vector< Data::TensorIterator >& inputs, const bool& ctc_merge_repeated, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2666,7 +2666,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskCTCDecoder(const std::vector< Data:
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskRefConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskRefConv(const std::vector< Data::TensorIterator >& inputs, const std::array<unsigned short, 2>& stride, const std::array<unsigned short, 4>& padding, const unsigned& dilationFactor, const unsigned& group, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2688,7 +2688,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskRefConv(const std::vector< Data::Te
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const DType& dType, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::vector< Data::TensorIterator >& inputs, const unsigned& axis, const DType& dType, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
@@ -2707,7 +2707,7 @@ mv::Data::TensorIterator mv::OpModel::uPATaskGather(const std::vector< Data::Ten
     return output;
 }
 
-mv::Data::TensorIterator mv::OpModel::weightsTable(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const mv::QuantizationParams& quantParams, const std::string& name)
+mv::Data::TensorIterator mv::OpModel::weightsTable(const std::vector<int64_t>& data, const Shape& shape, const DType& dType, const Order& order, const QuantizationParams& quantParams, const std::string& name)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_COMP)
     auto output = defineOp(
