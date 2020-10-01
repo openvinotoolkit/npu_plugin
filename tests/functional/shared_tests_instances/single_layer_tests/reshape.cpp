@@ -29,7 +29,7 @@ const std::vector<InferenceEngine::Precision> netPrecisions = {
 
 // Test fails with message:
 // [NOT_FOUND] DYN_BATCH_ENABLED key is not supported for VPU
-INSTANTIATE_TEST_CASE_P(DISABLED_ReshapeCheckDynBatch, KmbReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheckDynBatch, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions),
@@ -44,7 +44,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_ReshapeCheckDynBatch, KmbReshapeLayerTest,
 // It is possible to pass the test by setting data-member outLayout = InferenceEngine::Layout::ANY
 // in constructor KmbLayerTestsCommon::KmbLayerTestsCommon().
 // Please see file kmb-plugin/tests/functional/shared_tests_instances/kmb_layer_test.cpp:28
-INSTANTIATE_TEST_CASE_P(DISABLED_ReshapeCheck, KmbReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(DISABLED_smoke_ReshapeCheck, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions),
@@ -54,7 +54,7 @@ INSTANTIATE_TEST_CASE_P(DISABLED_ReshapeCheck, KmbReshapeLayerTest,
                             ::testing::Values(std::map<std::string, std::string>({}))),
                         ReshapeLayerTest::getTestCaseName);
 
-INSTANTIATE_TEST_CASE_P(ReshapeCheck4Dto4DTensor, KmbReshapeLayerTest,
+INSTANTIATE_TEST_CASE_P(smoke_ReshapeCheck4Dto4DTensor, KmbReshapeLayerTest,
                         ::testing::Combine(
                             ::testing::Values(true),
                             ::testing::ValuesIn(netPrecisions),
