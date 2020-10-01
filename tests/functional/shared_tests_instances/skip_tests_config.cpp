@@ -9,11 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ActivationLayerTest\\.CompareWithRefs/Tanh.*netPRC=FP32.*",
-        ".*ActivationLayerTest\\.CompareWithRefs/Exp.*netPRC=FP32.*",
-        ".*ActivationLayerTest\\.CompareWithRefs/Log.*netPRC=FP32.*",
-        ".*ActivationLayerTest\\.CompareWithRefs/Sigmoid.*netPRC=FP32.*",
-
+        ".*ActivationLayerTest*",
         ".*CorrectConfigTests.*",
         ".*IncorrectConfigTests.*",
         ".*IncorrectConfigAPITests.*",
