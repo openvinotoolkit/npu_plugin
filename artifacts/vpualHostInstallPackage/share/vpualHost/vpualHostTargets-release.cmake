@@ -55,5 +55,25 @@ set_target_properties(XLink PROPERTIES
 list(APPEND _IMPORT_CHECK_TARGETS XLink )
 list(APPEND _IMPORT_CHECK_FILES_FOR_XLink "${_IMPORT_PREFIX}/lib/libXLink.so" )
 
+# Import target "ResMgr" for configuration "Release"
+set_property(TARGET ResMgr APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(ResMgr PROPERTIES
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libResMgr.so"
+  IMPORTED_SONAME_RELEASE "libResMgr.so"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS ResMgr )
+list(APPEND _IMPORT_CHECK_FILES_FOR_ResMgr "${_IMPORT_PREFIX}/lib/libResMgr.so" )
+
+# Import target "Profiling" for configuration "Release"
+set_property(TARGET Profiling APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
+set_target_properties(Profiling PROPERTIES
+  IMPORTED_LOCATION_RELEASE "${_IMPORT_PREFIX}/lib/libProfiling.so"
+  IMPORTED_SONAME_RELEASE "libProfiling.so"
+  )
+
+list(APPEND _IMPORT_CHECK_TARGETS Profiling )
+list(APPEND _IMPORT_CHECK_FILES_FOR_Profiling "${_IMPORT_PREFIX}/lib/libProfiling.so" )
+
 # Commands beyond this point should not need to know the version.
 set(CMAKE_IMPORT_FILE_VERSION)

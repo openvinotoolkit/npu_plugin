@@ -38,8 +38,8 @@ class PlgOutM2I : public PluginStub
 
     /** Constructor. */
     PlgOutM2I(uint32_t device_id = 0) : PluginStub("PlgOutM2I", device_id)
-                  // channelID(XLINK_INVALID_CHANNEL_ID)
-                    {};
+                  //channelID(XLINK_INVALID_CHANNEL_ID)
+                  {};
 
     /** Destructor. */
     ~PlgOutM2I();

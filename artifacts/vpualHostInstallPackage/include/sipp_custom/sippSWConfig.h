@@ -1483,8 +1483,8 @@ EqualizeHistParam;
  */
 typedef struct
 {
-    UInt32 dMat[61];
-    // UInt32 kernelSize;
+    UInt32 dMat[60];
+    UInt32 kernelSize;
 }
 DilateGenericParam;
 

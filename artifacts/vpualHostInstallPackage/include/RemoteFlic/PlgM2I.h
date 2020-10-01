@@ -19,7 +19,8 @@ class PlgM2I : public PluginStub
   public:
 	SReceiver<vpum2i::M2IObj> in;
     MSender<vpum2i::M2IObj> out;
-    uint32_t device_id;
+
+	uint32_t device_id;
     /** Constructor. */
     PlgM2I(uint32_t device_id = 0) : PluginStub("PlgM2I", device_id), out{device_id}, device_id(device_id) {};
     /** Destructor. */
