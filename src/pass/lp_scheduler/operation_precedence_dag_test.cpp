@@ -501,14 +501,15 @@ TEST_F(Operation_Dag_Test, schedule_write_and_read_test) {
   typedef typename mv::lp_scheduler::Schedule_Reader_Writer<op_model_dag_t>
       reader_t;
 
-  const char *schedule_file = "/tmp/schedule.txt";
-  bool status = writer_t::write(schedule_file, scheduler_begin,
-        scheduler_end);
+  std::ostringstream oss;
+  bool status = writer_t::write_to_stringstream(oss, scheduler_begin,
+      scheduler_end);
 
   // Read back the schedule //
+  std::istringstream iss(oss.str());
   std::unordered_map<std::string, size_t> read_schedule;
   reader_t::schedule_read_iterator_t
-      sbegin=reader_t::begin_read(schedule_file, om), send;
+      sbegin = reader_t::begin_read(iss, om), send;
 
   size_t record_count = 0UL;
   while (sbegin != send) {

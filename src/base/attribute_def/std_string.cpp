@@ -31,7 +31,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::string)
+        MV_REGISTER_ATTR(std::string, InitString)
             .setToJSONFunc(attr_std_string::toJSON)
             .setFromJSONFunc(attr_std_string::fromJSON)
             .setToStringFunc(attr_std_string::toString);

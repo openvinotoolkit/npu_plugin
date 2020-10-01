@@ -1,3 +1,4 @@
+#include <time.h>
 #include "include/mcm/computation/model/data_model.hpp"
 #include "include/mcm/computation/resource/memory_allocator.hpp"
 #include "include/mcm/logger/logger.hpp"
@@ -31,6 +32,13 @@ typedef mv::lp_scheduler::Control_Edge_Set control_edge_set_t;
 typedef mv::lp_scheduler::Control_Edge_Generator<scheduled_op_t>
   control_edge_generator_t;
 
+class lp_scheduler_exception_t : std::string {
+  public:
+    lp_scheduler_exception_t(const std::string& msg) : std::string(msg) {}
+    lp_scheduler_exception_t(const char *msg) : std::string(msg) {}
+    const std::string& getMessage() const { return  *this; }
+}; // class lp_scheduler_exception_t //
+
 
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
@@ -48,16 +56,17 @@ void LpSchedulerAllocatorPass(mv::ComputationModel& model,
     mv::lp_scheduler::Master_Slave_Buffer_Relations<dag_t>
         msrelations(input_dag, model);
 
-    const std::string& stringfile =
+    const std::string& stringdata =
       global_params->get<std::string>(reader_t::ddr_address_attribute());
-    assert(!stringfile.empty());
+    assert(!stringdata.empty());
 
     const char *lp_sched_ddr_address_dump_filename = nullptr;
     if (mv::isDebugFilesEnabled())
     {
       lp_sched_ddr_address_dump_filename = "lp_sched_ddr_address_dump.txt";
     }
-    begin = reader_t::begin_read(stringfile, om);
+    std::istringstream iss(stringdata);
+    begin = reader_t::begin_read(iss, om);
     end = reader_t::end_read();
 
     mv::lp_scheduler::DDR_Address_Generator<dag_t> ddr_address_generator(
@@ -147,8 +156,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
           " with resources:# " + (std::to_string(itr->second)));
     }
 
-    if (!(exceeding_ops.empty())) {
-      throw "Exceeding ops";
+    if (!exceeding_ops.empty()) {
+      fprintf(stderr, "exceeding ops %lu\n", exceeding_ops.size());
+      fflush(stderr);
+      throw "Exceeding ops ";
     }
   }
 
@@ -164,6 +175,7 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   typedef typename scheduled_op_list_t::iterator scheduled_op_list_iterator_t;
   scheduled_op_list_t scheduled_ops;
 
+  clock_t scheduler_algo_start_time = clock();
   std::string scheduled_op_type; 
   while (scheduler != scheduler_end) { // collect original schedule //
     const scheduled_op_info_t &scheduled_op = *scheduler;
@@ -370,6 +382,10 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
           schedule_state.str());
   }
   //////////////////////////////////////////////////////////////////////////////
+  clock_t scheduler_algo_end_time = clock();
+  double runtime = double( double(scheduler_algo_end_time) -
+            double(scheduler_algo_start_time) ) / double(CLOCKS_PER_SEC);
+  printf("[Core Scheduler Algorithm Time]: %0.4lf \n", runtime);
 
   ////////////////////// Control Edge Generation ///////////////////////////////
   mv::ControlModel cmodel(model);
@@ -414,10 +430,15 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
   ////////////////////// Control Edge Generation ///////////////////////////////
 
 
+  mv::ControlModel cmodel_local(model);
+  bool is_schedule_valid = cmodel_local.isDag();
+  if (!is_schedule_valid) {
+    throw lp_scheduler_exception_t("Control flow graph has cycles!");
+  }
+
   if (fptr) {
-    mv::ControlModel cmodel_local(model);
     fprintf(fptr, "[DAG Invariant: %s]\n",
-          cmodel_local.isDag() ? "PASSED" : "FAILED");
+          is_schedule_valid ? "PASSED" : "FAILED");
 
     for (auto itr=traits_t::operations_begin(input_dag);
           itr != traits_t::operations_end(input_dag); ++itr) {

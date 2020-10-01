@@ -100,10 +100,10 @@ namespace mv
             auto dilated_kernel_w = (dilationFactor == 1) ? kernelShape[KERNEL_WIDTH] : (kernelShape[KERNEL_WIDTH] - 1) * dilationFactor + 1;
             auto dilated_kernel_h = (dilationFactor == 1) ? kernelShape[KERNEL_HEIGHT] : (kernelShape[KERNEL_HEIGHT] - 1) * dilationFactor + 1;
 
-            auto W = Tiling::inferOutputSize(dataShape[IO_WIDTH_DIMENSION], padding[0], padding[1], dilated_kernel_w, stride[0]);
-            auto H = Tiling::inferOutputSize(dataShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], dilated_kernel_h, stride[1]);
-            auto C = kernelShape[KERNEL_OUTPUT_CHANNELS];
-            auto N = dataShape[IO_BATCH_DIMENSION];
+            size_t W = Tiling::inferOutputSize(dataShape[IO_WIDTH_DIMENSION], padding[0], padding[1], dilated_kernel_w, stride[0]);
+            size_t H = Tiling::inferOutputSize(dataShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], dilated_kernel_h, stride[1]);
+            size_t C = kernelShape[KERNEL_OUTPUT_CHANNELS];
+            size_t N = dataShape[IO_BATCH_DIMENSION];
 
             mv::Shape outputShape({W, H, C, N});
 
