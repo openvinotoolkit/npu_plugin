@@ -1134,32 +1134,35 @@ namespace mv
             friend sibling_iterator iterable<T_iterable, T_content>::rightmost_sibling();
             friend class node;
 
-            iterable_access_set<T_iterable>& node_parents;
             typename iterable_access_set<T_iterable>::iterator current_parent_;
-            iterable_access_set<T_iterable>& current_parent_children_;
+            typename iterable_access_set<T_iterable>::iterator parent_end_;
             typename iterable_access_set<T_iterable>::iterator current_parent_child_;
+            typename iterable_access_set<T_iterable>::iterator current_parent_children_end_;
             
+
             std::set<size_t> visited_sibling_;
 
             bool reached_end()
             {
-               return(current_parent_ == node_parents.end() && current_parent_child_ == current_parent_children_.end());
+               return(current_parent_ == parent_end_ && current_parent_child_ == current_parent_children_end_);
             }
 
             void move_next_node()
             {
-              if(current_parent_child_ == current_parent_children_.end())
+              if(current_parent_child_ == current_parent_children_end_)
               {
+
                 ++current_parent_;
-                if(current_parent_ != node_parents.end())
+                if(current_parent_ != parent_end_)
                 {
+
                    if((*current_parent_).lock()->children_size() > 0)
                    {
-                       current_parent_children_ = (*current_parent_).lock()->get_children();
-                       current_parent_child_ = current_parent_children_.begin();
+                       current_parent_child_ = (*current_parent_).lock()->get_children().begin();
+                       current_parent_children_end_ = (*current_parent_).lock()->get_children().end();
                    }
                    else
-                    current_parent_child_ = current_parent_children_.end();
+                    current_parent_child_ = current_parent_children_end_;
                 }
               }
               else
@@ -1170,10 +1173,10 @@ namespace mv
 
             sibling_iterator(iterable_access_set<T_iterable>& parents, typename iterable_access_set<T_iterable>::iterator current_parent,
             		iterable_access_set<T_iterable>& children, typename iterable_access_set<T_iterable>::iterator current_child) :
-            	relative_iterator<T_iterable, T_content>(),node_parents(parents),  current_parent_(current_parent), current_parent_children_(children), 
-            	current_parent_child_(current_child),  visited_sibling_()
+                 relative_iterator<T_iterable, T_content>(),current_parent_(current_parent), parent_end_(parents.end()),
+                 current_parent_child_(current_child),  current_parent_children_end_(children.end()), visited_sibling_()
             {
-                if(current_parent_child_ != current_parent_children_.end())
+                if(current_parent_child_ != current_parent_children_end_)
                 {
                   auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                   if (!result.second)
@@ -1186,8 +1189,8 @@ namespace mv
         public:
 
             sibling_iterator(const list_iterator<T_iterable, T_content>& other) :
-            	relative_iterator<T_iterable, T_content>(),node_parents(other->get_parents()),  current_parent_(node_parents.begin()),
-				current_parent_children_((*current_parent_).lock()->get_children()), current_parent_child_(current_parent_children_.begin()),  visited_sibling_()
+              relative_iterator<T_iterable, T_content>(),current_parent_(other->get_parents().begin()), parent_end_(other->get_parents().end()),
+              current_parent_child_((*current_parent_).lock()->get_children().begin()),  current_parent_children_end_((*current_parent_).lock()->get_children().end()), visited_sibling_()
             {
 
                auto result = visited_sibling_.insert(other->getID());
@@ -1201,7 +1204,7 @@ namespace mv
                 //  sibling_iterator(x) points to y
                 while(!reached_end())
                 {
-                	if(current_parent_child_ != current_parent_children_.end())
+                    if(current_parent_child_ != current_parent_children_end_)
                 	{
                 	  if(other->getID() != (*current_parent_child_).lock()->getID())
                 		break;
@@ -1209,7 +1212,7 @@ namespace mv
                      move_next_node();
                 }
 
-               if(current_parent_child_ != current_parent_children_.end())
+               if(current_parent_child_ != current_parent_children_end_)
              	{
                  auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                  if (!result.second)
@@ -1225,21 +1228,21 @@ namespace mv
               {
                 while(!reached_end())
                 {
-                  if(current_parent_child_ != current_parent_children_.end())
+                  if(current_parent_child_ != current_parent_children_end_)
                   {
+
                     if(visited_sibling_.find((*current_parent_child_).lock()->getID()) != visited_sibling_.end())
                       move_next_node();
                     else
                       break;
                   }
 		          else
-                  {
                     move_next_node();
-                  }
                 }
 
-                if(current_parent_child_ != current_parent_children_.end() && visited_sibling_.find((*current_parent_child_).lock()->getID()) == visited_sibling_.end())
+                if(current_parent_child_ != current_parent_children_end_ && visited_sibling_.find((*current_parent_child_).lock()->getID()) == visited_sibling_.end())
                 {
+
                   auto result = visited_sibling_.insert((*current_parent_child_).lock()->getID());
                   if (!result.second)
                     throw std::runtime_error("Unable to insert sibling");
@@ -1247,9 +1250,7 @@ namespace mv
                   std::weak_ptr<T_iterable>::operator=(*current_parent_child_);
                 }
                 else
-                {
                   this->reset();
-                }
               }
               return *this;
             }
