@@ -136,6 +136,8 @@
             "PostTrainingQuantize",
             "EltwiseToSWEltwise",
             "MarkEltWiseUpaInputs",
+            "MarkCMCompatibleConvs",
+            "AddPermuteToNonCMConvPaths",
             {
                 "name" : "GraphParameterOptimization",
                 "graphOptimizerConfig" : {
