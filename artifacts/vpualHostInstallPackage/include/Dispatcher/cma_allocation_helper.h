@@ -20,11 +20,11 @@
 class CmaData {
   public:
     int            fd;          					/*< File descriptor. */
+    bool		   b_use_vpusmm;
     unsigned char* buf;         					/*< Buffer for use in virtual address space. */
     unsigned long  phys_addr;   					/*< Physical address of allocation. */
     unsigned int   size;        					/*< Size of allocation. */
-  	uint32_t       device_id;
-
+    uint32_t       device_id;
 
     int Create(std::string);    					/*< Open and map the allocation files. */
     int Create(size_t size);
@@ -41,8 +41,6 @@ class CmaData {
     // Delete copy constructor and assignment operator.
     CmaData(const CmaData&) = delete;
     CmaData& operator=(const CmaData&) = delete;
-private:
-	bool           b_use_vpusmm;
 
 };
 

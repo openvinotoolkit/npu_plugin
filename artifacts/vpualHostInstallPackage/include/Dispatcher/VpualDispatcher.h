@@ -24,7 +24,7 @@
 
 /** Ensure the correct resources are opened/closed when needed. */
 class VpualDispatcherResource {
-  private:
+	private:
     uint32_t device_id;
   public:
     VpualDispatcherResource (uint32_t device_id);
@@ -87,7 +87,7 @@ class VpualStub
      */
     // TODO[OB] - Is it alright to call this method const?
     void VpualDispatch(const VpualMessage *const cmd, VpualMessage *rep) const;
-        /**
+    /**
      * Get device ID.
      *
      * @return device_id

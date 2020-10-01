@@ -129,12 +129,6 @@ public:
         return INVALID_PARAMS;
     }
 
-    if(!(inFrm.spec.height <= M2I_MAX_SUPPORTED_INPUT_HEIGHT)){
-        std::cerr << "ERROR: Maximum supported input height for M2I exceeded: "
-                  << inFrm.spec.height << std::endl;
-        return INVALID_PARAMS;
-    }
-
     if(!(inFrm.spec.type == NV12)){
         std::cerr << "ERROR: Unsupported input frame type: " << inFrm.spec.type << std::endl;
         return INVALID_PARAMS;

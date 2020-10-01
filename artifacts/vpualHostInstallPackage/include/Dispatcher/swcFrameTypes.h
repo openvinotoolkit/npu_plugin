@@ -19,6 +19,7 @@
 #define _SWC_FRAME_TYPES_H_
 
 #include <stdint.h>
+#include <iostream>
 
 typedef enum frameTypes
 {
@@ -81,7 +82,7 @@ static uint32_t size_from_framespec(const frameSpec *spec)
     case RAW16:
         return spec->stride * spec->height * 2;
     default:
-        // printf("Error - Unsupported frametype: %d", spec.type);
+        std::cerr << "Error - Unsupported frametype: " << spec->type << std::endl;
         {}
     }
     return 0;

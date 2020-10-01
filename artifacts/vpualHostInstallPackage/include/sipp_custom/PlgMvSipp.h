@@ -47,7 +47,7 @@ class PlgSipp : public PluginStub
     SReceiver<ImgFramePtr> triggerRec;
     MSender<ImgFramePtr>   trigger;
   public:
-        PlgSipp(uint32_t device_id) : PluginStub("PlgSipp", device_id),
+    PlgSipp(uint32_t device_id) : PluginStub("PlgSipp", device_id),
                 out{{device_id}, {device_id}, {device_id}, {device_id}},
                 trigger{device_id},
                 firstShave(0),

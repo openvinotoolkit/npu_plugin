@@ -16,7 +16,7 @@ set(CMAKE_IMPORT_FILE_VERSION 1)
 set(_targetsDefined)
 set(_targetsNotDefined)
 set(_expectedTargets)
-foreach(_expectedTarget VpualDispatcher RemoteFlic NN sipp_custom XLink)
+foreach(_expectedTarget VpualDispatcher RemoteFlic NN sipp_custom XLink ResMgr Profiling)
   list(APPEND _expectedTargets ${_expectedTarget})
   if(NOT TARGET ${_expectedTarget})
     list(APPEND _targetsNotDefined ${_expectedTarget})
@@ -86,6 +86,21 @@ add_library(XLink SHARED IMPORTED)
 
 set_target_properties(XLink PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/XLink"
+)
+
+# Create imported target ResMgr
+add_library(ResMgr SHARED IMPORTED)
+
+set_target_properties(ResMgr PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/ResMgr"
+)
+
+# Create imported target Profiling
+add_library(Profiling SHARED IMPORTED)
+
+set_target_properties(Profiling PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include/Profiling"
+  INTERFACE_LINK_LIBRARIES "VpualDispatcher"
 )
 
 if(CMAKE_VERSION VERSION_LESS 2.8.12)

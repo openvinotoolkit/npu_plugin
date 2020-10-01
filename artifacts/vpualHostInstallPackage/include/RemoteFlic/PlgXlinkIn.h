@@ -53,7 +53,7 @@ class PlgXlinkIn : public PluginStub
     // TODO - May be a gcc bug, but we need this declaration to help with initialisation.
     //        Copy-elision should occur, so we will never use it.
     PlgXlinkIn(const PlgXlinkIn&); // Declare copy ctor, but don't define.
-
+    
     /** Destructor. */
     ~PlgXlinkIn();
 
