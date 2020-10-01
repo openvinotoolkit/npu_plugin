@@ -27,6 +27,15 @@ namespace mv
             return instance().find(order_string)->getContiguityVector();
         }
 
+        inline static const std::string& getLabel(const std::vector<std::size_t>& contVector)
+        {
+            for (auto it = instance().reg_.cbegin(); it != instance().reg_.cend(); ++it) {
+                if (it->second->getContiguityVector() == contVector)
+                    return it->first;
+            }
+            return "";
+        }
+
     };
 
     #define MV_REGISTER_ORDER(Name)                          \
