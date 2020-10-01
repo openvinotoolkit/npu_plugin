@@ -53,7 +53,6 @@ namespace mv
                             {"DEFAULT",DEFAULT}
                     };
             }
-            static std::map<std::string,Location> namingMap;
 
         public:
             MemoryLocation(const std::string& location);
