@@ -2291,6 +2291,29 @@ class DDR_Address_Generator {
       }
     }
 
+    template<typename OperationIterator>
+    void add_scratch_info_into_model(
+        const master_slave_relations_t& msrelations, OperationIterator obegin,
+        OperationIterator oend) {
+
+      mv::BufferMap& buffer_map = model_.bufferMap();
+      mv::DataModel dm(model_);
+      uint32_t scratchHighWatermark = 0;
+      for (; obegin!=oend; ++obegin) {
+        mv::Op *master_op =
+          const_cast<mv::Op *>(msrelations.master_tensor_op(*obegin));
+        mv::Data::TensorIterator tensor_itr = master_op->getOutputTensor(0UL);
+        if (scratchHighWatermark >= std::numeric_limits<uint32_t>::max() - tensor_itr->getShape().totalSize())
+          throw mv::RuntimeError("Scheduler", "Scratch buffer exceeds 32-bit address space");
+        scratchHighWatermark += tensor_itr->getShape().totalSize();
+      }
+      buffer_map.addScratch(
+        "Scratch",
+        mv::Order("W"),
+        {scratchHighWatermark},
+        mv::DType("Default")
+      );
+    }
 
     template<typename ScheduleIterator>
     bool generate_tensor_addresses(
@@ -2334,6 +2357,9 @@ class DDR_Address_Generator {
       if (status) {
         auto params = model_.getGlobalConfigParams();
         params->set<int>("DDRScratch", (int)(high_watermark_));
+        if (high_watermark_)
+          model_.bufferMap().addScratch("Scratch", mv::Order("W"),
+              {high_watermark_}, mv::DType("Default"));
       }
 
 
