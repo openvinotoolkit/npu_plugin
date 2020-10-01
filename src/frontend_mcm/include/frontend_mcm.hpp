@@ -20,6 +20,9 @@
 
 #include <caseless.hpp>
 #include <converters.hpp>
+#include <custom_layer/custom_layer.hpp>
+#include <graph_tools.hpp>
+#include <include/mcm/op_model.hpp>
 #include <map>
 #include <memory>
 #include <set>
