@@ -66,7 +66,7 @@ void ExecutableNetwork::LoadBlob() {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
 
-    _executor = std::make_shared<KmbExecutor>(_networkDescription, _device->getAllocator(), _config);
+    _executor = _device->createExecutor(_networkDescription, _config);
 
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());

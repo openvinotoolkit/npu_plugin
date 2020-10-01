@@ -26,6 +26,7 @@
 #include <vector>
 #include <vpu/utils/logger.hpp>
 #include <vpu/utils/perf_report.hpp>
+#include <vpux.hpp>
 
 #include "kmb_preproc.hpp"
 #include "vpu/kmb_params.hpp"

@@ -30,8 +30,6 @@
 
 #include "ie_remote_context.hpp"
 #include "kmb_async_infer_request.h"
-#include "kmb_config.h"
-#include "kmb_executor.h"
 #include "kmb_infer_request.h"
 #include "kmb_remote_context.h"
 
@@ -128,9 +126,8 @@ private:
 
     std::shared_ptr<vpux::Device> _device = nullptr;
     // FIXME: executor contains a pointer for allocator which comes from dll.
-    // executor should be destroyed before _device
-    KmbExecutor::Ptr _executor = nullptr;
-
+    // executor should be destroyed before _device. TBD: ticket
+    std::shared_ptr<vpux::Executor> _executor = nullptr;
     static std::atomic<int> loadBlobCounter;
 };
 
