@@ -42,10 +42,6 @@
 #include "dims_parser.hpp"
 #include "ie_macro.hpp"
 
-#include <converters.hpp>
-#include <custom_layer/custom_parser.hpp>
-#include <include/mcm/tensor/tiling.hpp>
-
 using namespace InferenceEngine;
 using namespace InferenceEngine::details;
 namespace vpu {

@@ -30,10 +30,6 @@
 
 #include "ie_remote_context.hpp"
 #include "kmb_async_infer_request.h"
-<<<<<<< HEAD
-=======
-#include "kmb_config.h"
->>>>>>> origin/releases/2020/kmb/pv2
 #include "kmb_infer_request.h"
 #include "kmb_remote_context.h"
 

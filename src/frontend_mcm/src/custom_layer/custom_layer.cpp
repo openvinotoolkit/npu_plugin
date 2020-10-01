@@ -183,8 +183,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
         }
     }
 
-    const auto addPorts = [](std::map<int, ie::Layout>& ports,
-                             const CustomKernel::BindingParameter& newEdge) {
+    const auto addPorts = [](std::map<int, ie::Layout>& ports, const CustomKernel::BindingParameter& newEdge) {
         const auto layerInput = ports.find(newEdge.portIndex);
         const auto newEdgeLayout = formatToLayout(newEdge.format);
         if (layerInput == ports.end()) {
