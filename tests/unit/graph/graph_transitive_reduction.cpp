@@ -23,6 +23,13 @@ struct NodeItComparator
     }
 };
 
+struct DefaultComparator {
+  template<typename T>
+  bool operator()(T a, T b) const {
+    return a->getID() < b->getID();
+  }
+};
+
 using char_int_graph = mv::graph<char, int>;
 
 /*

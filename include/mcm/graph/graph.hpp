@@ -1134,12 +1134,12 @@ namespace mv
             friend sibling_iterator iterable<T_iterable, T_content>::rightmost_sibling();
             friend class node;
 
-            typename iterable_access_set<T_iterable>::iterator current_parent_;
-            typename iterable_access_set<T_iterable>::iterator parent_end_;
-            typename iterable_access_set<T_iterable>::iterator current_parent_child_;
-            typename iterable_access_set<T_iterable>::iterator current_parent_children_end_;
-            
+            typedef typename iterable_access_set<T_iterable>::const_iterator node_iterator_t;
 
+            node_iterator_t current_parent_;
+            node_iterator_t parent_end_;
+            node_iterator_t current_parent_child_;
+            node_iterator_t current_parent_children_end_;
             std::set<size_t> visited_sibling_;
 
             bool reached_end()
@@ -1171,8 +1171,8 @@ namespace mv
 
         protected:
 
-            sibling_iterator(iterable_access_set<T_iterable>& parents, typename iterable_access_set<T_iterable>::iterator current_parent,
-            		iterable_access_set<T_iterable>& children, typename iterable_access_set<T_iterable>::iterator current_child) :
+            sibling_iterator(iterable_access_set<T_iterable>& parents, node_iterator_t current_parent,
+                       iterable_access_set<T_iterable>& children, node_iterator_t current_child) :
                  relative_iterator<T_iterable, T_content>(),current_parent_(current_parent), parent_end_(parents.end()),
                  current_parent_child_(current_child),  current_parent_children_end_(children.end()), visited_sibling_()
             {
