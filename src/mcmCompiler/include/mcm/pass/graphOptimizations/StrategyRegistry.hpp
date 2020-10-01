@@ -5,6 +5,8 @@
 
 #include "StrategyConfig.hpp"
 
+#define EVAL(x) x
+
 namespace mv {
 namespace graphOptimizer {
 
@@ -15,11 +17,11 @@ public:
     static GlobalConfigRegistry& instance();
 
 #define MV_OPTIMIZER_REGISTER_GLOBAL_CONFIG(Name) \
-    static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =    \
+    KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Name) =    \
     mv::graphOptimizer::GlobalConfigRegistry::instance().enter(STRV(Name))
 
-#define MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY() \
-    static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =    \
+#define MV_OPTIMIZER_GLOBAL_CONFIG_REGISTRY(Sym) \
+    KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Sym) =    \
     mv::graphOptimizer::GlobalConfigRegistry::instance()
 };
 
@@ -30,11 +32,11 @@ public:
     static GlobalStrategyRegistry& instance();
 
 #define MV_OPTIMIZER_REGISTER_GLOBAL_STRATEGY(Name) \
-    static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =    \
+    KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Name) =    \
     mv::graphOptimizer::GlobalConfigRegistry::instance().enter(STRV(Name))
 
-#define MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY() \
-    static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =    \
+#define MV_OPTIMIZER_GLOBAL_STRATEGY_REGISTRY(Sym) \
+    KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Sym) =    \
     mv::graphOptimizer::GlobalConfigRegistry::instance()
 };
 
@@ -45,11 +47,11 @@ public:
     static LayerStrategyRegistry& instance();
 
 #define MV_OPTIMIZER_REGISTER_LAYER_STRATEGY(Name) \
-    static ATTRIBUTE_UNUSED(StrategySetEntry& CONCATENATE(__ ## StrategySetEntry ## __, __COUNTER__)) =    \
+    KEEP_SYMBOL(StrategySetEntry& __MCM_REGISTER__ ## StrategySetEntry ## __ ## Name) =    \
     mv::graphOptimizer::LayerStrategyRegistry::instance().enter(STRV(Name))
 
-#define MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY() \
-    static ATTRIBUTE_UNUSED(StrategySetEntry& CONCATENATE(__ ## StrategySetEntry ## __, __COUNTER__)) =    \
+#define MV_OPTIMIZER_LAYER_STRATEGY_REGISTRY(Sym) \
+    KEEP_SYMBOL(StrategySetEntry& __MCM_REGISTER__ ## StrategySetEntry ## __ ## Sym) =    \
     mv::graphOptimizer::LayerStrategyRegistry::instance()
 };
 }

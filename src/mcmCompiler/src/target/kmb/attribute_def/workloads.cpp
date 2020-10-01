@@ -33,7 +33,7 @@ namespace mv
     }
 
     namespace attr {
-	    MV_REGISTER_ATTR(Workloads)
+        MV_REGISTER_SIMPLE_ATTR(Workloads)
 		.setToJSONFunc(attr_workloads::toJSON)
 		//.setFromJSONFunc(attr_workloads::fromJSON)
 		.setToStringFunc(attr_workloads::toString)

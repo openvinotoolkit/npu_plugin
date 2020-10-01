@@ -41,7 +41,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(int)
+        MV_REGISTER_SIMPLE_ATTR(int)
             .setToJSONFunc(attr_int::toJSON)
             .setFromJSONFunc(attr_int::fromJSON)
             .setToStringFunc(attr_int::toString)

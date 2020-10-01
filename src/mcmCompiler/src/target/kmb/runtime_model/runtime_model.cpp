@@ -1180,9 +1180,6 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         if (totalSize == 0)
             return false;
 
-        if (totalSize == 0)
-            return false;
-
         std::vector<uint32_t> dimensions = {totalSize, 1, 1, 1};
         totalSizeDst *= src->getDType().getSizeInBits() / 8;
         std::vector<uint32_t> dimensionsdst = {totalSizeDst, 1, 1, 1};

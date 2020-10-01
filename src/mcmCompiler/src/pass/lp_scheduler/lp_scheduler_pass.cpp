@@ -42,10 +42,9 @@ class lp_scheduler_exception_t : std::string {
 
 void LpSchedulerAllocatorPass(mv::ComputationModel& model,
       mv::Element& passDesc) {
+  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   mv::lp_scheduler::Tensor_Allocator_Assignment alloc(model);
   mv::OpModel om(model);
-
-  typedef typename mv::lp_scheduler::Schedule_Reader_Writer<dag_t> reader_t;
   auto global_params = model.getGlobalConfigParams();
 
   if (global_params->hasAttr(reader_t::ddr_address_attribute())) {
@@ -155,10 +154,6 @@ void LpSchedulerPass(const mv::pass::PassEntry& pass,
       pass.log(mv::Logger::MessageType::Info,
           " Exceeding Op: " + (itr->first)->getName() +
           " with resources:# " + (std::to_string(itr->second)));
-    }
-
-    if (!(exceeding_ops.empty())) {
-      throw "Exceeding ops";
     }
 
     if (!exceeding_ops.empty()) {

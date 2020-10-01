@@ -34,7 +34,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(Tensor::MemoryLocation)
+        MV_REGISTER_ATTR(Tensor::MemoryLocation, InitMemoryLocation)
             .setToJSONFunc(attr_mem_location::toJSON)
             .setFromJSONFunc(attr_mem_location::fromJSON)
             .setToStringFunc(attr_mem_location::toString);

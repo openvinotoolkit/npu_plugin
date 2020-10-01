@@ -20,6 +20,14 @@
 
 using std::string;
 
+#if defined(USE_INT128_CLASS) || defined(WIN32)
+#include <cstdarg>
+#define VASPRINTF ms_vasprintf            // 'vasprintf' is gnu-specific
+extern int ms_vasprintf(char **ptr, const char *format, va_list ap);
+#else
+#define VASPRINTF vasprintf
+#endif // WIN32/etc
+
 // logging.cpp:
 void Report( int level, std::stringstream &reportStream );
 void Error ( int level, std::stringstream &reportStream );

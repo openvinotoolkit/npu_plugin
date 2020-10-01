@@ -90,14 +90,12 @@ namespace mv
                 DWLargeStrideReplacementSOK,
                 SpiltOverHWithStreamOverK,
                 SpiltOverHWithStreamOverHInCMX,
-                SpiltOverHWithStreamOverHInYOLOV3,
                 SparsityKSegmented,
                 SparsitySpilling,
-                PipelineNotPossible,
                 DeConvSubConvSOKHeight,
                 SpiltOverHForLayer79InACLNet,
-                UpaHKSwitch,
-                Unknown
+                SoftwareDeconvolutionSet,
+                UpaHKSwitch
             };
 
             std::unordered_map<FailCause, std::string> failure_causes = {
@@ -121,14 +119,12 @@ namespace mv
                 {FailCause::DWLargeStrideReplacementSOK, "DWLargeStrideReplacementSOK"},
                 {FailCause::SpiltOverHWithStreamOverK, "SpiltOverHWithStreamOverK"},
                 {FailCause::SpiltOverHWithStreamOverHInCMX, "SpiltOverHWithStreamOverHInCMX"},
-                {FailCause::SpiltOverHWithStreamOverHInYOLOV3, "SpiltOverHWithStreamOverHInYOLOV3"},
                 {FailCause::SparsityKSegmented, "SparsityKSegmented"},
                 {FailCause::SparsitySpilling, "SparsitySpilling"},
-                {FailCause::PipelineNotPossible, "PipelinedNotPossible"},
                 {FailCause::DeConvSubConvSOKHeight, "DeConvSubConvSOKHeight"},
                 {FailCause::SpiltOverHForLayer79InACLNet, "SpiltOverHForLayer79InACLNet"},
-                {FailCause::UpaHKSwitch, "UpaHKSwitch"},
-                {FailCause::Unknown, "Unknown"}
+                {FailCause::SoftwareDeconvolutionSet, "SoftwareDeconvolutionSet"},
+                {FailCause::UpaHKSwitch, "UpaHKSwitch"}
             };
 
             void readGlobalConfigs()
@@ -155,12 +151,12 @@ namespace mv
             }
 
             /***
-             * 
-             * File organization. 
-             * 
+             *
+             * File organization.
+             *
              * STRATEGY GENERATION
              * STRATEGY EVAULATION
-             * 
+             *
              */
 
             void generateStrategySetForLayer(mv::Op& op,std::vector<StrategySet>& strategyVec)
@@ -237,7 +233,7 @@ namespace mv
                         else
                             eltwiseParentPool.push_back(true);
 
-                        
+
                         for( const auto eltwiseParentStrategy : eltwiseParentPool)
                         {
 
@@ -249,7 +245,7 @@ namespace mv
                         // 4. Nested loops over generated streaming options to produce all strategy options
                         std::vector<size_t> streamsOverH;
                         if(hasStreamOverH)
-                            streamsOverH = getStreamsOverH(op, clustering, {1,1,1,1,1}, inputSparsity.get<bool>(), 
+                            streamsOverH = getStreamsOverH(op, clustering, {1,1,1,1,1}, inputSparsity.get<bool>(),
                                                                 outputSparsity.get<bool>(), weightsSparsity, fakeSparsity,
                                                                 spilling.get<bool>(),eltwiseParentStrategy.get<bool>());
                         else
@@ -264,7 +260,7 @@ namespace mv
                         if(hasStreamOverK)
                         {
                             // streamsOverK = getMaxStreamOverK(op);
-                            streamsOverK = getStreamsOverK(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(), 
+                            streamsOverK = getStreamsOverK(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(),
                                                             outputSparsity.get<bool>(), weightsSparsity, fakeSparsity, spilling.get<bool>());
                         }
                         else
@@ -274,7 +270,7 @@ namespace mv
 
                         std::vector<size_t> streamsOverC;
                         if (hasStreamOverC)
-                            streamsOverC = getStreamsOverC(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(), 
+                            streamsOverC = getStreamsOverC(op, clustering, {1,1,1,1,n}, inputSparsity.get<bool>(),
                                                             outputSparsity.get<bool>(), weightsSparsity, fakeSparsity, spilling.get<bool>());
                         else
                             streamsOverC.push_back(1);
@@ -305,7 +301,7 @@ namespace mv
                         {
                             if(enableNestedStreaming) // generate h ranges on the fly
                             {
-                                streamsOverH = getStreamsOverH(op, clustering, {1,1,1,k,1}, inputSparsity.get<bool>(), 
+                                streamsOverH = getStreamsOverH(op, clustering, {1,1,1,k,1}, inputSparsity.get<bool>(),
                                                                 outputSparsity.get<bool>(), weightsSparsity, fakeSparsity, spilling.get<bool>());
                             }
                             for(const auto h : streamsOverH)
@@ -350,7 +346,7 @@ namespace mv
                                     //    std::cout << "Spilling: " + spilling.toString() << std::endl;
                                     //    std::cout << "MCStrategy: " + clustering.toString() << std::endl;
                                     //    std::cout << "Streaming(W,H,C,K,N): " + streamShape.toString() << std::endl<<std::endl;
-                                   
+
                                 }
                             }
                         }
@@ -367,7 +363,7 @@ namespace mv
             // the options to reasonable configurations. This always includes H=1, or in other words no streaming over H.
             // If H streaming fits at all (i.e. weights fit), find the H just big enough to fit into CMX. If CMX concat,
             // spilling will be false, and H stream will be higher accordingly.
-            std::vector<size_t> getStreamsOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            std::vector<size_t> getStreamsOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                                 bool wSparsity, bool fSparsity, bool spilling, bool parentSpilling = true)
             {
                 auto minSplitsToFit = getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, parentSpilling);
@@ -377,15 +373,15 @@ namespace mv
                 // TODO re-enable pipeline over H
                 // Case 0, Not spilling, cmx concat. If pipelined, need room for 2 input slices.
                 // if(!spilling && globalEnablePipelining && createStrategyFromBool(op, "pipelining"))
-                // {   
+                // {
                 //     auto pipelinedMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true, parentSpilling);
                 //     if(pipelinedMinSplitsToFit > 1 && pipelinedMinSplitsToFit != minSplitsToFit)
                 //         return {pipelinedMinSplitsToFit, minSplitsToFit, 1};
                 // }
-                // else 
+                // else
                 if(spilling) // Case 1 Spilling, ddr concat. Find min stream over H for both input in cmx and input streamed.
                 {
-                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, false);                
+                    auto inputCmxMinSplitsToFit =  getMinStreamOverH(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, false, false);
                     if(inputCmxMinSplitsToFit > 1 && inputCmxMinSplitsToFit != minSplitsToFit)
                         return {inputCmxMinSplitsToFit, minSplitsToFit, 1};
                 }
@@ -395,7 +391,7 @@ namespace mv
 
             // Gives the minimum number of streams over H to fit this layer, or if no number of streams enable streaming
             // (for example, weights don't fit) then return 0
-            unsigned getMinStreamOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            unsigned getMinStreamOverH(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                         bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false, bool parentSpilling = true)
             {
                 size_t input, output, weights;
@@ -429,7 +425,7 @@ namespace mv
                     {
                         return splits;
                     }
-                    else if(!pipelined && 
+                    else if(!pipelined &&
                             (std::get<0>(memFitCheck) + std::get<1>(memFitCheck) + std::get<2>(memFitCheck) < clusterMemory) &&
                             validateHStream(op, clustering, splits))
                     {
@@ -462,7 +458,7 @@ namespace mv
             // Note: This function produces the potential stream over K strategies for each layer
            // Try to find 2 possible combinations of K, in addition ot K=1 (no streams in this dimension)
            // First, just enough to fit in cmx. Second, enough to enable pipelining.
-            std::vector<std::size_t> getStreamsOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            std::vector<std::size_t> getStreamsOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                                 bool wSparsity, bool fSparsity, bool spilling)
             {
                 auto minSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
@@ -474,9 +470,9 @@ namespace mv
                 if(minSplitsToFit != 1)
                     splits.push_back(minSplitsToFit);
 
-                if( globalEnablePipelining && 
+                if( globalEnablePipelining &&
                     createStrategyFromBool(op, "pipelining") && //Only find extra K streams if pipelining enabled
-                    (clustering.get<std::string>() == "SplitOverK" || clustering.get<std::string>() == "Clustering")) 
+                    (clustering.get<std::string>() == "SplitOverK" || clustering.get<std::string>() == "Clustering"))
                 {
                     auto pipelinedMinSplitsToFit = getMinStreamOverK(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling, true);
                     if(pipelinedMinSplitsToFit != 0)
@@ -492,7 +488,7 @@ namespace mv
                 return splits;
             }
 
-            unsigned getMinStreamOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            unsigned getMinStreamOverK(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                                 bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
             {
                 auto outputShape = op.getOutputTensor(0)->getShape();
@@ -547,7 +543,7 @@ namespace mv
 
             bool validateKStream(mv::Op& op, mv::Attribute clustering, size_t split, bool spilling)
             {
-                if( op.getOpType() == "Conv" && 
+                if( op.getOpType() == "Conv" &&
                     clustering.get<std::string>() == "SplitOverK")
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
@@ -565,12 +561,12 @@ namespace mv
                     if (!(outputChannelSlice%16 == 0 && lastSlice%16 == 0)) //would need crop
                         return false;
                 }
-                        
+
                 return true;
             }
 
             // Note: Find suitable stream over C values
-            std::vector<std::size_t> getStreamsOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            std::vector<std::size_t> getStreamsOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                                 bool wSparsity, bool fSparsity, bool spilling)
             {
                 auto minSplitsToFit = getMinStreamOverC(op, clustering, streams, iSparsity, oSparsity, wSparsity, fSparsity, spilling);
@@ -586,7 +582,7 @@ namespace mv
                 return splits;
             }
 
-            unsigned getMinStreamOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity, 
+            unsigned getMinStreamOverC(mv::Op& op, mv::Attribute clustering, Shape streams, bool iSparsity, bool oSparsity,
                                                 bool wSparsity, bool fSparsity, bool spilling, bool pipelined = false)
             {
                 auto inputShape = op.getInputTensor(0)->getShape();
@@ -734,50 +730,50 @@ namespace mv
                 auto opType = op.getOpType();
                 if(opType == "Input" || opType == "Output")
                     return false;
-    
+
                 if(!op.hasTypeTrait("optimizable"))
                     return false;
-   
+
                 if(op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted"))
                     return false;
-  
+
                 if(opType == "Concat" && spilling)
                     return false;
-  
+
                 return true;
             }
 
             /***
-             * 
-             * Begin Strategy Evaluation section
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
              *
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
-             * 
+             * Begin Strategy Evaluation section
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
+             *
              * */
 
             //Check to see if a given stategy is internally consistent for performance
@@ -792,7 +788,7 @@ namespace mv
                 auto software = op.hasAttr("softwareExecuted") && op.get<bool>("softwareExecuted");
 
                 //NOTE: funny part you can spill even if you are not streaming, fasten your seatbelts!!
-                bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"] 
+                bool isStreaming = ((streamShape["W"] * streamShape["H"] * streamShape["C"]
                                                             * streamShape["K"] * streamShape["B"]) > 1) ? true : false;
 
                 // A proper decision on CMX concat for explicit concat or eltwise streaming cannot
@@ -964,7 +960,7 @@ namespace mv
 
                 //Note: This is a temporary workaround for ICnet. In general, we are able to stream over H
                 //for dilated sub convolutions. Root cause unidentified.
-                if (op.getOpType() == "Conv"  && 
+                if (op.getOpType() == "Conv"  &&
                     op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv") &&
                     op.hasAttr("originalShape") && op.get<mv::Shape>("originalShape")[mv::IO_HEIGHT_DIMENSION] == 23 &&
                     streamShape["H"] > 1)
@@ -979,7 +975,6 @@ namespace mv
                     if ((originalH % numberOfStreamSplits) != 0)
                     {
                         auto newOutputSizes = tileSpatialOutputSize(originalH, numberOfStreamSplits);
-                        int newOutputSize = newOutputSizes.front();
                         int remainderOutputSize = newOutputSizes.back();
 
                         if (remainderOutputSize < totalClusters)
@@ -1004,20 +999,28 @@ namespace mv
                     (streamShape["H"] > 1) && !spilling)
                     return FailCause::SpiltOverHWithStreamOverHInCMX;
 
-                //NOTE: Temporary change for handling the yolov3 failing case
-                if (clustering == "SplitOverH" && isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 416 &&
-                    streamShape["H"] > 1)
-                    return FailCause::SpiltOverHWithStreamOverHInYOLOV3;
-                
                 // This is intended to be a temporary workaround for ACLnet, layer '79', which does work with SOH
                 // It has not been root caused to the compiler or runtime but as of now the compiler logic seems OK
-                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 && 
+                if (clustering == "SplitOverH" && op.getOpType() == "Conv" && !isChanMajor && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 &&
-                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 && 
+                    op.getOutputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 64 && op.getOutputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 100 &&
                     op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 64 && op.getInputTensor(1)->getShape()[mv::KERNEL_HEIGHT] == 3 &&
                     op.getInputTensor(1)->getShape()[mv::KERNEL_WIDTH] == 3)
                     return FailCause::SpiltOverHForLayer79InACLNet;
 
+                //NOTE: we need a ticket for that failure, blob looks fine for streaming overH = 12 which means every stream assigned with 2 lines
+                //last one with 1, and the last one seems not to function correctly
+                if (op.hasAttr("floatPrecision"))
+                {
+                     if (op.getOpType() == "Conv" && op.get<bool>("floatPrecision") && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 1024 &&
+                             op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 30 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 23)
+                     {
+                        auto outputTilesShape = tileSpatialOutputSize(op.getOutputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION], streamShape["H"]);
+                        for (auto tileShape:outputTilesShape)
+                            if (tileShape == 1)
+                                return FailCause::SoftwareDeconvolutionSet;
+                     }
+                }
                 return FailCause::Pass; //good strategy
             }
 
@@ -1027,7 +1030,7 @@ namespace mv
                mv::Shape worstStreamPool = streamingPool;
 
                 //TODO harmonize this, for now only consider worst shape for nested streams
-                if(streamingPool["H"] > 1 && streamingPool["K"] > 1)
+                if(streamingPool["H"] > 1 and streamingPool["K"] > 1)
                 {
                     mv::Shape tensorShape = tensorToSize->getShape();
                     //update the streamingPool to the worst combination, based on slice sizes
@@ -1164,7 +1167,7 @@ namespace mv
             }
 
             std::tuple<size_t,size_t,size_t> memorySize(mv::Op& op, const Attribute& clustering, bool inputActivationSparsity,
-                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig, 
+                                            bool outputActivationSparsity, bool weightsSparsity, const Shape& streamConfig,
                                             bool fakeSparsity, bool spilling = false, bool parentSpilling = true)
             {
                 auto div = [](unsigned x,unsigned y) -> unsigned { return (x+y-1)/y; };
@@ -1182,7 +1185,7 @@ namespace mv
                 auto isCMConv = false;
                 auto clusterStrategy = clustering.get<std::string>();
 
-                if(enableChannelMajorConv && op.supportsCMConv())
+                if(enableChannelMajorConv and op.supportsCMConv())
                     isCMConv = true;
 
                 if (op.hasAttr("DilatedSubConv") && (op.get<bool>("DilatedSubConv")))
@@ -1380,11 +1383,11 @@ namespace mv
             bool requiresWeightsSparsity(Op& op)
             {
                 // If Z-major Conv in Float precision then need to have weights Sparsity
-                bool isCMConv = enableChannelMajorConv && op.supportsCMConv();
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
-                if(op.getOpType() == "Conv" &&
-                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv && referenceDevice == "A0")
+                if(op.getOpType() == "Conv" and
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
+                    !isCMConv and referenceDevice == "A0")
                         return true;
 
                 return false;
@@ -1393,10 +1396,10 @@ namespace mv
             // In these cases parent output sparsity does matter, but child input sparsity must be true
             bool requiresCompilerActivationSparsity(Op& op)
             {
-                bool isCMConv = enableChannelMajorConv && op.supportsCMConv();
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
-                if (op.getOpType() == "Conv" && !isCMConv
-                        && (op.hasAttr("DilatedSubConv") && op.get<bool>("DilatedSubConv")))
+                if (op.getOpType() == "Conv" and !isCMConv
+                        and (op.hasAttr("DilatedSubConv") and op.get<bool>("DilatedSubConv")))
                     return true;
 
                 return false;
@@ -1404,11 +1407,11 @@ namespace mv
 
             bool requiresRealActivationSparsity(Op& op, std::string clustering){
                 //An fp16 Conv Z-major must have activation sparsity
-                bool isCMConv = enableChannelMajorConv && op.supportsCMConv();
+                bool isCMConv = enableChannelMajorConv and op.supportsCMConv();
 
-                if (op.isSparsityConsumer() &&
-                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") &&
-                    !isCMConv &&
+                if (op.isSparsityConsumer() and
+                    op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16") and
+                    !isCMConv and
                     referenceDevice == "A0")
                 {
                     return true;
@@ -1418,10 +1421,10 @@ namespace mv
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
                 if ( op.getOpType() == "Conv" ) {
-                    if( clustering == "SplitOverH" &&
-                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 ||
-                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) &&
-                        !isCMConv &&
+                    if( clustering == "SplitOverH" and
+                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
+                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) and
+                        !isCMConv and
                         referenceDevice == "A0")
                         {
                             return true;
@@ -1433,7 +1436,7 @@ namespace mv
 
              //Channel major conv, pooling and depthwise will get fake sparsity, so need to check memory constraints as if real sparsity
             bool requiresFakeActivationSparsity(Op& op){
-                if(enableChannelMajorConv && op.supportsCMConv())
+                if(enableChannelMajorConv and op.supportsCMConv())
                     return true;
 
                 if(op.getOpType() == "MaxPool")
@@ -1490,6 +1493,7 @@ namespace mv
                                                 " k_h" + std::to_string(kernel[mv::KERNEL_HEIGHT]));
                 return executableInHW;
             }
+
 
             int8_t checkStrideSizes(mv::Op& op)
             {
@@ -1557,6 +1561,7 @@ namespace mv
                 if (parentOutputSparsity && !childInputSparsity)
                     return INF;
 
+
                 // Note: no sense to stream activations if both layers stay in CMX
                 if(!parentSpilling && !childSpilling && (childStreamShape["H"] > 1))
                     return INF;
@@ -1571,7 +1576,7 @@ namespace mv
                 if( violatesClusteringStrategyRules(parentOp, childOp, parent, child) )
                 {
                     log(mv::Logger::MessageType::Debug, parent["name"].toString()+"_"+parent["id"].toString()
-                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() + 
+                                + " transition to "+ child["name"].toString()+"_"+child["id"].toString() +
                                 " INF caused by incompatible clustering strategies");
                     return INF;
                 }
@@ -1581,12 +1586,12 @@ namespace mv
                 if(!parentSpilling && childActivationStreaming)
                 {
                     size_t input, output, weights;
-                    std::tie(input, output, weights) = memorySize(childOp, childClustering, 
-                                                                child["inputSparsity"].get<bool>(), 
+                    std::tie(input, output, weights) = memorySize(childOp, childClustering,
+                                                                child["inputSparsity"].get<bool>(),
                                                                 child["outputSparsity"].get<bool>(),
-                                                                child["weightsSparsity"].get<bool>(), 
+                                                                child["weightsSparsity"].get<bool>(),
                                                                 childStreamShape,
-                                                                requiresFakeActivationSparsity(childOp), 
+                                                                requiresFakeActivationSparsity(childOp),
                                                                 childSpilling, parentSpilling);
                     if(input + output + weights >= clusterMemory)
                         return INF;
@@ -1613,7 +1618,7 @@ namespace mv
                     }
 
                 }
-                
+
                 int8_t success = checkHWUnsupportedOp(parentOp);
                 if (success != 0)
                 {
@@ -1625,7 +1630,7 @@ namespace mv
                             the operation " + parentOp.getName());
                 }
 
-                
+
                 auto isChildChanMajor = childOpType == "Conv" && enableChannelMajorConv &&
                                         childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
 
@@ -1644,7 +1649,7 @@ namespace mv
                         // reads will fail due to misalignment
                         // Fake sparsity will provide all 1's sparse map so that probem is solved
                         // from the starts
-                        
+
                         // Sparse map has to be contiguously alligned at 16 bytes
                         // for first (N - 1) clusters
                         auto outputTensorShape = parentOp.getOutputTensor(0)->getShape();
@@ -1653,7 +1658,7 @@ namespace mv
                         unsigned int C = outputTensorShape[IO_CHANNEL_DIMENSION];
                         unsigned dy = std::ceil(static_cast<double>(H) / totalClusters);
 
-                        // this limitation that sparse map should be 16 bytes aligned in each subtensors, 
+                        // this limitation that sparse map should be 16 bytes aligned in each subtensors,
                         // ONLY applies when DPUs are reading data from neighbor clusters
                         // Each subtensor should be aligned to 16 byte boundaries. For SM we have 1 bit per elem,
                         // so divide tensor by 8 get size in bytes
@@ -1750,7 +1755,7 @@ namespace mv
                 {
                     //TODO for now, we only pipeline over K. reenable over H!
                     unsigned streams = childStreamShape["K"];
-                    
+
                     // In pipelining, we can overlap the compute and dma (except the first dma and the last compute)
                     auto cStreamComp = ((double) cFullComp / streams);
                     auto pipelineOverlap = cWeightDma + ( (streams - 1) * std::max(cStreamComp, cWeightDma)) + cStreamComp;
@@ -1884,9 +1889,9 @@ namespace mv
                     if (parentClustering == "SplitOverH" and ((childClustering == "Clustering" and childOpType !=  "Output") ||
                                                               childClustering == "SplitOverK"))
                     {
-                        if (!(enableChannelMajorConv and 
+                        if (!(enableChannelMajorConv and
                             ((parentOpType == "Conv" and
-                            parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) or 
+                            parentOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16) or
                             (childOpType == "Conv" and
                             childOp.getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] < 16))) )
                             {
@@ -1926,9 +1931,9 @@ namespace mv
                 auto parentSpilling = parent["spilling"].get<bool>();
 
 
-                auto isChildChanMajor = childOpType == "Conv" && 
+                auto isChildChanMajor = childOpType == "Conv" &&
                                         childOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
-                auto isParentChanMajor = parentOpType == "Conv" && 
+                auto isParentChanMajor = parentOpType == "Conv" &&
                                         parentOp.getInputTensor(1)->getShape()[KERNEL_INPUT_CHANNELS] < 16;
 
                 if (isParentChanMajor || isChildChanMajor)
@@ -1938,9 +1943,9 @@ namespace mv
                     return true;
 
                 if( isChildChanMajor )
-                {   
+                {
                     //Note: If SOHOverlapped input requires SOH CMconv, and vice versa
-                    if(childClustering == "SplitOverH" && 
+                    if(childClustering == "SplitOverH" &&
                         (parentOpType == "Input" && parentClustering != "SplitOverHOverlapped"))
                         return true;
                     if(parentClustering == "SplitOverHOverlapped" && childClustering != "SplitOverH")
@@ -1959,7 +1964,7 @@ namespace mv
 
                 return false;
             }
-    
+
             // CM Conv needs if follows a DW Conv (like OV models) or CM Conv follows another Conv, spilling is needed
             // As OV models have DW->Conv and DW is always 1x1, as long as DW height & width are multiples are 8, no need to spill
             // Reason: CM Conv uses overlaps of rows and so the output subtensors of CM Conv may not be aligned to 8 as needed for next op if conv (and has SOH)
@@ -2043,7 +2048,7 @@ namespace mv
                         stream = streamShape["K"];
                     else if(streamShape["B"] > 1)
                         stream = streamShape["B"];
-                    
+
                     outputTime = stream*(DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH));
                 }
                 return (inputTime + weightsTime + outputTime) * 1000000; //return in us
@@ -2118,7 +2123,7 @@ namespace mv
                         stream = streamShape["K"];
                     else if(streamShape["B"] > 1)
                         stream = streamShape["B"];
-                    
+
                     return (DMA_LATENCY + (((double)outputSize/stream) / DMA_BANDWIDTH)) * 1000000; //return in us;
                 }
                 return 0;
@@ -2135,6 +2140,7 @@ namespace mv
                 if(op.getInputTensor(0)->get<mv::DType>("dType") == mv::DType("Float16"))
                     OPS = 1.792 * 1099511627776;
 
+                auto inputShape = op.getInputTensor(0)->getShape();
                 auto outputShape = op.getOutputTensor(0)->getShape();
                 auto clustering = strategySet["clustering"].get<std::string>();
                 auto streaming = strategySet["streaming"].get<Shape>();
@@ -2161,36 +2167,41 @@ namespace mv
                 }
                 else
                 {
-                    throw LogicError(*this,"Invalid operation type " + opType);
+                    throw LogicError(*this, "Invalid operation type " + opType);
                 }
 
-                bool channelAccum =  (opType == "Conv") ? true : false;
-                if(channelAccum)
+                bool channelAccum = (opType == "Conv") ? true : false;
+                if (channelAccum)
                 {
                     auto weightsShape = op.getInputTensor(1)->getShape();
                     baseKernelCost *= weightsShape[KERNEL_INPUT_CHANNELS];
                 }
 
                 auto totalStreams = 1;
-                for(unsigned i = 0; i < streaming.ndims(); i++)
+                for (unsigned i = 0; i < streaming.ndims(); i++)
                     totalStreams *= streaming[i];
 
                 auto isiDecay = 1.0;
                 if (clustering == "SplitOverK" || clustering == "HKSwitch")
-                    isiDecay = 0.1  *
-                        std::max(1lu, dpuPerCluster - 1) *
-                        std::max(1lu, totalClusters - 1);
+                    isiDecay = 0.1 *
+                        std::max((size_t) 1, dpuPerCluster - 1) *
+                        std::max((size_t) 1, totalClusters - 1);
 
                 //TODO to capture fully, should calculate the cost to bring data to compute from cmx and output back to cmx
-                //double readIn = (totalStreams * LATENCY_CMX) +  
-                auto totalToCompute = (outputShape.totalSize() / totalStreams);
+                auto inputSize = inputShape.totalSize();
+                auto outputSize = outputShape.totalSize();
+                if(opType == "Conv" || opType == "DepthwiseConv" || opType == "Eltwise")
+                    inputSize += op.getInputTensor(1)->getShape().totalSize();
+                double readIn = (totalStreams * LATENCY_CMX) + (inputSize / BANDWIDTH_CMX);
+                auto totalToCompute = (outputSize / totalStreams);
+                double readOut = (totalStreams * LATENCY_CMX) + (outputSize / BANDWIDTH_CMX);
 
                 // Multiclustering allows parallelism
                 if(clustering != "Clustering")
                     totalToCompute = totalToCompute / totalClusters;
 
                 totalToCompute = totalToCompute * isiDecay;
-                
+
                 double compTime = ((totalToCompute * baseKernelCost) / OPS);
 
                 return  (totalStreams * (readIn + readOut + compTime)) * 1000000; //return in us
@@ -2220,9 +2231,10 @@ namespace mv
 
                 if(clustering == "SplitOverH" || clustering == "HKSwitch")
                     return false;
-                
+
                 //Note: for now, only support pipelining over H and K
-                if((stream["N"] * stream["C"]) > 1)
+                //TODO renable for H
+                if((stream["B"] * stream["C"] * stream["H"]) > 1)
                     return false;
 
                 // No sense making nested streaming any worse than it is
@@ -2251,7 +2263,7 @@ namespace mv
                     //Note: memory size function is smart enough to take care of input/output size relative to spilling
                     auto memReq = input + output + 2*weights;
                     if(memReq < clusterMemory)
-                    {   
+                    {
                         return true;
                     }
                 }
@@ -2264,7 +2276,7 @@ namespace mv
 
                     //Note: memory size function is smart enough to take care of input/output size relative to spilling
                     if(parentSpilling) //streamed input, either full or streamed output
-                        memReq = 2*input + weights + output; 
+                        memReq = 2*input + weights + output;
                     else //full input, streamed output
                         memReq = input + weights + 2*output;
 
@@ -2280,23 +2292,23 @@ namespace mv
             {
                 if(!globalEnablePrefetching)
                     return false;
-                    
+
                 //Note: No sense in prefetching weights if we just have to wait for activations
                 if(parent["spilling"].get<bool>())
                     return false;
 
                 //TODO this should work for depthwise too, but for now just check convs
                 if(childOp.getOpType() != "Conv") // Need something to prefetch, i.e. weights!
-                    return false;    
-                
+                    return false;
+
                 // Note: No sense prefetching weights if we are nested streaming
                 auto childStreams =  child["streaming"].get<mv::Shape>();
                 if(childStreams["H"] > 1 && childStreams["K"] > 1)
                     return false;
 
                 //Prefetch is possible if the previous op leaves enough CMX open to fit a slice of the childs weights
-                size_t childWeight = alignedWeightsSize(childOp.getInputTensor(1), 
-                                                        childStreams, 
+                size_t childWeight = alignedWeightsSize(childOp.getInputTensor(1),
+                                                        childStreams,
                                                         child["clustering"].get<std::string>());
 
                 size_t parentInput, parentOutput, parentWeight;

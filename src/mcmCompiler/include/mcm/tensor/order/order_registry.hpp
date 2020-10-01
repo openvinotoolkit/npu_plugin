@@ -39,7 +39,7 @@ namespace mv
     };
 
     #define MV_REGISTER_ORDER(Name)                          \
-        MV_REGISTER_ENTRY(OrderRegistry, std::string, OrderEntry, #Name)    \
+        MV_REGISTER_ENTRY(OrderRegistry, std::string, OrderEntry, Name)    \
 
 
 }
