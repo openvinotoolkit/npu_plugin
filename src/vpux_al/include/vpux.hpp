@@ -75,6 +75,9 @@ private:
 //------------------------------------------------------------------------------
 class Allocator : public InferenceEngine::IAllocator {
 public:
+    using Ptr = std::shared_ptr<Allocator>;
+    using CPtr = std::shared_ptr<const Allocator>;
+
     // TODO: need update methods to remove Kmb from parameters
     virtual void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept = 0;
     virtual void* wrapRemoteMemoryOffset(
@@ -86,6 +89,7 @@ public:
 
 //------------------------------------------------------------------------------
 class Executor;
+
 class IDevice : public InferenceEngine::details::IRelease {
 public:
     virtual std::shared_ptr<Allocator> getAllocator() const = 0;
@@ -99,6 +103,7 @@ public:
 };
 
 class Device final {
+private:
     // Device stores instances of classes inherited from IDevice. The instances come from _plg library.
     // Device has to keep pointer to _plg to avoid situations when the shared library unloaded earlier than
     // an instance of IDevice
@@ -106,6 +111,9 @@ class Device final {
     InferenceEngine::details::SharedObjectLoader::Ptr _plg = nullptr;
 
 public:
+    using Ptr = std::shared_ptr<Device>;
+    using CPtr = std::shared_ptr<const Device>;
+
     Device(const std::shared_ptr<IDevice> device, InferenceEngine::details::SharedObjectLoader::Ptr plg)
         : _actual(device), _plg(plg) {}
     std::shared_ptr<Allocator> getAllocator() const { return _actual->getAllocator(); }
@@ -120,12 +128,12 @@ public:
     ~Device() { _actual = nullptr; }
 };
 
-
 //------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {
 public:
     using Ptr = std::shared_ptr<Executor>;
+    using CPtr = std::shared_ptr<const Executor>;
 
     virtual void setup(const InferenceEngine::ParamMap& params) = 0;
     virtual Executor::Ptr clone() const { THROW_IE_EXCEPTION << "Not implemented"; }
