@@ -2302,7 +2302,8 @@ namespace mv
                     return false;
 
                 // Note: No sense prefetching weights if we are nested streaming
-                auto childStreams =  child["streaming"].get<mv::Shape>();
+                mv::Shape& childStreams = child["streaming"].get<mv::Shape>();
+
                 if(childStreams["H"] > 1 && childStreams["K"] > 1)
                     return false;
 
