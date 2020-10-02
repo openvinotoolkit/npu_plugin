@@ -416,6 +416,7 @@ class DAG_Transitive_Reducer {
           if ((level_itr->second) > sink_level) { continue; }
 
           size_t nid = e->sink()->getID();
+          if (nid == sink->getID()) { return true; }
           if (visited.find(nid) == visited.end()) {
             bfs_list.push_back(e->sink());
             visited.insert(nid);

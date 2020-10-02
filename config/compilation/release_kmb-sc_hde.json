@@ -272,13 +272,7 @@
     "control_flows":{
         "Singular" : [
             "TaskControlFlows",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "TransitiveReduction",
-            "LayerNumbering",
-            "NNCMX2DDRControlFlows",
-            "TransitiveReduction"
-        ]
+            "NNCMX2DDRControlFlows"        ]
     },
     "finalize": {
         "Singular": [
@@ -309,8 +303,6 @@
                 "name": "TransitiveReduction",
                 "filter": "MemoryRequirement"
             },
-            "TransitiveReduction",
-            "LayerNumbering",
             {
                 "name": "GenerateWorkloads",
                 "costfunction": "greedy",
@@ -329,7 +321,6 @@
               "ddr_control_edges" : true
             },
             "SetSliceAddressesInCMX",
-            "TransitiveReduction",
             "LayerNumbering",
             "PopulateWeightsTablesPointers",
             "PopulateStorageElementPointers",
