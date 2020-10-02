@@ -34,6 +34,13 @@ void generateBlobKmbFcn(const mv::pass::PassEntry&, mv::ComputationModel& model,
     MV_PROFILED_FUNCTION(MV_PROFILE_PHASE)
     mv::RuntimeModel& rm = mv::RuntimeModel::getInstance(td);
 
+    if (passDesc.hasAttr("metaInfoSerializer"))
+    {
+        std::function<void(MVCNN::GraphFileT&)> metaInfoFcn =
+            passDesc.get<std::function<void(MVCNN::GraphFileT&)>>("metaInfoSerializer");
+        rm.serializeHelper(metaInfoFcn);
+    }
+
     if (passDesc.hasAttr("output")) // if attribute missing, blob file not written
     {
         auto output = passDesc.get<std::string>("output");

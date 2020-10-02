@@ -292,3 +292,4 @@ bool mv::attr::AttributeRegistry::checkInstanceTrait(const std::string& trait)
 #include    "src/base/attribute_def/uint8_t.cpp"
 #include    "src/base/attribute_def/unsigned_short.cpp"
 #include    "src/base/attribute_def/unsigned.cpp"
+#include    "src/base/attribute_def/lambda_function.cpp"

@@ -151,6 +151,7 @@ namespace mv
             void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
+            void serializeHelper(const std::function<void(MVCNN::GraphFileT& graphFileInstance)>& serializeFcn);
             std::shared_ptr<std::vector<char>> getBlob();
             static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, std::uint8_t port, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
             static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, std::uint8_t port, const std::string &srcAllocator = "", const std::string &dstAllocator = "");

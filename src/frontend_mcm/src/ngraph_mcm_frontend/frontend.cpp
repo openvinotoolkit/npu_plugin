@@ -55,10 +55,9 @@
 #include <vector>
 #include <utility>
 
-std::vector<char> serializeMetaData(
-        const char* memBlobData,
-        const InferenceEngine::InputsDataMap& inputInfo,
-        const InferenceEngine::OutputsDataMap& outputInfo);
+std::unique_ptr<MVCNN::TensorReferenceT> buildTensorReference(
+    const std::string& tensorName,
+    const InferenceEngine::TensorDesc& tensorInfo);
 
 std::vector<char> compileNGraph(
         const std::shared_ptr<ngraph::Function>& func,
@@ -94,6 +93,24 @@ std::vector<char> compileNGraph(
         if (config.referenceMode()) {
             mcmCompDesc.setPassArg("GlobalConfigParams", "ReferenceMode", true);
         }
+
+        std::function<void(MVCNN::GraphFileT&)> metaInfoSerializer =
+            [&inputsInfo, &outputsInfo](MVCNN::GraphFileT& graphFileInstance) {
+            if (graphFileInstance.header == nullptr) {
+                THROW_IE_EXCEPTION << "metaInfoSerializer: graph file header points to null";
+            }
+
+            for (const auto& inInfo : inputsInfo) {
+                graphFileInstance.header->in_tensor_desc.push_back(
+                    buildTensorReference(inInfo.first, inInfo.second->getTensorDesc()));
+            }
+
+            for (const auto& outInfo : outputsInfo) {
+                graphFileInstance.header->out_tensor_desc.push_back(
+                    buildTensorReference(outInfo.first, outInfo.second->getTensorDesc()));
+            }
+        };
+        mcmCompDesc.setPassArg("GenerateBlobKmb", "metaInfoSerializer", metaInfoSerializer);
 
         IE_ASSERT(mcmCompiler.initialize());
     }
@@ -164,10 +181,16 @@ std::vector<char> compileNGraph(
     // Return compiled blob
     //
 
-    const auto blob = mcmCompiler.getBlob();
-    IE_ASSERT(blob != nullptr);
+    const auto memBlob = mcmCompiler.getBlob();
+    IE_ASSERT(memBlob != nullptr);
+    std::vector<char> blob;
+    std::copy(memBlob->begin(), memBlob->end(), std::back_inserter(blob));
 
-    return serializeMetaData(blob->data(), inputsInfo, outputsInfo);
+    if (blob.empty()) {
+        THROW_IE_EXCEPTION << "Blob created by mcmCompiler is empty!";
+    }
+
+    return blob;
 }
 
 // clang-format on
