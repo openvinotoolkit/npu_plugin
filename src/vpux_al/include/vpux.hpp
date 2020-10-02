@@ -35,7 +35,9 @@
 
 namespace vpux {
 
+//------------------------------------------------------------------------------
 class IDevice;
+class Device;
 
 class IEngineBackend : public InferenceEngine::details::IRelease {
 public:
@@ -44,6 +46,33 @@ public:
     void Release() noexcept override { delete this; }
 };
 
+class EngineBackendConfigurator;
+
+class EngineBackend final {
+    friend class EngineBackendConfigurator;
+
+    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
+    IEngineBackendPtr _impl = {};
+    const std::map<std::string, std::shared_ptr<Device>> _devices = {};
+
+public:
+    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
+
+private:
+    EngineBackend(std::string pathToLib);
+    EngineBackend() = default;
+    const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
+};
+
+class EngineBackendConfigurator {
+public:
+    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
+
+private:
+    EngineBackendConfigurator();
+};
+
+//------------------------------------------------------------------------------
 class Allocator : public InferenceEngine::IAllocator {
 public:
     // TODO: need update methods to remove Kmb from parameters
@@ -55,8 +84,8 @@ public:
     virtual unsigned long getPhysicalAddress(void* handle) noexcept = 0;
 };
 
+//------------------------------------------------------------------------------
 class Executor;
-
 class IDevice : public InferenceEngine::details::IRelease {
 public:
     virtual std::shared_ptr<Allocator> getAllocator() const = 0;
@@ -91,24 +120,8 @@ public:
     ~Device() { _actual = nullptr; }
 };
 
-class EngineBackendConfigurator;
 
-class EngineBackend final {
-    friend class EngineBackendConfigurator;
-
-    using IEngineBackendPtr = InferenceEngine::details::SOPointer<IEngineBackend>;
-    IEngineBackendPtr _impl = {};
-    const std::map<std::string, std::shared_ptr<Device>> _devices = {};
-
-public:
-    const std::map<std::string, std::shared_ptr<Device>>& getDevices() const { return _devices; }
-
-private:
-    EngineBackend(std::string pathToLib);
-    EngineBackend() = default;
-    const std::map<std::string, std::shared_ptr<Device>> createDeviceMap();
-};
-
+//------------------------------------------------------------------------------
 using PreprocMap = std::map<std::string, const InferenceEngine::PreProcessInfo>;
 class Executor {
 public:
@@ -127,14 +140,6 @@ public:
     virtual InferenceEngine::Parameter getParameter(const std::string& paramName) const = 0;
 
     virtual ~Executor() = default;
-};
-
-class EngineBackendConfigurator {
-public:
-    static std::shared_ptr<EngineBackend> findBackend(const InferenceEngine::ParamMap& params = {});
-
-private:
-    EngineBackendConfigurator();
 };
 
 }  // namespace vpux
