@@ -9,7 +9,7 @@
 
 std::vector<std::string> disabledTestPatterns() {
     return {
-        ".*ActivationLayerTest*",
+        ".*ActivationLayerTest.*",
         ".*CorrectConfigTests.*",
         ".*IncorrectConfigTests.*",
         ".*IncorrectConfigAPITests.*",
