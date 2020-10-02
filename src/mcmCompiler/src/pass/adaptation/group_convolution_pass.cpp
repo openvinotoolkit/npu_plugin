@@ -70,9 +70,9 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 biasTensor = dm.getTensor(convOp->get<std::string>("bias"));
             for (unsigned branchId = 0; branchId < group; branchId++)
             {
-                std::string sliceName = "slice" + std::to_string(branchId);
-                std::string weightSliceName = "weightSlice" + std::to_string(branchId);
-                std::string convName = convOp->getName() + sliceName;
+                std::string sliceName = convOp->getName() + "slice" + std::to_string(branchId);
+                std::string weightSliceName = convOp->getName() + "weightSlice" + std::to_string(branchId);
+                std::string convName = convOp->getName() + "_" + sliceName;
                 std::string biasName = mv::createBiasName(convName + "bias");
                 groupBegin = {{0},{0},{branchId * inputGroupSize},{0}};
                 auto slice = om.slice(sliceName,
