@@ -9,7 +9,13 @@ if(NOT CMAKE_CROSSCOMPILING)
         PRIVATE
             ${PROJECT_SOURCE_DIR}
             "${PROJECT_SOURCE_DIR}/include"
+            "${META_DIR_PATH}/include"
             "${PROJECT_SOURCE_DIR}/include/huffman_encoding"
+    )
+
+    target_link_libraries(mcmCompilerCompAPIGenApp
+        PRIVATE
+            flatbuffers
     )
 
     file(MAKE_DIRECTORY "${META_DIR_PATH}/include/mcm" "${META_DIR_PATH}/src")

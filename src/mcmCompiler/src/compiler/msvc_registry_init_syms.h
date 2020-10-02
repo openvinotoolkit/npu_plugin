@@ -27,6 +27,7 @@
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__InitVecUnsigned")
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__InitVectorDataElem")
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__InitVectorStrategySet")
+#pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__InitLambdaFunction")
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__KmbOptGlCongigClusterMem")
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__KmbOptGlCongigDdrBw")
 #pragma comment(linker, "/include:__MCM_REGISTER__AttributeEntry__KmbOptGlCongigDpuPerCluster")

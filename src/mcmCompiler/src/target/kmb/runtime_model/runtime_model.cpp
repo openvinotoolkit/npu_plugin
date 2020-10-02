@@ -3523,3 +3523,7 @@ mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides, std::v
 
     return order;
 }
+
+void mv::RuntimeModel::serializeHelper(const std::function<void(MVCNN::GraphFileT&)>& serializeCallback) {
+    serializeCallback(graphFile_);
+}
