@@ -32,7 +32,7 @@ project(InferenceEngineVPUXPlugin)
 # Build properties
 #
 
-set(VPUX_DEVICE_NAME    "VPUX")
+set(VPUX_DEVICE_NAME    "VPU")
 set(KMB_DEVICE_NAME     "KMB")
 
 set(IE_MAIN_VPUX_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
