@@ -128,9 +128,12 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
                 if (sourceFlow.source()->getName() == previousOp->getName())
                     om.undefineFlow(sourceFlow);
             }
-            //NOTE: for now we consider that the sinkOp is only one operation like happens with AlexNet
-            sinkOperators[0]->setInputTensor(concat, 0, false);
-            om.defineFlow(concat, sinkOperators[0], 0);
+            // Update all the sink operations input tensor to newly created concat output
+            for (auto& sinkOp : sinkOperators)
+            {
+                sinkOp->setInputTensor(concat, 0, false);
+                om.defineFlow(concat, sinkOp, 0);
+            }
             om.removeOp(convOp);
         }
         else
