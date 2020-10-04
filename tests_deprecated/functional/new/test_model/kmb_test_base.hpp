@@ -470,6 +470,15 @@ public:
 
 using KmbYoloV1NetworkTest = KmbYoloV2NetworkTest;
 
+class KmbYoloV3NetworkTest : public KmbDetectionNetworkTest {
+public:
+    void runTest(
+            const TestNetworkDesc& netDesc,
+            const TestImageDesc& image,
+            const float confThresh, const float boxTolerance, const float probTolerance,
+            const int classes, const int coords, const int num, const std::vector<float>& anchors);
+};
+
 //
 // KmbSegmentationNetworkTest
 //

@@ -160,6 +160,42 @@ TEST_F(KmbYoloV2NetworkTest, INT8_Dense_TF_DarkNet_YoloV2) {
         0.6, 0.4, 0.4, false);
 }
 
+//
+// Yolo V3
+//
+
+const static std::vector<InferenceEngine::Layout> inputLayout = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC};
+
+const static std::vector<InferenceEngine::Layout> outputLayout = {
+        InferenceEngine::Layout::NCHW,
+        InferenceEngine::Layout::NHWC};
+
+class KmbYoloV3NetworkTestWithSpecificLayout : public KmbYoloV3NetworkTest,
+    public testing::WithParamInterface<std::tuple<InferenceEngine::Layout, InferenceEngine::Layout>> {};
+
+TEST_P(KmbYoloV3NetworkTestWithSpecificLayout, INT8_Dense_TF_YoloV3) {
+    std::vector<float> anchors = {10.0, 13.0, 16.0, 30.0, 33.0, 23.0, 30.0, 61.0, 62.0,
+                        45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/public/yolo_v3/yolo_v3_tf_dense_int8_IRv10.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", std::get<0>(GetParam()))
+            .setUserOutputPrecision("conv2d_58/Conv2D/YoloRegion", Precision::FP32)
+            .setUserOutputPrecision("conv2d_66/Conv2D/YoloRegion", Precision::FP32)
+            .setUserOutputPrecision("conv2d_74/Conv2D/YoloRegion", Precision::FP32)
+            .setUserOutputLayout("conv2d_58/Conv2D/YoloRegion", std::get<1>(GetParam()))
+            .setUserOutputLayout("conv2d_66/Conv2D/YoloRegion", std::get<1>(GetParam()))
+            .setUserOutputLayout("conv2d_74/Conv2D/YoloRegion", std::get<1>(GetParam())),
+        TestImageDesc("416x416/person.bmp", ImageFormat::RGB),
+        0.6, 0.4, 0.4, 80, 4, 3,
+        anchors);
+}
+
+INSTANTIATE_TEST_CASE_P(all_layouts, KmbYoloV3NetworkTestWithSpecificLayout,
+    ::testing::Combine(::testing::ValuesIn(inputLayout), ::testing::ValuesIn(outputLayout)));
+
 //////////////////////////////////////////
 // Start of test-set for KMB-alpha IRv10
 //////////////////////////////////////////
@@ -914,7 +950,7 @@ TEST_F(HeadPoseEstimationNetworkTest, head_pose_estimation_adas_0001) {
 
 // TODO: Need to fix bad check in gather layer parser in runtime
 TEST_F(PersonAttrRecNetworkTest, person_attribute_recognitnion_crossroad_0234) {
-    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");    
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "hang on infer");
     const std::string input_name = "input";
 
     runTest(

@@ -1181,6 +1181,43 @@ void KmbSSDNetworkTest::runTest(const TestNetworkDesc &netDesc, const TestImageD
     KmbNetworkTestBase::runTest(netDesc, init_input, check);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// YOLOV3NetworkAdapter ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+void KmbYoloV3NetworkTest::runTest(
+        const TestNetworkDesc& netDesc,
+        const TestImageDesc& image,
+        float confThresh,
+        float boxTolerance, float probTolerance, int classes, int coords, int num, const std::vector<float>& anchors) {
+    const auto check = [=](const BlobMap& actBlobs,
+                           const BlobMap& refBlobs,
+                           const ConstInputsDataMap& inputsDesc) {
+        IE_ASSERT(inputsDesc.size() == 1);
+        IE_ASSERT(actBlobs.size() == 3);
+        IE_ASSERT(actBlobs.size() == refBlobs.size());
+
+        const auto& inputDesc = inputsDesc.begin()->second->getTensorDesc();
+        const auto imgWidth = inputDesc.getDims().at(3);
+        const auto imgHeight = inputDesc.getDims().at(2);
+
+        // TODO Because of bug from KMB we always have NCHW layout https://hsdes.intel.com/appstore/article/#/18012692299
+        auto actOutput = utils::parseYoloV3Output(actBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
+            confThresh, InferenceEngine::NCHW);
+        auto refOutput = utils::parseYoloV3Output(refBlobs, imgWidth, imgHeight, classes, coords, num, anchors,
+            confThresh, refBlobs.begin()->second->getTensorDesc().getLayout());
+
+        checkBBoxOutputs(actOutput, refOutput, imgWidth, imgHeight, boxTolerance, probTolerance);
+    };
+
+    const auto init_input = [=](const ConstInputsDataMap& inputs) {
+        IE_ASSERT(inputs.size() == 1);
+        registerSingleImage(image, inputs.begin()->first, inputs.begin()->second->getTensorDesc());
+    };
+
+    KmbNetworkTestBase::runTest(netDesc, init_input, check);
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CustomNet ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
