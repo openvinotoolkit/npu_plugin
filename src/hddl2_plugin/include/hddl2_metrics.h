@@ -16,14 +16,18 @@
 
 #pragma once
 
-#include <HddlUnite.h>
-
+// System
 #include <string>
 #include <unordered_set>
 #include <vector>
-
+// Plugin
 #include "hddl2_params.hpp"
-#include "vpu/kmb_plugin_config.hpp"
+#include "vpu/utils/logger.hpp"
+// TODO should not be here
+#include "kmb_plugin_config.hpp"
+// TODO Low-level should be moved under backend
+// Low-level
+#include <HddlUnite.h>
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -40,7 +44,7 @@ public:
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
-    static bool isServiceAvailable();
+    static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
     static bool isServiceRunning();
 
     ~HDDL2Metrics() = default;

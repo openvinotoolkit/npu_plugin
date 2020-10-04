@@ -19,25 +19,43 @@
 #include "HddlUnite.h"
 #include "ie_extension.h"
 
-// TODO Is possible that we will have emulator and HDDL device at the same time?
-// TODO Implementation only for one device
 namespace DeviceName {
 
 std::string getName();
 std::string getNameInPlugin();
+std::set<std::string> getDevicesNames();
+std::set<std::string> getDevicesNamesWithPrefix();
+
 bool isEmulator();
 
-
-inline std::string getName() {
+inline std::set<std::string> getDevicesNames() {
     std::vector<HddlUnite::Device> devices;
     HddlStatusCode code = getAvailableDevices(devices);
     if (code != HDDL_OK || devices.empty()) {
         THROW_IE_EXCEPTION << "No devices found";
     }
+    std::set<std::string> deviceNames;
+    for (const auto& device: devices) {
+        deviceNames.insert(device.getName());
+    }
+    return deviceNames;
+}
+
+inline std::set<std::string> getDevicesNamesWithPrefix() {
+    auto devices = getDevicesNames();
+    std::set<std::string> namesWithPluginPrefix;
+    for (const auto& device: devices) {
+        namesWithPluginPrefix.insert("VPUX." + device);
+    }
+    return namesWithPluginPrefix;
+}
+
+inline std::string getName() {
+    auto devices = getDevicesNames();
     if (devices.size() > 1) {
         THROW_IE_EXCEPTION << "More than 1 device is not supported";
     }
-    return devices[0].getName();
+    return *devices.begin();
 }
 
 inline bool isEmulator() {

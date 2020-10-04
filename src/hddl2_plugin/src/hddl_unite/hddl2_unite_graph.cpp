@@ -14,14 +14,17 @@
 // stated in the License.
 //
 
+// System
+#include <string>
+// Plugin
+#include "hddl2_exceptions.h"
+#include "hddl2_metrics.h"
+#include "hddl_unite/hddl2_unite_graph.h"
+// Subplugin
+#include "subplugin/hddl2_context_device.h"
+// Low level
 #include <Inference.h>
 #include <WorkloadContext.h>
-#include <hddl2_exceptions.h>
-#include <hddl_unite/hddl2_unite_graph.h>
-
-#include <string>
-
-#include "hddl2_metrics.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -42,7 +45,7 @@ static const HddlUnite::Device::Ptr getUniteDeviceByID(const std::string& device
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID,
-    const std::unordered_map<std::string, std::string>& config, const vpu::LogLevel& logLevel)
+    const std::unordered_map<std::string, std::string>& config, const LogLevel logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     if (!network) {
         throw std::invalid_argument("Network pointer is null!");
@@ -82,18 +85,16 @@ HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, co
 }
 
 HddlUniteGraph::HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
-    const HDDL2RemoteContext::CPtr& contextPtr, const std::unordered_map<std::string, std::string>& config,
-    const vpu::LogLevel& logLevel)
+    const HddlUnite::WorkloadContext::Ptr& workloadContext, const std::unordered_map<std::string, std::string>& config,
+    const LogLevel logLevel)
     : _logger(std::make_shared<Logger>("Graph", logLevel, consoleOutput())) {
     HddlStatusCode statusCode;
-    if (contextPtr == nullptr) {
+    if (workloadContext == nullptr) {
         THROW_IE_EXCEPTION << "Workload context is null";
     }
 
     const std::string graphName = network->getName();
     const std::vector<char> graphData = network->getCompiledNetwork();
-
-    HddlUnite::WorkloadContext::Ptr workloadContext = contextPtr->getHddlUniteWorkloadContext();
 
     // TODO we need to get number of NN shaves and threads via config, not as parameters
     // [Track number: S#39350]

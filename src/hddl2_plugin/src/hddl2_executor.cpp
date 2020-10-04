@@ -16,9 +16,9 @@
 
 #include "hddl2_executor.h"
 
-#include <hddl2_remote_blob.h>
 #include <ie_compound_blob.h>
 #include <ie_memcpy.h>
+#include <subplugin/hddl2_remote_blob.h>
 
 #include <blob_factory.hpp>
 #include <ie_preprocess.hpp>
@@ -38,31 +38,6 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-/**
- * @brief If service is not available, we cannot create any executor
- */
-static bool isServiceAvailable(const vpu::Logger::Ptr& logger) {
-    if (vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable()) {
-        logger->debug(SERVICE_AVAILABLE.c_str());
-        return true;
-    } else {
-        logger->debug(SERVICE_NOT_AVAILABLE.c_str());
-        return false;
-    }
-}
-
-static vpu::HDDL2Plugin::HDDL2RemoteContext::Ptr castIEContextToHDDL2(const IE::RemoteContext::Ptr& ieContext) {
-    vpu::HDDL2Plugin::HDDL2RemoteContext::Ptr pluginContext = nullptr;
-
-    if (ieContext != nullptr) {
-        pluginContext = std::dynamic_pointer_cast<vpu::HDDL2Plugin::HDDL2RemoteContext>(ieContext);
-        if (pluginContext == nullptr) {
-            THROW_IE_EXCEPTION << FAILED_CAST_CONTEXT;
-        }
-    }
-    return pluginContext;
-}
-
 // TODO [Track number: S#21391]
 // FIXME: does not work for batch != 1
 static bool is2DTensor(const IE::SizeVector& dims) {
@@ -136,19 +111,13 @@ static IE::Blob::Ptr prepareInputForInference(const IE::Blob::Ptr& actualInput, 
     return inputForInference;
 }
 //------------------------------------------------------------------------------
-vpux::HDDL2::HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
-    const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContextPtr) {
+HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
+    const VPUXConfig& config, const HddlUnite::WorkloadContext::Ptr workloadContext) {
     auto logger = std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput());
     vpux::HDDL2::HDDL2Executor::Ptr executor = nullptr;
-    if (!isServiceAvailable(logger)) {
-        logger->warning(EXECUTOR_NOT_CREATED.c_str());
-        return nullptr;
-    }
-
-    auto context = castIEContextToHDDL2(ieContextPtr);
 
     try {
-        executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, context);
+        executor = std::make_shared<vpux::HDDL2::HDDL2Executor>(networkDesc, config, workloadContext);
     } catch (const IE::details::InferenceEngineException& exception) {
         if (exception.hasStatus() && exception.getStatus() == IE::StatusCode::NETWORK_NOT_LOADED) {
             logger->error(FAILED_LOAD_NETWORK.c_str());
@@ -161,18 +130,21 @@ vpux::HDDL2::HDDL2Executor::Ptr HDDL2Executor::prepareExecutor(const vpux::Netwo
     return executor;
 }
 
-HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpu::HDDL2Config& config,
-    vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr context)
+HDDL2Executor::HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
+    HddlUnite::WorkloadContext::Ptr workloadContext)
     : _network(network),
-      _context(context),
-      _config(config),
       // TODO Make executor logger name unique
-      _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())) {
+      _logger(std::make_shared<vpu::Logger>("Executor", config.logLevel(), vpu::consoleOutput())),
+      _workloadContext(workloadContext) {
+    _config.parseFrom(config);
     loadGraphToDevice();
 }
 
 HDDL2Executor::HDDL2Executor(const HDDL2Executor& ex)
-    : _network(ex._network), _context(ex._context), _config(ex._config), _uniteGraphPtr(ex._uniteGraphPtr) {}
+    : _network(ex._network),
+      _config(ex._config),
+      _uniteGraphPtr(ex._uniteGraphPtr),
+      _workloadContext(ex._workloadContext) {}
 
 void HDDL2Executor::setup(const InferenceEngine::ParamMap& params) {
     UNUSED(params);
@@ -220,8 +192,8 @@ void HDDL2Executor::push(const InferenceEngine::BlobMap& inputs, const PreprocMa
 
     // TODO Create HddlUniteInferData inside constructor of executor [Track number: S#37397]
     std::call_once(_onceFlagInferData, [&] {
-        _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(
-            needUnitePreProcessing, _context, _config.getGraphColorFormat(), _network->getDeviceOutputsInfo().size());
+        _inferDataPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteInferData>(needUnitePreProcessing, _workloadContext,
+            _config.getGraphColorFormat(), _network->getDeviceOutputsInfo().size());
     });
 
     // TODO Should we use deviceInputs instead of networkInputs here?
@@ -348,12 +320,12 @@ void HDDL2Executor::loadGraphToDevice() {
         hddlUniteConfig.insert(std::make_pair("CSRAM_SIZE", std::to_string(csram_size)));
     }
 
-    if (_context == nullptr) {
+    if (_workloadContext == nullptr) {
         _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
-            _network, _config.device_id(), hddlUniteConfig, _config.logLevel());
+            _network, _config.deviceId(), hddlUniteConfig, _config.logLevel());
     } else {
-        _uniteGraphPtr =
-            std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(_network, _context, hddlUniteConfig, _config.logLevel());
+        _uniteGraphPtr = std::make_shared<vpu::HDDL2Plugin::HddlUniteGraph>(
+            _network, _workloadContext, hddlUniteConfig, _config.logLevel());
     }
 }
 

@@ -24,7 +24,7 @@ using namespace vpux::HDDL2;
 class Executor_UnitTests: public ::testing::Test {
 public:
     vpux::NetworkDescription::Ptr networkDescPtr = nullptr;
-
+    const vpu::HDDL2Config config;
 protected:
     void SetUp() override;
 };
@@ -38,7 +38,7 @@ void Executor_UnitTests::SetUp() {
 using Executor_NoDevice = Executor_UnitTests;
 TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
     SKIP_IF_DEVICE();
-    auto executor = HDDL2Executor::prepareExecutor(networkDescPtr);
+    auto executor = HDDL2Executor::prepareExecutor(networkDescPtr, config, nullptr);
     ASSERT_EQ(executor, nullptr);
 }
 
@@ -46,6 +46,6 @@ TEST_F(Executor_NoDevice, createExecutor_NoDevice_ReturnNull) {
 using Executor_WithDevice = Executor_UnitTests;
 TEST_F(Executor_WithDevice, createExecutor_WithDevice_ReturnNotNull) {
     SKIP_IF_NO_DEVICE();
-    auto executor = HDDL2Executor::prepareExecutor(networkDescPtr);
+    auto executor = HDDL2Executor::prepareExecutor(networkDescPtr, config, nullptr);
     ASSERT_NE(executor, nullptr);
 }

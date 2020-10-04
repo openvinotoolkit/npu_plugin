@@ -14,10 +14,9 @@
 // stated in the License.
 //
 
-#include "hddl2_remote_blob.h"
+#include <gtest/gtest.h>
 
 #include <chrono>
-#include <gtest/gtest.h>
 
 #include "hddl2_helpers/helper_device_name.h"
 #include "hddl2_helpers/helper_remote_blob.h"
@@ -26,6 +25,7 @@
 #include "hddl2_params.hpp"
 #include "helper_remote_context.h"
 #include "skip_conditions.h"
+#include "subplugin/hddl2_remote_blob.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;

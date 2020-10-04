@@ -16,8 +16,8 @@
 
 #include "blob_descriptor.h"
 
-#include <hddl2_remote_blob.h>
 #include <ie_compound_blob.h>
+#include <subplugin/hddl2_remote_blob.h>
 
 #include <ie_algorithm.hpp>
 #include <memory>
@@ -27,6 +27,9 @@
 #include "ie_memcpy.h"
 
 using namespace vpu::HDDL2Plugin;
+namespace vpu {
+namespace HDDL2Plugin {
+
 namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
@@ -288,3 +291,6 @@ RemoteBlobDescriptor::RemoteBlobDescriptor(const IE::DataPtr& desc, const IE::Bl
         _roiPtr = _blobPtr->as<HDDL2RemoteBlob>()->getROIPtr();
     }
 }
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

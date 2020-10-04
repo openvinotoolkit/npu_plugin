@@ -32,18 +32,19 @@ public:
     RemoteContext_Helper();
     static InferenceEngine::ParamMap wrapWorkloadIdToMap(const WorkloadID &id);
     WorkloadID getWorkloadId() const;
+    HddlUnite::WorkloadContext::Ptr getWorkloadContext();
 
     HDDL2RemoteContext::Ptr remoteContextPtr = nullptr;
     const vpu::HDDL2Config config;
 
 protected:
     // TODO Use stub instead of creating "default" _workloadContext
-    WorkloadContext_Helper _workloadContext;
+    WorkloadContext_Helper _workloadContextHelper;
 };
 
 //------------------------------------------------------------------------------
 inline RemoteContext_Helper::RemoteContext_Helper() {
-    auto param = wrapWorkloadIdToMap(_workloadContext.getWorkloadId());
+    auto param = wrapWorkloadIdToMap(_workloadContextHelper.getWorkloadId());
     remoteContextPtr = std::make_shared<HDDL2RemoteContext>(param, config);
 }
 
@@ -53,7 +54,11 @@ RemoteContext_Helper::wrapWorkloadIdToMap(const WorkloadID &id) {
 }
 
 inline WorkloadID RemoteContext_Helper::getWorkloadId() const {
-    return _workloadContext.getWorkloadId();
+    return _workloadContextHelper.getWorkloadId();
+}
+
+inline HddlUnite::WorkloadContext::Ptr RemoteContext_Helper::getWorkloadContext() {
+    return _workloadContextHelper.getWorkloadContext();
 }
 
 }

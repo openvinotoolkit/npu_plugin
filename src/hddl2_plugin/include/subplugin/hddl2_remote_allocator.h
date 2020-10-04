@@ -15,22 +15,25 @@
 //
 
 #pragma once
-#include <HddlUnite.h>
-#include <RemoteMemory.h>
-
+// System
 #include <atomic>
-#include <ie_allocator.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
-
-#include "hddl2_config.h"
+// IE
+#include "ie_allocator.hpp"
 #include "ie_remote_context.hpp"
+// Plugin
+#include "hddl2_config.h"
+// Subplugin
+#include "vpux.hpp"
+// Low-level
+#include <HddlUnite.h>
+#include <RemoteMemory.h>
 
 namespace vpu {
 namespace HDDL2Plugin {
-
 //------------------------------------------------------------------------------
 struct HDDL2RemoteMemoryContainer {
     explicit HDDL2RemoteMemoryContainer(const HddlUnite::RemoteMemory::Ptr& remoteMemory);
@@ -46,7 +49,7 @@ struct HDDL2RemoteMemoryContainer {
 /**
  * @brief Hide all allocation and synchronization logic for HDDL2 device behind this class
  */
-class HDDL2RemoteAllocator : public InferenceEngine::IAllocator {
+class HDDL2RemoteAllocator : public vpux::Allocator {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
@@ -93,6 +96,13 @@ public:
      * @brief Free all memory
      */
     void Release() noexcept override;
+
+    void* wrapRemoteMemoryHandle(const int& remoteMemoryFd, const size_t size, void* memHandle) noexcept override;
+
+    void* wrapRemoteMemoryOffset(
+        const int& remoteMemoryFd, const size_t size, const size_t& memOffset) noexcept override;
+
+    unsigned long getPhysicalAddress(void* handle) noexcept override;
 
 protected:
     /**

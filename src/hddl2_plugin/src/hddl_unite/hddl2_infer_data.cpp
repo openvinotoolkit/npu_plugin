@@ -14,17 +14,23 @@
 // stated in the License.
 //
 
-#include <Inference.h>
-#include <hddl_unite/hddl2_infer_data.h>
-#include <ie_compound_blob.h>
-
-#include <ie_preprocess_data.hpp>
+// System
 #include <memory>
 #include <string>
+// IE
+#include "ie_compound_blob.h"
+#include "ie_preprocess_data.hpp"
+// Plugin
+#include "hddl_unite/hddl2_infer_data.h"
+// Subplugin
+#include "subplugin/hddl2_context_device.h"
+#include "subplugin/hddl2_remote_blob.h"
+// Low-level
+#include "Inference.h"
 
-#include "hddl2_remote_blob.h"
+namespace vpu {
+namespace HDDL2Plugin {
 
-using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
@@ -37,18 +43,12 @@ static void checkData(const IE::DataPtr& desc) {
 
 //------------------------------------------------------------------------------
 HddlUniteInferData::HddlUniteInferData(const bool& needUnitePreProcessing,
-    const HDDL2RemoteContext::CPtr& remoteContext, const IE::ColorFormat& colorFormat, const size_t numOutputs)
-    : _haveRemoteContext(remoteContext != nullptr),
+    const HddlUnite::WorkloadContext::Ptr workloadContext, const IE::ColorFormat colorFormat, const size_t numOutputs)
+    : _workloadContext(workloadContext),
+      _haveRemoteContext(workloadContext != nullptr),
       _needUnitePreProcessing(needUnitePreProcessing),
       _graphColorFormat(colorFormat) {
     _auxBlob = {HddlUnite::Inference::AuxBlob::Type::TimeTaken};
-
-    if (_haveRemoteContext) {
-        _workloadContext = remoteContext->getHddlUniteWorkloadContext();
-        if (_workloadContext == nullptr) {
-            THROW_IE_EXCEPTION << "Workload context is null!";
-        }
-    }
 
     // TODO Use maxRoiNum
     const size_t maxRoiNum = 1;
@@ -155,3 +155,6 @@ std::map<std::string, IE::InferenceEngineProfileInfo> HddlUniteInferData::getHDD
     perfCounts["Total scoring time on preprocess"] = info;
     return perfCounts;
 }
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

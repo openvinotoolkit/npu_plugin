@@ -31,9 +31,9 @@
 #include <vpu/utils/ie_helpers.hpp>
 
 #include "hddl2_executor.h"
-#include "hddl2_remote_blob.h"
 #include "ie_algorithm.hpp"
 #include "ie_utils.hpp"
+#include "subplugin/hddl2_remote_blob.h"
 
 using namespace vpu::HDDL2Plugin;
 namespace IE = InferenceEngine;

@@ -25,6 +25,8 @@
 using namespace vpu;
 namespace IE = InferenceEngine;
 
+HDDL2Config::HDDL2Config() { _deviceId = ""; }
+
 const std::unordered_set<std::string>& HDDL2Config::getCompileOptions() const {
     static const std::unordered_set<std::string> options = vpux::VPUXConfig::getCompileOptions();
     return options;
@@ -49,7 +51,6 @@ void HDDL2Config::parse(const std::map<std::string, std::string>& config) {
     static const std::unordered_map<std::string, IE::ColorFormat> colorFormat = {
         {VPU_HDDL2_CONFIG_VALUE(BGR), IE::ColorFormat::BGR}, {VPU_HDDL2_CONFIG_VALUE(RGB), IE::ColorFormat::RGB}};
 
-    setOption(_device_id, config, CONFIG_KEY(DEVICE_ID));
     setOption(_performance_counting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_graph_color_format, colorFormat, config, VPU_HDDL2_CONFIG_KEY(GRAPH_COLOR_FORMAT));
     setOption(_csram_size, config, VPU_HDDL2_CONFIG_KEY(CSRAM_SIZE), parseInt);

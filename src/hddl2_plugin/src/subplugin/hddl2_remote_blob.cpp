@@ -14,15 +14,18 @@
 // stated in the License.
 //
 
-#include "hddl2_remote_blob.h"
-
+// System
 #include <memory>
 #include <string>
-
+// Plugin
 #include "hddl2_exceptions.h"
 #include "hddl2_params.hpp"
+// Subplugin
+#include "subplugin/hddl2_remote_allocator.h"
+#include "subplugin/hddl2_remote_blob.h"
 
-using namespace vpu::HDDL2Plugin;
+namespace vpu {
+namespace HDDL2Plugin {
 namespace IE = InferenceEngine;
 
 static void checkSupportedColorFormat(const IE::ColorFormat& colorFormat) {
@@ -77,10 +80,12 @@ HDDL2BlobParams::HDDL2BlobParams(const InferenceEngine::ParamMap& params, const 
 
 //------------------------------------------------------------------------------
 HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
-    const HDDL2RemoteContext::Ptr& contextPtr, const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
+    const HDDL2RemoteContext::Ptr& contextPtr, const std::shared_ptr<vpux::Allocator>& allocator,
+    const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config)
     : RemoteBlob(tensorDesc),
       _params(params, config),
       _remoteContextPtr(contextPtr),
+      _allocatorPtr(allocator),
       _config(config),
       _remoteMemory(_params.getRemoteMemory()),
       _colorFormat(_params.getColorFormat()),
@@ -89,19 +94,18 @@ HDDL2RemoteBlob::HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc,
     if (contextPtr == nullptr) {
         THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context is null.";
     }
-    if (contextPtr->getAllocator() == nullptr) {
-        THROW_IE_EXCEPTION << CONTEXT_ERROR_str << "Remote context does not contain allocator.";
-    }
 
-    HDDL2RemoteAllocator::Ptr hddlAllocatorPtr = contextPtr->getAllocator();
     _logger->info("%s: HDDL2RemoteBlob wrapping %d size\n", __FUNCTION__, static_cast<int>(this->size()));
 
-    _memoryHandle = hddlAllocatorPtr->wrapRemoteMemory(_remoteMemory);
+    // TODO since we can't use _allocatorPtr to wrap remote memory,
+    //  this shown design flaw in RemoteBlob + IE:Allocator concept
+    // TODO should be replaced with
+    //    virtual void* wrapRemoteMemory(const InferenceEngine::ParamMap& paramMap, const size_t size);
+    HDDL2RemoteAllocator::Ptr hddlAllocator = std::dynamic_pointer_cast<HDDL2RemoteAllocator>(_allocatorPtr);
+    _memoryHandle = hddlAllocator->wrapRemoteMemory(_remoteMemory);
     if (_memoryHandle == nullptr) {
         THROW_IE_EXCEPTION << NOT_ALLOCATED_str << "Allocation error";
     }
-
-    _allocatorPtr = hddlAllocatorPtr;
 }
 
 HDDL2RemoteBlob::HDDL2RemoteBlob(const HDDL2RemoteBlob& origBlob, const InferenceEngine::ROI& regionOfInterest)
@@ -208,3 +212,6 @@ size_t HDDL2RemoteBlob::byteSize() const noexcept { return size() * element_size
 InferenceEngine::Blob::Ptr HDDL2RemoteBlob::createROI(const InferenceEngine::ROI& regionOfInterest) const {
     return Blob::Ptr(new HDDL2RemoteBlob(*this, regionOfInterest));
 }
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu
