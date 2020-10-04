@@ -16,12 +16,15 @@
 
 #pragma once
 
+// System
 #include <memory>
-#include <vpux.hpp>
-
-#include "InferGraph.h"
+// Plugin
 #include "hddl2_infer_data.h"
 #include "hddl2_remote_context.h"
+// Subplugin
+#include "vpux.hpp"
+// Low-level
+#include "InferGraph.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -31,18 +34,14 @@ public:
     using Ptr = std::shared_ptr<HddlUniteGraph>;
     using CPtr = std::shared_ptr<const HddlUniteGraph>;
 
-    /**
-     * @brief Create HddlUnite graph object using context to specify which devices to use
-     */
-    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const HDDL2RemoteContext::CPtr& context,
-        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel& logLevel = LogLevel::Error);
+    /**  @brief Create HddlUnite graph object using context to specify which devices to use */
+    explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network,
+        const HddlUnite::WorkloadContext::Ptr& workloadContext,
+        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel logLevel = LogLevel::Error);
 
-    /**
-     * @brief Create HddlUnite graph object using specific device. If empty, use all
-     * available devices
-     */
+    /** @brief Create HddlUnite graph object using specific device. If empty, use all available devices */
     explicit HddlUniteGraph(const vpux::NetworkDescription::CPtr& network, const std::string& deviceID = "",
-        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel& logLevel = LogLevel::Error);
+        const std::unordered_map<std::string, std::string>& config = {}, const LogLevel logLevel = LogLevel::Error);
 
     ~HddlUniteGraph();
     void InferAsync(const HddlUniteInferData::Ptr& data) const;

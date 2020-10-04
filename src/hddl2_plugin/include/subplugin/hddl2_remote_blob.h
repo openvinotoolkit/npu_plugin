@@ -16,16 +16,17 @@
 
 #pragma once
 
-#include <ie_blob.h>
-
+// System
 #include <memory>
 #include <string>
-
-#include "RemoteMemory.h"
-#include "WorkloadContext.h"
-#include "hddl2_remote_allocator.h"
-#include "hddl2_remote_context.h"
+// IE
+#include "ie_blob.h"
 #include "ie_remote_context.hpp"
+// Plugin
+#include "hddl2_remote_context.h"
+#include "vpux.hpp"
+// Low-level
+#include "RemoteMemory.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -53,7 +54,8 @@ public:
     using CPtr = std::shared_ptr<const HDDL2RemoteBlob>;
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
-        const InferenceEngine::ParamMap& params, const vpu::HDDL2Config& config);
+        const std::shared_ptr<vpux::Allocator>& allocator, const InferenceEngine::ParamMap& params,
+        const vpu::HDDL2Config& config);
     ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**

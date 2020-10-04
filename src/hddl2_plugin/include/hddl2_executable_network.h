@@ -15,16 +15,15 @@
 //
 
 #pragma once
-
-#include <Inference.h>
-
+// System
 #include <memory>
 #include <string>
 #include <vector>
-
+// IE
 #include "cpp_interfaces/impl/ie_executable_network_thread_safe_default.hpp"
+// Plugin
 #include "hddl2_config.h"
-#include "hddl2_executor.h"
+#include "vpux.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -33,10 +32,11 @@ class ExecutableNetwork : public InferenceEngine::ExecutableNetworkThreadSafeDef
 public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
-    explicit ExecutableNetwork(InferenceEngine::ICNNNetwork& network, const vpu::HDDL2Config& config,
-        const InferenceEngine::RemoteContext::Ptr& context = nullptr);
-    explicit ExecutableNetwork(std::istream& networkModel, const vpu::HDDL2Config& config,
-        const InferenceEngine::RemoteContext::Ptr& context = nullptr);
+    explicit ExecutableNetwork(
+        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config);
+
+    explicit ExecutableNetwork(
+        std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(

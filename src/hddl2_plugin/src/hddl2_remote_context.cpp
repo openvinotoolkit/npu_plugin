@@ -14,48 +14,27 @@
 // stated in the License.
 //
 
-#include <hddl2_remote_blob.h>
-#include <hddl2_remote_context.h>
-
-#include <cpp_interfaces/exception2status.hpp>
+// System
 #include <memory>
 #include <string>
-
-#include "hddl2_exceptions.h"
+// Plugin
 #include "hddl2_params.hpp"
+#include "hddl2_remote_context.h"
+#include "subplugin/hddl2_remote_blob.h"
+// Subplugin
+#include <subplugin/hddl2_context_device.h>
 
 using namespace vpu::HDDL2Plugin;
 
 namespace IE = InferenceEngine;
 
 //------------------------------------------------------------------------------
-HDDL2ContextParams::HDDL2ContextParams(const InferenceEngine::ParamMap& paramMap) {
-    if (paramMap.empty()) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map for context is empty.";
-    }
-    // Get workload id and based on it get HddlUniteContext
-    auto workload_ctx_iter = paramMap.find(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
-    if (workload_ctx_iter == paramMap.end()) {
-        THROW_IE_EXCEPTION << CONFIG_ERROR_str << "Param map does not contain workload id information";
-    }
-    _workloadId = paramMap.at(IE::HDDL2_PARAM_KEY(WORKLOAD_CONTEXT_ID));
-    _paramMap = paramMap;
-}
-
-InferenceEngine::ParamMap HDDL2ContextParams::getParamMap() const { return _paramMap; }
-
-WorkloadID HDDL2ContextParams::getWorkloadId() const { return _workloadId; }
-
-//------------------------------------------------------------------------------
 HDDL2RemoteContext::HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config)
-    : _contextParams(paramMap),
-      _config(config),
-      _logger(std::make_shared<Logger>("HDDL2RemoteContext", config.logLevel(), consoleOutput())) {
-    _workloadContext = HddlUnite::queryWorkloadContext(_contextParams.getWorkloadId());
-    if (_workloadContext == nullptr) {
-        THROW_IE_EXCEPTION << HDDLUNITE_ERROR_str << "context is not found";
-    }
-    _allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(_workloadContext, _config);
+    : _config(config),
+      _logger(std::make_shared<Logger>("VPUXRemoteContext", config.logLevel(), consoleOutput())),
+      _paramMap(paramMap) {
+    // TODO There should be searching for corresponding device
+    _devicePtr = std::make_shared<vpux::HDDL2::HDDLUniteContextDevice>(paramMap, config);
 }
 
 IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
@@ -67,7 +46,8 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
         return nullptr;
     }
     try {
-        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), params, _config);
+        auto allocator = _devicePtr->getAllocator();
+        return std::make_shared<HDDL2RemoteBlob>(tensorDesc, shared_from_this(), allocator, params, _config);
     } catch (const std::exception& ex) {
         _logger->warning("Incorrect parameters for CreateBlob call.\n"
                          "Please make sure remote memory is correct.\nError: %s\n",
@@ -76,15 +56,8 @@ IE::RemoteBlob::Ptr HDDL2RemoteContext::CreateBlob(
     }
 }
 
-std::string HDDL2RemoteContext::getDeviceName() const noexcept {
-    if (_workloadContext == nullptr) {
-        return "";
-    }
-    return "VPUX." + _workloadContext->getDevice()->getName();
-}
+std::string HDDL2RemoteContext::getDeviceName() const noexcept { return "VPUX." + _devicePtr->getName(); }
 
-IE::ParamMap HDDL2RemoteContext::getParams() const { return _contextParams.getParamMap(); }
+IE::ParamMap HDDL2RemoteContext::getParams() const { return _paramMap; }
 
-HDDL2RemoteAllocator::Ptr HDDL2RemoteContext::getAllocator() { return _allocatorPtr; }
-
-HddlUnite::WorkloadContext::Ptr HDDL2RemoteContext::getHddlUniteWorkloadContext() const { return _workloadContext; }
+std::shared_ptr<vpux::IDevice> HDDL2RemoteContext::getDevice() const { return _devicePtr; }

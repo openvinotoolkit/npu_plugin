@@ -16,9 +16,10 @@
 
 #include "hddl2_metrics.h"
 
+#include <hddl2_exceptions.h>
+
 #include <algorithm>
 #include <fstream>
-#include <ie_core.hpp>
 #include <ie_metric_helpers.hpp>
 
 #include "hddl2_params.hpp"
@@ -64,15 +65,18 @@ std::vector<std::string> HDDL2Metrics::GetAvailableDevicesNames() {
 }
 
 const std::vector<std::string>& HDDL2Metrics::SupportedMetrics() const { return _supportedMetrics; }
-
-bool HDDL2Metrics::isServiceAvailable() {
+bool HDDL2Metrics::isServiceAvailable(const vpu::Logger::Ptr& logger) {
     const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
 
     const std::string specifiedServicePath =
         std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
     const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
 
-    return specifiedService.good() || defaultService.good() || isServiceRunning();
+    const auto serviceAvailable = specifiedService.good() || defaultService.good() || isServiceRunning();
+    if (logger) {
+        serviceAvailable ? logger->debug(SERVICE_AVAILABLE.c_str()) : logger->debug(SERVICE_NOT_AVAILABLE.c_str());
+    }
+    return serviceAvailable;
 }
 
 bool HDDL2Metrics::isServiceRunning() { return HddlUnite::isServiceRunning(); }

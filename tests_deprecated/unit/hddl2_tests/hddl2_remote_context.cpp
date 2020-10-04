@@ -121,7 +121,9 @@ TEST_F(HDDL2_RemoteContext_UnitTests, getDeviceName_ReturnCorrectPluginName) {
     SKIP_IF_NO_DEVICE();
     HDDL2RemoteContext::Ptr context = std::make_shared<HDDL2RemoteContext>(params, config);
 
-    ASSERT_EQ(DeviceName::getNameInPlugin(), context->getDeviceName());
+    const auto devicesNames = DeviceName::getDevicesNamesWithPrefix();
+    auto sameNameFound = devicesNames.find(context->getDeviceName());
+    EXPECT_TRUE(sameNameFound != devicesNames.end());
 }
 
 //------------------------------------------------------------------------------

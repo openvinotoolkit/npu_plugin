@@ -28,8 +28,7 @@ namespace vpu {
 
 class HDDL2Config final : public vpux::VPUXConfig {
 public:
-    const std::string& platform() const { return _platform; }
-    const std::string& device_id() const { return _device_id; }
+    HDDL2Config();
     bool performance_counting() const { return _performance_counting; }
     InferenceEngine::ColorFormat getGraphColorFormat() const { return _graph_color_format; }
     uint64_t getCSRAMSize() const { return _csram_size; }
@@ -41,8 +40,6 @@ protected:
     const std::unordered_set<std::string>& getRunTimeOptions() const override;
 
 private:
-    std::string _platform = "VPUX";
-    std::string _device_id;
     bool _performance_counting = false;
     InferenceEngine::ColorFormat _graph_color_format = InferenceEngine::ColorFormat::BGR;
     uint64_t _csram_size = 0;

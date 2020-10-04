@@ -15,9 +15,11 @@
 //
 
 #pragma once
+// Plugin
 #include "hddl2_remote_context.h"
-#include "hddl_unite/hddl2_unite_graph.h"
 #include "vpux.hpp"
+// Low-level
+#include "hddl_unite/hddl2_unite_graph.h"
 
 namespace vpux {
 namespace HDDL2 {
@@ -27,11 +29,10 @@ public:
     using CPtr = std::shared_ptr<const HDDL2Executor>;
 
     HDDL2Executor(const HDDL2Executor& ex);
-    explicit HDDL2Executor(const NetworkDescription::CPtr& network, const vpu::HDDL2Config& config,
-        vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr context = nullptr);
-    static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& network,
-        const vpu::HDDL2Config& config = vpu::HDDL2Config(),
-        const InferenceEngine::RemoteContext::Ptr& ieContextPtr = nullptr);
+    explicit HDDL2Executor(const vpux::NetworkDescription::CPtr& network, const vpux::VPUXConfig& config,
+        HddlUnite::WorkloadContext::Ptr workloadContext);
+    static HDDL2Executor::Ptr prepareExecutor(const vpux::NetworkDescription::Ptr& networkDesc,
+        const VPUXConfig& config, const HddlUnite::WorkloadContext::Ptr workloadContext);
 
     void setup(const InferenceEngine::ParamMap& params) override;
 
@@ -48,15 +49,19 @@ public:
     Executor::Ptr clone() const override;
 
 private:
-    NetworkDescription::CPtr _network;
-    vpu::HDDL2Plugin::HDDL2RemoteContext::CPtr _context;
+    void loadGraphToDevice();
 
-    const vpu::HDDL2Config _config;
+private:
+    NetworkDescription::CPtr _network;
+
+    vpu::HDDL2Config _config;
     const vpu::Logger::Ptr _logger;
 
     vpu::HDDL2Plugin::HddlUniteGraph::Ptr _uniteGraphPtr = nullptr;
     vpu::HDDL2Plugin::HddlUniteInferData::Ptr _inferDataPtr = nullptr;
-    void loadGraphToDevice();
+
+    // Variables below might be not required for executor
+    HddlUnite::WorkloadContext::Ptr _workloadContext;
 
     // TODO [Track number: S#37397] [Workaround] Avoid allocation inferData each time. If size of inputs is changed,
     // need  to recreating (not implemented yet)

@@ -45,10 +45,10 @@ TEST_F(HddlUniteGraph_Construct, onlyGraph_NoThrow) {
 
 TEST_F(HddlUniteGraph_Construct, withContext_NoThrow) {
     SKIP_IF_NO_DEVICE();
-    RemoteContext_Helper contextHelper;
-    auto context = contextHelper.remoteContextPtr;
+    WorkloadContext_Helper contextHelper;
+    auto workloadContext = contextHelper.getWorkloadContext();
 
-    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(networkDescPtr, context));
+    ASSERT_NO_THROW(HddlUniteGraph hddlUniteGraph(networkDescPtr, workloadContext));
 }
 
 using HddlUniteGraph_Monkey = HddlUniteGraph_UnitTests;
