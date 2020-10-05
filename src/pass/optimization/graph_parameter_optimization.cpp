@@ -452,6 +452,30 @@ namespace mv
                             return false;
                     }
                 }
+
+                //check that the inputSize will not be smaller than kernel size
+                if (op.getOpType() == "MaxPool" ||
+                    op.getOpType() == "Conv" || op.getOpType() == "DepthwiseConv")
+                {
+                    uint16_t kernelH;
+                    auto originalH = op.getOutputTensor(0)->getShape()[IO_HEIGHT_DIMENSION];
+                    auto newOutputSizes = tileSpatialOutputSize(originalH, splits);
+                    int remainderOutputSize = newOutputSizes.back();
+
+                    if (op.hasAttr("kSize"))
+                    {
+
+                        auto kernelShape = op.get<std::array<unsigned short, 2>>("kSize");
+                        kernelH = kernelShape[1];
+                    }
+                    else
+                    {
+                        auto weightsShape = op.getInputTensor(1)->getShape();
+                        kernelH = weightsShape[mv::KERNEL_HEIGHT];
+                    }
+                    if (remainderOutputSize < kernelH)
+                        return false;
+                }
                 return true;
             }
 
