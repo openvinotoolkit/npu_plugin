@@ -36,7 +36,7 @@ public:
     using Ptr = std::shared_ptr<HDDL2RemoteContext>;
     using CPtr = std::shared_ptr<const HDDL2RemoteContext>;
 
-    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);
+    explicit HDDL2RemoteContext(const InferenceEngine::ParamMap& paramMap, const vpux::VPUXConfig& config);
 
     InferenceEngine::RemoteBlob::Ptr CreateBlob(
         const InferenceEngine::TensorDesc& tensorDesc, const InferenceEngine::ParamMap& params) noexcept override;
@@ -50,7 +50,7 @@ public:
 
 protected:
     std::shared_ptr<vpux::IDevice> _devicePtr = nullptr;
-    const HDDL2Config& _config;
+    const vpux::VPUXConfig& _config;
     const Logger::Ptr _logger;
     const InferenceEngine::ParamMap _paramMap;
 };

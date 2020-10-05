@@ -40,7 +40,7 @@ public:
 
     explicit HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
         const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
-        const vpu::HDDL2Config& config);
+        const vpux::VPUXConfig& config);
 
     void Infer() override;
     void InferImpl() override;
@@ -59,7 +59,7 @@ protected:
     void SetBlob(const char* name, const InferenceEngine::Blob::Ptr& data) override;
 
     const vpux::Executor::Ptr _executorPtr;
-    const HDDL2Config& _config;
+    const vpux::VPUXConfig& _config;
     const Logger::Ptr _logger;
 };
 

@@ -58,6 +58,8 @@ public:
 
     bool useM2I() const { return _useM2I; }
 
+    bool performanceCounting() const { return _performanceCounting; }
+
     std::string deviceId() const { return _deviceId; }
 
     void parseFrom(const VPUXConfig& other);
@@ -74,6 +76,7 @@ protected:
     int _numberOfSIPPShaves = 4;
     int _SIPPLpi = 8;
     InferenceEngine::ColorFormat _outColorFmtSIPP = InferenceEngine::ColorFormat::BGR;
+    bool _performanceCounting = false;
     bool _useSIPP = true;
 
     // FIXME: Likely has to be true by default as well.

@@ -51,19 +51,19 @@ void RemoteAllocator_UnitTests::SetUp() {
 //------------------------------------------------------------------------------
 TEST_F(RemoteAllocator_UnitTests, constructor_CorrectContext_NoThrow) {
     SKIP_IF_NO_DEVICE();
-    ASSERT_NO_THROW(HDDL2RemoteAllocator allocator(workloadContextPtr, config));
+    ASSERT_NO_THROW(HDDL2RemoteAllocator allocator(workloadContextPtr));
 }
 
 TEST_F(RemoteAllocator_UnitTests, constructor_NullContext_Throw) {
     SKIP_IF_NO_DEVICE();
-    ASSERT_ANY_THROW(HDDL2RemoteAllocator allocator(nullptr, config));
+    ASSERT_ANY_THROW(HDDL2RemoteAllocator allocator(nullptr));
 }
 
 using RemoteAllocator_WrapMemory = RemoteAllocator_UnitTests;
 
 TEST_F(RemoteAllocator_WrapMemory, IncorrectRemoteMem_ReturnNull) {
     SKIP_IF_NO_DEVICE();
-    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr, config);
+    auto allocatorPtr = std::make_shared<HDDL2RemoteAllocator>(workloadContextPtr);
 
     auto remoteMem = allocatorPtr->wrapRemoteMemory(nullptr);
     ASSERT_EQ(remoteMem, nullptr);

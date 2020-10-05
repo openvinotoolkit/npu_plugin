@@ -33,10 +33,10 @@ public:
     using Ptr = std::shared_ptr<ExecutableNetwork>;
 
     explicit ExecutableNetwork(
-        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config);
+        InferenceEngine::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
 
     explicit ExecutableNetwork(
-        std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config);
+        std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config);
     ~ExecutableNetwork() override = default;
 
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
@@ -50,10 +50,10 @@ public:
     void CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) override;
 
 private:
-    explicit ExecutableNetwork(const vpu::HDDL2Config& config);
+    explicit ExecutableNetwork(const vpux::VPUXConfig& config);
 
 private:
-    const HDDL2Config _config;
+    const vpux::VPUXConfig _config;
     const Logger::Ptr _logger;
 
     vpux::Compiler::Ptr _compiler = nullptr;

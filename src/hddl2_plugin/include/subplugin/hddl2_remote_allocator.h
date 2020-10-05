@@ -53,7 +53,8 @@ class HDDL2RemoteAllocator : public vpux::Allocator {
 public:
     using Ptr = std::shared_ptr<HDDL2RemoteAllocator>;
 
-    explicit HDDL2RemoteAllocator(const HddlUnite::WorkloadContext::Ptr& contextPtr, const vpu::HDDL2Config& config);
+    explicit HDDL2RemoteAllocator(
+        const HddlUnite::WorkloadContext::Ptr& contextPtr, const LogLevel logLevel = LogLevel::None);
 
     ~HDDL2RemoteAllocator() override = default;
 
@@ -116,7 +117,6 @@ private:
 
     std::map<void*, HDDL2RemoteMemoryContainer> _memoryStorage;
     std::mutex memStorageMutex;
-    const HDDL2Config& _config;
     const Logger::Ptr _logger;
     std::map<void*, size_t> _memoryHandleCounter;
 };
