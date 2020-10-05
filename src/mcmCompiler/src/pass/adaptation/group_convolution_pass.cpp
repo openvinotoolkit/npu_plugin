@@ -29,6 +29,13 @@ namespace mv
 
 }
 
+// This is a helper function to get part of vector from equally divided slices
+template <typename T>
+static T getPartOfVec(T& vec, unsigned partIndex, unsigned totalNumberOfParts)
+{
+    return T(vec.cbegin() + partIndex * vec.size()/totalNumberOfParts, vec.cbegin() + (partIndex + 1) * vec.size()/totalNumberOfParts);
+}
+
 void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
@@ -85,11 +92,43 @@ void handleGroupConvolutionFcn(const mv::pass::PassEntry&, mv::ComputationModel&
 
                 weightsGroupBegin = {{0},{0},{0},{branchId * weightsGroupSize}};
 
+                // weight quant params need to be divided if they are per channel
+                // same as weight tensor is divided along channel axis
+                mv::QuantizationParams weightQuantParamsPart = {{},{},{},{}};
+                auto zp_vec = weightQuantParams.getZeroPoint();
+                auto scale_vec = weightQuantParams.getScale();
+                auto min_vec = weightQuantParams.getMin();
+                auto max_vec = weightQuantParams.getMax();
+
+                if(zp_vec.size() > 1)
+                    zp_vec = getPartOfVec(zp_vec, branchId, group);
+                if(scale_vec.size() > 1)
+                    scale_vec = getPartOfVec(scale_vec, branchId, group);
+                if(min_vec.size() > 1)
+                    min_vec = getPartOfVec(min_vec, branchId, group);
+                if(max_vec.size() > 1)
+                    max_vec = getPartOfVec(max_vec, branchId, group);
+
+                if (weightQuantParams.hasAttr("shift") && weightQuantParams.hasAttr("mult"))
+                {
+                    auto shift_vec = weightQuantParams.getShift();
+                    auto mult_vec = weightQuantParams.getMult();
+
+                    if(shift_vec.size() > 1)
+                        shift_vec = getPartOfVec(shift_vec, branchId, group);
+                    if(mult_vec.size() > 1)
+                        mult_vec = getPartOfVec(mult_vec, branchId, group);
+
+                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec, shift_vec, mult_vec);
+                } else {
+                    weightQuantParamsPart = mv::QuantizationParams(zp_vec, scale_vec, min_vec, max_vec);
+                }
+
                 auto weightsSlice = om.slice(weightSliceName,
                                              weightTensor,
                                              weightsGroupBegin,
                                              weightsGroupShape);
-                weightsSlice->setQuantParams(weightQuantParams);
+                weightsSlice->setQuantParams(weightQuantParamsPart);
 
                 om.getSourceOp(weightsSlice)->set<unsigned>("opId", om.getSourceOp(convOp->getInputTensor(1))->get<unsigned>("opId"));
 
