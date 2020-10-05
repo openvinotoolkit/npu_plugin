@@ -78,6 +78,10 @@ void ExecutableNetwork::LoadBlob() {
         _executor = _device->createExecutor(_networkDescription, _config);
     else
         THROW_IE_EXCEPTION << "Failed to create device executor. No device.";
+
+    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+    _netName = _networkDescription->getName();
 }
 
 ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device)
@@ -156,16 +160,10 @@ ExecutableNetwork::ExecutableNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
-    _networkDescription = _compiler->parse(strm, _config);
+    const std::string networkName = "net" + std::to_string(loadBlobCounter);
+    loadBlobCounter++;  // increment blob static counter to make unique network ID
 
-    if (_networkDescription) {
-        _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
-        _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
-        _netName = _networkDescription->getName();
-    } else {
-        THROW_IE_EXCEPTION << "Failed to parse compiled network";
-    }
-
+    _networkDescription = _compiler->parse(strm, _config, networkName);
     if (_device) {
         LoadBlob();
         ConfigureExecutor("ExecutableNetwork");
