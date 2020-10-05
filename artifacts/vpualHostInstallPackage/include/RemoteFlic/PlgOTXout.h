@@ -56,7 +56,6 @@ class PlgOTXout : public PluginStub
      */
     int Create(uint32_t maxSz, uint32_t chanId_unused);
 
-
     /**
      * Plugin Create method.
      *
@@ -79,10 +78,19 @@ class PlgOTXout : public PluginStub
      * plugin's XLink stream.
      *
      * @param pAddr - Physical address of received frame.
-     * @param length - size of received frame.
+     * @param nObjects - The number of tracked objects
+     */
+    int Pull(uint32_t *pAddr, uint32_t *nObjects);
+
+    /**
+     * Pull a frame from the plugin.
+     * This is not a remote method, it simply performs a blocking read on the
+     * plugin's XLink stream.
+     *
+     * @param pAddr - Physical address of received frame.
+     * @param nObjects - The number of tracked objects
      */
     int Pull(uint32_t *pAddr, uint8_t *nObjects);
-//    int Pull(OutputDescriptor* out_desc);
 };
 
 #endif // __PLG_XLINK_OUT_H__

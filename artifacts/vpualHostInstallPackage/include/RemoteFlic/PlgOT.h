@@ -33,12 +33,13 @@ class PlgOT : public PluginStub{
 
     MSender<vpuot::OutObjectsPtr> out;
 
+    // Support for backward compatibility.
     /**
      * Create OT plugin
      *
      * @param ot_type                 - Tracking type for newly created ObjectTracker instance.
      * @param max_objects             - Maximum number of trackable objects in a frame.
-     * @param mask_padding_thickness  - Frame spec of the frame to send.
+     * @param mask_padding_thickness  - deprecated.
      * @retval int                    - Return the number of allocated shaves if Success, otherwise -1
      */
     int32_t  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness);
@@ -49,12 +50,38 @@ class PlgOT : public PluginStub{
      *
      * @param ot_type                 - Tracking type for newly created ObjectTracker instance.
      * @param max_objects             - Maximum number of trackable objects in a frame.
-     * @param mask_padding_thickness  - Frame spec of the frame to send.
+     * @param mask_padding_thickness  - deprecated.
      * @param num_shaves              - The number of shaves are used on KMB
      * @param debugging_info          - The map with debugging params
      * @retval int                    - Return the number of allocated shaves if Success, otherwise -1
      */
     int32_t  Create(vpuot::TrackType ot_type, int32_t max_objects, float mask_padding_thickness, int32_t num_shaves, std::map<std::string, std::string>& debugging_info);
+
+
+    /**
+     * Create OT plugin
+     *
+     * @param ot_type                 - Tracking type for newly created ObjectTracker instance.
+     * @param max_objects             - Maximum number of trackable objects in a frame.
+     * @param tracking_per_class      - Tracker uses detection class or not.
+     * @param num_allocated_shaves    - The number of allocated shaves
+     * @retval int                    - Status of the creation (0 is success).
+     */
+    vpuot::ot_status_code  Create(vpuot::TrackType ot_type, int32_t max_objects, bool tracking_per_class, int32_t* num_allocated_shaves);
+
+
+    /**
+     * Create OT plugin
+     *
+     * @param ot_type                 - Tracking type for newly created ObjectTracker instance.
+     * @param max_objects             - Maximum number of trackable objects in a frame.
+     * @param tracking_per_class      - Tracker uses detection class or not.
+     * @param num_shaves              - The number of shaves are used on KMB
+     * @param debugging_info          - The map with debugging params
+     * @param num_allocated_shaves    - The number of allocated shaves
+     * @retval int                    - Status of the creation (0 is success).
+     */
+    vpuot::ot_status_code  Create(vpuot::TrackType ot_type, int32_t max_objects, bool tracking_per_class, int32_t num_shaves, std::map<std::string, std::string>& debugging_info, int32_t* num_allocated_shaves);
 
 };
 #endif

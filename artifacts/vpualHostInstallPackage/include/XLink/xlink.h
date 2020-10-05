@@ -131,6 +131,12 @@ enum xlink_error xlink_set_device_mode(struct xlink_handle *handle,
 enum xlink_error xlink_get_device_mode(struct xlink_handle *handle,
 		enum xlink_device_power_mode *power_mode);
 
+enum xlink_error xlink_register_device_event(struct xlink_handle *handle,
+		uint32_t *event_list, uint32_t num_events, int (*)( uint32_t, uint32_t));
+
+enum xlink_error xlink_unregister_device_event(struct xlink_handle *handle,
+		uint32_t *event_list, uint32_t num_events);
+
 enum xlink_error xlink_start_vpu(char *filename); /* depreciated */
 
 enum xlink_error xlink_stop_vpu(void); /* depreciated */

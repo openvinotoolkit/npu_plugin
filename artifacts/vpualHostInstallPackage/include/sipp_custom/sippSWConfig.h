@@ -1483,8 +1483,8 @@ EqualizeHistParam;
  */
 typedef struct
 {
-    UInt32 dMat[61];
-    // UInt32 kernelSize;
+    UInt8 kernelSize;
+    UInt8 dMat[225];
 }
 DilateGenericParam;
 
@@ -1501,3 +1501,18 @@ typedef struct
     UInt32 planes;
 }
 CvtInterleavedtoPlanarParam;
+
+/**
+ * Parameter structure of the box filterU8.
+ * 
+ * This filter applies the box filterU8 to the source image using the specified
+ * structuring element.
+ *
+ * Identifier: svuBoxFilterU8
+ */
+typedef struct
+{
+    UInt32     filterSize;
+    UInt32     normalize;
+}
+BoxFilterU8Param;

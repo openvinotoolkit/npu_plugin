@@ -51,7 +51,7 @@ if(_IMPORT_PREFIX STREQUAL "/")
 endif()
 
 # Create imported target metamodel
-add_library(metamodel SHARED IMPORTED)
+add_library(metamodel STATIC IMPORTED)
 
 set_target_properties(metamodel PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include"
@@ -67,7 +67,7 @@ set_target_properties(cm PROPERTIES
 )
 
 # Create imported target model
-add_library(model SHARED IMPORTED)
+add_library(model STATIC IMPORTED)
 
 set_target_properties(model PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES "${_IMPORT_PREFIX}/include"
