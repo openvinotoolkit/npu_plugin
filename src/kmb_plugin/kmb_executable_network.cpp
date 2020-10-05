@@ -72,9 +72,6 @@ std::atomic<int> ExecutableNetwork::loadBlobCounter{1};
 
 void ExecutableNetwork::LoadBlob() {
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadBlob");
-    const std::string networkName = "net" + std::to_string(loadBlobCounter);
-    loadBlobCounter++;  // increment blob static counter to make unique network ID
-
     if (_config.useCoreNN()) {
         _executor = std::make_shared<KmbNNCoreExecutor>(_networkDescription, _device->getAllocator(), _config);
     } else {
@@ -153,7 +150,10 @@ ExecutableNetwork::ExecutableNetwork(
     OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ExecutableNetwork");
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
-    _networkDescription = _compiler->parse(strm, _config);
+    const std::string networkName = "net" + std::to_string(loadBlobCounter);
+    loadBlobCounter++;  // increment blob static counter to make unique network ID
+
+    _networkDescription = _compiler->parse(strm, _config, networkName);
     if (_device) {
         LoadBlob();
         ConfigureExecutor("ExecutableNetwork");
