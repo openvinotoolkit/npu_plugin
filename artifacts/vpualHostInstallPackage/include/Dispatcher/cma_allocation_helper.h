@@ -31,15 +31,12 @@ class CmaData {
         , buf { nullptr }
         , phys_addr { 0 }
         , size { 0 }
-        , b_use_vpusmm { false }
         {}
     ~CmaData();                 					/*< Close the file if opened. */
 
     // Delete copy constructor and assignment operator.
     CmaData(const CmaData&) = delete;
     CmaData& operator=(const CmaData&) = delete;
-private:
-	bool           b_use_vpusmm;
 
 };
 
