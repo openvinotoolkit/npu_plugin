@@ -20,6 +20,7 @@
 
 #include "VpualDispatcher.h"
 #include "Flic.h"
+#include <iostream>
 
 // TODO - we have a decoder for each Sender which isn't actually attached to
 // the real message object. We could just do one global decoder since we are
@@ -68,12 +69,14 @@ class MSender : private VpualStub, public Message
      */
     void Link(SReceiver<T> *r)
     {
+        if(!r) throw std::invalid_argument("Argument must not be NULL");
+        if(!(r->parent)) throw std::invalid_argument("Argument parent must not be NULL");
+
         // Command message.
         VpualMessage cmd(64);
 
         // Check that messages have parents:
         assert(this->parent);
-        assert(r->parent);
 
         cmd.serialize(&this->parent->stubID, sizeof(this->parent->stubID)); // ID of output plugin
         cmd.serialize(&this->io_id, sizeof(this->io_id));                   // ID of IO in this plugin
@@ -103,12 +106,14 @@ class SSender : private VpualStub, public Message
      */
     void Link(MReceiver<T> *r)
     {
+        if(!r) throw std::invalid_argument("Argument must not be NULL");
+        if(!(r->parent)) throw std::invalid_argument("Argument parent must not be NULL");
+
         // Command message.
         VpualMessage cmd(64);
 
         // Check that messages have parents:
         assert(this->parent);
-        assert(r->parent);
 
         cmd.serialize(&this->parent->stubID, sizeof(this->parent->stubID)); // ID of output plugin
         cmd.serialize(&this->io_id, sizeof(this->io_id));                   // ID of IO in this plugin

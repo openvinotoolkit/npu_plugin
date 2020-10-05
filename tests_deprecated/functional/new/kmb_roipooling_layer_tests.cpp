@@ -83,7 +83,8 @@ Blob::Ptr generateCoords(const TensorDesc& desc, size_t width, size_t height) {
 class KmbROIPoolingLayerTests : public KmbLayerTestBase,
                                 public testing::WithParamInterface<ROIPoolingTestParams> {};
 
-TEST_P(KmbROIPoolingLayerTests, AccuracyTest) {
+// [Track number: S#40269]
+TEST_P(KmbROIPoolingLayerTests, DISABLED_AccuracyTest) {
     // [Track number: D#36225]
     SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "bad results");
     const auto& p = GetParam();

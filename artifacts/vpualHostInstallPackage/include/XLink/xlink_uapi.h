@@ -44,6 +44,8 @@
 #define XL_RESET_DEVICE				_IOW(XLINK_MAGIC, 20, void*)
 #define XL_GET_DEVICE_MODE			_IOW(XLINK_MAGIC, 21, void*)
 #define XL_SET_DEVICE_MODE			_IOW(XLINK_MAGIC, 22, void*)
+#define XL_REGISTER_DEV_EVENT		_IOW(XLINK_MAGIC, 23, void*)
+#define XL_UNREGISTER_DEV_EVENT		_IOW(XLINK_MAGIC, 24, void*)
 
 struct xlinkopenchannel {
 	void *handle;
@@ -141,6 +143,12 @@ struct xlinkresetdevice {
 struct xlinkdevmode {
 	void *handle;
 	int *device_mode;
+	uint32_t *return_code;
+};
+struct xlinkregdevevent {
+	void *handle;
+	uint32_t  *event_list;
+	uint32_t  num_events;
 	uint32_t *return_code;
 };
 

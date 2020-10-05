@@ -573,6 +573,8 @@ typedef struct
                                // If striping, this should be the width were this context handling the whole output
     UInt16 meshOutSpanHeight;  // Span of the mesh - states the output height the full mesh is intended to span
 
+    UInt32 transformMatrix[9]; // 3x3 transform matrix (fp32)
+
     UInt8  edgeMode;           // 0: Pixel replication, 1: Edge colour
     UInt16 edgeColour;         // Value to use when edgeMode = Edge colour
 

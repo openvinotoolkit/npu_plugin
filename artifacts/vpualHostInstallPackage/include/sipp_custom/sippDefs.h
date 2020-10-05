@@ -247,6 +247,10 @@ enum SippFilters {
     svuGauss3x3                           = BASE_SW_ID + 198,
     svuDrop4Channel                       = BASE_SW_ID + 199,
     svuSwapChannels                       = BASE_SW_ID + 200,
+    svuBoxFilterU8                        = BASE_SW_ID + 201,
+    svuCvtColorYUV422iToBGR               = BASE_SW_ID + 202,
+    svuCvtColorYUV420pToBGR               = BASE_SW_ID + 203,
+    svuCvtColorYUV422iToBGR_u10           = BASE_SW_ID + 204,
 };
 
 // SIPP function identifiers.
