@@ -16,19 +16,21 @@
 
 #pragma once
 
-#include <ie_blob.h>
-
-#include <ie_input_info.hpp>
-#include <ie_preprocess_data.hpp>
+// System
 #include <map>
 #include <memory>
 #include <string>
 #include <vector>
-
-#include "InferData.h"
-#include "InferGraph.h"
+// IE
+#include "ie_blob.h"
+#include "ie_input_info.hpp"
+#include "ie_preprocess_data.hpp"
+// Plugin
 #include "blob_descriptor.h"
 #include "hddl2_remote_context.h"
+// Low-level
+#include "InferData.h"
+#include "InferGraph.h"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -41,8 +43,8 @@ public:
     using Ptr = std::shared_ptr<HddlUniteInferData>;
 
     explicit HddlUniteInferData(const bool& needPreProcessing = false,
-        const HDDL2RemoteContext::CPtr& remoteContext = nullptr,
-        const InferenceEngine::ColorFormat& colorFormat = InferenceEngine::ColorFormat::BGR,
+        const HddlUnite::WorkloadContext::Ptr workloadContext = nullptr,
+        const InferenceEngine::ColorFormat colorFormat = InferenceEngine::ColorFormat::BGR,
         const size_t numOutputs = 1);
 
     // TODO Now similar to prepareUniteOutput, make one for all?

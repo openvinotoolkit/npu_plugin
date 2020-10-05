@@ -14,14 +14,14 @@
 // stated in the License.
 //
 
-#include "hddl2_remote_allocator.h"
+#include "subplugin/hddl2_remote_allocator.h"
 
 #include <climits>
 #include <memory>
 #include <string>
 
-using namespace vpu::HDDL2Plugin;
-constexpr size_t MAX_ALLOC_SIZE = 1024 * 1024 * 1024;  // 1GB
+namespace vpu {
+namespace HDDL2Plugin {
 
 bool static isValidRemoteMemory(const HddlUnite::RemoteMemory::Ptr& remoteMemory) {
     // Using local namespace because INVALID_DMABUFFD is macro (-1) and HddlUnite::(-1) is incorrect
@@ -235,3 +235,23 @@ void HDDL2RemoteAllocator::unlock(void* remoteMemoryHandle) noexcept {
 
     memory->isLocked = false;
 }
+
+void* HDDL2RemoteAllocator::wrapRemoteMemoryHandle(
+    const int& /*remoteMemoryFd*/, const size_t /*size*/, void* /*memHandle*/) noexcept {
+    _logger->error("Not implemented");
+    return nullptr;
+}
+
+void* HDDL2RemoteAllocator::wrapRemoteMemoryOffset(
+    const int& /*remoteMemoryFd*/, const size_t /*size*/, const size_t& /*memOffset*/) noexcept {
+    _logger->error("Not implemented");
+    return nullptr;
+}
+
+unsigned long HDDL2RemoteAllocator::getPhysicalAddress(void* handle) noexcept {
+    UNUSED(handle);
+    return 0;
+}
+
+}  // namespace HDDL2Plugin
+}  // namespace vpu

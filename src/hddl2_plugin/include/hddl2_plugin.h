@@ -16,14 +16,17 @@
 
 #pragma once
 
+// System
 #include <map>
 #include <string>
-#include <vpux_compiler.hpp>
-
+// IE
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
+#include "inference_engine.hpp"
+// Plugin
 #include "hddl2_config.h"
 #include "hddl2_metrics.h"
-#include "inference_engine.hpp"
+#include "vpux.hpp"
+#include "vpux_compiler.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
@@ -65,10 +68,14 @@ public:
     RemoteContext::Ptr CreateContext(const ParamMap& map) override;
 
 private:
+    ExecutableNetworkInternal::Ptr LoadExeNetwork(
+        const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const HDDL2Config& networkConfig);
+
+private:
     HDDL2Config _parsedConfig;
     HDDL2Metrics _metrics;
     vpux::Compiler::Ptr _compiler;
 };
 
 }  //  namespace HDDL2Plugin
-}  //  namespace vpu
+}  // namespace vpu

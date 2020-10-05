@@ -14,32 +14,63 @@
 // stated in the License.
 //
 
-#include <hddl2_async_infer_request.h>
-#include <hddl2_exceptions.h>
-#include <hddl2_executable_network.h>
-#include <hddl2_infer_request.h>
-#include <hddl2_metrics.h>
+// System
+#include <fstream>
+#include <memory>
+#include <string>
+#include <vector>
+// IE
 #include <net_pass.h>
 
 #include <convert_function_to_cnn_network.hpp>
-#include <fstream>
 #include <generic_ie.hpp>
-#include <memory>
+#include <ngraph/pass/constant_folding.hpp>
 #include <ngraph/pass/manager.hpp>
-#include <string>
 #include <threading/ie_executor_manager.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_opset1_to_legacy.hpp>
 #include <transformations/convert_opset1_to_legacy/convert_prior_to_ie_prior.hpp>
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 #include <transformations/convert_quantize_dequantize.hpp>
-#include <vector>
-#include <vpux_compiler.hpp>
+#include <transformations/convert_reduce_to_pooling.hpp>
+#include <transformations/reduce_l1_decomposition.hpp>
+#include <transformations/reduce_l2_decomposition.hpp>
+// Plugin
+#include "hddl2_async_infer_request.h"
+#include "hddl2_exceptions.h"
+#include "hddl2_executable_network.h"
+#include "hddl2_infer_request.h"
+#include "hddl2_metrics.h"
+// Subplugin
+#include "subplugin/hddl2_device.h"
+#include "vpux.hpp"
+#include "vpux_compiler.hpp"
 
 namespace vpu {
 namespace HDDL2Plugin {
 
 namespace IE = InferenceEngine;
+//------------------------------------------------------------------------------
+//      Helpers
+//------------------------------------------------------------------------------
+static vpux::Executor::Ptr createExecutor(const vpux::NetworkDescription::Ptr& network, const vpu::HDDL2Config& config,
+    std::shared_ptr<vpux::IDevice>& device) {
+    if (network == nullptr) {
+        THROW_IE_EXCEPTION << "Network is null!";
+    }
+    // Default executor is nullptr, allow only perform export
+    vpux::Executor::Ptr executor = nullptr;
+    if (device != nullptr) {
+        executor = device->createExecutor(network, config);
+    }
+    return executor;
+}
 
+static vpux::Executor::Ptr getExecutorForInference(const vpux::Executor::Ptr& executor) {
+    if (executor == nullptr) {
+        THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
+    }
+    return executor->clone();
+}
 //------------------------------------------------------------------------------
 //      Shared init ctor
 //------------------------------------------------------------------------------
@@ -52,7 +83,7 @@ ExecutableNetwork::ExecutableNetwork(const vpu::HDDL2Config& config)
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, const vpu::HDDL2Config& config, const IE::RemoteContext::Ptr& ieContext)
+    IE::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const HDDL2Config& config)
     : ExecutableNetwork(config) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
@@ -90,6 +121,17 @@ ExecutableNetwork::ExecutableNetwork(
             // Note: instead of running all Conversion Transformations you can make up your own transformation pipeline
             ngraph::pass::ConvertPriorBox().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet2ToOpSet1().run_on_function(nGraphFunc);
+
+            manager.register_pass<ngraph::pass::ReduceL1Decomposition>();  // in CommonOptimizations.
+            manager.register_pass<ngraph::pass::ReduceL2Decomposition>();
+            auto decomp = manager.register_pass<ngraph::pass::GraphRewrite>();
+            decomp->add_matcher<ngraph::pass::ConvertReduceMeanToPooling>();
+            decomp->add_matcher<ngraph::pass::ConvertReduceMaxToPooling>();
+            decomp->add_matcher<ngraph::pass::ConvertReduceSumToPooling>();
+            decomp->set_name("ngraph::pass::Decompositions");
+            manager.run_passes(nGraphFunc);
+
+            ngraph::pass::ConstantFolding().run_on_function(nGraphFunc);
             ngraph::pass::ConvertOpSet1ToLegacy().run_on_function(nGraphFunc);
             convertedNetwork = InferenceEngine::details::convertFunctionToICNNNetwork(nGraphFunc, network, true);
             actualNetwork = convertedNetwork.get();
@@ -97,18 +139,17 @@ ExecutableNetwork::ExecutableNetwork(
 
         _networkPtr = _compiler->compile(*actualNetwork, _config);
     }
-    _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
+    _executorPtr = createExecutor(_networkPtr, config, device);
 }
 
 //------------------------------------------------------------------------------
 //      Import network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, const vpu::HDDL2Config& config, const InferenceEngine::RemoteContext::Ptr& ieContext)
+    std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config)
     : ExecutableNetwork(config) {
     _networkPtr = _compiler->parse(networkModel, _config);
-    _executorPtr = vpux::HDDL2::HDDL2Executor::prepareExecutor(_networkPtr, config, ieContext);
-
+    _executorPtr = createExecutor(_networkPtr, config, device);
     _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkPtr->getInputsInfo());
     _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkPtr->getOutputsInfo());
 }
@@ -118,19 +159,12 @@ ExecutableNetwork::ExecutableNetwork(
 //------------------------------------------------------------------------------
 IE::InferRequestInternal::Ptr vpu::HDDL2Plugin::ExecutableNetwork::CreateInferRequestImpl(
     const IE::InputsDataMap networkInputs, const IE::OutputsDataMap networkOutputs) {
-    if (_executorPtr == nullptr) {
-        THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
-    }
-    const auto inferExecutor = _executorPtr->clone();
+    auto inferExecutor = getExecutorForInference(_executorPtr);
     return std::make_shared<HDDL2InferRequest>(networkInputs, networkOutputs, inferExecutor, _config);
 }
 
 void ExecutableNetwork::CreateInferRequest(InferenceEngine::IInferRequest::Ptr& asyncRequest) {
-    if (_executorPtr == nullptr) {
-        THROW_IE_EXCEPTION << NO_EXECUTOR_FOR_INFERENCE;
-    }
-
-    const auto inferExecutor = _executorPtr->clone();
+    auto inferExecutor = getExecutorForInference(_executorPtr);
     auto syncRequestImpl = std::make_shared<HDDL2InferRequest>(_networkInputs, _networkOutputs, inferExecutor, _config);
 
     syncRequestImpl->setPointerToExecutableNetworkInternal(shared_from_this());

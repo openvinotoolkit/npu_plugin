@@ -17,7 +17,7 @@
 #include <gtest/gtest.h>
 #include <hddl2_helpers/helper_workload_context.h>
 #include <hddl2_plugin.h>
-#include <hddl2_remote_allocator.h>
+#include <subplugin/hddl2_remote_allocator.h>
 
 #include <climits>
 
@@ -109,41 +109,6 @@ std::string Allocator_Manipulations_UnitTests::PrintToStringParamName::operator(
     } else {
         return "Unknown params";
     }
-}
-
-/**
- * createMemory function hide allocate() call for IE Remote memory owner
- * and wrapRemoteMemory() for External Remote memory owner
- */
-using RemoteAllocator_CreateMemory = Allocator_Manipulations_UnitTests;
-//------------------------------------------------------------------------------
-TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NoThrow) {
-    SKIP_IF_NO_DEVICE();
-    EXPECT_NO_THROW(allocatorHelper->createMemory(correctSize));
-}
-
-TEST_P(RemoteAllocator_CreateMemory, createMemory_OnCorrectSize_NotNullHandle) {
-    SKIP_IF_NO_DEVICE();
-    void* handle = allocatorHelper->createMemory(correctSize);
-
-    EXPECT_NE(handle, nullptr);
-}
-
-TEST_P(RemoteAllocator_CreateMemory, createMemory_OnIncorrectSize_NullHandle) {
-    SKIP_IF_NO_DEVICE();
-    // ~ 2 GB
-    size_t incorrectSize = INT_MAX;
-
-    auto handle = allocatorHelper->createMemory(incorrectSize);
-    EXPECT_EQ(handle, nullptr);
-}
-
-TEST_P(RemoteAllocator_CreateMemory, createMemory_OnNegativeSize_NullHandle) {
-    SKIP_IF_NO_DEVICE();
-    size_t negativeSize = -1;
-
-    auto handle = allocatorHelper->createMemory(negativeSize);
-    EXPECT_EQ(handle, nullptr);
 }
 
 //------------------------------------------------------------------------------
@@ -305,7 +270,8 @@ TEST_P(Allocator_Manipulations_UnitTests, DISABLED_ChangeLockedForReadMemory_Rem
 }
 
 //------------------------------------------------------------------------------
-const static std::vector<RemoteMemoryOwner> memoryOwners = {IERemoteMemoryOwner, ExternalRemoteMemoryOwner};
+// TODO IERemoteMemoryOwner should not be allowed. Remove tests with it
+const static std::vector<RemoteMemoryOwner> memoryOwners = {ExternalRemoteMemoryOwner};
 
 INSTANTIATE_TEST_CASE_P(RemoteMemoryOwner, Allocator_Manipulations_UnitTests, ::testing::ValuesIn(memoryOwners),
     Allocator_Manipulations_UnitTests::PrintToStringParamName());
