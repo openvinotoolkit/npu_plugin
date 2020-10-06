@@ -192,6 +192,7 @@ TEST_F(kmbLayersTests_nightly, DISABLED_TestsPoolingOnly) {
 }
 
 TEST_P(kmbLayersTestsPoolingParams, TestsPoolingNetInit) {
+    SKIP() << "unsupported on ngraph native frontend";
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);
     std::string sameUpper = std::get<1>(param);

@@ -36,23 +36,6 @@
 #include <ngraph/op/fake_quantize.hpp>
 
 
-mv::QuantizationParams calcQuantParams(const float outputLowMin, const float outputHighMax, const int levels)
-{
-    std::vector<int64_t> zeroPoints;
-    std::vector<double> scales;
-    std::vector<double> mins;
-    std::vector<double> maxs;
-
-    int64_t zepoPoint = calcZeroPoint(outputLowMin, outputHighMax, levels, ngraph::element::u8); 
-
-    zeroPoints.push_back(static_cast<int64_t>(zepoPoint));
-    scales.push_back(static_cast<double>((outputHighMax - outputLowMin) / (levels - 1)));
-    mins.push_back(outputLowMin);
-    maxs.push_back(outputHighMax);
-
-    return mv::QuantizationParams({zeroPoints, scales, mins, maxs});
-}
-
 bool ReplaceScaleShiftWithMcmScale::run_on_node(std::shared_ptr<ngraph::Node> node)
 {
     if (const auto ieScale = std::dynamic_pointer_cast<ngraph::op::ScaleShiftIE>(node))
