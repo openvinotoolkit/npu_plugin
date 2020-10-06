@@ -42,7 +42,7 @@ public:
     InferenceEngine::InferRequestInternal::Ptr CreateInferRequestImpl(
         const InferenceEngine::InputsDataMap networkInputs,
         const InferenceEngine::OutputsDataMap networkOutputs) override;
-    void ExportImpl(std::ostream& model) override;
+    void Export(std::ostream& model) override;
 
     using InferenceEngine::ExecutableNetworkInternal::Export;
     void Export(const std::string& modelFileName) override;
