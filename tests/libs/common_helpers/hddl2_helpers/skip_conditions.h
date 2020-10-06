@@ -14,18 +14,18 @@
 // stated in the License.
 //
 #include <gtest/gtest.h>
-#include "hddl2_metrics.h"
+#include "subplugin/hddl2_backend.h"
 
 #   define SKIP_IF_NO_DEVICE()                                              \
     do {                                                                    \
-        if (!vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable()) {        \
+        if (!vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {        \
             SKIP() << "Skip test due to absence of HDDL2 device";           \
         }                                                                   \
     } while (false)
 
 #   define SKIP_IF_DEVICE()                                                 \
     do {                                                                    \
-        if (vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable()) {         \
+        if (vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {         \
             SKIP() << "This test require device disabled";                  \
         }                                                                   \
     } while (false)

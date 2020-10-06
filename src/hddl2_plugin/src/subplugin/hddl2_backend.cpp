@@ -14,14 +14,17 @@
 // stated in the License.
 //
 
+// System
+#include <fstream>
+#include <memory>
 // Plugin
 #include "hddl2_exceptions.h"
 #include "hddl2_metrics.h"
 // Subplugin
-#include <memory>
-
 #include "subplugin/hddl2_backend.h"
 #include "subplugin/hddl2_device.h"
+// Low-level
+#include <HddlUnite.h>
 
 using namespace vpux::HDDL2;
 namespace vpux {
@@ -31,21 +34,40 @@ HDDL2Backend::HDDL2Backend(const VPUXConfig& config)
     : _logger(std::make_shared<vpu::Logger>("HDDL2Backend", config.logLevel(), vpu::consoleOutput())),
       _devices(createDeviceMap()) {}
 
+const std::vector<std::string> HDDL2Backend::getDevicesNames() const {
+    if (!isServiceAvailable()) {
+        // return empty device list if service is not available
+        return std::vector<std::string>();
+    }
+
+    std::vector<HddlUnite::Device> devices;
+    auto status = getAvailableDevices(devices);
+    if (status != HDDL_OK) {
+        THROW_IE_EXCEPTION << "Failed to get devices names!";
+    }
+
+    std::vector<std::string> devicesNames;
+    for (const auto& device : devices) {
+        devicesNames.push_back(std::to_string(device.getSwDeviceId()));
+    }
+    std::sort(devicesNames.begin(), devicesNames.end());
+    return devicesNames;
+}
+
 std::map<std::string, std::shared_ptr<vpux::IDevice>> HDDL2Backend::createDeviceMap() {
     std::map<std::string, std::shared_ptr<IDevice>> devices;
     // TODO Add more logs and cases handling
-    if (vpu::HDDL2Plugin::HDDL2Metrics::isServiceAvailable(_logger) &&
-        !vpu::HDDL2Plugin::HDDL2Metrics::GetAvailableDevicesNames().empty()) {
+    if (isServiceAvailable(_logger) && !getDevicesNames().empty()) {
         devices.insert({"HDDL2", std::make_shared<HDDLUniteDevice>()});
-        _logger->debug("HDDL2 device found for execution.");
+        _logger->debug("HDDL2 devices found for execution.");
     } else {
-        _logger->debug("HDDL2 device not found for execution.");
+        _logger->debug("HDDL2 devices not found for execution.");
     }
     return devices;
 }
 
 const std::shared_ptr<vpux::IDevice> HDDL2Backend::getDevice(const std::string& deviceName) const {
-    const auto devices = vpu::HDDL2Plugin::HDDL2Metrics::GetAvailableDevicesNames();
+    const auto devices = getDevicesNames();
     const auto it = std::find(devices.cbegin(), devices.cend(), deviceName);
     if (it != devices.end()) {
         return std::make_shared<HDDLUniteDevice>(*it);
@@ -53,6 +75,22 @@ const std::shared_ptr<vpux::IDevice> HDDL2Backend::getDevice(const std::string& 
         return nullptr;
     }
 }
+
+bool HDDL2Backend::isServiceAvailable(const vpu::Logger::Ptr& logger) {
+    const std::ifstream defaultService("/opt/intel/hddlunite/bin/hddl_scheduler_service");
+
+    const std::string specifiedServicePath =
+        std::getenv("KMB_INSTALL_DIR") != nullptr ? std::getenv("KMB_INSTALL_DIR") : "";
+    const std::ifstream specifiedService(specifiedServicePath + std::string("/bin/hddl_scheduler_service"));
+
+    const auto serviceAvailable = specifiedService.good() || defaultService.good() || isServiceRunning();
+    if (logger) {
+        serviceAvailable ? logger->debug(SERVICE_AVAILABLE.c_str()) : logger->debug(SERVICE_NOT_AVAILABLE.c_str());
+    }
+    return serviceAvailable;
+}
+
+bool HDDL2Backend::isServiceRunning() { return HddlUnite::isServiceRunning(); }
 
 }  // namespace HDDL2
 }  // namespace vpux
