@@ -134,8 +134,9 @@ public:
         return std::make_shared<NetworkDescription>(_actual->parse(filename, config), _actual);
     }
 
-    std::shared_ptr<vpux::NetworkDescription> parse(std::istream& stream, const VPUXConfig& config = {}) {
-        return std::make_shared<NetworkDescription>(_actual->parse(stream, config), _actual);
+    std::shared_ptr<vpux::NetworkDescription> parse(
+        std::istream& stream, const VPUXConfig& config = {}, const std::string& graphName = "") {
+        return std::make_shared<NetworkDescription>(_actual->parse(stream, config, graphName), _actual);
     }
 
     std::set<std::string> getSupportedLayers(InferenceEngine::ICNNNetwork& network) {
