@@ -19,7 +19,6 @@
 #include "models/model_pooling.h"
 #include "models/precompiled_resnet.h"
 
-using namespace vpu::HDDL2Plugin;
 using namespace InferenceEngine;
 
 //------------------------------------------------------------------------------

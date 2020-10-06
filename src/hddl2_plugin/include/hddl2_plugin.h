@@ -23,13 +23,11 @@
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "inference_engine.hpp"
 // Plugin
-#include "hddl2_config.h"
-#include "hddl2_metrics.h"
 #include "vpux.hpp"
 #include "vpux_compiler.hpp"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace HDDL2 {
 
 class Engine : public InferenceEngine::InferencePluginInternal {
 public:
@@ -69,13 +67,12 @@ public:
 
 private:
     ExecutableNetworkInternal::Ptr LoadExeNetwork(
-        const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const HDDL2Config& networkConfig);
+        const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const VPUXConfig& networkConfig);
 
 private:
-    HDDL2Config _parsedConfig;
-    HDDL2Metrics _metrics;
+    VPUXConfig _parsedConfig;
     vpux::Compiler::Ptr _compiler;
 };
 
-}  //  namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace HDDL2
+}  // namespace vpux

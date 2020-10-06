@@ -52,7 +52,7 @@ namespace IE = InferenceEngine;
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static vpux::Executor::Ptr createExecutor(const vpux::NetworkDescription::Ptr& network, const vpu::HDDL2Config& config,
+static vpux::Executor::Ptr createExecutor(const vpux::NetworkDescription::Ptr& network, const vpux::VPUXConfig& config,
     std::shared_ptr<vpux::IDevice>& device) {
     if (network == nullptr) {
         THROW_IE_EXCEPTION << "Network is null!";
@@ -74,7 +74,7 @@ static vpux::Executor::Ptr getExecutorForInference(const vpux::Executor::Ptr& ex
 //------------------------------------------------------------------------------
 //      Shared init ctor
 //------------------------------------------------------------------------------
-ExecutableNetwork::ExecutableNetwork(const vpu::HDDL2Config& config)
+ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config)
     : _config(config),
       _logger(std::make_shared<Logger>("ExecutableNetwork", config.logLevel(), consoleOutput())),
       _compiler(vpux::Compiler::create(vpux::CompilerType::MCMCompiler)) {}
@@ -83,7 +83,7 @@ ExecutableNetwork::ExecutableNetwork(const vpu::HDDL2Config& config)
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    IE::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const HDDL2Config& config)
+    IE::ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
     // FIXME: This is a copy-paste from kmb_executable_network.cpp
     // should be fixed after switching to VPUX completely
@@ -146,7 +146,7 @@ ExecutableNetwork::ExecutableNetwork(
 //      Import network
 //------------------------------------------------------------------------------
 ExecutableNetwork::ExecutableNetwork(
-    std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpu::HDDL2Config& config)
+    std::istream& networkModel, std::shared_ptr<vpux::IDevice>& device, const vpux::VPUXConfig& config)
     : ExecutableNetwork(config) {
     _networkPtr = _compiler->parse(networkModel, _config);
     _executorPtr = createExecutor(_networkPtr, config, device);

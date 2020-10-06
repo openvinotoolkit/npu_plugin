@@ -63,7 +63,7 @@ static IE::Blob::Ptr allocateLocalBlob(const IE::TensorDesc& tensorDesc) {
 //------------------------------------------------------------------------------
 HDDL2InferRequest::HDDL2InferRequest(const InferenceEngine::InputsDataMap& networkInputs,
     const InferenceEngine::OutputsDataMap& networkOutputs, const vpux::Executor::Ptr& executor,
-    const vpu::HDDL2Config& config)
+    const vpux::VPUXConfig& config)
     : InferRequestInternal(networkInputs, networkOutputs),
       _executorPtr(executor),
       _config(config),
@@ -134,7 +134,7 @@ void HDDL2InferRequest::GetResult() {
 
 void vpu::HDDL2Plugin::HDDL2InferRequest::GetPerformanceCounts(
     std::map<std::string, IE::InferenceEngineProfileInfo>& perfMap) const {
-    if (_config.performance_counting()) {
+    if (_config.performanceCounting()) {
         perfMap = _executorPtr->getLayerStatistics();
     }
 }

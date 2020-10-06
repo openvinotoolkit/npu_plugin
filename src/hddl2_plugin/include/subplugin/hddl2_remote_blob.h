@@ -34,7 +34,7 @@ namespace HDDL2Plugin {
 //------------------------------------------------------------------------------
 class HDDL2BlobParams {
 public:
-    explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const vpu::HDDL2Config& config);
+    explicit HDDL2BlobParams(const InferenceEngine::ParamMap& paramMap, const vpu::LogLevel& logLevel);
 
     InferenceEngine::ParamMap getParamMap() const { return _paramMap; }
     HddlUnite::RemoteMemory::Ptr getRemoteMemory() const { return _remoteMemory; }
@@ -55,7 +55,7 @@ public:
 
     explicit HDDL2RemoteBlob(const InferenceEngine::TensorDesc& tensorDesc, const HDDL2RemoteContext::Ptr& contextPtr,
         const std::shared_ptr<vpux::Allocator>& allocator, const InferenceEngine::ParamMap& params,
-        const vpu::HDDL2Config& config);
+        const LogLevel logLevel = LogLevel::None);
     ~HDDL2RemoteBlob() override { HDDL2RemoteBlob::deallocate(); }
 
     /**
@@ -104,7 +104,6 @@ protected:
     std::weak_ptr<HDDL2RemoteContext> _remoteContextPtr;
     std::shared_ptr<InferenceEngine::IAllocator> _allocatorPtr = nullptr;
 
-    const HDDL2Config& _config;
     const HddlUnite::RemoteMemory::Ptr _remoteMemory;
     const InferenceEngine::ColorFormat _colorFormat;
     std::shared_ptr<InferenceEngine::ROI> _roiPtr;

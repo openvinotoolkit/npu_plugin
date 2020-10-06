@@ -21,7 +21,6 @@
 
 // Inference Engine include
 #include <graph_transformer.h>
-
 #include <cnn_network_impl.hpp>
 #include <convert_function_to_cnn_network.hpp>
 #include <details/ie_irelease.hpp>
@@ -35,24 +34,26 @@
 #include <transformations/convert_opset2_to_opset1/convert_opset2_to_opset1.hpp>
 
 // Plugin include
+#include "vpux.hpp"
 #include "hddl2_exceptions.h"
 #include "file_reader.h"
 #include "hddl2_executable_network.h"
 #include "hddl2_params.hpp"
 #include "hddl2_plugin.h"
+#include "hddl2_metrics.h"
 #include "ie_macro.hpp"
 #include "hddl2_remote_context.h"
 // Subplugin
 #include "subplugin/hddl2_backend.h"
 
-namespace vpu {
-namespace HDDL2Plugin {
+namespace vpux {
+namespace HDDL2 {
 
 //------------------------------------------------------------------------------
 //      Helpers
 //------------------------------------------------------------------------------
-static vpu::HDDL2Config mergePluginAndNetworkConfigs(
-    const vpu::HDDL2Config& pluginConfig, const std::map<std::string, std::string>& config) {
+static VPUXConfig mergePluginAndNetworkConfigs(
+    const VPUXConfig& pluginConfig, const std::map<std::string, std::string>& config) {
     auto parsedConfigCopy = pluginConfig;
     parsedConfigCopy.update(config);
     return parsedConfigCopy;
@@ -70,7 +71,9 @@ static std::shared_ptr<vpux::IDevice> searchDeviceToUse(
     const vpux::HDDL2::HDDL2Backend::Ptr& backend, const std::string& specificDeviceName = "") {
     // TODO iterate over all available backends
     std::shared_ptr<vpux::IDevice> deviceToUse = nullptr;
-    if (specificDeviceName.empty()) {
+    // TODO Ignore default VPU-0. Track #S-38444
+    const std::string ignoredDeviceName("VPU-0");
+    if (specificDeviceName.empty() || specificDeviceName == ignoredDeviceName) {
         const auto& devices = backend->getDevices();
         // Get first available device
         if (!devices.empty()) deviceToUse = devices.begin()->second;
@@ -82,7 +85,7 @@ static std::shared_ptr<vpux::IDevice> searchDeviceToUse(
 
 //------------------------------------------------------------------------------
 Engine::Engine() {
-    _pluginName = DEVICE_NAME;  // "HDDL2"
+    _pluginName = DEVICE_NAME;  // "VPUX"
     _compiler = vpux::Compiler::create(vpux::CompilerType::MCMCompiler);
     _parsedConfig.expandSupportedOptions(_compiler->getSupportedOptions());
 }
@@ -91,8 +94,8 @@ Engine::Engine() {
 //      Load network
 //------------------------------------------------------------------------------
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
-    const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const HDDL2Config& networkConfig) {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "LoadExeNetwork");
+    const ICNNNetwork& network, std::shared_ptr<vpux::IDevice>& device, const VPUXConfig& networkConfig) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "LoadExeNetwork");
     std::shared_ptr<ICNNNetwork> clonedNetwork = cloneNetwork(network);
 
     auto implNetwork = std::dynamic_pointer_cast<CNNNetworkImpl>(clonedNetwork);
@@ -102,7 +105,7 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetwork(
         transformator.fullTrim();
     }
 
-    return std::make_shared<HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, device, networkConfig);
+    return std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(*clonedNetwork, device, networkConfig);
 }
 
 ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
@@ -125,26 +128,27 @@ ExecutableNetworkInternal::Ptr Engine::LoadExeNetworkImpl(
 //------------------------------------------------------------------------------
 IExecutableNetwork::Ptr Engine::ImportNetwork(
     const std::string& modelFileName, const std::map<std::string, std::string>& config) {
-    OV_ITT_SCOPED_TASK(itt::domains::KmbPlugin, "ImportNetwork");
     std::ifstream blobStream(modelFileName, std::ios::binary);
     return ImportNetworkImpl(vpu::KmbPlugin::utils::skipMagic(blobStream), config);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     // TODO This backend instance should be replaced with VPUX after backend refactoring
     auto backend = std::make_shared<vpux::HDDL2::HDDL2Backend>(networkConfig);
     auto device = searchDeviceToUse(backend, networkConfig.deviceId());
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
     return InferenceEngine::make_executable_network(executableNetwork);
 }
 
 InferenceEngine::ExecutableNetwork Engine::ImportNetworkImpl(
     std::istream& networkModel, const RemoteContext::Ptr& context, const std::map<std::string, std::string>& config) {
+    OV_ITT_SCOPED_TASK(vpu::itt::domains::KmbPlugin, "ImportNetwork");
     auto networkConfig = mergePluginAndNetworkConfigs(_parsedConfig, config);
     auto device = searchContextDevice(context);
-    const auto executableNetwork = std::make_shared<ExecutableNetwork>(networkModel, device, networkConfig);
+    const auto executableNetwork = std::make_shared<vpu::HDDL2Plugin::ExecutableNetwork>(networkModel, device, networkConfig);
     return InferenceEngine::make_executable_network(executableNetwork);
 }
 
@@ -167,25 +171,26 @@ void Engine::QueryNetwork(const InferenceEngine::ICNNNetwork& network, const std
 
 RemoteContext::Ptr Engine::CreateContext(const ParamMap& map) {
     // Device in this case will be searched inside RemoteContext creation
-    return std::make_shared<HDDL2Plugin::HDDL2RemoteContext>(map, _parsedConfig);
+    return std::make_shared<vpu::HDDL2Plugin::HDDL2RemoteContext>(map, _parsedConfig);
 }
 
 InferenceEngine::Parameter Engine::GetMetric(
     const std::string& name, const std::map<std::string, InferenceEngine::Parameter>& /*options*/) const {
+    vpu::HDDL2Plugin::HDDL2Metrics metrics;
     if (name == METRIC_KEY(AVAILABLE_DEVICES)) {
-        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, HDDL2Metrics::GetAvailableDevicesNames());
+        IE_SET_METRIC_RETURN(AVAILABLE_DEVICES, metrics.GetAvailableDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_METRICS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, _metrics.SupportedMetrics());
+        IE_SET_METRIC_RETURN(SUPPORTED_METRICS, metrics.SupportedMetrics());
     } else if (name == METRIC_KEY(FULL_DEVICE_NAME)) {
-        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, _metrics.GetFullDevicesNames());
+        IE_SET_METRIC_RETURN(FULL_DEVICE_NAME, metrics.GetFullDevicesNames());
     } else if (name == METRIC_KEY(SUPPORTED_CONFIG_KEYS)) {
-        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, _metrics.GetSupportedConfigKeys());
+        IE_SET_METRIC_RETURN(SUPPORTED_CONFIG_KEYS, metrics.GetSupportedConfigKeys());
     } else if (name == METRIC_KEY(OPTIMIZATION_CAPABILITIES)) {
-        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, _metrics.GetOptimizationCapabilities());
+        IE_SET_METRIC_RETURN(OPTIMIZATION_CAPABILITIES, metrics.GetOptimizationCapabilities());
     } else if (name == METRIC_KEY(RANGE_FOR_ASYNC_INFER_REQUESTS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, _metrics.GetRangeForAsyncInferRequest());
+        IE_SET_METRIC_RETURN(RANGE_FOR_ASYNC_INFER_REQUESTS, metrics.GetRangeForAsyncInferRequest());
     } else if (name == METRIC_KEY(RANGE_FOR_STREAMS)) {
-        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, _metrics.GetRangeForStreams());
+        IE_SET_METRIC_RETURN(RANGE_FOR_STREAMS, metrics.GetRangeForStreams());
     }
     THROW_IE_EXCEPTION << NOT_IMPLEMENTED_str;
 }
@@ -193,5 +198,6 @@ InferenceEngine::Parameter Engine::GetMetric(
 static const Version version = {{2, 1}, CI_BUILD_NUMBER, "HDDL2Plugin"};
 IE_DEFINE_PLUGIN_CREATE_FUNCTION(Engine, version)
 
-}  // namespace HDDL2Plugin
-}  // namespace vpu
+}  // namespace HDDL2
+}  // namespace vpux
+

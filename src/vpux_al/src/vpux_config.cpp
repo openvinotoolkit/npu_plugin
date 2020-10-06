@@ -81,6 +81,7 @@ void vpux::VPUXConfig::parse(const std::map<std::string, std::string>& config) {
 
     setOption(_outColorFmtSIPP, config, VPU_KMB_CONFIG_KEY(SIPP_OUT_COLOR_FORMAT), parseColorFormat);
     setOption(_useSIPP, switches, config, VPU_KMB_CONFIG_KEY(USE_SIPP));
+    setOption(_performanceCounting, switches, config, CONFIG_KEY(PERF_COUNT));
     setOption(_useM2I, switches, config, VPU_KMB_CONFIG_KEY(USE_M2I));
     setOption(_deviceId, config, CONFIG_KEY(DEVICE_ID));
 }
