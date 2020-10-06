@@ -1631,8 +1631,17 @@ void FrontEndMcm::parseSigmoid(const ie::CNNLayerPtr& layer, const McmNodeVector
     _logger->debug(FINISH_PARSING_STR, mvSigmoid->getName());
 }
 
-void FrontEndMcm::parseTanH(const ie::CNNLayerPtr&, const McmNodeVector&) {
-    VPU_THROW_EXCEPTION << "TanH layer is not supported by kmbPlugin";
+void FrontEndMcm::parseTanH(const ie::CNNLayerPtr& layer, const McmNodeVector& inputs) {
+    IE_ASSERT(inputs.size() == 1);
+
+    logParsingStartHelper(_logger, layer, inputs);
+
+    mv::Data::TensorIterator mvTanh;
+    mvTanh = _modelMcm.tanh(inputs[0]->getMcmNode(), mv::DType("Default"), initialQuantParams(), layer->name);
+
+    bindOutput(mvTanh, layer->outData[0]);
+
+    _logger->debug(FINISH_PARSING_STR, mvTanh->getName());
 }
 
 void FrontEndMcm::parsePReLU(const ie::CNNLayerPtr&, const McmNodeVector&) {

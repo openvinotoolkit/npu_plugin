@@ -57,3 +57,14 @@ TEST_F(KmbClassifyNetworkTest, customnet3_mobilenet_v1_caffe_int8_dense) {
         "224x224/cat3.bmp",
         1, 0.5f);
 }
+
+TEST_F(KmbClassifyNetworkTest, customnet_tanh) {
+    SKIP_INFER_ON("KMB", "HDDL2", "VPUX", "Wrong results"); // TODO: create JIRA ticket
+    runTest(
+        TestNetworkDesc("KMB_models/INT8/customnets/customnet_tanh.xml")
+            .setUserInputPrecision("input", Precision::U8)
+            .setUserInputLayout("input", Layout::NHWC)
+            .setUserOutputPrecision("output", Precision::FP32),
+        "28x28/image_1_28x28.bmp",
+        1, 0.5f);
+}
