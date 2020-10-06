@@ -2070,15 +2070,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
 
         adaptFakeSparsityIndex(toBuild, opIt);
 
-
-    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
-    if(opIt->hasAttr("needsODUoffset"))
-    {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
-           toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
-    }
-
     if (opIt->hasAttr("is_segmented"))
         toBuild->is_segmented = opIt->get<bool>("is_segmented");
 
@@ -2231,14 +2222,6 @@ std::unique_ptr<MVCNN::NCEInvariantFieldsT> mv::RuntimeModel::buildNCEInvariantF
             (opIt->hasAttr("activationSparsityCompilerSolvingForInterpNN") &&
              opIt->get<bool>("activationSparsityCompilerSolvingForInterpNN")))
         adaptFakeSparsityIndex(toBuild, opIt);
-
-    // Note: odu_offset to be set on the input of the eltwise that ensures a positive number
-    if(opIt->hasAttr("needsODUoffset"))
-    {
-        auto other_elt_input = cm.getTensor(opIt->get<std::string>("needsODUoffset"));
-        if(toBuild->output_data->data->data_index > other_elt_input->getAddress())
-            toBuild->odu_offset = toBuild->output_data->data->data_index - other_elt_input->getAddress();
-    }
 
     if (opIt->hasAttr("is_segmented"))
         toBuild->is_segmented = opIt->get<bool>("is_segmented");
