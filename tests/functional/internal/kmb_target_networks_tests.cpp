@@ -18,6 +18,9 @@
 
 #include "test_model/kmb_test_base.hpp"
 
+// TODO: [Track number: C#40310]
+//       We need to remove or transform XML based tests before opening the source.
+
 //
 // ResNet50 FP16 IRv10
 //
