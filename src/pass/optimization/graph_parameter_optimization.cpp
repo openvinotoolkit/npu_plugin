@@ -1023,7 +1023,7 @@ namespace mv
                      }
                 }
                 //temporarily disable the SplitOverHOverlapped for custom network kernel size 7x7 subtensors not correct
-                if (clustering == "SplitOverHOverlapped" && op.getOpType() == "ChannelMajorConvolution" && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
+                if (clustering == "SplitOverHOverlapped" || clustering == "SplitOverH" && op.getOpType() == "ChannelMajorConvolution" && op.getInputTensor()[0]->getShape()[mv::IO_CHANNEL_DIMENSION] == 3 &&
                     op.getInputTensor()[0]->getShape()[mv::IO_WIDTH_DIMENSION] == 72 && op.getInputTensor()[0]->getShape()[mv::IO_HEIGHT_DIMENSION] == 72)
                     return FailCause::SplitOverHOverlappedWronglyComputed;
                 return FailCause::Pass; //good strategy
