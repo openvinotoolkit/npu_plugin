@@ -20,36 +20,32 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+#include <vpux.hpp>
 // Plugin
 #include "hddl2_params.hpp"
-#include "vpu/utils/logger.hpp"
+#include "vpux_backends.h"
 // TODO should not be here
 #include "kmb_plugin_config.hpp"
-// TODO Low-level should be moved under backend
-// Low-level
-#include <HddlUnite.h>
 
 namespace vpu {
 namespace HDDL2Plugin {
 
 class HDDL2Metrics {
 public:
-    HDDL2Metrics();
+    HDDL2Metrics(const vpux::VPUXBackends::CPtr& backends);
 
-    static std::vector<std::string> GetAvailableDevicesNames();
+    std::vector<std::string> GetAvailableDevicesNames() const;
     const std::vector<std::string>& SupportedMetrics() const;
-    static std::string GetFullDevicesNames();
+    std::string GetFullDevicesNames() const;
     const std::vector<std::string>& GetSupportedConfigKeys() const;
     const std::vector<std::string>& GetOptimizationCapabilities() const;
     const std::tuple<uint32_t, uint32_t, uint32_t>& GetRangeForAsyncInferRequest() const;
     const std::tuple<uint32_t, uint32_t>& GetRangeForStreams() const;
 
-    static bool isServiceAvailable(const vpu::Logger::Ptr& logger = nullptr);
-    static bool isServiceRunning();
-
     ~HDDL2Metrics() = default;
 
 private:
+    const vpux::VPUXBackends::CPtr _backends;
     std::vector<std::string> _supportedMetrics;
     std::vector<std::string> _supportedConfigKeys;
     const std::vector<std::string> _optimizationCapabilities = {METRIC_VALUE(INT8)};

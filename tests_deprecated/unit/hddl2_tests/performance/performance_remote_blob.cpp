@@ -58,7 +58,7 @@ protected:
 //      class HDDL2_RemoteBlob_PerformanceTests Implementation
 //------------------------------------------------------------------------------
 void HDDL2_RemoteBlob_PerformanceTests::SetUp() {
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
         _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
         tensorDesc = _tensorDescriptionHelper.tensorDesc;

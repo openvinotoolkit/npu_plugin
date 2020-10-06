@@ -57,7 +57,7 @@ protected:
 };
 
 void HDDL2_RemoteBlob_UnitTests::SetUp() {
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (vpux::HDDL2::HDDL2Backend::isServiceAvailable()) {
         _remoteContextHelperPtr = std::make_shared<RemoteContext_Helper>();
         _remoteMemoryHelperPtr = std::make_shared<RemoteMemory_Helper>();
         auto workloadContextPtr = _remoteContextHelperPtr->getWorkloadContext();

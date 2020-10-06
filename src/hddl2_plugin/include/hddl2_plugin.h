@@ -23,7 +23,9 @@
 #include "cpp_interfaces/impl/ie_plugin_internal.hpp"
 #include "inference_engine.hpp"
 // Plugin
+#include "hddl2_metrics.h"
 #include "vpux.hpp"
+#include "vpux_backends.h"
 #include "vpux_compiler.hpp"
 
 namespace vpux {
@@ -71,6 +73,8 @@ private:
 
 private:
     VPUXConfig _parsedConfig;
+    VPUXBackends::CPtr _backends;
+    vpu::HDDL2Plugin::HDDL2Metrics _metrics;
     vpux::Compiler::Ptr _compiler;
 };
 

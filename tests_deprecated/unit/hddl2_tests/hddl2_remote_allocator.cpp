@@ -42,7 +42,7 @@ protected:
 };
 
 void RemoteAllocator_UnitTests::SetUp() {
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (canWorkWithDevice()) {
         _workloadContextHelperPtr = std::make_shared<WorkloadContext_Helper>();
         workloadContextPtr = _workloadContextHelperPtr->getWorkloadContext();
     }
@@ -87,7 +87,7 @@ public:
 
 //------------------------------------------------------------------------------
 void Allocator_Manipulations_UnitTests::SetUp() {
-    if (HDDL2Metrics::isServiceAvailable()) {
+    if (canWorkWithDevice()) {
         RemoteAllocator_UnitTests::SetUp();
 
         auto owner = GetParam();
