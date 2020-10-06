@@ -66,11 +66,10 @@ void ExecutableNetwork::LoadBlob() {
     const std::string networkName = "net" + std::to_string(loadBlobCounter);
     loadBlobCounter++;  // increment blob static counter to make unique network ID
 
-    _executor = _device->createExecutor(_networkDescription, _config);
-
-    _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
-    _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
-    _netName = _networkDescription->getName();
+    if (_device)
+        _executor = _device->createExecutor(_networkDescription, _config);
+    else
+        THROW_IE_EXCEPTION << "Failed to create device executor. No device.";
 }
 
 ExecutableNetwork::ExecutableNetwork(const vpux::VPUXConfig& config, const std::shared_ptr<vpux::Device>& device)
@@ -128,9 +127,20 @@ ExecutableNetwork::ExecutableNetwork(
 
         _networkDescription = _compiler->compile(*actualNetwork, _config);
     }
+
+    if (_networkDescription) {
+        _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+        _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+        _netName = _networkDescription->getName();
+    } else {
+        THROW_IE_EXCEPTION << "Failed to compile network";
+    }
+
     if (_device) {
         LoadBlob();
         ConfigureExecutor(_netName);
+    } else {
+        _logger->warning("No deviсe to load executable network");
     }
 }
 
@@ -141,9 +151,20 @@ ExecutableNetwork::ExecutableNetwork(
     _logger = std::make_shared<Logger>("ExecutableNetwork", _config.logLevel(), consoleOutput());
 
     _networkDescription = _compiler->parse(strm, _config);
+
+    if (_networkDescription) {
+        _networkInputs = vpux::helpers::dataMapIntoInputsDataMap(_networkDescription->getInputsInfo());
+        _networkOutputs = vpux::helpers::dataMapIntoOutputsDataMap(_networkDescription->getOutputsInfo());
+        _netName = _networkDescription->getName();
+    } else {
+        THROW_IE_EXCEPTION << "Failed to parse compiled network";
+    }
+
     if (_device) {
         LoadBlob();
         ConfigureExecutor("ExecutableNetwork");
+    } else {
+        _logger->warning("No deviсe to load executable network");
     }
 }
 
