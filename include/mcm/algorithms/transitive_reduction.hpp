@@ -10,6 +10,8 @@
 #include "include/mcm/algorithms/topological_sort.hpp"
 #include "include/mcm/compiler/compilation_profiler.hpp"
 
+#include <cstdio>
+
 
 namespace mv
 {
@@ -279,6 +281,7 @@ class DAG_Transitive_Reducer {
     typedef typename dag_t::edge_list_iterator edge_iterator_t;
     //TODO(vamsikku): parameterize on the allocator //
     typedef std::map<node_iterator_t, size_t, node_comparator_t> level_map_t;
+    typedef std::unordered_map<size_t, size_t> level_node_count_map_t;
     typedef std::set<edge_iterator_t, edge_comparator_t> filter_edge_set_t;
   //////////////////////////////////////////////////////////////////////////////
 
@@ -289,6 +292,32 @@ class DAG_Transitive_Reducer {
     void dump_reduce_info() const {
       printf("[TransitiveReduction] input=%lu eliminated=%lu\n",
           input_edge_count_, eliminated_edge_count_);
+    }
+
+    void dump_graph() const {
+      static size_t graph_id = 0UL;
+      char buf[1024];
+
+      sprintf(buf, "./input_dag_%lu.txt", ++graph_id);
+      FILE *fptr = fopen(buf, "w");
+      if (!fptr) {
+        throw std::string("unable to open file\n");
+      }
+
+      dag_t &g = dag_;
+      fprintf(fptr, "nodes: %lu\n", g.node_size());
+      // nodes //
+      for (node_iterator_t nitr=g.node_begin(); nitr!=g.node_end(); ++nitr) {
+        fprintf(fptr, "%lu\n", nitr->getID());
+      }
+
+      // edges //
+      fprintf(fptr, "edges: %lu\n", g.edge_size());
+      for (edge_iterator_t eitr=g.edge_begin(); eitr!=g.edge_end(); ++eitr) {
+        fprintf(fptr, "%lu %lu\n", eitr->source()->getID(),
+              eitr->sink()->getID());
+      }
+      fclose(fptr);
     }
 
 
@@ -311,6 +340,9 @@ class DAG_Transitive_Reducer {
         ordered_edges[ src_itr->second ].push_back(e);
       }
 
+      //STEP-1.2: compute 
+
+      size_t curr_level=0;
       for (auto litr=ordered_edges.begin(); litr!=ordered_edges.end();
             ++litr) {
         for (auto eitr=litr->second.begin(); eitr!=litr->second.end();
@@ -347,11 +379,27 @@ class DAG_Transitive_Reducer {
       std::unordered_set<size_t> visited;
       std::list<node_iterator_t> bfs_list;
 
+      size_t sink_level;
+      auto level_itr = level_map_.find(sink);
+      if (level_itr == level_map_.end()) { 
+        throw "missing level entry";
+      }
+      sink_level = level_itr->second;
+
 
       //TODO(vamsikku): while doing DFS don't add nodes which exceed the
       //level of the sink into the bfs_list //
       for (auto e=src->leftmost_output(); e!=g.edge_end(); ++e) {
         if (e->sink()->getID() == sink->getID()) { continue; }
+
+        node_iterator_t node_itr = e->sink();
+        auto level_itr = level_map_.find(node_itr);
+        if (level_itr == level_map_.end()) { 
+          throw "missing level entry";
+        }
+        if ((level_itr->second) > sink_level) { continue; }
+
+
         bfs_list.push_back(e->sink());
         visited.insert(e->sink()->getID());
       }
@@ -361,7 +409,14 @@ class DAG_Transitive_Reducer {
         bfs_list.pop_front();
         if (curr_node->getID() == sink->getID()) { return true; }
         for (auto e=curr_node->leftmost_output(); e!=g.edge_end(); ++e) {
+
+          node_iterator_t node_itr = e->sink();
+          auto level_itr = level_map_.find(node_itr);
+          if (level_itr == level_map_.end()) { throw "missing level entry"; }
+          if ((level_itr->second) > sink_level) { continue; }
+
           size_t nid = e->sink()->getID();
+          if (nid == sink->getID()) { return true; }
           if (visited.find(nid) == visited.end()) {
             bfs_list.push_back(e->sink());
             visited.insert(nid);
@@ -446,6 +501,7 @@ void transitiveReduction(graph<T_node, T_edge>& g,
 
     transitive_reducer_t reducer(g);
     reducer.reduce(filteredEdges);
+    reducer.dump_reduce_info();
   }
 #else
     transitiveReductionOld<T_node, T_edge, EdgeItComparator,

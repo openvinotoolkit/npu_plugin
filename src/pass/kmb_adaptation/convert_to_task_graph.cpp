@@ -159,6 +159,10 @@ mv::Data::TensorIterator convertConvolutionToDPUTask(mv::OpModel& om, const std:
         if (dpuConvOp->get<std::string>("taskOp") == "DepthwiseConv")
             notDW = false;
     }
+
+    if(attrs.find("supportsCM") != attrs.end())
+        dpuConvOp->set<bool>("supportsCM", attrs.at("supportsCM").get<bool>());
+
     if (enableChannelMajor and dpuConvOp->supportsCMConv() and notDW)
     {
         dpuConvOp->erase("taskOp");
@@ -387,6 +391,11 @@ mv::Data::TensorIterator convertPermuteToUPATask(mv::OpModel& om, const std::vec
 
     mv::Data::TensorIterator upaPermute = om.uPATaskPermute(inputs, order, dtype, quantParams, name);
     auto upaPermuteOp = om.getSourceOp(upaPermute);
+
+    if(attrs.find("ZMoutput") != attrs.end())
+        if (attrs.at("ZMoutput") == true)
+            upaPermute->setOrder(mv::Order("NHWC"));
+
     auto vpu_in_order_str = inputs[0]->getOrder().toString();
     auto vpu_out_order_str = vpu_in_order_str;
     auto cpu_in_order_str = std::string("NCHW");
