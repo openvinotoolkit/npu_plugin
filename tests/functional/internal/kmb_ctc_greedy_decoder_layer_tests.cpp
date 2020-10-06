@@ -14,7 +14,7 @@
 // stated in the License.
 //
 
-#include <common/include/vpu/utils/ie_helpers.hpp>
+#include <vpu/utils/ie_helpers.hpp>
 
 #include "test_model/kmb_test_base.hpp"
 

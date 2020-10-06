@@ -48,13 +48,27 @@
 
 #include <vpu/kmb_plugin_config.hpp>
 
-#include <single_layer_common.hpp>
-#include <tests_common.hpp>
+#include <common_test_utils/test_common.hpp>
 
 #include <gtest/gtest.h>
 #include <yolo_helpers.hpp>
 
 using namespace InferenceEngine;
+
+#define PRETTY_PARAM(name, type)                                                            \
+    class name                                                                              \
+    {                                                                                       \
+    public:                                                                                 \
+        typedef type param_type;                                                            \
+        name ( param_type arg = param_type ()) : val_(arg) {}                               \
+        operator param_type () const {return val_;}                                         \
+    private:                                                                                \
+        param_type val_;                                                                    \
+    };                                                                                      \
+    static inline void PrintTo(name param, ::std::ostream* os)                              \
+    {                                                                                       \
+        *os << #name ": " << ::testing::PrintToString((name::param_type)(param));           \
+    }
 
 PRETTY_PARAM(UseCustomLayers, bool);
 
@@ -153,7 +167,7 @@ enum ImageFormat { RGB, BGR };
 // KmbTestBase
 //
 
-class KmbTestBase : public TestsCommon {
+class KmbTestBase : public CommonTestUtils::TestsCommon {
 public:
     using BlobGenerator = std::function<Blob::Ptr(const TensorDesc& desc)>;
     using CompileConfig = std::map<std::string, std::string>;
@@ -352,6 +366,9 @@ protected:
     using InitIntputCallback = std::function<void(const ConstInputsDataMap& inputs)>;
 
 protected:
+    static std::string getTestDataPath();
+    static std::string getTestModelsPath();
+
     static Blob::Ptr loadImage(const TestImageDesc& image, int channels, int height, int width);
 
     void registerSingleImage (const TestImageDesc& image,
