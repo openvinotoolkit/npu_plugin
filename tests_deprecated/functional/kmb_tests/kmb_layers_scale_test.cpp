@@ -24,6 +24,7 @@ using namespace InferenceEngine;
 typedef kmbLayerTestBaseWithParam<Dims> kmbLayersTestsScaleParams;
 
 TEST_P(kmbLayersTestsScaleParams, TestsScale) {
+    SKIP() << "unsupported on ngraph native frontend";
     auto param = GetParam();
     tensor_test_params tensor = param;
     std::size_t weightsSize = tensor.n * tensor.c * sizeof(uint16_t);

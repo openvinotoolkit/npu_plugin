@@ -23,6 +23,7 @@ using namespace InferenceEngine;
 typedef kmbLayerTestBaseWithParam<std::tuple<Dims, size_t>> kmbLayersTestsSoftMaxParams;
 
 TEST_P(kmbLayersTestsSoftMaxParams, TestsSoftMax) {
+    SKIP() << "unsupported on ngraph native frontend";
     auto param = GetParam();
     tensor_test_params tensor = std::get<0>(param);
     size_t axis = std::get<1>(param);

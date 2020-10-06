@@ -802,8 +802,6 @@ void FrontEndMcm::parseInputData() {
         const auto& dataDesc = ieData->getTensorDesc();
         mv::Shape inputShape(getWHCN(dataDesc).getDims());
 
-        auto inputLayerPtr = getCreatorLayer(ieData).lock();
-
         const InferenceEngine::Layout inputLayout = ieData->getTensorDesc().getLayout();
         if (!isInputLayoutSupported(inputLayout)) {
             VPU_THROW_EXCEPTION << "Input layout is not supported: " << ieData->getTensorDesc().getLayout();
@@ -942,8 +940,8 @@ void FrontEndMcm::parseConvolution(const ie::CNNLayerPtr& layer, const McmNodeVe
     mv::Data::TensorIterator mvConvOnly;
 
     size_t inputGroupSize, outputGroupSize, stub;
-    parseDims(input->desc(), stub, inputGroupSize, stub, stub);
-    parseDims(outDesc, stub, outputGroupSize, stub, stub);
+    parseDims(input->desc().getDims(), stub, inputGroupSize, stub, stub);
+    parseDims(outDesc.getDims(), stub, outputGroupSize, stub, stub);
 
     bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
     auto mvWeights = inputs[1]->getMcmNode();
@@ -1060,7 +1058,7 @@ void FrontEndMcm::parseFullyConnected(const ie::CNNLayerPtr& layer, const McmNod
     auto input = inputs[0];
 
     size_t dimC, dimY, dimX, stub;
-    parseDims(input->desc(), stub, dimC, dimY, dimX, 1);
+    parseDims(input->desc().getDims(), stub, dimC, dimY, dimX, 1);
 
     auto layerOutput = FClayer->outData[0];
     IE_ASSERT(layerOutput != nullptr);
@@ -1184,7 +1182,7 @@ void FrontEndMcm::parseScale(const ie::CNNLayerPtr& layer, const McmNodeVector& 
     }
     auto input = inputs[0];
     size_t dimC, stub;
-    parseDims(input->desc(), stub, dimC, stub, stub);
+    parseDims(input->desc().getDims(), stub, dimC, stub, stub);
 
     std::vector<double> scaleData = packBlobToVector<double>(scaleLayer->_weights, scaleLayer->_weights->size());
 
@@ -1273,7 +1271,7 @@ void FrontEndMcm::parseBias(const ie::CNNLayerPtr& layer, const McmNodeVector& i
 
         auto input = inputs[0];
         size_t dimC, stub;
-        parseDims(input->desc(), stub, dimC, stub, stub);
+        parseDims(input->desc().getDims(), stub, dimC, stub, stub);
         mv::Shape biasShape = {dimC};
         int biasesSize = dimC;
         auto biases = layer->blobs["biases"];
@@ -1557,7 +1555,7 @@ void FrontEndMcm::parsePower(const ie::CNNLayerPtr& layer, const McmNodeVector& 
         auto input = inputs[0];
 
         size_t dimC, stub;
-        parseDims(input->desc(), stub, dimC, stub, stub);
+        parseDims(input->desc().getDims(), stub, dimC, stub, stub);
 
         double powerScale = powerLayer->scale;
         std::vector<double> scaleData;
@@ -1691,8 +1689,8 @@ void FrontEndMcm::parseDeconvolution(const ie::CNNLayerPtr& layer, const McmNode
     mv::Data::TensorIterator mvDeconv;
     mv::Data::TensorIterator mvDeconvOnly;
     size_t inputGroupSize, outputGroupSize, stub;
-    parseDims(input->desc(), stub, inputGroupSize, stub, stub);
-    parseDims(outDesc, stub, outputGroupSize, stub, stub);
+    parseDims(input->desc().getDims(), stub, inputGroupSize, stub, stub);
+    parseDims(outDesc.getDims(), stub, outputGroupSize, stub, stub);
 
     bool isDepthWiseConv = groupSize > 1 && groupSize == inputGroupSize && groupSize == outputGroupSize;
 
@@ -1938,7 +1936,7 @@ void FrontEndMcm::parseROIPooling(const ie::CNNLayerPtr& layer, const McmNodeVec
     }
 
     size_t n_roi, stub;
-    parseDims(inputs.at(1)->desc(), n_roi, stub, stub, stub);
+    parseDims(inputs.at(1)->desc().getDims(), n_roi, stub, stub, stub);
     unsigned num_rois = static_cast<unsigned int>(n_roi);
 
     auto roipool = _modelMcm.rOIPooling(roi_inputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois,

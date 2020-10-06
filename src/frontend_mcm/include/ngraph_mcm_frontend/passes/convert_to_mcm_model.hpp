@@ -21,6 +21,8 @@
 #include "ngraph_mcm_frontend/mcm_helpers.hpp"
 #include <ngraph/pass/pass.hpp>
 #include <include/mcm/op_model.hpp>
+#include <ie_input_info.hpp>
+#include <ie_icnn_network.hpp>
 #include <memory>
 
 //
@@ -29,8 +31,12 @@
 
 class ConvertToMcmModel final : public ngraph::pass::FunctionPass {
 public:
-    ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) :
-            _mcmModel(mcmModel), _mcmOutputsMap(mcmOutputsMap) {
+    ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
+                      InferenceEngine::InputsDataMap networkInputs,
+                      InferenceEngine::OutputsDataMap networkOutputs,
+                      std::map<std::string, std::string> ioMap) :
+            _mcmModel(mcmModel), _mcmOutputsMap(mcmOutputsMap),
+            _networkInputs(networkInputs), _networkOutputs(networkOutputs), _ioMap(ioMap) {
     }
 
     bool run_on_function(std::shared_ptr<ngraph::Function> func) override;
@@ -38,6 +44,9 @@ public:
 private:
     mv::OpModel& _mcmModel;
     NodeOutputToMcmMap& _mcmOutputsMap;
+    InferenceEngine::InputsDataMap _networkInputs;
+    InferenceEngine::OutputsDataMap _networkOutputs;
+    std::map<std::string, std::string> _ioMap;
 };
 
 // clang-format on
