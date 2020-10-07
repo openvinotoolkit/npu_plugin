@@ -97,7 +97,7 @@ DEFINE_string(ip, "", precision_message);
 
 /// @brief Define input layout <br>
 /// It is an optional parameter
-DEFINE_string(il, "NCHW", layout_message);
+DEFINE_string(il, "", layout_message);
 
 /**
 * @brief This function show a help message

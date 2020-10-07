@@ -77,6 +77,9 @@ bool ParseAndCheckCommandLine(int argc, char *argv[])
             throw std::logic_error("Parameter -m <path to model> is not set");
         if (FLAGS_k.empty())
             throw std::logic_error("Parameter -k <evm ip address> is not set");
+        if (! FLAGS_il.empty() )
+            if (FLAGS_il != "NHWC" && FLAGS_il != "NCHW")
+                throw std::logic_error("Parameter -il only supports NHWC or NCHW");
     }
 
     return true;
@@ -402,15 +405,20 @@ int runEmulator(std::string pathXML, std::string pathImage, std::string& blobPat
 
     // execute the compile_tool (KMB-plugin)
     std::cout << "Generating mcm blob through kmb-plugin... " << std::endl;
-    bool layoutNHWC = (getEnvVarDefault("NHWC_LAYOUT", "false") == "true") ? true: false;
 
     commandline = std::string("cd ") + std::getenv("DLDT_HOME") + DLDT_BIN_FOLDER + " && " +
         "./compile_tool -m " + ((pathXMLvector.size() > 1) ? pathXMLvector[1] : pathXMLvector[0]) + " -d KMB -o " + FILE_BLOB_NAME;
 
-    if (layoutNHWC)
-        commandline += " -il NHWC";
+    if (! FLAGS_il.empty() )
+        commandline += " -il " + FLAGS_il;
     else
-        commandline += " -il NCHW";
+    {
+        bool layoutNHWC = (getEnvVarDefault("NHWC_LAYOUT", "false") == "true") ? true: false;
+        if (layoutNHWC)
+            commandline += " -il NHWC";
+        else
+            commandline += " -il NCHW";
+    }
 
     if (! FLAGS_ip.empty() )
         commandline += (" -ip " + FLAGS_ip);
