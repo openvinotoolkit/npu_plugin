@@ -77,6 +77,8 @@ class Operation_Dag {
     typedef std::unordered_map<operation_t, resource_t> resource_cost_model_t;
     typedef typename resource_cost_model_t::iterator resource_cost_iterator_t;
     typedef std::unordered_set<operation_t> data_op_set_t;
+    typedef std::unordered_map<operation_t, operation_t> inplace_op_map_t;
+
     // delay cost model //
     typedef size_t delay_t;
     typedef std::unordered_map<operation_t, delay_t> delay_cost_model_t;
@@ -273,6 +275,16 @@ class Operation_Dag {
       return itr->second;
     }
 
+    bool is_inplace_op(const operation_t& op) const {
+      return inplace_op_map_.find(op) != inplace_op_map_.end();
+    }
+
+    //Precondition: is_inplace_op(op) is true //
+    operation_t get_inplace_output_op(const operation_t& op) const {
+      auto itr = inplace_op_map_.find(op);
+      return itr->second;
+    }
+
     size_t size() const { return adj_map_.size(); }
 
     bool is_data_op(const operation_t& op) const {
@@ -280,6 +292,9 @@ class Operation_Dag {
     }
 
     void reset_data_op_set(const data_op_set_t& in) { data_op_set_ = in; }
+    void reset_inplace_op_map(const inplace_op_map_t& in) {
+      inplace_op_map_ = in;
+    }
 
     ////////////////////////////////////////////////////////////////////////////
     // scheduler_traits //
@@ -304,8 +319,17 @@ class Operation_Dag {
     static const_operation_iterator_t incoming_operations_begin(const dag_t& g,
         const operation_t& op) { return g.begin_in(op); }
 
-    static bool is_pseudo_input_edge(const dag_t& g, const operation_t& src,
+    static bool is_pseudo_input_edge(const dag_t& , const operation_t& ,
         const operation_t& sink) { return false; }
+
+    static bool is_inplace_op(const dag_t& dag, const operation_t& op) {
+      return dag.is_inplace_op(op);
+    }
+    static operation_t get_inplace_output_op(
+        const dag_t& dag, const operation_t& op) {
+      return dag.get_inplace_output_op(op);
+    }
+
 
 
     static const_operation_iterator_t incoming_operations_end(const dag_t& g,
@@ -388,6 +412,7 @@ class Operation_Dag {
     delay_cost_model_t delay_cost_model_;
     resource_cost_model_t resource_cost_model_;
     data_op_set_t data_op_set_;
+    inplace_op_map_t inplace_op_map_;
 }; // class Operation_Dag //
 
 // Using the Cumulative_Resource_State //

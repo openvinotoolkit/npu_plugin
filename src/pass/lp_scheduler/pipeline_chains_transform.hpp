@@ -20,29 +20,71 @@ class Pipeline_Chains {
     typedef std::list<operation_t> op_list_t;
 
     struct chain_subgraph_t {
+      typedef std::unordered_map<operation_t, size_t> read_size_map_t;
       op_list_t dpu_chain_;
       std::list<op_list_t> weight_reads_;
+      read_size_map_t total_read_size_map_;
 
-      void print(FILE *fptr=stdout) const {
-        fprintf(fptr, "\n===========================\n");
+      size_t cmx_size(operation_t op) const {
+        return ((const_cast<mv::Op *>(op))->getOutputTensor(0UL))->
+            getClusterSize();
+      }
+
+      void compute_total_read_sizes() {
         auto read_itr = weight_reads_.begin();
-
-        size_t prev_read_size = 0UL;
-        size_t prev_output_size = 0UL;
         for (operation_t dpu_op : dpu_chain_) {
-          fprintf(fptr, "%s : ", (dpu_op->getName()).c_str());
           size_t total_read_size = 0UL;
           for (operation_t read_op : *read_itr) {
-            fprintf(fptr, " %s ", (read_op->getName()).c_str());
             total_read_size +=
               ((const_cast<mv::Op *>(read_op))->getOutputTensor(0UL))->
                 getClusterSize();
           }
-          fprintf(fptr, "\n");
+          total_read_size_map_.insert(std::make_pair(dpu_op, total_read_size));
           ++read_itr;
         }
+      }
+
+      void print(FILE *fptr=stdout) {
+        if (dpu_chain_.size() < 2UL) { return; }
+
+        fprintf(fptr, "\n===========================\n");
+        compute_total_read_sizes();
+        size_t prev_read_size = 0UL;
+        size_t prev_output_size = 0UL;
+
+        size_t max_read_size = std::numeric_limits<size_t>::min();
+        size_t max_output_size = std::numeric_limits<size_t>::min();
+
+        size_t index = 0UL;
+        size_t last_read_size, last_output_size;
+
+
+        auto dpu_op_itr = dpu_chain_.begin();
+        size_t max_dpu_demand = 0UL;
+        size_t max_read_demand = 0UL;
+
+        for (;dpu_op_itr!= dpu_chain_.end(); ++dpu_op_itr) {
+          operation_t dpu_op = *dpu_op_itr;
+          fprintf(fptr, "%s :  reads=%lu output=%lu",
+              (dpu_op->getName()).c_str(),
+              total_read_size_map_[dpu_op], cmx_size(dpu_op));
+          fprintf(fptr, "\n");
+
+          {
+            if (max_read_size < total_read_size_map_[dpu_op]) {
+              max_read_size = total_read_size_map_[dpu_op];
+            }
+            if (max_output_size < cmx_size(dpu_op)) {
+              max_output_size = cmx_size(dpu_op);
+            }
+          }
+          ++index;
+        }
+        fprintf(fptr, "max_read_size=%lu max_output_size=%lu total=%lu\n",
+            max_read_size, max_output_size, max_read_size+max_output_size);
         fprintf(fptr, "\n===========================\n");
       }
+
     }; // struct chain_subgraph_t //
 
     struct control_edge_t {
@@ -156,6 +198,130 @@ class Pipeline_Chains {
       single_output_op = &(*citr);
       return single_output_op;
     }
+
+    template<typename OpIterator>
+    size_t op_memory_demand(OpIterator op) const {
+      auto op_itr = omodel_.getOp(op->getName());
+      return (op_itr->getOutputTensor(0UL))->getClusterSize();
+    }
+
+    template<typename OpIterator>
+    bool op_has_this_attribute(OpIterator op, const std::string& attr_name)
+      const {
+      auto op_itr = omodel_.getOp(op->getName());
+      return op_itr->hasAttr(attr_name);
+    }
+
+    template<typename T>
+    bool is_this_dpu_selectable_into_the_chain(T dpu_op) const {
+      // TODO: the logic of compute odu_offset is extrremely flakey and is
+      // sensitive to address locations to avoid pipelining across these chains.
+      return !(op_has_this_attribute(dpu_op, "needsODUoffset"));
+    }
+
+    template<typename OutputIterator>
+    size_t locate_longer_chains(OutputIterator output) {
+      std::map<size_t, op_list_t> dpu_levels;
+
+      mv::OpModel &model = omodel_;
+      //////////////////////////////////////////////////////////////////////////
+      std::list<operation_t> zero_in_degree_nodes[2UL];
+      std::unordered_map<operation_t, size_t> in_degree_map;
+      size_t curr_depth = 0;
+
+      // STEP-0: compute the in-degree's of all nodes //
+      for (auto op_itr = model.opBegin(); op_itr != model.opEnd(); ++op_itr) {
+        size_t in_degree = 0;
+        for (auto pitr=op_itr.leftmostParent(); pitr!=model.opEnd(); ++pitr) {
+          ++in_degree;
+        }
+        operation_t op = &(*op_itr);
+        in_degree_map[ op ] = in_degree;
+        if (!in_degree) {
+          zero_in_degree_nodes[0].push_back(op);
+        }
+      }
+
+      while (!zero_in_degree_nodes[curr_depth%2UL].empty()) {
+        bool parity = ((curr_depth%2UL) == 1UL);
+        for (auto zitr=zero_in_degree_nodes[parity].begin();
+              zitr!=zero_in_degree_nodes[parity].end(); ++zitr) {
+
+          // update the in-degree //
+          mv::Data::OpListIterator zop_itr = model.getOp((*zitr)->getName());
+          for (auto citr=zop_itr.leftmostChild(); citr!=model.opEnd(); ++citr) {
+            operation_t cop = &(*citr);
+            auto ditr = in_degree_map.find(cop);
+            if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) ) {
+              throw "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop->getName();
+            }
+            --(ditr->second);
+            if (!(ditr->second)) {
+              zero_in_degree_nodes[!parity].push_back(cop);
+              if (cop->getOpType() == "DPUTask") {
+                dpu_levels[curr_depth].push_back(cop);
+              }
+            }
+          }
+        }
+        zero_in_degree_nodes[parity].clear();
+        curr_depth++;
+      }
+      //////////////////////////////////////////////////////////////////////////
+
+
+
+      auto level_itr = dpu_levels.begin();
+      while (level_itr != dpu_levels.end()) {
+
+        const op_list_t & dpu_list = level_itr->second;
+        if ((dpu_list.size() > 1UL)) {
+          ++level_itr;
+          continue;
+        }
+
+        /// try to create a chain subgraph ////
+        auto next_level_itr = level_itr;
+        op_list_t dpu_chain;
+        size_t prev_level = level_itr->first, curr_level;
+
+        do{
+          curr_level = next_level_itr->first;
+          operation_t current_dpu_op = (next_level_itr->second).front();
+          if (!is_this_dpu_selectable_into_the_chain(current_dpu_op)) { break; }
+          //TODO(vamsikku): also avoid chains with breaks and pivots //
+          //check if the current dpu_op has an incoming edge which is not yet
+          //in the chain. 
+
+          dpu_chain.push_back(current_dpu_op);
+          prev_level = curr_level;
+          ++next_level_itr;
+        }
+        while ((next_level_itr != dpu_levels.end()) &&
+                  ((next_level_itr->second).size() == 1UL));
+
+        if (dpu_chain.size() > 1UL) {
+          // create a subgraph //
+          chain_subgraph_t chain_subgraph;
+          chain_subgraph.dpu_chain_ = dpu_chain;
+          std::list<op_list_t> &input_reads = chain_subgraph.weight_reads_;
+          // now create reads //
+          for (operation_t dpu_op : chain_subgraph.dpu_chain_) {
+            op_list_t weight_reads;
+            get_weight_read_inputs(dpu_op, std::back_inserter(weight_reads));
+            input_reads.push_back(weight_reads);
+          }
+          output = chain_subgraph;
+        }
+      
+        // make progress //
+        if (level_itr == next_level_itr) { ++next_level_itr; }
+
+        level_itr = next_level_itr;
+      }
+    }
+
 
     template<typename OutputIterator>
     void locate_chains(OutputIterator output) {
@@ -383,7 +549,7 @@ class Pipeline_Chains {
 
       mv::OpModel &om = omodel_;
       chain_subgraphs.clear();
-      locate_chains(std::back_inserter(chain_subgraphs));
+      locate_longer_chains(std::back_inserter(chain_subgraphs));
 
 
       char buf[4096];
@@ -393,6 +559,7 @@ class Pipeline_Chains {
         const op_list_t& dpu_chain = chain_subgraph.dpu_chain_;
 
         chain_subgraph.print(fptr);
+        //compute_working_memory_for_eltwise_chain(chain_subgraph);
         auto curr_dpu_itr = dpu_chain.begin();
         auto curr_itr = weight_reads.begin();
 
@@ -419,9 +586,6 @@ class Pipeline_Chains {
           const op_list_t & pprev_read_list = *pprev_itr;
           if (!pprev_read_list.empty())
           {
-
-            //if ((select_stages + 2UL) < curr_dpu_index) { continue; }
-
             auto net_dpu_itr = pprev_dpu_itr;
             for (size_t sl=0; (sl<select_stages) &&
                   (net_dpu_itr != dpu_chain.begin()); ++sl) { --net_dpu_itr; }
@@ -449,6 +613,7 @@ class Pipeline_Chains {
                   (next_dpu_op_itr->getOutputTensor(0UL))->getClusterSize();
               }
             }
+
             //TODO(vamsikku): parameterize this based on CMX availablity //
             if ( (stage_memory[*net_dpu_itr] + demand) > 700000) {
               goto MOVE_TO_NEXT_SUBGRAPH;
@@ -490,9 +655,106 @@ MOVE_TO_NEXT_SUBGRAPH:
 
 
       }
+    }
 
+    void inplace_eltwise_pipeline_transforms() {
+      std::list<chain_subgraph_t> chain_subgraphs;
+      locate_longer_chains(std::back_inserter(chain_subgraphs));
 
     }
+
+    void transform_inplace_eltwise_chain(const chain_subgraph_t& eltwise_chain){
+    }
+
+    size_t compute_working_memory_for_eltwise_chain(
+        chain_subgraph_t& eltwise_chain,
+        const std::string& inplace_attribute="inplace_eltwise_rep") const {
+
+      if (eltwise_chain.dpu_chain_.size() < 2UL) {
+        throw "chain lenght must be >= 2";
+      }
+
+      typedef typename chain_subgraph_t::read_size_map_t read_size_map_t;
+      eltwise_chain.compute_total_read_sizes();
+      read_size_map_t &read_size_map = eltwise_chain.total_read_size_map_;
+
+      size_t max_read_memory_demand = 0UL, curr_read_memory;
+      op_list_t dpu_chain = eltwise_chain.dpu_chain_;
+      {
+        size_t prev_non_zero_weight = 0UL;
+        ///STEP-0: compute read memory demand //
+        // init //
+        auto dpu_itr = dpu_chain.begin(), dpu_itr_end = dpu_chain.end();
+        while ((dpu_itr != dpu_itr_end) &&
+              !(prev_non_zero_weight=read_size_map[*dpu_itr])) { ++dpu_itr; }
+        size_t curr_read_memory_demand, curr_read_memory;
+        for (;dpu_itr != dpu_itr_end; ++dpu_itr) {
+          curr_read_memory = read_size_map[*dpu_itr];
+          if (!curr_read_memory) { continue; }
+
+          curr_read_memory_demand = (prev_non_zero_weight + curr_read_memory);
+
+          if (curr_read_memory_demand > max_read_memory_demand) {
+            max_read_memory_demand = curr_read_memory_demand;
+          }
+          prev_non_zero_weight = curr_read_memory;
+        }
+        printf("max_read_memory: %lu\n", max_read_memory_demand);
+        fflush(stdout);
+      }
+
+      //STEP-1: compute dpu memory demand //
+      //assumes that all dpus have non-zero memory //
+      size_t max_dpu_demand = 0UL;
+      {
+        auto dpu_itr = dpu_chain.begin(), dpu_itr_end = dpu_chain.end();
+        auto prev_dpu_itr = dpu_itr; 
+        ++dpu_itr;
+
+        size_t curr_dpu_demand, curr_dpu_memory;
+        size_t prev_dpu_memory = op_memory_demand(*prev_dpu_itr);
+
+        for (;dpu_itr != dpu_chain.end(); ++dpu_itr) {
+          curr_dpu_memory = op_has_this_attribute(*dpu_itr, inplace_attribute)
+              ? 0UL : op_memory_demand(*dpu_itr);
+          curr_dpu_demand = (prev_dpu_memory + curr_dpu_memory);
+          if (curr_dpu_demand > max_dpu_demand) {
+            max_dpu_demand = curr_dpu_demand;
+          }
+          prev_dpu_memory = op_memory_demand(*dpu_itr);
+        }
+        printf("max_dpu_memory: %lu\n", max_dpu_demand);
+      }
+
+      size_t working_memory = (max_dpu_demand + max_read_memory_demand);
+
+      printf("[CHAIN_WORKING_MEMORY]: %lu \n", working_memory);
+      return working_memory;
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   private:
