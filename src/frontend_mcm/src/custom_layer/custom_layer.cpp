@@ -173,6 +173,7 @@ CustomLayer::CustomLayer(std::string configDir, const pugi::xml_node& customLaye
             stageOrder.emplace(stageNum, CustomKernel{kernel, _configDir});
         }
 
+        VPU_THROW_UNLESS(stageOrder.size() > 0, "Error stage order for %s layer is empty", _layerName);
         VPU_THROW_UNLESS(
             stageOrder.begin()->first == 0, "Error while binding %s custom layer: Stage 0 is not found.", _layerName);
         VPU_THROW_UNLESS(static_cast<size_t>(stageOrder.rbegin()->first) == stageOrder.size() - 1,

@@ -148,6 +148,7 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                     reinterpret_cast<uint8_t*>(_allocator->alloc(origYBlob->byteSize() + origUVBlob->byteSize())));
 
                 auto memoryBlobY = as<MemoryBlob>(origYBlob);
+                IE_ASSERT(memoryBlobY != nullptr);
                 auto y_offset_pad = memoryBlobY->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderYPlane = memoryBlobY->rmap();
                 ie_memcpy(_preprocBuffer.get(), origYBlob->byteSize(), memoryHolderYPlane.as<uint8_t*>() + y_offset_pad,
@@ -160,6 +161,7 @@ void KmbInferRequest::relocationAndExecKmbDataPreprocessing(InferenceEngine::Blo
                 kmbYBlob = ie::make_shared_blob<uint8_t>(croppedYTensorDesc, _preprocBuffer.get());
 
                 auto memoryBlobUV = as<MemoryBlob>(origUVBlob);
+                IE_ASSERT(memoryBlobUV != nullptr);
                 auto uv_offset_pad = memoryBlobUV->getTensorDesc().getBlockingDesc().getOffsetPadding();
                 auto memoryHolderUVPlane = memoryBlobUV->rmap();
                 ie_memcpy(_preprocBuffer.get() + origYBlob->byteSize(), origUVBlob->byteSize(),
