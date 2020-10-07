@@ -1280,7 +1280,7 @@ void GazeEstimationNetworkTest::runTest(const TestNetworkDesc& netDesc,
         IE_ASSERT(actualOutput->size() == refOutput->size());
 
         auto actualData = actualOutput->buffer().as<float*>();
-        auto refData = actualOutput->buffer().as<float*>();
+        auto refData = refOutput->buffer().as<float*>();
 
         for (size_t i = 0; i < actualOutput->size(); ++i) {
             auto diff = std::abs(actualData[i] - refData[i]);
