@@ -36,7 +36,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::shared_ptr<std::vector<StrategySet>>, InitVectorStrategySet)
+        MV_REGISTER_ATTR(std::shared_ptr<std::vector<StrategySet>>)
             .setToJSONFunc(attr_shared_ptr_vect_strategy_set::toJSON)
             .setFromJSONFunc(attr_shared_ptr_vect_strategy_set::fromJSON)
             .setToStringFunc(attr_shared_ptr_vect_strategy_set::toString);

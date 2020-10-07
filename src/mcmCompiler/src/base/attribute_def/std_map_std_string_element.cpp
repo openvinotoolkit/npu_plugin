@@ -60,7 +60,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::map<std::string COMMA Element>, InitMapStringElement)
+        MV_REGISTER_ATTR(std::map<std::string COMMA Element>)
             .setToJSONFunc(attr_std_map_std_string::toJSON)
             .setFromJSONFunc(attr_std_map_std_string::fromJSON)
             .setToStringFunc(attr_std_map_std_string::toString);

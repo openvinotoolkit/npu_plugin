@@ -23,7 +23,6 @@ static void populatedSplitOverH(const unsigned nClusters, std::vector<mv::Worklo
                                 const mv::pass::PassEntry& pass, int &success);
 static std::vector<mv::Workload> fixRectangularHeuristicBug(std::vector<mv::Workload> subTensors, const mv::Data::TensorIterator &tensor, int nWorkloads, int outputChannels);
 static void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -35,15 +34,12 @@ namespace mv
             "Computing Splitting across clusters"
         );
 
+
         MV_REGISTER_PASS(EnsureSplitStrategiesForSpilling)
             .setFunc(ensureSplitStrategiesForSpilling)
             .setDescription(
                "Ensures Split Strategies still valid after Spilling cases");
 
-        MV_REGISTER_PASS(RecomputeTensorMultiClusterAttributesCauseOfSpilling)
-            .setFunc(recomputeTensorMultiClusterAttributesCauseOfSpillingFcn)
-            .setDescription(
-               "Ensures Split Strategies attributes are assigned correctly after scheduler spillings ");
     }
 }
 
@@ -332,8 +328,9 @@ void subTensorsGen(mv::ComputationModel& model, const std::vector <mv::Data::Ten
             mv::Workloads Tensor(tensor->getName(), tensor->getShape(), needs_sparse | needs_splits_aligned);
             std::vector<mv::Workload> subTensors;
 
-            if (std::find(activationSegmentableStrategies.cbegin(), activationSegmentableStrategies.cend(),
-                tensor->get<std::string>("splitStrategy")) != activationSegmentableStrategies.cend())
+            const std::vector<std::string> segmentableStrategies = {"SplitOverH", "HKSwitch"};
+            if (std::find(segmentableStrategies.cbegin(), segmentableStrategies.cend(),
+                tensor->get<std::string>("splitStrategy")) != segmentableStrategies.cend())
             {
                 unpopulatedSplitOverH(nClusters, subTensors, Tensor, pass, success);
                 tensor->splitPopulatedActivationAcrossClusters(subTensors, true, false);
@@ -653,48 +650,6 @@ void ensureSplitStrategiesForSpilling(const mv::pass::PassEntry& pass, mv::Compu
                                 }
                             }
                         }
-                    }
-                }
-            }
-        }
-    }
-    return;
-
-}
-
-
-// Pass role: In case that the scheduler inserts spilling reads/writes we might meet a case where the input of the dpu task will be out of
-// subtensors, splitStrategies etc. So we need to recompute them. Cost for changing the strategies!!
-void recomputeTensorMultiClusterAttributesCauseOfSpillingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-    mv::OpModel om(model);
-
-    auto globalParams = model.getGlobalConfigParams();
-    unsigned numClusters = globalParams->get<int>("Number_of_Clusters");
-
-    if (numClusters > 1)
-    {
-        for(auto opIt = om.opBegin(); opIt != om.opEnd(); ++opIt)
-        {
-            std::string opType = opIt->getOpType();
-            if (opType == "DPUTask")
-            {
-                for (auto inputTensor : opIt->getInputTensor())
-                {
-                    if (!inputTensor->hasAttr("splitStrategy"))
-                    {
-                        //NOTE: The correct think to do here is to assign to the input tensor the strategy of the previous
-                        //operation but sometimes the previous operation can be an implicit op or an op with no strategy
-                        //so assign the one of its input tensor...
-                        std::string sstrategy;
-                        if (om.getSourceOp(inputTensor)->hasAttr("splitStrategy"))
-                            sstrategy = om.getSourceOp(inputTensor)->get<std::string>("splitStrategy");
-                        else
-                            sstrategy = om.getSourceOp(inputTensor)->getInputTensor()[0]->get<std::string>("splitStrategy");
-                        inputTensor->set<std::string>("splitStrategy", sstrategy);
-                        subTensorsGen(model, {inputTensor}, numClusters, pass);
                     }
                 }
             }

@@ -25,7 +25,7 @@ static std::vector<uint8_t> toBinary(const Attribute&) {
 }  // namespace attr_lambda_function
 
 namespace attr {
-    MV_REGISTER_ATTR(std::function<void(MVCNN::GraphFileT&)>, InitLambdaFunction)
+    MV_REGISTER_ATTR(std::function<void(MVCNN::GraphFileT&)>)
         .setToJSONFunc(attr_lambda_function::toJSON)
         .setFromJSONFunc(attr_lambda_function::fromJSON)
         .setToStringFunc(attr_lambda_function::toString)

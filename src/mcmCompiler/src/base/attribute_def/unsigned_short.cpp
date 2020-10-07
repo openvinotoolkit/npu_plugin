@@ -40,7 +40,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(unsigned short, InitUnsignedShort)
+        MV_REGISTER_ATTR(unsigned short)
             .setToJSONFunc(attr_unsigned_short::toJSON)
             .setFromJSONFunc(attr_unsigned_short::fromJSON)
             .setToStringFunc(attr_unsigned_short::toString)

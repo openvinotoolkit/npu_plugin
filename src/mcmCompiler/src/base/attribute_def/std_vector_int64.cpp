@@ -80,7 +80,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_DUPLICATE_ATTR(std::vector<int64_t>, InitVecInt64)
+        MV_REGISTER_DUPLICATE_ATTR(std::vector<int64_t>)
             .setToJSONFunc(attr_std_vector_int64::toJSON)
             .setFromJSONFunc(attr_std_vector_int64::fromJSON)
             .setToStringFunc(attr_std_vector_int64::toString)

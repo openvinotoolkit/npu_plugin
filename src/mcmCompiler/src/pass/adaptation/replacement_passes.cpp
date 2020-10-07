@@ -30,8 +30,6 @@ void replaceExpReduceSumMultipyFcn(const mv::pass::PassEntry& pass, mv::Computat
 void insertPermuteBeforeDetFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 void replacePermuteAsReshape(const mv::pass::PassEntry& pass, mv::ComputationModel& model);
 static void detectEltWiseUpaInputs(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void markCMCompatibleConvsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&);
 
 namespace mv
 {
@@ -55,18 +53,6 @@ namespace mv
         .setFunc(detectEltWiseUpaInputs)
         .setDescription(
             "Detect if Eltwise has Upa inputs and in case of Upa inputs avoid HKSwitch for possible strategy"
-        );
-
-        MV_REGISTER_PASS(MarkCMCompatibleConvs)
-        .setFunc(markCMCompatibleConvsFcn)
-        .setDescription(
-            "Mark Convs that support CMConv, & ops on Input that require C-Major input tensor"
-        );
-
-        MV_REGISTER_PASS(AddPermuteToNonCMConvPaths)
-        .setFunc(addPermuteToNonCMConvPathsFcn)
-        .setDescription(
-            "For C-Major mode, input paths to Z-Major ops need input tensor permuted from C-Major to Z-Major"
         );
     }
 
@@ -330,105 +316,6 @@ void handleEltWiseDifferentScales(const mv::pass::PassEntry& pass, mv::Computati
                 opIt->set<bool>("softwareExecuted", true);
         }
     }
-}
-
-static void markCMCompatibleConvsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-    mv::OpModel om(model);
-
-    // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
-        return;
-
-    // Mark CMConv-compatible convolutions
-    auto convs = om.getOps("Conv");
-    for(auto& conv : convs)
-    {
-        auto supports_CMConv = (*conv).supportsCMConv();
-        (*conv).set<bool>("supportsCM", supports_CMConv);
-    }
-}
-
-static void addPermuteToNonCMConvPathsFcn(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
-{
-    MV_PROFILED_FUNCTION(MV_PROFILE_PASS)
-
-    mv::OpModel om(model);
-
-    // Skip pass if C-Major isn't enabled
-    if (!(om.getGlobalConfigParams()->get<bool>("enable_channel_major_conv")))
-        return;
-
-    // Change Input op to C-Major
-    auto inputOp = om.getOps("Input")[0];
-    inputOp->set<mv::Order>("order", mv::Order("NCHW"));
-    inputOp->getOutputTensor(0)->setOrder(mv::Order("NCHW"));
-
-    // Change input tensor to C-Major
-    auto ops = om.getOps();
-    for(auto& opIt : ops)
-        if (opIt->hasAttr("CMinput") && opIt->get<bool>("CMinput"))
-            for (auto& input : opIt->getInputTensor())
-                input->setOrder(mv::Order("NCHW"));
-
-    // Change CMConv input to C-Major
-    auto convs = om.getOps("Conv");
-    for(auto& conv : convs)
-        if (conv->supportsCMConv())
-            conv->getInputTensor(0)->setOrder(mv::Order("NCHW"));
-
-    // Check for any Z-Major ops needing permute
-    auto permute_needed = false;
-    for (auto sinkFlow = inputOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        if (!(sinkFlow.sink()->hasAttr("CMinput") && sinkFlow.sink()->get<bool>("CMinput")))
-            permute_needed = true;
-    }
-
-    if (!(permute_needed))
-        return;
-
-    // Add permute between input & Z-Major ops
-    auto outputTensor = inputOp->getOutputTensor(0);
-
-    std::vector<mv::Data::OpListIterator> opsToLink;
-    std::vector<std::size_t> inputSlots;
-    std::vector<mv::Data::FlowSiblingIterator> flowsToRemove;
-
-    for (auto sinkFlow = inputOp.leftmostOutput(); sinkFlow != om.flowEnd(); ++sinkFlow)
-    {
-        if (!(sinkFlow.sink()->hasAttr("CMinput") && sinkFlow.sink()->get<bool>("CMinput")))
-        {
-            opsToLink.push_back(sinkFlow.sink());
-            inputSlots.push_back(sinkFlow->get<std::size_t>("sinkInput"));
-            flowsToRemove.push_back(sinkFlow);
-        }
-    }
-
-    for (unsigned flowIdx = 0; flowIdx < flowsToRemove.size(); flowIdx++)
-    {
-        om.undefineFlow(flowsToRemove[flowIdx]);
-    }
-
-    mv::Data::TensorIterator transposedData = om.permute(outputTensor, mv::Order("NCHW"), mv::DType("Default"), outputTensor->get<mv::QuantizationParams>("quantParams"), inputOp->getName() + "_permute");
-
-    for(unsigned op = 0 ; op < opsToLink.size(); ++op)
-    {
-        opsToLink[op]->setInputTensor(transposedData, inputSlots[op], false);
-        om.defineFlow(transposedData, opsToLink[op], inputSlots[op]);
-    }
-
-    auto permuteOp = om.getSourceOp(transposedData);
-    if(inputOp->hasAttr("opId"))
-    {
-        unsigned currentOpId = inputOp->get<unsigned>("opId");
-        permuteOp->set<unsigned>("opId", currentOpId);
-    }
-
-    transposedData->setOrder(mv::Order("NHWC"));
-    permuteOp->set<bool>("ZMoutput", true);
 }
 
 void interpAsAvgPoolingFcn(const mv::pass::PassEntry& pass, mv::ComputationModel& model)

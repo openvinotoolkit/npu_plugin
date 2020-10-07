@@ -93,17 +93,12 @@ namespace mv
         #define STRV(...) #__VA_ARGS__
         #define COMMA ,
 
-        #define MV_REGISTER_ATTR(Type, Sym)                                                  \
-            KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Sym) =   \
+        #define MV_REGISTER_ATTR(Type)                                                                          \
+            static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
                 mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
 
-        #define MV_REGISTER_SIMPLE_ATTR(Type)                                                 \
-            KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Type) =   \
-                mv::attr::AttributeRegistry::instance().enter<Type>().setName(STRV(Type))
-
-
-        #define MV_REGISTER_DUPLICATE_ATTR(Type, Sym)                                        \
-            KEEP_SYMBOL(AttributeEntry& __MCM_REGISTER__ ## AttributeEntry ## __ ## Sym) =   \
+        #define MV_REGISTER_DUPLICATE_ATTR(Type)                                                                          \
+            static ATTRIBUTE_UNUSED(AttributeEntry& CONCATENATE(__ ## AttributeEntry ## __, __COUNTER__)) =     \
                 mv::attr::AttributeRegistry::instance().enterReplace<Type>().setName(STRV(Type))
 
 

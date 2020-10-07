@@ -43,7 +43,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_DUPLICATE_ATTR(unsigned, InitUnsigned)
+        MV_REGISTER_DUPLICATE_ATTR(unsigned)
             .setToJSONFunc(attr_unsigned::toJSON)
             .setFromJSONFunc(attr_unsigned::fromJSON)
             .setToStringFunc(attr_unsigned::toString)

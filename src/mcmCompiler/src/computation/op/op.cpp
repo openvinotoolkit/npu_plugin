@@ -398,48 +398,20 @@ bool mv::Op::supportsCMConv()
 {
     OpModel om(getModel_());
 
-    if (hasAttr("supportsCM"))
-        return get<bool>("supportsCM");
+    auto is_Conv_op = (getOpType() == "Conv");
+    auto is_Conv_task = (getOpType() == "DPUTask" && hasAttr("taskOp") && get<std::string>("taskOp") == "Conv");
 
-    if(!(getOpType() == "Conv" && getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16))
-        return false;
-
-    std::vector<mv::Data::OpListIterator> ops_in_input_path;
-    std::vector<mv::Data::OpListIterator> parents;
-    parents.push_back(om.getSourceOp(getInputTensor(0)));
-    while (!parents.empty())
+    if((is_Conv_op || is_Conv_task) && getInputTensor(1)->getShape()[mv::KERNEL_INPUT_CHANNELS] % 16)
     {
-        auto opIt = parents.back();
-        parents.pop_back();
-        if (opIt->isImplicit() || opIt->isUPA() || (opIt->getOpType() == "Bias"))
+        auto parent = om.getSourceOp(getInputTensor(0));
+        while(parent->isImplicit() || parent->isUPA())
         {
-            // Traverse parent of C-Major-compatible op
-            parents.push_back(om.getSourceOp(opIt->getInputTensor(0)));
+            parent = om.getSourceOp(parent->getInputTensor(0));
         }
-        else if (opIt->getOpType() == "Concat")
-        {
-            // Traverse parents of all concat inputs
-            for (auto& input : opIt->getInputTensor())
-                parents.push_back(om.getSourceOp(input));
-        }
-        else if (opIt->getOpType() == "Input")
-        {
-            // Found Input; done traversing this path
-        }
-        else
-        {
-            // Found Non C-Major-compatible op
-            return false;
-        }
-        // Store C-Major path op
-        ops_in_input_path.push_back(opIt);
+        if (parent->getOpType() == "Input")
+            return true;
     }
 
-    // All traversed paths are C-Major-friendly
-    set<bool>("CMinput", true);
-    for (auto& op : ops_in_input_path)
-        if (op->getOpType() != "Input")
-            op->set<bool>("CMinput", true);
+    return false;
 
-    return true;
 }

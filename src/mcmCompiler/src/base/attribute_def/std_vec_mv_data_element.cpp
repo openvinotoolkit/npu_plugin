@@ -78,7 +78,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::vector<mv::DataElement>, InitVectorDataElem)
+        MV_REGISTER_ATTR(std::vector<mv::DataElement>)
             .setToJSONFunc(attr_std_vec_mv_data::toJSON)
             .setFromJSONFunc(attr_std_vec_mv_data::fromJSON)
             .setToStringFunc(attr_std_vec_mv_data::toString)

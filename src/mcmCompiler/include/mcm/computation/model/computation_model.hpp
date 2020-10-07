@@ -22,73 +22,8 @@
 #include "include/mcm/target/kmb/barrier_definition.hpp"
 #include "include/mcm/target/kmb/barrier_deps.hpp"
 
-
 namespace mv
 {
-
-    enum class BufferType
-    {
-        Scratch,
-        Input,
-        Output,
-        Profiling,
-    };
-
-    class BufferEntry
-    {
-
-        std::string name_;
-        BufferType type_;
-        uint32_t size_;
-        mv::Order order_;
-        mv::Shape shape_;
-        mv::DType dtype_;
-
-        friend bool operator==(const BufferEntry&, const BufferEntry&);
-
-    public:
-
-        BufferEntry(const std::string& name, BufferType type, const mv::Order& order,
-            const mv::Shape& shape, const mv::DType& dtype);
-
-        const char* getName() const;
-        BufferType getBufferType() const;
-        uint32_t getSize() const;
-        const mv::Order& getOrder() const;
-        const mv::Shape& getShape() const;
-        const mv::DType& getDType() const;
-
-    };
-
-    class BufferMap : public LogSender
-    {
-
-        std::vector<BufferEntry> scratchBuffers_;
-        std::vector<BufferEntry> inputBuffers_;
-        std::vector<BufferEntry> outputBuffers_;
-        std::vector<BufferEntry> profilingBuffers_;
-
-    public:
-
-        void addScratch(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
-        void addInput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
-        void addOutput(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
-        void addProfiling(const std::string& name, const mv::Order& order, const mv::Shape& shape, const mv::DType& dtype);
-
-        void clear(); 
-
-        const BufferEntry* getScratch() const;
-        uint32_t getScratchCount() const;
-        const BufferEntry* getInput() const;
-        uint32_t getInputCount() const;
-        const BufferEntry* getOutput() const;
-        uint32_t getOutputCount() const;
-        const BufferEntry* getProfiling () const;
-        uint32_t getProfilingCount() const;
-
-        std::string getLogID() const;
-
-    };
 
     class ComputationModel : public LogSender
     {
@@ -133,7 +68,6 @@ namespace mv
         std::shared_ptr<Data::OpListIterator> output_;
         std::shared_ptr<std::vector<Data::OpListIterator>> networkInputs_;
         std::shared_ptr<std::vector<Data::OpListIterator>> networkOutputs_;
-        std::shared_ptr<BufferMap> bufferMap_;
 
         std::reference_wrapper<ComputationModel> selfRef_;
 
@@ -199,7 +133,6 @@ namespace mv
         std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::string newName, std::size_t newSize);
         std::shared_ptr<mv::RuntimeBinary> allocateBinaryBuffer(std::size_t newSize);
         std::shared_ptr<mv::RuntimeBinary> getBinaryBuffer();
-        void setName(const std::string& name);
 
         std::reference_wrapper<ComputationModel> getRef();
 
@@ -209,8 +142,6 @@ namespace mv
          * @return compilation descriptor Element*/
         std::shared_ptr<mv::Element>getGlobalConfigParams() const;
         void setGlobalConfigParams(mv::Element& element);
-
-        BufferMap& bufferMap();
 
         std::string getName() const;
         virtual std::string getLogID() const override;
@@ -228,10 +159,6 @@ namespace mv
         json::Object sourceOpsToJSON() const;
     };
 
-    bool operator==(const mv::BufferEntry& lhs, const mv::BufferEntry& rhs);
-
 }
-
-
 
 #endif // COMPUTATION_MODEL_HPP_

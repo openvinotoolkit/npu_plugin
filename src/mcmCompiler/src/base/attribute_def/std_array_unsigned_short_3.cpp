@@ -74,7 +74,7 @@ namespace mv
 
     namespace attr {
         #define COMMA ,
-        MV_REGISTER_ATTR(std::array<unsigned short COMMA 3>, InitArrayShort3)
+        MV_REGISTER_ATTR(std::array<unsigned short COMMA 3>)
             .setToJSONFunc(attr_us3::toJSON)
             .setFromJSONFunc(attr_us3::fromJSON)
             .setToStringFunc(attr_us3::toString)

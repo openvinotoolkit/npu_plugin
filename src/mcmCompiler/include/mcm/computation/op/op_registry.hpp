@@ -75,8 +75,8 @@ namespace mv
             static void defineOpOutput(std::string& output, const std::string& eol, const std::string& opType, OpEntry* const opPtr, std::string token, bool inputVectorTypes, bool checkInputs, bool copiedOp, const std::string& tab);
         };
 
-        #define MV_REGISTER_OP(Name)                                            \
-            KEEP_SYMBOL(OpEntry& __MCM_REGISTER__ ## OpEntry ## __ ## Name) =   \
+        #define MV_REGISTER_OP(Name)															\
+            static ATTRIBUTE_UNUSED(OpEntry& CONCATENATE(__ ## OpEntry ## __, __COUNTER__)) =	\
                 mv::op::OpRegistry::instance().enter(STRV(Name))
 
 

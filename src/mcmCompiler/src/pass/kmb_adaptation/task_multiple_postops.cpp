@@ -15,7 +15,7 @@ namespace mv
         MV_REGISTER_PASS(TaskMultiplePostOps)
         .setFunc(taskMultiplePostOpsFcn)
         .setDescription(
-            "Resolve DPUTasks with multiple postops."
+        "Resolve DPUTasks with multiple postops."
         );
     }
 }
@@ -34,11 +34,11 @@ void resolveRelu(mv::Data::OpListIterator& opIt)
     auto ppeFF = opIt->get<mv::PPETask>("PPETask").getFixedFunction();
 
     auto newPpeFF = mv::PPEFixedFunction(
-                        ppeFF.getLReluMult(),
-                        ppeFF.getLReluShift(),
-                        std::max(ppeFF.getLowClamp(), 0),
-                        ppeFF.getHighClamp()
-                    );
+            ppeFF.getLReluMult(),
+            ppeFF.getLReluShift(),
+            std::max(ppeFF.getLowClamp(), 0),
+            ppeFF.getHighClamp()
+    );
 
     auto layers = ppeFF.getLayers();
     removeFromVector<mv::PPELayerType>(layers, mv::PPELayerType("Relu"));

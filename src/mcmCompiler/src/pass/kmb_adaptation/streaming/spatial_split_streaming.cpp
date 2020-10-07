@@ -140,7 +140,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
     size_t biasEndIndex = 0;
 
     bool isDilatedConv = op->hasAttr("DilatedSubConv") && op->get<bool>("DilatedSubConv");
-    bool avoidCmxConcat = op->hasAttr("avoidCmxConcat") && op->get<bool>("avoidCmxConcat");
 
     //todo::find a better location for this. Should not be slice.. but something like Copy layer... will do with dummy slice for speed
     //aslo.. have no idea why it's not working for the scenarion stream->concat->copySlice->stream when all is in CMX ... need debug.
@@ -265,7 +264,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
                                     op->get<mv::DType>("dType"),
                                     op->get<mv::QuantizationParams>("quantParams"),
                                     streamingOpName);
-            newTensor->setOrder(mv::Order("NHWC"));
 
             if (split != number_of_splits - 1)
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_CHANNEL_DIMENSION];
@@ -421,13 +419,6 @@ mv::Data::TensorIterator solveWeightsTiling(mv::ComputationModel& model,
 
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
-    if(op->hasAttr("schedule_for_dpu_dma_overlap"))
-    {
-        auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
-        om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
-    }
-    if(avoidCmxConcat)
-        om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
     if(mixedToFloat)
         om.getSourceOp(concat)->set<bool>("mixedToFloat", mixedToFloat);
 
@@ -456,7 +447,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
     // Spatial H || W stream, need only overwrite shape, padding
     auto attrsToCopy = op->getAttrs({"padding", "shape"});
     std::string splitStrategy = op->get<std::string>("splitStrategy");
-    bool avoidCmxConcat = op->hasAttr("avoidCmxConcat") && op->get<bool>("avoidCmxConcat");
 
     std::vector<mv::Data::TensorIterator> slices;
     std::vector<mv::Data::TensorIterator> newTensors(number_of_splits);
@@ -541,7 +531,7 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
 
-            if (opType == "Conv"){
+            if (opType == "Conv")
                 newTensor = om.conv(slice,
                                 op->getInputTensor(1),
                                 kernelStride,
@@ -551,8 +541,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                                 op->get<mv::DType>("dType"),
                                 op->get<mv::QuantizationParams>("quantParams"),
                                 streamingOpName);
-                newTensor->setOrder(mv::Order("NHWC"));
-            }
             if (split != number_of_splits - 1)
             {
                 symmetrical_first_dimension = newTensor->getShape()[mv::IO_HEIGHT_DIMENSION];
@@ -671,13 +659,6 @@ mv::Data::TensorIterator solveSpatialTiling(mv::ComputationModel& model,
                     op->getName() + "concat_");
     om.getSourceOp(concat)->set<unsigned>("opId", opId);
     om.getSourceOp(concat)->set<std::string>("splitStrategy", splitStrategy);
-    if(op->hasAttr("schedule_for_dpu_dma_overlap"))
-    {
-        auto pipelineId = op->get<unsigned>("schedule_for_dpu_dma_overlap");
-        om.getSourceOp(concat)->set<unsigned>("schedule_for_dpu_dma_overlap", pipelineId);
-    }
-    if(avoidCmxConcat)
-        om.getSourceOp(concat)->set<bool>("avoid_cmx_concat", true);
     concat->set<mv::Tensor::MemoryLocation>("Location", outputTensor->get<mv::Tensor::MemoryLocation>("Location"));
 
     return concat;
@@ -902,7 +883,7 @@ void streamingOperationsFcn(const mv::pass::PassEntry& pass,
         //NOTE: Graph optimizer will never do that but needs to be here for manual Scheduling
         if (!om.checkOp(nodeName))
         {
-            pass.log(mv::Logger::MessageType::Debug, nodeName + " is not present in model, skipping streaming");
+            pass.log(mv::Logger::MessageType::Info, nodeName + " is not present in model, skipping streaming");
             continue;
         }
         auto opIt =  om.getOp(nodeName);

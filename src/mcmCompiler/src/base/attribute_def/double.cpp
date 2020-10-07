@@ -55,7 +55,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(double)
+        MV_REGISTER_ATTR(double)
             .setToJSONFunc(attr_double::toJSON)
             .setFromJSONFunc(attr_double::fromJSON)
             .setToStringFunc(attr_double::toString)

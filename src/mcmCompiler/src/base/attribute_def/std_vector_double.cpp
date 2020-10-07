@@ -58,7 +58,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_ATTR(std::vector<double>, InitVecDouble)
+        MV_REGISTER_ATTR(std::vector<double>)
             .setToJSONFunc(attr_std_vector_double::toJSON)
             .setFromJSONFunc(attr_std_vector_double::fromJSON)
             .setToStringFunc(attr_std_vector_double::toString)

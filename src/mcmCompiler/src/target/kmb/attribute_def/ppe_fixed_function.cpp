@@ -50,7 +50,7 @@ namespace mv
 
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(PPEFixedFunction)
+	    MV_REGISTER_ATTR(PPEFixedFunction)
 		.setToJSONFunc(attr_ppe_fixed_function::toJSON)
 		.setFromJSONFunc(attr_ppe_fixed_function::fromJSON)
 		.setToStringFunc(attr_ppe_fixed_function::toString);

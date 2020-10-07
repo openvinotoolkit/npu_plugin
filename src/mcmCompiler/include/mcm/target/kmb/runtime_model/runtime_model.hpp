@@ -41,7 +41,6 @@ namespace mv
             MVCNN::GraphFileT graphFile_;
             std::shared_ptr<std::vector<char>> binaryData_;
             static const std::unordered_map<std::string, MVCNN::DType> dTypeMapping_;
-            static const std::unordered_map<MVCNN::DType, std::string> reverseDTypeMapping_;
             static const std::unordered_map<std::string, MVCNN::MemoryLocation> memoryLocationMapping_;
             static const std::unordered_map<std::string, MVCNN::DPULayerType> dpuLayerMapping_;
             static const std::unordered_map<PPELayerTypeEnum, MVCNN::PPELayerType, EnumClassHash> ppeLayerTypeMapping_;
@@ -61,7 +60,6 @@ namespace mv
             static MVCNN::MemoryLocation convertAllocatorToMemoryLocale(const std::string& allocatorName,
                                                                         mv::Tensor::MemoryLocation& tensorLocation);
             static MVCNN::DType convertDtype(const DType& dtype);
-            static DType convertDtype(const MVCNN::DType& dtype);
             static MVCNN::DPULayerType convertTaskOp(const std::string& opName);
             static MVCNN::MPE_Mode convertMPEMode(MPE_Mode mpe);
             static MVCNN::PPELayerType convertPPELayerType(PPELayerTypeEnum ppe);
@@ -150,18 +148,13 @@ namespace mv
             void serialize(const std::string& path);
             void serialize();
             void deserialize(const std::string& path);
-            void deserialize(const char *buffer, int length);
+            void deserialize(char * buffer, int length);
             void buildGraphFile(ComputationModel& cm, Element& compilationDescriptor);
             void buildHeader(ComputationModel& cm, Element& compilationDescriptor);
             void serializeHelper(const std::function<void(MVCNN::GraphFileT& graphFileInstance)>& serializeFcn);
             std::shared_ptr<std::vector<char>> getBlob();
             static void case1MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT>>& toReturn, Data::TensorIterator src, Data::TensorIterator dst, std::uint8_t port, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
             static void case2MC(unsigned numTasks, ComputationModel& cm, mv::DmaDirection direction, mv::Element &compilationDescriptor, bool padFinalOutput, bool dmaToDma, std::vector<std::unique_ptr<MVCNN::TaskT> > &toReturn, Data::TensorIterator src, Data::TensorIterator dst, std::uint8_t port, const std::string &srcAllocator = "", const std::string &dstAllocator = "");
-            const MVCNN::GraphFileT& getGraphFile();
-            void clear();
-    
-            static Order stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims);
-    
     };
 }
 

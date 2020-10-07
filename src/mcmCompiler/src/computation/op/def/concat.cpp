@@ -115,7 +115,7 @@ namespace mv
         .setOptionalArg<mv::QuantizationParams>("quantParams", mv::QuantizationParams({},{},{},{}))
         .setInputCheck(op_concat::inputCheckFcn)
         .setOutputDef(op_concat::outputDefFcn)
-        .setTypeTrait({"executable", "exposed", "optimizable"});
+        .setTypeTrait({"executable", "exposed"});
 
     }
 

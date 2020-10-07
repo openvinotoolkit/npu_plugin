@@ -33,7 +33,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(PPETask)
+	    MV_REGISTER_ATTR(PPETask)
 		.setToJSONFunc(attr_ppe_task::toJSON)
 		.setFromJSONFunc(attr_ppe_task::fromJSON)
 		.setToStringFunc(attr_ppe_task::toString);

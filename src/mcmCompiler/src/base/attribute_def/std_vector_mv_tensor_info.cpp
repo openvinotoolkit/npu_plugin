@@ -52,7 +52,7 @@ namespace mv
 
     namespace attr {
 
-        MV_REGISTER_ATTR(std::vector<mv::TensorInfo>, InitVecTensorInfo)
+        MV_REGISTER_ATTR(std::vector<mv::TensorInfo>)
                 .setToJSONFunc(attr_std_vector_tensor_info::toJSON)
                 .setFromJSONFunc(attr_std_vector_tensor_info::fromJSON)
                 .setToStringFunc(attr_std_vector_tensor_info::toString);

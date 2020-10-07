@@ -33,6 +33,7 @@ namespace mv
 void placeNeutralMaxPoolBefore(const mv::pass::PassEntry&, mv::ComputationModel& model, mv::TargetDescriptor&, mv::Element&, mv::Element&)
 {
     mv::OpModel om(model);
+    mv::DataModel dm(model);
     auto concats = om.getOps("Concat");
 
     for (auto& concatOp : concats)

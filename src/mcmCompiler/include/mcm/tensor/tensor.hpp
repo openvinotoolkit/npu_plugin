@@ -41,19 +41,6 @@ namespace mv
             bool forced_;
             //bool relocatable need this?
 
-            static std::map<std::string,Location> createNamingMap() {
-                    return {{"NNCMX",NNCMX},
-                            {"UPACMX",UPACMX},
-                            {"DDR",DDR},
-                            {"INPUT",INPUT},
-                            {"OUTPUT",OUTPUT},
-                            {"BLOB",BLOB},
-                            {"VIRTUAL",VIRTUAL},
-                            {"CSRAM",CSRAM},
-                            {"DEFAULT",DEFAULT}
-                    };
-            }
-
         public:
             MemoryLocation(const std::string& location);
             MemoryLocation(const Location location) : location_(location),forced_(false) {}

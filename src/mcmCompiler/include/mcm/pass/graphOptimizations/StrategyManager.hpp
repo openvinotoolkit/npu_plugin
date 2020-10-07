@@ -186,7 +186,6 @@ public:
     std::vector<mv::Element> convertClusteringStrategyToElement(CriticalPathNodes& strategiesToConvert, std::shared_ptr<mv::Element> compDesc);
     std::vector<mv::Element> convertLocationStrategyToElement(CriticalPathNodes& strategiesToConvert);
     std::vector<mv::Element> convertSparsityStrategyToElement(CriticalPathNodes& strategiesToConvert);
-    std::vector<mv::Element> convertPipeliningStrategyToElement(CriticalPathNodes &strategiesToConvert);
     void saveStrategyToJsonFile(std::vector<mv::Element> &stategiesToSave,std::string jsonOutputFileName);
     void saveStrategyToCompilationDescriptor(vector<mv::Element> &stategiesToSave, std::shared_ptr<mv::Element> compDesc);
     void saveMetaStrategy(CriticalPathNodes& criticalPathNodes);
@@ -207,8 +206,7 @@ public:
     void graphParameterOptimizations();
 
     //template methods to be overwritten
-    virtual bool isPipeliningPossible(mv::Op& op, StrategySet& strategy, bool parentSpilling);
-    virtual void generateStrategySetForLayer(mv::Op& op,std::vector<StrategySet>& strategyVec);
+    virtual void generateStrategySetForLayer(mv::Op& op,vector<StrategySet>& strategyVec);
     virtual double transitionCost(Op& parentOp,Op& childOp,StrategySet& parent,StrategySet& child);
     virtual ~StrategyManager() {};
 };

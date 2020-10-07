@@ -32,28 +32,6 @@ const std::unordered_map<std::string, MVCNN::DType> mv::RuntimeModel::dTypeMappi
     {"Log", MVCNN::DType::DType_LOG}
 };
 
-const std::unordered_map<MVCNN::DType, std::string> mv::RuntimeModel::reverseDTypeMapping_ =
-{
-    {MVCNN::DType::DType_FP64, "Float64"},
-    {MVCNN::DType::DType_FP32, "Float32"},
-    {MVCNN::DType::DType_FP16, "Float16"},
-    {MVCNN::DType::DType_FP8, "Float8"},
-    {MVCNN::DType::DType_U64, "UInt64"},
-    {MVCNN::DType::DType_U32, "UInt32"},
-    {MVCNN::DType::DType_U16, "UInt16"},
-    {MVCNN::DType::DType_U8, "UInt8"},
-    {MVCNN::DType::DType_I64, "Int64"},
-    {MVCNN::DType::DType_I32, "Int32"},
-    {MVCNN::DType::DType_I16, "Int16"},
-    {MVCNN::DType::DType_I8, "Int8"},
-    {MVCNN::DType::DType_I4, "Int4"},
-    {MVCNN::DType::DType_I2, "Int2"},
-    {MVCNN::DType::DType_I2X, "Int2X"},
-    {MVCNN::DType::DType_I4X, "Int4X"},
-    {MVCNN::DType::DType_BIN, "Bin"},
-    {MVCNN::DType::DType_LOG, "Log"}
-};
-
 const std::unordered_map<std::string, MVCNN::MemoryLocation> mv::RuntimeModel::memoryLocationMapping_ =
 {
     {"ProgrammableInput", MVCNN::MemoryLocation::MemoryLocation_ProgrammableInput},
@@ -152,11 +130,6 @@ void mv::RuntimeModel::alignTensor(mv::ComputationModel& cm, std::unique_ptr<MVC
 MVCNN::DType mv::RuntimeModel::convertDtype(const mv::DType& dtype)
 {
     return dTypeMapping_.at(dtype.toString());
-}
-
-mv::DType mv::RuntimeModel::convertDtype(const MVCNN::DType& dtype)
-{
-    return reverseDTypeMapping_.at(dtype);
 }
 
 MVCNN::MemoryLocation mv::RuntimeModel::convertAllocatorToMemoryLocale(const std::string& allocatorName,
@@ -357,55 +330,8 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     }
     else
     {
-        //NOTE: Sometimes we need to align and use the strides[0], cause when we change axis in concats
-        //in the end we need to mutiply the offsets with the dimensions of the last master Buffer, but
-        //WATCH OUT!!! not when the axis remain the same...more See allocate_memory_kmb.cpp line 552
         auto strides = tensorBufferIt->getStrides();
-        std::size_t leading_offset = strides[0];
-        auto temporaryBuffer = tensorBufferIt;
-        auto recursiveBuffer = tensorBufferIt;
-        if (t->hasAttr("leftIndex"))
-        {
-            bool sameAxisMasterBuffers = true;
-            while (recursiveBuffer->getData()->getName() !=
-                   (*tensorAllocator.getTopMasterBuffer(recursiveBuffer))->getData()->getName())
-            {
-                recursiveBuffer = tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
-                auto newMaster = *tensorAllocator.getSimpleMasterBuffer(recursiveBuffer);
-                if (dm.getTensor(recursiveBuffer->getData()->getName())->hasAttr("concatAxis") &&
-                        dm.getTensor(newMaster->getData()->getName())->hasAttr("concatAxis") )
-                {
-                    if (dm.getTensor(recursiveBuffer->getData()->getName())->get<std::string>("concatAxis") !=
-                            dm.getTensor(newMaster->getData()->getName())->get<std::string>("concatAxis"))
-                    {
-                        sameAxisMasterBuffers = false;
-                        break;
-                    }
-                }
-            }
-            if (sameAxisMasterBuffers)
-            {
-                leading_offset = t->get<std::size_t>("leftIndex") * toBuild->strides[0];
-                while (temporaryBuffer->getData()->getName() != (*masterBuffer)->getData()->getName())
-                {
-                    temporaryBuffer = temporaryBuffer->getMaster();
-                    if (dm.getTensor(temporaryBuffer->getData()->getName())->hasAttr("leftIndex"))
-                        leading_offset += dm.getTensor(temporaryBuffer->getData()->getName())->get<std::size_t>("leftIndex") *
-                                toBuild->strides[0];
-                }
-            }
-        }
-//        if (leading_offset != strides[0])
-//        {
-//            std::size_t initAddr = 0;
-//            if (t->hasAttr("address"))
-//                initAddr = t->getAddress();
-//            else
-//                initAddr = (*masterBuffer)->getOffset();
-//            std::cout << "Tensor with name: " + t->getName()  + " and with data index: " + std::to_string(initAddr) +
-//                         " has difference in values leading offset of: " + std::to_string(leading_offset) + " and stride[0]: " +
-//                         std::to_string(strides[0]) << std::endl;
-//        }
+        auto leading_offset = strides[0];
         toBuild->locale_index = std::vector<unsigned int>(1,0);
 
         // This part is for concat
@@ -619,6 +545,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         if(!t->isSparse())
         {
+            auto parentOp = om.getSourceOp(t);
 
             // SOK non-sparse weights are serialised individually so that they can be compressed by the HDE
             // Weight tables and sparsity maps are not compressed
@@ -681,21 +608,19 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
     {
         unsigned byte_index;
 
-        if (subtensor.hasAttr("offset_byte_index"))
-        {
+        if (subtensor.hasAttr("offset_byte_index")) {
           byte_index = subtensor.get<unsigned>("offset_byte_index");
-        }
-        else
-        {
+        } else {
           auto offset = subtensor.get<std::vector<std::size_t>>("offset");
           auto index = t->getOrder().subToInd(t->getShape(), offset);
           byte_index = index * t->getDType().getSizeInBits() / 8;
           auto tensorStrides = t->computeNumericStrides();
           tensorStrides.push_back(t->getDType().getSizeInBits() / 8);
           std::reverse(tensorStrides.begin(), tensorStrides.end());
-          //NOTE: the division is going to extinguish the data type offset!!!
-          if(numericStrides[4] != tensorStrides[4])
-              byte_index = index * (double(numericStrides[4])/double(tensorStrides[4])) * t->getDType().getSizeInBits() / 8;
+
+          if(numericStrides[4] != tensorStrides[4]){
+              byte_index = index * (numericStrides[4]/tensorStrides[4]);
+          }
         }
 
         auto masterBuffer = tensorAllocator.getTopMasterBuffer(tensorBufferIt);
@@ -737,7 +662,7 @@ std::unique_ptr<MVCNN::TensorReferenceT> mv::RuntimeModel::buildTensorReferenceT
               std::reverse(tensorStrides.begin(), tensorStrides.end());
 
               if(numericStrides[4] != tensorStrides[4]){
-                  byte_index = index * (double(numericStrides[4])/double(tensorStrides[4]));
+                  byte_index = index * (numericStrides[4]/tensorStrides[4]);
               }
               net_address += byte_index;
           }
@@ -822,18 +747,13 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     toBuild->version = std::move(originalHeader->version);
     toBuild->original_structure = std::move(originalHeader->original_structure);
     toBuild->resources = buildResourcesT(cm, compilationDescriptor);
-    toBuild->identifier = cm.getName();
 
     // Support multiple inputs
     auto numInputs = om.getNumNetworkInputs();
     if (numInputs == 1)
     {
-        auto inputIt = om.getInput()->getOutputTensor(0);
-        // Rename input tensor - same as input operation name
-        inputIt->setName(om.getInput()->getName());
         toBuild->net_input = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
         toBuild->net_input[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getInput()->getOutputTensor(0));
-        cm.bufferMap().addInput(inputIt->getName(), inputIt->getOrder(), inputIt->getShape(), inputIt->getDType());
     }
     else
     {
@@ -850,11 +770,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
     if (numOutputs == 1)
     {
         toBuild->net_output = std::vector<std::unique_ptr<MVCNN::TensorReferenceT>>(1);
-        auto outputIt = om.getOutput()->getInputTensor(0);
-        // Rename output tensor - same as output operation name
-        outputIt->setName(om.getOutput()->getName());
-        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
-        cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
+        toBuild->net_output[0] = buildTensorReferenceT(cm, compilationDescriptor, om.getOutput()->getInputTensor(0));
     }
     else
     {
@@ -863,11 +779,7 @@ std::unique_ptr<MVCNN::SummaryHeaderT> mv::RuntimeModel::buildSummaryHeaderT(Com
         for (size_t i = 0; i < implicitOutputOps.size(); i++)
         {
             auto destOp = implicitOutputOps[i];
-            auto outputIt = destOp->getInputTensor(0);
-            // Rename output tensor - same as output operation name
-            outputIt->setName(destOp->get("networkOutputName"));
-            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, outputIt);
-            cm.bufferMap().addOutput(outputIt->getName(), outputIt->getOrder(), outputIt->getShape(), outputIt->getDType());
+            toBuild->net_output[i] = buildTensorReferenceT(cm, compilationDescriptor, destOp->getOutputTensor(0));
         }
     }
 
@@ -919,8 +831,8 @@ std::unique_ptr<MVCNN::ResourcesT> mv::RuntimeModel::buildResourcesT(Computation
     setIfPresent<uint32_t, unsigned>(nn_cmx_per_slice, *globalConfigurationParams, "totalCmx");
     toBuild->nn_cmx_per_slice = nn_cmx_per_slice;
     setIfPresent<uint32_t, unsigned>(toBuild->nn_cmx_slice_amount, *globalConfigurationParams, "clusters");
-    // Set DDR scratch value to high watermark, which is saved in BufferMap
-    toBuild->ddr_scratch = (cm.bufferMap().getScratch()) ? cm.bufferMap().getScratch()->getSize() : 0;
+    setIfPresent<uint32_t, int>(toBuild->ddr_scratch, *globalConfigurationParams, "DDRScratch");
+
     return toBuild;
 }
 
@@ -1020,19 +932,11 @@ std::vector<std::unique_ptr<MVCNN::TaskListT>> mv::RuntimeModel::buildTaskListT(
     toBuild[1] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
     toBuild[2] = std::unique_ptr<MVCNN::TaskListT>(new MVCNN::TaskListT());
 
-    // Get DPU or UPA task in order of the scheduling number assigned by the scheduler
-    auto sortedOps = controlModel.schedulingSortDPUorUPA();
-
-    // As there is only one DMA controller in KMB we need to be careful not
-    // to sealize DMAs in the incorrect order
-    // THe (DMA-level, DPU-schedule-number) attribute is used to sort them
-    auto sortedDMAOps = controlModel.schedulingSortDMA();
-
-    sortedOps.insert(sortedOps.end(), sortedDMAOps.begin(), sortedDMAOps.end());
+    auto topologicallySortedOps = controlModel.schedulingSort();
 
     int initialId = 0;
 
-    for(auto vecIt = sortedOps.begin(); vecIt != sortedOps.end(); ++vecIt)
+    for(auto vecIt = topologicallySortedOps.begin(); vecIt != topologicallySortedOps.end(); ++vecIt)
     {
         auto opIt = *vecIt;
         std::unique_ptr<MVCNN::TaskListT> * listToUse = &toBuild[0]; // default to DPU task
@@ -1176,7 +1080,7 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
             totalSize = src->getSubTensor(i).get<int>("CompressedSize");
         else
             totalSize *= src->getDType().getSizeInBits() / 8;
-        
+
         if (totalSize == 0)
             return false;
 
@@ -1196,8 +1100,6 @@ bool checkUnstridedDMA(mv::Data::TensorIterator src, int i, MVCNN::NNDMATaskT * 
         tmp->dst->dimensions = dimensionsdst;
         tmp->dst->strides = strides;
         tmp->dst->data_dtype = dtype;
-
-        return true;
     }
     return true;
 }
@@ -3467,7 +3369,7 @@ void mv::RuntimeModel::deserialize(const std::string& path)
     deserialize(binaryData_->data(), binaryData_->size());
 }
 
-void mv::RuntimeModel::deserialize(const char *dataBuffer, int length)
+void mv::RuntimeModel::deserialize(char * dataBuffer, int length)
 {
     flatbuffers::Verifier verifier(reinterpret_cast<const unsigned char*>(dataBuffer), length);
     if (!MVCNN::VerifyGraphFileBuffer(verifier))
@@ -3482,46 +3384,6 @@ std::shared_ptr<std::vector<char>> mv::RuntimeModel::getBlob()
     if(nullptr == binaryData_)
         serialize();
     return binaryData_;
-}
-
-const MVCNN::GraphFileT& mv::RuntimeModel::getGraphFile()
-{
-    return graphFile_;
-}
-
-void mv::RuntimeModel::clear()
-{
-    graphFile_ = MVCNN::GraphFileT();
-    binaryData_->clear();
-}
-
-mv::Order mv::RuntimeModel::stridesToOrder(std::vector<unsigned> strides, std::vector<unsigned> dims)
-{
-
-    std::vector<std::size_t> contVector;
-    std::map<float, unsigned> indices;
-
-    // Hardcoded for 3d tensors 
-    // TODO update when 3d RT ops enabled
-    auto current_idx = 0;
-    for (unsigned i = 0; i < 4; ++i)
-    {
-        // if stride not already in map, add it
-        float unique_stride = strides[i] + float(i) / 100;
-        if (indices.find(unique_stride) == indices.end())
-            indices[unique_stride] = current_idx++;
-    }
-
-    for (auto it = indices.begin(); it != indices.end(); ++it)
-        contVector.push_back(it->second);
-
-    auto order = OrderRegistry::instance().getLabel(contVector);
-
-    // Check for non-standard order & replace with standard order if tensor dimension is flat
-    if (order == "NHCW" && dims[mv::IO_CHANNEL_DIMENSION] == 1)
-        order = "NCHW";
-
-    return order;
 }
 
 void mv::RuntimeModel::serializeHelper(const std::function<void(MVCNN::GraphFileT&)>& serializeCallback) {

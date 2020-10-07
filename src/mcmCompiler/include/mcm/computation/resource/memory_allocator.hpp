@@ -51,9 +51,7 @@ namespace mv
 
         };
 
-        using MemoryBufferPtr = std::shared_ptr<MemoryBuffer>;
-        using MemoryBufferSet = std::set<MemoryBufferPtr, BufferOrderComparator>;
-        using BufferIterator = MemoryBufferSet::iterator;
+        using BufferIterator = std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>::iterator;
 
         class MemoryBuffer
         {
@@ -191,7 +189,7 @@ namespace mv
         /**
          * @brief Entires representing buffers alllocted by the allocator for each computation stage
          */
-        std::map<unsigned, MemoryBufferSet> entries_;
+        std::map<unsigned, std::set<std::shared_ptr<MemoryBuffer>, BufferOrderComparator>> entries_;
 
         void placeBuffers_(unsigned stageIdx);
         std::deque<std::size_t> computeStrides_(const Order& order, const std::vector<std::size_t>& leftPadding,
@@ -245,7 +243,6 @@ namespace mv
         BufferIterator move(BufferIterator slaveBuffer, BufferIterator masterBuffer, const std::vector<std::size_t>& leftPadding,
             const std::vector<std::size_t>& rightPadding, bool propagate_to_slaves=false);
         BufferIterator getTopMasterBuffer(BufferIterator t);
-        BufferIterator getSimpleMasterBuffer(BufferIterator t);
 
         bool deallocate(Data::TensorIterator tensor, std::size_t stageIdx);
         void deallocateAll(std::size_t stageIdx);

@@ -33,7 +33,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(DmaDirection)
+	    MV_REGISTER_ATTR(DmaDirection)
 		.setToJSONFunc(attr_dma_direction::toJSON)
 		.setFromJSONFunc(attr_dma_direction::fromJSON)
 		.setToStringFunc(attr_dma_direction::toString);

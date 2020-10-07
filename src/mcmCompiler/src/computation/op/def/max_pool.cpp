@@ -54,8 +54,8 @@ namespace mv
 
             size_t W = Tiling::inferOutputSize(inputShape[IO_WIDTH_DIMENSION], padding[0], padding[1], kSize[0], stride[0]);
             size_t H = Tiling::inferOutputSize(inputShape[IO_HEIGHT_DIMENSION], padding[2], padding[3], kSize[1], stride[1]);
-            size_t C = inputShape[IO_CHANNEL_DIMENSION];
-            size_t N = inputShape[IO_BATCH_DIMENSION];
+            auto C = inputShape[IO_CHANNEL_DIMENSION];
+            auto N = inputShape[IO_BATCH_DIMENSION];
 
             Shape outputShape({W, H, C, N});
 

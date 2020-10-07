@@ -33,7 +33,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(bool)
+        MV_REGISTER_ATTR(bool)
             .setToJSONFunc(attr_bool::toJSON)
             .setFromJSONFunc(attr_bool::fromJSON)
             .setToStringFunc(attr_bool::toString)

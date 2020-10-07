@@ -116,7 +116,7 @@ namespace mv
     }
 
     namespace attr {
-        MV_REGISTER_SIMPLE_ATTR(QuantizationParams)
+        MV_REGISTER_ATTR(mv::QuantizationParams)
             .setToJSONFunc(attr_quantization_params::toJSON)
             .setFromJSONFunc(attr_quantization_params::fromJSON)
             .setToStringFunc(attr_quantization_params::toString)
