@@ -1444,10 +1444,9 @@ namespace mv
 
                 // Check for need for A0 SOH Sparsity workaround, (SOH conv with kernel > 1)
                 // if needed, check memory constraints as for sparse tensor
-                if ( op.getOpType() == "Conv" ) {
+                if (op.getOpType() == "Conv" ) {
                     if( clustering == "SplitOverH" and
-                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1 or
-                        op.getInputTensor(1)->getShape()[KERNEL_WIDTH]  > 1) and
+                        (op.getInputTensor(1)->getShape()[KERNEL_HEIGHT] > 1) and
                         !isCMConv and
                         referenceDevice == "A0")
                         {
