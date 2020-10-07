@@ -336,6 +336,7 @@ class CMX_Concatenation {
     CMX_Concatenation(mv::OpModel& model, std::string ignore_list="")
       : omodel_(model), ignore_these_concats_() {
       populate_ignore_list(ignore_list);
+      compute_dpu_depth_map();
     }
 
     static const std::string cmx_concat_control_edge_attribute() {
@@ -482,10 +483,28 @@ class CMX_Concatenation {
       return false;
     }
 
+    //TODO(vamsikku): temporary work around partially written concat buffer //
+    bool does_rep_dpu_has_lower_depth_than_others(
+        const concat_subgraph_t& subgraph) const {
+      operation_t dpu_rep = subgraph.representative_dpu_;
+      auto itr = dpu_depth_map_.find(dpu_rep);
+      if (itr == dpu_depth_map_.end()) {
+        throw exception_t("DPU missing in depth map");
+      }
+      size_t dpu_rep_depth = itr->second;
+
+      for (operation_t dpu : subgraph.dpu_in_) {
+        auto itr = dpu_depth_map_.find(dpu);
+        if (itr->second > dpu_rep_depth) { return true; }
+      }
+      return false;
+    }
+
     bool is_this_an_unsupported_concat(const concat_subgraph_t& subgraph) const{
       return has_no_cmx_concat_flag(subgraph) ||
         does_this_concat_have_any_crops(subgraph) ||
         is_this_a_complex_concat(subgraph) ||
+        does_rep_dpu_has_lower_depth_than_others(subgraph) ||
         does_this_concat_childs_service_compiler_provided_sparsity(subgraph);
     }
 
@@ -1148,6 +1167,60 @@ class CMX_Concatenation {
       return (total_dpu_concats + total_dma_writes);
     }
 
+    void compute_dpu_depth_map() {
+      dpu_depth_map_.clear();
+      mv::OpModel &model = omodel_;
+      //////////////////////////////////////////////////////////////////////////
+      std::list<operation_t> zero_in_degree_nodes[2UL];
+      std::unordered_map<operation_t, size_t> in_degree_map;
+      size_t curr_depth = 0;
+
+      // STEP-0: compute the in-degree's of all nodes //
+      for (auto op_itr = model.opBegin(); op_itr != model.opEnd(); ++op_itr) {
+        size_t in_degree = 0;
+        for (auto pitr=op_itr.leftmostParent(); pitr!=model.opEnd(); ++pitr) {
+          ++in_degree;
+        }
+        operation_t op = &(*op_itr);
+        in_degree_map[ op ] = in_degree;
+        if (!in_degree) {
+          zero_in_degree_nodes[0].push_back(op);
+        }
+      }
+
+      while (!zero_in_degree_nodes[curr_depth%2UL].empty()) {
+        bool parity = ((curr_depth%2UL) == 1UL);
+        for (auto zitr=zero_in_degree_nodes[parity].begin();
+              zitr!=zero_in_degree_nodes[parity].end(); ++zitr) {
+
+          // update the in-degree //
+          mv::Data::OpListIterator zop_itr = model.getOp((*zitr)->getName());
+          for (auto citr=zop_itr.leftmostChild(); citr!=model.opEnd(); ++citr) {
+            operation_t cop = &(*citr);
+            auto ditr = in_degree_map.find(cop);
+            if ( (ditr == in_degree_map.end()) || (ditr->second == 0UL) ) {
+              throw "Missing entry in the in-degree map (or)"
+                  " invalid in-degree for op= " + cop->getName();
+            }
+            --(ditr->second);
+            if (!(ditr->second)) {
+              zero_in_degree_nodes[!parity].push_back(cop);
+              if (cop->getOpType() == "DPUTask") {
+                dpu_depth_map_[cop] = curr_depth;
+              }
+            }
+          }
+        }
+        zero_in_degree_nodes[parity].clear();
+        curr_depth++;
+      }
+      //////////////////////////////////////////////////////////////////////////
+
+    }
+
+
+
+
     // When a one concat is transformed from DDR concat to CMX concat it uses
     // CMX space which needs to locked until all DPUs which read from the
     // concat are finished. So we need charge this in the input space
@@ -1155,6 +1228,7 @@ class CMX_Concatenation {
     std::unordered_map<operation_t, size_t> resource_increase_delta_;
     mv::OpModel& omodel_;
     std::unordered_set<std::string> ignore_these_concats_;
+    std::unordered_map<operation_t, size_t> dpu_depth_map_;
 }; // class CMX_Concatenation //
 
 
