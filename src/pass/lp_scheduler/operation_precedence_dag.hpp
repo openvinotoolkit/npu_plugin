@@ -330,7 +330,7 @@ class Operation_Dag {
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
           "ImplicitInputSlice", "ImplicitJoin"} ),
-      cmx_concat_subgraphs_(), pseudo_edge_set_() {
+      cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() {
         init_from_model(model);
     }
 
@@ -343,7 +343,7 @@ class Operation_Dag {
       implicit_op_types_( {"Slice", "Crop", "Copy", "Align", "ImplicitReshape",
           "ImplicitPermute", "ImplicitOutput", "ImplicitUnion", "ImplicitInput",
           "ImplicitInputSlice", "ImplicitJoin"} ),
-        cmx_concat_subgraphs_(), pseudo_edge_set_() { }
+        cmx_concat_subgraphs_(), eltwise_rep_map_(), pseudo_edge_set_() { }
 
     void reset(model_t& model) { init_from_model(model); }
 
@@ -435,6 +435,56 @@ class Operation_Dag {
       // reinit the DAG with fresh op model //
       reset_from_cmx_concat_control_edges(omodel, cmx_concat_control_edges);
     }
+
+    bool is_inplace_op(operation_t op) const {
+      return eltwise_rep_map_.find(op) != eltwise_rep_map_.end();
+    }
+    operation_t get_inplace_output_op(operation_t op) const {
+      auto itr = eltwise_rep_map_.find(op);
+      return itr->second;
+    }
+
+    template<typename T>
+    bool does_this_op_generate_sparse_output(mv::OpModel& model, T op) {
+      auto op_itr = model.getOp(op->getName());
+      mv::Data::TensorIterator output_tensor_itr =
+          op_itr->getOutputTensor(0UL);
+      return output_tensor_itr->isSparse();
+    }
+
+    void enable_eltwise_transforms(mv::OpModel& model) {
+      eltwise_rep_map_.clear();
+      for (auto op_itr = model.opBegin(); op_itr != model.opEnd(); ++op_itr) {
+        if (op_itr->hasAttr("inplace_eltwise_rep")) {
+          std::string parent_name =
+              op_itr->get<std::string>("inplace_eltwise_rep");
+          mv::Data::OpListIterator parent_op_itr = model.getOp(parent_name);
+
+          operation_t parent_op = &(*parent_op_itr);
+          operation_t eltwise_op = &(*op_itr);
+
+          eltwise_rep_map_.insert(std::make_pair(eltwise_op, parent_op));
+        }
+      }
+    }
+
+    operation_t does_this_dpu_have_eltwise_rep(operation_t op) const {
+      auto itr = eltwise_rep_map_.find(op);
+      return (itr == eltwise_rep_map_.end()) ? NULL : itr->second;
+    }
+
+  private:
+
+    template<typename T>
+    bool has_unit_out_degree(T op, mv::OpModel& model) {
+      mv::Data::OpListIterator op_itr = model.getOp(op->getName());
+      auto cop_itr = op_itr.leftmostChild();
+      if (cop_itr == model.opEnd()) { return false; }
+      ++cop_itr;
+      return cop_itr == model.opEnd();
+    }
+
+  public:
 
     void enable_chain_pipeline_transforms(mv::OpModel& omodel) {
       pipeline_chain_algo_t algo(omodel);
@@ -642,6 +692,14 @@ class Operation_Dag {
 
     static bool is_pseudo_input_edge(const dag_t& dag, const operation_t& src,
         const operation_t& sink) { return dag.is_pseudo_edge(src, sink); }
+
+    static bool is_inplace_op(const dag_t& dag, const operation_t& op) {
+      return dag.is_inplace_op(op);
+    }
+    static operation_t get_inplace_output_op(
+        const dag_t& dag, const operation_t& op) {
+      return dag.get_inplace_output_op(op);
+    }
 
     static bool is_data_operation(const dag_t& dag, const operation_t& op) {
       if (op->hasAttr("pipeline_flow_control")) { return false;}
@@ -1640,6 +1698,7 @@ class Operation_Dag {
     operation_t input_op_;
     std::unordered_set<std::string> implicit_op_types_;
     cmx_concat_subgraphs_t cmx_concat_subgraphs_;
+    std::unordered_map<operation_t, operation_t> eltwise_rep_map_;
     pseudo_edge_set_t pseudo_edge_set_;
 }; // class Operation_Dag //
 

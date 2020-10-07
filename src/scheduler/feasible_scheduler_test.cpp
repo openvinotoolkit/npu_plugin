@@ -1344,6 +1344,112 @@ TEST_F(Test_Fixture_Feasible_Memory_Scheduler, simple_spill_test_complex) {
   EXPECT_EQ(original_ops, 5UL);
 }
 
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_inplace_basic) {
+
+  dag_t::adjacency_map_t in = { {"W-1", {"A", "C"}}, {"W-2", {"B"}},
+    {"A", {"B"}}, {"B", {"C"}}, {"C", {} } };
+  dag_t::resource_cost_model_t memory = {{"W-1", 5UL}, {"W-2", 4UL},
+    {"A", 5UL}, {"B", 5UL}, {"C", 0UL} };
+  dag_t::data_op_set_t data_ops = {"W-1", "W-2"};
+  // B is an inplace op //
+  dag_t::inplace_op_map_t inplace_op_map = { {"B", "A"} };
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+  g.reset_inplace_op_map(inplace_op_map);
+  //////////////////////////////////////////////////////////////////////////////
+
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t original_ops = 0;
+  size_t op_a_address_start=0UL, op_a_address_end=0UL;
+  size_t op_b_address_start=0UL, op_b_address_end=0UL;
+
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+      if (scheduled_op.op_ == "A") {
+        op_a_address_start = scheduled_op.begin_resource();
+        op_a_address_end = scheduled_op.end_resource();
+      } else if (scheduled_op.op_ == "B") {
+        op_b_address_start = scheduled_op.begin_resource();
+        op_b_address_end = scheduled_op.end_resource();
+      }
+
+    } else {
+      printf(" resource=<none>\n");
+    }
+  }
+  EXPECT_EQ(original_ops, 5UL);
+  ASSERT_TRUE(op_a_address_start < op_a_address_end);
+  ASSERT_TRUE(op_b_address_start < op_b_address_end);
+  EXPECT_EQ(op_a_address_start, op_b_address_start);
+  EXPECT_EQ(op_a_address_end, op_b_address_end);
+}
+
+TEST_F(Test_Fixture_Feasible_Memory_Scheduler, test_inplace_spilled) {
+
+  dag_t::adjacency_map_t in = { {"W-1", {"A", "C"}}, {"W-2", {"B"}},
+    {"A", {"B"}}, {"B", {"C", "F"}}, {"C", {"D"} }, {"D", {"F"}}, {"F", {}},
+    {"W-3", {"D"}} };
+  dag_t::resource_cost_model_t memory = {{"W-1", 5UL}, {"W-2", 4UL},
+    {"W-3", 5UL}, {"A", 5UL}, {"B", 5UL}, {"C", 0UL}, {"D", 4UL}, {"F", 1UL} };
+  dag_t::data_op_set_t data_ops = {"W-1", "W-2", "W-3"};
+  // B is an inplace op //
+  dag_t::inplace_op_map_t inplace_op_map = { {"B", "A"} };
+
+  dag_t g(in);
+  g.reset_resource_model(memory);
+  g.reset_data_op_set(data_ops);
+  g.reset_inplace_op_map(inplace_op_map);
+  //////////////////////////////////////////////////////////////////////////////
+
+  dynamic_spill_scheduler_t scheduler(g, resource_t(10)), scheduler_end;
+  size_t original_ops = 0;
+  size_t op_a_address_start=0UL, op_a_address_end=0UL;
+  size_t op_b_address_start=0UL, op_b_address_end=0UL;
+
+  for (; scheduler != scheduler_end; ++scheduler) {
+    const scheduled_op_info_t& scheduled_op = *scheduler;
+
+    if (scheduled_op.op_type_name() == std::string("ORIGINAL")) {
+      original_ops++;
+    }
+    printf("op = %-10s  type = %-15s  time = %lu ", scheduled_op.op_.c_str(),
+        scheduled_op.op_type_name(), scheduled_op.time_);
+
+    if (scheduled_op.has_active_resource()) {
+      printf(" resource=[%lu %lu]\n", scheduled_op.begin_resource(),
+          scheduled_op.end_resource());
+      if (scheduled_op.op_ == "A") {
+        op_a_address_start = scheduled_op.begin_resource();
+        op_a_address_end = scheduled_op.end_resource();
+      } else if (scheduled_op.op_ == "B") {
+        op_b_address_start = scheduled_op.begin_resource();
+        op_b_address_end = scheduled_op.end_resource();
+      }
+
+    } else {
+      printf(" resource=<none>\n");
+    }
+  }
+  EXPECT_EQ(original_ops, 8UL);
+  ASSERT_TRUE(op_a_address_start < op_a_address_end);
+  ASSERT_TRUE(op_b_address_start < op_b_address_end);
+  EXPECT_EQ(op_a_address_start, op_b_address_start);
+  EXPECT_EQ(op_a_address_end, op_b_address_end);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 typedef mv::lp_scheduler::Color_Connected_Vertices<dag_t>
   color_connected_vertices_t;
