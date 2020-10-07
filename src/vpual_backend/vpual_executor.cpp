@@ -487,6 +487,9 @@ uint32_t VpualExecutor::extractPhysAddrForInference(const ie::BlobMap& inputs) {
     uint32_t physAddr = 0;
     if (inputs.size() == 1) {
         auto blob = ie::as<ie::MemoryBlob>(inputs.begin()->second);
+        if (blob == nullptr) {
+            THROW_IE_EXCEPTION << "Input cannot be cast to memory blob";
+        }
         auto memoryHolder = blob->rmap();
         physAddr = _allocator->getPhysicalAddress(memoryHolder.as<uint8_t*>());
         if (!physAddr) {

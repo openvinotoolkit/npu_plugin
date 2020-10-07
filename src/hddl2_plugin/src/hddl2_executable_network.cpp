@@ -187,7 +187,7 @@ InferenceEngine::IInferRequest::Ptr ExecutableNetwork::CreateInferRequest() {
 //------------------------------------------------------------------------------
 //      Export
 //------------------------------------------------------------------------------
-void ExecutableNetwork::Export(std::ostream& model) {
+void ExecutableNetwork::ExportImpl(std::ostream& model) {
     auto graphBlob = _networkPtr->getCompiledNetwork();
     model.write(graphBlob.data(), graphBlob.size());
 }

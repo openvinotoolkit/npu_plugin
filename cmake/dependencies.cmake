@@ -150,10 +150,10 @@ endif()
 
 if(ENABLE_HDDL2)
     if(UNIX)
-        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww40)
+        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww38)
         set(ARCH_FORMAT ".tgz")
     else()
-        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww40_Windows)
+        set(HDDLUNITE_ARCHIVE_VERSION RELEASE_ww38_Windows)
         set(ARCH_FORMAT ".zip")
     endif()
 
