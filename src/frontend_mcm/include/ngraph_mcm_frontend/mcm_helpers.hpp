@@ -33,9 +33,6 @@
 
 std::string cvtLogLevelToMCM(vpu::LogLevel lvl);
 
-mv::QuantizationParams makeQuantParams();
-mv::QuantizationParams makeQuantParams(const std::vector<int64_t>& zeroPoints, const std::vector<double>& scales);
-
 mv::Shape cvtShapeToMCM(const ngraph::Shape& shape);
 mv::Shape cvtShapeToMCM(const ngraph::PartialShape& pshape);
 

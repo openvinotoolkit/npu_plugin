@@ -38,14 +38,10 @@ public:
     static McmOpAttrs& get(std::shared_ptr<ngraph::Node> node);
     static void copy(std::shared_ptr<ngraph::Node> src_node, std::shared_ptr<ngraph::Node> dst_node);
 
-    static const mv::QuantizationParams& getQuantParams(std::shared_ptr<ngraph::Node> node);
-    static void setQuantParams(const mv::QuantizationParams& quantParams, std::shared_ptr<ngraph::Node> node);
-
     static const mv::Order& getOrder(std::shared_ptr<ngraph::Node> node, size_t outInd = 0);
     static void setOrder(const mv::Order& order, std::shared_ptr<ngraph::Node> node, size_t outInd = 0);
 
 private:
-    mv::QuantizationParams _mvQuantParams = makeQuantParams();
     std::unordered_map<size_t, mv::Order> _mvOrders;
 };
 

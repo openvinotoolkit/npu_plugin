@@ -129,7 +129,7 @@ void cvtPaddingsFromCeilToFloorMode(
 }
 
 
-void registerOutputs(std::shared_ptr<ngraph::Node> node, std::vector<mv::Data::TensorIterator> mcmOutputs, NodeOutputToMcmMap& mcmOutputsMap) {
+void registerOutputs(std::shared_ptr<ngraph::Node> node, const std::vector<mv::Data::TensorIterator>& mcmOutputs, NodeOutputToMcmMap& mcmOutputsMap) {
     size_t ind = 0;
     for (const auto& mcmOutput : mcmOutputs) {
         mcmOutputsMap.insert({node->output(ind), mcmOutput});
@@ -159,13 +159,17 @@ bool isOutputLayoutSupported(const ie::Layout& outputLayout) {
     return supportedOutLayouts.find(outputLayout) != supportedOutLayouts.end();
 }
 
+static const mv::QuantizationParams& initialQuantParams() {
+    double inf = std::numeric_limits<double>::infinity();
+    static mv::QuantizationParams init{{0}, {1}, {-inf}, {inf}};
+    return init;
+};
+
 void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
     InferenceEngine::DataPtr ieData) {
     auto mvShape = getWHCN(param->get_shape());
     // Use data from InputInfo DataPtr
     // const auto mvDType = mv::DType("UInt8"); // Test framework sets fp32, cvtElemTypeToMCM(param->get_element_type());
-    // const auto mvOrder = mv::Order("NHWC"); // TBD how to get layout from ngraph function?
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(param);
     bool mvNetworkInput = true;
     const auto& opName = param->get_friendly_name();
 
@@ -190,7 +194,7 @@ void convert(std::shared_ptr<ngraph::op::Parameter> param, mv::OpModel& mcmModel
     // MCM Compiler requirements
     // IE_ASSERT(mv::DType("Float16") == mvDType || mv::DType("UInt8") == mvDType);
     // IE_ASSERT(mv::Order("NHWC") == mvOrder);
-    const auto mcmOutput = mcmModel.input(mvShape, mvDType, mvOrder, mvQuantParams, mvNetworkInput, opName);
+    const auto mcmOutput = mcmModel.input(mvShape, mvDType, mvOrder, initialQuantParams(), mvNetworkInput, opName);
 
     registerOutputs(param, {mcmOutput}, mcmOutputsMap);
 }
@@ -257,15 +261,14 @@ void convert(std::shared_ptr<ngraph::op::Constant> constant, mv::OpModel& mcmMod
 
     auto mvDType = cvtElemTypeToMCM(constant->get_element_type());
     const auto mvOrder = mv::Order::getColMajorID(mvShape.ndims()) ; //McmOpAttrs::getOrder(constant);
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(constant);
     const auto& opName = constant->get_friendly_name();
 
     mv::Data::TensorIterator mcmOutput;
     if (constant->get_element_type().is_real()) {
         mvDType = mv::DType("Float32");
-        mcmOutput = mcmModel.constant(constant->cast_vector<double>(), mvShape, mvDType, mvOrder, mvQuantParams, opName);
+        mcmOutput = mcmModel.constant(constant->cast_vector<double>(), mvShape, mvDType, mvOrder, initialQuantParams(), opName);
     } else {
-        mcmOutput = mcmModel.constantInt(constant->cast_vector<int64_t>(), mvShape, mvDType, mvOrder, mvQuantParams, opName);
+        mcmOutput = mcmModel.constantInt(constant->cast_vector<int64_t>(), mvShape, mvDType, mvOrder, initialQuantParams(), opName);
     }
 
     registerOutputs(constant, {mcmOutput}, mcmOutputsMap);
@@ -284,14 +287,13 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
     const auto groupSize = conv->get_group();
 
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(conv);
     const auto& opName = conv->get_friendly_name();
 
     IE_ASSERT(dilations.at(1) == dilations.at(0));
     IE_ASSERT(mv::DType("Default") == mvDType);
 
-    auto inputShape = conv->get_input_shape(0);
-    auto outputShape = conv->get_output_shape(0);
+    const auto inputShape = conv->get_input_shape(0);
+    const auto outputShape = conv->get_output_shape(0);
     IE_ASSERT(4 == inputShape.size());
     IE_ASSERT(4 == outputShape.size());
     const auto inputGroupSize = inputShape.at(1);
@@ -342,7 +344,7 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
             static_cast<unsigned>(dilationX),
-            mvDType, mvQuantParams, opName);
+            mvDType, initialQuantParams(), opName);
         registerOutputs(conv, {mcmConvOutput}, mcmOutputsMap);
     } else {
         const auto mcmConvOutput = mcmModel.conv(
@@ -352,7 +354,7 @@ void convert(std::shared_ptr<McmConv> conv, mv::OpModel& mcmModel, NodeOutputToM
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
             static_cast<uint32_t>(dilationX),
             static_cast<uint32_t>(groupSize),
-            mvDType, mvQuantParams, opName);
+            mvDType, initialQuantParams(), opName);
         registerOutputs(conv, {mcmConvOutput}, mcmOutputsMap);
     }
 }
@@ -364,13 +366,12 @@ void convert(std::shared_ptr<McmBias> bias, mv::OpModel& mcmModel, NodeOutputToM
     const auto mcmBias = mcmInputs.at(1);
 
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(bias);
     const auto& opName = bias->get_friendly_name();
 
     IE_ASSERT(mv::DType("Default") == mvDType);
     const auto mcmBiasOutput = mcmModel.bias(
         mcmData, mcmBias,
-        mvDType, mvQuantParams, opName);
+        mvDType, initialQuantParams(), opName);
 
     registerOutputs(bias, {mcmBiasOutput}, mcmOutputsMap);
 }
@@ -381,7 +382,6 @@ void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmM
 
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& outputQuantParams = McmOpAttrs::getQuantParams(maxPool);
     const auto& opName = maxPool->get_friendly_name();
 
     const auto kernelShape = maxPool->get_kernel();
@@ -408,7 +408,7 @@ void convert(std::shared_ptr<ngraph::op::v1::MaxPool> maxPool, mv::OpModel& mcmM
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
             true,
-            mvDType, outputQuantParams, opName);
+            mvDType, initialQuantParams(), opName);
 
     registerOutputs(maxPool, {mcmMaxPoolOutput}, mcmOutputsMap);
 }
@@ -418,7 +418,6 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
 
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& outputQuantParams = McmOpAttrs::getQuantParams(avgPool);
     const auto& opName = avgPool->get_friendly_name();
 
     const auto kernelShape = avgPool->get_kernel();
@@ -445,18 +444,17 @@ void convert(std::shared_ptr<ngraph::op::v1::AvgPool> avgPool, mv::OpModel& mcmM
             {static_cast<uint16_t>(padLeft), static_cast<uint16_t>(padRight),
              static_cast<uint16_t>(padTop), static_cast<uint16_t>(padBottom)},
              avgPool->get_exclude_pad(), //false,
-             mvDType, outputQuantParams, opName);
+             mvDType, initialQuantParams(), opName);
 
     registerOutputs(avgPool, {mcmAvgPoolOutput}, mcmOutputsMap);
 }
 void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(relu, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(relu);
     const auto& opName = relu->get_friendly_name();
 
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, inputQuantParams, opName);
+    const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, initialQuantParams(), opName);
 
     registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
 }
@@ -464,14 +462,13 @@ void convert(std::shared_ptr<ngraph::op::v0::Relu> relu, mv::OpModel& mcmModel, 
 void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(eltwise);
     const auto& opName = eltwise->get_friendly_name();
     const auto& opType = eltwise->getOperationType();
 
     IE_ASSERT(2 == mcmInputs.size());
     IE_ASSERT(McmEltwise::OperationType::SUM == opType);
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, inputQuantParams, opName);
+    const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, initialQuantParams(), opName);
 
     registerOutputs(eltwise, {mcmEltwiseOutput}, mcmOutputsMap);
 }
@@ -479,14 +476,13 @@ void convert(std::shared_ptr<McmEltwise> eltwise, mv::OpModel& mcmModel, NodeOut
 void convert(std::shared_ptr<ngraph::op::Eltwise> eltwise, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(eltwise, mcmOutputsMap);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(eltwise);
     const auto& opName = eltwise->get_friendly_name();
     const auto& opType = eltwise->eltwise_type;
 
     IE_ASSERT(2 == mcmInputs.size());
     IE_ASSERT(ELTWISE_TYPE::Sum == opType);
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, inputQuantParams, opName + "_FUF");
+    const auto mcmEltwiseOutput = mcmModel.eltwise(mcmInputs, "Add", mvDType, initialQuantParams(), opName + "_FUF");
 
     registerOutputs(eltwise, {mcmEltwiseOutput}, mcmOutputsMap);
 }
@@ -496,7 +492,6 @@ void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmM
     const auto mcmInputs = getMcmInputs(reshape, mcmOutputsMap);
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reshape);
     const auto& opName = reshape->get_friendly_name();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
@@ -505,7 +500,7 @@ void convert(std::shared_ptr<ngraph::op::v1::Reshape> reshape, mv::OpModel& mcmM
 
     mv::Shape newShape = getWHCN(reshape->get_output_shape(0));
 
-    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, inputQuantParams, opName);
+    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, initialQuantParams(), opName);
     registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
 }
 void convert(std::shared_ptr<McmFC> fc, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
@@ -514,10 +509,9 @@ void convert(std::shared_ptr<McmFC> fc, mv::OpModel& mcmModel, NodeOutputToMcmMa
     const auto mcmWeights = mcmInputs.at(1);
 
     const auto mvDType = mv::DType("Default");//cvtElemTypeToMCM(fc->get_element_type());
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(fc);
     const auto& opName = fc->get_friendly_name();
 
-    const auto mcmFCOutput = mcmModel.fullyConnected(mcmData, mcmWeights, mvDType, mvQuantParams, opName);
+    const auto mcmFCOutput = mcmModel.fullyConnected(mcmData, mcmWeights, mvDType, initialQuantParams(), opName);
 
     registerOutputs(fc, {mcmFCOutput}, mcmOutputsMap);
 }
@@ -543,7 +537,6 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
     IE_ASSERT(1 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(power);
     const auto& opName = power->get_friendly_name();
     const float scale = power->scale;
     const float shift = power->shift;
@@ -557,15 +550,15 @@ void convert(std::shared_ptr<ngraph::op::PowerIE> power, mv::OpModel& mcmModel, 
     std::vector<double> weights(weights_size, scale);
     mv::Shape weightsShape = {weights.size()};
     auto mcmWeights = mcmModel.constant(
-        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), makeQuantParams());
+        weights, weightsShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
 
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, mvQuantParams, opName);
+    const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, initialQuantParams(), opName);
     if (0.0f != shift) {
         std::vector<double> biases (weights.size(), shift);
         mv::Shape shiftShape { biases.size() };
-        auto shiftData = mcmModel.constant(biases, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), makeQuantParams());
-        auto biasOutput = mcmModel.bias(mcmScaleOutput, shiftData, mv::DType("Default"), mvQuantParams, opName + "_bias");
+        auto shiftData = mcmModel.constant(biases, shiftShape, mv::DType("Float32"), mv::Order::getColMajorID(1), initialQuantParams());
+        auto biasOutput = mcmModel.bias(mcmScaleOutput, shiftData, mv::DType("Default"), initialQuantParams(), opName + "_bias");
         registerOutputs(power, {biasOutput}, mcmOutputsMap);
     } else {
         registerOutputs(power, {mcmScaleOutput}, mcmOutputsMap);
@@ -577,11 +570,10 @@ void convert(std::shared_ptr<McmScale> scale, mv::OpModel& mcmModel, NodeOutputT
     const auto mcmData = mcmInputs.at(0);
     const auto mcmWeights = mcmInputs.at(1);
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(scale);
     const auto& opName = scale->get_friendly_name();
 
     IE_ASSERT(mv::DType("Default") == mvDType);
-    const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, mvQuantParams, opName);
+    const auto mcmScaleOutput = mcmModel.scale(mcmData, mcmWeights, mvDType, initialQuantParams(), opName);
 
     registerOutputs(scale, {mcmScaleOutput}, mcmOutputsMap);
 }
@@ -600,10 +592,9 @@ void convert(std::shared_ptr<ngraph::op::v0::Concat> concat, mv::OpModel& mcmMod
     const auto ieLayout = ie::TensorDesc::getLayoutByDims(concat->input(0).get_shape());
     std::string mcmAxis = getDimLabel(concat->get_axis(), ieLayout);
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(concat);
     const auto& opName = concat->get_friendly_name();
 
-    const auto mcmConcatOutput = mcmModel.concat(mcmInputs, mcmAxis, mvDType, mvQuantParams, opName);
+    const auto mcmConcatOutput = mcmModel.concat(mcmInputs, mcmAxis, mvDType, initialQuantParams(), opName);
     registerOutputs(concat, {mcmConcatOutput}, mcmOutputsMap);
 }
 
@@ -612,7 +603,6 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
     IE_ASSERT(2 ==  mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& mvQuantParams = McmOpAttrs::getQuantParams(permute);
     const auto& opName = permute->get_friendly_name();
 
     std::shared_ptr<ngraph::Node> orderNode = permute->input(1).get_source_output().get_node_shared_ptr();
@@ -628,13 +618,13 @@ void convert(std::shared_ptr<ngraph::op::v1::Transpose> permute, mv::OpModel& mc
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    auto mcmPermuteOutput = mcmModel.permute(mcmData, mv::Order(newOrder), mvDType, mvQuantParams, opName);
+    auto mcmPermuteOutput = mcmModel.permute(mcmData, mv::Order(newOrder), mvDType, initialQuantParams(), opName);
 
     // Workaround to avoid parsing stage crash:
     // 'ArgumentError: attribute identifer quantParams - Undefined identifier'
     // [Track number: D#2284, D#2237]
     // TBD
-    mcmPermuteOutput->set<mv::QuantizationParams>("quantParams", mvQuantParams);
+    mcmPermuteOutput->set<mv::QuantizationParams>("quantParams", initialQuantParams());
 
     registerOutputs(permute, {mcmPermuteOutput}, mcmOutputsMap);
 }
@@ -644,7 +634,6 @@ void convert(std::shared_ptr<ngraph::op::v0::Squeeze> reshape, mv::OpModel& mcmM
     IE_ASSERT(2 ==  mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reshape);
     const auto& opName = reshape->get_friendly_name();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
@@ -653,7 +642,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Squeeze> reshape, mv::OpModel& mcmM
 
     mv::Shape newShape = getWHCN(reshape->get_shape());
 
-    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, inputQuantParams, opName);
+    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, initialQuantParams(), opName);
     registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
 }
 
@@ -662,7 +651,6 @@ void convert(std::shared_ptr<ngraph::op::v0::Unsqueeze> reshape, mv::OpModel& mc
     IE_ASSERT(2 ==  mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reshape);
     const auto& opName = reshape->get_friendly_name();
 
     for (size_t i = 1; i < mcmInputs.size(); i++) {
@@ -671,7 +659,7 @@ void convert(std::shared_ptr<ngraph::op::v0::Unsqueeze> reshape, mv::OpModel& mc
 
     mv::Shape newShape = getWHCN(reshape->get_shape());
 
-    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, inputQuantParams, opName);
+    auto mcmReshapeOutput = mcmModel.reshape(mcmData, newShape, mvDType, initialQuantParams(), opName);
     registerOutputs(reshape, {mcmReshapeOutput}, mcmOutputsMap);
 }
 
@@ -681,13 +669,12 @@ void convert(std::shared_ptr<ngraph::op::v1::Softmax> softmax, mv::OpModel& mcmM
     IE_ASSERT(1 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(softmax);
     const auto& opName = softmax->get_friendly_name();
 
     std::string order = McmOpAttrs::getOrder(softmax, 0).toString();
     std::string mcmAxis = std::string(1, order.at(softmax->get_axis()));
 
-    auto mcmSoftmaxOutput = mcmModel.softmax(mcmData, mcmAxis, mvDType, inputQuantParams, opName);
+    auto mcmSoftmaxOutput = mcmModel.softmax(mcmData, mcmAxis, mvDType, initialQuantParams(), opName);
     registerOutputs(softmax, {mcmSoftmaxOutput}, mcmOutputsMap);
 }
 
@@ -696,29 +683,27 @@ void convert(std::shared_ptr<ngraph::op::v0::Clamp> clamp, mv::OpModel& mcmModel
     IE_ASSERT(1 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(clamp);
     const auto& opName = clamp->get_friendly_name();
     const double minValue = clamp->get_min();
     const double maxValue = clamp->get_max();
 
-    auto mcmClampMin = mcmModel.minimum(mcmData, maxValue, mvDType, inputQuantParams, opName + "clamp-min");
-    auto mcmClampMax = mcmModel.maximum(mcmClampMin, minValue, mvDType, inputQuantParams, opName+ "clamp-max");
+    auto mcmClampMin = mcmModel.minimum(mcmData, maxValue, mvDType, initialQuantParams(), opName + "clamp-min");
+    auto mcmClampMax = mcmModel.maximum(mcmClampMin, minValue, mvDType, initialQuantParams(), opName+ "clamp-max");
     registerOutputs(clamp, {mcmClampMax}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::ReLUIE> relu, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(relu, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(relu);
     const auto& opName = relu->get_friendly_name();
     const float slope = relu->get_slope();
 
     IE_ASSERT(mv::DType("Default") == mvDType);
     if (std::fabs(slope) < std::numeric_limits<float>::epsilon()) {
-        const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, inputQuantParams, opName);
+        const auto mcmReluOutput = mcmModel.relu(mcmData, mvDType, initialQuantParams(), opName);
         registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
     } else {
-        const auto mcmReluOutput = mcmModel.leakyRelu(mcmData, slope, mvDType, inputQuantParams, opName);
+        const auto mcmReluOutput = mcmModel.leakyRelu(mcmData, slope, mvDType, initialQuantParams(), opName);
         registerOutputs(relu, {mcmReluOutput}, mcmOutputsMap);
     }
 }
@@ -727,7 +712,6 @@ void convert(std::shared_ptr<ngraph::op::v0::ROIPooling> roipool, mv::OpModel& m
     auto mcmInputs = getMcmInputs(roipool, mcmOutputsMap);
     IE_ASSERT(2 == mcmInputs.size());
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(roipool);
     const auto& opName = roipool->get_friendly_name();
     const double spatial_scale = roipool->get_spatial_scale();
     const std::string method = roipool->get_method();
@@ -737,7 +721,7 @@ void convert(std::shared_ptr<ngraph::op::v0::ROIPooling> roipool, mv::OpModel& m
     unsigned pooled_w = roipool->get_output_shape(0)[3];
 
     const auto roipoolOutput = mcmModel.rOIPooling(mcmInputs, pooled_w, pooled_h, spatial_scale, roi_pooling_method, num_rois,
-        mvDType, inputQuantParams, opName);
+        mvDType, initialQuantParams(), opName);
     registerOutputs(roipool, {roipoolOutput}, mcmOutputsMap);
 }
 
@@ -745,7 +729,6 @@ void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmM
     const auto mcmInputs = getMcmInputs(priorbox, mcmOutputsMap);
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(priorbox);
     const auto& opName = priorbox->get_friendly_name();
     const auto attrs = priorbox->get_attrs();
     // min_size         Desired min_size of prior boxes
@@ -773,7 +756,7 @@ void convert(std::shared_ptr<ngraph::op::PriorBoxIE> priorbox, mv::OpModel& mcmM
 
     auto boxes = vpu::KmbPlugin::utils::computePriorbox(param);
     auto priorboxOutput = mcmModel.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"),
-        inputQuantParams, opName + "_const");
+            initialQuantParams(), opName + "_const");
 
     registerOutputs(priorbox, {priorboxOutput}, mcmOutputsMap);
 }
@@ -817,7 +800,6 @@ void convert(std::shared_ptr<ngraph::op::PriorBoxClusteredIE> pbc, mv::OpModel& 
         img_height, num_priors, attrs.widths, attrs.heights, variances, size};
 
     auto boxes = vpu::KmbPlugin::utils::computePriorboxClustered(param);
-   // auto priorboxClustered = mcmModel.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"), opName + "_const");
     auto priorboxClustered =
             mcmModel.constant(boxes, {boxes.size() / 2, 2, 1, 1}, mv::DType("Float64"), mv::Order("NHWC"));
 
@@ -829,7 +811,6 @@ void convert(std::shared_ptr<ngraph::op::v0::NormalizeL2> normL2, mv::OpModel& m
     IE_ASSERT(mcmInputs.size() == 2);
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(normL2);
     const auto& opName = normL2->get_friendly_name();
 
     double eps = normL2->get_eps();
@@ -850,23 +831,20 @@ void convert(std::shared_ptr<ngraph::op::v0::NormalizeL2> normL2, mv::OpModel& m
     auto mvWeightsValues = mcmModel.constant(weightsData, weightsShape, mv::DType("Float32"), mv::Order::getZMajorID(4));
 
     auto mvNormalizeOutput = mcmModel.normalize(mcmData, mvWeightsValues, eps, across_spatial, channel_shared,
-        mvDType, inputQuantParams, opName);
+        mvDType, initialQuantParams(), opName);
     registerOutputs(normL2, {mvNormalizeOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v0::Sigmoid> sigmoid, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(sigmoid, mcmOutputsMap).at(0);
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(sigmoid); 
-    // TBD auto inputQuantParams = inputs[0]->getMcmNode()->get<mv::QuantizationParams>("quantParams");
     const auto& opName = sigmoid->get_friendly_name();
-    const auto mcmSigmoidOutput = mcmModel.sigmoid(mcmData, mv::DType("Default"), inputQuantParams, opName);
+    const auto mcmSigmoidOutput = mcmModel.sigmoid(mcmData, mv::DType("Default"), initialQuantParams(), opName);
     registerOutputs(sigmoid, {mcmSigmoidOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v0::DetectionOutput> detection, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmInputs = getMcmInputs(detection, mcmOutputsMap);
     IE_ASSERT(mcmInputs.size() == 3);
-    const auto& quantParams = McmOpAttrs::getQuantParams(detection);
     const auto& opName = detection->get_friendly_name();
     const auto attrs = detection->get_attrs();
     // int num_classes;
@@ -891,7 +869,7 @@ void convert(std::shared_ptr<ngraph::op::v0::DetectionOutput> detection, mv::OpM
     auto mcmDetectionOutput = mcmModel.detectionOutput(mcmInputs, attrs.num_classes, keep_top_k, attrs.nms_threshold,
         attrs.background_label_id, attrs.top_k, attrs.variance_encoded_in_target, attrs.code_type, attrs.share_location, attrs.confidence_threshold,
         attrs.clip_before_nms, attrs.clip_after_nms, attrs.decrease_label_id, attrs.normalized, attrs.input_height, attrs.input_width, attrs.objectness_score,
-        mv::DType("Default"), quantParams, opName);
+        mv::DType("Default"), initialQuantParams(), opName);
 
     registerOutputs(detection, {mcmDetectionOutput}, mcmOutputsMap);
 }
@@ -899,22 +877,20 @@ void convert(std::shared_ptr<ngraph::op::v0::DetectionOutput> detection, mv::OpM
 void convert(std::shared_ptr<ngraph::op::v0::ReorgYolo> reorg, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(reorg, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(reorg);
     const auto& opName = reorg->get_friendly_name();
     const std::size_t stride = reorg->get_strides().at(0);
 
-    for (auto&& s : reorg->get_strides()) {
+    for (const auto& s : reorg->get_strides()) {
         IE_ASSERT(stride == s);
     }
 
-    const auto mcmReorgYoloOutput = mcmModel.reorgYolo(mcmData, static_cast<unsigned>(stride), mvDType, inputQuantParams, opName);
+    const auto mcmReorgYoloOutput = mcmModel.reorgYolo(mcmData, static_cast<unsigned>(stride), mvDType, initialQuantParams(), opName);
     registerOutputs(reorg, {mcmReorgYoloOutput}, mcmOutputsMap);
 }
 
 void convert(std::shared_ptr<ngraph::op::v0::RegionYolo> region, mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap) {
     const auto mcmData = getMcmInputs(region, mcmOutputsMap).at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(region);
     const auto& opName = region->get_friendly_name();
     const std::size_t coords = region->get_num_coords();
     const std::size_t classes = region->get_num_classes();
@@ -930,7 +906,7 @@ void convert(std::shared_ptr<ngraph::op::v0::RegionYolo> region, mv::OpModel& mc
         do_softmax,
         static_cast<unsigned>(num),
         mcmMask,
-        mvDType, inputQuantParams, opName);
+        mvDType, initialQuantParams(), opName);
     registerOutputs(region, {mcmRegionYoloOutput}, mcmOutputsMap);
 }
 
@@ -938,7 +914,6 @@ void convert(std::shared_ptr<ngraph::op::v1::TopK> topk, mv::OpModel& mcmModel, 
     const auto mcmInputs = getMcmInputs(topk, mcmOutputsMap);
     IE_ASSERT(2 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
-    const auto& inputQuantParams = makeQuantParams();
     const auto& opName = topk->get_friendly_name();
     uint64_t axis = topk->get_axis();
     std::string mode = ngraph::as_string<ngraph::op::v1::TopK::Mode>(topk->get_mode());
@@ -953,7 +928,7 @@ void convert(std::shared_ptr<ngraph::op::v1::TopK> topk, mv::OpModel& mcmModel, 
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    const auto mcmTopKOutput = mcmModel.topK(mcmData, sort, mode, k, axis, mv::DType("Default"), makeQuantParams(), opName);
+    const auto mcmTopKOutput = mcmModel.topK(mcmData, sort, mode, k, axis, mv::DType("Default"), initialQuantParams(), opName);
 
     auto topKOp = mcmModel.getSourceOp(mcmTopKOutput);
     const auto outputSlots = topKOp->outputSlots();
@@ -970,7 +945,6 @@ void convert(std::shared_ptr<ngraph::op::TopKIE> topk, mv::OpModel& mcmModel, No
     const auto mcmInputs = getMcmInputs(topk, mcmOutputsMap);
     IE_ASSERT(2 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
-    const auto& inputQuantParams = makeQuantParams();
     const auto& opName = topk->get_friendly_name();
     uint64_t axis = topk->get_axis();
     std::string mode = ngraph::as_string<ngraph::op::v1::TopK::Mode>(topk->get_mode());
@@ -985,7 +959,7 @@ void convert(std::shared_ptr<ngraph::op::TopKIE> topk, mv::OpModel& mcmModel, No
         mcmModel.removeOp(mcmModel.getSourceOp(mcmInputs.at(i)));
     }
 
-    const auto mcmTopKOutput = mcmModel.topK(mcmData, sort, mode, k, axis, mv::DType("Default"), makeQuantParams(), opName);
+    const auto mcmTopKOutput = mcmModel.topK(mcmData, sort, mode, k, axis, mv::DType("Default"), initialQuantParams(), opName);
 
     auto topKOp = mcmModel.getSourceOp(mcmTopKOutput);
     const auto outputSlots = topKOp->outputSlots();
@@ -1008,10 +982,9 @@ void convert(std::shared_ptr<ngraph::op::ResampleV2> resample, mv::OpModel& mcmM
     const auto mcmInputs = getMcmInputs(resample, mcmOutputsMap);
     IE_ASSERT(1 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
-    const auto& inputQuantParams = makeQuantParams();
     const auto& opName = resample->get_friendly_name();
-    auto antialias = false;
-    auto resampleAttrs = resample->get_attrs();
+    const auto antialias = false;
+    const auto& resampleAttrs = resample->get_attrs();
     std::string mode = "nearest";
     if (resampleAttrs.mode != "") {
         mode = resampleAttrs.mode;
@@ -1019,7 +992,7 @@ void convert(std::shared_ptr<ngraph::op::ResampleV2> resample, mv::OpModel& mcmM
 
     mv::Shape output_shape = getWHCN(resample->get_output_shape(0));
     auto mcmResampleOutput = mcmModel.resample(mcmData, interpolationMap.at(mode), antialias,
-                                              output_shape, mv::DType("Default"), inputQuantParams, opName);
+                                              output_shape, mv::DType("Default"), initialQuantParams(), opName);
 
     registerOutputs(resample, {mcmResampleOutput}, mcmOutputsMap);
 }
@@ -1028,7 +1001,6 @@ void convert(std::shared_ptr<ngraph::op::Interp> interp, mv::OpModel& mcmModel, 
     const auto mcmInputs = getMcmInputs(interp, mcmOutputsMap);
     IE_ASSERT(1 == mcmInputs.size());
     const auto mcmData = mcmInputs.at(0);
-    const auto& inputQuantParams = makeQuantParams();
     const auto& opName = interp->get_friendly_name();
     auto interpAttrs = interp->get_attrs();
     auto factor = interpAttrs.scale_factor;
@@ -1039,7 +1011,7 @@ void convert(std::shared_ptr<ngraph::op::Interp> interp, mv::OpModel& mcmModel, 
     auto align_corners = interpAttrs.align_corners;
 
     auto mcmInterpOutput = mcmModel.interp(mcmData, factor, pad_begin, pad_end, height, width, align_corners,
-                                     mv::DType("Default"), inputQuantParams, opName);
+                                     mv::DType("Default"), initialQuantParams(), opName);
     registerOutputs(interp, {mcmInterpOutput}, mcmOutputsMap);
 }
 
@@ -1049,7 +1021,6 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     IE_ASSERT(mcmInputs.size() == 2);
     const auto mcmData = mcmInputs.at(0);
     const auto mvDType = mv::DType("Default");
-    const auto& inputQuantParams = McmOpAttrs::getQuantParams(normalizeIE);
     const auto& opName = normalizeIE->get_friendly_name();
 
     double eps = normalizeIE->get_eps();
@@ -1070,7 +1041,7 @@ void convert(std::shared_ptr<ngraph::op::NormalizeIE> normalizeIE, mv::OpModel& 
     auto mvWeightsValues = mcmModel.constant(weightsData, weightsShape, mv::DType("Float32"), mv::Order::getZMajorID(4));
 
     auto mvNormalizeOutput = mcmModel.normalize(mcmData, mvWeightsValues, eps, across_spatial, channel_shared,
-                                                mvDType, inputQuantParams, opName);
+                                                mvDType, initialQuantParams(), opName);
     registerOutputs(normalizeIE, {mvNormalizeOutput}, mcmOutputsMap);
 }
 
@@ -1168,7 +1139,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
     // Therefore plugin must reorder them manually to follow IE CNNNetwork
     // Also propagate IE input/output precision/layout to MCM, so conversion will be done on hardware.
 
-    for (auto&& inputInfo : _networkInputs) {
+    for (const auto& inputInfo : _networkInputs) {
         bool isFound = false;
         for (const auto& op : func->get_parameters()) {
             if (op->get_friendly_name() == _ioMap.at(inputInfo.first)) {
@@ -1188,7 +1159,7 @@ bool ConvertToMcmModel::run_on_function(std::shared_ptr<ngraph::Function> func) 
         ConvertNode(op, _mcmModel, _mcmOutputsMap, nullptr);
     }
 
-    for (auto&& outputInfo : _networkOutputs) {
+    for (const auto& outputInfo : _networkOutputs) {
         bool isFound = false;
         for (const auto& op : func->get_results()) {
             if (op->get_friendly_name() == _ioMap.at(outputInfo.first)) {

@@ -48,23 +48,6 @@ std::string cvtLogLevelToMCM(vpu::LogLevel lvl) {
     }
 }
 
-mv::QuantizationParams makeQuantParams() {
-    static const auto INITIAL_QUANT_PARAMS = makeQuantParams({0}, {1.0});
-    return INITIAL_QUANT_PARAMS;
-}
-
-mv::QuantizationParams makeQuantParams(const std::vector<int64_t>& zeroPoints, const std::vector<double>& scales) {
-    constexpr double INF_FP64 = std::numeric_limits<double>::infinity();
-    if (1 == zeroPoints.size() && 1 < scales.size()) {
-        std::vector<int64_t> new_zp(scales.size(), zeroPoints[0]);
-        return mv::QuantizationParams(new_zp, scales, {-INF_FP64}, {INF_FP64});
-    } else {
-        IE_ASSERT(zeroPoints.size() == scales.size());
-        return mv::QuantizationParams(zeroPoints, scales, {-INF_FP64}, {INF_FP64});
-    }
-}
-
-
 mv::DType cvtOutputType(const ngraph::element::Type& elemType)
 {
     if (ngraph::element::f32 == elemType)

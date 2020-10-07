@@ -49,14 +49,6 @@ void McmOpAttrs::copy(std::shared_ptr<ngraph::Node> src_node, std::shared_ptr<ng
     dst_node->set_op_annotations(attrs);
 }
 
-const mv::QuantizationParams& McmOpAttrs::getQuantParams(std::shared_ptr<ngraph::Node> node) {
-    return get(node)._mvQuantParams;
-}
-
-void McmOpAttrs::setQuantParams(const mv::QuantizationParams& quantParams, std::shared_ptr<ngraph::Node> node) {
-    get(node)._mvQuantParams = quantParams;
-}
-
 const mv::Order& McmOpAttrs::getOrder(std::shared_ptr<ngraph::Node> node, size_t outInd) {
     auto& attrs = get(node);
 
