@@ -32,9 +32,9 @@
 class ConvertToMcmModel final : public ngraph::pass::FunctionPass {
 public:
     ConvertToMcmModel(mv::OpModel& mcmModel, NodeOutputToMcmMap& mcmOutputsMap,
-                      InferenceEngine::InputsDataMap networkInputs,
-                      InferenceEngine::OutputsDataMap networkOutputs,
-                      std::map<std::string, std::string> ioMap) :
+                      const InferenceEngine::InputsDataMap& networkInputs,
+                      const InferenceEngine::OutputsDataMap& networkOutputs,
+                      const std::map<std::string, std::string>& ioMap) :
             _mcmModel(mcmModel), _mcmOutputsMap(mcmOutputsMap),
             _networkInputs(networkInputs), _networkOutputs(networkOutputs), _ioMap(ioMap) {
     }
